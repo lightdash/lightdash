@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     type ApiError,
     type ApiSavedChartPaginatedSchedulersResponse,
     type ItemsMap,
@@ -25,9 +26,11 @@ import RunDetailsModal from '../../../components/SchedulersView/RunDetailsModal'
 import { useGetSlackChannelName } from '../../../hooks/slack/useGetSlackChannelName';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useFetchRunLogs } from '../hooks/useScheduler';
 import { States } from '../utils';
 import { SchedulerModalCreateOrEdit } from './SchedulerModalCreateOrEdit';
+import { SchedulerModalCreateOrEditV2 } from './SchedulerModalCreateOrEditV2';
 import SchedulerRunsHistoryModal from './SchedulerRunsHistoryModal';
 import SchedulersList from './SchedulersList';
 
@@ -69,6 +72,7 @@ const SchedulersModal: FC<
         onSearchQueryChange?: (searchQuery: string | undefined) => void;
     }
 > = ({
+    name,
     resourceUuid,
     schedulersQuery,
     createMutation,
@@ -101,6 +105,10 @@ const SchedulersModal: FC<
         null,
     );
     const { activeProjectUuid } = useActiveProjectUuid();
+    const { data: redesignFlag } = useServerFeatureFlag(
+        FeatureFlags.SchedulerRedesign,
+    );
+    const useRedesign = redesignFlag?.enabled === true;
     const [selectedRun, setSelectedRun] = useState<SchedulerRun | null>(null);
     const [childLogsMap, setChildLogsMap] = useState<
         Map<string, SchedulerRunLog[]>
@@ -274,25 +282,30 @@ const SchedulersModal: FC<
     }
 
     if (modalState === States.EDIT || modalState === States.CREATE) {
-        return (
-            <SchedulerModalCreateOrEdit
-                resourceUuid={resourceUuid}
-                schedulerUuidToEdit={
-                    modalState === States.EDIT ? schedulerUuidToEdit : undefined
-                }
-                initialFormValues={
-                    modalState === States.CREATE ? initialFormValues : undefined
-                }
-                createMutation={createMutation}
-                onClose={onClose}
-                onBack={() => setModalState(States.LIST)}
-                isChart={isChart}
-                isApp={isApp}
-                isThresholdAlert={isThresholdAlert}
-                itemsMap={itemsMap}
-                currentParameterValues={currentParameterValues}
-                availableParameters={availableParameters}
+        const createOrEditProps = {
+            resourceUuid,
+            schedulerUuidToEdit:
+                modalState === States.EDIT ? schedulerUuidToEdit : undefined,
+            initialFormValues:
+                modalState === States.CREATE ? initialFormValues : undefined,
+            createMutation,
+            onClose,
+            onBack: () => setModalState(States.LIST),
+            isChart,
+            isApp,
+            isThresholdAlert,
+            itemsMap,
+            currentParameterValues,
+            availableParameters,
+        } as const;
+
+        return useRedesign ? (
+            <SchedulerModalCreateOrEditV2
+                {...createOrEditProps}
+                resourceName={name}
             />
+        ) : (
+            <SchedulerModalCreateOrEdit {...createOrEditProps} />
         );
     }
 

@@ -1,0 +1,335 @@
+import {
+    type ApiError,
+    type CreateSchedulerAndTargetsWithoutIds,
+    type ItemsMap,
+    type ParameterDefinitions,
+    type ParametersValuesMap,
+    type SchedulerAndTargets,
+} from '@lightdash/common';
+import {
+    Box,
+    Button,
+    Group,
+    Loader,
+    Modal,
+    Paper,
+    Stack,
+    Text,
+    Tooltip,
+} from '@mantine-8/core';
+import { IconBell, IconSend } from '@tabler/icons-react';
+import { type UseMutationResult } from '@tanstack/react-query';
+import { useMemo, useState, type FC } from 'react';
+import ErrorState from '../../../components/common/ErrorState';
+import MantineIcon from '../../../components/common/MantineIcon';
+import DocumentationHelpButton from '../../../components/DocumentationHelpButton';
+import { useAiAgentButtonVisibility } from '../../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
+import { useSchedulerFormModal } from '../hooks/useSchedulerFormModal';
+import {
+    getVisibleSections,
+    SCHEDULER_SECTIONS,
+    type SchedulerSectionId,
+} from './SchedulerForm/layout/navSections';
+import classes from './SchedulerForm/layout/SchedulerDeliveryModal.module.css';
+import { SchedulerDeliveryNav } from './SchedulerForm/layout/SchedulerDeliveryNav';
+import { SchedulerPreviewPanel } from './SchedulerForm/layout/SchedulerPreviewPanel';
+import { SchedulerScheduleSection } from './SchedulerForm/layout/SchedulerScheduleSection';
+import { SchedulerSectionPlaceholder } from './SchedulerForm/layout/SchedulerSectionPlaceholder';
+import {
+    SchedulerFormProvider,
+    type SchedulerFormValues,
+} from './SchedulerForm/schedulerFormContext';
+
+interface Props {
+    resourceUuid: string;
+    resourceName?: string;
+    createMutation: UseMutationResult<
+        SchedulerAndTargets,
+        ApiError,
+        { resourceUuid: string; data: CreateSchedulerAndTargetsWithoutIds }
+    >;
+    onClose: () => void;
+    onBack: () => void;
+    isChart?: boolean;
+    isApp?: boolean;
+    isThresholdAlert?: boolean;
+    itemsMap?: ItemsMap;
+    currentParameterValues?: ParametersValuesMap;
+    availableParameters?: ParameterDefinitions;
+    /** undefined = create mode, string = edit mode */
+    schedulerUuidToEdit: string | undefined;
+    /** Create-mode only: pre-fills the new delivery. */
+    initialFormValues?: Partial<SchedulerFormValues>;
+}
+
+export const SchedulerModalCreateOrEditV2: FC<Props> = ({
+    resourceUuid,
+    resourceName,
+    createMutation,
+    schedulerUuidToEdit,
+    initialFormValues,
+    isChart = false,
+    isApp,
+    isThresholdAlert,
+    itemsMap,
+    currentParameterValues,
+    onClose,
+    onBack,
+}) => {
+    const isAiVisible = useAiAgentButtonVisibility();
+
+    const {
+        isEditMode,
+        isLoading,
+        error,
+        isLoadingSendNow,
+        isMutating,
+        handleSubmit,
+        handleSendNow,
+        confirmText,
+        form,
+        dashboard,
+        isThresholdAlertWithNoFields,
+        requiredFiltersWithoutValues,
+    } = useSchedulerFormModal({
+        schedulerUuid: schedulerUuidToEdit,
+        resourceUuid,
+        isChart,
+        isApp,
+        isThresholdAlert,
+        createMutation,
+        onBack,
+        itemsMap,
+        currentParameterValues,
+        initialFormValues,
+    });
+
+    const sections = useMemo(
+        () =>
+            getVisibleSections({
+                isThresholdAlert: !!isThresholdAlert,
+                isAiVisible,
+            }),
+        [isThresholdAlert, isAiVisible],
+    );
+
+    const [activeSection, setActiveSection] = useState<SchedulerSectionId>(
+        sections[0],
+    );
+    const activeMeta = SCHEDULER_SECTIONS[activeSection];
+
+    const hasRecipient = Boolean(
+        (form.values.emailTargets?.length || 0) +
+        (form.values.slackTargets?.length || 0) +
+        (form.values.msTeamsTargets?.length || 0) +
+        (form.values.googleChatTargets?.length || 0),
+    );
+
+    const dots = useMemo(
+        () => ({
+            ...(hasRecipient ? {} : { recipients: 'required' as const }),
+            ...(isAiVisible ? { ai: 'new' as const } : {}),
+        }),
+        [hasRecipient, isAiVisible],
+    );
+
+    const canSendNow =
+        hasRecipient && requiredFiltersWithoutValues.length === 0;
+
+    const subtitle = [
+        resourceName ?? dashboard?.name,
+        isEditMode
+            ? 'editing'
+            : isThresholdAlert
+              ? 'new alert'
+              : 'new schedule',
+    ]
+        .filter(Boolean)
+        .join(' · ');
+
+    const renderSection = () => {
+        switch (activeSection) {
+            case 'schedule':
+                return <SchedulerScheduleSection />;
+            case 'recipients':
+                return <SchedulerSectionPlaceholder label="Recipients" />;
+            case 'data':
+                return <SchedulerSectionPlaceholder label="Data & format" />;
+            case 'message':
+                return <SchedulerSectionPlaceholder label="Message" />;
+            case 'ai':
+                return <SchedulerSectionPlaceholder label="AI agent" />;
+            case 'alert':
+                return <SchedulerSectionPlaceholder label="Alert conditions" />;
+            default:
+                return null;
+        }
+    };
+
+    return (
+        <SchedulerFormProvider form={form}>
+            <Modal.Root
+                opened
+                onClose={onClose}
+                size={1080}
+                padding={0}
+                centered
+            >
+                <Modal.Overlay />
+                <Modal.Content>
+                    <div className={classes.content}>
+                        <Group
+                            className={classes.header}
+                            px="xl"
+                            py="md"
+                            justify="space-between"
+                            wrap="nowrap"
+                        >
+                            <Group gap="sm" wrap="nowrap">
+                                <Paper p="6px" withBorder radius="md">
+                                    <MantineIcon
+                                        icon={
+                                            isThresholdAlert
+                                                ? IconBell
+                                                : IconSend
+                                        }
+                                        size="md"
+                                    />
+                                </Paper>
+                                <Stack gap={0}>
+                                    <span className={classes.headerTitle}>
+                                        {isThresholdAlert
+                                            ? 'Alert'
+                                            : 'Scheduled delivery'}
+                                    </span>
+                                    {subtitle && (
+                                        <Text
+                                            size="xs"
+                                            className={classes.subtitle}
+                                        >
+                                            {subtitle}
+                                        </Text>
+                                    )}
+                                </Stack>
+                            </Group>
+                            <Group gap="xs" wrap="nowrap">
+                                <DocumentationHelpButton
+                                    href={
+                                        isThresholdAlert
+                                            ? 'https://docs.lightdash.com/guides/how-to-create-alerts'
+                                            : 'https://docs.lightdash.com/guides/how-to-create-scheduled-deliveries'
+                                    }
+                                />
+                                <Modal.CloseButton />
+                            </Group>
+                        </Group>
+
+                        {isLoading || error ? (
+                            <Box p="xl" mih={400}>
+                                {isLoading ? (
+                                    <Stack h={300} w="100%" align="center">
+                                        <Text fw={600}>Loading scheduler</Text>
+                                        <Loader size="lg" />
+                                    </Stack>
+                                ) : (
+                                    error && <ErrorState error={error.error} />
+                                )}
+                            </Box>
+                        ) : (
+                            <>
+                                <form
+                                    id="scheduler-form"
+                                    className={classes.body}
+                                    onSubmit={form.onSubmit((values) =>
+                                        handleSubmit(values),
+                                    )}
+                                >
+                                    <SchedulerDeliveryNav
+                                        sections={sections}
+                                        active={activeSection}
+                                        onSelect={setActiveSection}
+                                        dots={dots}
+                                    />
+                                    <div className={classes.center}>
+                                        <div className={classes.centerInner}>
+                                            <Stack gap="lg">
+                                                <Stack gap={2}>
+                                                    <span
+                                                        className={
+                                                            classes.sectionTitle
+                                                        }
+                                                    >
+                                                        {activeMeta.label}
+                                                    </span>
+                                                    <span
+                                                        className={
+                                                            classes.sectionDescription
+                                                        }
+                                                    >
+                                                        {activeMeta.description}
+                                                    </span>
+                                                </Stack>
+                                                {renderSection()}
+                                            </Stack>
+                                        </div>
+                                    </div>
+                                    <SchedulerPreviewPanel />
+                                </form>
+
+                                <div className={classes.footer}>
+                                    <Button variant="subtle" onClick={onBack}>
+                                        Cancel
+                                    </Button>
+                                    <Group gap="sm">
+                                        {!isThresholdAlert && (
+                                            <Button
+                                                variant="default"
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconSend}
+                                                    />
+                                                }
+                                                onClick={handleSendNow}
+                                                loading={
+                                                    isLoadingSendNow ||
+                                                    isMutating
+                                                }
+                                                disabled={!canSendNow}
+                                            >
+                                                Send once now
+                                            </Button>
+                                        )}
+                                        <Tooltip
+                                            label="Some required filters are missing values"
+                                            disabled={
+                                                requiredFiltersWithoutValues.length ===
+                                                0
+                                            }
+                                            fz="xs"
+                                        >
+                                            <Box>
+                                                <Button
+                                                    type="submit"
+                                                    form="scheduler-form"
+                                                    disabled={
+                                                        isLoadingSendNow ||
+                                                        isThresholdAlertWithNoFields ||
+                                                        requiredFiltersWithoutValues.length >
+                                                            0
+                                                    }
+                                                    loading={isMutating}
+                                                >
+                                                    {confirmText}
+                                                </Button>
+                                            </Box>
+                                        </Tooltip>
+                                    </Group>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </Modal.Content>
+            </Modal.Root>
+        </SchedulerFormProvider>
+    );
+};
