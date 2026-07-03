@@ -45,6 +45,7 @@
     border-radius: 50%;
     cursor: pointer;
     line-height: 0;
+    font: inherit;
 }
 
 .avatarEditOverlay {

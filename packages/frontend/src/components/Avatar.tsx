@@ -1,5 +1,5 @@
 import {
-    generateAvatarMeshBackgroundImage,
+    generateAvatarMeshBackground,
     generateAvatarMeshBorderColor,
     getAvatarMeshClassName,
     getAvatarSolidClassName,
@@ -7,8 +7,12 @@ import {
     getHexFromSolidColor,
     hexToRgba,
     isHexColorString,
+    isMeshColorString,
     isSolidColorString,
     isUserAvatarGradientId,
+    parseMeshColor,
+    type AvatarMeshVibe,
+    type HexColor,
     type UserAvatarColorValue,
 } from '@lightdash/common';
 import { Avatar, type AvatarProps } from '@mantine-8/core';
@@ -73,16 +77,26 @@ export const LightdashUserAvatar = forwardRef<HTMLDivElement, Props>(
                 />
             );
         }
-        if (userUuid && avatarGradient && isHexColorString(avatarGradient)) {
-            const meshClassName = getAvatarMeshClassName(avatarGradient);
-            const textColor = getContrastTextColor(avatarGradient);
+        const mesh: { hex: HexColor; vibe: AvatarMeshVibe } | null =
+            userUuid && avatarGradient && isHexColorString(avatarGradient)
+                ? { hex: avatarGradient, vibe: 0 }
+                : userUuid &&
+                    avatarGradient &&
+                    isMeshColorString(avatarGradient)
+                  ? parseMeshColor(avatarGradient)
+                  : null;
+        if (mesh) {
+            const meshClassName = getAvatarMeshClassName(mesh.hex, mesh.vibe);
+            const textColor = getContrastTextColor(mesh.hex);
+            const background = generateAvatarMeshBackground(
+                mesh.hex,
+                mesh.vibe,
+            );
             return (
                 <Fragment>
                     <style>
-                        {`.${classes.root}[data-avatar-gradient='custom'] .${classes.placeholder}.${meshClassName} { background-image: ${generateAvatarMeshBackgroundImage(
-                            avatarGradient,
-                        )}; box-shadow: inset 0 0 3px ${generateAvatarMeshBorderColor(
-                            avatarGradient,
+                        {`.${classes.root}[data-avatar-gradient='custom'] .${classes.placeholder}.${meshClassName} { background-image: ${background.backgroundImage}; background-blend-mode: ${background.backgroundBlendMode}; background-size: ${background.backgroundSize}; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35), inset 0 0 3px ${generateAvatarMeshBorderColor(
+                            mesh.hex,
                         )}; color: ${textColor}; }`}
                     </style>
                     <Avatar

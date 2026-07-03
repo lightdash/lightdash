@@ -1,3 +1,5 @@
+import assertUnreachable from '../utils/assertUnreachable';
+
 export const USER_AVATAR_GRADIENT_IDS = [
     'lilac',
     'blush',
@@ -51,14 +53,43 @@ export const toSolidColor = (hex: HexColor): SolidColor => `solid:${hex}`;
 export const getHexFromSolidColor = (value: SolidColor): HexColor =>
     value.slice('solid:'.length);
 
-/* A curated preset id, a user-picked custom mesh hex color, or a flat solid hex color. */
-export type UserAvatarColorValue = UserAvatarGradientId | HexColor | SolidColor;
+export const AVATAR_MESH_VIBES = [0, 1, 2, 3] as const;
+
+export type AvatarMeshVibe = (typeof AVATAR_MESH_VIBES)[number];
+
+const MESH_COLOR_REGEX = /^mesh:[0-3]:#[0-9a-fA-F]{6}$/;
+
+export type MeshColor = string;
+
+export const isMeshColorString = (value: string): value is MeshColor =>
+    MESH_COLOR_REGEX.test(value);
+
+export const toMeshColor = (hex: HexColor, vibe: AvatarMeshVibe): MeshColor =>
+    `mesh:${vibe}:${hex}`;
+
+export const parseMeshColor = (
+    value: MeshColor,
+): { vibe: AvatarMeshVibe; hex: HexColor } => ({
+    vibe: Number(
+        value.slice('mesh:'.length, 'mesh:'.length + 1),
+    ) as AvatarMeshVibe,
+    hex: value.slice('mesh:0:'.length),
+});
+
+/* A curated preset id, a custom mesh hex color (bare hex = vibe 0, or
+   mesh:<vibe>:#hex), or a flat solid hex color. */
+export type UserAvatarColorValue =
+    | UserAvatarGradientId
+    | HexColor
+    | MeshColor
+    | SolidColor;
 
 export const isUserAvatarColorValue = (
     value: string,
 ): value is UserAvatarColorValue =>
     isUserAvatarGradientId(value) ||
     isHexColorString(value) ||
+    isMeshColorString(value) ||
     isSolidColorString(value);
 
 type Hsl = { h: number; s: number; l: number };
@@ -129,10 +160,12 @@ export const hexToRgba = (hex: HexColor, alpha: number): string => {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
-/* Generates the same "paint splatter" mesh recipe used by the curated
-   gradients (bright corner, subtle opposite corner, two saturated spots,
-   diagonal wash) but parameterized from an arbitrary base hex color. */
-export const generateAvatarMeshBackgroundImage = (hex: HexColor): string => {
+/* Tiling SVG fractal-noise tile blended soft-light over the mesh for a film-grain finish. */
+const GRAIN_LAYER = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`;
+
+/* The original "paint splatter" recipe (bright corner, subtle opposite
+   corner, two saturated spots, diagonal wash). */
+const splatterMesh = (hex: HexColor): string => {
     const spotA = shiftHsl(hex, { hueShift: 24, satShift: 15, lightShift: 0 });
     const spotB = shiftHsl(hex, {
         hueShift: -24,
@@ -149,11 +182,106 @@ export const generateAvatarMeshBackgroundImage = (hex: HexColor): string => {
     ].join(', ');
 };
 
+/* Soft off-center dome of lightened base over an analogous halo, vertical wash. */
+const bloomMesh = (hex: HexColor): string => {
+    const dome = shiftHsl(hex, { satShift: 8, lightShift: 18 });
+    const halo = shiftHsl(hex, { hueShift: 20, satShift: 12, lightShift: -4 });
+    const washLight = shiftHsl(hex, { satShift: -15, lightShift: 30 });
+    return [
+        'radial-gradient(circle at 30% 12%, rgba(255, 255, 255, 0.55) 0%, transparent 45%)',
+        `radial-gradient(circle at 50% 36%, ${dome} 0%, transparent 65%)`,
+        `radial-gradient(circle at 62% 78%, ${halo} 0%, transparent 60%)`,
+        `linear-gradient(180deg, ${washLight} 0%, ${hex} 100%)`,
+    ].join(', ');
+};
+
+/* Three saturated spots pinned near triangle corners with wide overlapping
+   falloffs, no white highlight — the classic mesh-gradient look. */
+const cornersMesh = (hex: HexColor): string => {
+    const spotA = shiftHsl(hex, { hueShift: 30, satShift: 18, lightShift: 6 });
+    const spotB = shiftHsl(hex, {
+        hueShift: -30,
+        satShift: 14,
+        lightShift: -4,
+    });
+    const spotC = shiftHsl(hex, { satShift: 20, lightShift: 14 });
+    const washDark = shiftHsl(hex, { satShift: 6, lightShift: -18 });
+    return [
+        `radial-gradient(circle at 18% 20%, ${spotA} 0%, transparent 55%)`,
+        `radial-gradient(circle at 82% 24%, ${spotB} 0%, transparent 52%)`,
+        `radial-gradient(circle at 50% 88%, ${spotC} 0%, transparent 55%)`,
+        `linear-gradient(315deg, ${washDark} 0%, ${hex} 100%)`,
+    ].join(', ');
+};
+
+/* Two large opposing radials of the base and a hue-drifted twin bleeding
+   into each other diagonally, plus a small white glint. */
+const duotoneDriftMesh = (hex: HexColor): string => {
+    const driftA = shiftHsl(hex, { satShift: 12, lightShift: 10 });
+    const driftB = shiftHsl(hex, {
+        hueShift: 42,
+        satShift: 10,
+        lightShift: -2,
+    });
+    const washDeep = shiftHsl(hex, { hueShift: 20, lightShift: -14 });
+    return [
+        'radial-gradient(circle at 78% 15%, rgba(255, 255, 255, 0.8) 0%, transparent 22%)',
+        `radial-gradient(circle at 22% 25%, ${driftA} 0%, transparent 70%)`,
+        `radial-gradient(circle at 80% 78%, ${driftB} 0%, transparent 72%)`,
+        `linear-gradient(120deg, ${hex} 0%, ${washDeep} 100%)`,
+    ].join(', ');
+};
+
+export const generateAvatarMeshBackgroundImage = (
+    hex: HexColor,
+    vibe: AvatarMeshVibe = 0,
+): string => {
+    switch (vibe) {
+        case 0:
+            return splatterMesh(hex);
+        case 1:
+            return bloomMesh(hex);
+        case 2:
+            return cornersMesh(hex);
+        case 3:
+            return duotoneDriftMesh(hex);
+        default:
+            return assertUnreachable(vibe, `Unknown avatar mesh vibe ${vibe}`);
+    }
+};
+
+export type AvatarMeshBackground = {
+    backgroundImage: string;
+    backgroundBlendMode: string;
+    backgroundSize: string;
+};
+
+/* Grain tile stacked on top of the mesh; blend/size lists are per-layer. */
+export const generateAvatarMeshBackground = (
+    hex: HexColor,
+    vibe: AvatarMeshVibe = 0,
+): AvatarMeshBackground => {
+    const mesh = generateAvatarMeshBackgroundImage(hex, vibe);
+    const meshLayerCount = mesh.split('-gradient(').length - 1;
+    const meshLayers = Array.from({ length: meshLayerCount });
+    return {
+        backgroundImage: `${GRAIN_LAYER}, ${mesh}`,
+        backgroundBlendMode: `soft-light, ${meshLayers
+            .map(() => 'normal')
+            .join(', ')}`,
+        backgroundSize: `96px 96px, ${meshLayers
+            .map(() => '180% 180%')
+            .join(', ')}`,
+    };
+};
+
 export const generateAvatarMeshBorderColor = (hex: HexColor): string =>
     hexToRgba(hex, 0.4);
 
-export const getAvatarMeshClassName = (hex: HexColor): string =>
-    `avatar-mesh-${hex.slice(1).toLowerCase()}`;
+export const getAvatarMeshClassName = (
+    hex: HexColor,
+    vibe: AvatarMeshVibe = 0,
+): string => `avatar-mesh-${vibe}-${hex.slice(1).toLowerCase()}`;
 
 /* Relative luminance (WCAG) decides whether initials read better in black or white. */
 export const getContrastTextColor = (hex: HexColor): 'black' | 'white' => {

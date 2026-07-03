@@ -43,6 +43,35 @@ describe('LightdashUserAvatar', () => {
         );
     });
 
+    it('renders the mesh branch for a vibe-encoded mesh value', () => {
+        renderWithProviders(
+            <LightdashUserAvatar
+                userUuid={UUID_A}
+                avatarGradient="mesh:2:#5e4cff"
+                name="Ada Lovelace"
+            />,
+        );
+        expect(
+            document.querySelector('[data-avatar-gradient="custom"]'),
+        ).toBeInTheDocument();
+        expect(
+            document.querySelector('.avatar-mesh-2-5e4cff'),
+        ).toBeInTheDocument();
+    });
+
+    it('falls back to the plain avatar for a malformed mesh value', () => {
+        renderWithProviders(
+            <LightdashUserAvatar
+                userUuid={UUID_A}
+                avatarGradient="mesh:9:#5e4cff"
+                name="Ada Lovelace"
+            />,
+        );
+        expect(
+            document.querySelector('[data-avatar-gradient]'),
+        ).not.toBeInTheDocument();
+    });
+
     it('keeps legacy color-initials behavior without a userUuid', () => {
         renderWithProviders(<LightdashUserAvatar name="Ada Lovelace" />);
         expect(

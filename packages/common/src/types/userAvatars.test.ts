@@ -1,4 +1,5 @@
 import {
+    AVATAR_MESH_VIBES,
     generateAvatarMeshBackgroundImage,
     generateAvatarMeshBorderColor,
     getAvatarMeshClassName,
@@ -7,8 +8,11 @@ import {
     getUserAvatarUrl,
     hexToRgba,
     isHexColorString,
+    isMeshColorString,
     isUserAvatarColorValue,
     isUserAvatarGradientId,
+    parseMeshColor,
+    toMeshColor,
     USER_AVATAR_GRADIENT_IDS,
 } from './userAvatars';
 
@@ -86,7 +90,36 @@ describe('isUserAvatarColorValue', () => {
     it('accepts preset ids and hex colors, rejects everything else', () => {
         expect(isUserAvatarColorValue('lilac')).toBe(true);
         expect(isUserAvatarColorValue('#5e4cff')).toBe(true);
+        expect(isUserAvatarColorValue('mesh:2:#5e4cff')).toBe(true);
         expect(isUserAvatarColorValue('not-a-color')).toBe(false);
+    });
+});
+
+describe('isMeshColorString', () => {
+    it('accepts mesh values for all vibes in both hex cases', () => {
+        expect(isMeshColorString('mesh:0:#5e4cff')).toBe(true);
+        expect(isMeshColorString('mesh:3:#5E4CFF')).toBe(true);
+    });
+
+    it('rejects invalid vibes and malformed values', () => {
+        expect(isMeshColorString('mesh:4:#5e4cff')).toBe(false);
+        expect(isMeshColorString('mesh:0:#fff')).toBe(false);
+        expect(isMeshColorString('mesh:0:5e4cff')).toBe(false);
+        expect(isMeshColorString('#5e4cff')).toBe(false);
+        expect(isMeshColorString('solid:#5e4cff')).toBe(false);
+    });
+});
+
+describe('toMeshColor / parseMeshColor', () => {
+    it('round-trips every vibe', () => {
+        AVATAR_MESH_VIBES.forEach((vibe) => {
+            const encoded = toMeshColor('#5e4cff', vibe);
+            expect(isMeshColorString(encoded)).toBe(true);
+            expect(parseMeshColor(encoded)).toEqual({
+                vibe,
+                hex: '#5e4cff',
+            });
+        });
     });
 });
 
@@ -103,6 +136,24 @@ describe('generateAvatarMeshBackgroundImage', () => {
         expect(result).toContain('radial-gradient');
         expect(result).toContain('linear-gradient');
     });
+
+    it('defaults to vibe 0 so bare hex values render unchanged', () => {
+        expect(generateAvatarMeshBackgroundImage('#5e4cff')).toBe(
+            generateAvatarMeshBackgroundImage('#5e4cff', 0),
+        );
+    });
+
+    it('produces a distinct layered recipe per vibe', () => {
+        const results = AVATAR_MESH_VIBES.map((vibe) =>
+            generateAvatarMeshBackgroundImage('#5e4cff', vibe),
+        );
+        expect(new Set(results).size).toBe(AVATAR_MESH_VIBES.length);
+        results.forEach((result) => {
+            expect(result).toContain('#5e4cff');
+            expect(result).toContain('radial-gradient');
+            expect(result).toContain('linear-gradient');
+        });
+    });
 });
 
 describe('generateAvatarMeshBorderColor', () => {
@@ -114,8 +165,11 @@ describe('generateAvatarMeshBorderColor', () => {
 });
 
 describe('getAvatarMeshClassName', () => {
-    it('derives a stable, lowercase class name from the hex color', () => {
-        expect(getAvatarMeshClassName('#5E4CFF')).toBe('avatar-mesh-5e4cff');
+    it('derives a stable, lowercase class name from the hex color and vibe', () => {
+        expect(getAvatarMeshClassName('#5E4CFF')).toBe('avatar-mesh-0-5e4cff');
+        expect(getAvatarMeshClassName('#5E4CFF', 2)).toBe(
+            'avatar-mesh-2-5e4cff',
+        );
     });
 });
 
