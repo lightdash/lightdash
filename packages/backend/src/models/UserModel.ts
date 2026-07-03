@@ -195,6 +195,18 @@ export class UserModel {
         return this.lightdashConfig.mode !== LightdashMode.CLOUD_BETA;
     }
 
+    // Per-pod eviction: other pods keep their entry until the 30s TTL expires
+    // eslint-disable-next-line class-methods-use-this
+    invalidateSessionUserCache(userUuid: string): void {
+        const cache = sessionUserCache;
+        if (!cache) return;
+        const prefix = `${userUuid}::`;
+        cache
+            .keys()
+            .filter((key) => key.startsWith(prefix))
+            .forEach((key) => cache.del(key));
+    }
+
     async getSessionUserFromCacheOrDB(
         userUuid: string,
         organizationUuid: string,
@@ -541,6 +553,7 @@ export class UserModel {
         if (isActive === false) {
             PatSessionCache.invalidate();
         }
+        this.invalidateSessionUserCache(userUuid);
         return this.getUserDetailsByUuid(userUuid);
     }
 
@@ -549,6 +562,7 @@ export class UserModel {
             .where('user_uuid', userUuid)
             .delete();
         PatSessionCache.invalidate();
+        this.invalidateSessionUserCache(userUuid);
     }
 
     async getUserProjectRoles(

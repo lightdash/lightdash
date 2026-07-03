@@ -2,6 +2,7 @@ import { type ApiError, type ApiUserAvatarResponse } from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../api';
 import { downscaleAvatarImage } from './downscaleAvatarImage';
+import { type UserWithAbility } from './useUser';
 
 const uploadAvatar = async (
     file: File,
@@ -20,8 +21,12 @@ export const useAvatarUploadMutation = () => {
     return useMutation<ApiUserAvatarResponse['results'], ApiError, File>({
         mutationKey: ['user_avatar_upload'],
         mutationFn: uploadAvatar,
-        onSuccess: async () => {
-            await queryClient.refetchQueries(['user']);
+        onSuccess: async (data) => {
+            queryClient.setQueryData<UserWithAbility>(['user'], (previous) =>
+                previous
+                    ? { ...previous, avatarUrl: data.avatarUrl }
+                    : previous,
+            );
             await queryClient.invalidateQueries(['organization_users']);
         },
     });
@@ -40,7 +45,9 @@ export const useAvatarDeleteMutation = () => {
         mutationKey: ['user_avatar_delete'],
         mutationFn: deleteAvatar,
         onSuccess: async () => {
-            await queryClient.refetchQueries(['user']);
+            queryClient.setQueryData<UserWithAbility>(['user'], (previous) =>
+                previous ? { ...previous, avatarUrl: null } : previous,
+            );
             await queryClient.invalidateQueries(['organization_users']);
         },
     });
