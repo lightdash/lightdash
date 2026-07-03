@@ -13,7 +13,7 @@ export const SchedulerMessageSection: FC = () => {
             <Group justify="space-between" wrap="nowrap" align="flex-start">
                 <Stack gap={2}>
                     <Text fw={500} fz="sm">
-                        Link to Lightdash
+                        Backlinks to Lightdash
                     </Text>
                     <Text fz="xs" c="dimmed">
                         Recipients can open this in Lightdash.
