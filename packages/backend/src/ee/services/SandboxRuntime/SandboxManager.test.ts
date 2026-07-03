@@ -136,15 +136,22 @@ describe('SandboxManager', () => {
     });
 
     describe('suspend', () => {
-        it('object-store backend snapshots then destroys the container', async () => {
+        it('object-store backend snapshots (workspace from the row) then destroys the container', async () => {
             const provider = makeProvider(false);
             const registry = makeRegistry();
+            registry.findBySandboxUuid.mockResolvedValue({
+                sandboxUuid: 'sb-1',
+                organizationUuid: 'org-1',
+                projectUuid: 'proj-1',
+                providerSandboxId: 'live-1',
+                snapshotRef: null,
+                workspace,
+            });
             const manager = makeManager(provider, registry);
 
             await manager.suspend({
                 sandboxUuid: 'sb-1',
                 handle: makeHandle('live-1'),
-                workspace,
             });
 
             expect(provider.persist).toHaveBeenCalledWith(
@@ -164,12 +171,19 @@ describe('SandboxManager', () => {
         it('native-pause backend keeps the sandbox alive', async () => {
             const provider = makeProvider(true);
             const registry = makeRegistry();
+            registry.findBySandboxUuid.mockResolvedValue({
+                sandboxUuid: 'sb-1',
+                organizationUuid: 'org-1',
+                projectUuid: 'proj-1',
+                providerSandboxId: 'live-1',
+                snapshotRef: null,
+                workspace,
+            });
             const manager = makeManager(provider, registry);
 
             await manager.suspend({
                 sandboxUuid: 'sb-1',
                 handle: makeHandle('live-1'),
-                workspace,
             });
 
             expect(provider.persist).toHaveBeenCalledTimes(1);
@@ -178,6 +192,70 @@ describe('SandboxManager', () => {
                 snapshotRef: { kind: 'e2b-paused', sandboxId: 'live-1' },
                 providerSandboxId: 'live-1',
             });
+        });
+
+        it('object-store suspend→resume→suspend deletes the blob the resume consumed (no leak)', async () => {
+            const provider = makeProvider(false);
+            const registry = makeRegistry();
+            const manager = makeManager(provider, registry);
+
+            // Turn 1: fresh sandbox, no prior snapshot on the row → key A.
+            registry.findBySandboxUuid.mockResolvedValue({
+                sandboxUuid: 'sb-1',
+                organizationUuid: 'org-1',
+                projectUuid: 'proj-1',
+                providerSandboxId: 'live-1',
+                snapshotRef: null,
+                workspace,
+            });
+            provider.persist.mockResolvedValueOnce({ kind: 's3-tar', key: 'A' });
+            await manager.suspend({
+                sandboxUuid: 'sb-1',
+                handle: makeHandle('live-1'),
+            });
+            expect(provider.deleteSnapshot).not.toHaveBeenCalled();
+
+            // Turn 2: the row now carries key A; resume consumes it, then a
+            // second suspend writes key B and must GC the now-orphaned A.
+            registry.findBySandboxUuid.mockResolvedValue({
+                sandboxUuid: 'sb-1',
+                organizationUuid: 'org-1',
+                projectUuid: 'proj-1',
+                providerSandboxId: null,
+                snapshotRef: { kind: 's3-tar', key: 'A' },
+                workspace,
+            });
+            await manager.resume({
+                sandboxUuid: 'sb-1',
+                spec,
+                expectedOrganizationUuid: 'org-1',
+                expectedProjectUuid: 'proj-1',
+            });
+            provider.persist.mockResolvedValueOnce({ kind: 's3-tar', key: 'B' });
+            await manager.suspend({
+                sandboxUuid: 'sb-1',
+                handle: makeHandle('live-restored'),
+            });
+
+            expect(provider.deleteSnapshot).toHaveBeenCalledWith({
+                kind: 's3-tar',
+                key: 'A',
+            });
+        });
+
+        it('throws SandboxExpiredError when the row is gone', async () => {
+            const provider = makeProvider(false);
+            const registry = makeRegistry();
+            registry.findBySandboxUuid.mockResolvedValue(null);
+            const manager = makeManager(provider, registry);
+
+            await expect(
+                manager.suspend({
+                    sandboxUuid: 'sb-1',
+                    handle: makeHandle('live-1'),
+                }),
+            ).rejects.toBeInstanceOf(SandboxExpiredError);
+            expect(provider.persist).not.toHaveBeenCalled();
         });
     });
 
@@ -195,7 +273,11 @@ describe('SandboxManager', () => {
             });
             const manager = makeManager(provider, registry);
 
-            await manager.suspendByUuid('sb-1');
+            await manager.suspendByUuid({
+                sandboxUuid: 'sb-1',
+                expectedOrganizationUuid: 'org-1',
+                expectedProjectUuid: 'proj-1',
+            });
 
             expect(provider.connect).toHaveBeenCalledWith('live-running');
             expect(provider.persist).toHaveBeenCalledTimes(1);
@@ -207,6 +289,30 @@ describe('SandboxManager', () => {
                 },
                 providerSandboxId: null,
             });
+        });
+
+        it('treats a row owned by a different org/project as not-found (no-op)', async () => {
+            const provider = makeProvider(false);
+            const registry = makeRegistry();
+            registry.findBySandboxUuid.mockResolvedValue({
+                sandboxUuid: 'sb-1',
+                organizationUuid: 'org-1',
+                projectUuid: 'proj-1',
+                providerSandboxId: 'live-running',
+                snapshotRef: null,
+                workspace,
+            });
+            const manager = makeManager(provider, registry);
+
+            await manager.suspendByUuid({
+                sandboxUuid: 'sb-1',
+                expectedOrganizationUuid: 'org-OTHER',
+                expectedProjectUuid: 'proj-1',
+            });
+
+            expect(provider.connect).not.toHaveBeenCalled();
+            expect(provider.persist).not.toHaveBeenCalled();
+            expect(registry.markSuspended).not.toHaveBeenCalled();
         });
 
         it('GCs a row that has no live sandbox to preserve', async () => {
@@ -222,7 +328,11 @@ describe('SandboxManager', () => {
             });
             const manager = makeManager(provider, registry);
 
-            await manager.suspendByUuid('sb-1');
+            await manager.suspendByUuid({
+                sandboxUuid: 'sb-1',
+                expectedOrganizationUuid: 'org-1',
+                expectedProjectUuid: 'proj-1',
+            });
 
             expect(provider.connect).not.toHaveBeenCalled();
             expect(provider.persist).not.toHaveBeenCalled();
@@ -240,7 +350,11 @@ describe('SandboxManager', () => {
             registry.findBySandboxUuid.mockResolvedValue(null);
             const manager = makeManager(provider, registry);
 
-            await manager.suspendByUuid('sb-1');
+            await manager.suspendByUuid({
+                sandboxUuid: 'sb-1',
+                expectedOrganizationUuid: 'org-1',
+                expectedProjectUuid: 'proj-1',
+            });
 
             expect(provider.connect).not.toHaveBeenCalled();
             expect(registry.deleteBySandboxUuid).not.toHaveBeenCalled();
@@ -261,7 +375,12 @@ describe('SandboxManager', () => {
             });
             const manager = makeManager(provider, registry);
 
-            const handle = await manager.resume({ sandboxUuid: 'sb-1', spec });
+            const handle = await manager.resume({
+                sandboxUuid: 'sb-1',
+                spec,
+                expectedOrganizationUuid: 'org-1',
+                expectedProjectUuid: 'proj-1',
+            });
 
             expect(provider.resume).toHaveBeenCalledWith(
                 { kind: 's3-tar', key: 'k' },
@@ -272,6 +391,30 @@ describe('SandboxManager', () => {
                 'live-restored',
             );
             expect(handle.sandboxId).toBe('live-restored');
+        });
+
+        it('treats a row owned by a different org/project as not-found', async () => {
+            const provider = makeProvider(false);
+            const registry = makeRegistry();
+            registry.findBySandboxUuid.mockResolvedValue({
+                sandboxUuid: 'sb-1',
+                organizationUuid: 'org-1',
+                projectUuid: 'proj-1',
+                providerSandboxId: null,
+                snapshotRef: { kind: 's3-tar', key: 'k' },
+                workspace,
+            });
+            const manager = makeManager(provider, registry);
+
+            await expect(
+                manager.resume({
+                    sandboxUuid: 'sb-1',
+                    spec,
+                    expectedOrganizationUuid: 'org-1',
+                    expectedProjectUuid: 'proj-OTHER',
+                }),
+            ).rejects.toBeInstanceOf(SandboxExpiredError);
+            expect(provider.resume).not.toHaveBeenCalled();
         });
 
         it('resumes a migration-backfilled E2B thread by reconnecting to the paused sandbox', async () => {
@@ -291,7 +434,12 @@ describe('SandboxManager', () => {
             });
             const manager = makeManager(provider, registry);
 
-            const handle = await manager.resume({ sandboxUuid: 'sb-1', spec });
+            const handle = await manager.resume({
+                sandboxUuid: 'sb-1',
+                spec,
+                expectedOrganizationUuid: 'org-1',
+                expectedProjectUuid: 'proj-1',
+            });
 
             // The paused VM is the snapshot — resume goes straight through the
             // provider with no object storage (the Manager holds no store).
@@ -313,35 +461,70 @@ describe('SandboxManager', () => {
             const manager = makeManager(provider, registry);
 
             await expect(
-                manager.resume({ sandboxUuid: 'sb-1', spec }),
+                manager.resume({
+                    sandboxUuid: 'sb-1',
+                    spec,
+                    expectedOrganizationUuid: 'org-1',
+                    expectedProjectUuid: 'proj-1',
+                }),
             ).rejects.toBeInstanceOf(SandboxExpiredError);
         });
     });
 
-    it('destroy kills the sandbox, GCs the snapshot and drops the row', async () => {
-        const provider = makeProvider(false);
-        const registry = makeRegistry();
-        registry.findBySandboxUuid.mockResolvedValue({
-            sandboxUuid: 'sb-1',
-            organizationUuid: 'org-1',
-            projectUuid: 'proj-1',
-            providerSandboxId: null,
-            snapshotRef: { kind: 's3-tar', key: 'k' },
-            workspace,
-        });
-        const manager = makeManager(provider, registry);
+    describe('destroy', () => {
+        it('kills the sandbox, GCs the snapshot and drops the row', async () => {
+            const provider = makeProvider(false);
+            const registry = makeRegistry();
+            registry.findBySandboxUuid.mockResolvedValue({
+                sandboxUuid: 'sb-1',
+                organizationUuid: 'org-1',
+                projectUuid: 'proj-1',
+                providerSandboxId: null,
+                snapshotRef: { kind: 's3-tar', key: 'k' },
+                workspace,
+            });
+            const manager = makeManager(provider, registry);
 
-        await manager.destroy({
-            sandboxUuid: 'sb-1',
-            handle: makeHandle('live-1'),
+            await manager.destroy({
+                sandboxUuid: 'sb-1',
+                handle: makeHandle('live-1'),
+                expectedOrganizationUuid: 'org-1',
+                expectedProjectUuid: 'proj-1',
+            });
+
+            expect(provider.destroy).toHaveBeenCalledWith('live-1');
+            // Storage cleanup is delegated to the provider, not the Manager.
+            expect(provider.deleteSnapshot).toHaveBeenCalledWith({
+                kind: 's3-tar',
+                key: 'k',
+            });
+            expect(registry.deleteBySandboxUuid).toHaveBeenCalledWith('sb-1');
         });
 
-        expect(provider.destroy).toHaveBeenCalledWith('live-1');
-        // Storage cleanup is delegated to the provider, not the Manager.
-        expect(provider.deleteSnapshot).toHaveBeenCalledWith({
-            kind: 's3-tar',
-            key: 'k',
+        it('refuses (SandboxExpiredError) and leaves a mismatched-owner row untouched', async () => {
+            const provider = makeProvider(false);
+            const registry = makeRegistry();
+            registry.findBySandboxUuid.mockResolvedValue({
+                sandboxUuid: 'sb-1',
+                organizationUuid: 'org-1',
+                projectUuid: 'proj-1',
+                providerSandboxId: 'live-1',
+                snapshotRef: { kind: 's3-tar', key: 'k' },
+                workspace,
+            });
+            const manager = makeManager(provider, registry);
+
+            await expect(
+                manager.destroy({
+                    sandboxUuid: 'sb-1',
+                    expectedOrganizationUuid: 'org-OTHER',
+                    expectedProjectUuid: 'proj-1',
+                }),
+            ).rejects.toBeInstanceOf(SandboxExpiredError);
+
+            expect(provider.destroy).not.toHaveBeenCalled();
+            expect(provider.deleteSnapshot).not.toHaveBeenCalled();
+            expect(registry.deleteBySandboxUuid).not.toHaveBeenCalled();
         });
-        expect(registry.deleteBySandboxUuid).toHaveBeenCalledWith('sb-1');
     });
 });
