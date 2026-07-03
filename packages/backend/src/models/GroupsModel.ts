@@ -277,6 +277,43 @@ export class GroupsModel {
         }));
     }
 
+    async findUserGroups(filters: {
+        userUuid: string;
+        organizationUuid: string;
+    }): Promise<Pick<Group, 'uuid' | 'name'>[]> {
+        const rows = await this.database(GroupMembershipTableName)
+            .innerJoin(
+                UserTableName,
+                `${GroupMembershipTableName}.user_id`,
+                `${UserTableName}.user_id`,
+            )
+            .innerJoin(
+                GroupTableName,
+                `${GroupMembershipTableName}.group_uuid`,
+                `${GroupTableName}.group_uuid`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${GroupTableName}.organization_id`,
+                `${OrganizationTableName}.organization_id`,
+            )
+            .where(`${UserTableName}.user_uuid`, filters.userUuid)
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                filters.organizationUuid,
+            )
+            .select<Pick<DbGroup, 'group_uuid' | 'name'>[]>(
+                `${GroupTableName}.group_uuid`,
+                `${GroupTableName}.name`,
+            )
+            .orderBy(`${GroupTableName}.name`);
+
+        return rows.map((row) => ({
+            uuid: row.group_uuid,
+            name: row.name,
+        }));
+    }
+
     async createGroup({
         createdByUserUuid,
         createGroup,

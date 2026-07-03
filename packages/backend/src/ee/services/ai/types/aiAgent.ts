@@ -81,8 +81,20 @@ export type UnavailableMcpServer = {
     status: AiMcpServerConnectionStatus;
 };
 
+export type AiAgentRequestingUserRole = {
+    name: string;
+    isTechnical: boolean;
+};
+
+export type AiAgentRequestingUser = {
+    name: string;
+    role: AiAgentRequestingUserRole | null;
+    groups: string[];
+};
+
 export type AiAgentArgs = AnyAiModel & {
     agentSettings: AiAgent;
+    requestingUser: AiAgentRequestingUser | null;
     knowledgeDocuments: AiAgentDocumentSummary[];
     projectContext: ProjectContextEntry[];
     // Whether the project_context feature is on for this turn (Control = off).

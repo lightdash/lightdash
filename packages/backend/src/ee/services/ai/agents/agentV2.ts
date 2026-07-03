@@ -682,6 +682,7 @@ const getAgentMessages = (
         getSystemPromptV2({
             agentName: args.agentSettings.name,
             instructions: args.agentSettings.instruction || undefined,
+            requestingUser: args.requestingUser,
             availableExplores,
             availableSkills: args.availableSkills,
             knowledgeDocuments: args.knowledgeDocuments,

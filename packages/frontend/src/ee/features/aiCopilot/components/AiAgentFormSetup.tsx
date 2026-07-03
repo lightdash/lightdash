@@ -85,6 +85,7 @@ const formSchema = z.object({
     enableDataAccess: z.boolean(),
     enableSelfImprovement: z.boolean(),
     enableContentTools: z.boolean(),
+    enableUserContext: z.boolean(),
     adminOnly: z.boolean(),
     modelConfig: z.custom<AiAgentModelConfig>().nullable(),
     version: z.number(),
@@ -798,6 +799,34 @@ export const AiAgentFormSetup = ({
                                     type: 'checkbox',
                                 })}
                                 disabled={!form.values.enableDataAccess}
+                            />
+                            <Switch
+                                variant="subtle"
+                                label={
+                                    <Group gap="xs">
+                                        <Text fz="sm" fw={500}>
+                                            Pass user information
+                                        </Text>
+                                        <Tooltip
+                                            label="Only applies when the agent knows who is asking — on Slack this requires the OAuth requirement to be enabled in the organization's Slack settings."
+                                            withArrow
+                                            withinPortal
+                                            multiline
+                                            position="right"
+                                            maw="300px"
+                                        >
+                                            <MantineIcon
+                                                icon={IconInfoCircle}
+                                            />
+                                        </Tooltip>
+                                    </Group>
+                                }
+                                description={
+                                    "Shares the requesting user's name, role, and group memberships with the agent so it can tailor answers to who is asking."
+                                }
+                                {...form.getInputProps('enableUserContext', {
+                                    type: 'checkbox',
+                                })}
                             />
                         </Stack>
                     </Paper>
