@@ -2757,6 +2757,85 @@
                 "required": ["verifiedAt", "verifiedBy"],
                 "type": "object"
             },
+            "ContentOwner": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "email": {
+                                "type": "string"
+                            },
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "userUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["user"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "email",
+                            "lastName",
+                            "firstName",
+                            "userUuid",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "groupUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["group"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["name", "groupUuid", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ContentOwnershipInfo": {
+                "properties": {
+                    "assignedBy": {
+                        "properties": {
+                            "lastName": {
+                                "type": "string"
+                            },
+                            "firstName": {
+                                "type": "string"
+                            },
+                            "userUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["lastName", "firstName", "userUuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "assignedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "owner": {
+                        "$ref": "#/components/schemas/ContentOwner"
+                    }
+                },
+                "required": ["assignedBy", "assignedAt", "owner"],
+                "type": "object"
+            },
             "DashboardTileTypes": {
                 "enum": [
                     "saved_chart",
@@ -3635,6 +3714,14 @@
                     "description": {
                         "type": "string"
                     },
+                    "ownership": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentOwnershipInfo"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "verification": {
                         "allOf": [
                             {
@@ -3678,6 +3765,7 @@
                     "filters",
                     "tiles",
                     "updatedAt",
+                    "ownership",
                     "verification",
                     "name",
                     "uuid",
@@ -16462,8 +16550,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "accepted",
-                                                            "rejected"
+                                                            "rejected",
+                                                            "accepted"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -16521,8 +16609,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "accepted",
-                                                            "rejected"
+                                                            "rejected",
+                                                            "accepted"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -16556,8 +16644,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -16612,18 +16700,6 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "joinedTables": {
-                                                                            "items": {
-                                                                                "type": "string"
-                                                                            },
-                                                                            "type": "array",
-                                                                            "nullable": true
-                                                                        },
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
                                                                         "requiredFilters": {
                                                                             "items": {
                                                                                 "properties": {
@@ -16659,6 +16735,18 @@
                                                                             },
                                                                             "type": "array"
                                                                         },
+                                                                        "joinedTables": {
+                                                                            "items": {
+                                                                                "type": "string"
+                                                                            },
+                                                                            "type": "array",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
                                                                         "label": {
                                                                             "type": "string"
                                                                         },
@@ -16686,8 +16774,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -16701,9 +16789,6 @@
                                                             "searchQueries": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "error": {
-                                                                            "type": "string"
-                                                                        },
                                                                         "pagination": {
                                                                             "properties": {
                                                                                 "totalPageCount": {
@@ -16731,11 +16816,14 @@
                                                                             ],
                                                                             "type": "object"
                                                                         },
+                                                                        "error": {
+                                                                            "type": "string"
+                                                                        },
                                                                         "status": {
                                                                             "type": "string",
                                                                             "enum": [
-                                                                                "success",
-                                                                                "error"
+                                                                                "error",
+                                                                                "success"
                                                                             ]
                                                                         },
                                                                         "results": {
@@ -16800,8 +16888,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -16835,8 +16923,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
                                                             "error",
+                                                            "success",
                                                             "not_found"
                                                         ]
                                                     }
@@ -16863,6 +16951,10 @@
                                                         "anyOf": [
                                                             {
                                                                 "properties": {
+                                                                    "rationale": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
                                                                     "explore": {
                                                                         "properties": {
                                                                             "requiredFilters": {
@@ -16984,10 +17076,6 @@
                                                                         },
                                                                         "type": "array"
                                                                     },
-                                                                    "rationale": {
-                                                                        "type": "string",
-                                                                        "nullable": true
-                                                                    },
                                                                     "status": {
                                                                         "type": "string",
                                                                         "enum": [
@@ -16997,9 +17085,9 @@
                                                                     }
                                                                 },
                                                                 "required": [
+                                                                    "rationale",
                                                                     "explore",
                                                                     "fields",
-                                                                    "rationale",
                                                                     "status"
                                                                 ],
                                                                 "type": "object"
@@ -17098,14 +17186,14 @@
                                                         ],
                                                         "type": "object"
                                                     },
-                                                    "href": {
-                                                        "type": "string"
-                                                    },
                                                     "warnings": {
                                                         "items": {
                                                             "type": "string"
                                                         },
                                                         "type": "array"
+                                                    },
+                                                    "href": {
+                                                        "type": "string"
                                                     },
                                                     "status": {
                                                         "type": "string",
@@ -17124,8 +17212,8 @@
                                                 },
                                                 "required": [
                                                     "versionUuids",
-                                                    "href",
                                                     "warnings",
+                                                    "href",
                                                     "status",
                                                     "slug",
                                                     "uuid",
@@ -17141,9 +17229,9 @@
                                                                 "kind": {
                                                                     "type": "string",
                                                                     "enum": [
+                                                                        "search",
                                                                         "read",
                                                                         "edit",
-                                                                        "search",
                                                                         "compile",
                                                                         "stage"
                                                                     ]
@@ -17259,8 +17347,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -17272,9 +17360,9 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
+                                                            "error",
                                                             "success",
                                                             "rejected",
-                                                            "error",
                                                             "timeout"
                                                         ]
                                                     }
@@ -17346,8 +17434,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -25655,6 +25743,9 @@
             "HexColor": {
                 "type": "string"
             },
+            "MeshColor": {
+                "type": "string"
+            },
             "SolidColor": {
                 "type": "string"
             },
@@ -25665,6 +25756,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/HexColor"
+                    },
+                    {
+                        "$ref": "#/components/schemas/MeshColor"
                     },
                     {
                         "$ref": "#/components/schemas/SolidColor"
@@ -27885,6 +27979,14 @@
                         ],
                         "nullable": true
                     },
+                    "ownership": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentOwnershipInfo"
+                            }
+                        ],
+                        "nullable": true
+                    },
                     "tiles": {
                         "items": {
                             "$ref": "#/components/schemas/DashboardTile"
@@ -27963,6 +28065,7 @@
                     "spaceUuid",
                     "dashboardVersionId",
                     "verification",
+                    "ownership",
                     "tiles",
                     "filters",
                     "spaceName",
@@ -33645,6 +33748,38 @@
                 "$ref": "#/components/schemas/Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id__",
                 "description": "Construct a type with the properties of T except for those in type K."
             },
+            "DashboardOwnerAsCode": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "email": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["user"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["email", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["group"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["name", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
             "DashboardAsCode": {
                 "allOf": [
                     {
@@ -33652,6 +33787,15 @@
                     },
                     {
                         "properties": {
+                            "owner": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/DashboardOwnerAsCode"
+                                    }
+                                ],
+                                "nullable": true,
+                                "description": "Declarative dashboard owner: a user (by email) or a group (by name).\n`null` clears the owner on upload, `undefined` leaves the current owner\nuntouched. Download sets this from the assigned owner."
+                            },
                             "verification": {
                                 "allOf": [
                                     {
@@ -34239,6 +34383,15 @@
                     "verified": {
                         "type": "boolean",
                         "description": "Declarative verification state.\n`true` verifies the dashboard on upload, `false` unverifies it, `undefined` leaves the\ncurrent state untouched. Download sets this to `true` when the dashboard is verified."
+                    },
+                    "owner": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DashboardOwnerAsCode"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Declarative dashboard owner: a user (by email) or a group (by name).\n`null` clears the owner on upload, `undefined` leaves the current owner\nuntouched. Download sets this from the assigned owner."
                     }
                 },
                 "required": ["name", "slug", "version", "tabs", "spaceSlug"],
@@ -41270,6 +41423,51 @@
                 },
                 "type": "object"
             },
+            "ContentOwnerAssignment": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "userUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["user"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["userUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "groupUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["group"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["groupUuid", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "UpdateDashboardOwnership": {
+                "properties": {
+                    "owner": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentOwnerAssignment"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
             "UpdateDashboard": {
                 "allOf": [
                     {
@@ -41294,6 +41492,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/PreserveContentVerification"
+                    },
+                    {
+                        "$ref": "#/components/schemas/UpdateDashboardOwnership"
                     }
                 ]
             },
@@ -43100,7 +43301,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3298.0",
+        "version": "0.3303.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

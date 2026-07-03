@@ -9,6 +9,7 @@ import { CatalogModel } from './CatalogModel/CatalogModel';
 import { ChangesetModel } from './ChangesetModel';
 import { CommentModel } from './CommentModel/CommentModel';
 import { ContentModel } from './ContentModel/ContentModel';
+import { ContentOwnershipModel } from './ContentOwnershipModel';
 import { ContentVerificationModel } from './ContentVerificationModel';
 import { DashboardModel } from './DashboardModel/DashboardModel';
 import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenModel';
@@ -134,6 +135,7 @@ export type ModelManifest = {
     catalogModel: CatalogModel;
     savedSqlModel: SavedSqlModel;
     contentModel: ContentModel;
+    contentOwnershipModel: ContentOwnershipModel;
     contentVerificationModel: ContentVerificationModel;
     tagsModel: TagsModel;
     featureFlagModel: FeatureFlagModel;
@@ -284,6 +286,7 @@ export class ModelRepository
                     database: this.database,
                     contentVerificationModel:
                         this.getContentVerificationModel(),
+                    contentOwnershipModel: this.getContentOwnershipModel(),
                 }),
         );
     }
@@ -755,6 +758,13 @@ export class ModelRepository
         return this.getModel(
             'contentModel',
             () => new ContentModel({ database: this.database }),
+        );
+    }
+
+    public getContentOwnershipModel(): ContentOwnershipModel {
+        return this.getModel(
+            'contentOwnershipModel',
+            () => new ContentOwnershipModel({ database: this.database }),
         );
     }
 

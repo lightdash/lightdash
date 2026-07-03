@@ -418,6 +418,36 @@
             "required": ["w", "h", "y", "x", "type", "properties"],
             "type": "object"
         },
+        "DashboardOwnerAsCode": {
+            "anyOf": [
+                {
+                    "properties": {
+                        "email": {
+                            "type": "string"
+                        },
+                        "type": {
+                            "enum": ["user"],
+                            "type": "string"
+                        }
+                    },
+                    "required": ["email", "type"],
+                    "type": "object"
+                },
+                {
+                    "properties": {
+                        "name": {
+                            "type": "string"
+                        },
+                        "type": {
+                            "enum": ["group"],
+                            "type": "string"
+                        }
+                    },
+                    "required": ["name", "type"],
+                    "type": "object"
+                }
+            ]
+        },
         "DashboardParameters": {
             "$ref": "#/$defs/Record_string.DashboardParameterValue_"
         },
@@ -950,6 +980,21 @@
         "name": {
             "minLength": 1,
             "type": "string"
+        },
+        "owner": {
+            "anyOf": [
+                {
+                    "allOf": [
+                        {
+                            "$ref": "#/$defs/DashboardOwnerAsCode"
+                        }
+                    ],
+                    "description": "Declarative dashboard owner: a user (by email) or a group (by name).\n`null` clears the owner on upload, `undefined` leaves the current owner\nuntouched. Download sets this from the assigned owner."
+                },
+                {
+                    "type": "null"
+                }
+            ]
         },
         "parameters": {
             "$ref": "#/$defs/DashboardParameters"

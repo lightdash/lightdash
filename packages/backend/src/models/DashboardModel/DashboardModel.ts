@@ -84,6 +84,7 @@ import {
     acquireProjectSlugLock,
     generateUniqueSlug,
 } from '../../utils/SlugUtils';
+import { ContentOwnershipModel } from '../ContentOwnershipModel';
 import { ContentVerificationModel } from '../ContentVerificationModel';
 import { SpaceModel } from '../SpaceModel';
 import Transaction = Knex.Transaction;
@@ -135,6 +136,7 @@ export type GetChartTileQuery = Pick<
 type DashboardModelArguments = {
     database: Knex;
     contentVerificationModel?: ContentVerificationModel;
+    contentOwnershipModel?: ContentOwnershipModel;
 };
 
 export class DashboardModel {
@@ -142,9 +144,12 @@ export class DashboardModel {
 
     private contentVerificationModel: ContentVerificationModel | undefined;
 
+    private contentOwnershipModel: ContentOwnershipModel | undefined;
+
     constructor(args: DashboardModelArguments) {
         this.database = args.database;
         this.contentVerificationModel = args.contentVerificationModel;
+        this.contentOwnershipModel = args.contentOwnershipModel;
     }
 
     private static async createVersion(
@@ -1124,13 +1129,21 @@ export class DashboardModel {
             dashboard.dashboard_uuid,
         );
 
-        const [[view], tiles, tabs, verificationResult] = await Promise.all([
-            viewQuery,
-            tilesQuery,
-            tabsQuery,
-            verificationQuery,
-        ]);
+        const ownershipQuery = this.contentOwnershipModel?.getByContent(
+            ContentType.DASHBOARD,
+            dashboard.dashboard_uuid,
+        );
+
+        const [[view], tiles, tabs, verificationResult, ownershipResult] =
+            await Promise.all([
+                viewQuery,
+                tilesQuery,
+                tabsQuery,
+                verificationQuery,
+                ownershipQuery,
+            ]);
         const verification = verificationResult ?? null;
+        const ownership = ownershipResult ?? null;
 
         // A version may have no dashboard_views row (e.g. legacy or partially
         // written data). Guard the backfill — the return below already defaults
@@ -1148,6 +1161,7 @@ export class DashboardModel {
             uuid: dashboard.dashboard_uuid,
             name: dashboard.name,
             verification,
+            ownership,
             description: dashboard.description,
             updatedAt: dashboard.created_at,
             pinnedListUuid: dashboard.pinned_list_uuid,
@@ -2276,6 +2290,12 @@ export class DashboardModel {
                 dashboard.dashboard_uuid,
             )) ?? null;
 
+        const ownership =
+            (await this.contentOwnershipModel?.getByContent(
+                ContentType.DASHBOARD,
+                dashboard.dashboard_uuid,
+            )) ?? null;
+
         return {
             organizationUuid: dashboard.organization_uuid,
             projectUuid: dashboard.project_uuid,
@@ -2284,6 +2304,7 @@ export class DashboardModel {
             uuid: dashboard.dashboard_uuid,
             name: dashboard.name,
             verification,
+            ownership,
             description: dashboard.description,
             updatedAt: dashboard.created_at,
             pinnedListUuid: dashboard.pinned_list_uuid,

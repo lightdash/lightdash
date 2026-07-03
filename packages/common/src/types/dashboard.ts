@@ -1,3 +1,7 @@
+import {
+    type ContentOwnerAssignment,
+    type ContentOwnershipInfo,
+} from './contentOwnership';
 import { type ContentVerificationInfo } from './contentVerification';
 import { type FilterableDimension, type Metric } from './field';
 import { type DashboardFilters } from './filter';
@@ -246,6 +250,7 @@ export type Dashboard = {
     uuid: string;
     name: string;
     verification: ContentVerificationInfo | null;
+    ownership: ContentOwnershipInfo | null;
     description?: string;
     updatedAt: Date;
     tiles: Array<DashboardTile>;
@@ -331,12 +336,18 @@ type PreserveContentVerification = {
     preserveVerification?: boolean;
 };
 
+type UpdateDashboardOwnership = {
+    // undefined = leave unchanged, null = clear owner, value = assign
+    owner?: ContentOwnerAssignment | null;
+};
+
 export type UpdateDashboard = (
     | DashboardUnversionedFields
     | DashboardVersionedFields
     | (DashboardUnversionedFields & DashboardVersionedFields)
 ) &
-    PreserveContentVerification;
+    PreserveContentVerification &
+    UpdateDashboardOwnership;
 
 export type UpdateMultipleDashboards = Pick<
     Dashboard,

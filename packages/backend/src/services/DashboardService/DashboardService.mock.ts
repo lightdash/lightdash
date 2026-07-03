@@ -100,6 +100,7 @@ export const dashboard: Dashboard = {
     name: 'name',
     slug: 'name',
     verification: null,
+    ownership: null,
 
     dashboardVersionId: 1,
     versionUuid: 'dashboard-version-uuid',

@@ -9,6 +9,7 @@ import {
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { ContentOwnershipModel } from '../../models/ContentOwnershipModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -86,6 +87,7 @@ const buildService = (
             getSpacesAccessContext,
         } as unknown as SpacePermissionService,
         contentVerificationModel: {} as unknown as ContentVerificationModel,
+        contentOwnershipModel: {} as unknown as ContentOwnershipModel,
     });
 
 const stubSpace = (service: CoderService, uuid: string = SPACE_UUID) =>

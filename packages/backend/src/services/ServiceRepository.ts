@@ -409,6 +409,8 @@ export class ServiceRepository
                     spacePermissionService: this.getSpacePermissionService(),
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
+                    contentOwnershipModel:
+                        this.models.getContentOwnershipModel(),
                 }),
         );
     }
@@ -1142,6 +1144,8 @@ export class ServiceRepository
                     spacePermissionService: this.getSpacePermissionService(),
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
+                    contentOwnershipModel:
+                        this.models.getContentOwnershipModel(),
                 }),
         );
     }

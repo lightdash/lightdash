@@ -1,6 +1,7 @@
-import { type Dashboard } from '@lightdash/common';
+import { type ContentOwnerAssignment, type Dashboard } from '@lightdash/common';
 import {
     Button,
+    Select,
     Stack,
     Textarea,
     TextInput,
@@ -15,6 +16,8 @@ import {
     useUpdateDashboard,
 } from '../../../hooks/dashboard/useDashboard';
 import useHealth from '../../../hooks/health/useHealth';
+import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
+import { useOrganizationUsers } from '../../../hooks/useOrganizationUsers';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import Callout from '../Callout';
 import MantineModal from '../MantineModal';
@@ -29,6 +32,23 @@ interface DashboardUpdateModalProps {
 
 type FormState = Pick<Dashboard, 'name' | 'description'> & {
     colorPaletteUuid: string | null;
+    // Encoded as `user:<uuid>` or `group:<uuid>`; null = no owner
+    ownerValue: string | null;
+};
+
+const encodeOwner = (ownership: Dashboard['ownership']): string | null => {
+    if (!ownership) return null;
+    return ownership.owner.type === 'user'
+        ? `user:${ownership.owner.userUuid}`
+        : `group:${ownership.owner.groupUuid}`;
+};
+
+const decodeOwner = (value: string | null): ContentOwnerAssignment | null => {
+    if (!value) return null;
+    const [type, uuid] = value.split(':');
+    return type === 'user'
+        ? { type: 'user', userUuid: uuid }
+        : { type: 'group', groupUuid: uuid };
 };
 
 const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
@@ -47,12 +67,15 @@ const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
         uuid,
         projectUuid,
     );
+    const { data: organizationUsers } = useOrganizationUsers();
+    const { data: organizationGroups } = useOrganizationGroups({});
 
     const form = useForm<FormState>({
         initialValues: {
             name: '',
             description: '',
             colorPaletteUuid: null,
+            ownerValue: null,
         },
     });
 
@@ -65,6 +88,7 @@ const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
             name: dashboard.name,
             description: dashboard.description ?? '',
             colorPaletteUuid: dashboard.colorPaletteUuid ?? null,
+            ownerValue: encodeOwner(dashboard.ownership),
         });
     }, [dashboard, setValues]);
 
@@ -76,11 +100,33 @@ const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
         !!health?.appearance.overrideColorPalette &&
         health.appearance.overrideColorPalette.length > 0;
 
+    const ownerOptions = [
+        {
+            group: 'Users',
+            items: (organizationUsers ?? []).map((member) => ({
+                value: `user:${member.userUuid}`,
+                label:
+                    `${member.firstName} ${member.lastName}`.trim() ||
+                    member.email,
+            })),
+        },
+        {
+            group: 'Groups',
+            items: (organizationGroups ?? []).map((group) => ({
+                value: `group:${group.uuid}`,
+                label: group.name,
+            })),
+        },
+    ];
+
     const handleConfirm = form.onSubmit(async (data) => {
+        const ownerChanged =
+            data.ownerValue !== encodeOwner(dashboard.ownership);
         await mutateAsync({
             name: data.name,
             description: data.description,
             colorPaletteUuid: data.colorPaletteUuid,
+            ...(ownerChanged ? { owner: decodeOwner(data.ownerValue) } : {}),
         });
         onConfirm?.();
     });
@@ -122,6 +168,20 @@ const DashboardUpdateModal: FC<DashboardUpdateModalProps> = ({
                         autosize
                         maxRows={3}
                         {...form.getInputProps('description')}
+                    />
+
+                    <Select
+                        label="Owner"
+                        description="Who is responsible for maintaining this dashboard"
+                        placeholder="No owner assigned"
+                        searchable
+                        clearable
+                        disabled={isUpdating}
+                        data={ownerOptions}
+                        value={form.values.ownerValue}
+                        onChange={(next) =>
+                            form.setFieldValue('ownerValue', next)
+                        }
                     />
 
                     {overrideActive && (

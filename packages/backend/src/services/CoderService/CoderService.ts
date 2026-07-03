@@ -8,6 +8,7 @@ import {
     ChartAsCodeInternalization,
     ChartSummary,
     ContentAsCodeType,
+    ContentOwnerAssignment,
     ContentType,
     CreateSavedChart,
     currentVersion,
@@ -16,6 +17,7 @@ import {
     DashboardChartTileAsCode,
     DashboardDAO,
     DashboardMarkdownTileAsCode,
+    DashboardOwnerAsCode,
     DashboardSqlChartTileAsCode,
     DashboardTile,
     DashboardTileAsCode,
@@ -55,6 +57,7 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
+import { ContentOwnershipModel } from '../../models/ContentOwnershipModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -79,6 +82,7 @@ type CoderServiceArguments = {
     promoteService: PromoteService;
     spacePermissionService: SpacePermissionService;
     contentVerificationModel: ContentVerificationModel;
+    contentOwnershipModel: ContentOwnershipModel;
 };
 
 type UpsertContentAsCodeOptions = {
@@ -158,6 +162,8 @@ export class CoderService extends BaseService {
 
     contentVerificationModel: ContentVerificationModel;
 
+    contentOwnershipModel: ContentOwnershipModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -170,6 +176,7 @@ export class CoderService extends BaseService {
         promoteService,
         spacePermissionService,
         contentVerificationModel,
+        contentOwnershipModel,
     }: CoderServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -183,6 +190,7 @@ export class CoderService extends BaseService {
         this.promoteService = promoteService;
         this.spacePermissionService = spacePermissionService;
         this.contentVerificationModel = contentVerificationModel;
+        this.contentOwnershipModel = contentOwnershipModel;
     }
 
     private static transformSpaces(
@@ -555,9 +563,20 @@ export class CoderService extends BaseService {
             downloadedAt: new Date(),
             verified: verificationMap.has(dashboard.uuid) ? true : undefined,
             verification: verificationMap.get(dashboard.uuid) ?? null,
+            owner: CoderService.getOwnerAsCode(dashboard),
         };
 
         return dashboardAsCode;
+    }
+
+    private static getOwnerAsCode(
+        dashboard: DashboardDAO,
+    ): DashboardOwnerAsCode | undefined {
+        if (!dashboard.ownership) return undefined;
+        const { owner } = dashboard.ownership;
+        return owner.type === 'user'
+            ? { type: 'user', email: owner.email }
+            : { type: 'group', name: owner.name };
     }
 
     async convertTileWithSlugsToUuids(
@@ -1205,6 +1224,64 @@ export class CoderService extends BaseService {
             total: sqlChartsTotal,
             offset: newOffset,
         };
+    }
+
+    private async syncOwnership({
+        user,
+        projectUuid,
+        organizationUuid,
+        contentType,
+        contentUuid,
+        owner,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        organizationUuid: string;
+        contentType: ContentType;
+        contentUuid: string;
+        owner: DashboardOwnerAsCode | null | undefined;
+    }): Promise<void> {
+        if (owner === undefined) return;
+
+        if (owner === null) {
+            await this.contentOwnershipModel.remove(contentType, contentUuid);
+            return;
+        }
+
+        const assignment: ContentOwnerAssignment | undefined =
+            owner.type === 'user'
+                ? await this.contentOwnershipModel
+                      .findUserOwnerByEmail(owner.email, organizationUuid)
+                      .then((userUuid) =>
+                          userUuid
+                              ? ({ type: 'user', userUuid } as const)
+                              : undefined,
+                      )
+                : await this.contentOwnershipModel
+                      .findGroupOwnerByName(owner.name, organizationUuid)
+                      .then((groupUuid) =>
+                          groupUuid
+                              ? ({ type: 'group', groupUuid } as const)
+                              : undefined,
+                      );
+
+        if (!assignment) {
+            // Warn and skip so uploads referencing unknown owners don't fail CI pipelines.
+            this.logger.warn(
+                `Owner ${
+                    owner.type === 'user' ? owner.email : owner.name
+                } not found in organization; skipping ownership sync for ${contentType} ${contentUuid}.`,
+            );
+            return;
+        }
+
+        await this.contentOwnershipModel.upsert({
+            contentType,
+            contentUuid,
+            projectUuid,
+            owner: assignment,
+            assignedByUserUuid: user.userUuid,
+        });
     }
 
     private async syncVerification({
@@ -1979,6 +2056,15 @@ export class CoderService extends BaseService {
                 verified: dashboardAsCode.verified,
             });
 
+            await this.syncOwnership({
+                user,
+                projectUuid,
+                organizationUuid: project.organizationUuid,
+                contentType: ContentType.DASHBOARD,
+                contentUuid: newDashboard.uuid,
+                owner: dashboardAsCode.owner,
+            });
+
             return {
                 dashboards: [
                     {
@@ -2095,6 +2181,15 @@ export class CoderService extends BaseService {
             contentType: ContentType.DASHBOARD,
             contentUuid: dashboard.uuid,
             verified: dashboardAsCode.verified,
+        });
+
+        await this.syncOwnership({
+            user,
+            projectUuid,
+            organizationUuid: project.organizationUuid,
+            contentType: ContentType.DASHBOARD,
+            contentUuid: dashboard.uuid,
+            owner: dashboardAsCode.owner,
         });
 
         console.info(

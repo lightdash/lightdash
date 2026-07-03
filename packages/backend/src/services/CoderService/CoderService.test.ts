@@ -644,6 +644,7 @@ describe('CoderService', () => {
             const service = new CoderService({
                 analytics: {} as AnyType,
                 contentVerificationModel: {} as AnyType,
+                contentOwnershipModel: {} as AnyType,
                 dashboardModel: {} as AnyType,
                 lightdashConfig: {} as AnyType,
                 projectModel: {} as AnyType,

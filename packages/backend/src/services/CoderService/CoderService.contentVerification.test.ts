@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import { ContentOwnershipModel } from '../../models/ContentOwnershipModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -82,6 +83,11 @@ const buildService = () =>
         spacePermissionService: {} as unknown as SpacePermissionService,
         contentVerificationModel:
             contentVerificationModel as unknown as ContentVerificationModel,
+        contentOwnershipModel: {
+            getByContent: vi.fn(async () => null),
+            upsert: vi.fn(async () => undefined),
+            remove: vi.fn(async () => undefined),
+        } as unknown as ContentOwnershipModel,
     });
 
 const callSync = (

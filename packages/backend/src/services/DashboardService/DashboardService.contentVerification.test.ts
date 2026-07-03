@@ -10,6 +10,7 @@ import { SlackClient } from '../../clients/Slack/SlackClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
+import { ContentOwnershipModel } from '../../models/ContentOwnershipModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
@@ -87,6 +88,13 @@ const contentVerificationModel = {
     getByContent: vi.fn(async () => verificationInfo),
 };
 
+const contentOwnershipModel = {
+    getByContent: vi.fn(async () => null),
+    upsert: vi.fn(async () => undefined),
+    remove: vi.fn(async () => undefined),
+    isOwnerInOrganization: vi.fn(async () => true),
+};
+
 vi.spyOn(analyticsMock, 'track');
 
 describe('DashboardService - Content Verification', () => {
@@ -115,6 +123,8 @@ describe('DashboardService - Content Verification', () => {
         spacePermissionService: {} as unknown as SpacePermissionService,
         contentVerificationModel:
             contentVerificationModel as unknown as ContentVerificationModel,
+        contentOwnershipModel:
+            contentOwnershipModel as unknown as ContentOwnershipModel,
     });
 
     afterEach(() => {

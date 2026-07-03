@@ -75,6 +75,7 @@ import { getSchedulerTargetType } from '../../database/entities/scheduler';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
+import { ContentOwnershipModel } from '../../models/ContentOwnershipModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
@@ -117,6 +118,7 @@ type DashboardServiceArguments = {
     organizationModel: OrganizationModel;
     spacePermissionService: SpacePermissionService;
     contentVerificationModel: ContentVerificationModel;
+    contentOwnershipModel: ContentOwnershipModel;
 };
 
 export class DashboardService
@@ -160,6 +162,8 @@ export class DashboardService
     spacePermissionService: SpacePermissionService;
 
     contentVerificationModel: ContentVerificationModel;
+
+    contentOwnershipModel: ContentOwnershipModel;
 
     async scheduleExportContent(
         user: SessionUser,
@@ -263,6 +267,7 @@ export class DashboardService
         organizationModel,
         spacePermissionService,
         contentVerificationModel,
+        contentOwnershipModel,
     }: DashboardServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -284,6 +289,7 @@ export class DashboardService
         this.slackClient = slackClient;
         this.spacePermissionService = spacePermissionService;
         this.contentVerificationModel = contentVerificationModel;
+        this.contentOwnershipModel = contentOwnershipModel;
     }
 
     async verifyDashboard(
@@ -1406,7 +1412,7 @@ export class DashboardService
                 projectUuid: options?.projectUuid,
             },
         );
-        const { preserveVerification, ...dashboardFields } = dashboard;
+        const { preserveVerification, owner, ...dashboardFields } = dashboard;
 
         const currentSpace =
             await this.spacePermissionService.getSpaceAccessContext(
@@ -1623,6 +1629,33 @@ export class DashboardService
                 ContentType.DASHBOARD,
                 existingDashboardDao.uuid,
             );
+        }
+
+        if (owner !== undefined) {
+            if (owner === null) {
+                await this.contentOwnershipModel.remove(
+                    ContentType.DASHBOARD,
+                    existingDashboardDao.uuid,
+                );
+            } else {
+                const isValidOwner =
+                    await this.contentOwnershipModel.isOwnerInOrganization(
+                        owner,
+                        existingDashboardDao.organizationUuid,
+                    );
+                if (!isValidOwner) {
+                    throw new ParameterError(
+                        'Owner must be a user or group in this organization',
+                    );
+                }
+                await this.contentOwnershipModel.upsert({
+                    contentType: ContentType.DASHBOARD,
+                    contentUuid: existingDashboardDao.uuid,
+                    projectUuid: existingDashboardDao.projectUuid,
+                    owner,
+                    assignedByUserUuid: user.userUuid,
+                });
+            }
         }
 
         const updatedNewDashboard = await this.dashboardModel.getByIdOrSlug(

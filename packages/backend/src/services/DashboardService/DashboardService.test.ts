@@ -23,6 +23,7 @@ import { SlackClient } from '../../clients/Slack/SlackClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
+import { ContentOwnershipModel } from '../../models/ContentOwnershipModel';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
@@ -136,6 +137,13 @@ const contentVerificationModel = {
     unverify: vi.fn(async () => undefined),
 };
 
+const contentOwnershipModel = {
+    getByContent: vi.fn(async () => null),
+    upsert: vi.fn(async () => undefined),
+    remove: vi.fn(async () => undefined),
+    isOwnerInOrganization: vi.fn(async () => true),
+};
+
 const spaceContexts = {
     [space.space_uuid]: {
         organizationUuid: space.organization_uuid,
@@ -203,6 +211,8 @@ describe('DashboardService', () => {
             spacePermissionService as unknown as SpacePermissionService,
         contentVerificationModel:
             contentVerificationModel as unknown as ContentVerificationModel,
+        contentOwnershipModel:
+            contentOwnershipModel as unknown as ContentOwnershipModel,
     });
     afterEach(() => {
         vi.clearAllMocks();

@@ -270,7 +270,17 @@ export type DashboardAsCode = Omit<
     verified?: boolean;
     /** Detailed verification info (who/when). Read-only; ignored on upload. */
     verification?: ContentVerificationInfo | null;
+    /**
+     * Declarative dashboard owner: a user (by email) or a group (by name).
+     * `null` clears the owner on upload, `undefined` leaves the current owner
+     * untouched. Download sets this from the assigned owner.
+     */
+    owner?: DashboardOwnerAsCode | null;
 };
+
+export type DashboardOwnerAsCode =
+    | { type: 'user'; email: string }
+    | { type: 'group'; name: string };
 
 export type SpaceAsCode = {
     contentType: ContentAsCodeType.SPACE;
