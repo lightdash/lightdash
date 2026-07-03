@@ -3903,5 +3903,98 @@ describe('AsyncQueryService', () => {
             );
             expect(merged.filters.dimensions.and).toContainEqual(overrideGroup);
         });
+
+        test('merges dashboard filters targeting the explore and silently drops the rest', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                savedChartModel: {
+                    get: vi.fn(async () => chart),
+                } as unknown as SavedChartModel,
+                analyticsModel: {
+                    addChartViewEvent: vi.fn(async () => {}),
+                } as unknown as AnalyticsModel,
+            });
+            service.getExploreWithUserAccessControls = vi
+                .fn()
+                .mockResolvedValue({
+                    explore: validExplore,
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                });
+            (service as AnyType).getWarehouseCredentials = vi
+                .fn()
+                .mockResolvedValue(warehouseClientMock.credentials);
+            service.combineParameters = vi.fn().mockResolvedValue(undefined);
+            (service as AnyType).getMetricQueryFields = vi
+                .fn()
+                .mockResolvedValue({ fields: {} });
+            const prepareSpy = vi.fn().mockResolvedValue({
+                sql: 'SELECT 1',
+                fields: {},
+                warnings: [],
+                parameterReferences: [],
+                missingParameterReferences: [],
+                usedParameters: {},
+                responseMetricQuery: metricQueryMock,
+                userAccessControls: {
+                    userAttributes: {},
+                    intrinsicUserAttributes: {},
+                },
+                availableParameterDefinitions: {},
+            });
+            (service as AnyType).prepareMetricQueryAsyncQueryArgs = prepareSpy;
+            service['executeAsyncQuery'] = vi.fn().mockResolvedValue({
+                queryUuid: 'queryUuid',
+                cacheMetadata: { cacheHit: false },
+            });
+
+            await service.executeAsyncSavedChartQuery({
+                account: authorizedAccount,
+                projectUuid,
+                chartUuid: chart.uuid,
+                versionUuid: undefined,
+                context: QueryExecutionContext.CHART,
+                invalidateCache: false,
+                limit: undefined,
+                parameters: undefined,
+                pivotResults: false,
+                filterOverrides: undefined,
+                dashboardFilters: {
+                    dimensions: [
+                        {
+                            // Different field than the chart's own filter —
+                            // same-field dashboard filters OVERRIDE chart
+                            // filters (standard dashboard-tile semantics).
+                            id: 'dash-rule-in-explore',
+                            target: { fieldId: 'b_dim1', tableName: 'b' },
+                            operator: FilterOperator.EQUALS,
+                            values: ['dashboard-value'],
+                            label: undefined,
+                        },
+                        {
+                            id: 'dash-rule-other-explore',
+                            target: {
+                                fieldId: 'customers_segment',
+                                tableName: 'customers',
+                            },
+                            operator: FilterOperator.EQUALS,
+                            values: ['enterprise'],
+                            label: undefined,
+                        },
+                    ],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+            });
+
+            const merged = prepareSpy.mock.calls[0][0].metricQuery;
+            const mergedJson = JSON.stringify(merged.filters);
+            // The in-explore rule is applied alongside the chart's own filter…
+            expect(mergedJson).toContain('dashboard-value');
+            expect(mergedJson).toContain('chart-value');
+            // …the out-of-explore rule is dropped without failing the run.
+            expect(mergedJson).not.toContain('customers_segment');
+        });
     });
 });

@@ -1,7 +1,9 @@
 import {
     APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
+    FilterOperator,
     LightdashAppUuidHeader,
+    type DashboardFilters,
     type DataAppVizContext,
 } from '@lightdash/common';
 import { renderHook } from '@testing-library/react';
@@ -515,6 +517,59 @@ describe('chart-query routing', () => {
             status: 'running',
             queryUuid: CHART_QUERY_UUID,
             exploreName: 'orders',
+        });
+    });
+
+    it('stamps dashboardFilters onto /query/chart POST bodies', async () => {
+        const dashboardFilters: DashboardFilters = {
+            dimensions: [
+                {
+                    id: 'dash-filter-1',
+                    target: { fieldId: 'orders_status', tableName: 'orders' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['completed'],
+                    label: undefined,
+                },
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const iframeRef = {
+            current: { contentWindow: window } as unknown as HTMLIFrameElement,
+        } as RefObject<HTMLIFrameElement | null>;
+        renderHook(() =>
+            useAppSdkBridge({
+                iframeRef,
+                expectedPreviewOrigin: window.location.origin,
+                projectUuid: PROJECT_UUID,
+                appUuid: APP_UUID,
+                dashboardFilters,
+            }),
+        );
+
+        mockFetchOk({
+            status: 'ok',
+            results: { queryUuid: CHART_QUERY_UUID, metricQuery: {} },
+        });
+
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:fetch',
+            id: CHART_POST_ID,
+            method: 'POST',
+            path: CHART_PATH,
+            body: { chartUuid: CHART_UUID },
+        });
+
+        await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
+        const [, init] = vi.mocked(fetch).mock.calls[0];
+        const sentBody = JSON.parse(String(init?.body));
+        expect(sentBody.chartUuid).toBe(CHART_UUID);
+        expect(sentBody.dashboardFilters.dimensions).toHaveLength(1);
+        expect(sentBody.dashboardFilters.dimensions[0]).toMatchObject({
+            id: 'dash-filter-1',
+            target: { fieldId: 'orders_status', tableName: 'orders' },
+            operator: 'equals',
+            values: ['completed'],
         });
     });
 

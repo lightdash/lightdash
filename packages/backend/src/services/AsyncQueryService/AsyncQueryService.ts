@@ -4629,6 +4629,7 @@ export class AsyncQueryService extends ProjectService {
         parameters,
         pivotResults,
         filterOverrides,
+        dashboardFilters,
     }: ExecuteAsyncSavedChartQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         // Check user is in organization
         assertIsAccountWithOrg(account);
@@ -4738,6 +4739,8 @@ export class AsyncQueryService extends ProjectService {
             limit,
             parameters,
             pivotResults,
+            filters: filterOverrides,
+            dashboardFilters,
         };
 
         const { maxLimit, csvCellsLimit } =
@@ -4747,7 +4750,7 @@ export class AsyncQueryService extends ProjectService {
                 savedChartOrganizationUuid,
             );
 
-        const metricQueryWithLimit = applyMetricQueryLimit(
+        const limitedMetricQuery = applyMetricQueryLimit(
             metricQuery,
             limit,
             csvCellsLimit,
@@ -4771,6 +4774,32 @@ export class AsyncQueryService extends ProjectService {
                 savedChartTableName,
                 savedChartOrganizationUuid,
             );
+
+        // Dashboard filters (from a data-app tile) are merged once the explore
+        // is known so filters targeting fields outside it are dropped silently
+        // — mirrors executeAsyncMetricQuery; see ExecuteAsyncSavedChartRequestParams.
+        let metricQueryWithLimit = limitedMetricQuery;
+        if (dashboardFilters) {
+            const availableFieldIds = getAvailableFilterFieldIds(explore);
+            metricQueryWithLimit = addDashboardFiltersToMetricQuery(
+                limitedMetricQuery,
+                {
+                    dimensions: getDashboardFilterRulesForTables(
+                        availableFieldIds,
+                        dashboardFilters.dimensions,
+                    ),
+                    metrics: getDashboardFilterRulesForTables(
+                        availableFieldIds,
+                        dashboardFilters.metrics,
+                    ),
+                    tableCalculations: getDashboardFilterRulesForTables(
+                        availableFieldIds,
+                        dashboardFilters.tableCalculations,
+                    ),
+                },
+                explore,
+            );
+        }
 
         const warehouseCredentials = await this.getWarehouseCredentials({
             projectUuid,
