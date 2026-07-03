@@ -115,7 +115,9 @@ import ShareShortLinkButton from '../../common/ShareShortLinkButton';
 import TransferItemsModal from '../../common/TransferItemsModal/TransferItemsModal';
 import ExploreFromHereButton from '../../ExploreFromHereButton';
 import AddTilesToDashboardModal from '../../SavedDashboards/AddTilesToDashboardModal';
-import SaveChartButton from '../SaveChartButton';
+import SaveChartButton, {
+    type VerificationSavePrompt,
+} from '../SaveChartButton';
 import { TitleBreadCrumbs } from './TitleBreadcrumbs';
 
 const SavedChartsHeader: FC = () => {
@@ -361,6 +363,17 @@ const SavedChartsHeader: FC = () => {
         savedChart?.verification !== null &&
         savedChart?.verification !== undefined;
 
+    const isOwnVerification =
+        savedChart?.verification?.verifiedBy.userUuid === user.data?.userUuid;
+
+    let verificationSavePrompt: VerificationSavePrompt | undefined;
+    if (isChartVerified) {
+        verificationSavePrompt =
+            canManageContentVerification || isOwnVerification
+                ? 'confirm-keep'
+                : 'warn-removal';
+    }
+
     const userCanPinChart = user.data?.ability.can(
         'manage',
         subject('PinnedItems', {
@@ -587,9 +600,8 @@ const SavedChartsHeader: FC = () => {
                                             onSaveModalOpenChange={
                                                 setIsSaveModalOpen
                                             }
-                                            showVerificationSaveOptions={
-                                                isChartVerified &&
-                                                canManageContentVerification
+                                            verificationSavePrompt={
+                                                verificationSavePrompt
                                             }
                                         />
                                         <Button

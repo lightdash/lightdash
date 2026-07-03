@@ -773,8 +773,13 @@ const Dashboard: FC = () => {
             }),
         ) === true;
 
-    const shouldShowVerificationSaveOptions =
-        !!dashboard?.verification && canManageContentVerification;
+    const isOwnVerification =
+        dashboard?.verification?.verifiedBy.userUuid === user.data?.userUuid;
+
+    const canPreserveVerification =
+        canManageContentVerification || isOwnVerification;
+
+    const shouldShowVerificationSaveOptions = !!dashboard?.verification;
 
     const handleSaveDashboard = (preserveVerification?: boolean) => {
         const dimensionFilters = [
@@ -924,30 +929,63 @@ const Dashboard: FC = () => {
                 onClose={saveVerificationModalHandlers.close}
                 title="Save verified dashboard"
             >
-                <Text mb="md">Keep this dashboard verified after saving?</Text>
-                <Group justify="flex-end">
-                    <Button
-                        variant="default"
-                        loading={isSaving}
-                        onClick={() => {
-                            saveVerificationModalHandlers.close();
-                            handleSaveDashboard(false);
-                        }}
-                    >
-                        Save
-                    </Button>
-                    <Button
-                        color="green.7"
-                        leftSection={<IconCircleCheckFilled size={16} />}
-                        loading={isSaving}
-                        onClick={() => {
-                            saveVerificationModalHandlers.close();
-                            handleSaveDashboard(true);
-                        }}
-                    >
-                        Save & verify
-                    </Button>
-                </Group>
+                {canPreserveVerification ? (
+                    <>
+                        <Text mb="md">
+                            Keep this dashboard verified after saving?
+                        </Text>
+                        <Group justify="flex-end">
+                            <Button
+                                variant="default"
+                                loading={isSaving}
+                                onClick={() => {
+                                    saveVerificationModalHandlers.close();
+                                    handleSaveDashboard(false);
+                                }}
+                            >
+                                Save
+                            </Button>
+                            <Button
+                                color="green.7"
+                                leftSection={
+                                    <IconCircleCheckFilled size={16} />
+                                }
+                                loading={isSaving}
+                                onClick={() => {
+                                    saveVerificationModalHandlers.close();
+                                    handleSaveDashboard(true);
+                                }}
+                            >
+                                Save & verify
+                            </Button>
+                        </Group>
+                    </>
+                ) : (
+                    <>
+                        <Text mb="md">
+                            This dashboard is verified. Saving your changes will
+                            remove its verified status until someone verifies it
+                            again.
+                        </Text>
+                        <Group justify="flex-end">
+                            <Button
+                                variant="default"
+                                onClick={saveVerificationModalHandlers.close}
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                loading={isSaving}
+                                onClick={() => {
+                                    saveVerificationModalHandlers.close();
+                                    handleSaveDashboard(false);
+                                }}
+                            >
+                                Save anyway
+                            </Button>
+                        </Group>
+                    </>
+                )}
             </MantineModal>
 
             <Page
