@@ -150,16 +150,21 @@
     }
 }
 
+/* Persistent while the query stays selected (lineage click-select) — the
+   entry flash draws the eye, then settles on a lasting tint + accent bar
+   matching the in-app element outline (#7c3aed). */
 .queryRowFocused {
     animation: queryRowFlash 1.2s ease-out;
+    background-color: rgba(124, 58, 237, 0.1);
+    box-shadow: inset 2px 0 0 0 #7c3aed;
 }
 
 @keyframes queryRowFlash {
     0% {
-        background-color: rgba(124, 58, 237, 0.18);
+        background-color: rgba(124, 58, 237, 0.28);
     }
     100% {
-        background-color: transparent;
+        background-color: rgba(124, 58, 237, 0.1);
     }
 }
 

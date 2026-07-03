@@ -232,13 +232,20 @@ const AppInspectorPanel: FC<Props> = ({
                         {onToggleLineage && activeTab === 'queries' && (
                             <Tooltip
                                 label={
-                                    lineageEnabled
-                                        ? 'Inspect data: on'
-                                        : 'Inspect data'
+                                    !lineageAvailable
+                                        ? 'Inspect data is not available in this app version — upgrade the app (regenerate it) to enable it'
+                                        : lineageEnabled
+                                          ? 'Inspect data: on'
+                                          : 'Inspect data'
                                 }
                                 withArrow
                                 position="top"
+                                maw={260}
+                                multiline
                             >
+                                {/* data-disabled (not disabled): a truly
+                                    disabled button swallows the hover events
+                                    the explanatory tooltip needs. */}
                                 <ActionIcon
                                     variant={
                                         lineageEnabled ? 'filled' : 'subtle'
@@ -247,9 +254,13 @@ const AppInspectorPanel: FC<Props> = ({
                                     size="xs"
                                     onClick={(e) => {
                                         e.stopPropagation();
+                                        if (!lineageAvailable) return;
                                         onToggleLineage();
                                     }}
-                                    disabled={!lineageAvailable}
+                                    data-disabled={
+                                        !lineageAvailable || undefined
+                                    }
+                                    aria-disabled={!lineageAvailable}
                                     aria-label="Toggle data lineage inspector"
                                 >
                                     <MantineIcon

@@ -141,15 +141,33 @@ describe('AppInspectorPanel lineage hooks', () => {
             expect(onToggleLineage).toHaveBeenCalledTimes(1);
         });
 
-        it('disables the toggle when lineage is unavailable', () => {
+        it('marks the toggle disabled and ignores clicks when lineage is unavailable', () => {
+            const onToggleLineage = vi.fn();
+            renderPanel({
+                onToggleLineage,
+                lineageAvailable: false,
+                defaultCollapsed: false,
+            });
+            const toggle = screen.getByLabelText(
+                'Toggle data lineage inspector',
+            );
+            expect(toggle).toHaveAttribute('data-disabled');
+            fireEvent.click(toggle);
+            expect(onToggleLineage).not.toHaveBeenCalled();
+        });
+
+        it('explains the upgrade path in the tooltip when lineage is unavailable', async () => {
             renderPanel({
                 onToggleLineage: vi.fn(),
                 lineageAvailable: false,
                 defaultCollapsed: false,
             });
-            expect(
+            fireEvent.mouseEnter(
                 screen.getByLabelText('Toggle data lineage inspector'),
-            ).toBeDisabled();
+            );
+            expect(
+                await screen.findByText(/upgrade the app/i),
+            ).toBeInTheDocument();
         });
     });
 });
