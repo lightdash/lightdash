@@ -39,7 +39,6 @@ export const SCHEDULER_SECTIONS: Record<
     data: {
         id: 'data',
         label: 'Data & format',
-        description: "What's exported and how it's shaped.",
         icon: IconTable,
         group: 'content',
     },

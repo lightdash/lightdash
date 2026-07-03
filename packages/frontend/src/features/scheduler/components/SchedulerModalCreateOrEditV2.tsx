@@ -13,6 +13,7 @@ import {
     Loader,
     Modal,
     Paper,
+    ScrollArea,
     Stack,
     Text,
     Tooltip,
@@ -270,7 +271,11 @@ export const SchedulerModalCreateOrEditV2: FC<Props> = ({
                                         active={activeSection}
                                         onSelect={setActiveSection}
                                     />
-                                    <div className={classes.center}>
+                                    <ScrollArea
+                                        className={classes.center}
+                                        type="hover"
+                                        scrollbarSize={8}
+                                    >
                                         <div className={classes.centerInner}>
                                             <Stack gap="lg">
                                                 <Stack gap={2}>
@@ -296,7 +301,7 @@ export const SchedulerModalCreateOrEditV2: FC<Props> = ({
                                                 {renderSection()}
                                             </Stack>
                                         </div>
-                                    </div>
+                                    </ScrollArea>
                                     <SchedulerPreviewPanel
                                         dashboard={dashboard}
                                         isThresholdAlert={isThresholdAlert}

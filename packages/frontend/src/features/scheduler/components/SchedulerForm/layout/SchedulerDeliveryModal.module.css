@@ -142,14 +142,16 @@
     }
 }
 
+/* Mantine ScrollArea host: overlay scrollbars, so no layout shift when the
+   vertical scrollbar appears. Padding lives on the inner wrapper. */
 .center {
-    overflow-y: auto;
     min-height: 0;
-    padding: var(--mantine-spacing-xl);
+    height: 100%;
 }
 
 .centerInner {
     max-width: 62ch;
+    padding: var(--mantine-spacing-xl);
 }
 
 .sectionTitle {

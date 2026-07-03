@@ -113,10 +113,6 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
         // show invalid dashboard filter
         return (
             <Group gap="xs" wrap="nowrap" justify="flex-start">
-                <ActionIcon size="xs" disabled>
-                    <MantineIcon icon={IconRotate2} />
-                </ActionIcon>
-
                 <Paper key={dashboardFilter.id} withBorder p="xs" radius="md">
                     <Group gap="xs">
                         <MantineIcon icon={IconAlertTriangle} color="red" />
@@ -146,24 +142,9 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
     }
 
     return (
-        <Group gap="xs" wrap="nowrap">
-            <Tooltip label="Reset filter" fz="xs" disabled={!hasChanged}>
-                <ActionIcon
-                    size="xs"
-                    disabled={!hasChanged}
-                    onClick={() => {
-                        if (isEditing) {
-                            setIsEditing(false);
-                        }
-                        onRevert();
-                    }}
-                >
-                    <MantineIcon icon={IconRotate2} />
-                </ActionIcon>
-            </Tooltip>
-
-            <Stack key={dashboardFilter.id} gap="xs" w="100%">
-                <Group gap="xs">
+        <Stack key={dashboardFilter.id} gap="xs">
+            <Group gap="xs" wrap="nowrap" align="flex-start">
+                <Group gap="xs" style={{ flex: 1, minWidth: 0 }}>
                     <FieldIcon item={field} />
                     <FieldLabel
                         item={{
@@ -172,102 +153,114 @@ const FilterItem: FC<SchedulerFilterItemProps> = ({
                         }}
                         hideTableName
                     />
-                    <>
-                        {isEditing ? null : (
-                            <FilterSummaryLabel
-                                filterSummary={getConditionalRuleLabelFromItem(
-                                    schedulerFilter ?? dashboardFilter,
-                                    field,
-                                )}
-                                isDisabled={isDisabled}
-                            />
-                        )}
-
-                        <ActionIcon
-                            size="xs"
-                            onClick={() => {
-                                setIsEditing(!isEditing);
-                            }}
-                        >
-                            <MantineIcon
-                                icon={isEditing ? IconCheck : IconPencil}
-                            />
-                        </ActionIcon>
-                        {onRemove && (
-                            <ActionIcon size="xs" onClick={onRemove}>
-                                <MantineIcon icon={IconTrash} />
-                            </ActionIcon>
-                        )}
-                        {dashboardFilter.required &&
-                            !isEditing &&
-                            (!schedulerFilter?.values ||
-                                schedulerFilter?.values?.length === 0) && (
-                                <Text fz="sm" color="red">
-                                    *
-                                </Text>
+                    {isEditing ? null : (
+                        <FilterSummaryLabel
+                            filterSummary={getConditionalRuleLabelFromItem(
+                                schedulerFilter ?? dashboardFilter,
+                                field,
                             )}
-                        {tilesWithFilter && tilesWithFilter.length > 0 && (
-                            <Tooltip
-                                label={`Applies to: ${tilesWithFilter.join(
-                                    ', ',
-                                )}`}
-                                fz="xs"
-                                multiline
-                                w={200}
-                            >
-                                <Text fz="xs" color="ldGray.6" span>
-                                    {`Applies to ${tilesWithFilter.length} tiles`}
-                                </Text>
-                            </Tooltip>
+                            isDisabled={isDisabled}
+                        />
+                    )}
+                    {dashboardFilter.required &&
+                        !isEditing &&
+                        (!schedulerFilter?.values ||
+                            schedulerFilter?.values?.length === 0) && (
+                            <Text fz="sm" color="red">
+                                *
+                            </Text>
                         )}
-                    </>
+                    {tilesWithFilter && tilesWithFilter.length > 0 && (
+                        <Tooltip
+                            label={`Applies to: ${tilesWithFilter.join(', ')}`}
+                            fz="xs"
+                            multiline
+                            w={200}
+                        >
+                            <Text fz="xs" color="ldGray.6" span>
+                                {`Applies to ${tilesWithFilter.length} tiles`}
+                            </Text>
+                        </Tooltip>
+                    )}
                 </Group>
-                {!isEditing && hasChanged && (
-                    <Text fz="xs" c="ldGray.6">
-                        Unsaved changes
-                    </Text>
-                )}
-
-                {isEditing && (
-                    <Flex gap="xs">
-                        <Select
-                            style={{
-                                flex: '0 0 180px',
-                            }}
-                            size="xs"
-                            value={
-                                schedulerFilter?.operator ??
-                                dashboardFilter.operator
-                            }
-                            data={filterOperatorOptions}
-                            onChange={(operator: string | null) => {
-                                if (!isValidFilterOperator(operator)) return;
-
-                                const newFilter = {
-                                    ...dashboardFilter,
-                                    operator,
-                                    values: isWithValueFilter(operator)
-                                        ? dashboardFilter.values
-                                        : undefined,
-                                };
-
-                                onChange(newFilter);
-                            }}
+                <Group gap={4} wrap="nowrap">
+                    {hasChanged && (
+                        <Tooltip label="Reset filter" fz="xs">
+                            <ActionIcon
+                                size="xs"
+                                onClick={() => {
+                                    if (isEditing) {
+                                        setIsEditing(false);
+                                    }
+                                    onRevert();
+                                }}
+                            >
+                                <MantineIcon icon={IconRotate2} />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
+                    <ActionIcon
+                        size="xs"
+                        onClick={() => {
+                            setIsEditing(!isEditing);
+                        }}
+                    >
+                        <MantineIcon
+                            icon={isEditing ? IconCheck : IconPencil}
                         />
+                    </ActionIcon>
+                    {onRemove && (
+                        <ActionIcon size="xs" onClick={onRemove}>
+                            <MantineIcon icon={IconTrash} />
+                        </ActionIcon>
+                    )}
+                </Group>
+            </Group>
+            {!isEditing && hasChanged && (
+                <Text fz="xs" c="ldGray.6">
+                    Unsaved changes
+                </Text>
+            )}
 
-                        <FilterInputComponent
-                            filterType={filterType}
-                            field={field}
-                            rule={schedulerFilter ?? dashboardFilter}
-                            onChange={(newFilter) => {
-                                onChange(newFilter);
-                            }}
-                            popoverProps={{ withinPortal: true }}
-                        />
-                    </Flex>
-                )}
-            </Stack>
-        </Group>
+            {isEditing && (
+                <Flex gap="xs" wrap="wrap">
+                    <Select
+                        style={{
+                            flex: '0 0 180px',
+                        }}
+                        size="xs"
+                        value={
+                            schedulerFilter?.operator ??
+                            dashboardFilter.operator
+                        }
+                        data={filterOperatorOptions}
+                        onChange={(operator: string | null) => {
+                            if (!isValidFilterOperator(operator)) return;
+
+                            const newFilter = {
+                                ...dashboardFilter,
+                                operator,
+                                values: isWithValueFilter(operator)
+                                    ? dashboardFilter.values
+                                    : undefined,
+                            };
+
+                            onChange(newFilter);
+                        }}
+                    />
+
+                    <FilterInputComponent
+                        filterType={filterType}
+                        field={field}
+                        rule={schedulerFilter ?? dashboardFilter}
+                        onChange={(newFilter) => {
+                            onChange(newFilter);
+                        }}
+                        popoverProps={{ withinPortal: true }}
+                    />
+                </Flex>
+            )}
+        </Stack>
     );
 };
 

@@ -63,28 +63,9 @@ const ParameterItem: FC<SchedulerParameterItemProps> = ({
     }, [currentValue]);
 
     return (
-        <Group gap="xs" wrap="nowrap">
-            <Tooltip
-                label="Reset parameter back to dashboard default"
-                fz="xs"
-                disabled={!hasChanged}
-            >
-                <ActionIcon
-                    size="xs"
-                    disabled={!hasChanged}
-                    onClick={() => {
-                        if (isEditing) {
-                            setIsEditing(false);
-                        }
-                        onRevert();
-                    }}
-                >
-                    <MantineIcon icon={IconRotate2} />
-                </ActionIcon>
-            </Tooltip>
-
-            <Stack key={paramKey} gap="xs" w="100%">
-                <Group gap="xs">
+        <Stack key={paramKey} gap="xs">
+            <Group gap="xs" wrap="nowrap" align="flex-start">
+                <Group gap="xs" style={{ flex: 1, minWidth: 0 }}>
                     <Text span fw={500} fz="sm">
                         {parameter.label || paramKey}
                     </Text>
@@ -100,7 +81,26 @@ const ParameterItem: FC<SchedulerParameterItemProps> = ({
                             = {displayValue}
                         </Text>
                     )}
-
+                </Group>
+                <Group gap={4} wrap="nowrap">
+                    {hasChanged && (
+                        <Tooltip
+                            label="Reset parameter back to dashboard default"
+                            fz="xs"
+                        >
+                            <ActionIcon
+                                size="xs"
+                                onClick={() => {
+                                    if (isEditing) {
+                                        setIsEditing(false);
+                                    }
+                                    onRevert();
+                                }}
+                            >
+                                <MantineIcon icon={IconRotate2} />
+                            </ActionIcon>
+                        </Tooltip>
+                    )}
                     <ActionIcon
                         size="xs"
                         variant="light"
@@ -112,25 +112,25 @@ const ParameterItem: FC<SchedulerParameterItemProps> = ({
                         <MantineIcon icon={IconPencil} />
                     </ActionIcon>
                 </Group>
+            </Group>
 
-                {(isEditing || hasChanged) && (
-                    <ParameterInput
-                        paramKey={paramKey}
-                        parameter={parameter}
-                        value={currentValue}
-                        onParameterChange={(key, value) => {
-                            onChange(key, value);
-                            if (isEditing) {
-                                setIsEditing(false);
-                            }
-                        }}
-                        size="xs"
-                        projectUuid={projectUuid}
-                        parameterValues={parameterValues}
-                    />
-                )}
-            </Stack>
-        </Group>
+            {(isEditing || hasChanged) && (
+                <ParameterInput
+                    paramKey={paramKey}
+                    parameter={parameter}
+                    value={currentValue}
+                    onParameterChange={(key, value) => {
+                        onChange(key, value);
+                        if (isEditing) {
+                            setIsEditing(false);
+                        }
+                    }}
+                    size="xs"
+                    projectUuid={projectUuid}
+                    parameterValues={parameterValues}
+                />
+            )}
+        </Stack>
     );
 };
 
