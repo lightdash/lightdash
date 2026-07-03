@@ -4,6 +4,8 @@ import { EventEmitter } from 'events';
 import express from 'express';
 import http from 'http';
 import knex, { Knex } from 'knex';
+import { BufferedEventStreamWriter } from './analytics/eventStream/BufferedEventStreamWriter';
+import { createEventStreamWriter } from './analytics/eventStream/createEventStreamWriter';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
 import { registerOAuthRefreshStrategies } from './auth/registerOAuthRefreshStrategies';
 import {
@@ -120,6 +122,8 @@ export default class SchedulerApp {
 
     private readonly prometheusMetrics: PrometheusMetrics;
 
+    private readonly eventStreamWriter: BufferedEventStreamWriter | null;
+
     private readonly models: ModelRepository;
 
     private readonly database: Knex;
@@ -175,6 +179,10 @@ export default class SchedulerApp {
         });
         this.prometheusMetrics = new PrometheusMetrics(
             this.lightdashConfig.prometheus,
+        );
+        this.eventStreamWriter = createEventStreamWriter(
+            this.lightdashConfig,
+            this.prometheusMetrics,
         );
         this.serviceRepository = new ServiceRepository({
             serviceProviders: args.serviceProviders,
@@ -290,6 +298,10 @@ export default class SchedulerApp {
                 Logger.info('Shutting down gracefully');
             },
             onSignal: async () => {
+                if (this.eventStreamWriter) {
+                    Logger.info('Flushing usage event stream writer');
+                    await this.eventStreamWriter.close();
+                }
                 Logger.info('Stopping Prometheus metrics');
                 await this.prometheusMetrics.stop();
                 await shutdownOtelTracing();
@@ -310,5 +322,9 @@ export default class SchedulerApp {
         });
 
         server.listen(this.port);
+    }
+
+    public getEventStreamWriter() {
+        return this.eventStreamWriter;
     }
 }

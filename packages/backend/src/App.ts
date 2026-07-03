@@ -28,6 +28,8 @@ import path from 'path';
 import qs from 'qs';
 import reDoc from 'redoc-express';
 import { URL } from 'url';
+import { BufferedEventStreamWriter } from './analytics/eventStream/BufferedEventStreamWriter';
+import { createEventStreamWriter } from './analytics/eventStream/createEventStreamWriter';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
 import {
     ClientProviderMap,
@@ -177,6 +179,8 @@ export default class App {
 
     private readonly prometheusMetrics: PrometheusMetrics;
 
+    private readonly eventStreamWriter: BufferedEventStreamWriter | null;
+
     private readonly customExpressMiddlewares: Array<(app: Express) => void>;
 
     private readonly analyticsEventEmitter: EventEmitter;
@@ -225,6 +229,10 @@ export default class App {
         });
         this.prometheusMetrics = new PrometheusMetrics(
             this.lightdashConfig.prometheus,
+        );
+        this.eventStreamWriter = createEventStreamWriter(
+            this.lightdashConfig,
+            this.prometheusMetrics,
         );
 
         this.serviceRepository = new ServiceRepository({
@@ -973,6 +981,10 @@ export default class App {
     }
 
     async stop() {
+        if (this.eventStreamWriter) {
+            await this.eventStreamWriter.close();
+            Logger.info('Flushed usage event stream writer');
+        }
         await this.prometheusMetrics.stop();
         await shutdownOtelTracing();
         if (this.schedulerWorker && this.schedulerWorker.runner) {
@@ -999,5 +1011,9 @@ export default class App {
 
     getDatabase() {
         return this.database;
+    }
+
+    getEventStreamWriter() {
+        return this.eventStreamWriter;
     }
 }

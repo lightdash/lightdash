@@ -940,6 +940,37 @@ export const parsePreAggregateResultsS3Config = ():
     };
 };
 
+export const parseUsageEventsS3Config = (): Omit<
+    S3Config,
+    'expirationTime'
+> | null => {
+    const baseS3Config = parseBaseS3Config();
+
+    if (!baseS3Config) {
+        return null;
+    }
+
+    const {
+        endpoint,
+        forcePathStyle,
+        useCredentialsFrom,
+        bucket: baseBucket,
+        region: baseRegion,
+        accessKey: baseAccessKey,
+        secretKey: baseSecretKey,
+    } = baseS3Config;
+
+    return {
+        endpoint,
+        forcePathStyle,
+        bucket: process.env.USAGE_EVENTS_S3_BUCKET || baseBucket,
+        region: process.env.USAGE_EVENTS_S3_REGION || baseRegion,
+        accessKey: process.env.USAGE_EVENTS_S3_ACCESS_KEY || baseAccessKey,
+        secretKey: process.env.USAGE_EVENTS_S3_SECRET_KEY || baseSecretKey,
+        useCredentialsFrom,
+    };
+};
+
 const validateTaskList = (tasks: string[], envVarName: string) => {
     const validTasks: SchedulerTaskName[] = [];
     const invalidTasks: string[] = [];
@@ -1504,6 +1535,13 @@ export type LightdashConfig = {
         /** Max memory DuckDB can use for caching parquet data and query intermediates on the shared query instance (e.g. '256MB', '1GB', '2GB'). Only affects pre-aggregate reads, not materializations which use isolated instances. */
         duckdbQueryMemoryLimit: string | null;
         s3?: Omit<S3Config, 'expirationTime'>;
+    };
+    usageEvents: {
+        enabled: boolean;
+        flushIntervalMs: number;
+        flushBatchSize: number;
+        bufferMaxSize: number;
+        s3: Omit<S3Config, 'expirationTime'> | null;
     };
     appRuntime: AppRuntimeConfig;
     enabledFeatureFlags: Set<string>;
@@ -2103,6 +2141,9 @@ export const parseConfig = (): LightdashConfig => {
     const preAggregatesEnabled =
         licenseKey !== null && process.env.PRE_AGGREGATES_ENABLED === 'true';
     const preAggregatesS3 = parsePreAggregateResultsS3Config();
+    const usageEventsEnabled =
+        licenseKey !== null && process.env.USAGE_EVENTS_ENABLED === 'true';
+    const usageEventsS3 = parseUsageEventsS3Config();
     const natsWorkerEnabled = process.env.NATS_ENABLED === 'true';
     const natsWorkerUrl = process.env.NATS_URL;
     const natsWorkerConcurrency =
@@ -2112,6 +2153,9 @@ export const parseConfig = (): LightdashConfig => {
 
     if (preAggregatesEnabled && !preAggregatesS3) {
         throw new ParseError('Pre-aggregates require S3 configuration', {});
+    }
+    if (usageEventsEnabled && !usageEventsS3) {
+        throw new ParseError('Usage events require S3 configuration', {});
     }
     if (natsWorkerEnabled && !natsWorkerUrl) {
         throw new ParseError('NATS_URL is required when NATS_ENABLED=true', {});
@@ -2754,6 +2798,22 @@ export const parseConfig = (): LightdashConfig => {
             duckdbQueryMemoryLimit:
                 process.env.PRE_AGGREGATE_DUCKDB_QUERY_MEMORY_LIMIT ?? null,
             s3: preAggregatesS3,
+        },
+        usageEvents: {
+            enabled: usageEventsEnabled,
+            flushIntervalMs:
+                getIntegerFromEnvironmentVariable(
+                    'USAGE_EVENTS_FLUSH_INTERVAL_MS',
+                ) ?? 60000,
+            flushBatchSize:
+                getIntegerFromEnvironmentVariable(
+                    'USAGE_EVENTS_FLUSH_BATCH_SIZE',
+                ) ?? 1000,
+            bufferMaxSize:
+                getIntegerFromEnvironmentVariable(
+                    'USAGE_EVENTS_BUFFER_MAX_SIZE',
+                ) ?? 10000,
+            s3: usageEventsS3,
         },
         appRuntime: parseAppRuntimeConfig(siteUrl),
         enabledFeatureFlags: new Set([
