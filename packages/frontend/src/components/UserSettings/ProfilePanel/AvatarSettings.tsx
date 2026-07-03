@@ -81,6 +81,7 @@ const AvatarSettings: FC = () => {
     const [previewValue, setPreviewValue] =
         useState<UserAvatarColorValue | null>(null);
     const [mode, setMode] = useState<CustomMode>('gradient');
+    const [vibe, setVibe] = useState<AvatarMeshVibe>(0);
 
     if (!user.data) return null;
 
@@ -90,6 +91,7 @@ const AvatarSettings: FC = () => {
 
     const handleFile = (file: File | null) => {
         if (!file) return;
+        close();
         uploadMutation.mutate(file, {
             onError: (error) => {
                 showToastError({
@@ -102,8 +104,10 @@ const AvatarSettings: FC = () => {
 
     const handleToggle = () => {
         if (!opened) {
-            setPreviewValue(avatarGradient ?? null);
-            setMode(modeForValue(avatarGradient ?? null));
+            const current = avatarGradient ?? null;
+            setPreviewValue(current);
+            setMode(modeForValue(current));
+            setVibe(extractVibe(current));
         }
         toggle();
     };
@@ -111,37 +115,46 @@ const AvatarSettings: FC = () => {
     const handleModeChange = (value: string) => {
         const nextMode = value as CustomMode;
         setMode(nextMode);
-        if (previewValue && !isUserAvatarGradientId(previewValue)) {
-            const hex = extractHex(previewValue);
-            setPreviewValue(nextMode === 'solid' ? toSolidColor(hex) : hex);
-        }
+        const hex = extractHex(previewValue);
+        setPreviewValue(
+            nextMode === 'solid' ? toSolidColor(hex) : encodeMesh(hex, vibe),
+        );
     };
 
     const handleColorChange = (color: string) => {
         if (!isHexColorString(color)) return;
         setPreviewValue(
-            mode === 'solid'
-                ? toSolidColor(color)
-                : encodeMesh(color, extractVibe(previewValue)),
+            mode === 'solid' ? toSolidColor(color) : encodeMesh(color, vibe),
         );
     };
 
     const handleShuffleVibe = () => {
         const hex = extractHex(previewValue);
-        const currentVibe = extractVibe(previewValue);
-        const otherVibes = AVATAR_MESH_VIBES.filter((v) => v !== currentVibe);
+        const otherVibes = AVATAR_MESH_VIBES.filter((v) => v !== vibe);
         const nextVibe =
             otherVibes[Math.floor(Math.random() * otherVibes.length)];
+        setVibe(nextVibe);
         setPreviewValue(encodeMesh(hex, nextVibe));
     };
 
     const handlePresetClick = (gradientId: UserAvatarGradientId | null) => {
+        setMode('gradient');
         setPreviewValue(gradientId);
     };
 
     const handleApply = () => {
-        updateUserMutation.mutate({ avatarGradient: previewValue });
-        close();
+        updateUserMutation.mutate(
+            { avatarGradient: previewValue },
+            {
+                onSuccess: () => close(),
+                onError: (error) => {
+                    showToastError({
+                        title: 'Failed to update avatar color',
+                        subtitle: error?.error?.message ?? undefined,
+                    });
+                },
+            },
+        );
     };
 
     const avatarTrigger = !avatarUrl && (
@@ -303,15 +316,33 @@ const AvatarSettings: FC = () => {
                 )}
             </FileButton>
             {avatarUrl && (
-                <Button
-                    variant="subtle"
-                    color="red"
-                    size="xs"
-                    loading={deleteMutation.isLoading}
-                    onClick={() => deleteMutation.mutate()}
+                <Tooltip
+                    label={
+                        avatarGradient
+                            ? 'Your avatar will go back to your chosen color'
+                            : 'Your avatar will go back to the default style'
+                    }
                 >
-                    Remove photo
-                </Button>
+                    <Button
+                        variant="subtle"
+                        color="red"
+                        size="xs"
+                        loading={deleteMutation.isLoading}
+                        onClick={() =>
+                            deleteMutation.mutate(undefined, {
+                                onError: (error) => {
+                                    showToastError({
+                                        title: 'Failed to remove avatar photo',
+                                        subtitle:
+                                            error?.error?.message ?? undefined,
+                                    });
+                                },
+                            })
+                        }
+                    >
+                        Remove photo
+                    </Button>
+                </Tooltip>
             )}
         </Group>
     );
