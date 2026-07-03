@@ -247,7 +247,6 @@ import {
 } from '../ai/repoFs/mountingRepoFileSystem';
 import { RepoFs } from '../ai/repoFs/RepoFs';
 import { renderBlocks as renderSqlApprovalBlocks } from '../ai/tools/slackSqlAggregate';
-import { markSlackThreadAutoApproved } from '../ai/tools/sqlApprovals';
 import {
     AiAgentArgs,
     AiAgentDependencies,
@@ -7543,6 +7542,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     decision,
                     decidedByUserUuid,
                 ),
+            isThreadSqlAutoApproved: (threadUuid) =>
+                this.aiAgentModel.isThreadSqlAutoApproved(threadUuid),
             loadSkill: async (name) =>
                 this.aiAgentToolsService.loadAgentSkill(name),
 
@@ -9365,7 +9366,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 }
 
                 if (isApprovedAlways) {
-                    markSlackThreadAutoApproved(threadUuid);
+                    await this.aiAgentModel.setThreadSqlAutoApproved(
+                        threadUuid,
+                    );
                 }
 
                 // We don't reverse-map Slack user IDs → Lightdash user UUIDs

@@ -182,6 +182,7 @@ const makeAgentTools = () => {
         runSql: getRunSql({
             getPrompt: noop,
             recordSqlApproval: noop,
+            isThreadSqlAutoApproved: noop,
             storeToolResults: noop,
             runSqlJob: noop,
             sendFile: noop,

@@ -35,6 +35,7 @@ import {
     GetSavedChartFn,
     GetVerifiedFieldUsageFn,
     IsPromptInterruptedFn,
+    IsThreadSqlAutoApprovedFn,
     ListContentFn,
     ListExploresFn,
     ListKnowledgeDocumentsFn,
@@ -205,6 +206,7 @@ export type AiAgentDependencies = {
     getProjectInfo: GetProjectInfoFn;
     waitForSqlApproval: WaitForSqlApprovalFn;
     recordSqlApproval: RecordSqlApprovalFn;
+    isThreadSqlAutoApproved: IsThreadSqlAutoApprovedFn;
     loadSkill: LoadAgentSkillFn;
     perf: PerformanceMetrics;
 };

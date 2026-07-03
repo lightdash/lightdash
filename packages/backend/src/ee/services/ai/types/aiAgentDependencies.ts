@@ -488,6 +488,10 @@ export type RecordSqlApprovalFn = (
     decidedByUserUuid: string | null,
 ) => Promise<boolean>;
 
+export type IsThreadSqlAutoApprovedFn = (
+    threadUuid: string,
+) => Promise<boolean>;
+
 export type LoadAgentSkillFn = (
     name: string,
 ) => Promise<AiAgentSkill | undefined>;

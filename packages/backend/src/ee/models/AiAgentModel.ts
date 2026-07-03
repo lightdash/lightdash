@@ -5906,6 +5906,25 @@ export class AiAgentModel {
     }
 
     /**
+     * Marks a thread as SQL auto-approved ("Approve & don't ask again").
+     * First write wins so the original approval timestamp is preserved.
+     */
+    async setThreadSqlAutoApproved(threadUuid: string): Promise<void> {
+        await this.database(AiThreadTableName)
+            .where({ ai_thread_uuid: threadUuid })
+            .whereNull('sql_auto_approved_at')
+            .update({ sql_auto_approved_at: new Date() });
+    }
+
+    async isThreadSqlAutoApproved(threadUuid: string): Promise<boolean> {
+        const row = await this.database(AiThreadTableName)
+            .where({ ai_thread_uuid: threadUuid })
+            .select('sql_auto_approved_at')
+            .first();
+        return row?.sql_auto_approved_at != null;
+    }
+
+    /**
      * Polls `ai_sql_approval` for a decision keyed by `toolCallId`.
      * Resolves to the decision once one is recorded, or `'timeout'`
      * after `timeoutMs` of no activity.
