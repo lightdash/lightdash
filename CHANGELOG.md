@@ -1,3 +1,10 @@
+## [0.3307.1](https://github.com/lightdash/lightdash/compare/0.3307.0...0.3307.1) (2026-07-03)
+
+
+### Bug Fixes
+
+* **users:** avatar changes no longer render stale after apply ([#25130](https://github.com/lightdash/lightdash/issues/25130)) ([b9e95e3](https://github.com/lightdash/lightdash/commit/b9e95e388ac313f22231439eba3890519fddc463))
+
 # [0.3307.0](https://github.com/lightdash/lightdash/compare/0.3306.0...0.3307.0) (2026-07-03)
 
 
