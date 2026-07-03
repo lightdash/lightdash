@@ -38,6 +38,10 @@ export type ExecuteAsyncSavedChartRequestParams =
         pivotResults?: boolean;
         // ANDed onto the chart's own filters server-side (narrowing only).
         filters?: Filters;
+        // Filters whose target field is absent from the chart's explore are
+        // dropped silently — a dashboard hosting a data-app tile filters
+        // across explores and one mismatch shouldn't break the linked chart.
+        dashboardFilters?: DashboardFilters;
     };
 
 export type ExecuteAsyncDashboardChartRequestParams =

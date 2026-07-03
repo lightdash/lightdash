@@ -89,6 +89,9 @@ export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {
     limit?: number | null | undefined;
     pivotResults?: boolean;
     filterOverrides?: Filters;
+    // Silent-drop semantics for fields outside the chart's explore — unlike
+    // filterOverrides, which fails the run on unknown fields.
+    dashboardFilters?: DashboardFilters;
 };
 
 export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {
