@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    ChartKind,
     ContentType,
     ForbiddenError,
     OrganizationMemberRole,
@@ -56,6 +57,11 @@ const mockVerifiedItems: VerifiedContentListItem[] = [
         contentType: ContentType.CHART,
         contentUuid: 'chart-uuid',
         name: 'Test Chart',
+        description: null,
+        chartKind: ChartKind.VERTICAL_BAR,
+        exploreName: 'orders',
+        views: 0,
+        lastUpdatedAt: null,
         spaceUuid: 'space-uuid',
         spaceName: 'Test Space',
         verifiedBy: {
