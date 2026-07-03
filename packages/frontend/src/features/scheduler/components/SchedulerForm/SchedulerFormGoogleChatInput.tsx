@@ -7,6 +7,8 @@ import GoogleChatSvg from '../../../../svgs/googlechat.svg?react';
 type GoogleChatDestinationProps = {
     onChange: (val: string[]) => void;
     googleChatTargets: string[];
+    /** Omit the leading icon when the parent renders its own destination label */
+    hideIcon?: boolean;
 };
 
 const withTooltip = (Component: FC<any>) => {
@@ -30,18 +32,21 @@ const validateGoogleChatWebhook = (webhook: string): boolean => {
 export const SchedulerFormGoogleChatInput: FC<GoogleChatDestinationProps> = ({
     onChange,
     googleChatTargets,
+    hideIcon,
 }) => {
     return (
         <Group wrap="nowrap" mb="sm" align="flex-start">
-            <Box pt="xxs">
-                <GoogleChatSvg
-                    style={{
-                        margin: '5px 2px',
-                        width: '20px',
-                        height: '20px',
-                    }}
-                />
-            </Box>
+            {!hideIcon && (
+                <Box pt="xxs">
+                    <GoogleChatSvg
+                        style={{
+                            margin: '5px 2px',
+                            width: '20px',
+                            height: '20px',
+                        }}
+                    />
+                </Box>
+            )}
             <Box w="100%">
                 <TagInput
                     sx={{

@@ -15,16 +15,24 @@ import useHealth from '../../../../hooks/health/useHealth';
 type Props = {
     value: string[];
     onChange: (val: string[]) => void;
+    /** Omit the leading icon when the parent renders its own destination label */
+    hideIcon?: boolean;
 };
 
-export const SchedulerFormEmailInput: FC<Props> = ({ value, onChange }) => {
+export const SchedulerFormEmailInput: FC<Props> = ({
+    value,
+    onChange,
+    hideIcon,
+}) => {
     const health = useHealth();
     const isDisabled = !health.data?.hasEmailClient;
     const [validationError, setValidationError] = useState<string>();
 
     return (
         <Group wrap="nowrap">
-            <MantineIcon icon={IconMail} size="xl" color="ldGray.7" />
+            {!hideIcon && (
+                <MantineIcon icon={IconMail} size="xl" color="ldGray.7" />
+            )}
             <HoverCard
                 disabled={!isDisabled}
                 width={300}

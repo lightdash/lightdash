@@ -89,9 +89,11 @@ export const NAV_GROUP_LABELS: Record<SchedulerNavGroup, string> = {
 export const getVisibleSections = ({
     isThresholdAlert,
     isAiVisible,
+    isApp,
 }: {
     isThresholdAlert: boolean;
     isAiVisible: boolean;
+    isApp: boolean;
 }): SchedulerSectionId[] => {
     if (isThresholdAlert) {
         return ['alert', 'schedule', 'recipients'];
@@ -102,7 +104,8 @@ export const getVisibleSections = ({
         'data',
         'message',
     ];
-    if (isAiVisible) {
+    // AI summaries only apply to chart/dashboard deliveries
+    if (isAiVisible && !isApp) {
         sections.push('ai');
     }
     return sections;

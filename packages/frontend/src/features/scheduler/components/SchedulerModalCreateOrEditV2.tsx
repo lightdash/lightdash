@@ -24,17 +24,22 @@ import ErrorState from '../../../components/common/ErrorState';
 import MantineIcon from '../../../components/common/MantineIcon';
 import DocumentationHelpButton from '../../../components/DocumentationHelpButton';
 import { useAiAgentButtonVisibility } from '../../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import { useSchedulerFormModal } from '../hooks/useSchedulerFormModal';
 import {
     getVisibleSections,
     SCHEDULER_SECTIONS,
     type SchedulerSectionId,
 } from './SchedulerForm/layout/navSections';
+import { SchedulerDataFormatSection } from './SchedulerForm/layout/SchedulerDataFormatSection';
 import classes from './SchedulerForm/layout/SchedulerDeliveryModal.module.css';
 import { SchedulerDeliveryNav } from './SchedulerForm/layout/SchedulerDeliveryNav';
+import { SchedulerMessageSection } from './SchedulerForm/layout/SchedulerMessageSection';
 import { SchedulerPreviewPanel } from './SchedulerForm/layout/SchedulerPreviewPanel';
+import { SchedulerRecipientsSection } from './SchedulerForm/layout/SchedulerRecipientsSection';
 import { SchedulerScheduleSection } from './SchedulerForm/layout/SchedulerScheduleSection';
 import { SchedulerSectionPlaceholder } from './SchedulerForm/layout/SchedulerSectionPlaceholder';
+import { SchedulerFormAiInput } from './SchedulerForm/SchedulerFormAiInput';
 import {
     SchedulerFormProvider,
     type SchedulerFormValues,
@@ -73,10 +78,12 @@ export const SchedulerModalCreateOrEditV2: FC<Props> = ({
     isThresholdAlert,
     itemsMap,
     currentParameterValues,
+    availableParameters,
     onClose,
     onBack,
 }) => {
     const isAiVisible = useAiAgentButtonVisibility();
+    const projectUuid = useProjectUuid();
 
     const {
         isEditMode,
@@ -84,12 +91,14 @@ export const SchedulerModalCreateOrEditV2: FC<Props> = ({
         error,
         isLoadingSendNow,
         isMutating,
+        savedSchedulerData,
         handleSubmit,
         handleSendNow,
         confirmText,
         form,
         dashboard,
         isThresholdAlertWithNoFields,
+        isDashboardTabsAvailable,
         requiredFiltersWithoutValues,
     } = useSchedulerFormModal({
         schedulerUuid: schedulerUuidToEdit,
@@ -109,8 +118,9 @@ export const SchedulerModalCreateOrEditV2: FC<Props> = ({
             getVisibleSections({
                 isThresholdAlert: !!isThresholdAlert,
                 isAiVisible,
+                isApp: !!isApp,
             }),
-        [isThresholdAlert, isAiVisible],
+        [isThresholdAlert, isAiVisible, isApp],
     );
 
     const [activeSection, setActiveSection] = useState<SchedulerSectionId>(
@@ -152,13 +162,23 @@ export const SchedulerModalCreateOrEditV2: FC<Props> = ({
             case 'schedule':
                 return <SchedulerScheduleSection />;
             case 'recipients':
-                return <SchedulerSectionPlaceholder label="Recipients" />;
+                return <SchedulerRecipientsSection />;
             case 'data':
-                return <SchedulerSectionPlaceholder label="Data & format" />;
+                return (
+                    <SchedulerDataFormatSection
+                        dashboard={dashboard}
+                        savedSchedulerData={savedSchedulerData}
+                        isApp={!!isApp}
+                        isDashboardTabsAvailable={isDashboardTabsAvailable}
+                        currentParameterValues={currentParameterValues}
+                        availableParameters={availableParameters}
+                        loading={isMutating || isLoading}
+                    />
+                );
             case 'message':
-                return <SchedulerSectionPlaceholder label="Message" />;
+                return <SchedulerMessageSection />;
             case 'ai':
-                return <SchedulerSectionPlaceholder label="AI agent" />;
+                return <SchedulerFormAiInput projectUuid={projectUuid} />;
             case 'alert':
                 return <SchedulerSectionPlaceholder label="Alert conditions" />;
             default:
