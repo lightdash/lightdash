@@ -16,6 +16,8 @@ import {
     IconEye,
     IconFolder,
     IconHash,
+    IconUser,
+    IconUsersGroup,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
@@ -56,6 +58,22 @@ const DashboardInfoOverlay: FC<DashboardInfoOverlayProps> = ({
                 <InfoRow icon={IconEye} label="Views">
                     {(dashboard.views ?? 0).toLocaleString()}
                 </InfoRow>
+
+                {dashboard.ownership && (
+                    <InfoRow
+                        icon={
+                            dashboard.ownership.owner.type === 'group'
+                                ? IconUsersGroup
+                                : IconUser
+                        }
+                        label="Owner"
+                    >
+                        {dashboard.ownership.owner.type === 'user'
+                            ? `${dashboard.ownership.owner.firstName} ${dashboard.ownership.owner.lastName}`.trim() ||
+                              dashboard.ownership.owner.email
+                            : dashboard.ownership.owner.name}
+                    </InfoRow>
+                )}
 
                 {dashboard.spaceName && (
                     <InfoRow icon={IconFolder} label="Space">

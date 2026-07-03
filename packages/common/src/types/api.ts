@@ -117,6 +117,10 @@ import {
     type ApiContentResponse,
 } from './content';
 import {
+    type ApiReassignUserContentOwnershipResponse,
+    type ApiUserContentOwnershipSummaryResponse,
+} from './contentOwnership';
+import {
     type ApiContentVerificationDeleteResponse,
     type ApiContentVerificationResponse,
     type ApiVerifiedContentListResponse,
@@ -1101,6 +1105,8 @@ type ApiResults =
     | ApiGetAsyncQueryResults
     | ApiSchedulersResponse['results']
     | ApiUserSchedulersSummaryResponse['results']
+    | ApiUserContentOwnershipSummaryResponse['results']
+    | ApiReassignUserContentOwnershipResponse['results']
     | ApiReassignUserSchedulersResponse['results']
     | ApiUserActivityDownloadCsv['results']
     | ApiRenameFieldsResponse['results']

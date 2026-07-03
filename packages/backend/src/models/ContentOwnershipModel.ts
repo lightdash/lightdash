@@ -2,6 +2,7 @@ import {
     type ContentOwnerAssignment,
     type ContentOwnershipInfo,
     type ContentType,
+    type UserContentOwnershipSummary,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { ContentOwnershipTableName } from '../database/entities/contentOwnership';
@@ -9,6 +10,7 @@ import { EmailTableName } from '../database/entities/emails';
 import { GroupTableName } from '../database/entities/groups';
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import { OrganizationTableName } from '../database/entities/organizations';
+import { ProjectTableName } from '../database/entities/projects';
 import { UserTableName } from '../database/entities/users';
 
 type ContentOwnershipModelArguments = {
@@ -223,6 +225,60 @@ export class ContentOwnershipModel {
             )
             .first();
         return row !== undefined;
+    }
+
+    async getOwnershipSummaryByOwner(
+        ownerUserUuid: string,
+    ): Promise<UserContentOwnershipSummary> {
+        const rows = await this.database(ContentOwnershipTableName)
+            .innerJoin(
+                ProjectTableName,
+                `${ContentOwnershipTableName}.project_uuid`,
+                `${ProjectTableName}.project_uuid`,
+            )
+            .where(
+                `${ContentOwnershipTableName}.owner_user_uuid`,
+                ownerUserUuid,
+            )
+            .groupBy(
+                `${ProjectTableName}.project_uuid`,
+                `${ProjectTableName}.name`,
+            )
+            .select(
+                `${ProjectTableName}.project_uuid`,
+                this.database
+                    .ref(`${ProjectTableName}.name`)
+                    .as('project_name'),
+            )
+            .count(`${ContentOwnershipTableName}.content_ownership_uuid`, {
+                as: 'count',
+            });
+
+        const byProject = rows.map((row) => ({
+            projectUuid: row.project_uuid,
+            projectName: row.project_name,
+            count: Number(row.count),
+        }));
+
+        return {
+            totalCount: byProject.reduce((acc, p) => acc + p.count, 0),
+            byProject,
+        };
+    }
+
+    async reassignUserOwnership(
+        fromUserUuid: string,
+        toUserUuid: string,
+        assignedByUserUuid: string,
+    ): Promise<number> {
+        return this.database(ContentOwnershipTableName)
+            .where('owner_user_uuid', fromUserUuid)
+            .update({
+                owner_user_uuid: toUserUuid,
+                owner_group_uuid: null,
+                assigned_by_user_uuid: assignedByUserUuid,
+                assigned_at: this.database.fn.now(),
+            });
     }
 
     async remove(contentType: ContentType, contentUuid: string): Promise<void> {

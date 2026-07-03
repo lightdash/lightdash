@@ -2,6 +2,8 @@ import {
     type ApiError,
     type ApiOrganizationMemberProfiles,
     type ApiReassignUserSchedulersResponse,
+    type ApiReassignUserContentOwnershipResponse,
+    type ApiUserContentOwnershipSummaryResponse,
     type ApiUserSchedulersSummaryResponse,
     type KnexPaginateArgs,
 } from '@lightdash/common';
@@ -222,6 +224,66 @@ const reassignUserSchedulersQuery = async ({
         method: 'PATCH',
         body: JSON.stringify({ newOwnerUserUuid }),
     });
+
+const getUserContentOwnershipSummaryQuery = async (userUuid: string) =>
+    lightdashApi<ApiUserContentOwnershipSummaryResponse['results']>({
+        url: `/org/user/${userUuid}/content-ownership-summary`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useUserContentOwnershipSummary = (
+    userUuid: string,
+    enabled: boolean = true,
+) => {
+    const setErrorResponse = useQueryError();
+    return useQuery<
+        ApiUserContentOwnershipSummaryResponse['results'],
+        ApiError
+    >({
+        queryKey: ['user_content_ownership_summary', userUuid],
+        queryFn: () => getUserContentOwnershipSummaryQuery(userUuid),
+        onError: (result) => setErrorResponse(result),
+        enabled,
+    });
+};
+
+const reassignUserContentOwnershipQuery = async ({
+    userUuid,
+    newOwnerUserUuid,
+}: {
+    userUuid: string;
+    newOwnerUserUuid: string;
+}) =>
+    lightdashApi<ApiReassignUserContentOwnershipResponse['results']>({
+        url: `/org/user/${userUuid}/reassign-content-ownership`,
+        method: 'PATCH',
+        body: JSON.stringify({ newOwnerUserUuid }),
+    });
+
+export const useReassignUserContentOwnershipMutation = () => {
+    const { showToastSuccess, showToastApiError } = useToaster();
+    return useMutation<
+        ApiReassignUserContentOwnershipResponse['results'],
+        ApiError,
+        { userUuid: string; newOwnerUserUuid: string }
+    >(reassignUserContentOwnershipQuery, {
+        mutationKey: ['reassign_user_content_ownership'],
+        onSuccess: async (data) => {
+            showToastSuccess({
+                title: `Success! ${data.reassignedCount} ${
+                    data.reassignedCount === 1 ? 'dashboard' : 'dashboards'
+                } reassigned.`,
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: `Failed to reassign content ownership`,
+                apiError: error,
+            });
+        },
+    });
+};
 
 export const useReassignUserSchedulersMutation = () => {
     const { showToastSuccess, showToastApiError } = useToaster();

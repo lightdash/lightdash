@@ -11,8 +11,10 @@ import {
     ApiOrganizationMemberProfile,
     ApiOrganizationMemberProfiles,
     ApiOrganizationProjects,
+    ApiReassignUserContentOwnershipResponse,
     ApiReassignUserSchedulersResponse,
     ApiSuccessEmpty,
+    ApiUserContentOwnershipSummaryResponse,
     ApiUserSchedulersSummaryResponse,
     assertRegisteredAccount,
     CreateColorPalette,
@@ -22,6 +24,7 @@ import {
     KnexPaginateArgs,
     LightdashRequestMethodHeader,
     OrganizationMemberProfileUpdate,
+    ReassignUserContentOwnershipRequest,
     ReassignUserSchedulersRequest,
     UpdateAllowedEmailDomains,
     UpdateColorPalette,
@@ -418,6 +421,65 @@ export class OrganizationController extends BaseController {
             results: await this.services
                 .getSchedulerService()
                 .reassignUserSchedulers(
+                    toSessionUser(req.account),
+                    userUuid,
+                    body.newOwnerUserUuid,
+                ),
+        };
+    }
+
+    /**
+     * Gets a summary of content (dashboards) owned by a user across all projects
+     * @summary Get user content ownership
+     * @param req express request
+     * @param userUuid the uuid of the user
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/user/{userUuid}/content-ownership-summary')
+    @OperationId('GetUserContentOwnershipSummary')
+    async getUserContentOwnershipSummary(
+        @Request() req: express.Request,
+        @Path() userUuid: string,
+    ): Promise<ApiUserContentOwnershipSummaryResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getContentOwnershipService()
+                .getUserContentOwnershipSummary(
+                    toSessionUser(req.account),
+                    userUuid,
+                ),
+        };
+    }
+
+    /**
+     * Reassigns all content ownership from one user to another
+     * @summary Reassign content ownership
+     * @param req express request
+     * @param userUuid the uuid of the user whose owned content will be reassigned
+     * @param body the new owner details
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @Patch('/user/{userUuid}/reassign-content-ownership')
+    @OperationId('ReassignUserContentOwnership')
+    async reassignUserContentOwnership(
+        @Request() req: express.Request,
+        @Path() userUuid: string,
+        @Body() body: ReassignUserContentOwnershipRequest,
+    ): Promise<ApiReassignUserContentOwnershipResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getContentOwnershipService()
+                .reassignUserContentOwnership(
                     toSessionUser(req.account),
                     userUuid,
                     body.newOwnerUserUuid,

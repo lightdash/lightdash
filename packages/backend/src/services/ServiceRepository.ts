@@ -26,6 +26,7 @@ import { ChangesetService } from './ChangesetService';
 import { CiService } from './CiService/CiService';
 import { CoderService } from './CoderService/CoderService';
 import { CommentService } from './CommentService/CommentService';
+import { ContentOwnershipService } from './ContentOwnershipService';
 import { ContentService } from './ContentService/ContentService';
 import { ContentVerificationService } from './ContentVerificationService';
 import { CsvService } from './CsvService/CsvService';
@@ -133,6 +134,7 @@ interface ServiceManifest {
     promoteService: PromoteService;
     savedSqlService: SavedSqlService;
     contentService: ContentService;
+    contentOwnershipService: ContentOwnershipService;
     contentVerificationService: ContentVerificationService;
     coderService: CoderService;
     featureFlagService: FeatureFlagService;
@@ -1278,6 +1280,18 @@ export class ServiceRepository
                     appGenerateService: this.providers.appGenerateService
                         ? this.getAppGenerateService<AppGenerateService>()
                         : undefined,
+                }),
+        );
+    }
+
+    public getContentOwnershipService(): ContentOwnershipService {
+        return this.getService(
+            'contentOwnershipService',
+            () =>
+                new ContentOwnershipService({
+                    contentOwnershipModel:
+                        this.models.getContentOwnershipModel(),
+                    userModel: this.models.getUserModel(),
                 }),
         );
     }

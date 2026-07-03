@@ -34,3 +34,26 @@ export type ApiContentOwnershipResponse = {
     status: 'ok';
     results: ContentOwnershipInfo | null;
 };
+
+export type UserContentOwnershipSummary = {
+    totalCount: number;
+    byProject: Array<{
+        projectUuid: string;
+        projectName: string;
+        count: number;
+    }>;
+};
+
+export type ReassignUserContentOwnershipRequest = {
+    newOwnerUserUuid: string;
+};
+
+export type ApiUserContentOwnershipSummaryResponse = {
+    status: 'ok';
+    results: UserContentOwnershipSummary;
+};
+
+export type ApiReassignUserContentOwnershipResponse = {
+    status: 'ok';
+    results: { reassignedCount: number };
+};

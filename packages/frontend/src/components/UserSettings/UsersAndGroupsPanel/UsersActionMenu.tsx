@@ -30,7 +30,9 @@ import useHealth from '../../../hooks/health/useHealth';
 import type { useCreateInviteLinkMutation } from '../../../hooks/useInviteLink';
 import {
     useDeleteOrganizationUserMutation,
+    useReassignUserContentOwnershipMutation,
     useReassignUserSchedulersMutation,
+    useUserContentOwnershipSummary,
     useUserSchedulersSummary,
 } from '../../../hooks/useOrganizationUsers';
 import {
@@ -77,6 +79,11 @@ enum SchedulerAction {
     REASSIGN = 'reassign',
 }
 
+enum OwnershipAction {
+    UNASSIGN = 'unassign',
+    REASSIGN = 'reassign',
+}
+
 const UsersActionMenu: FC<UsersActionMenuProps> = ({
     user,
     disabled,
@@ -87,6 +94,8 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
     const [schedulerAction, setSchedulerAction] =
         React.useState<SchedulerAction>(SchedulerAction.REASSIGN);
+    const [ownershipAction, setOwnershipAction] =
+        React.useState<OwnershipAction>(OwnershipAction.REASSIGN);
     const [selectedNewOwner, setSelectedNewOwner] = React.useState<
         string | null
     >(null);
@@ -111,25 +120,53 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
         useReassignUserSchedulersMutation();
     const { data: schedulersSummary, isLoading: isLoadingSchedulers } =
         useUserSchedulersSummary(user.userUuid, isDeleteDialogOpen);
+    const {
+        mutateAsync: reassignContentOwnership,
+        isLoading: isReassigningOwnership,
+    } = useReassignUserContentOwnershipMutation();
+    const { data: ownershipSummary } = useUserContentOwnershipSummary(
+        user.userUuid,
+        isDeleteDialogOpen,
+    );
     const { track } = useTracking();
     const health = useHealth();
 
     const hasSchedulers = schedulersSummary && schedulersSummary.totalCount > 0;
-    const isProcessing = isDeleting || isReassigning;
+    const hasOwnedContent = ownershipSummary && ownershipSummary.totalCount > 0;
+    const isProcessing = isDeleting || isReassigning || isReassigningOwnership;
 
     // Reset state when modal opens/closes
     useEffect(() => {
         if (isDeleteDialogOpen) {
             setSchedulerAction(SchedulerAction.REASSIGN);
+            setOwnershipAction(OwnershipAction.REASSIGN);
             setSelectedNewOwner(null);
             setIsProjectBreakdownOpen(false);
         }
     }, [isDeleteDialogOpen]);
 
     const handleDelete = useCallback(async () => {
-        if (hasSchedulers && schedulerAction === SchedulerAction.REASSIGN) {
-            if (!selectedNewOwner) return;
+        const needsNewOwner =
+            (hasSchedulers && schedulerAction === SchedulerAction.REASSIGN) ||
+            (hasOwnedContent && ownershipAction === OwnershipAction.REASSIGN);
+        if (needsNewOwner && !selectedNewOwner) return;
+
+        if (
+            hasSchedulers &&
+            schedulerAction === SchedulerAction.REASSIGN &&
+            selectedNewOwner
+        ) {
             await reassignSchedulers({
+                userUuid: user.userUuid,
+                newOwnerUserUuid: selectedNewOwner,
+            });
+        }
+        if (
+            hasOwnedContent &&
+            ownershipAction === OwnershipAction.REASSIGN &&
+            selectedNewOwner
+        ) {
+            await reassignContentOwnership({
                 userUuid: user.userUuid,
                 newOwnerUserUuid: selectedNewOwner,
             });
@@ -139,8 +176,11 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
     }, [
         hasSchedulers,
         schedulerAction,
+        hasOwnedContent,
+        ownershipAction,
         selectedNewOwner,
         reassignSchedulers,
+        reassignContentOwnership,
         deleteUser,
         user.userUuid,
     ]);
@@ -161,10 +201,16 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
 
     const showResendInvite = canInvite && user.isPending;
 
-    const canConfirmDelete =
-        !hasSchedulers ||
-        schedulerAction === SchedulerAction.DELETE ||
-        (schedulerAction === SchedulerAction.REASSIGN && selectedNewOwner);
+    const needsNewOwnerSelection =
+        (hasSchedulers && schedulerAction === SchedulerAction.REASSIGN) ||
+        (hasOwnedContent && ownershipAction === OwnershipAction.REASSIGN);
+
+    const canConfirmDelete = !needsNewOwnerSelection || !!selectedNewOwner;
+
+    const ownedContentText =
+        ownershipSummary?.totalCount === 1
+            ? '1 dashboard'
+            : `${ownershipSummary?.totalCount} dashboards`;
 
     const schedulerText =
         schedulersSummary?.totalCount === 1
@@ -182,6 +228,15 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
         )
             return;
         setSchedulerAction(value);
+    }, []);
+
+    const handleOwnershipActionChange = useCallback((value: string) => {
+        if (
+            value !== OwnershipAction.UNASSIGN &&
+            value !== OwnershipAction.REASSIGN
+        )
+            return;
+        setOwnershipAction(value);
     }, []);
 
     return (
@@ -353,35 +408,6 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                                     />
                                 </Stack>
                             </Radio.Group>
-
-                            {schedulerAction === SchedulerAction.REASSIGN && (
-                                <Stack gap="xs">
-                                    <UserSelect
-                                        label="New owner"
-                                        value={selectedNewOwner}
-                                        onChange={setSelectedNewOwner}
-                                        excludedUserUuid={user.userUuid}
-                                        requireGoogleToken={
-                                            schedulersSummary?.hasGsheetsSchedulers
-                                        }
-                                    />
-                                    {schedulersSummary?.hasGsheetsSchedulers && (
-                                        <Group gap="xs" wrap="nowrap">
-                                            <MantineIcon
-                                                icon={IconInfoCircle}
-                                                color="ldGray.6"
-                                                size="lg"
-                                            />
-                                            <Text fz="xs" c="dimmed">
-                                                You can only transfer ownership
-                                                of a Google Sheets sync to a
-                                                user with an active Google
-                                                connection.
-                                            </Text>
-                                        </Group>
-                                    )}
-                                </Stack>
-                            )}
                         </>
                     ) : (
                         <Group gap="xs">
@@ -393,6 +419,71 @@ const UsersActionMenu: FC<UsersActionMenuProps> = ({
                                 This user has no scheduled deliveries.
                             </Text>
                         </Group>
+                    )}
+
+                    {hasOwnedContent && (
+                        <>
+                            <Alert
+                                color="orange"
+                                icon={<MantineIcon icon={IconAlertCircle} />}
+                            >
+                                <Text fz="sm">
+                                    This user is the assigned owner of{' '}
+                                    {ownedContentText}.
+                                </Text>
+                            </Alert>
+
+                            <Radio.Group
+                                key={ownershipAction}
+                                name="ownershipAction"
+                                value={ownershipAction}
+                                onChange={handleOwnershipActionChange}
+                            >
+                                <Stack gap="sm">
+                                    <Radio
+                                        value={OwnershipAction.UNASSIGN}
+                                        label="Leave content without an owner"
+                                    />
+                                    <Radio
+                                        value={OwnershipAction.REASSIGN}
+                                        label="Transfer ownership to another user"
+                                    />
+                                </Stack>
+                            </Radio.Group>
+                        </>
+                    )}
+
+                    {needsNewOwnerSelection && (
+                        <Stack gap="xs">
+                            <UserSelect
+                                label="New owner"
+                                value={selectedNewOwner}
+                                onChange={setSelectedNewOwner}
+                                excludedUserUuid={user.userUuid}
+                                requireGoogleToken={
+                                    hasSchedulers &&
+                                    schedulerAction ===
+                                        SchedulerAction.REASSIGN &&
+                                    schedulersSummary?.hasGsheetsSchedulers
+                                }
+                            />
+                            {hasSchedulers &&
+                                schedulerAction === SchedulerAction.REASSIGN &&
+                                schedulersSummary?.hasGsheetsSchedulers && (
+                                    <Group gap="xs" wrap="nowrap">
+                                        <MantineIcon
+                                            icon={IconInfoCircle}
+                                            color="ldGray.6"
+                                            size="lg"
+                                        />
+                                        <Text fz="xs" c="dimmed">
+                                            You can only transfer ownership of a
+                                            Google Sheets sync to a user with an
+                                            active Google connection.
+                                        </Text>
+                                    </Group>
+                                )}
+                        </Stack>
                     )}
                 </Stack>
             </MantineModal>
