@@ -1,3 +1,5 @@
+import { randomBytes } from 'node:crypto';
+import { capOutput } from './commandOutput';
 import { SandboxCommandError, SandboxTimeoutError } from './errors';
 import { shQuote } from './gitOverCommands';
 import {
@@ -7,20 +9,43 @@ import {
     type SandboxFiles,
 } from './types';
 
+/** A valid POSIX shell identifier — the only accepted env var name shape. */
+const ENV_KEY_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
 /**
- * Fold `cwd`/`envs` into a single `/bin/sh -c` command line. The native exec
- * takes only a command (no cwd/env fields), so a `cd …` prefix and per-var
- * `export`s make `RunOptions.cwd`/`envs` work on any exec surface.
+ * Reject environment variable names that are not valid shell identifiers before
+ * they are staged into the sourced env file. A malformed key could otherwise
+ * break out of its `export` assignment.
  */
-const buildCommandLine = (command: string, options?: RunOptions): string => {
-    const parts: string[] = [];
-    if (options?.cwd) parts.push(`cd ${shQuote(options.cwd)} &&`);
-    if (options?.envs) {
-        const exports = Object.entries(options.envs)
-            .map(([key, value]) => `${key}=${shQuote(value)}`)
-            .join(' ');
-        if (exports) parts.push(`export ${exports};`);
+export const assertValidEnvKeys = (envs: Record<string, string>): void => {
+    for (const key of Object.keys(envs)) {
+        if (!ENV_KEY_PATTERN.test(key)) {
+            throw new Error(
+                `Invalid environment variable name for the Azure sandbox: ${JSON.stringify(
+                    key,
+                )}`,
+            );
+        }
     }
+};
+
+/**
+ * Fold `cwd` (and a sourced env file, when staged) into a single `/bin/sh -c`
+ * command line. The native exec takes only a command (no cwd/env fields), so a
+ * `cd …` prefix makes `RunOptions.cwd` work on any exec surface. Env vars are
+ * NOT interpolated here — their values are written out-of-band to a file the
+ * command `source`s, so secrets never reach the exec request's command line
+ * (and thus never land in the process's `/proc/<pid>/cmdline`).
+ */
+const buildCommandLine = (
+    command: string,
+    options: { cwd?: string; envFilePath: string | null },
+): string => {
+    const parts: string[] = [];
+    if (options.envFilePath) {
+        parts.push(`. ${shQuote(options.envFilePath)} &&`);
+    }
+    if (options.cwd) parts.push(`cd ${shQuote(options.cwd)} &&`);
     parts.push(command);
     return parts.join(' ');
 };
@@ -144,11 +169,32 @@ export class AzureSandboxExecChannel {
         return response;
     }
 
+    /**
+     * Write the per-command env vars to a throwaway file inside the sandbox so
+     * the command can `source` them, keeping secret values out of the exec
+     * request's command line (and `/proc/<pid>/cmdline`). Returns the file path,
+     * or null when there is nothing to stage. The caller removes the file after.
+     */
+    private async stageEnvFile(
+        envs: Record<string, string> | undefined,
+    ): Promise<string | null> {
+        if (!envs || Object.keys(envs).length === 0) return null;
+        assertValidEnvKeys(envs);
+        const path = `/tmp/.ld-env-${randomBytes(8).toString('hex')}`;
+        const lines = Object.entries(envs).map(
+            ([key, value]) => `export ${key}=${shQuote(value)}`,
+        );
+        const contents = `${lines.join('\n')}\n`;
+        await this.files.write(path, contents);
+        return path;
+    }
+
     readonly commands: SandboxCommands = {
         run: async (
             command: string,
             options?: RunOptions,
         ): Promise<CommandResult> => {
+            const envFilePath = await this.stageEnvFile(options?.envs);
             const controller = new AbortController();
             // Give the native exec a 5s grace period over the caller's timeout so
             // the server's own timeout error surfaces before this client-side abort.
@@ -166,7 +212,10 @@ export class AzureSandboxExecChannel {
                         method: 'POST',
                         headers: { 'content-type': 'application/json' },
                         body: JSON.stringify({
-                            command: buildCommandLine(command, options),
+                            command: buildCommandLine(command, {
+                                cwd: options?.cwd,
+                                envFilePath,
+                            }),
                         }),
                     },
                     controller.signal,
@@ -178,7 +227,14 @@ export class AzureSandboxExecChannel {
                         '',
                     );
                 }
-                const result = decodeExecResponse(await response.json());
+                const raw = decodeExecResponse(await response.json());
+                // Cap captured output so a command that floods stdout/stderr
+                // cannot exhaust the worker's heap or bloat the error logs.
+                const result: ExecResponse = {
+                    stdout: capOutput(raw.stdout),
+                    stderr: capOutput(raw.stderr),
+                    exitCode: raw.exitCode,
+                };
                 // Native exec is buffered — replay the captured output through the
                 // streaming callbacks once so downstream line-parsers still see it.
                 if (result.stdout) options?.onStdout?.(result.stdout);
@@ -203,6 +259,12 @@ export class AzureSandboxExecChannel {
                 throw error;
             } finally {
                 if (timer) clearTimeout(timer);
+                // Best-effort cleanup; never mask the command result/error.
+                if (envFilePath) {
+                    await this.files
+                        .remove(envFilePath)
+                        .catch(() => undefined);
+                }
             }
         },
     };
