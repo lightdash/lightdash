@@ -33,7 +33,7 @@ export const SchedulerFormMicrosoftTeamsInput: FC<
     MicrosoftTeamsDestinationProps
 > = ({ onChange, msTeamTargets, hideIcon }) => {
     return (
-        <Group wrap="nowrap" mb="sm" align="flex-start">
+        <Group wrap="nowrap" mb={hideIcon ? 0 : 'sm'} align="flex-start">
             {!hideIcon && (
                 <Box pt="xxs">
                     <MsTeamsSvg

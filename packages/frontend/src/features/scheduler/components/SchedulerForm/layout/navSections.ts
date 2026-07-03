@@ -4,24 +4,17 @@ import {
     IconMessage,
     IconSparkles,
     IconTable,
-    IconUsersGroup,
     type Icon,
 } from '@tabler/icons-react';
 
-export type SchedulerSectionId =
-    | 'alert'
-    | 'schedule'
-    | 'recipients'
-    | 'data'
-    | 'message'
-    | 'ai';
+export type SchedulerSectionId = 'alert' | 'setup' | 'data' | 'message' | 'ai';
 
 export type SchedulerNavGroup = 'delivery' | 'content';
 
 export type SchedulerSectionMeta = {
     id: SchedulerSectionId;
     label: string;
-    description: string;
+    description?: string;
     icon: Icon;
     group: SchedulerNavGroup;
 };
@@ -37,19 +30,10 @@ export const SCHEDULER_SECTIONS: Record<
         icon: IconBell,
         group: 'delivery',
     },
-    schedule: {
-        id: 'schedule',
-        label: 'Schedule',
-        description: 'When and how often this delivery runs.',
+    setup: {
+        id: 'setup',
+        label: 'Setup',
         icon: IconCalendarClock,
-        group: 'delivery',
-    },
-    recipients: {
-        id: 'recipients',
-        label: 'Recipients',
-        description:
-            'Send to one or more destinations. At least one is required.',
-        icon: IconUsersGroup,
         group: 'delivery',
     },
     data: {
@@ -96,14 +80,9 @@ export const getVisibleSections = ({
     isApp: boolean;
 }): SchedulerSectionId[] => {
     if (isThresholdAlert) {
-        return ['alert', 'schedule', 'recipients'];
+        return ['alert', 'setup'];
     }
-    const sections: SchedulerSectionId[] = [
-        'schedule',
-        'recipients',
-        'data',
-        'message',
-    ];
+    const sections: SchedulerSectionId[] = ['setup', 'data', 'message'];
     // AI summaries only apply to chart/dashboard deliveries
     if (isAiVisible && !isApp) {
         sections.push('ai');

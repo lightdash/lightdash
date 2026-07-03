@@ -40,7 +40,7 @@ export const SchedulerScheduleSection: FC<Props> = ({ isThresholdAlert }) => {
                         : undefined
                 }
             >
-                <Box mt={4}>
+                <Box>
                     <CronInternalInputs
                         disabled={false}
                         {...form.getInputProps('cron')}

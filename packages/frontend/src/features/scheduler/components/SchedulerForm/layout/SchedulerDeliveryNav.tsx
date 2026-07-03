@@ -9,13 +9,10 @@ import {
 } from './navSections';
 import classes from './SchedulerDeliveryModal.module.css';
 
-export type SchedulerSectionDot = 'new' | 'required';
-
 type Props = {
     sections: SchedulerSectionId[];
     active: SchedulerSectionId;
     onSelect: (id: SchedulerSectionId) => void;
-    dots: Partial<Record<SchedulerSectionId, SchedulerSectionDot>>;
 };
 
 const GROUP_ORDER: SchedulerNavGroup[] = ['delivery', 'content'];
@@ -24,7 +21,6 @@ export const SchedulerDeliveryNav: FC<Props> = ({
     sections,
     active,
     onSelect,
-    dots,
 }) => {
     return (
         <nav className={classes.nav}>
@@ -41,7 +37,6 @@ export const SchedulerDeliveryNav: FC<Props> = ({
                             </div>
                             {groupSections.map((id) => {
                                 const section = SCHEDULER_SECTIONS[id];
-                                const dot = dots[id];
                                 return (
                                     <button
                                         key={id}
@@ -60,15 +55,6 @@ export const SchedulerDeliveryNav: FC<Props> = ({
                                         <span className={classes.navItemLabel}>
                                             {section.label}
                                         </span>
-                                        {dot && (
-                                            <span
-                                                className={`${classes.dot} ${
-                                                    dot === 'new'
-                                                        ? classes.dotNew
-                                                        : classes.dotRequired
-                                                }`}
-                                            />
-                                        )}
                                     </button>
                                 );
                             })}

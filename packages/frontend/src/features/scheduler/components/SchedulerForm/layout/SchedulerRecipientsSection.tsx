@@ -21,7 +21,7 @@ const Destination: FC<{
     label: string;
     children: ReactNode;
 }> = ({ icon, label, children }) => (
-    <Stack gap={6}>
+    <Stack gap={2}>
         <Group gap={6}>
             {icon}
             <Text size="sm" fw={500}>
@@ -41,7 +41,7 @@ export const SchedulerRecipientsSection: FC = () => {
     const isGoogleChatEnabled = googleChatFlag?.enabled === true;
 
     return (
-        <Stack gap="xl">
+        <Stack gap="lg">
             <Destination
                 icon={
                     <MantineIcon icon={IconMail} size="sm" color="ldGray.7" />

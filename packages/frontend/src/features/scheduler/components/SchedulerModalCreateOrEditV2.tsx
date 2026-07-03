@@ -37,8 +37,7 @@ import classes from './SchedulerForm/layout/SchedulerDeliveryModal.module.css';
 import { SchedulerDeliveryNav } from './SchedulerForm/layout/SchedulerDeliveryNav';
 import { SchedulerMessageSection } from './SchedulerForm/layout/SchedulerMessageSection';
 import { SchedulerPreviewPanel } from './SchedulerForm/layout/SchedulerPreviewPanel';
-import { SchedulerRecipientsSection } from './SchedulerForm/layout/SchedulerRecipientsSection';
-import { SchedulerScheduleSection } from './SchedulerForm/layout/SchedulerScheduleSection';
+import { SchedulerSetupSection } from './SchedulerForm/layout/SchedulerSetupSection';
 import { SchedulerFormAiInput } from './SchedulerForm/SchedulerFormAiInput';
 import {
     SchedulerFormProvider,
@@ -136,14 +135,6 @@ export const SchedulerModalCreateOrEditV2: FC<Props> = ({
         (form.values.googleChatTargets?.length || 0),
     );
 
-    const dots = useMemo(
-        () => ({
-            ...(hasRecipient ? {} : { recipients: 'required' as const }),
-            ...(isAiVisible ? { ai: 'new' as const } : {}),
-        }),
-        [hasRecipient, isAiVisible],
-    );
-
     const canSendNow =
         hasRecipient && requiredFiltersWithoutValues.length === 0;
 
@@ -160,14 +151,12 @@ export const SchedulerModalCreateOrEditV2: FC<Props> = ({
 
     const renderSection = () => {
         switch (activeSection) {
-            case 'schedule':
+            case 'setup':
                 return (
-                    <SchedulerScheduleSection
+                    <SchedulerSetupSection
                         isThresholdAlert={isThresholdAlert}
                     />
                 );
-            case 'recipients':
-                return <SchedulerRecipientsSection />;
             case 'data':
                 return (
                     <SchedulerDataFormatSection
@@ -280,7 +269,6 @@ export const SchedulerModalCreateOrEditV2: FC<Props> = ({
                                         sections={sections}
                                         active={activeSection}
                                         onSelect={setActiveSection}
-                                        dots={dots}
                                     />
                                     <div className={classes.center}>
                                         <div className={classes.centerInner}>
@@ -293,13 +281,17 @@ export const SchedulerModalCreateOrEditV2: FC<Props> = ({
                                                     >
                                                         {activeMeta.label}
                                                     </span>
-                                                    <span
-                                                        className={
-                                                            classes.sectionDescription
-                                                        }
-                                                    >
-                                                        {activeMeta.description}
-                                                    </span>
+                                                    {activeMeta.description && (
+                                                        <span
+                                                            className={
+                                                                classes.sectionDescription
+                                                            }
+                                                        >
+                                                            {
+                                                                activeMeta.description
+                                                            }
+                                                        </span>
+                                                    )}
                                                 </Stack>
                                                 {renderSection()}
                                             </Stack>

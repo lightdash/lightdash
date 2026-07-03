@@ -53,43 +53,93 @@
     width: 100%;
     padding: 7px var(--mantine-spacing-sm);
     border-radius: var(--mantine-radius-md);
-    color: var(--mantine-color-text);
+    margin-bottom: 2px;
+    font-weight: 500;
+    color: light-dark(
+        var(--mantine-color-ldGray-8),
+        var(--mantine-color-dark-1)
+    );
     font-size: var(--mantine-font-size-sm);
     cursor: pointer;
     border: none;
     background: transparent;
     text-align: left;
-    transition: background-color 120ms ease;
+    transition:
+        background-color 150ms ease,
+        color 150ms ease;
 }
 
-.navItem:hover {
-    background: var(--mantine-color-default-hover);
+.navItem svg {
+    color: light-dark(
+        var(--mantine-color-ldGray-6),
+        var(--mantine-color-dark-2)
+    );
+    transition:
+        color 150ms ease,
+        transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.navItemActive,
-.navItemActive:hover {
-    background: var(--mantine-primary-color-light);
-    color: var(--mantine-primary-color-light-color);
+/* Icon micro-pop on hover (settles with a touch of spring) */
+.navItem:hover svg {
+    transform: scale(1.12);
+}
+
+.navItem:not(.navItemActive):hover {
+    background-color: light-dark(
+        var(--mantine-color-ldGray-1),
+        var(--mantine-color-dark-6)
+    );
+    color: light-dark(
+        var(--mantine-color-ldGray-9),
+        var(--mantine-color-dark-0)
+    );
+}
+
+.navItem:not(.navItemActive):hover svg {
+    color: light-dark(
+        var(--mantine-color-ldGray-9),
+        var(--mantine-color-dark-0)
+    );
+}
+
+.navItemActive {
+    background-color: light-dark(
+        var(--mantine-color-ldGray-2),
+        var(--mantine-color-dark-5)
+    );
+    color: light-dark(
+        var(--mantine-color-ldGray-9),
+        var(--mantine-color-dark-0)
+    );
     font-weight: 600;
+}
+
+.navItemActive:hover {
+    background-color: light-dark(
+        var(--mantine-color-ldGray-3),
+        var(--mantine-color-dark-4)
+    );
+}
+
+.navItemActive svg {
+    color: light-dark(
+        var(--mantine-color-ldGray-9),
+        var(--mantine-color-dark-0)
+    );
 }
 
 .navItemLabel {
     flex: 1;
 }
 
-.dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    flex-shrink: 0;
-}
-
-.dotNew {
-    background: var(--mantine-primary-color-filled);
-}
-
-.dotRequired {
-    background: var(--mantine-color-red-6);
+@media (prefers-reduced-motion: reduce) {
+    .navItem,
+    .navItem svg {
+        transition: none;
+    }
+    .navItem:hover svg {
+        transform: none;
+    }
 }
 
 .center {
@@ -105,12 +155,24 @@
 .sectionTitle {
     font-size: 17px;
     font-weight: 700;
+    line-height: 1.3;
     color: var(--mantine-color-text);
 }
 
 .sectionDescription {
     color: var(--mantine-color-dimmed);
-    font-size: var(--mantine-font-size-sm);
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+/* Sub-block heading inside a section — same kicker voice as the nav group
+   labels and preview rail, one unmistakable level above field labels. */
+.subBlockLabel {
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--mantine-color-dimmed);
 }
 
 .preview {
@@ -200,9 +262,18 @@
     background: var(--mantine-color-default-hover);
 }
 
-.listItemActive,
+.listItemActive {
+    background-color: light-dark(
+        var(--mantine-color-ldGray-2),
+        var(--mantine-color-dark-5)
+    );
+}
+
 .listItemActive:hover {
-    background: var(--mantine-primary-color-light);
+    background-color: light-dark(
+        var(--mantine-color-ldGray-3),
+        var(--mantine-color-dark-4)
+    );
 }
 
 .listItemName {
@@ -216,7 +287,10 @@
 
 .listItemActive .listItemName {
     font-weight: 600;
-    color: var(--mantine-primary-color-light-color);
+    color: light-dark(
+        var(--mantine-color-ldGray-9),
+        var(--mantine-color-dark-0)
+    );
 }
 
 .listItemMeta {

@@ -27,6 +27,7 @@ import { CsvFormattingOptions } from '../../CsvFormattingOptions';
 import { useSchedulerFormContext } from '../schedulerFormContext';
 import { SchedulerFormFiltersTab } from '../SchedulerFormFiltersTab';
 import { SchedulerFormParametersTab } from '../SchedulerFormParametersTab';
+import classes from './SchedulerDeliveryModal.module.css';
 
 type Props = {
     dashboard: Dashboard | undefined;
@@ -176,48 +177,61 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                         </Box>
                     </Tooltip>
                 )}
-                {(format === SchedulerFormat.CSV ||
-                    format === SchedulerFormat.XLSX) && (
-                    <CsvFormattingOptions
-                        format={
-                            format as SchedulerFormat.CSV | SchedulerFormat.XLSX
-                        }
-                        formatted={form.values.options.formatted}
-                        onFormattedChange={(value) =>
-                            form.setFieldValue('options.formatted', value)
-                        }
-                        limit={form.values.options.limit}
-                        onLimitChange={(value) =>
-                            form.setFieldValue('options.limit', value)
-                        }
-                        customLimit={form.values.options.customLimit}
-                        onCustomLimitChange={(value) =>
-                            form.setFieldValue('options.customLimit', value)
-                        }
-                        exportPivotedData={
-                            form.values.options.exportPivotedData
-                        }
-                        onExportPivotedDataChange={(value) =>
-                            form.setFieldValue(
-                                'options.exportPivotedData',
-                                value,
-                            )
-                        }
-                        xlsxFileLayout={form.values.options.xlsxFileLayout}
-                        onXlsxFileLayoutChange={(value) =>
-                            form.setFieldValue('options.xlsxFileLayout', value)
-                        }
-                    />
-                )}
             </Stack>
+
+            {(format === SchedulerFormat.CSV ||
+                format === SchedulerFormat.XLSX) && (
+                <>
+                    <Divider />
+                    <Stack gap="xs">
+                        <span className={classes.subBlockLabel}>
+                            Formatting
+                        </span>
+                        <CsvFormattingOptions
+                            inline
+                            format={
+                                format as
+                                    | SchedulerFormat.CSV
+                                    | SchedulerFormat.XLSX
+                            }
+                            formatted={form.values.options.formatted}
+                            onFormattedChange={(value) =>
+                                form.setFieldValue('options.formatted', value)
+                            }
+                            limit={form.values.options.limit}
+                            onLimitChange={(value) =>
+                                form.setFieldValue('options.limit', value)
+                            }
+                            customLimit={form.values.options.customLimit}
+                            onCustomLimitChange={(value) =>
+                                form.setFieldValue('options.customLimit', value)
+                            }
+                            exportPivotedData={
+                                form.values.options.exportPivotedData
+                            }
+                            onExportPivotedDataChange={(value) =>
+                                form.setFieldValue(
+                                    'options.exportPivotedData',
+                                    value,
+                                )
+                            }
+                            xlsxFileLayout={form.values.options.xlsxFileLayout}
+                            onXlsxFileLayoutChange={(value) =>
+                                form.setFieldValue(
+                                    'options.xlsxFileLayout',
+                                    value,
+                                )
+                            }
+                        />
+                    </Stack>
+                </>
+            )}
 
             {isDashboard && (
                 <>
                     <Divider />
                     <Stack gap="xs">
-                        <Text fw={600} fz="sm">
-                            Filters
-                        </Text>
+                        <span className={classes.subBlockLabel}>Filters</span>
                         <SchedulerFormFiltersTab
                             dashboard={dashboard}
                             draftFilters={form.values.dashboardFilters}
@@ -239,9 +253,9 @@ export const SchedulerDataFormatSection: FC<Props> = ({
 
                     <Divider />
                     <Stack gap="xs">
-                        <Text fw={600} fz="sm">
+                        <span className={classes.subBlockLabel}>
                             Parameters
-                        </Text>
+                        </span>
                         <SchedulerFormParametersTab
                             dashboard={dashboard}
                             currentParameterValues={currentParameterValues}

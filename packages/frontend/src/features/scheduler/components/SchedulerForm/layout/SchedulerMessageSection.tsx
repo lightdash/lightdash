@@ -2,6 +2,7 @@ import { Stack, Switch, Text } from '@mantine-8/core';
 import MDEditor, { commands } from '@uiw/react-md-editor';
 import { type FC } from 'react';
 import { useSchedulerFormContext } from '../schedulerFormContext';
+import classes from './SchedulerDeliveryModal.module.css';
 
 export const SchedulerMessageSection: FC = () => {
     const form = useSchedulerFormContext();
@@ -22,9 +23,7 @@ export const SchedulerMessageSection: FC = () => {
             />
 
             <Stack gap="xs">
-                <Text fw={600} fz="sm">
-                    Message body
-                </Text>
+                <span className={classes.subBlockLabel}>Message body</span>
                 {isAiMessage && (
                     <Text fz="xs" c="ldGray.6">
                         AI writes the message on every send; this text is only
