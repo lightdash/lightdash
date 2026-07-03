@@ -206,6 +206,7 @@ jobs:
       - name: Generate OpenAPI schema
         run: pnpm generate-api
       - name: Check for OpenAPI breaking changes
+        id: oasdiff
         if: ${{ !contains(github.event.pull_request.body, 'allow-api-breaking-change') }}
         # --flatten-allof diffs schemas structurally instead of by name: TSOA
         # encodes field lists into schema names, so adding an optional field
@@ -214,10 +215,83 @@ jobs:
         run: |
           node .github/scripts/sanitize-openapi.mjs /tmp/main-swagger.json /tmp/main-swagger-clean.json
           node .github/scripts/sanitize-openapi.mjs packages/backend/src/generated/swagger.json /tmp/pr-swagger-clean.json
-          docker run --rm \
+          set +e
+          report=$(docker run --rm \
             -v /tmp:/tmp \
             tufin/oasdiff@sha256:1b878e413bfba39a9bbb2ce95d6a2ddf79bacd4eade9420ad422175b011a71c9 \
-            breaking --flatten-allof --fail-on ERR /tmp/main-swagger-clean.json /tmp/pr-swagger-clean.json
+            breaking --flatten-allof --fail-on ERR /tmp/main-swagger-clean.json /tmp/pr-swagger-clean.json 2>&1)
+          status=$?
+          set -e
+          echo "$report"
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          {
+            echo 'report<<OASDIFF_REPORT_EOF'
+            echo "$report"
+            echo 'OASDIFF_REPORT_EOF'
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo '### OpenAPI breaking-change check'
+            echo '```'
+            echo "$report"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$status" -ne 0 ]; then
+            echo "::error title=OpenAPI breaking changes detected::${report//$'\n'/%0A}"
+          fi
+      - name: Comment OpenAPI breaking changes on PR
+        if: ${{ steps.oasdiff.outcome == 'success' }}
+        # Forked PRs get a read-only token, so a failed comment must not mask
+        # the check result.
+        continue-on-error: true
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        env:
+          OASDIFF_STATUS: ${{ steps.oasdiff.outputs.status }}
+          OASDIFF_REPORT: ${{ steps.oasdiff.outputs.report }}
+        with:
+          script: |
+            const marker = '<!-- openapi-breaking-change-comment -->';
+            const failed = process.env.OASDIFF_STATUS !== '0';
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body.includes(marker));
+
+            if (!failed && !existing) return;
+
+            const body = failed
+              ? [
+                  marker,
+                  '## ⛔ OpenAPI breaking changes detected',
+                  '',
+                  '```',
+                  process.env.OASDIFF_REPORT,
+                  '```',
+                  '',
+                  'If this break is intentional, add `allow-api-breaking-change` to the PR description and re-run the check.',
+                ].join('\n')
+              : `${marker}\n## ✅ OpenAPI breaking changes resolved\n\nThe latest commit no longer introduces breaking API changes.`;
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+      - name: Fail on OpenAPI breaking changes
+        if: ${{ steps.oasdiff.outcome == 'success' && steps.oasdiff.outputs.status != '0' }}
+        run: exit 1
       - name: Report allowed OpenAPI breaking changes
         if: ${{ contains(github.event.pull_request.body, 'allow-api-breaking-change') }}
         run: echo "Skipping OpenAPI breaking-change check because allow-api-breaking-change is in the PR description."
