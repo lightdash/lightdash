@@ -1,3 +1,10 @@
+## [0.3304.1](https://github.com/lightdash/lightdash/compare/0.3304.0...0.3304.1) (2026-07-03)
+
+
+### Bug Fixes
+
+* **avatars:** surface errors and fix mode toggle in avatar settings ([#25121](https://github.com/lightdash/lightdash/issues/25121)) ([8955f10](https://github.com/lightdash/lightdash/commit/8955f10b24cff99e6764f7afebd475e27b7b615b))
+
 # [0.3304.0](https://github.com/lightdash/lightdash/compare/0.3303.0...0.3304.0) (2026-07-03)
 
 
