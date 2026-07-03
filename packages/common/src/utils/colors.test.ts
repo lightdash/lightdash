@@ -116,9 +116,9 @@ describe('cleanColorArray', () => {
 
 describe('getColorFromRange', () => {
     it('should interpolate a color for a value within the range', () => {
-        expect(
-            getColorFromRange(50, colorRange, { min: 0, max: 100 }),
-        ).toBe('#808080');
+        expect(getColorFromRange(50, colorRange, { min: 0, max: 100 })).toBe(
+            '#808080',
+        );
     });
 
     it('should return the start color for the min value', () => {
@@ -159,10 +159,14 @@ describe('getColorFromRange', () => {
 
     it('should return undefined for invalid color range', () => {
         expect(
-            getColorFromRange(50, { start: 'red', end: '#000000' }, {
-                min: 0,
-                max: 100,
-            }),
+            getColorFromRange(
+                50,
+                { start: 'red', end: '#000000' },
+                {
+                    min: 0,
+                    max: 100,
+                },
+            ),
         ).toBeUndefined();
     });
 });

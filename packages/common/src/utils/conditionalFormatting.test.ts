@@ -1,4 +1,7 @@
-import { ConditionalFormattingColorApplyTo } from '../types/conditionalFormatting';
+import {
+    ConditionalFormattingColorApplyTo,
+    type ConditionalFormattingConfig,
+} from '../types/conditionalFormatting';
 import { DimensionType, FieldType } from '../types/field';
 import { FilterOperator } from '../types/filter';
 import {
@@ -194,7 +197,7 @@ describe('hasMatchingConditionalRules', () => {
             ).toBe(true);
         });
 
-        it('should match values above the max so they can clamp to the end color', () => {
+        it('should not match values above the max', () => {
             expect(
                 hasMatchingConditionalRules(
                     mockNumericField,
@@ -202,10 +205,10 @@ describe('hasMatchingConditionalRules', () => {
                     {},
                     colorRangeConfig,
                 ),
-            ).toBe(true);
+            ).toBe(false);
         });
 
-        it('should match values below the min so they can clamp to the start color', () => {
+        it('should not match values below the min', () => {
             expect(
                 hasMatchingConditionalRules(
                     mockNumericField,
@@ -213,7 +216,7 @@ describe('hasMatchingConditionalRules', () => {
                     {},
                     colorRangeConfig,
                 ),
-            ).toBe(true);
+            ).toBe(false);
         });
 
         it('should not match when min is greater than max', () => {
@@ -286,6 +289,98 @@ describe('getConditionalFormattingConfig', () => {
                 conditionalFormattings,
             }),
         ).toBe(textConfig);
+    });
+
+    describe('color range rules with out-of-range values', () => {
+        const lowRange = {
+            target: null,
+            color: { start: '#ffffff', end: '#0000ff' },
+            rule: { min: 0, max: 100 },
+        };
+        const highRange = {
+            target: null,
+            color: { start: '#ffffff', end: '#ff0000' },
+            rule: { min: 100, max: 200 },
+        };
+        const singleColorAbove500 = {
+            target: null,
+            color: '#00ff00',
+            rules: [
+                {
+                    id: '1',
+                    operator: FilterOperator.GREATER_THAN,
+                    values: [500],
+                },
+            ],
+        };
+
+        const pick = (
+            value: number,
+            conditionalFormattings: ConditionalFormattingConfig[],
+        ) =>
+            getConditionalFormattingConfig({
+                field: mockNumericField,
+                value,
+                minMaxMap: {},
+                conditionalFormattings,
+            });
+
+        it('returns a single color range rule for an out-of-range value so it can clamp', () => {
+            expect(pick(999, [lowRange])).toBe(lowRange);
+            expect(pick(-10, [lowRange])).toBe(lowRange);
+        });
+
+        it('prefers the rule whose range contains the value over a later range rule', () => {
+            expect(pick(50, [lowRange, highRange])).toBe(lowRange);
+            expect(pick(150, [lowRange, highRange])).toBe(highRange);
+        });
+
+        it('falls back to the last color range rule when the value is outside all ranges', () => {
+            expect(pick(999, [lowRange, highRange])).toBe(highRange);
+        });
+
+        it('prefers a matching single color rule over an out-of-range color range rule', () => {
+            expect(pick(600, [singleColorAbove500, lowRange])).toBe(
+                singleColorAbove500,
+            );
+        });
+
+        it('falls back to a color range rule when no rule matches strictly', () => {
+            expect(pick(300, [lowRange, singleColorAbove500])).toBe(lowRange);
+        });
+
+        it('does not fall back to a color range rule with min greater than max', () => {
+            expect(
+                pick(300, [{ ...lowRange, rule: { min: 100, max: 0 } }]),
+            ).toBeUndefined();
+        });
+
+        it('does not fall back to a color range rule targeting another field', () => {
+            expect(
+                pick(999, [
+                    {
+                        ...lowRange,
+                        target: { fieldId: 'other_table_other_field' },
+                    },
+                ]),
+            ).toBeUndefined();
+        });
+
+        it('respects applyTo when falling back', () => {
+            const textRange = {
+                ...lowRange,
+                applyTo: ConditionalFormattingColorApplyTo.TEXT,
+            };
+            expect(
+                getConditionalFormattingConfig({
+                    field: mockNumericField,
+                    value: 999,
+                    minMaxMap: {},
+                    conditionalFormattings: [textRange],
+                    applyTo: ConditionalFormattingColorApplyTo.CELL,
+                }),
+            ).toBeUndefined();
+        });
     });
 });
 
