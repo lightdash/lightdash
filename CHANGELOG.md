@@ -1,3 +1,10 @@
+# [0.3307.0](https://github.com/lightdash/lightdash/compare/0.3306.0...0.3307.0) (2026-07-03)
+
+
+### Features
+
+* **verification:** warn non-verifiers that saving removes verified status ([#25120](https://github.com/lightdash/lightdash/issues/25120)) ([1ee250a](https://github.com/lightdash/lightdash/commit/1ee250a2c97a34f64525ea9b5d98ba936c018909))
+
 # [0.3306.0](https://github.com/lightdash/lightdash/compare/0.3305.0...0.3306.0) (2026-07-03)
 
 
