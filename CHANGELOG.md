@@ -1,3 +1,10 @@
+# [0.3304.0](https://github.com/lightdash/lightdash/compare/0.3303.0...0.3304.0) (2026-07-03)
+
+
+### Features
+
+* **scheduler:** AI-augmented scheduled deliveries ([#25090](https://github.com/lightdash/lightdash/issues/25090)) ([5c252b8](https://github.com/lightdash/lightdash/commit/5c252b8d77c7ebb77fe6560184e1f53bb16e5412)), closes [#18661](https://github.com/lightdash/lightdash/issues/18661)
+
 # [0.3303.0](https://github.com/lightdash/lightdash/compare/0.3302.0...0.3303.0) (2026-07-03)
 
 
