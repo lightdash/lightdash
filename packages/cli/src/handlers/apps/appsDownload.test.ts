@@ -5,6 +5,7 @@ import {
     classifyAppUpload,
     computeUpsertedTotal,
     ensureDownloadedAppContext,
+    manifestRetargetHint,
     MAX_INCLUDE_APPS,
     selectAppsToDownload,
     shouldWarnAllSkipped,
@@ -163,6 +164,20 @@ describe('classifyAppUpload', () => {
         expect(classifyAppUpload('proj-a', 'proj-b', false)).toBe(
             'needs-confirmation',
         );
+    });
+});
+
+describe('manifestRetargetHint', () => {
+    it('names both uuids, the consequence, and the manual fix', () => {
+        const hint = manifestRetargetHint({
+            folder: 'my-app',
+            appUuid: 'new-app-uuid',
+            projectUuid: 'target-proj-uuid',
+        });
+        expect(hint).toContain('my-app/lightdash-app.yml');
+        expect(hint).toContain('appUuid: new-app-uuid');
+        expect(hint).toContain('projectUuid: target-proj-uuid');
+        expect(hint).toMatch(/ask to create again/i);
     });
 });
 
