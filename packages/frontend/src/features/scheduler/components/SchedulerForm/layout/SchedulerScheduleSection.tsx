@@ -7,7 +7,11 @@ import { useActiveProjectUuid } from '../../../../../hooks/useActiveProject';
 import { useProject } from '../../../../../hooks/useProject';
 import { useSchedulerFormContext } from '../schedulerFormContext';
 
-export const SchedulerScheduleSection: FC = () => {
+type Props = {
+    isThresholdAlert?: boolean;
+};
+
+export const SchedulerScheduleSection: FC<Props> = ({ isThresholdAlert }) => {
     const form = useSchedulerFormContext();
     const { activeProjectUuid } = useActiveProjectUuid();
     const { data: project } = useProject(activeProjectUuid);
@@ -22,11 +26,20 @@ export const SchedulerScheduleSection: FC = () => {
         <Stack gap="lg">
             <TextInput
                 label="Name"
-                placeholder="Name your delivery"
+                placeholder={
+                    isThresholdAlert ? 'Name your alert' : 'Name your delivery'
+                }
                 required
                 {...form.getInputProps('name')}
             />
-            <Input.Wrapper label="Frequency">
+            <Input.Wrapper
+                label={isThresholdAlert ? 'Check frequency' : 'Frequency'}
+                description={
+                    isThresholdAlert
+                        ? 'How often Lightdash checks your data for changes. You are only notified when the conditions are met.'
+                        : undefined
+                }
+            >
                 <Box mt={4}>
                     <CronInternalInputs
                         disabled={false}

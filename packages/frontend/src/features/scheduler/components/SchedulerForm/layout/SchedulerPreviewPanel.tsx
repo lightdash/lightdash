@@ -1,7 +1,14 @@
 import {
     applyDimensionOverrides,
+    getItemId,
+    getItemLabelWithoutTableName,
     SchedulerFormat,
+    ThresholdOperator,
+    type CustomDimension,
     type Dashboard,
+    type Field,
+    type Metric,
+    type TableCalculation,
 } from '@lightdash/common';
 import {
     Button,
@@ -14,6 +21,7 @@ import {
     Text,
 } from '@mantine-8/core';
 import {
+    IconBell,
     IconMail,
     IconPaperclip,
     IconRefresh,
@@ -93,16 +101,103 @@ const EmailMock: FC<{ format: SchedulerFormat; withAi: boolean }> = ({
     );
 };
 
-type Props = {
-    dashboard: Dashboard | undefined;
+const OPERATOR_TEXT: Record<ThresholdOperator, string> = {
+    [ThresholdOperator.GREATER_THAN]: 'is greater than',
+    [ThresholdOperator.LESS_THAN]: 'is less than',
+    [ThresholdOperator.INCREASED_BY]: 'increased by',
+    [ThresholdOperator.DECREASED_BY]: 'decreased by',
 };
 
-export const SchedulerPreviewPanel: FC<Props> = ({ dashboard }) => {
+const AlertConditionCard: FC<{
+    numericMetrics: Record<
+        string,
+        TableCalculation | Metric | Field | CustomDimension
+    >;
+}> = ({ numericMetrics }) => {
+    const form = useSchedulerFormContext();
+    const threshold = form.values.thresholds?.[0];
+    const field = threshold
+        ? Object.values(numericMetrics).find(
+              (metric) => getItemId(metric) === threshold.fieldId,
+          )
+        : undefined;
+    const isPercent =
+        threshold?.operator === ThresholdOperator.INCREASED_BY ||
+        threshold?.operator === ThresholdOperator.DECREASED_BY;
+
+    const emailCount = form.values.emailTargets?.length || 0;
+    const slackCount = form.values.slackTargets?.length || 0;
+    const destinations = [
+        emailCount > 0 &&
+            `${emailCount} email recipient${emailCount > 1 ? 's' : ''}`,
+        slackCount > 0 &&
+            `${slackCount} Slack channel${slackCount > 1 ? 's' : ''}`,
+    ]
+        .filter(Boolean)
+        .join(' and ');
+
+    return (
+        <Paper withBorder radius="md" p="md" bg="var(--mantine-color-body)">
+            <Stack gap="sm">
+                <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
+                    Alert summary
+                </Text>
+                <Text fw={600} size="sm">
+                    <MantineIcon
+                        icon={IconBell}
+                        size="sm"
+                        display="inline"
+                        style={{ marginRight: 6, marginBottom: -2 }}
+                    />
+                    Fires when…
+                </Text>
+                {field && threshold ? (
+                    <Text size="sm">
+                        <Text span fw={600}>
+                            {getItemLabelWithoutTableName(field)}
+                        </Text>{' '}
+                        {OPERATOR_TEXT[threshold.operator]}{' '}
+                        <Text span fw={600}>
+                            {threshold.value}
+                            {isPercent ? '%' : ''}
+                        </Text>
+                    </Text>
+                ) : (
+                    <Text size="sm" c="dimmed">
+                        Pick an alert field and threshold to see the condition
+                        here.
+                    </Text>
+                )}
+                <Text size="xs" c="dimmed">
+                    {destinations
+                        ? `You'll be notified via ${destinations}.`
+                        : 'Add a recipient to get notified.'}
+                </Text>
+            </Stack>
+        </Paper>
+    );
+};
+
+type Props = {
+    dashboard: Dashboard | undefined;
+    isThresholdAlert?: boolean;
+    numericMetrics: Record<
+        string,
+        TableCalculation | Metric | Field | CustomDimension
+    >;
+};
+
+export const SchedulerPreviewPanel: FC<Props> = ({
+    dashboard,
+    isThresholdAlert,
+    numericMetrics,
+}) => {
     const form = useSchedulerFormContext();
     const format = form.values.format;
     const isImageLike =
         format === SchedulerFormat.IMAGE || format === SchedulerFormat.PDF;
-    const canRender = isImageLike && dashboard !== undefined;
+    const canRender =
+        isImageLike && dashboard !== undefined && !isThresholdAlert;
     const withAi = form.values.aiAugmentation !== null;
 
     const exportDashboardMutation = useExportDashboard();
@@ -163,7 +258,9 @@ export const SchedulerPreviewPanel: FC<Props> = ({ dashboard }) => {
                 )}
             </div>
             <div className={classes.previewBody}>
-                {isImageLike ? (
+                {isThresholdAlert ? (
+                    <AlertConditionCard numericMetrics={numericMetrics} />
+                ) : isImageLike ? (
                     <Stack gap="sm">
                         {withAi && <AiSummaryChip />}
                         {previewUrl ? (

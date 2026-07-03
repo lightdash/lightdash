@@ -31,6 +31,7 @@ import {
     SCHEDULER_SECTIONS,
     type SchedulerSectionId,
 } from './SchedulerForm/layout/navSections';
+import { SchedulerAlertSection } from './SchedulerForm/layout/SchedulerAlertSection';
 import { SchedulerDataFormatSection } from './SchedulerForm/layout/SchedulerDataFormatSection';
 import classes from './SchedulerForm/layout/SchedulerDeliveryModal.module.css';
 import { SchedulerDeliveryNav } from './SchedulerForm/layout/SchedulerDeliveryNav';
@@ -38,7 +39,6 @@ import { SchedulerMessageSection } from './SchedulerForm/layout/SchedulerMessage
 import { SchedulerPreviewPanel } from './SchedulerForm/layout/SchedulerPreviewPanel';
 import { SchedulerRecipientsSection } from './SchedulerForm/layout/SchedulerRecipientsSection';
 import { SchedulerScheduleSection } from './SchedulerForm/layout/SchedulerScheduleSection';
-import { SchedulerSectionPlaceholder } from './SchedulerForm/layout/SchedulerSectionPlaceholder';
 import { SchedulerFormAiInput } from './SchedulerForm/SchedulerFormAiInput';
 import {
     SchedulerFormProvider,
@@ -98,6 +98,7 @@ export const SchedulerModalCreateOrEditV2: FC<Props> = ({
         form,
         dashboard,
         isThresholdAlertWithNoFields,
+        numericMetrics,
         isDashboardTabsAvailable,
         requiredFiltersWithoutValues,
     } = useSchedulerFormModal({
@@ -160,7 +161,11 @@ export const SchedulerModalCreateOrEditV2: FC<Props> = ({
     const renderSection = () => {
         switch (activeSection) {
             case 'schedule':
-                return <SchedulerScheduleSection />;
+                return (
+                    <SchedulerScheduleSection
+                        isThresholdAlert={isThresholdAlert}
+                    />
+                );
             case 'recipients':
                 return <SchedulerRecipientsSection />;
             case 'data':
@@ -180,7 +185,14 @@ export const SchedulerModalCreateOrEditV2: FC<Props> = ({
             case 'ai':
                 return <SchedulerFormAiInput projectUuid={projectUuid} />;
             case 'alert':
-                return <SchedulerSectionPlaceholder label="Alert conditions" />;
+                return (
+                    <SchedulerAlertSection
+                        numericMetrics={numericMetrics}
+                        isThresholdAlertWithNoFields={
+                            !!isThresholdAlertWithNoFields
+                        }
+                    />
+                );
             default:
                 return null;
         }
@@ -295,6 +307,8 @@ export const SchedulerModalCreateOrEditV2: FC<Props> = ({
                                     </div>
                                     <SchedulerPreviewPanel
                                         dashboard={dashboard}
+                                        isThresholdAlert={isThresholdAlert}
+                                        numericMetrics={numericMetrics}
                                     />
                                 </form>
 
