@@ -65781,6 +65781,12 @@ export function RegisterRoutes(app: Router) {
             required: true,
             dataType: 'string',
         },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'CreateSchedulerAndTargetsWithoutIds',
+        },
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
     };
     app.post(
