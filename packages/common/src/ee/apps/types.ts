@@ -618,3 +618,16 @@ export type DataAppVizContext = {
     fieldMapping: Record<string, string>;
     rows: Record<string, unknown>[];
 };
+
+// postMessage type the host uses to push its resolved color scheme into the
+// iframe so generated apps follow the host's light/dark mode. Sent on iframe
+// load and on every toggle; the initial scheme also rides the iframe URL hash
+// (`theme=`) so the app's first paint matches without waiting for a message.
+export const APP_SDK_THEME_MESSAGE = 'lightdash:sdk:theme';
+
+export type AppSdkColorScheme = 'light' | 'dark';
+
+export type AppSdkThemeMessage = {
+    type: typeof APP_SDK_THEME_MESSAGE;
+    colorScheme: AppSdkColorScheme;
+};

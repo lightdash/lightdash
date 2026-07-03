@@ -1,11 +1,15 @@
 import {
     APP_SDK_DATA_APP_VIZ_CONTEXT_MESSAGE,
+    APP_SDK_THEME_MESSAGE,
     APP_SDK_VIZ_CONTEXT_REQUEST_MESSAGE,
     JWT_HEADER_NAME,
     LightdashAppUuidHeader,
+    type AppSdkColorScheme,
+    type AppSdkThemeMessage,
     type DataAppVizContext,
     type DashboardFilters,
 } from '@lightdash/common';
+import { useMantineColorScheme } from '@mantine/core';
 import { useCallback, useEffect, useRef, type RefObject } from 'react';
 import { lightdashApi } from '../../../api';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
@@ -237,6 +241,12 @@ export type UseAppSdkBridgeParams = {
     // When set, the host pushes this render context into the iframe over the
     // existing bridge — on load and on every change. Only set for data app vizs.
     dataAppVizContext?: DataAppVizContext;
+    /**
+     * Overrides the host color scheme pushed into the iframe. Set to `light`
+     * by MinimalApp so scheduled screenshots are deterministic; everywhere
+     * else the bridge follows the resolved Mantine scheme.
+     */
+    forcedColorScheme?: AppSdkColorScheme;
 };
 
 export function useAppSdkBridge({
@@ -255,6 +265,7 @@ export function useAppSdkBridge({
     onLineageSelected,
     onExternalRequestEvent,
     dataAppVizContext,
+    forcedColorScheme,
 }: UseAppSdkBridgeParams) {
     // Embed mode adapts the bridge's outgoing fetches in two ways:
     //   - Attaches the embed JWT header in lieu of session cookies
@@ -265,6 +276,20 @@ export function useAppSdkBridge({
     //     unchanged — the rewrite happens entirely on the parent side.
     const { embedToken, projectUuid: embedProjectUuid } = useEmbed();
     const { health, user } = useApp();
+
+    // Resolved host scheme ('light' | 'dark'; embed forcing already applied
+    // by the providers). Pushed into the iframe so generated apps follow it.
+    const { colorScheme } = useMantineColorScheme();
+    const effectiveColorScheme: AppSdkColorScheme =
+        forcedColorScheme ?? colorScheme;
+
+    const pushTheme = useCallback(() => {
+        const message: AppSdkThemeMessage = {
+            type: APP_SDK_THEME_MESSAGE,
+            colorScheme: effectiveColorScheme,
+        };
+        iframeRef.current?.contentWindow?.postMessage(message, '*');
+    }, [iframeRef, effectiveColorScheme]);
 
     // Maps queryUuid → POST request id. The SDK transport assigns a fresh
     // request id to the POST (`/metric-query`) and again to each GET poll
@@ -869,7 +894,10 @@ export function useAppSdkBridge({
             { type: 'lightdash:sdk:ready' },
             '*',
         );
-    }, [iframeRef]);
+        // The URL-hash `theme=` param only carries the scheme at iframe-src
+        // build time; re-push on load so reloads after a toggle stay in sync.
+        pushTheme();
+    }, [iframeRef, pushTheme]);
 
     // Re-push the render context whenever the host's field mapping or rows
     // change, so an already-loaded iframe re-renders live. The initial delivery
@@ -878,6 +906,12 @@ export function useAppSdkBridge({
     useEffect(() => {
         pushDataAppVizContext();
     }, [pushDataAppVizContext]);
+
+    // Push the scheme whenever it changes so an already-loaded iframe flips
+    // live. Initial delivery rides the URL hash + the load-time push above.
+    useEffect(() => {
+        pushTheme();
+    }, [pushTheme]);
 
     const enableInspector = useCallback(() => {
         iframeRef.current?.contentWindow?.postMessage(

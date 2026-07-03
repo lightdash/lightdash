@@ -17,6 +17,7 @@ import { useGetApp } from '../features/apps/hooks/useGetApp';
 import { useTrackedAppQueries } from '../features/apps/hooks/useTrackedAppQueries';
 import { useTrackedExternalRequests } from '../features/apps/hooks/useTrackedExternalRequests';
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
+import { useInitialColorScheme } from '../features/apps/useInitialColorScheme';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import classes from './AppPreviewTest.module.css';
 
@@ -122,6 +123,7 @@ export default function AppPreviewTest() {
     }, []);
 
     const previewOrigin = usePreviewOrigin();
+    const initialColorScheme = useInitialColorScheme();
 
     if (dataAppsFlag.isLoading) {
         return null;
@@ -175,7 +177,7 @@ export default function AppPreviewTest() {
     }
 
     const previewUrl = token
-        ? `${previewOrigin}/api/apps/${appUuid}/versions/${version}/t/${token}/?r=${refreshKey}#transport=postMessage&projectUuid=${projectUuid}`
+        ? `${previewOrigin}/api/apps/${appUuid}/versions/${version}/t/${token}/?r=${refreshKey}#transport=postMessage&projectUuid=${projectUuid}&theme=${initialColorScheme}`
         : undefined;
 
     if (isLoading) {

@@ -1,4 +1,5 @@
 import {
+    type AppSdkColorScheme,
     type DataAppVizContext,
     type DashboardFilters,
 } from '@lightdash/common';
@@ -91,6 +92,10 @@ type Props = {
     // Render context for data app vizs: the field mapping + host rows, pushed
     // into the iframe over the SDK bridge. Undefined for ordinary data apps.
     dataAppVizContext?: DataAppVizContext;
+    /** Overrides the color scheme pushed to the iframe — set to `light` by
+     *  MinimalApp so scheduled screenshots are deterministic. When undefined
+     *  the bridge follows the host's resolved Mantine scheme. */
+    forcedColorScheme?: AppSdkColorScheme;
 };
 
 /**
@@ -139,6 +144,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onIframeLoad,
             capabilities,
             dataAppVizContext,
+            forcedColorScheme,
         },
         ref,
     ) => {
@@ -178,6 +184,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onLineageSelected,
             onExternalRequestEvent,
             dataAppVizContext,
+            forcedColorScheme,
         });
         const { captureScreenshot } = useIframeScreenshot(iframeRef);
 

@@ -116,6 +116,7 @@ import { useTrackedAppQueries } from '../features/apps/hooks/useTrackedAppQuerie
 import { useTrackedExternalRequests } from '../features/apps/hooks/useTrackedExternalRequests';
 import { usePreviewOrigin } from '../features/apps/previewOrigin';
 import { getTemplate } from '../features/apps/templates';
+import { useInitialColorScheme } from '../features/apps/useInitialColorScheme';
 import {
     mergeChatMessages,
     type ChatChart,
@@ -239,8 +240,9 @@ const AppPreview = forwardRef<AppIframePreviewHandle, AppPreviewProps>(
         } = useAppPreviewToken(projectUuid, appUuid, version);
 
         const previewOrigin = usePreviewOrigin();
+        const initialColorScheme = useInitialColorScheme();
         const previewUrl = token
-            ? `${previewOrigin}/api/apps/${appUuid}/versions/${version}/t/${token}/?r=${refreshKey}#transport=postMessage&projectUuid=${projectUuid}`
+            ? `${previewOrigin}/api/apps/${appUuid}/versions/${version}/t/${token}/?r=${refreshKey}#transport=postMessage&projectUuid=${projectUuid}&theme=${initialColorScheme}`
             : undefined;
 
         if (isLoading) {

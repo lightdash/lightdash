@@ -10,6 +10,7 @@ import TileBase from '../../../../../components/DashboardTiles/TileBase';
 import AppIframePreview from '../../../../../features/apps/AppIframePreview';
 import { useEmbedAppPreviewToken } from '../../../../../features/apps/hooks/useEmbedAppPreviewToken';
 import { usePreviewOrigin } from '../../../../../features/apps/previewOrigin';
+import { useInitialColorScheme } from '../../../../../features/apps/useInitialColorScheme';
 import useDashboardFiltersForTile from '../../../../../hooks/dashboard/useDashboardFiltersForTile';
 import { convertDateDashboardFilters } from '../../../../../utils/dateFilter';
 
@@ -42,6 +43,8 @@ const EmbedDataAppTile: FC<Props> = ({ tile, projectUuid }) => {
     );
 
     const previewOrigin = usePreviewOrigin();
+    // Reflects the embed's forced `?theme=` scheme (applied by the providers).
+    const initialColorScheme = useInitialColorScheme();
     // Skip the round-trip when the backend already flagged the app as gone.
     const shouldFetch = !!projectUuid && !!appUuid && !appDeletedAt;
     const tokenQuery = useEmbedAppPreviewToken(
@@ -58,7 +61,7 @@ const EmbedDataAppTile: FC<Props> = ({ tile, projectUuid }) => {
     );
 
     const previewUrl = tokenQuery.data
-        ? `${previewOrigin}/api/apps/${appUuid}/versions/${tokenQuery.data.version}/t/${tokenQuery.data.token}/?f=${filtersKey}#transport=postMessage&projectUuid=${projectUuid}`
+        ? `${previewOrigin}/api/apps/${appUuid}/versions/${tokenQuery.data.version}/t/${tokenQuery.data.token}/?f=${filtersKey}#transport=postMessage&projectUuid=${projectUuid}&theme=${initialColorScheme}`
         : undefined;
 
     const statusCode = tokenQuery.error?.error?.statusCode;

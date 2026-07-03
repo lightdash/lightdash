@@ -178,8 +178,10 @@ export default function MinimalApp() {
         );
     }
 
+    // Scheduled screenshots must be deterministic — always capture light,
+    // regardless of whatever scheme the headless browser would resolve.
     const previewUrl = token
-        ? `${previewOrigin}/api/apps/${appUuid}/versions/${latestReadyVersion}/t/${token}/#transport=postMessage&projectUuid=${projectUuid}`
+        ? `${previewOrigin}/api/apps/${appUuid}/versions/${latestReadyVersion}/t/${token}/#transport=postMessage&projectUuid=${projectUuid}&theme=light`
         : undefined;
     if (!previewUrl) return null;
 
@@ -194,6 +196,7 @@ export default function MinimalApp() {
                 onIframeLoad={handleIframeLoad}
                 onQueryEvent={handleQueryEvent}
                 onScreenshotAvailabilityChange={handleScreenshotAvailable}
+                forcedColorScheme="light"
             />
             {isReady && (
                 <ScreenshotReadyIndicator

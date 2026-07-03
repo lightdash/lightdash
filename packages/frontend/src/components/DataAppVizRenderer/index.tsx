@@ -7,6 +7,7 @@ import AppIframePreview from '../../features/apps/AppIframePreview';
 import { useAppPreviewToken } from '../../features/apps/hooks/useAppPreviewToken';
 import { useGetApp } from '../../features/apps/hooks/useGetApp';
 import { usePreviewOrigin } from '../../features/apps/previewOrigin';
+import { useInitialColorScheme } from '../../features/apps/useInitialColorScheme';
 import MantineIcon from '../common/MantineIcon';
 import { isDataAppVizVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
@@ -29,6 +30,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { visualizationConfig, resultsData } = useVisualizationContext();
     const previewOrigin = usePreviewOrigin();
+    const initialColorScheme = useInitialColorScheme();
     const hasSignaledScreenshotReady = useRef(false);
 
     // Signal screenshot readiness on mount so dashboard capture isn't blocked
@@ -89,7 +91,7 @@ const DataAppVizRenderer: FC<Props> = ({ onScreenshotReady }) => {
         );
     }
 
-    const previewUrl = `${previewOrigin}/api/apps/${dataAppVizUuid}/versions/${readyVersion}/t/${token}/?r=0#transport=postMessage&projectUuid=${projectUuid}`;
+    const previewUrl = `${previewOrigin}/api/apps/${dataAppVizUuid}/versions/${readyVersion}/t/${token}/?r=0#transport=postMessage&projectUuid=${projectUuid}&theme=${initialColorScheme}`;
 
     return (
         <AppIframePreview

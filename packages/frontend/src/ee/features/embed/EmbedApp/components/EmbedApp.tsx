@@ -5,6 +5,7 @@ import SuboptimalState from '../../../../../components/common/SuboptimalState/Su
 import AppIframePreview from '../../../../../features/apps/AppIframePreview';
 import { useEmbedAppPreviewToken } from '../../../../../features/apps/hooks/useEmbedAppPreviewToken';
 import { usePreviewOrigin } from '../../../../../features/apps/previewOrigin';
+import { useInitialColorScheme } from '../../../../../features/apps/useInitialColorScheme';
 
 type Props = {
     appUuid: string;
@@ -19,10 +20,12 @@ type Props = {
  */
 const EmbedApp: FC<Props> = ({ appUuid, projectUuid }) => {
     const previewOrigin = usePreviewOrigin();
+    // Reflects the embed's forced `?theme=` scheme (applied by the providers).
+    const initialColorScheme = useInitialColorScheme();
     const tokenQuery = useEmbedAppPreviewToken(projectUuid, appUuid);
 
     const previewUrl = tokenQuery.data
-        ? `${previewOrigin}/api/apps/${appUuid}/versions/${tokenQuery.data.version}/t/${tokenQuery.data.token}/#transport=postMessage&projectUuid=${projectUuid}`
+        ? `${previewOrigin}/api/apps/${appUuid}/versions/${tokenQuery.data.version}/t/${tokenQuery.data.token}/#transport=postMessage&projectUuid=${projectUuid}&theme=${initialColorScheme}`
         : undefined;
 
     const statusCode = tokenQuery.error?.error?.statusCode;

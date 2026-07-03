@@ -12,6 +12,7 @@ import AppIframePreview from '../../features/apps/AppIframePreview';
 import { useAppPreviewToken } from '../../features/apps/hooks/useAppPreviewToken';
 import { useGetApp } from '../../features/apps/hooks/useGetApp';
 import { usePreviewOrigin } from '../../features/apps/previewOrigin';
+import { useInitialColorScheme } from '../../features/apps/useInitialColorScheme';
 import { DashboardTileComments } from '../../features/comments';
 import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
 import { useProject } from '../../hooks/useProject';
@@ -81,6 +82,7 @@ const DataAppTile: FC<Props> = (props) => {
     );
 
     const previewOrigin = usePreviewOrigin();
+    const initialColorScheme = useInitialColorScheme();
     const { data: project } = useProject(projectUuid);
     const isPreviewProject = project?.type === ProjectType.PREVIEW;
     // Skip the network calls when the backend already told us the app is
@@ -148,7 +150,7 @@ const DataAppTile: FC<Props> = (props) => {
 
     const previewUrl =
         token && latestReadyVersion
-            ? `${previewOrigin}/api/apps/${appUuid}/versions/${latestReadyVersion}/t/${token}/?f=${filtersKey}&r=${refreshCounter}#transport=postMessage&projectUuid=${projectUuid}`
+            ? `${previewOrigin}/api/apps/${appUuid}/versions/${latestReadyVersion}/t/${token}/?f=${filtersKey}&r=${refreshCounter}#transport=postMessage&projectUuid=${projectUuid}&theme=${initialColorScheme}`
             : undefined;
 
     const isForbidden =
