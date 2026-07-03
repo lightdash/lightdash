@@ -1497,7 +1497,7 @@ export class UserService extends BaseService {
     ): Promise<{ avatarUrl: string }> {
         const { image, contentHash } = await processAvatarImage(body);
         await this.userAvatarModel.upsert(user.userUuid, image, contentHash);
-        UserModel.invalidateSessionUserCache(user.userUuid);
+        this.userModel.invalidateSessionUserCache(user.userUuid);
         this.analytics.track({
             userId: user.userUuid,
             event: 'user_avatar.updated',
@@ -1510,7 +1510,7 @@ export class UserService extends BaseService {
 
     async deleteAvatar(user: SessionUser): Promise<void> {
         await this.userAvatarModel.delete(user.userUuid);
-        UserModel.invalidateSessionUserCache(user.userUuid);
+        this.userModel.invalidateSessionUserCache(user.userUuid);
     }
 
     async getAvatarImage(

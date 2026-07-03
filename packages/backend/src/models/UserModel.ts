@@ -196,7 +196,8 @@ export class UserModel {
     }
 
     // Per-pod eviction: other pods keep their entry until the 30s TTL expires
-    static invalidateSessionUserCache(userUuid: string): void {
+    // eslint-disable-next-line class-methods-use-this
+    invalidateSessionUserCache(userUuid: string): void {
         const cache = sessionUserCache;
         if (!cache) return;
         const prefix = `${userUuid}::`;
@@ -552,7 +553,7 @@ export class UserModel {
         if (isActive === false) {
             PatSessionCache.invalidate();
         }
-        UserModel.invalidateSessionUserCache(userUuid);
+        this.invalidateSessionUserCache(userUuid);
         return this.getUserDetailsByUuid(userUuid);
     }
 
@@ -561,7 +562,7 @@ export class UserModel {
             .where('user_uuid', userUuid)
             .delete();
         PatSessionCache.invalidate();
-        UserModel.invalidateSessionUserCache(userUuid);
+        this.invalidateSessionUserCache(userUuid);
     }
 
     async getUserProjectRoles(
