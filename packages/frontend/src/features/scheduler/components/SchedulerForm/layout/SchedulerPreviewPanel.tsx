@@ -12,6 +12,7 @@ import {
 } from '@lightdash/common';
 import {
     Button,
+    Center,
     Image,
     Modal,
     Paper,
@@ -214,7 +215,7 @@ export const SchedulerPreviewPanel: FC<Props> = ({
         <aside className={classes.preview}>
             <div className={classes.previewHeader}>
                 <span className={classes.previewLabel}>Live preview</span>
-                {canRender && (
+                {canRender && previewUrl && (
                     <Button
                         variant="subtle"
                         size="compact-xs"
@@ -224,7 +225,7 @@ export const SchedulerPreviewPanel: FC<Props> = ({
                         loading={exportDashboardMutation.isLoading}
                         onClick={handleGenerate}
                     >
-                        {previewUrl ? 'Regenerate' : 'Generate'}
+                        Regenerate
                     </Button>
                 )}
             </div>
@@ -253,22 +254,32 @@ export const SchedulerPreviewPanel: FC<Props> = ({
                                     />
                                 ) : (
                                     <>
-                                        {exportDashboardMutation.isLoading ? (
-                                            <Skeleton height={64} radius="sm" />
-                                        ) : (
-                                            <Paper
-                                                radius="sm"
-                                                h={64}
-                                                bg="var(--mantine-color-default-hover)"
-                                            />
+                                        <Paper
+                                            radius="sm"
+                                            h={canRender ? 88 : 64}
+                                            bg="var(--mantine-color-default-hover)"
+                                        >
+                                            {canRender && (
+                                                <Center h="100%">
+                                                    <Button
+                                                        variant="default"
+                                                        size="xs"
+                                                        loading={
+                                                            exportDashboardMutation.isLoading
+                                                        }
+                                                        onClick={handleGenerate}
+                                                    >
+                                                        Generate preview
+                                                    </Button>
+                                                </Center>
+                                            )}
+                                        </Paper>
+                                        {!canRender && (
+                                            <Text size="xs" c="dimmed">
+                                                Image previews are available for
+                                                dashboards.
+                                            </Text>
                                         )}
-                                        <Text size="xs" c="dimmed">
-                                            {canRender
-                                                ? exportDashboardMutation.isLoading
-                                                    ? 'Rendering your delivery…'
-                                                    : 'Generate a preview to see exactly what recipients receive.'
-                                                : 'Image previews are available for dashboards.'}
-                                        </Text>
                                     </>
                                 )
                             ) : (
