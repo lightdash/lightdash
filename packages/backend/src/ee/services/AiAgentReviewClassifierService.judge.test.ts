@@ -104,6 +104,7 @@ const replayInput: AiAgentReviewJudgeReplayInput = {
         threadWritebackPullRequests: [],
         toolOutcomes: [],
         pendingApprovalTimeout: false,
+        existingReviewItems: [],
     },
 };
 
@@ -125,6 +126,7 @@ const judgeOutput = (
     evidenceExcerpts: [],
     recommendation: null,
     projectContextEntry: null,
+    matchedExistingItemKey: null,
     reviewItem: { title: 'Fix it', description: 'why' },
     ...overrides,
 });

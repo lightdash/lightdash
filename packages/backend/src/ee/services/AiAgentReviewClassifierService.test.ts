@@ -134,6 +134,7 @@ const makeJudgeOutput = (
     ],
     recommendation: null,
     projectContextEntry: null,
+    matchedExistingItemKey: null,
     reviewItem: {
         title: 'No review needed',
         description: 'Judge found no actionable issue.',
@@ -291,6 +292,7 @@ describe('AiAgentReviewClassifierService', () => {
         createTurnSignal: vi.fn(),
         getThreadWritebackPullRequests: vi.fn().mockResolvedValue(new Map()),
         getAgentMcpCapabilities: vi.fn().mockResolvedValue([]),
+        findReviewItemDedupCandidates: vi.fn().mockResolvedValue([]),
     } as unknown as import('vitest').Mocked<AiAgentReviewClassifierModel>;
     const aiAgentModel = {
         getAgent: vi.fn(),
@@ -342,7 +344,11 @@ describe('AiAgentReviewClassifierService', () => {
         });
         model.createRun.mockResolvedValue(makeRun());
         model.updateRun.mockResolvedValue(makeRun({ status: 'completed' }));
-        model.createTurnSignal.mockResolvedValue(SIGNAL_UUID);
+        model.createTurnSignal.mockResolvedValue({
+            turnSignalUuid: SIGNAL_UUID,
+            reviewItemOutcome: 'created',
+        });
+        model.findReviewItemDedupCandidates.mockResolvedValue([]);
         model.getThreadWritebackPullRequests.mockResolvedValue(new Map());
         aiAgentReviewNotificationService.notifyNeedsReview.mockResolvedValue(
             undefined,
@@ -914,6 +920,170 @@ describe('AiAgentReviewClassifierService', () => {
                     primaryRootCause: 'product_capability',
                 }),
             }),
+        );
+    });
+
+    it('passes existing review items to the judge as dedup candidates', async () => {
+        model.findReviewItemDedupCandidates.mockResolvedValue([
+            {
+                fingerprint: 'ai_agent_review_item:existing-1',
+                title: 'Country not available',
+                status: 'open',
+                dismissedReason: null,
+                primaryRootCause: 'semantic_layer',
+                targetRefs: [
+                    {
+                        type: 'dimension',
+                        modelName: 'airports',
+                        dimensionName: 'country',
+                    },
+                ],
+            },
+        ]);
+        model.listTurnReviewCandidates.mockResolvedValue([makeCandidate()]);
+
+        await service.run({
+            organizationUuid: ORGANIZATION_UUID,
+            startedAt: NOW,
+            endedAt: NOW,
+        });
+
+        const packet = judgeTurn.mock.calls[0][1];
+        expect(packet.existingReviewItems).toEqual([
+            {
+                key: 'item_1',
+                title: 'Country not available',
+                status: 'open',
+                dismissedReason: null,
+                primaryRootCause: 'semantic_layer',
+                objectSummary: 'country',
+            },
+        ]);
+    });
+
+    it('falls back to defaults for untitled or unclassified dedup candidates', async () => {
+        model.findReviewItemDedupCandidates.mockResolvedValue([
+            {
+                fingerprint: 'ai_agent_review_item:existing-1',
+                title: null,
+                status: 'triage',
+                dismissedReason: null,
+                primaryRootCause: null,
+                targetRefs: null,
+            },
+        ]);
+        model.listTurnReviewCandidates.mockResolvedValue([makeCandidate()]);
+
+        await service.run({
+            organizationUuid: ORGANIZATION_UUID,
+            startedAt: NOW,
+            endedAt: NOW,
+        });
+
+        const packet = judgeTurn.mock.calls[0][1];
+        expect(packet.existingReviewItems[0]).toEqual({
+            key: 'item_1',
+            title: 'Untitled review item',
+            status: 'triage',
+            dismissedReason: null,
+            primaryRootCause: 'ambiguous',
+            objectSummary: null,
+        });
+    });
+
+    it('degrades to no dedup candidates when the query fails', async () => {
+        model.findReviewItemDedupCandidates.mockRejectedValue(
+            new Error('db down'),
+        );
+        model.listTurnReviewCandidates.mockResolvedValue([makeCandidate()]);
+
+        const result = await service.run({
+            organizationUuid: ORGANIZATION_UUID,
+            startedAt: NOW,
+            endedAt: NOW,
+        });
+
+        expect(result.processedTurns).toBe(1);
+        expect(judgeTurn.mock.calls[0][1].existingReviewItems).toEqual([]);
+    });
+
+    it('reuses an existing item fingerprint when the judge matches a candidate', async () => {
+        model.findReviewItemDedupCandidates.mockResolvedValue([
+            {
+                fingerprint: 'ai_agent_review_item:existing-1',
+                title: 'Country not available',
+                status: 'open',
+                dismissedReason: null,
+                primaryRootCause: 'semantic_layer',
+                targetRefs: null,
+            },
+        ]);
+        model.createTurnSignal.mockResolvedValue({
+            turnSignalUuid: SIGNAL_UUID,
+            reviewItemOutcome: 'recurred',
+        });
+        judgeTurn.mockResolvedValueOnce({
+            ...makeSemanticJudgeOutput(),
+            matchedExistingItemKey: 'item_1',
+        });
+        model.listTurnReviewCandidates.mockResolvedValue([
+            makeCandidate({
+                nextUserPrompt:
+                    'No, country is not available here, so use airport name.',
+            }),
+        ]);
+
+        const result = await service.run({
+            organizationUuid: ORGANIZATION_UUID,
+            startedAt: NOW,
+            endedAt: NOW,
+            persistFindings: true,
+            promoteFindingsToReviewItems: true,
+        });
+
+        expect(model.createTurnSignal).toHaveBeenCalledWith(
+            expect.objectContaining({
+                finding: expect.objectContaining({
+                    reviewItem: expect.objectContaining({
+                        fingerprint: 'ai_agent_review_item:existing-1',
+                    }),
+                }),
+            }),
+        );
+        // A recurrence accrues onto the existing card without re-notifying.
+        expect(result.reviewItemCount).toBe(1);
+        expect(
+            aiAgentReviewNotificationService.notifyNeedsReview,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('computes a fresh fingerprint when the matched key is not a candidate', async () => {
+        model.findReviewItemDedupCandidates.mockResolvedValue([]);
+        judgeTurn.mockResolvedValueOnce({
+            ...makeSemanticJudgeOutput(),
+            matchedExistingItemKey: 'item_99',
+        });
+        model.listTurnReviewCandidates.mockResolvedValue([
+            makeCandidate({
+                nextUserPrompt:
+                    'No, country is not available here, so use airport name.',
+            }),
+        ]);
+
+        await service.run({
+            organizationUuid: ORGANIZATION_UUID,
+            startedAt: NOW,
+            endedAt: NOW,
+            persistFindings: true,
+            promoteFindingsToReviewItems: true,
+        });
+
+        const [{ finding }] = model.createTurnSignal.mock.calls[0];
+        expect(finding?.reviewItem.fingerprint).toContain(
+            'ai_agent_review_item:',
+        );
+        expect(finding?.reviewItem.fingerprint).not.toBe(
+            'ai_agent_review_item:existing-1',
         );
     });
 });

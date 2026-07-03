@@ -15,6 +15,7 @@ const baseJudgeOutput = {
     confidence: 'high' as const,
     promotedToFinding: true,
     promotionReason: 'Found a semantic-layer correction.',
+    matchedExistingItemKey: null,
     primaryRootCause: 'semantic_layer' as const,
     secondaryRootCauses: [],
     subcategories: [],
@@ -431,6 +432,33 @@ describe('aiAgentReviewClassifierJudgeOutputSchema', () => {
                 },
             }).success,
         ).toBe(true);
+    });
+
+    it('accepts a matchedExistingItemKey pointing at a candidate', () => {
+        expect(
+            aiAgentReviewClassifierJudgeOutputSchema.safeParse({
+                ...baseJudgeOutput,
+                matchedExistingItemKey: 'item_3',
+            }).success,
+        ).toBe(true);
+    });
+
+    it('accepts a null matchedExistingItemKey', () => {
+        expect(
+            aiAgentReviewClassifierJudgeOutputSchema.safeParse({
+                ...baseJudgeOutput,
+                matchedExistingItemKey: null,
+            }).success,
+        ).toBe(true);
+    });
+
+    it('rejects an output missing matchedExistingItemKey', () => {
+        const withoutKey: Record<string, unknown> = { ...baseJudgeOutput };
+        delete withoutKey.matchedExistingItemKey;
+        expect(
+            aiAgentReviewClassifierJudgeOutputSchema.safeParse(withoutKey)
+                .success,
+        ).toBe(false);
     });
 });
 
