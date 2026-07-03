@@ -327,6 +327,9 @@ export const projectMemberAbilities: Record<
         can('manage', 'AiAgentDocument', {
             projectUuid: member.projectUuid,
         });
+        can('manage', 'ContentVerification', {
+            projectUuid: member.projectUuid,
+        });
     },
     admin(member, { can }) {
         projectMemberAbilities.developer(member, { can });
@@ -336,10 +339,6 @@ export const projectMemberAbilities: Record<
         });
 
         can('manage', 'ExternalConnection', {
-            projectUuid: member.projectUuid,
-        });
-
-        can('manage', 'ContentVerification', {
             projectUuid: member.projectUuid,
         });
 

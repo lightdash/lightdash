@@ -149,6 +149,7 @@ const BASE_ROLE_SCOPES = {
         'manage:OrganizationAiAgent',
         'manage:AiAgentDocument',
         'manage:AiAgentThread@self', // User's own threads
+        'manage:ContentVerification',
     ],
 
     [ProjectMemberRole.ADMIN]: [
@@ -166,7 +167,6 @@ const BASE_ROLE_SCOPES = {
         'view:AiAgentThread', // All threads in project
         'manage:AiAgentThread', // All threads in project
         'manage:ScheduledDeliveries',
-        'manage:ContentVerification',
 
         // Organization-management scopes. These are no-ops at project
         // assignment (CASL conditions match `organizationUuid`-keyed

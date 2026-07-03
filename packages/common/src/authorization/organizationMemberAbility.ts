@@ -399,6 +399,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
             organizationUuid: member.organizationUuid,
             userUuid: member.userUuid,
         });
+        can('manage', 'ContentVerification', {
+            organizationUuid: member.organizationUuid,
+        });
     },
     admin(member, { can }) {
         applyOrganizationMemberStaticAbilities.developer(member, { can });
@@ -412,10 +415,6 @@ export const applyOrganizationMemberStaticAbilities: Record<
         });
 
         can('manage', 'OrganizationDesign', {
-            organizationUuid: member.organizationUuid,
-        });
-
-        can('manage', 'ContentVerification', {
             organizationUuid: member.organizationUuid,
         });
 
