@@ -1,3 +1,11 @@
+# [0.3306.0](https://github.com/lightdash/lightdash/compare/0.3305.0...0.3306.0) (2026-07-03)
+
+
+### Features
+
+* **cli:** improve pre-aggregate-audit output ([#25117](https://github.com/lightdash/lightdash/issues/25117)) ([426290b](https://github.com/lightdash/lightdash/commit/426290b56692128e51976aa30eb1eca09af8110f))
+* **permissions:** allow developers to verify content ([#25119](https://github.com/lightdash/lightdash/issues/25119)) ([cf97a14](https://github.com/lightdash/lightdash/commit/cf97a1402a1788d765b4bde895068b2ea0779c37))
+
 # [0.3305.0](https://github.com/lightdash/lightdash/compare/0.3304.1...0.3305.0) (2026-07-03)
 
 
