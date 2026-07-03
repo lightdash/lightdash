@@ -11,6 +11,7 @@ import {
     ApiPromotionChangesResponse,
     ApiSuccessEmpty,
     assertRegisteredAccount,
+    CreateSchedulerAndTargetsWithoutIds,
     DateZoom,
     QueryExecutionContext,
     SortField,
@@ -462,6 +463,7 @@ Migrate to the v2 async query flow: [Execute saved chart](https://docs.lightdash
     @OperationId('createSavedChartScheduler')
     async createSavedChartScheduler(
         @Path() chartUuid: string,
+        @Body() body: CreateSchedulerAndTargetsWithoutIds,
         @Request() req: express.Request,
     ): Promise<ApiCreateSavedChartSchedulerResponse> {
         assertRegisteredAccount(req.account);
@@ -470,11 +472,7 @@ Migrate to the v2 async query flow: [Execute saved chart](https://docs.lightdash
             status: 'ok',
             results: await this.services
                 .getSavedChartService()
-                .createScheduler(
-                    toSessionUser(req.account),
-                    chartUuid,
-                    req.body,
-                ),
+                .createScheduler(toSessionUser(req.account), chartUuid, body),
         };
     }
 

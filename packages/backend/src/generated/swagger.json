@@ -56424,7 +56424,17 @@
                             "type": "string"
                         }
                     }
-                ]
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateSchedulerAndTargetsWithoutIds"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/saved/{chartUuid}/export": {
