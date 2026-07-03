@@ -164,6 +164,9 @@ export class AiAgentAdminController extends BaseController {
     @OperationId('getAllAgents')
     async getAllAgents(
         @Request() req: express.Request,
+        // Temporary CI test param — a required addition is a breaking change
+        // the OpenAPI check must flag. Reverted before merge.
+        @Query() ciTestRequiredParam: string,
     ): Promise<ApiAiAgentSummaryResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);

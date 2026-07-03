@@ -57736,6 +57736,12 @@ export function RegisterRoutes(app: Router) {
         TsoaRoute.ParameterSchema
     > = {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        ciTestRequiredParam: {
+            in: 'query',
+            name: 'ciTestRequiredParam',
+            required: true,
+            dataType: 'string',
+        },
     };
     app.get(
         '/api/v1/aiAgents/admin/agents',
