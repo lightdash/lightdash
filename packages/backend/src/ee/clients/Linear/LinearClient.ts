@@ -14,7 +14,9 @@ export type LinearCustomer = {
 /**
  * The public parts of a Linear issue associated with a customer. The workflow
  * state is mapped to a customer-facing status during curation; nothing else
- * here is exposed verbatim.
+ * here is exposed verbatim. `issueUrl`/`pullRequestUrl` are the public GitHub
+ * links found among the issue's attachments (null when absent) — other
+ * attachment hosts (support tickets, Slack threads) are never carried over.
  */
 export type LinearCustomerIssue = {
     id: string;
@@ -24,7 +26,27 @@ export type LinearCustomerIssue = {
         name: string;
         type: string;
     };
+    issueUrl: string | null;
+    pullRequestUrl: string | null;
 };
+
+const GITHUB_ISSUE_URL_PATTERN =
+    /^https:\/\/github\.com\/[^/]+\/[^/]+\/issues\/\d+/;
+const GITHUB_PULL_URL_PATTERN =
+    /^https:\/\/github\.com\/[^/]+\/[^/]+\/pull\/\d+/;
+
+/**
+ * Pick the public GitHub issue and pull-request links out of a Linear issue's
+ * attachment URLs. Only exact github.com issue/PR URLs qualify; the first of
+ * each wins. Everything else is internal and ignored.
+ */
+export const classifyGithubAttachmentUrls = (
+    urls: string[],
+): { issueUrl: string | null; pullRequestUrl: string | null } => ({
+    issueUrl: urls.find((url) => GITHUB_ISSUE_URL_PATTERN.test(url)) ?? null,
+    pullRequestUrl:
+        urls.find((url) => GITHUB_PULL_URL_PATTERN.test(url)) ?? null,
+});
 
 type GraphqlResponse<T> = {
     data?: T;
@@ -52,6 +74,7 @@ type CustomerNeedsQueryResponse = {
                 description: string | null;
                 labels: { nodes: Array<{ name: string }> };
                 state: { name: string; type: string };
+                attachments: { nodes: Array<{ url: string }> };
             } | null;
         }>;
         pageInfo: PageInfo;
@@ -81,6 +104,7 @@ const CUSTOMER_NEEDS_QUERY = `
                     description
                     labels { nodes { name } }
                     state { name type }
+                    attachments(first: 25) { nodes { url } }
                 }
             }
             pageInfo { hasNextPage endCursor }
@@ -194,6 +218,9 @@ export class LinearClient {
                     title: issue.title,
                     description: issue.description,
                     state: issue.state,
+                    ...classifyGithubAttachmentUrls(
+                        issue.attachments.nodes.map((a) => a.url),
+                    ),
                 });
             });
             after = customerNeeds.pageInfo.hasNextPage

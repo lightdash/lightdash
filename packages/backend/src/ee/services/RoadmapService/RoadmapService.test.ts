@@ -95,12 +95,16 @@ describe('RoadmapService', () => {
                     title: 'Dark mode',
                     description: 'Please',
                     state: { name: 'In Progress', type: 'started' },
+                    issueUrl: 'https://github.com/lightdash/lightdash/issues/1',
+                    pullRequestUrl: null,
                 },
                 {
                     id: 'issue-2',
                     title: 'Unmappable',
                     description: null,
                     state: { name: 'Mystery', type: 'mystery' },
+                    issueUrl: null,
+                    pullRequestUrl: null,
                 },
             ]);
 
@@ -123,6 +127,9 @@ describe('RoadmapService', () => {
                         title: 'Dark mode',
                         description: 'Please',
                         status: RoadmapItemStatus.BUILDING,
+                        issueUrl:
+                            'https://github.com/lightdash/lightdash/issues/1',
+                        pullRequestUrl: null,
                     },
                 ],
             });
@@ -176,6 +183,8 @@ describe('RoadmapService', () => {
                     title: 'Dark mode',
                     description: 'Please',
                     status: RoadmapItemStatus.BUILDING,
+                    issueUrl: null,
+                    pullRequestUrl: null,
                 },
             ]);
             const service = buildService(roadmapModel, createLinearClient());
@@ -187,6 +196,8 @@ describe('RoadmapService', () => {
                     title: 'Dark mode',
                     description: 'Please',
                     status: RoadmapItemStatus.BUILDING,
+                    issueUrl: null,
+                    pullRequestUrl: null,
                 },
             ]);
         });
@@ -204,6 +215,8 @@ describe('RoadmapService', () => {
                     title: 'Safe',
                     description: null,
                     status: RoadmapItemStatus.PLANNED,
+                    issueUrl: null,
+                    pullRequestUrl: null,
                 },
                 // A leaked internal field must be rejected, not served.
                 {
@@ -222,6 +235,8 @@ describe('RoadmapService', () => {
                     title: 'Safe',
                     description: null,
                     status: RoadmapItemStatus.PLANNED,
+                    issueUrl: null,
+                    pullRequestUrl: null,
                 },
             ]);
         });

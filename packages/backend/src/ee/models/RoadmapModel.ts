@@ -18,6 +18,8 @@ export type CuratedRoadmapItem = {
     title: string;
     description: string | null;
     status: RoadmapItemStatus;
+    issueUrl: string | null;
+    pullRequestUrl: string | null;
 };
 
 /** A stored item read back for serving (curated fields only). */
@@ -25,6 +27,8 @@ export type StoredRoadmapItem = {
     title: string;
     description: string | null;
     status: RoadmapItemStatus;
+    issueUrl: string | null;
+    pullRequestUrl: string | null;
 };
 
 type Dependencies = {
@@ -84,6 +88,8 @@ export class RoadmapModel {
                         title: item.title,
                         description: item.description,
                         status: item.status,
+                        issue_url: item.issueUrl,
+                        pull_request_url: item.pullRequestUrl,
                         position: index,
                     })),
                 );
@@ -126,11 +132,15 @@ export class RoadmapModel {
                 `${RoadmapItemsTableName}.title`,
                 `${RoadmapItemsTableName}.description`,
                 `${RoadmapItemsTableName}.status`,
+                `${RoadmapItemsTableName}.issue_url`,
+                `${RoadmapItemsTableName}.pull_request_url`,
             );
         return rows.map((row) => ({
             title: row.title,
             description: row.description,
             status: row.status,
+            issueUrl: row.issue_url,
+            pullRequestUrl: row.pull_request_url,
         }));
     }
 }

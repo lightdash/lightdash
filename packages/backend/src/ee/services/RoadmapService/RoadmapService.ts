@@ -143,12 +143,16 @@ export class RoadmapService extends BaseService {
                     title: issue.title,
                     description: issue.description,
                     state: issue.state,
+                    issueUrl: issue.issueUrl,
+                    pullRequestUrl: issue.pullRequestUrl,
                 });
                 items.push({
                     linearIssueId: issue.id,
                     title: built.title,
                     description: built.description,
                     status: built.status,
+                    issueUrl: built.issueUrl,
+                    pullRequestUrl: built.pullRequestUrl,
                 });
             } catch (error) {
                 // Unmappable status — exclude rather than mislabel.

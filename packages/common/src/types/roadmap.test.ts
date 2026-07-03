@@ -6,6 +6,7 @@ import {
     redactRoadmapItem,
     redactRoadmapItems,
     RoadmapItemStatus,
+    sanitizeRoadmapLink,
     type RoadmapItem,
 } from './roadmap';
 
@@ -70,6 +71,8 @@ describe('buildRoadmapItem', () => {
             title: 'Dark mode',
             description: 'Please add dark mode',
             status: RoadmapItemStatus.BUILDING,
+            issueUrl: null,
+            pullRequestUrl: null,
         });
     });
 
@@ -120,8 +123,16 @@ describe('redactRoadmapItem', () => {
             title: 'Dark mode',
             description: 'body',
             status: RoadmapItemStatus.SHIPPED,
+            issueUrl: null,
+            pullRequestUrl: null,
         });
-        expect(Object.keys(result)).toEqual(['title', 'description', 'status']);
+        expect(Object.keys(result)).toEqual([
+            'title',
+            'description',
+            'status',
+            'issueUrl',
+            'pullRequestUrl',
+        ]);
     });
 
     it('rejects payloads containing a forbidden field', () => {
@@ -185,11 +196,15 @@ describe('redactRoadmapItems', () => {
                 title: 'Dark mode',
                 description: 'body',
                 status: RoadmapItemStatus.SHIPPED,
+                issueUrl: null,
+                pullRequestUrl: null,
             },
             {
                 title: 'Filters',
                 description: null,
                 status: RoadmapItemStatus.PLANNED,
+                issueUrl: null,
+                pullRequestUrl: null,
             },
         ]);
         expect(result.rejected).toEqual([]);
@@ -214,6 +229,8 @@ describe('redactRoadmapItems', () => {
                 title: 'Dark mode',
                 description: null,
                 status: RoadmapItemStatus.BACKLOG,
+                issueUrl: null,
+                pullRequestUrl: null,
             },
         ]);
         expect(result.rejected).toHaveLength(1);
@@ -249,5 +266,62 @@ describe('redactRoadmapItems', () => {
         expect(result.rejected).toEqual([
             { title: undefined, reason: expect.any(String) },
         ]);
+    });
+});
+
+describe('sanitizeRoadmapLink', () => {
+    it('keeps public GitHub URLs', () => {
+        expect(
+            sanitizeRoadmapLink(
+                'https://github.com/lightdash/lightdash/issues/5026',
+            ),
+        ).toBe('https://github.com/lightdash/lightdash/issues/5026');
+    });
+
+    it.each([
+        [
+            'internal support tool',
+            'https://app.usepylon.com/issues?issueNumber=13539',
+        ],
+        ['Slack thread', 'https://lightdash.slack.com/archives/C123/p456'],
+        ['Linear issue', 'https://linear.app/lightdash/issue/PROD-1'],
+        ['http downgrade', 'http://github.com/lightdash/lightdash/issues/1'],
+        ['lookalike host', 'https://github.com.evil.example/issues/1'],
+        ['non-string', 42],
+        ['null', null],
+        ['undefined', undefined],
+    ])('withholds %s', (_label, value) => {
+        expect(sanitizeRoadmapLink(value)).toBeNull();
+    });
+});
+
+describe('roadmap link redaction', () => {
+    it('keeps GitHub links through redaction', () => {
+        const result = redactRoadmapItem({
+            title: 'Dark mode',
+            description: null,
+            status: RoadmapItemStatus.SHIPPED,
+            issueUrl: 'https://github.com/lightdash/lightdash/issues/1',
+            pullRequestUrl: 'https://github.com/lightdash/lightdash/pull/2',
+        });
+        expect(result.issueUrl).toBe(
+            'https://github.com/lightdash/lightdash/issues/1',
+        );
+        expect(result.pullRequestUrl).toBe(
+            'https://github.com/lightdash/lightdash/pull/2',
+        );
+    });
+
+    it('withholds non-GitHub links but still serves the item', () => {
+        const result = redactRoadmapItem({
+            title: 'Dark mode',
+            description: null,
+            status: RoadmapItemStatus.SHIPPED,
+            issueUrl: 'https://app.usepylon.com/issues?issueNumber=1',
+            pullRequestUrl: 'https://linear.app/lightdash/issue/PROD-1',
+        });
+        expect(result.issueUrl).toBeNull();
+        expect(result.pullRequestUrl).toBeNull();
+        expect(result.title).toBe('Dark mode');
     });
 });

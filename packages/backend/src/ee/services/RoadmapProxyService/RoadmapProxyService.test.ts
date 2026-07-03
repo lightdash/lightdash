@@ -46,6 +46,8 @@ const curatedItem = {
     title: 'Dark mode',
     description: 'please',
     status: RoadmapItemStatus.BUILDING,
+    issueUrl: null,
+    pullRequestUrl: null,
 };
 
 describe('RoadmapProxyService', () => {

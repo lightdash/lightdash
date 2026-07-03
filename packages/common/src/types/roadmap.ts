@@ -36,12 +36,17 @@ export const isRoadmapItemStatus = (
  * A single curated roadmap item, exactly as exposed to customers. These are
  * the only fields allowed across the curation boundary — the subset already
  * synced to the public GitHub issue. `description` is nullable because a Linear
- * issue may have an empty body.
+ * issue may have an empty body. `issueUrl`/`pullRequestUrl` link to the public
+ * GitHub issue and its delivering pull request; they are only ever
+ * github.com URLs (see {@link sanitizeRoadmapLink}) and null when no public
+ * link exists.
  */
 export type RoadmapItem = {
     title: string;
     description: string | null;
     status: RoadmapItemStatus;
+    issueUrl: string | null;
+    pullRequestUrl: string | null;
 };
 
 /**
@@ -53,7 +58,26 @@ export const ROADMAP_ITEM_ALLOWED_FIELDS = [
     'title',
     'description',
     'status',
+    'issueUrl',
+    'pullRequestUrl',
 ] as const satisfies ReadonlyArray<keyof RoadmapItem>;
+
+/**
+ * Prefix a roadmap link must have to be considered public. Linear issues
+ * carry attachments to internal systems too (support tickets, Slack threads);
+ * only links to public GitHub are ever exposed to customers.
+ */
+export const PUBLIC_ROADMAP_LINK_PREFIX = 'https://github.com/';
+
+/**
+ * Sanitize a candidate roadmap link. Returns the URL only when it is a string
+ * pointing at public GitHub; anything else (internal tools, other hosts,
+ * malformed values) becomes null — the link is withheld, never served.
+ */
+export const sanitizeRoadmapLink = (value: unknown): string | null =>
+    typeof value === 'string' && value.startsWith(PUBLIC_ROADMAP_LINK_PREFIX)
+        ? value
+        : null;
 
 /**
  * Known internal/sensitive field names that must never appear on a curated
@@ -179,6 +203,8 @@ export const buildRoadmapItem = (input: {
     title: string;
     description: string | null;
     state: LinearWorkflowState;
+    issueUrl?: string | null;
+    pullRequestUrl?: string | null;
 }): RoadmapItem => {
     const status = mapLinearStateToRoadmapStatus(input.state);
     if (status === null) {
@@ -190,6 +216,8 @@ export const buildRoadmapItem = (input: {
         title: input.title,
         description: input.description,
         status,
+        issueUrl: sanitizeRoadmapLink(input.issueUrl),
+        pullRequestUrl: sanitizeRoadmapLink(input.pullRequestUrl),
     };
 };
 
@@ -229,7 +257,7 @@ export const redactRoadmapItem = (
         );
     }
 
-    const { title, description, status } = raw;
+    const { title, description, status, issueUrl, pullRequestUrl } = raw;
 
     if (typeof title !== 'string') {
         throw new ParameterError('Roadmap item is missing a valid "title"');
@@ -246,7 +274,15 @@ export const redactRoadmapItem = (
     }
 
     // Reconstruct from the allowlist only — no other key can leak through.
-    return { title, description, status };
+    // Links are re-sanitized here rather than rejected: a non-GitHub URL is
+    // withheld (null) so the rest of the item can still be served.
+    return {
+        title,
+        description,
+        status,
+        issueUrl: sanitizeRoadmapLink(issueUrl),
+        pullRequestUrl: sanitizeRoadmapLink(pullRequestUrl),
+    };
 };
 
 /**
