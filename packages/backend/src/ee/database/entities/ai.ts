@@ -16,6 +16,7 @@ export type DbAiThread = {
     created_from: 'slack' | 'web_app' | 'evals'; // slack, web_app, evals etc
     title: string | null;
     title_generated_at: Date | null;
+    sql_auto_approved_at: Date | null;
 };
 
 export type AiThreadTable = Knex.CompositeTableType<
@@ -32,6 +33,7 @@ export type AiThreadTable = Knex.CompositeTableType<
             | 'title_generated_at'
             | 'project_uuid'
             | 'share_source_thread_share_uuid'
+            | 'sql_auto_approved_at'
         >
     >
 >;

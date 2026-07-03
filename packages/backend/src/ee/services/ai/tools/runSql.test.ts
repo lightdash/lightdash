@@ -62,6 +62,7 @@ const makeTool = ({
         siteUrl: 'https://lightdash.example',
         waitForSqlApproval,
         recordSqlApproval,
+        isThreadSqlAutoApproved: vi.fn().mockResolvedValue(false),
         storeToolResults: vi.fn().mockResolvedValue(undefined),
         autoApproveSql,
         autoApproveSqlUserUuid,

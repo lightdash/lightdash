@@ -9,6 +9,7 @@ import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
 import type {
     GetPromptFn,
+    IsThreadSqlAutoApprovedFn,
     RecordSqlApprovalFn,
     RunSqlJobFn,
     SendFileFn,
@@ -20,7 +21,6 @@ import type {
 import { serializeData } from '../utils/serializeData';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { renderBlocks, type SectionState } from './slackSqlAggregate';
-import { isSlackThreadAutoApproved } from './sqlApprovals';
 
 type Dependencies = {
     updateProgress: UpdateProgressFn;
@@ -31,6 +31,7 @@ type Dependencies = {
     siteUrl: string;
     waitForSqlApproval: WaitForSqlApprovalFn;
     recordSqlApproval: RecordSqlApprovalFn;
+    isThreadSqlAutoApproved: IsThreadSqlAutoApprovedFn;
     storeToolResults: StoreToolResultsFn;
     maxQueryLimit: number;
     autoApproveSql?: boolean;
@@ -89,6 +90,7 @@ export const getRunSql = ({
     siteUrl,
     waitForSqlApproval,
     recordSqlApproval,
+    isThreadSqlAutoApproved,
     storeToolResults,
     maxQueryLimit,
     autoApproveSql = false,
@@ -110,7 +112,7 @@ export const getRunSql = ({
         const prompt = await getPrompt();
         return (
             isSlackPrompt(prompt) &&
-            !isSlackThreadAutoApproved(prompt.threadUuid)
+            !(await isThreadSqlAutoApproved(prompt.threadUuid))
         );
     };
 
@@ -142,7 +144,7 @@ export const getRunSql = ({
             const prompt = await getPrompt();
             const isSlack = isSlackPrompt(prompt);
             const slackAutoApproved =
-                isSlack && isSlackThreadAutoApproved(prompt.threadUuid);
+                isSlack && (await isThreadSqlAutoApproved(prompt.threadUuid));
             const shouldAutoApprove = autoApproveSql || slackAutoApproved;
             // When native approval gated this call, execute only runs after the
             // user approved (or auto-approve). No blocking wait, no pending card

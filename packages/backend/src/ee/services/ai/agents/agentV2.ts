@@ -406,6 +406,7 @@ const getAgentTools = (
               siteUrl: args.siteUrl,
               waitForSqlApproval: dependencies.waitForSqlApproval,
               recordSqlApproval: dependencies.recordSqlApproval,
+              isThreadSqlAutoApproved: dependencies.isThreadSqlAutoApproved,
               storeToolResults: dependencies.storeToolResults,
               maxQueryLimit: args.runSqlMaxLimit,
               autoApproveSql: args.autoApproveSql,
