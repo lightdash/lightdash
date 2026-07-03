@@ -489,6 +489,8 @@ export const getDashboardCsvResultsBlocks = ({
                             )}:* ${sanitizeText(f.error)}`;
                         case PartialFailureType.MISSING_TARGETS:
                             return `\t• No targets found for this scheduled delivery`;
+                        case PartialFailureType.AI_AUGMENTATION:
+                            return `\t• AI summary could not be generated`;
                         default:
                             return assertUnreachable(
                                 f,
@@ -519,6 +521,8 @@ export const getDashboardCsvResultsBlocks = ({
                         )}: ${sanitizeText(f.error)}`;
                     case PartialFailureType.MISSING_TARGETS:
                         return `\t• No targets found for this scheduled delivery`;
+                    case PartialFailureType.AI_AUGMENTATION:
+                        return `\t• AI summary could not be generated`;
                     default:
                         return assertUnreachable(
                             f,

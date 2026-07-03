@@ -277,6 +277,8 @@ export class GoogleChatClient {
                             return `- <b>${f.chartName}:</b> ${f.error}`;
                         case PartialFailureType.MISSING_TARGETS:
                             return `- <b>No targets found for this scheduled delivery</b>`;
+                        case PartialFailureType.AI_AUGMENTATION:
+                            return `- <b>AI summary could not be generated</b>`;
                         default:
                             return assertUnreachable(
                                 f,

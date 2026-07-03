@@ -15,6 +15,7 @@ import {
     type DashboardFilterRule,
     type Filters,
     type ParametersValuesMap,
+    type SchedulerAiAugmentation,
     type SchedulerAndTargets,
     type SchedulerCsvOptions,
     type SchedulerImageOptions,
@@ -54,6 +55,8 @@ export interface SchedulerFormValues {
     }>;
     includeLinks: boolean;
     notificationFrequency?: NotificationFrequency;
+    // Saved to the EE ai-augmentation sub-resource, not the scheduler body.
+    aiAugmentation: SchedulerAiAugmentation | null;
 }
 
 const [SchedulerFormProvider, useSchedulerFormContext, useSchedulerForm] =
@@ -87,6 +90,7 @@ export const DEFAULT_VALUES: SchedulerFormValues = {
     selectedTabs: null,
     thresholds: [],
     includeLinks: true,
+    aiAugmentation: null,
 };
 
 export const DEFAULT_VALUES_ALERT: SchedulerFormValues = {
@@ -191,6 +195,8 @@ export const getFormValuesFromScheduler = (
         thresholds: schedulerData.thresholds,
         notificationFrequency: schedulerData.notificationFrequency,
         includeLinks: schedulerData.includeLinks !== false,
+        // Populated separately from the ai-augmentation sub-resource.
+        aiAugmentation: null,
     };
 };
 

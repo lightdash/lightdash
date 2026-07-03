@@ -1355,6 +1355,76 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "SchedulerAiAugmentation": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "sourceThreadUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "agentUuid": {
+                                "type": "string"
+                            },
+                            "prompt": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["agent"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "sourceThreadUuid",
+                            "agentUuid",
+                            "prompt",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "prompt": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["fast_model"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["prompt", "type"],
+                        "type": "object"
+                    }
+                ],
+                "description": "Enterprise-only AI augmentation attached to a scheduled delivery. On each\nfire the agent (or ambient fast model) writes the delivery message from the\ndelivery's content and the prompt. Persisted in the EE `scheduler_ai_augmentation`\nsatellite table, not on the scheduler itself, so OSS carries none of it."
+            },
+            "ApiSchedulerAiAugmentationResponse": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SchedulerAiAugmentation"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "UUID": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Stringified UUIDv4.\nSee [RFC 4112](https://tools.ietf.org/html/rfc4122)",
+                "pattern": "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}"
+            },
             "ManagedAgentScheduleOption": {
                 "enum": [
                     "every_6_hours",
@@ -13950,7 +14020,7 @@
                     },
                     "imageUrlSource": {
                         "type": "string",
-                        "enum": ["url", "upload", null],
+                        "enum": ["upload", "url", null],
                         "nullable": true
                     },
                     "groupAccess": {
@@ -14374,6 +14444,10 @@
                 },
                 "type": "object"
             },
+            "AiThreadCreatedFrom": {
+                "type": "string",
+                "enum": ["slack", "web_app", "evals", "scheduler"]
+            },
             "AiAgentUser": {
                 "properties": {
                     "name": {
@@ -14412,7 +14486,7 @@
                         "nullable": true
                     },
                     "createdFrom": {
-                        "type": "string"
+                        "$ref": "#/components/schemas/AiThreadCreatedFrom"
                     },
                     "createdAt": {
                         "type": "string"
@@ -14572,7 +14646,7 @@
                     },
                     "imageUrlSource": {
                         "type": "string",
-                        "enum": ["url", "upload", null],
+                        "enum": ["upload", "url", null],
                         "nullable": true
                     },
                     "groupAccess": {
@@ -15406,7 +15480,7 @@
                         "nullable": true
                     },
                     "createdFrom": {
-                        "type": "string"
+                        "$ref": "#/components/schemas/AiThreadCreatedFrom"
                     },
                     "createdAt": {
                         "type": "string"
@@ -16462,8 +16536,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "accepted",
-                                                            "rejected"
+                                                            "rejected",
+                                                            "accepted"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -16521,8 +16595,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "accepted",
-                                                            "rejected"
+                                                            "rejected",
+                                                            "accepted"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -16556,8 +16630,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -16589,10 +16663,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -16601,8 +16675,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "label",
                                                                         "tableName",
+                                                                        "label",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -16612,18 +16686,6 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "joinedTables": {
-                                                                            "items": {
-                                                                                "type": "string"
-                                                                            },
-                                                                            "type": "array",
-                                                                            "nullable": true
-                                                                        },
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
                                                                         "requiredFilters": {
                                                                             "items": {
                                                                                 "properties": {
@@ -16635,6 +16697,9 @@
                                                                                     "required": {
                                                                                         "type": "boolean"
                                                                                     },
+                                                                                    "operator": {
+                                                                                        "type": "string"
+                                                                                    },
                                                                                     "tableName": {
                                                                                         "type": "string"
                                                                                     },
@@ -16643,21 +16708,30 @@
                                                                                     },
                                                                                     "fieldId": {
                                                                                         "type": "string"
-                                                                                    },
-                                                                                    "operator": {
-                                                                                        "type": "string"
                                                                                     }
                                                                                 },
                                                                                 "required": [
                                                                                     "required",
+                                                                                    "operator",
                                                                                     "tableName",
                                                                                     "fieldRef",
-                                                                                    "fieldId",
-                                                                                    "operator"
+                                                                                    "fieldId"
                                                                                 ],
                                                                                 "type": "object"
                                                                             },
                                                                             "type": "array"
+                                                                        },
+                                                                        "joinedTables": {
+                                                                            "items": {
+                                                                                "type": "string"
+                                                                            },
+                                                                            "type": "array",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
                                                                         },
                                                                         "label": {
                                                                             "type": "string"
@@ -16686,8 +16760,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -16701,9 +16775,6 @@
                                                             "searchQueries": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "error": {
-                                                                            "type": "string"
-                                                                        },
                                                                         "pagination": {
                                                                             "properties": {
                                                                                 "totalPageCount": {
@@ -16731,11 +16802,14 @@
                                                                             ],
                                                                             "type": "object"
                                                                         },
+                                                                        "error": {
+                                                                            "type": "string"
+                                                                        },
                                                                         "status": {
                                                                             "type": "string",
                                                                             "enum": [
-                                                                                "success",
-                                                                                "error"
+                                                                                "error",
+                                                                                "success"
                                                                             ]
                                                                         },
                                                                         "results": {
@@ -16759,10 +16833,10 @@
                                                                                     "fieldType": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "label": {
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
+                                                                                    "label": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "name": {
@@ -16771,8 +16845,8 @@
                                                                                 },
                                                                                 "required": [
                                                                                     "fieldType",
-                                                                                    "label",
                                                                                     "tableName",
+                                                                                    "label",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -16800,8 +16874,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -16835,8 +16909,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
                                                             "error",
+                                                            "success",
                                                             "not_found"
                                                         ]
                                                     }
@@ -16863,6 +16937,70 @@
                                                         "anyOf": [
                                                             {
                                                                 "properties": {
+                                                                    "fields": {
+                                                                        "items": {
+                                                                            "properties": {
+                                                                                "isFromJoinedTable": {
+                                                                                    "type": "boolean"
+                                                                                },
+                                                                                "caseSensitiveFilters": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                        "true",
+                                                                                        "false",
+                                                                                        "not_applicable"
+                                                                                    ]
+                                                                                },
+                                                                                "fieldFilterType": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "fieldValueType": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "table": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "fieldType": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                        "dimension",
+                                                                                        "metric"
+                                                                                    ]
+                                                                                },
+                                                                                "fieldId": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "label": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "description": {
+                                                                                    "type": "string",
+                                                                                    "nullable": true
+                                                                                },
+                                                                                "name": {
+                                                                                    "type": "string"
+                                                                                }
+                                                                            },
+                                                                            "required": [
+                                                                                "isFromJoinedTable",
+                                                                                "caseSensitiveFilters",
+                                                                                "fieldFilterType",
+                                                                                "fieldValueType",
+                                                                                "table",
+                                                                                "fieldType",
+                                                                                "fieldId",
+                                                                                "label",
+                                                                                "description",
+                                                                                "name"
+                                                                            ],
+                                                                            "type": "object"
+                                                                        },
+                                                                        "type": "array"
+                                                                    },
+                                                                    "rationale": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
                                                                     "explore": {
                                                                         "properties": {
                                                                             "requiredFilters": {
@@ -16876,6 +17014,9 @@
                                                                                         "required": {
                                                                                             "type": "boolean"
                                                                                         },
+                                                                                        "operator": {
+                                                                                            "type": "string"
+                                                                                        },
                                                                                         "tableName": {
                                                                                             "type": "string"
                                                                                         },
@@ -16884,17 +17025,14 @@
                                                                                         },
                                                                                         "fieldId": {
                                                                                             "type": "string"
-                                                                                        },
-                                                                                        "operator": {
-                                                                                            "type": "string"
                                                                                         }
                                                                                     },
                                                                                     "required": [
                                                                                         "required",
+                                                                                        "operator",
                                                                                         "tableName",
                                                                                         "fieldRef",
-                                                                                        "fieldId",
-                                                                                        "operator"
+                                                                                        "fieldId"
                                                                                     ],
                                                                                     "type": "object"
                                                                                 },
@@ -16924,70 +17062,6 @@
                                                                         ],
                                                                         "type": "object"
                                                                     },
-                                                                    "fields": {
-                                                                        "items": {
-                                                                            "properties": {
-                                                                                "fieldValueType": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "caseSensitiveFilters": {
-                                                                                    "type": "string",
-                                                                                    "enum": [
-                                                                                        "true",
-                                                                                        "false",
-                                                                                        "not_applicable"
-                                                                                    ]
-                                                                                },
-                                                                                "isFromJoinedTable": {
-                                                                                    "type": "boolean"
-                                                                                },
-                                                                                "fieldFilterType": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "fieldType": {
-                                                                                    "type": "string",
-                                                                                    "enum": [
-                                                                                        "dimension",
-                                                                                        "metric"
-                                                                                    ]
-                                                                                },
-                                                                                "description": {
-                                                                                    "type": "string",
-                                                                                    "nullable": true
-                                                                                },
-                                                                                "label": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "fieldId": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "name": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "table": {
-                                                                                    "type": "string"
-                                                                                }
-                                                                            },
-                                                                            "required": [
-                                                                                "fieldValueType",
-                                                                                "caseSensitiveFilters",
-                                                                                "isFromJoinedTable",
-                                                                                "fieldFilterType",
-                                                                                "fieldType",
-                                                                                "description",
-                                                                                "label",
-                                                                                "fieldId",
-                                                                                "name",
-                                                                                "table"
-                                                                            ],
-                                                                            "type": "object"
-                                                                        },
-                                                                        "type": "array"
-                                                                    },
-                                                                    "rationale": {
-                                                                        "type": "string",
-                                                                        "nullable": true
-                                                                    },
                                                                     "status": {
                                                                         "type": "string",
                                                                         "enum": [
@@ -16997,9 +17071,9 @@
                                                                     }
                                                                 },
                                                                 "required": [
-                                                                    "explore",
                                                                     "fields",
                                                                     "rationale",
+                                                                    "explore",
                                                                     "status"
                                                                 ],
                                                                 "type": "object"
@@ -17098,38 +17172,38 @@
                                                         ],
                                                         "type": "object"
                                                     },
-                                                    "href": {
-                                                        "type": "string"
-                                                    },
                                                     "warnings": {
                                                         "items": {
                                                             "type": "string"
                                                         },
                                                         "type": "array"
                                                     },
+                                                    "href": {
+                                                        "type": "string"
+                                                    },
+                                                    "slug": {
+                                                        "type": "string"
+                                                    },
                                                     "status": {
                                                         "type": "string",
                                                         "enum": ["success"],
                                                         "nullable": false
                                                     },
-                                                    "slug": {
+                                                    "name": {
                                                         "type": "string"
                                                     },
                                                     "uuid": {
-                                                        "type": "string"
-                                                    },
-                                                    "name": {
                                                         "type": "string"
                                                     }
                                                 },
                                                 "required": [
                                                     "versionUuids",
-                                                    "href",
                                                     "warnings",
-                                                    "status",
+                                                    "href",
                                                     "slug",
-                                                    "uuid",
-                                                    "name"
+                                                    "status",
+                                                    "name",
+                                                    "uuid"
                                                 ],
                                                 "type": "object"
                                             },
@@ -17138,6 +17212,9 @@
                                                     "steps": {
                                                         "items": {
                                                             "properties": {
+                                                                "label": {
+                                                                    "type": "string"
+                                                                },
                                                                 "kind": {
                                                                     "type": "string",
                                                                     "enum": [
@@ -17147,14 +17224,11 @@
                                                                         "compile",
                                                                         "stage"
                                                                     ]
-                                                                },
-                                                                "label": {
-                                                                    "type": "string"
                                                                 }
                                                             },
                                                             "required": [
-                                                                "kind",
-                                                                "label"
+                                                                "label",
+                                                                "kind"
                                                             ],
                                                             "type": "object"
                                                         },
@@ -17230,13 +17304,13 @@
                                                     "href": {
                                                         "type": "string"
                                                     },
+                                                    "slug": {
+                                                        "type": "string"
+                                                    },
                                                     "status": {
                                                         "type": "string",
                                                         "enum": ["success"],
                                                         "nullable": false
-                                                    },
-                                                    "slug": {
-                                                        "type": "string"
                                                     },
                                                     "name": {
                                                         "type": "string"
@@ -17244,8 +17318,8 @@
                                                 },
                                                 "required": [
                                                     "href",
-                                                    "status",
                                                     "slug",
+                                                    "status",
                                                     "name"
                                                 ],
                                                 "type": "object"
@@ -17259,8 +17333,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -17272,9 +17346,9 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "rejected",
                                                             "error",
+                                                            "rejected",
+                                                            "success",
                                                             "timeout"
                                                         ]
                                                     }
@@ -17302,10 +17376,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -17314,8 +17388,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "label",
                                                                         "tableName",
+                                                                        "label",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -17346,8 +17420,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -18124,6 +18198,10 @@
             },
             "ApiCloneThreadResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiAgentThreadSummary_"
+            },
+            "AiClonedThreadCreatedFrom": {
+                "type": "string",
+                "enum": ["web_app", "evals"]
             },
             "AiAgentExploreAccessSummary": {
                 "properties": {
@@ -23178,7 +23256,8 @@
                         "nullable": true
                     },
                     "createdFrom": {
-                        "type": "string"
+                        "type": "string",
+                        "enum": ["slack", "web_app", "evals", "scheduler"]
                     }
                 },
                 "required": [
@@ -25655,6 +25734,9 @@
             "HexColor": {
                 "type": "string"
             },
+            "MeshColor": {
+                "type": "string"
+            },
             "SolidColor": {
                 "type": "string"
             },
@@ -25665,6 +25747,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/HexColor"
+                    },
+                    {
+                        "$ref": "#/components/schemas/MeshColor"
                     },
                     {
                         "$ref": "#/components/schemas/SolidColor"
@@ -26753,12 +26838,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "UUID": {
-                "type": "string",
-                "format": "uuid",
-                "description": "Stringified UUIDv4.\nSee [RFC 4112](https://tools.ietf.org/html/rfc4122)",
-                "pattern": "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}"
             },
             "UserAttributeValue": {
                 "properties": {
@@ -28578,6 +28657,14 @@
                             "$ref": "#/components/schemas/CreateSchedulerTarget"
                         },
                         "type": "array"
+                    },
+                    "aiAugmentation": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SchedulerAiAugmentation"
+                            }
+                        ],
+                        "nullable": true
                     }
                 },
                 "required": [
@@ -29790,6 +29877,22 @@
                 "required": ["type"],
                 "type": "object"
             },
+            "PartialFailureType.AI_AUGMENTATION": {
+                "enum": ["ai_augmentation"],
+                "type": "string"
+            },
+            "AiAugmentationPartialFailure": {
+                "properties": {
+                    "error": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/PartialFailureType.AI_AUGMENTATION"
+                    }
+                },
+                "required": ["error", "type"],
+                "type": "object"
+            },
             "PartialFailure": {
                 "anyOf": [
                     {
@@ -29800,6 +29903,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/MissingTargetsPartialFailure"
+                    },
+                    {
+                        "$ref": "#/components/schemas/AiAugmentationPartialFailure"
                     }
                 ]
             },
@@ -33161,22 +33267,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "chart": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ContentAsCodeType.SPACE": {
@@ -33740,22 +33846,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -42711,16 +42817,16 @@
                     },
                     {
                         "properties": {
-                            "schedulerCount": {
+                            "chartCount": {
                                 "type": "number",
                                 "format": "double"
                             },
-                            "chartCount": {
+                            "schedulerCount": {
                                 "type": "number",
                                 "format": "double"
                             }
                         },
-                        "required": ["schedulerCount", "chartCount"],
+                        "required": ["chartCount", "schedulerCount"],
                         "type": "object"
                     }
                 ]
@@ -42802,11 +42908,11 @@
                                 "type": "number",
                                 "format": "double"
                             },
-                            "schedulerCount": {
+                            "chartCount": {
                                 "type": "number",
                                 "format": "double"
                             },
-                            "chartCount": {
+                            "schedulerCount": {
                                 "type": "number",
                                 "format": "double"
                             },
@@ -42818,8 +42924,8 @@
                         "required": [
                             "appCount",
                             "nestedSpaceCount",
-                            "schedulerCount",
                             "chartCount",
+                            "schedulerCount",
                             "dashboardCount"
                         ],
                         "type": "object"
@@ -43100,7 +43206,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3298.0",
+        "version": "0.3301.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -44468,6 +44574,135 @@
                 ]
             }
         },
+        "/api/v1/schedulers/{schedulerUuid}/ai-augmentation": {
+            "get": {
+                "operationId": "getSchedulerAiAugmentation",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSchedulerAiAugmentationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the AI augmentation attached to a scheduled delivery, or null.",
+                "summary": "Get scheduler AI augmentation",
+                "tags": ["Schedulers"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "schedulerUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "put": {
+                "operationId": "upsertSchedulerAiAugmentation",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSchedulerAiAugmentationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Attach or replace the AI augmentation on a scheduled delivery.",
+                "summary": "Upsert scheduler AI augmentation",
+                "tags": ["Schedulers"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "schedulerUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SchedulerAiAugmentation"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "deleteSchedulerAiAugmentation",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Remove the AI augmentation from a scheduled delivery.",
+                "summary": "Delete scheduler AI augmentation",
+                "tags": ["Schedulers"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "schedulerUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/databricks/sso/is-authenticated": {
             "get": {
                 "operationId": "getDatabricksAccessToken",
@@ -45570,8 +45805,7 @@
                         "name": "createdFrom",
                         "required": false,
                         "schema": {
-                            "type": "string",
-                            "enum": ["web_app", "slack"]
+                            "$ref": "#/components/schemas/AiThreadCreatedFrom"
                         }
                     },
                     {
@@ -46926,8 +47160,7 @@
                         "name": "createdFrom",
                         "required": false,
                         "schema": {
-                            "type": "string",
-                            "enum": ["web_app", "evals"]
+                            "$ref": "#/components/schemas/AiClonedThreadCreatedFrom"
                         }
                     }
                 ]
@@ -49967,8 +50200,7 @@
                         "name": "createdFrom",
                         "required": false,
                         "schema": {
-                            "type": "string",
-                            "enum": ["slack", "web_app"]
+                            "$ref": "#/components/schemas/AiThreadCreatedFrom"
                         }
                     },
                     {

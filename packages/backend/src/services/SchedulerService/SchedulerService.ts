@@ -341,6 +341,19 @@ export class SchedulerService extends BaseService {
         return { scheduler, resource };
     }
 
+    // Public entry point for callers outside SchedulerService (e.g. the EE
+    // AI-augmentation sub-resource) that need the same manage:ScheduledDeliveries
+    // check the update path enforces.
+    async checkUserCanManageScheduler(
+        user: SessionUser,
+        schedulerUuid: string,
+    ): Promise<{
+        scheduler: Scheduler;
+        resource: { projectUuid: string; organizationUuid: string };
+    }> {
+        return this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
+    }
+
     private async checkViewResource(
         user: SessionUser,
         scheduler: Pick<
@@ -1529,6 +1542,10 @@ export class SchedulerService extends BaseService {
             new Date(),
             {
                 ...scheduler,
+                // Force the creator to the authenticated caller: the body is
+                // client-supplied, and downstream (e.g. AI augmentation) runs
+                // as createdBy, so a forged uuid must never be trusted.
+                createdBy: user.userUuid,
                 organizationUuid,
                 projectUuid,
                 userUuid: user.userUuid,

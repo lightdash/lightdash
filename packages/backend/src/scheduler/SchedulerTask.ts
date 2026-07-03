@@ -187,9 +187,19 @@ import { sanitizeGenericFileName } from '../utils/FileDownloadUtils/FileDownload
 import { SchedulerClient } from './SchedulerClient';
 import { SchedulerDeliveryError } from './SchedulerDeliveryError';
 
+// AI augmentation runner. Implemented by the EE SchedulerAiAugmentationService
+// and injected only by the commercial worker, so OSS deliveries skip it.
+export interface SchedulerAiAugmentationRunner {
+    runForDelivery(args: {
+        scheduler: SchedulerAndTargets | CreateSchedulerAndTargets;
+        createdBy: string;
+    }): Promise<string | null>;
+}
+
 export type SchedulerTaskArguments = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
+    schedulerAiAugmentation?: SchedulerAiAugmentationRunner;
     csvService: CsvService;
     dashboardService: DashboardService;
     deployService: DeployService;
@@ -347,6 +357,8 @@ export default class SchedulerTask {
 
     protected readonly analytics: LightdashAnalytics;
 
+    protected readonly schedulerAiAugmentation?: SchedulerAiAugmentationRunner;
+
     protected readonly csvService: CsvService;
 
     protected readonly dashboardService: DashboardService;
@@ -398,6 +410,7 @@ export default class SchedulerTask {
     constructor(args: SchedulerTaskArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
+        this.schedulerAiAugmentation = args.schedulerAiAugmentation;
         this.csvService = args.csvService;
         this.dashboardService = args.dashboardService;
         this.deployService = args.deployService;
@@ -4127,6 +4140,7 @@ export default class SchedulerTask {
                       email?: NotificationPayloadBase['page'];
                       slack?: NotificationPayloadBase['page'];
                       msteams?: NotificationPayloadBase['page'];
+                      googlechat?: NotificationPayloadBase['page'];
                   }
                 | undefined;
 
@@ -4224,10 +4238,82 @@ export default class SchedulerTask {
                     pageByChannel.googlechat;
             }
 
+            // Generate the AI report (if this delivery is augmented) as the
+            // creator and use it as the message. Runs after the page render so
+            // the summary is never staler than the attachment. A failure
+            // degrades to a partial failure — appended to the page(s) so
+            // recipients see it in-channel — and the delivery still ships with
+            // the stored message. GSHEETS carries no message so it is skipped,
+            // and the threshold gate has already run so unmet alerts never pay
+            // for it.
+            let deliveryScheduler = scheduler;
+            const aiPartialFailures: PartialFailure[] = [];
+            if (
+                this.schedulerAiAugmentation &&
+                scheduler.format !== SchedulerFormat.GSHEETS
+            ) {
+                try {
+                    const aiMessage =
+                        await this.schedulerAiAugmentation.runForDelivery({
+                            scheduler,
+                            createdBy: userUuid,
+                        });
+                    if (aiMessage !== null) {
+                        deliveryScheduler = {
+                            ...scheduler,
+                            message: aiMessage,
+                        };
+                    }
+                } catch (e) {
+                    Logger.error(
+                        `AI augmentation failed for scheduler ${schedulerUuid}: ${getErrorMessage(
+                            e,
+                        )}`,
+                    );
+                    aiPartialFailures.push({
+                        type: PartialFailureType.AI_AUGMENTATION,
+                        error: getErrorMessage(e),
+                    });
+                }
+            }
+            if (aiPartialFailures.length > 0) {
+                // Channels can share a page object (same expiration); the map
+                // keeps that sharing so each page is augmented exactly once.
+                const augmentedPages = new Map<
+                    NotificationPayloadBase['page'],
+                    NotificationPayloadBase['page']
+                >();
+                const withAiFailures = (
+                    channelPage: NotificationPayloadBase['page'] | undefined,
+                ): NotificationPayloadBase['page'] | undefined => {
+                    if (!channelPage) return channelPage;
+                    const existing = augmentedPages.get(channelPage);
+                    if (existing) return existing;
+                    const augmented = {
+                        ...channelPage,
+                        failures: [
+                            ...(channelPage.failures ?? []),
+                            ...aiPartialFailures,
+                        ],
+                    };
+                    augmentedPages.set(channelPage, augmented);
+                    return augmented;
+                };
+                page = withAiFailures(page);
+                if (perChannelPages) {
+                    perChannelPages = {
+                        email: withAiFailures(perChannelPages.email),
+                        slack: withAiFailures(perChannelPages.slack),
+                        msteams: withAiFailures(perChannelPages.msteams),
+                        googlechat: withAiFailures(perChannelPages.googlechat),
+                    };
+                }
+            }
+
             const scheduledJobs =
                 await this.schedulerClient.generateJobsForSchedulerTargets(
                     scheduledTime,
-                    scheduler,
+                    deliveryScheduler,
                     page,
                     jobId,
                     traceProperties,
@@ -4257,8 +4343,9 @@ export default class SchedulerTask {
                 }),
             );
 
-            // Use page failures directly as partialFailures for logging
-            const partialFailures = page?.failures;
+            // Page render failures; any AI-augmentation failure was already
+            // appended to the page above.
+            const partialFailures = page?.failures ?? [];
 
             await this.schedulerService.logSchedulerJob({
                 task: SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
@@ -4271,8 +4358,7 @@ export default class SchedulerTask {
                     projectUuid: schedulerPayload.projectUuid,
                     organizationUuid: schedulerPayload.organizationUuid,
                     createdByUserUuid: schedulerPayload.userUuid,
-                    ...(partialFailures &&
-                        partialFailures.length > 0 && { partialFailures }),
+                    ...(partialFailures.length > 0 && { partialFailures }),
                 },
             });
 

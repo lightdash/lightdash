@@ -88,13 +88,16 @@ import {
     toolDashboardArgsSchema,
     ToolDashboardV2Args,
     toolDashboardV2ArgsSchema,
+    UnexpectedServerError,
     UpdateSlackResponse,
     UpdateWebAppResponse,
     UserAttributeValueMap,
     validateAgentSuggestion,
     type AgentSuggestionTool,
     type AiAgentModelConfig,
+    type AiClonedThreadCreatedFrom,
     type AiPromptContextInput,
+    type AiWebAppThreadCreatedFrom,
     type SessionUser,
     type SuggestionValidationCatalog,
 } from '@lightdash/common';
@@ -855,7 +858,7 @@ export class AiAgentService extends BaseService {
     // A pinned thread may live in another project (e.g. verifying a fix in a
     // preview environment against the original conversation), so access is
     // checked against the source thread's own agent.
-    private async validateThreadContextAccess(
+    public async validateThreadContextAccess(
         user: SessionUser,
         item: { threadUuid: string },
     ): Promise<void> {
@@ -1031,7 +1034,7 @@ export class AiAgentService extends BaseService {
         return this.lightdashConfig.ai.copilot.embeddingEnabled;
     }
 
-    private async getIsCopilotEnabled(
+    public async getIsCopilotEnabled(
         user: Pick<
             LightdashUser,
             'userUuid' | 'organizationUuid' | 'organizationName'
@@ -2455,7 +2458,7 @@ export class AiAgentService extends BaseService {
         user: SessionUser,
         agentUuid: string,
         body: ApiAiAgentThreadCreateRequest,
-        createdFrom: 'web_app' | 'evals' = 'web_app',
+        createdFrom: AiWebAppThreadCreatedFrom = 'web_app',
         runtimeOptions?: EmbedAiAgentRuntimeOptions,
     ) {
         const { organizationUuid } = user;
@@ -2541,6 +2544,58 @@ export class AiAgentService extends BaseService {
             organizationUuid,
             agentUuid,
             threadUuid,
+        });
+    }
+
+    /**
+     * Runs an agent over a scheduled delivery's content in a fresh
+     * `scheduler`-origin thread and returns its report. The caller passes the
+     * delivery creator as `user`, so the agent runs with their permissions —
+     * access to the agent and any pinned thread is enforced here, not by
+     * whoever triggered the delivery.
+     */
+    async generateScheduledReport(
+        user: SessionUser,
+        {
+            agentUuid,
+            prompt,
+            savedChartUuid,
+            dashboardUuid,
+            sourceThreadUuid,
+        }: {
+            agentUuid: string;
+            prompt: string;
+            savedChartUuid: string | null;
+            dashboardUuid: string | null;
+            sourceThreadUuid: string | null;
+        },
+    ): Promise<string> {
+        const context: AiPromptContextInput = [];
+        if (savedChartUuid) {
+            context.push({ type: 'chart', chartUuid: savedChartUuid });
+        }
+        if (dashboardUuid) {
+            context.push({ type: 'dashboard', dashboardUuid });
+        }
+        if (sourceThreadUuid) {
+            context.push({ type: 'thread', threadUuid: sourceThreadUuid });
+        }
+
+        const thread = await this.createAgentThread(
+            user,
+            agentUuid,
+            { prompt, context: context.length > 0 ? context : undefined },
+            'scheduler',
+        );
+        if (!thread) {
+            throw new UnexpectedServerError(
+                'Failed to create scheduled agent thread',
+            );
+        }
+
+        return this.generateAgentThreadResponse(user, {
+            agentUuid,
+            threadUuid: thread.uuid,
         });
     }
 
@@ -12050,7 +12105,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         agentUuid: string,
         threadUuid: string,
         promptUuid: string,
-        { createdFrom }: { createdFrom?: 'web_app' | 'evals' },
+        { createdFrom }: { createdFrom?: AiClonedThreadCreatedFrom },
     ): Promise<AiAgentThreadSummary> {
         const { organizationUuid } = user;
         if (!organizationUuid) {

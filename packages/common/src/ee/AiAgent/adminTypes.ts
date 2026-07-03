@@ -5,13 +5,13 @@ import type {
     AiAgentUser,
     AiModelOption,
 } from './index';
-import type { AiAgentModelConfig } from './requestTypes';
+import type { AiAgentModelConfig, AiThreadCreatedFrom } from './requestTypes';
 
 export type AiAgentAdminFilters = {
     projectUuids?: string[];
     agentUuids?: string[];
     userUuids?: string[];
-    createdFrom?: 'slack' | 'web_app';
+    createdFrom?: AiThreadCreatedFrom;
     humanScore?: number; // (-1, 0, 1)
     dateFrom?: string; // ISO date string
     dateTo?: string; // ISO date string

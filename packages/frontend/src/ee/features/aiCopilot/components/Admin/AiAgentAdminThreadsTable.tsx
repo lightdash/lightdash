@@ -1,6 +1,7 @@
 import {
     type AiAgentAdminSortField,
     type AiAgentAdminThreadSummary,
+    type AiThreadCreatedFrom,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -67,6 +68,13 @@ import {
     threadReviewRootCauseLabels,
     threadReviewStatusColors,
 } from './threadReviewContext';
+
+const CREATED_FROM_LABELS: Record<AiThreadCreatedFrom, string> = {
+    slack: 'Slack',
+    web_app: 'Web',
+    evals: 'Evals',
+    scheduler: 'Scheduler',
+};
 
 type AiAgentAdminThreadsTableProps = {
     onThreadSelect?: (thread: AiAgentAdminThreadSummary) => void;
@@ -329,12 +337,8 @@ const AiAgentAdminThreadsTable = ({
             ),
             Cell: ({ row }) => {
                 const thread = row.original;
-                let label = thread.createdFrom;
-                if (label === 'slack') {
-                    label = 'Slack';
-                } else if (label === 'web_app') {
-                    label = 'Web';
-                }
+                const isSlack = thread.createdFrom === 'slack';
+                const label = CREATED_FROM_LABELS[thread.createdFrom];
 
                 const slackUrl =
                     thread.slackChannelId &&
@@ -349,7 +353,7 @@ const AiAgentAdminThreadsTable = ({
 
                 return (
                     <Group gap="two">
-                        {label === 'Slack' ? (
+                        {isSlack ? (
                             <SlackSvg
                                 style={{
                                     width: '12px',

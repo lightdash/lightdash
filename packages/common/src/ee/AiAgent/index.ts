@@ -21,6 +21,7 @@ import {
     type AiPromptContext,
     type AiPromptContextInput,
     type AiPromptTokenUsage,
+    type AiThreadCreatedFrom,
 } from './requestTypes';
 import { type AgentToolOutput } from './schemas';
 import { ToolNameSchema } from './schemas/visualizations';
@@ -288,7 +289,7 @@ export type AiAgentThreadSummary<TUser extends AiAgentUser = AiAgentUser> = {
     uuid: string;
     agentUuid: string;
     createdAt: string;
-    createdFrom: string;
+    createdFrom: AiThreadCreatedFrom;
     title: string | null;
     titleGeneratedAt: string | null;
     firstMessage: {
@@ -439,7 +440,7 @@ export type ApiAiAgentThreadSummaryListResponse = {
 
 export type AiAgentThreadFilters = {
     agentUuid?: string;
-    createdFrom?: 'web_app' | 'slack';
+    createdFrom?: AiThreadCreatedFrom;
     search?: string;
 };
 

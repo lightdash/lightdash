@@ -160,6 +160,7 @@ interface ServiceManifest {
     aiAgentReviewClassifierService: unknown;
     aiRouterService: unknown;
     aiOrganizationSettingsService: unknown;
+    schedulerAiAugmentationService: unknown;
     projectContextService: unknown;
     scimService: unknown;
     supportService: unknown;
@@ -1389,6 +1390,12 @@ export class ServiceRepository
         AiOrganizationSettingsServiceImplT,
     >(): AiOrganizationSettingsServiceImplT {
         return this.getService('aiOrganizationSettingsService');
+    }
+
+    public getSchedulerAiAugmentationService<
+        SchedulerAiAugmentationServiceImplT,
+    >(): SchedulerAiAugmentationServiceImplT {
+        return this.getService('schedulerAiAugmentationService');
     }
 
     public getAiAgentDocumentService<

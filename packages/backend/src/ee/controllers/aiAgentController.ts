@@ -1,6 +1,7 @@
 import {
     AiAgentThreadFilters,
     AiArtifactTSOACompat,
+    AiClonedThreadCreatedFrom,
     ApiAgentReadinessScoreResponse,
     ApiAgentSuggestionsResponse,
     ApiAiAgentArtifactResponseTSOACompat,
@@ -1243,7 +1244,7 @@ export class AiAgentController extends BaseController {
         @Path() agentUuid: string,
         @Path() threadUuid: string,
         @Path() promptUuid: string,
-        @Query() createdFrom?: 'web_app' | 'evals',
+        @Query() createdFrom?: AiClonedThreadCreatedFrom,
     ): Promise<ApiCloneThreadResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
