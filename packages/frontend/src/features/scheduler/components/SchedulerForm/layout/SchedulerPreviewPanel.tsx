@@ -1,45 +1,60 @@
-import { SchedulerFormat } from '@lightdash/common';
-import { Button, Paper, Select, Stack, Text } from '@mantine-8/core';
-import { IconMail, IconPaperclip, IconRefresh } from '@tabler/icons-react';
-import { type FC } from 'react';
+import {
+    applyDimensionOverrides,
+    SchedulerFormat,
+    type Dashboard,
+} from '@lightdash/common';
+import {
+    Button,
+    Image,
+    Modal,
+    Paper,
+    Select,
+    Skeleton,
+    Stack,
+    Text,
+} from '@mantine-8/core';
+import {
+    IconMail,
+    IconPaperclip,
+    IconRefresh,
+    IconSparkles,
+} from '@tabler/icons-react';
+import { useCallback, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { useExportDashboard } from '../../../../../hooks/dashboard/useDashboard';
+import { CUSTOM_WIDTH_OPTIONS } from '../../../constants';
 import { useSchedulerFormContext } from '../schedulerFormContext';
 import classes from './SchedulerDeliveryModal.module.css';
 
-const RenderWidthFooter: FC = () => (
-    <div className={classes.previewFooter}>
-        <Select
-            label="Render width"
-            data={[
-                { value: '1400', label: 'Laptop · 1400px' },
-                { value: '1920', label: 'Desktop · 1920px' },
-                { value: '768', label: 'Tablet · 768px' },
-            ]}
-            defaultValue="1400"
-            comboboxProps={{ withinPortal: true }}
-        />
-    </div>
-);
+const DEFAULT_WIDTH = '1400';
 
-const ImagePreviewStub: FC = () => (
-    <Paper withBorder radius="md" p="md" bg="var(--mantine-color-body)">
-        <Stack gap="sm">
-            <Text fw={600} size="sm">
-                Dashboard preview
+const AiSummaryChip: FC = () => (
+    <Paper radius="md" p="sm" bg="var(--mantine-primary-color-light)">
+        <Stack gap={6}>
+            <Text
+                size="xs"
+                fw={600}
+                c="var(--mantine-primary-color-light-color)"
+            >
+                <MantineIcon
+                    icon={IconSparkles}
+                    size="sm"
+                    display="inline"
+                    style={{ marginRight: 4, marginBottom: -2 }}
+                />
+                AI summary
             </Text>
-            <Paper
-                radius="sm"
-                h={180}
-                bg="var(--mantine-color-default-hover)"
-            />
-            <Text size="xs" c="dimmed">
-                A rendered screenshot appears here once wired up.
-            </Text>
+            <Skeleton height={6} width="90%" animate={false} />
+            <Skeleton height={6} width="75%" animate={false} />
+            <Skeleton height={6} width="55%" animate={false} />
         </Stack>
     </Paper>
 );
 
-const EmailMockStub: FC<{ format: SchedulerFormat }> = ({ format }) => {
+const EmailMock: FC<{ format: SchedulerFormat; withAi: boolean }> = ({
+    format,
+    withAi,
+}) => {
     const ext = format === SchedulerFormat.XLSX ? 'xlsx' : 'csv';
     return (
         <Paper withBorder radius="md" p="md" bg="var(--mantine-color-body)">
@@ -56,6 +71,7 @@ const EmailMockStub: FC<{ format: SchedulerFormat }> = ({ format }) => {
                     />
                     Your scheduled delivery
                 </Text>
+                {withAi && <AiSummaryChip />}
                 <Paper
                     radius="sm"
                     h={64}
@@ -77,32 +93,143 @@ const EmailMockStub: FC<{ format: SchedulerFormat }> = ({ format }) => {
     );
 };
 
-export const SchedulerPreviewPanel: FC = () => {
+type Props = {
+    dashboard: Dashboard | undefined;
+};
+
+export const SchedulerPreviewPanel: FC<Props> = ({ dashboard }) => {
     const form = useSchedulerFormContext();
     const format = form.values.format;
     const isImageLike =
         format === SchedulerFormat.IMAGE || format === SchedulerFormat.PDF;
+    const canRender = isImageLike && dashboard !== undefined;
+    const withAi = form.values.aiAugmentation !== null;
+
+    const exportDashboardMutation = useExportDashboard();
+    const [previewUrl, setPreviewUrl] = useState<string>();
+    const [isEnlarged, setIsEnlarged] = useState(false);
+
+    const widthChoice =
+        form.values.customViewportWidth?.toString() ?? DEFAULT_WIDTH;
+
+    const handleGenerate = useCallback(async () => {
+        if (!dashboard) return;
+        let queryFilters = '';
+        if (form.values.dashboardFilters) {
+            const overriddenDimensions = applyDimensionOverrides(
+                dashboard.filters,
+                form.values.dashboardFilters,
+            );
+            queryFilters = `?filters=${encodeURIComponent(
+                JSON.stringify({
+                    dimensions: overriddenDimensions,
+                    metrics: [],
+                    tableCalculations: [],
+                }),
+            )}`;
+        }
+        const url = await exportDashboardMutation.mutateAsync({
+            dashboard,
+            gridWidth: parseInt(widthChoice),
+            queryFilters,
+            isPreview: true,
+            selectedTabs: form.values.selectedTabs ?? null,
+        });
+        if (url) setPreviewUrl(url);
+    }, [
+        dashboard,
+        exportDashboardMutation,
+        widthChoice,
+        form.values.dashboardFilters,
+        form.values.selectedTabs,
+    ]);
 
     return (
         <aside className={classes.preview}>
             <div className={classes.previewHeader}>
                 <span className={classes.previewLabel}>Live preview</span>
-                <Button
-                    variant="subtle"
-                    size="compact-xs"
-                    leftSection={<MantineIcon icon={IconRefresh} size="sm" />}
-                >
-                    Regenerate
-                </Button>
+                {canRender && (
+                    <Button
+                        variant="subtle"
+                        size="compact-xs"
+                        leftSection={
+                            <MantineIcon icon={IconRefresh} size="sm" />
+                        }
+                        loading={exportDashboardMutation.isLoading}
+                        onClick={handleGenerate}
+                    >
+                        {previewUrl ? 'Regenerate' : 'Generate'}
+                    </Button>
+                )}
             </div>
             <div className={classes.previewBody}>
                 {isImageLike ? (
-                    <ImagePreviewStub />
+                    <Stack gap="sm">
+                        {withAi && <AiSummaryChip />}
+                        {previewUrl ? (
+                            <Image
+                                src={previewUrl}
+                                radius="md"
+                                style={{ cursor: 'zoom-in' }}
+                                onClick={() => setIsEnlarged(true)}
+                            />
+                        ) : (
+                            <Paper
+                                withBorder
+                                radius="md"
+                                p="md"
+                                bg="var(--mantine-color-body)"
+                            >
+                                <Stack gap="sm">
+                                    <Skeleton
+                                        height={140}
+                                        radius="sm"
+                                        animate={
+                                            exportDashboardMutation.isLoading
+                                        }
+                                    />
+                                    <Text size="xs" c="dimmed">
+                                        {canRender
+                                            ? exportDashboardMutation.isLoading
+                                                ? 'Rendering your delivery…'
+                                                : 'Generate a preview to see exactly what recipients receive.'
+                                            : 'Image previews are available for dashboards.'}
+                                    </Text>
+                                </Stack>
+                            </Paper>
+                        )}
+                    </Stack>
                 ) : (
-                    <EmailMockStub format={format} />
+                    <EmailMock format={format} withAi={withAi} />
                 )}
             </div>
-            {isImageLike && <RenderWidthFooter />}
+            {canRender && (
+                <div className={classes.previewFooter}>
+                    <Select
+                        label="Render width"
+                        data={CUSTOM_WIDTH_OPTIONS}
+                        value={widthChoice}
+                        onChange={(value) => {
+                            form.setFieldValue(
+                                'customViewportWidth',
+                                value && value !== DEFAULT_WIDTH
+                                    ? parseInt(value)
+                                    : undefined,
+                            );
+                        }}
+                        comboboxProps={{ withinPortal: true }}
+                    />
+                </div>
+            )}
+            <Modal
+                opened={isEnlarged}
+                onClose={() => setIsEnlarged(false)}
+                size="auto"
+                centered
+                withCloseButton={false}
+            >
+                {previewUrl && <Image src={previewUrl} maw="85vw" />}
+            </Modal>
         </aside>
     );
 };

@@ -293,7 +293,9 @@ export const SchedulerModalCreateOrEditV2: FC<Props> = ({
                                             </Stack>
                                         </div>
                                     </div>
-                                    <SchedulerPreviewPanel />
+                                    <SchedulerPreviewPanel
+                                        dashboard={dashboard}
+                                    />
                                 </form>
 
                                 <div className={classes.footer}>
