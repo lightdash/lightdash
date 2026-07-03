@@ -22,7 +22,6 @@ import {
 } from '@mantine-8/core';
 import {
     IconBell,
-    IconMail,
     IconPaperclip,
     IconRefresh,
     IconSparkles,
@@ -59,47 +58,19 @@ const AiSummaryChip: FC = () => (
     </Paper>
 );
 
-const EmailMock: FC<{ format: SchedulerFormat; withAi: boolean }> = ({
-    format,
-    withAi,
-}) => {
-    const ext = format === SchedulerFormat.XLSX ? 'xlsx' : 'csv';
-    return (
-        <Paper withBorder radius="md" p="md" bg="var(--mantine-color-body)">
-            <Stack gap="sm">
-                <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-                    Email preview
-                </Text>
-                <Text fw={600} size="sm">
-                    <MantineIcon
-                        icon={IconMail}
-                        size="sm"
-                        display="inline"
-                        style={{ marginRight: 6, marginBottom: -2 }}
-                    />
-                    Your scheduled delivery
-                </Text>
-                {withAi && <AiSummaryChip />}
-                <Paper
-                    radius="sm"
-                    h={64}
-                    bg="var(--mantine-color-default-hover)"
-                />
-                <Paper withBorder radius="sm" p="xs">
-                    <Text size="xs">
-                        <MantineIcon
-                            icon={IconPaperclip}
-                            size="sm"
-                            display="inline"
-                            style={{ marginRight: 6, marginBottom: -2 }}
-                        />
-                        data.{ext}
-                    </Text>
-                </Paper>
-            </Stack>
-        </Paper>
-    );
-};
+const AttachmentChip: FC<{ filename: string }> = ({ filename }) => (
+    <Paper withBorder radius="sm" p="xs">
+        <Text size="xs">
+            <MantineIcon
+                icon={IconPaperclip}
+                size="sm"
+                display="inline"
+                style={{ marginRight: 6, marginBottom: -2 }}
+            />
+            {filename}
+        </Text>
+    </Paper>
+);
 
 const OPERATOR_TEXT: Record<ThresholdOperator, string> = {
     [ThresholdOperator.GREATER_THAN]: 'is greater than',
@@ -260,44 +231,61 @@ export const SchedulerPreviewPanel: FC<Props> = ({
             <div className={classes.previewBody}>
                 {isThresholdAlert ? (
                     <AlertConditionCard numericMetrics={numericMetrics} />
-                ) : isImageLike ? (
-                    <Stack gap="sm">
-                        {withAi && <AiSummaryChip />}
-                        {previewUrl ? (
-                            <Image
-                                src={previewUrl}
-                                radius="md"
-                                style={{ cursor: 'zoom-in' }}
-                                onClick={() => setIsEnlarged(true)}
-                            />
-                        ) : (
-                            <Paper
-                                withBorder
-                                radius="md"
-                                p="md"
-                                bg="var(--mantine-color-body)"
-                            >
-                                <Stack gap="sm">
-                                    <Skeleton
-                                        height={140}
-                                        radius="sm"
-                                        animate={
-                                            exportDashboardMutation.isLoading
-                                        }
-                                    />
-                                    <Text size="xs" c="dimmed">
-                                        {canRender
-                                            ? exportDashboardMutation.isLoading
-                                                ? 'Rendering your delivery…'
-                                                : 'Generate a preview to see exactly what recipients receive.'
-                                            : 'Image previews are available for dashboards.'}
-                                    </Text>
-                                </Stack>
-                            </Paper>
-                        )}
-                    </Stack>
                 ) : (
-                    <EmailMock format={format} withAi={withAi} />
+                    <Paper
+                        withBorder
+                        radius="md"
+                        p="md"
+                        bg="var(--mantine-color-body)"
+                    >
+                        <Stack gap="sm">
+                            <Text fw={600} size="sm" lineClamp={2}>
+                                {form.values.name || 'Your scheduled delivery'}
+                            </Text>
+                            {withAi && <AiSummaryChip />}
+                            {isImageLike ? (
+                                previewUrl ? (
+                                    <Image
+                                        src={previewUrl}
+                                        radius="sm"
+                                        style={{ cursor: 'zoom-in' }}
+                                        onClick={() => setIsEnlarged(true)}
+                                    />
+                                ) : (
+                                    <>
+                                        <Skeleton
+                                            height={140}
+                                            radius="sm"
+                                            animate={
+                                                exportDashboardMutation.isLoading
+                                            }
+                                        />
+                                        <Text size="xs" c="dimmed">
+                                            {canRender
+                                                ? exportDashboardMutation.isLoading
+                                                    ? 'Rendering your delivery…'
+                                                    : 'Generate a preview to see exactly what recipients receive.'
+                                                : 'Image previews are available for dashboards.'}
+                                        </Text>
+                                    </>
+                                )
+                            ) : (
+                                <Paper
+                                    radius="sm"
+                                    h={64}
+                                    bg="var(--mantine-color-default-hover)"
+                                />
+                            )}
+                            {format === SchedulerFormat.CSV &&
+                                form.values.options.asAttachment && (
+                                    <AttachmentChip filename="data.csv" />
+                                )}
+                            {format === SchedulerFormat.IMAGE &&
+                                form.values.options.withPdf && (
+                                    <AttachmentChip filename="data.pdf" />
+                                )}
+                        </Stack>
+                    </Paper>
                 )}
             </div>
             {canRender && (
