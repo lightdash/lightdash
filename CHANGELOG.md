@@ -1,3 +1,17 @@
+# [0.3303.0](https://github.com/lightdash/lightdash/compare/0.3302.0...0.3303.0) (2026-07-03)
+
+
+### Bug Fixes
+
+* **cli:** spell out manifest retarget consequences on app create [GLITCH-586] ([#25091](https://github.com/lightdash/lightdash/issues/25091)) ([d0169a4](https://github.com/lightdash/lightdash/commit/d0169a417e50f39cbfd06c0409e24309ece46ef1))
+
+
+### Features
+
+* **analytics:** buffered event stream writer for usage events raw zone ([#25036](https://github.com/lightdash/lightdash/issues/25036)) ([a36140e](https://github.com/lightdash/lightdash/commit/a36140ee52b0703f31e7aca34e66136aa086d25e))
+* **analytics:** enrich query lifecycle events with explore, dashboard and org ids ([#25037](https://github.com/lightdash/lightdash/issues/25037)) ([6bb045d](https://github.com/lightdash/lightdash/commit/6bb045d024be026ac74159ee9e6edd8ed226e769))
+* **cli:** --skip-charts/--skip-dashboards for apps-only downloads [GLITCH-585] ([#25073](https://github.com/lightdash/lightdash/issues/25073)) ([41252a9](https://github.com/lightdash/lightdash/commit/41252a9c187e9024a45f94814ff7d9f91d658730))
+
 # [0.3302.0](https://github.com/lightdash/lightdash/compare/0.3301.0...0.3302.0) (2026-07-03)
 
 
