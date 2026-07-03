@@ -210,6 +210,7 @@ export const lightdashConfigMock: LightdashConfig = {
     roadmap: {
         enabled: false,
         syncCron: '17 * * * *',
+        serviceUrl: null,
         linear: {
             apiKey: null,
             apiUrl: 'https://api.linear.app/graphql',

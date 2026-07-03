@@ -92,6 +92,7 @@ import { PreviewDeploySetupService } from './services/PreviewDeploySetupService/
 import { ProjectContextService } from './services/ProjectContextService/ProjectContextService';
 import { ProjectHomepageService } from './services/ProjectHomepageService';
 import { provisionOnboardingHomepage } from './services/ProjectService/provisionOnboardingHomepage';
+import { RoadmapProxyService } from './services/RoadmapProxyService/RoadmapProxyService';
 import { SchedulerAiAugmentationService } from './services/SchedulerAiAugmentationService/SchedulerAiAugmentationService';
 import { RoadmapService } from './services/RoadmapService/RoadmapService';
 import { ScimService } from './services/ScimService/ScimService';
@@ -329,6 +330,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         : null,
                 });
             },
+            roadmapProxyService: ({ context, repository }) =>
+                new RoadmapProxyService({
+                    lightdashConfig: context.lightdashConfig,
+                    featureFlagService: repository.getFeatureFlagService(),
+                }),
             embedService: ({ repository, context, models }) =>
                 new EmbedService({
                     analytics: context.lightdashAnalytics,
