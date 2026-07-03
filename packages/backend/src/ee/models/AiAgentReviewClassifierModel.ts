@@ -2025,6 +2025,88 @@ export class AiAgentReviewClassifierModel {
         return items[0] ?? null;
     }
 
+    async findReviewItemDedupCandidates(args: {
+        organizationUuid: string;
+        projectUuid: string;
+        limit: number;
+    }): Promise<
+        Array<{
+            fingerprint: string;
+            title: string | null;
+            status: AiAgentReviewItemStatus;
+            dismissedReason: AiAgentReviewItemDismissedReason | null;
+            primaryRootCause: string | null;
+            targetRefs: AiAgentTargetRef[] | null;
+        }>
+    > {
+        const dedupCandidateStatuses: AiAgentReviewItemStatus[] = [
+            'triage',
+            'open',
+            'in_progress',
+            'resolved',
+            'dismissed',
+        ];
+
+        const itemRows = (await this.database<AiAgentReviewItemTable>(
+            AiAgentReviewItemTableName,
+        )
+            .where('organization_uuid', args.organizationUuid)
+            .where('project_uuid', args.projectUuid)
+            .whereIn('status', dedupCandidateStatuses)
+            .orderBy('updated_at', 'desc')
+            .limit(args.limit)
+            .select('fingerprint', 'status', 'dismissed_reason')) as Pick<
+            DbAiAgentReviewItem,
+            'fingerprint' | 'status' | 'dismissed_reason'
+        >[];
+
+        const fingerprints = itemRows.map((row) => row.fingerprint);
+
+        // Latest signal per fingerprint carries the title/root-cause/target the
+        // judge sees — same distinctOn pattern listReviewItems uses.
+        const latestSignalRows =
+            fingerprints.length === 0
+                ? []
+                : ((await this.database<AiAgentTurnSignalTable>(
+                      AiAgentTurnSignalTableName,
+                  )
+                      .distinctOn('fingerprint')
+                      .select(
+                          'fingerprint',
+                          'review_item_title',
+                          'primary_root_cause',
+                          'target_refs',
+                      )
+                      .where('organization_uuid', args.organizationUuid)
+                      .whereIn('fingerprint', fingerprints)
+                      .orderBy('fingerprint')
+                      .orderBy('created_at', 'desc')) as Pick<
+                      DbAiAgentTurnSignal,
+                      | 'fingerprint'
+                      | 'review_item_title'
+                      | 'primary_root_cause'
+                      | 'target_refs'
+                  >[]);
+
+        const latestByFingerprint = new Map(
+            latestSignalRows
+                .filter((row) => row.fingerprint !== null)
+                .map((row) => [row.fingerprint as string, row]),
+        );
+
+        return itemRows.map((row) => {
+            const latest = latestByFingerprint.get(row.fingerprint);
+            return {
+                fingerprint: row.fingerprint,
+                title: latest?.review_item_title ?? null,
+                status: row.status,
+                dismissedReason: row.dismissed_reason,
+                primaryRootCause: latest?.primary_root_cause ?? null,
+                targetRefs: latest?.target_refs ?? null,
+            };
+        });
+    }
+
     async getPromptText(args: GetPromptTextArgs): Promise<string | null> {
         const row = await this.database(`${AiPromptTableName} as prompt`)
             .join(
@@ -2362,7 +2444,10 @@ export class AiAgentReviewClassifierModel {
         return rows.map(AiAgentReviewClassifierModel.mapReviewSignalSummary);
     }
 
-    async createTurnSignal(args: CreateTurnSignalArgs): Promise<string> {
+    async createTurnSignal(args: CreateTurnSignalArgs): Promise<{
+        turnSignalUuid: string;
+        reviewItemOutcome: 'created' | 'recurred' | null;
+    }> {
         const { finding, turnSignal } = args;
         const promptUuid = turnSignal.subject.assistantPromptUuid;
         const newFingerprint =
@@ -2459,6 +2544,7 @@ export class AiAgentReviewClassifierModel {
 
             // Write the review item in the same transaction so a signal and the
             // item it promotes are always created together.
+            let reviewItemOutcome: 'created' | 'recurred' | null = null;
             if (newFingerprint && finding) {
                 const existingItem = await trx<AiAgentReviewItemTable>(
                     AiAgentReviewItemTableName,
@@ -2502,6 +2588,7 @@ export class AiAgentReviewClassifierModel {
                 const isSameTurnReReview =
                     supersededFingerprints.includes(newFingerprint);
                 if (!isSameTurnReReview) {
+                    reviewItemOutcome = existingItem ? 'recurred' : 'created';
                     await this.createReviewItemEvent({
                         fingerprint: newFingerprint,
                         organizationUuid: turnSignal.subject.organizationUuid,
@@ -2557,7 +2644,10 @@ export class AiAgentReviewClassifierModel {
                 }
             }
 
-            return inserted[0].ai_agent_review_turn_signal_uuid;
+            return {
+                turnSignalUuid: inserted[0].ai_agent_review_turn_signal_uuid,
+                reviewItemOutcome,
+            };
         });
     }
 }

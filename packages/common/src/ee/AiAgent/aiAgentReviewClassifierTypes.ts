@@ -321,6 +321,18 @@ export type AiAgentReviewItemDismissedReason =
     | 'low_confidence'
     | 'other';
 
+// Existing item shown to the judge so it can attach a recurring finding to an
+// open card instead of splitting it into a new one. `key` is a server-minted
+// opaque handle ("item_1"); fingerprints are never exposed to the LLM.
+export type AiAgentReviewItemDedupCandidate = {
+    key: string;
+    title: string;
+    status: AiAgentReviewItemStatus;
+    dismissedReason: AiAgentReviewItemDismissedReason | null;
+    primaryRootCause: AiAgentRootCause;
+    objectSummary: string | null;
+};
+
 // A recurring finding reopens a closed item so its "fixed → regressed" history
 // stays on one card — except items dismissed as expected behavior, which stay
 // dismissed rather than clawing back open on every recurrence.
@@ -524,6 +536,7 @@ export const aiAgentReviewClassifierJudgeOutputSchema = z
         confidence: z.enum(['low', 'medium', 'high']),
         promotedToFinding: z.boolean(),
         promotionReason: z.string().nullable(),
+        matchedExistingItemKey: z.string().nullable(),
         primaryRootCause: z.enum([
             'semantic_layer',
             'project_context',

@@ -1154,12 +1154,13 @@ describe('AiAgentReviewClassifierModel', () => {
                 .insert(AiAgentReviewItemEventsTableName)
                 .responseOnce([]);
 
-            await model.createTurnSignal({
+            const result = await model.createTurnSignal({
                 runUuid: RUN_UUID,
                 turnSignal,
                 finding: promotedFinding,
             });
 
+            expect(result.reviewItemOutcome).toBe('created');
             const eventInserts = tracker.history.insert.filter((q) =>
                 q.sql.includes(AiAgentReviewItemEventsTableName),
             );
@@ -1185,12 +1186,13 @@ describe('AiAgentReviewClassifierModel', () => {
                 .insert(AiAgentReviewItemEventsTableName)
                 .responseOnce([]);
 
-            await model.createTurnSignal({
+            const result = await model.createTurnSignal({
                 runUuid: RUN_UUID,
                 turnSignal,
                 finding: promotedFinding,
             });
 
+            expect(result.reviewItemOutcome).toBe('recurred');
             const eventInserts = tracker.history.insert.filter((q) =>
                 q.sql.includes(AiAgentReviewItemEventsTableName),
             );
@@ -1247,7 +1249,7 @@ describe('AiAgentReviewClassifierModel', () => {
                 },
             });
 
-            expect(result).toBe(TURN_SIGNAL_UUID);
+            expect(result.turnSignalUuid).toBe(TURN_SIGNAL_UUID);
             // Supersede: the turn's prior signal is deleted before the new one
             // is inserted (one current signal per turn).
             expect(tracker.history.delete).toHaveLength(1);
@@ -1281,12 +1283,13 @@ describe('AiAgentReviewClassifierModel', () => {
                 },
             ]);
 
-            await model.createTurnSignal({
+            const result = await model.createTurnSignal({
                 runUuid: RUN_UUID,
                 turnSignal: { ...turnSignal, promotedToFinding: false },
                 finding: null,
             });
 
+            expect(result.reviewItemOutcome).toBeNull();
             expect(tracker.history.insert).toHaveLength(1);
             expect(tracker.history.insert[0].sql).toContain(
                 AiAgentTurnSignalTableName,
@@ -1352,7 +1355,7 @@ describe('AiAgentReviewClassifierModel', () => {
                 .insert(AiAgentReviewItemEventsTableName)
                 .responseOnce([]);
 
-            await model.createTurnSignal({
+            const result = await model.createTurnSignal({
                 runUuid: RUN_UUID,
                 turnSignal,
                 finding: {
@@ -1373,6 +1376,9 @@ describe('AiAgentReviewClassifierModel', () => {
                 },
             });
 
+            // Same-turn re-review (supersede path) is neither created nor
+            // recurred — no ping.
+            expect(result.reviewItemOutcome).toBeNull();
             // The item is re-touched (upsert), never deleted, since the
             // fingerprint is stable across the re-review.
             expect(
@@ -1475,6 +1481,100 @@ describe('AiAgentReviewClassifierModel', () => {
                     q.sql.includes(AiAgentReviewItemTableName),
                 ),
             ).toHaveLength(0);
+        });
+    });
+
+    describe('findReviewItemDedupCandidates', () => {
+        it('joins candidate items to their latest signal and excludes duplicates', async () => {
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce([
+                {
+                    fingerprint: FINGERPRINT,
+                    status: 'open',
+                    dismissed_reason: null,
+                },
+                {
+                    fingerprint: 'ai_agent_review_item:second',
+                    status: 'dismissed',
+                    dismissed_reason: 'expected_behavior',
+                },
+            ]);
+            tracker.on.select(AiAgentTurnSignalTableName).responseOnce([
+                makeTurnSignalRow({
+                    fingerprint: FINGERPRINT,
+                    review_item_title: 'Revenue metric mismatch',
+                    primary_root_cause: 'semantic_layer',
+                    target_refs: [
+                        {
+                            type: 'metric',
+                            modelName: 'orders',
+                            metricName: 'revenue',
+                        },
+                    ],
+                }),
+            ]);
+
+            const result = await model.findReviewItemDedupCandidates({
+                organizationUuid: ORGANIZATION_UUID,
+                projectUuid: PROJECT_UUID,
+                limit: 30,
+            });
+
+            // Item order preserved; latest signal fields joined by fingerprint;
+            // an item without a signal falls back to null fields.
+            expect(result).toEqual([
+                {
+                    fingerprint: FINGERPRINT,
+                    title: 'Revenue metric mismatch',
+                    status: 'open',
+                    dismissedReason: null,
+                    primaryRootCause: 'semantic_layer',
+                    targetRefs: [
+                        {
+                            type: 'metric',
+                            modelName: 'orders',
+                            metricName: 'revenue',
+                        },
+                    ],
+                },
+                {
+                    fingerprint: 'ai_agent_review_item:second',
+                    title: null,
+                    status: 'dismissed',
+                    dismissedReason: 'expected_behavior',
+                    primaryRootCause: null,
+                    targetRefs: null,
+                },
+            ]);
+
+            const [itemQuery] = tracker.history.select;
+            expect(itemQuery.bindings).toEqual(
+                expect.arrayContaining([
+                    'triage',
+                    'open',
+                    'in_progress',
+                    'resolved',
+                    'dismissed',
+                ]),
+            );
+            expect(itemQuery.bindings).not.toContain('duplicate');
+            expect(itemQuery.sql).toContain('order by');
+            expect(itemQuery.bindings).toContain(30);
+        });
+
+        it('skips the signal lookup when no candidate items exist', async () => {
+            tracker.on.select(AiAgentReviewItemTableName).responseOnce([]);
+
+            const result = await model.findReviewItemDedupCandidates({
+                organizationUuid: ORGANIZATION_UUID,
+                projectUuid: PROJECT_UUID,
+                limit: 30,
+            });
+
+            expect(result).toEqual([]);
+            const signalQueries = tracker.history.select.filter((q) =>
+                q.sql.includes(AiAgentTurnSignalTableName),
+            );
+            expect(signalQueries).toHaveLength(0);
         });
     });
 

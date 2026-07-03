@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-use-before-define */
 import {
     aiAgentReviewClassifierJudgeOutputSchema,
+    assertUnreachable,
     CatalogType,
     FeatureFlags,
     filterExploreByTags,
@@ -22,6 +23,7 @@ import {
     type AiAgentReviewClassifierToolOutcome,
     type AiAgentReviewClassifierTurnCandidate,
     type AiAgentReviewClassifierTurnSignal,
+    type AiAgentReviewItemDedupCandidate,
     type AiAgentRootCause,
     type AiAgentTargetRef,
     type AiAgentTurnSignal,
@@ -47,7 +49,7 @@ import { getAiCallTelemetry } from './ai/utils/aiCallTelemetry';
 import { type AiAgentReviewNotificationService } from './AiAgentReviewNotificationService';
 
 const REVIEW_AGENT_VERSION = 'llm-judge-v1';
-const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v14';
+const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v15';
 const WRITEBACK_TOOL_NAMES = new Set([
     'editDbtProject',
     'propose_writeback',
@@ -158,6 +160,9 @@ export type AiAgentReviewJudgeEvidencePacket = {
     toolOutcomes: AiAgentReviewClassifierToolOutcome[];
     // A human SQL-approval gate expired during the turn (user stepped away).
     pendingApprovalTimeout: boolean;
+    // Existing review items in this project the judge can dedup against. Each
+    // key ("item_1") maps server-side to a fingerprint never shown to the LLM.
+    existingReviewItems: AiAgentReviewItemDedupCandidate[];
 };
 
 // What a tag-restricted agent can see, mirroring filterExploreByTags.
@@ -647,35 +652,42 @@ export class AiAgentReviewClassifierService extends BaseService {
             /* eslint-disable no-await-in-loop */
             // eslint-disable-next-line no-restricted-syntax
             for (const { classifiedTurn } of reviewedTurns) {
+                let reviewItemOutcome: 'created' | 'recurred' | null = null;
                 if (shouldPersistSignals) {
-                    await this.aiAgentReviewClassifierModel.createTurnSignal({
-                        runUuid: run.uuid,
-                        turnSignal: classifiedTurn.signal,
-                        finding: shouldPersistFindings
-                            ? classifiedTurn.finding
-                            : null,
-                    });
+                    const persisted =
+                        await this.aiAgentReviewClassifierModel.createTurnSignal(
+                            {
+                                runUuid: run.uuid,
+                                turnSignal: classifiedTurn.signal,
+                                finding: shouldPersistFindings
+                                    ? classifiedTurn.finding
+                                    : null,
+                            },
+                        );
+                    reviewItemOutcome = persisted.reviewItemOutcome;
                 }
                 signalCount += 1;
 
                 if (shouldPersistFindings && classifiedTurn.finding) {
                     findingCount += 1;
                     if (shouldPromoteFindingsToReviewItems) {
-                        reviewItemFingerprints.add(
-                            classifiedTurn.finding.reviewItem.fingerprint,
-                        );
-                        const projectFingerprints =
-                            reviewItemFingerprintsByProject.get(
-                                classifiedTurn.signal.subject.projectUuid,
-                            ) ?? new Set<string>();
-                        projectFingerprints.add(
-                            classifiedTurn.finding.reviewItem.fingerprint,
-                        );
-                        reviewItemFingerprintsByProject.set(
-                            classifiedTurn.signal.subject.projectUuid,
-                            projectFingerprints,
-                        );
+                        const { fingerprint } =
+                            classifiedTurn.finding.reviewItem;
+                        reviewItemFingerprints.add(fingerprint);
                         reviewItemCount = reviewItemFingerprints.size;
+                        // Only newly created items ping Slack; a recurrence
+                        // accrues onto its existing card without re-notifying.
+                        if (reviewItemOutcome === 'created') {
+                            const projectFingerprints =
+                                reviewItemFingerprintsByProject.get(
+                                    classifiedTurn.signal.subject.projectUuid,
+                                ) ?? new Set<string>();
+                            projectFingerprints.add(fingerprint);
+                            reviewItemFingerprintsByProject.set(
+                                classifiedTurn.signal.subject.projectUuid,
+                                projectFingerprints,
+                            );
+                        }
                     }
                 }
 
@@ -865,6 +877,25 @@ export class AiAgentReviewClassifierService extends BaseService {
                     !judgeOutput.promotedToFinding,
             });
         }
+        // Resolve the judge's dedup match: a valid key reuses that item's
+        // fingerprint; a null/hallucinated key falls back to computing one.
+        const { matchedExistingItemKey } = judgeOutput;
+        const matchedFingerprint =
+            matchedExistingItemKey !== null
+                ? (reviewEvidence.dedupKeyToFingerprint.get(
+                      matchedExistingItemKey,
+                  ) ?? null)
+                : null;
+        if (matchedExistingItemKey !== null && matchedFingerprint === null) {
+            this.debugLog('InvalidMatchedItemKey', {
+                promptUuid: candidate.subject.assistantPromptUuid,
+                threadUuid: candidate.subject.threadUuid,
+                matchedExistingItemKey,
+            });
+        }
+        const fingerprintSource: 'matched' | 'computed' =
+            matchedFingerprint !== null ? 'matched' : 'computed';
+
         const signal: AiAgentReviewClassifierTurnSignal = {
             subject: candidate.subject,
             interactionSource: candidate.interactionSource,
@@ -899,6 +930,7 @@ export class AiAgentReviewClassifierService extends BaseService {
             promotedToFinding: judgeOutput.promotedToFinding,
             confidence: judgeOutput.confidence,
             judgePromptHash: JUDGE_PROMPT_HASH,
+            matchedExistingItemKey: judgeOutput.matchedExistingItemKey,
             implicitSignalSources: judgeOutput.implicitSignalSources,
             hasImplicitSignal: judgeOutput.implicitSignalSources.length > 0,
             hasPromotableImplicitSignal:
@@ -926,6 +958,9 @@ export class AiAgentReviewClassifierService extends BaseService {
             targetRefs: judgeOutput.targetRefs,
             recommendationAction: judgeOutput.recommendation?.actionType,
             reviewItemTitle: judgeOutput.reviewItem.title,
+            matchedExistingItemKey,
+            matchedKeyValidated: matchedFingerprint !== null,
+            fingerprintSource,
         });
 
         if (!judgeOutput.promotedToFinding) {
@@ -951,26 +986,29 @@ export class AiAgentReviewClassifierService extends BaseService {
               }
             : null;
 
-        const fingerprint = getAiAgentReviewItemFingerprint({
-            organizationUuid: candidate.subject.organizationUuid,
-            projectUuid: candidate.subject.projectUuid,
-            agentUuid: candidate.subject.agentUuid,
-            threadUuid: candidate.subject.threadUuid,
-            primaryRootCause: judgeOutput.primaryRootCause,
-            subcategories: judgeOutput.subcategories,
-            fixTargets: judgeOutput.fixTargets,
-            targetRefs,
-            agentConfigurationSettings: judgeOutput.agentConfigurationSettings,
-            capabilityKey:
-                targetRefs.find(
-                    (
-                        targetRef,
-                    ): targetRef is Extract<
-                        AiAgentTargetRef,
-                        { type: 'product_capability' }
-                    > => targetRef.type === 'product_capability',
-                )?.capabilityKey ?? null,
-        });
+        const fingerprint =
+            matchedFingerprint ??
+            getAiAgentReviewItemFingerprint({
+                organizationUuid: candidate.subject.organizationUuid,
+                projectUuid: candidate.subject.projectUuid,
+                agentUuid: candidate.subject.agentUuid,
+                threadUuid: candidate.subject.threadUuid,
+                primaryRootCause: judgeOutput.primaryRootCause,
+                subcategories: judgeOutput.subcategories,
+                fixTargets: judgeOutput.fixTargets,
+                targetRefs,
+                agentConfigurationSettings:
+                    judgeOutput.agentConfigurationSettings,
+                capabilityKey:
+                    targetRefs.find(
+                        (
+                            targetRef,
+                        ): targetRef is Extract<
+                            AiAgentTargetRef,
+                            { type: 'product_capability' }
+                        > => targetRef.type === 'product_capability',
+                    )?.capabilityKey ?? null,
+            });
 
         const projectContextEntry =
             args.projectContextEnabled &&
@@ -1074,6 +1112,9 @@ export class AiAgentReviewClassifierService extends BaseService {
     ): Promise<{
         evidencePacket: AiAgentReviewJudgeEvidencePacket;
         agentConfig: AiAgentReviewAgentConfigEvidence;
+        // key ("item_1") → existing item fingerprint, kept server-side so a
+        // matchedExistingItemKey resolves to a real fingerprint (never the LLM).
+        dedupKeyToFingerprint: Map<string, string>;
     }> {
         const semanticContext = await this.buildSemanticContext(
             candidate,
@@ -1086,16 +1127,131 @@ export class AiAgentReviewClassifierService extends BaseService {
                 )
             ).get(candidate.subject.threadUuid) ?? [];
 
+        const { existingReviewItems, dedupKeyToFingerprint } =
+            await this.loadDedupCandidates(candidate);
+
         return {
             agentConfig,
+            dedupKeyToFingerprint,
             evidencePacket:
                 AiAgentReviewClassifierService.buildJudgeEvidencePacket({
                     candidate,
                     agentConfig,
                     semanticContext,
                     threadWritebackPullRequests,
+                    existingReviewItems,
                 }),
         };
+    }
+
+    /**
+     * Loads this project's existing review items as dedup candidates. Assigns
+     * opaque keys ("item_1", …) the judge can reference, and keeps a server-side
+     * key → fingerprint map so a match resolves to a real fingerprint. A failed
+     * load degrades to no candidates — it must never fail the review.
+     */
+    private async loadDedupCandidates(
+        candidate: AiAgentReviewClassifierTurnCandidate,
+    ): Promise<{
+        existingReviewItems: AiAgentReviewItemDedupCandidate[];
+        dedupKeyToFingerprint: Map<string, string>;
+    }> {
+        try {
+            const rows =
+                await this.aiAgentReviewClassifierModel.findReviewItemDedupCandidates(
+                    {
+                        organizationUuid: candidate.subject.organizationUuid,
+                        projectUuid: candidate.subject.projectUuid,
+                        limit: 30,
+                    },
+                );
+            const existingReviewItems: AiAgentReviewItemDedupCandidate[] = [];
+            const dedupKeyToFingerprint = new Map<string, string>();
+            rows.forEach((row, index) => {
+                const key = `item_${index + 1}`;
+                dedupKeyToFingerprint.set(key, row.fingerprint);
+                existingReviewItems.push({
+                    key,
+                    title: row.title ?? 'Untitled review item',
+                    status: row.status,
+                    dismissedReason: row.dismissedReason,
+                    primaryRootCause:
+                        (row.primaryRootCause as AiAgentRootCause | null) ??
+                        'ambiguous',
+                    objectSummary:
+                        AiAgentReviewClassifierService.buildDedupObjectSummary(
+                            row.targetRefs,
+                        ),
+                });
+            });
+            return { existingReviewItems, dedupKeyToFingerprint };
+        } catch (error) {
+            this.debugLog('DedupCandidatesFailed', {
+                promptUuid: candidate.subject.assistantPromptUuid,
+                projectUuid: candidate.subject.projectUuid,
+                errorMessage:
+                    error instanceof Error ? error.message : String(error),
+            });
+            return {
+                existingReviewItems: [],
+                dedupKeyToFingerprint: new Map<string, string>(),
+            };
+        }
+    }
+
+    /**
+     * Comma-joined human-readable leaf names of an item's target refs, so the
+     * judge can tell what each candidate is about without seeing fingerprints.
+     */
+    private static buildDedupObjectSummary(
+        targetRefs: AiAgentTargetRef[] | null,
+    ): string | null {
+        if (!targetRefs || targetRefs.length === 0) {
+            return null;
+        }
+        const names = targetRefs
+            .map((targetRef) =>
+                AiAgentReviewClassifierService.targetRefLeafName(targetRef),
+            )
+            .filter((name): name is string => !!name);
+        return names.length > 0 ? names.join(', ') : null;
+    }
+
+    private static targetRefLeafName(
+        targetRef: AiAgentTargetRef,
+    ): string | null {
+        switch (targetRef.type) {
+            case 'model':
+                return targetRef.modelName;
+            case 'explore':
+                return targetRef.exploreName;
+            case 'join':
+                return targetRef.joinName;
+            case 'dimension':
+                return targetRef.dimensionName;
+            case 'metric':
+                return targetRef.metricName;
+            case 'additional_dimension':
+                return targetRef.dimensionName;
+            case 'required_filter':
+                return targetRef.fieldName;
+            case 'ai_hint':
+                return targetRef.targetName;
+            case 'agent_config':
+                return targetRef.setting;
+            case 'product_capability':
+                return targetRef.capabilityKey;
+            case 'runtime':
+                return targetRef.key;
+            case 'agent':
+            case 'content':
+                return null;
+            default:
+                return assertUnreachable(
+                    targetRef,
+                    'Unknown target ref type in dedup object summary',
+                );
+        }
     }
 
     private async captureAgentConfigSnapshot(
@@ -1518,7 +1674,12 @@ Set projectContextEntry ONLY when primaryRootCause=project_context and a single 
 - kind: definition | context. Use "definition" for acronyms and business vocabulary ("X means Y"); use "context" for everything else (routing/join rules, guidance, durable object-scoped facts).
 - content: a single self-contained sentence stating the fact (e.g. '"HR" = the high-risk diabetes cohort, not human resources.').
 - terms: the prompt-facing trigger words/phrases that should surface this entry (e.g. ["HR","high risk"]). Required for definitions.
-- objects: the semantic objects this fact concerns, from targetRefs — explore names and/or field ids in the \`table_field\` form shown as fieldId in field results (e.g. "payments_total_amount"); [] when purely prompt-driven.`,
+- objects: the semantic objects this fact concerns, from targetRefs — explore names and/or field ids in the \`table_field\` form shown as fieldId in field results (e.g. "payments_total_amount"); [] when purely prompt-driven.
+
+Existing review items — dedup rules. The evidence packet field existingReviewItems lists this project's existing review items (key, title, status, dismissedReason, primaryRootCause, objectSummary). Apply these rules when promoting:
+- If the finding's underlying user need matches an existing item — even when you would assign a DIFFERENT root cause or blame a DIFFERENT object — set matchedExistingItemKey to that item's key. The test is "would a human say this is the same problem?", not "same technical label". A timeout, a missing field, and a routing gap that all block the same user question are ONE problem.
+- Items with dismissedReason=expected_behavior are known non-issues already reviewed by a human. If the turn's failure is that same behavior, set promotedToFinding=false and matchedExistingItemKey=null — do not re-file it.
+- Otherwise set matchedExistingItemKey=null.`,
                 },
                 {
                     role: 'user',
@@ -1714,11 +1875,13 @@ Set projectContextEntry ONLY when primaryRootCause=project_context and a single 
         agentConfig,
         semanticContext,
         threadWritebackPullRequests,
+        existingReviewItems,
     }: {
         candidate: AiAgentReviewClassifierTurnCandidate;
         agentConfig: AiAgentReviewJudgeEvidencePacket['agentConfig'];
         semanticContext: AiAgentReviewJudgeEvidencePacket['semanticContext'];
         threadWritebackPullRequests: AiAgentReviewJudgeEvidencePacket['threadWritebackPullRequests'];
+        existingReviewItems: AiAgentReviewItemDedupCandidate[];
     }): AiAgentReviewJudgeEvidencePacket {
         return {
             subject: candidate.subject,
@@ -1759,6 +1922,7 @@ Set projectContextEntry ONLY when primaryRootCause=project_context and a single 
             threadWritebackPullRequests,
             toolOutcomes: candidate.toolOutcomes,
             pendingApprovalTimeout: candidate.pendingApprovalTimeout,
+            existingReviewItems,
         };
     }
 
