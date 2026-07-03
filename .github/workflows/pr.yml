@@ -207,13 +207,17 @@ jobs:
         run: pnpm generate-api
       - name: Check for OpenAPI breaking changes
         if: ${{ !contains(github.event.pull_request.body, 'allow-api-breaking-change') }}
+        # --flatten-allof diffs schemas structurally instead of by name: TSOA
+        # encodes field lists into schema names, so adding an optional field
+        # renames the schema and a by-name diff misreads it as a removal.
+        # The sanitize script strips TSOA quirks that break oasdiff's flattener.
         run: |
+          node .github/scripts/sanitize-openapi.mjs /tmp/main-swagger.json /tmp/main-swagger-clean.json
+          node .github/scripts/sanitize-openapi.mjs packages/backend/src/generated/swagger.json /tmp/pr-swagger-clean.json
           docker run --rm \
-            -v "$PWD:/work" \
             -v /tmp:/tmp \
-            -w /work \
             tufin/oasdiff@sha256:1b878e413bfba39a9bbb2ce95d6a2ddf79bacd4eade9420ad422175b011a71c9 \
-            breaking --fail-on ERR /tmp/main-swagger.json packages/backend/src/generated/swagger.json
+            breaking --flatten-allof --fail-on ERR /tmp/main-swagger-clean.json /tmp/pr-swagger-clean.json
       - name: Report allowed OpenAPI breaking changes
         if: ${{ contains(github.event.pull_request.body, 'allow-api-breaking-change') }}
         run: echo "Skipping OpenAPI breaking-change check because allow-api-breaking-change is in the PR description."
