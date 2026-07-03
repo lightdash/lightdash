@@ -215,6 +215,9 @@ jobs:
         run: |
           node .github/scripts/sanitize-openapi.mjs /tmp/main-swagger.json /tmp/main-swagger-clean.json
           node .github/scripts/sanitize-openapi.mjs packages/backend/src/generated/swagger.json /tmp/pr-swagger-clean.json
+          # Pull ahead of the capturing run so image-pull progress (stderr)
+          # doesn't pollute the report.
+          docker pull -q tufin/oasdiff@sha256:1b878e413bfba39a9bbb2ce95d6a2ddf79bacd4eade9420ad422175b011a71c9 > /dev/null
           set +e
           report=$(docker run --rm \
             -v /tmp:/tmp \
