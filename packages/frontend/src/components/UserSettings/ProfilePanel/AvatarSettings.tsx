@@ -1,9 +1,14 @@
 import {
+    AVATAR_MESH_VIBES,
     isHexColorString,
+    isMeshColorString,
     isSolidColorString,
     isUserAvatarGradientId,
+    parseMeshColor,
+    toMeshColor,
     toSolidColor,
     USER_AVATAR_GRADIENT_IDS,
+    type AvatarMeshVibe,
     type HexColor,
     type UserAvatarColorValue,
     type UserAvatarGradientId,
@@ -20,7 +25,7 @@ import {
     Tooltip,
 } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
-import { IconPencil } from '@tabler/icons-react';
+import { IconArrowsShuffle, IconPencil } from '@tabler/icons-react';
 import { type FC, useState } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
 import {
@@ -50,8 +55,18 @@ const extractHex = (value: UserAvatarColorValue | null): HexColor => {
     if (!value) return DEFAULT_COLOR;
     if (isUserAvatarGradientId(value)) return GRADIENT_SWATCH_COLORS[value];
     if (isSolidColorString(value)) return value.slice(6) as HexColor;
+    if (isMeshColorString(value)) return parseMeshColor(value).hex;
     return value;
 };
+
+const extractVibe = (value: UserAvatarColorValue | null): AvatarMeshVibe =>
+    value && isMeshColorString(value) ? parseMeshColor(value).vibe : 0;
+
+/* Vibe 0 stays encoded as a bare hex for back-compat with existing values. */
+const encodeMesh = (
+    hex: HexColor,
+    vibe: AvatarMeshVibe,
+): UserAvatarColorValue => (vibe === 0 ? hex : toMeshColor(hex, vibe));
 
 const modeForValue = (value: UserAvatarColorValue | null): CustomMode =>
     value && isSolidColorString(value) ? 'solid' : 'gradient';
@@ -104,7 +119,20 @@ const AvatarSettings: FC = () => {
 
     const handleColorChange = (color: string) => {
         if (!isHexColorString(color)) return;
-        setPreviewValue(mode === 'solid' ? toSolidColor(color) : color);
+        setPreviewValue(
+            mode === 'solid'
+                ? toSolidColor(color)
+                : encodeMesh(color, extractVibe(previewValue)),
+        );
+    };
+
+    const handleShuffleVibe = () => {
+        const hex = extractHex(previewValue);
+        const currentVibe = extractVibe(previewValue);
+        const otherVibes = AVATAR_MESH_VIBES.filter((v) => v !== currentVibe);
+        const nextVibe =
+            otherVibes[Math.floor(Math.random() * otherVibes.length)];
+        setPreviewValue(encodeMesh(hex, nextVibe));
     };
 
     const handlePresetClick = (gradientId: UserAvatarGradientId | null) => {
@@ -171,6 +199,18 @@ const AvatarSettings: FC = () => {
                         value={extractHex(previewValue)}
                         onChange={handleColorChange}
                     />
+                    {mode === 'gradient' && (
+                        <Button
+                            variant="default"
+                            size="xs"
+                            leftSection={
+                                <MantineIcon icon={IconArrowsShuffle} />
+                            }
+                            onClick={handleShuffleVibe}
+                        >
+                            Shuffle gradient style
+                        </Button>
+                    )}
                     <Stack gap={6}>
                         <Text size="xs" c="dimmed" fw={500}>
                             Lightdash presets
