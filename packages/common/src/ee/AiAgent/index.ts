@@ -146,6 +146,9 @@ export const baseAgentSchema = z.object({
     enableSelfImprovement: z.boolean(),
     enableContentTools: z.boolean(),
     enableUserContext: z.boolean(),
+    // Temporary CI test field — verifies the OpenAPI breaking-change check
+    // accepts an optional-field addition. Reverted before merge.
+    ciTestOptionalFlag: z.boolean().optional(),
     adminOnly: z.boolean(),
     modelConfig: z.custom<AiAgentModelConfig>().nullable(),
     version: z.number(),
@@ -174,6 +177,7 @@ export type AiAgent = Pick<
     | 'enableSelfImprovement'
     | 'enableContentTools'
     | 'enableUserContext'
+    | 'ciTestOptionalFlag'
     | 'adminOnly'
     | 'modelConfig'
     | 'version'
@@ -374,6 +378,7 @@ export type ApiUpdateAiAgent = Partial<
         | 'enableSelfImprovement'
         | 'enableContentTools'
         | 'enableUserContext'
+        | 'ciTestOptionalFlag'
         | 'adminOnly'
         | 'modelConfig'
         | 'version'

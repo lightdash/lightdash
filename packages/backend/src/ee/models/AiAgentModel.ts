@@ -476,6 +476,8 @@ export class AiAgentModel {
                         '[]'::json
                     )
                 `),
+                // Temporary CI test field, no DB column — reverted before merge
+                ciTestOptionalFlag: this.database.raw('false'),
             } satisfies Record<keyof AiAgent, unknown>)
             .where(`${AiAgentTableName}.organization_uuid`, organizationUuid)
             .where(`${AiAgentTableName}.ai_agent_uuid`, agentUuid)
