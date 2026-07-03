@@ -1,4 +1,5 @@
 import { RoadmapItemStatus } from '@lightdash/common';
+import type { Mocked } from 'vitest';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import type { LinearClient } from '../../clients/Linear/LinearClient';
@@ -15,14 +16,14 @@ const enabledConfig: LightdashConfig = {
     },
 };
 
-const createLinearClient = (): jest.Mocked<
+const createLinearClient = (): Mocked<
     Pick<LinearClient, 'listCustomers' | 'getCustomerFeatureRequests'>
 > => ({
-    listCustomers: jest.fn(),
-    getCustomerFeatureRequests: jest.fn(),
+    listCustomers: vi.fn(),
+    getCustomerFeatureRequests: vi.fn(),
 });
 
-const createRoadmapModel = (): jest.Mocked<
+const createRoadmapModel = (): Mocked<
     Pick<
         RoadmapModel,
         | 'replaceCustomerMirror'
@@ -30,9 +31,9 @@ const createRoadmapModel = (): jest.Mocked<
         | 'getRoadmapItemsForOrg'
     >
 > => ({
-    replaceCustomerMirror: jest.fn(),
-    findCustomerLinkForOrg: jest.fn(),
-    getRoadmapItemsForOrg: jest.fn(),
+    replaceCustomerMirror: vi.fn(),
+    findCustomerLinkForOrg: vi.fn(),
+    getRoadmapItemsForOrg: vi.fn(),
 });
 
 const buildService = (

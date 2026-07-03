@@ -48,7 +48,7 @@ const needsPage = (
 });
 
 describe('LinearClient', () => {
-    const fetchMock = jest.fn();
+    const fetchMock = vi.fn();
 
     beforeEach(() => {
         fetchMock.mockReset();
