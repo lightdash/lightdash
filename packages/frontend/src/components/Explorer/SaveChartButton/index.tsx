@@ -34,11 +34,13 @@ import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import ChartCreateModal from '../../common/modal/ChartCreateModal';
 
+export type VerificationSavePrompt = 'confirm-keep' | 'warn-removal';
+
 const SaveChartButton: FC<{
     disabled?: boolean;
     onSaveModalOpenChange?: (isOpen: boolean) => void;
-    showVerificationSaveOptions?: boolean;
-}> = ({ disabled, onSaveModalOpenChange, showVerificationSaveOptions }) => {
+    verificationSavePrompt?: VerificationSavePrompt;
+}> = ({ disabled, onSaveModalOpenChange, verificationSavePrompt }) => {
     const isAmbientAiEnabled = useAmbientAiEnabled();
     const embed = useEmbed();
     const isEmbedded = embed.embedToken !== undefined;
@@ -155,7 +157,7 @@ const SaveChartButton: FC<{
 
     const handleSaveChart = () => {
         if (savedChart) {
-            if (showVerificationSaveOptions) {
+            if (verificationSavePrompt) {
                 setIsSaveVerificationModalOpen(true);
                 return;
             }
@@ -279,30 +281,71 @@ const SaveChartButton: FC<{
                 onClose={() => setIsSaveVerificationModalOpen(false)}
                 title="Save verified chart"
             >
-                <Text mb="md">Keep this chart verified after saving?</Text>
-                <Group justify="flex-end">
-                    <Button
-                        variant="default"
-                        loading={update.isLoading || updateMetadata.isLoading}
-                        onClick={() => {
-                            setIsSaveVerificationModalOpen(false);
-                            handleSavedQueryUpdate(false);
-                        }}
-                    >
-                        Save
-                    </Button>
-                    <Button
-                        color="green.7"
-                        leftSection={<IconCircleCheckFilled size={16} />}
-                        loading={update.isLoading || updateMetadata.isLoading}
-                        onClick={() => {
-                            setIsSaveVerificationModalOpen(false);
-                            handleSavedQueryUpdate(true);
-                        }}
-                    >
-                        Save & verify
-                    </Button>
-                </Group>
+                {verificationSavePrompt === 'warn-removal' ? (
+                    <>
+                        <Text mb="md">
+                            This chart is verified. Saving your changes will
+                            remove its verified status until someone verifies it
+                            again.
+                        </Text>
+                        <Group justify="flex-end">
+                            <Button
+                                variant="default"
+                                onClick={() =>
+                                    setIsSaveVerificationModalOpen(false)
+                                }
+                            >
+                                Cancel
+                            </Button>
+                            <Button
+                                loading={
+                                    update.isLoading || updateMetadata.isLoading
+                                }
+                                onClick={() => {
+                                    setIsSaveVerificationModalOpen(false);
+                                    handleSavedQueryUpdate(false);
+                                }}
+                            >
+                                Save anyway
+                            </Button>
+                        </Group>
+                    </>
+                ) : (
+                    <>
+                        <Text mb="md">
+                            Keep this chart verified after saving?
+                        </Text>
+                        <Group justify="flex-end">
+                            <Button
+                                variant="default"
+                                loading={
+                                    update.isLoading || updateMetadata.isLoading
+                                }
+                                onClick={() => {
+                                    setIsSaveVerificationModalOpen(false);
+                                    handleSavedQueryUpdate(false);
+                                }}
+                            >
+                                Save
+                            </Button>
+                            <Button
+                                color="green.7"
+                                leftSection={
+                                    <IconCircleCheckFilled size={16} />
+                                }
+                                loading={
+                                    update.isLoading || updateMetadata.isLoading
+                                }
+                                onClick={() => {
+                                    setIsSaveVerificationModalOpen(false);
+                                    handleSavedQueryUpdate(true);
+                                }}
+                            >
+                                Save & verify
+                            </Button>
+                        </Group>
+                    </>
+                )}
             </MantineModal>
         </>
     );
