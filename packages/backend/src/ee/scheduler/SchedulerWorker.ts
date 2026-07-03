@@ -30,8 +30,8 @@ import type { EmbedService } from '../services/EmbedService/EmbedService';
 import { ManagedAgentService } from '../services/ManagedAgentService/ManagedAgentService';
 import { type OnboardingAgentService } from '../services/OnboardingAgentService/OnboardingAgentService';
 import { ProjectContextService } from '../services/ProjectContextService/ProjectContextService';
-import { sendReviewNotification } from './tasks/sendReviewNotification';
 import { RoadmapService } from '../services/RoadmapService/RoadmapService';
+import { sendReviewNotification } from './tasks/sendReviewNotification';
 
 const MCP_TOOL_CALL_RETENTION_DAYS = 90;
 const AI_AGENT_EVAL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
@@ -96,6 +96,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
     protected readonly openIdIdentityModel: OpenIdIdentityModel;
 
     protected readonly mcpToolCallModel: McpToolCallModel;
+
     protected readonly roadmapService: RoadmapService;
 
     constructor(args: CommercialSchedulerWorkerArguments) {
@@ -674,6 +675,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     slackClient: this.slackClient,
                     analytics: this.analytics,
                 })(payload);
+            },
             [EE_SCHEDULER_TASKS.SYNC_ROADMAP_MIRROR]: async (
                 payload,
                 helpers,

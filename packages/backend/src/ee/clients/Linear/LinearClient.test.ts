@@ -25,25 +25,23 @@ const needsPage = (
     hasNextPage = false,
     endCursor: string | null = null,
 ) => ({
-    customer: {
-        needs: {
-            nodes: issues.map((issue) =>
-                issue === null
-                    ? { issue: null }
-                    : {
-                          issue: {
-                              id: issue.id,
-                              title: issue.title,
-                              description: issue.description,
-                              labels: {
-                                  nodes: issue.labels.map((name) => ({ name })),
-                              },
-                              state: issue.state,
+    customerNeeds: {
+        nodes: issues.map((issue) =>
+            issue === null
+                ? { issue: null }
+                : {
+                      issue: {
+                          id: issue.id,
+                          title: issue.title,
+                          description: issue.description,
+                          labels: {
+                              nodes: issue.labels.map((name) => ({ name })),
                           },
+                          state: issue.state,
                       },
-            ),
-            pageInfo: { hasNextPage, endCursor },
-        },
+                  },
+        ),
+        pageInfo: { hasNextPage, endCursor },
     },
 });
 
@@ -150,8 +148,8 @@ describe('LinearClient', () => {
         expect(issues.map((i) => i.id)).toEqual(['i1']);
     });
 
-    it('returns an empty list when the customer is missing', async () => {
-        fetchMock.mockResolvedValueOnce(buildResponse({ customer: null }));
+    it('returns an empty list when the customer has no needs', async () => {
+        fetchMock.mockResolvedValueOnce(buildResponse(needsPage([])));
 
         const client = buildClient();
         const issues = await client.getCustomerFeatureRequests('missing');
@@ -170,14 +168,17 @@ describe('LinearClient', () => {
         await expect(client.listCustomers()).rejects.toThrow('Bad request');
     });
 
-    it('throws when the API responds with a non-ok status', async () => {
+    it('throws with the response body when the API responds with a non-ok status', async () => {
         fetchMock.mockResolvedValueOnce({
             ok: false,
-            status: 401,
-            json: async () => ({}),
+            status: 400,
+            text: async () =>
+                '{"errors":[{"message":"Unknown argument \\"first\\""}]}',
         });
 
         const client = buildClient();
-        await expect(client.listCustomers()).rejects.toThrow('status 401');
+        await expect(client.listCustomers()).rejects.toThrow(
+            /status 400.*Unknown argument/,
+        );
     });
 });

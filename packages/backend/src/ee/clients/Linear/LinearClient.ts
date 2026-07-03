@@ -44,20 +44,18 @@ type CustomersQueryResponse = {
 };
 
 type CustomerNeedsQueryResponse = {
-    customer: {
-        needs: {
-            nodes: Array<{
-                issue: {
-                    id: string;
-                    title: string;
-                    description: string | null;
-                    labels: { nodes: Array<{ name: string }> };
-                    state: { name: string; type: string };
-                } | null;
-            }>;
-            pageInfo: PageInfo;
-        };
-    } | null;
+    customerNeeds: {
+        nodes: Array<{
+            issue: {
+                id: string;
+                title: string;
+                description: string | null;
+                labels: { nodes: Array<{ name: string }> };
+                state: { name: string; type: string };
+            } | null;
+        }>;
+        pageInfo: PageInfo;
+    };
 };
 
 const PAGE_SIZE = 100;
@@ -71,21 +69,21 @@ const CUSTOMERS_QUERY = `
     }
 `;
 
+// Customer.needs is a plain list in Linear's schema, so pagination has to go
+// through the top-level customerNeeds connection filtered by customer id.
 const CUSTOMER_NEEDS_QUERY = `
-    query CustomerNeeds($customerId: String!, $after: String) {
-        customer(id: $customerId) {
-            needs(first: ${PAGE_SIZE}, after: $after) {
-                nodes {
-                    issue {
-                        id
-                        title
-                        description
-                        labels { nodes { name } }
-                        state { name type }
-                    }
+    query CustomerNeeds($customerId: ID, $after: String) {
+        customerNeeds(first: ${PAGE_SIZE}, after: $after, filter: { customer: { id: { eq: $customerId } } }) {
+            nodes {
+                issue {
+                    id
+                    title
+                    description
+                    labels { nodes { name } }
+                    state { name type }
                 }
-                pageInfo { hasNextPage endCursor }
             }
+            pageInfo { hasNextPage endCursor }
         }
     }
 `;
@@ -127,8 +125,13 @@ export class LinearClient {
         });
 
         if (!response.ok) {
+            // Linear returns GraphQL validation errors with a 400 — surface
+            // them or the failure is undiagnosable from logs.
+            const body = await response.text().catch(() => '');
             throw new UnexpectedServerError(
-                `Linear API request failed with status ${response.status}`,
+                `Linear API request failed with status ${response.status}${
+                    body ? `: ${body.slice(0, 500)}` : ''
+                }`,
             );
         }
 
@@ -169,15 +172,12 @@ export class LinearClient {
         // Cursor pagination is inherently sequential.
         /* eslint-disable no-await-in-loop */
         do {
-            const { customer }: CustomerNeedsQueryResponse =
+            const { customerNeeds }: CustomerNeedsQueryResponse =
                 await this.graphql<CustomerNeedsQueryResponse>(
                     CUSTOMER_NEEDS_QUERY,
                     { customerId, after },
                 );
-            if (!customer) {
-                break;
-            }
-            customer.needs.nodes.forEach((need) => {
+            customerNeeds.nodes.forEach((need) => {
                 const { issue } = need;
                 if (!issue) {
                     return;
@@ -196,8 +196,8 @@ export class LinearClient {
                     state: issue.state,
                 });
             });
-            after = customer.needs.pageInfo.hasNextPage
-                ? customer.needs.pageInfo.endCursor
+            after = customerNeeds.pageInfo.hasNextPage
+                ? customerNeeds.pageInfo.endCursor
                 : null;
         } while (after !== null);
         /* eslint-enable no-await-in-loop */
