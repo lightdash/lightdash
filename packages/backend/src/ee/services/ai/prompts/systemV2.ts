@@ -8,6 +8,7 @@ import {
 import { SystemModelMessage } from 'ai';
 import moment from 'moment';
 import { AiAgentSkillReference } from '../skills/types';
+import { AiAgentRequestingUser } from '../types/aiAgent';
 import { xmlBuilder } from '../xmlBuilder';
 import { renderAvailableExplores } from './availableExplores';
 import { getAiWritebackSection } from './systemV2AiWriteback';
@@ -19,6 +20,7 @@ import {
     repoFsRootHint,
     repoFsSearchCaveat,
 } from './systemV2RepoFs';
+import { getRequestingUserSection } from './systemV2RequestingUser';
 import { getRunSqlSection } from './systemV2RunSql';
 import { SEARCH_SEMANTIC_LAYER_SECTION } from './systemV2SearchSemanticLayer';
 import { renderAvailableSkills } from './systemV2Skills';
@@ -31,6 +33,7 @@ export const getSystemPromptV2 = (args: {
     hasProjectContext?: boolean;
     instructions?: string;
     agentName?: string;
+    requestingUser?: AiAgentRequestingUser | null;
     date?: string;
     enableDataAccess?: boolean;
     enableSearchSemanticLayer?: boolean;
@@ -54,6 +57,7 @@ export const getSystemPromptV2 = (args: {
     const {
         instructions,
         agentName = 'Lightdash AI Analyst',
+        requestingUser = null,
         date = moment().utc().format('YYYY-MM-DD'),
         enableDataAccess = false,
         enableSearchSemanticLayer = false,
@@ -186,6 +190,10 @@ export const getSystemPromptV2 = (args: {
         .replace(
             '{{instructions}}',
             instructions ? `Special instructions: ${instructions}` : '',
+        )
+        .replace(
+            '{{requesting_user_section}}',
+            getRequestingUserSection(requestingUser),
         )
         .replace('{{date}}', date)
         .replace('{{available_explores}}', availableExploresContent)

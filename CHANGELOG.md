@@ -1,3 +1,10 @@
+# [0.3305.0](https://github.com/lightdash/lightdash/compare/0.3304.1...0.3305.0) (2026-07-03)
+
+
+### Features
+
+* **ai:** pass requesting-user context (name, role, teams) to the agent system prompt ([#25069](https://github.com/lightdash/lightdash/issues/25069)) ([885ea33](https://github.com/lightdash/lightdash/commit/885ea33b0d5f816e623bac976242949242e22ad8))
+
 ## [0.3304.1](https://github.com/lightdash/lightdash/compare/0.3304.0...0.3304.1) (2026-07-03)
 
 

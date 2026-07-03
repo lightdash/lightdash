@@ -145,6 +145,7 @@ export const baseAgentSchema = z.object({
     enableDataAccess: z.boolean(),
     enableSelfImprovement: z.boolean(),
     enableContentTools: z.boolean(),
+    enableUserContext: z.boolean(),
     adminOnly: z.boolean(),
     modelConfig: z.custom<AiAgentModelConfig>().nullable(),
     version: z.number(),
@@ -172,6 +173,7 @@ export type AiAgent = Pick<
     | 'enableDataAccess'
     | 'enableSelfImprovement'
     | 'enableContentTools'
+    | 'enableUserContext'
     | 'adminOnly'
     | 'modelConfig'
     | 'version'
@@ -197,6 +199,7 @@ export type AiAgentSummary = Pick<
     | 'enableDataAccess'
     | 'enableSelfImprovement'
     | 'enableContentTools'
+    | 'enableUserContext'
     | 'adminOnly'
     | 'modelConfig'
     | 'version'
@@ -348,6 +351,7 @@ export type ApiCreateAiAgent = Pick<
     | 'version'
 > & {
     enableContentTools?: boolean;
+    enableUserContext?: boolean;
     adminOnly?: boolean;
     mcpServerUuids?: string[];
     modelConfig?: AiAgentModelConfig | null;
@@ -369,6 +373,7 @@ export type ApiUpdateAiAgent = Partial<
         | 'enableDataAccess'
         | 'enableSelfImprovement'
         | 'enableContentTools'
+        | 'enableUserContext'
         | 'adminOnly'
         | 'modelConfig'
         | 'version'
