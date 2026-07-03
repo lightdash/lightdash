@@ -1,22 +1,26 @@
-import { LightdashMode } from '@lightdash/common';
+import { FeatureFlags, LightdashMode } from '@lightdash/common';
 import { Button, getDefaultZIndex, Menu } from '@mantine-8/core';
 import { modals } from '@mantine/modals';
 import {
     IconBook,
     IconHelp,
     IconMessages,
+    IconRoad,
     IconSos,
     IconUsers,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { Link } from 'react-router';
 import { useIntercom } from 'react-use-intercom';
 import useHealth from '../../hooks/health/useHealth';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import SupportDrawerContent from '../../providers/SupportDrawer/SupportDrawerContent';
 import LargeMenuItem from '../common/LargeMenuItem';
 import MantineIcon from '../common/MantineIcon';
 
 const HelpMenu: FC = () => {
     const health = useHealth();
+    const roadmapFlag = useServerFeatureFlag(FeatureFlags.Roadmap);
     const isCloudCustomer = health.data?.mode === LightdashMode.CLOUD_BETA;
     const isDevelopment = health.data?.mode === LightdashMode.DEV;
 
@@ -92,6 +96,16 @@ const HelpMenu: FC = () => {
                     description="Get advice share best practices with other users."
                     icon={IconUsers}
                 />
+
+                {roadmapFlag.data?.enabled && (
+                    <LargeMenuItem
+                        component={Link}
+                        to="/roadmap"
+                        title="View your roadmap"
+                        description="See the feature requests your organization has raised and their status"
+                        icon={IconRoad}
+                    />
+                )}
 
                 {(isCloudCustomer || isDevelopment) && (
                     <LargeMenuItem

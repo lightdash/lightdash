@@ -888,6 +888,23 @@ const PRIVATE_ROUTES: RouteObject[] = [
                 },
             },
             {
+                path: '/roadmap',
+                lazy: async () => {
+                    const { default: Roadmap } =
+                        await import('./pages/Roadmap');
+                    return {
+                        Component: () => (
+                            <>
+                                <NavBar />
+                                <TrackPage name={PageName.ROADMAP}>
+                                    <Roadmap />
+                                </TrackPage>
+                            </>
+                        ),
+                    };
+                },
+            },
+            {
                 path: '/no-access',
                 handle: { hideAILauncher: true },
                 element: (

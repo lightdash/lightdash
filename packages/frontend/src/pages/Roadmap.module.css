@@ -1,0 +1,8 @@
+.item {
+    background-color: var(--mantine-color-background);
+
+    & :global(.wmde-markdown) {
+        background-color: inherit;
+        color: inherit;
+    }
+}
