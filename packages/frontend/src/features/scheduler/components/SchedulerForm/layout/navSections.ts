@@ -45,7 +45,6 @@ export const SCHEDULER_SECTIONS: Record<
     message: {
         id: 'message',
         label: 'Message',
-        description: 'The note that accompanies this delivery.',
         icon: IconMessage,
         group: 'content',
     },

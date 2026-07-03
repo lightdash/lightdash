@@ -1,4 +1,4 @@
-import { Stack, Switch, Text } from '@mantine-8/core';
+import { Group, Stack, Switch, Text } from '@mantine-8/core';
 import MDEditor, { commands } from '@uiw/react-md-editor';
 import { type FC } from 'react';
 import { useSchedulerFormContext } from '../schedulerFormContext';
@@ -10,26 +10,36 @@ export const SchedulerMessageSection: FC = () => {
 
     return (
         <Stack gap="lg">
-            <Switch
-                label="Include links back to Lightdash"
-                description="Recipients can jump straight to the live content. Turn off when recipients don't have Lightdash access."
-                checked={form.values.includeLinks}
-                onChange={() =>
-                    form.setFieldValue(
-                        'includeLinks',
-                        !form.values?.includeLinks,
-                    )
-                }
-            />
+            <Group justify="space-between" wrap="nowrap" align="flex-start">
+                <Stack gap={2}>
+                    <Text fw={500} fz="sm">
+                        Include links back to Lightdash
+                    </Text>
+                    <Text fz="xs" c="dimmed">
+                        Recipients get a link to open this in Lightdash. Turn
+                        off if they don't have access to your project.
+                    </Text>
+                </Stack>
+                <Switch
+                    checked={form.values.includeLinks}
+                    onChange={() =>
+                        form.setFieldValue(
+                            'includeLinks',
+                            !form.values?.includeLinks,
+                        )
+                    }
+                />
+            </Group>
 
             <Stack gap="xs">
-                <span className={classes.subBlockLabel}>Message body</span>
-                {isAiMessage && (
-                    <Text fz="xs" c="ldGray.6">
-                        AI writes the message on every send; this text is only
-                        used if AI generation fails.
+                <Stack gap={2}>
+                    <span className={classes.subBlockLabel}>Message body</span>
+                    <Text fz="xs" c="dimmed">
+                        {isAiMessage
+                            ? 'AI writes the message on every send; this text is only used if AI generation fails.'
+                            : 'Shown at the top of every email and Slack message.'}
                     </Text>
-                )}
+                </Stack>
                 <MDEditor
                     preview="edit"
                     commands={[
@@ -47,6 +57,9 @@ export const SchedulerMessageSection: FC = () => {
                         form.setFieldValue('message', value || '')
                     }
                     overflow={false}
+                    textareaProps={{
+                        placeholder: 'Add a note for recipients...',
+                    }}
                 />
             </Stack>
         </Stack>
