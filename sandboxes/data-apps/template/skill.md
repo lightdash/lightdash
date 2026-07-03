@@ -1089,7 +1089,7 @@ Lightdash-specific constraints that apply on top of `frontend-design`'s directio
 
 - **Chart series colors must come from `CHART_COLORS` in `@/lib/theme`** — the canonical Lightdash palette, so generated apps' charts visually match native Lightdash dashboards. Cycle by index for multi-series (`CHART_COLORS[i % CHART_COLORS.length]`). `frontend-design`'s chosen accent/background/typography colors are independent of this.
 - **Use semantic shadcn tokens for UI chrome** — `bg-background`, `bg-card`, `text-foreground`, `text-muted-foreground`, `text-destructive`, `border`, etc. Don't hardcode hex values for surfaces, text, or borders. (`frontend-design` may direct you to redefine the underlying CSS variables for a chosen theme — that's fine; the rule is no inline hex, not "use only the default token values".)
-- **Commit to one theme; don't design for dark while rendering light.** The template's `:root` defaults to white (light tokens). If your design needs a dark background, you must do *one* of: (a) apply `className="dark"` to your top-level `<div>` so Tailwind activates the dark token values, or (b) override the CSS variables on `:root` directly to match your chosen theme. **Never** author colors that assume a dark background without ensuring the page actually loads dark — the symptom is invisible secondary text (faint red/gray on white). Before declaring done, check: does the page background actually look the way you described it? If not, you have a theme-wiring bug.
+- **The app follows the host's light/dark mode — author both schemes, never hard-wire one.** Lightdash applies and removes the `dark` class on `<html>` automatically (a URL-hash bootstrap for first paint, then live `lightdash:sdk:theme` messages handled by the SDK). Your job is to keep both token sets coherent: light values live on `:root`, dark values in the `.dark` block — both are pre-populated in `src/index.css`. If your design direction restyles a token, redefine it in *both* scopes. **Never** add or remove the `dark` class yourself, and **never** move dark values onto `:root` to force a dark look — either pins the app to one scheme and breaks host switching. The classic symptom of a scheme-blind palette is invisible secondary text (faint gray on white, or dark-on-dark). Before declaring done, check the page with and without the `dark` class on `<html>` — both must be legible and intentional-looking. In the rare case JS needs the current scheme (e.g. an imperative chart option that can't read CSS variables), use `useColorScheme()` from `@lightdash/query-sdk` instead of sniffing the DOM.
 - **Leave a gutter at the bottom of the page.** Don't let the last card, chart, or footer sit flush against the iframe's bottom edge — it reads as clipped. Add bottom padding (`pb-8` or similar) on your page's top-level themed wrapper so the gutter inherits the theme's background. Don't push the gutter onto `#root` or `body` instead — those sit outside your theme, so any space below the wrapper falls back to the template default and shows as a mismatched strip.
 
 ### Organization themes
@@ -1116,6 +1116,7 @@ Hard rules when a theme is active:
 
 - **Theme CSS overrides `frontend-design`'s color/typography direction.** The aesthetic distinctness `frontend-design` pushes for still applies to layout, density, and motion — but colors, font families, and any other tokens the theme CSS defines win over your own picks. If the theme sets `--accent: #6B5B95`, your headings use that purple; don't reach for a "more distinctive" alternative.
 - **If the theme CSS defines a chart palette (CSS custom properties like `--chart-1`, `--chart-2`, …, or any `*-chart-*` variables), use it instead of `CHART_COLORS` from `@/lib/theme`.** Read the values via `getComputedStyle(document.documentElement).getPropertyValue('--chart-1')` once on mount and cycle them by index for multi-series. Falling back to `CHART_COLORS` when the theme doesn't define a chart palette is correct.
+- **Brand CSS may pin a single scheme — that's expected.** If the theme's stylesheets define surface/text colors on `:root` without `.dark` variants, the app will look the same in both host modes; brand fidelity wins over host light/dark switching. Don't invent dark variants of brand colors unless the theme instructions ask for them.
 - **Instruction text in the appended system prompt is binding.** Any rules described under "Organization theme instructions" later in this prompt override conflicting defaults in this file. Treat them as customer-supplied product requirements, not suggestions.
 - **Do not modify files under `/app/src/design/`.** `Write(//app/src/**)` would technically allow it, but those files are the source of truth for the brand and may be reused across many apps. Treat the directory as read-only.
 
@@ -1281,14 +1282,7 @@ Action menus and dialogs use shadcn's components as-is — no className needed f
 </DropdownMenuContent>
 ```
 
-**One scope rule still matters:** if you toggle dark mode via the `.dark` class, set it on `<html>`, never on a wrapper `<div>`. Radix portals into `document.body`, so `<div className="dark">` inside `<App />` doesn't contain portaled menus/dialogs/popovers — floating surfaces leak out to light scope. Either:
-
-```js
-// main.jsx — set once at boot, applies to <html> and every portal
-document.documentElement.classList.add('dark');
-```
-
-…or skip `.dark` entirely and put dark values directly in `:root`. Do not write `<div className="dark">` anywhere.
+**One scope rule still matters:** the `.dark` class lives on `<html>` and is owned by the host — Radix portals into `document.body`, so only an `<html>`-level class reaches portaled menus/dialogs/popovers. Never write `<div className="dark">` and never toggle the class from app code; style every surface (including floating ones) with semantic tokens so they follow the host scheme automatically.
 
 ### Data interactions — action menu
 
