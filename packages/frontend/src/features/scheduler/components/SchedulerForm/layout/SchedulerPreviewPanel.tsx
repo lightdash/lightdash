@@ -253,13 +253,15 @@ export const SchedulerPreviewPanel: FC<Props> = ({
                                     />
                                 ) : (
                                     <>
-                                        <Skeleton
-                                            height={140}
-                                            radius="sm"
-                                            animate={
-                                                exportDashboardMutation.isLoading
-                                            }
-                                        />
+                                        {exportDashboardMutation.isLoading ? (
+                                            <Skeleton height={64} radius="sm" />
+                                        ) : (
+                                            <Paper
+                                                radius="sm"
+                                                h={64}
+                                                bg="var(--mantine-color-default-hover)"
+                                            />
+                                        )}
                                         <Text size="xs" c="dimmed">
                                             {canRender
                                                 ? exportDashboardMutation.isLoading
