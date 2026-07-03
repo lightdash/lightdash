@@ -13,7 +13,10 @@ import {
     Button,
     Group,
     Loader,
+    Modal,
+    Paper,
     Stack,
+    Text,
     TextInput,
 } from '@mantine-8/core';
 import { IconBell, IconSearch, IconSend, IconX } from '@tabler/icons-react';
@@ -29,6 +32,8 @@ import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useFetchRunLogs } from '../hooks/useScheduler';
 import { States } from '../utils';
+import classes from './SchedulerForm/layout/SchedulerDeliveryModal.module.css';
+import { SchedulerListV2 } from './SchedulerForm/layout/SchedulerListV2';
 import { SchedulerModalCreateOrEdit } from './SchedulerModalCreateOrEdit';
 import { SchedulerModalCreateOrEditV2 } from './SchedulerModalCreateOrEditV2';
 import SchedulerRunsHistoryModal from './SchedulerRunsHistoryModal';
@@ -201,6 +206,73 @@ const SchedulersModal: FC<
 
         return null;
     };
+
+    if (modalState === States.LIST && useRedesign) {
+        return (
+            <Modal.Root opened={isOpen} onClose={onClose} size={880} centered>
+                <Modal.Overlay />
+                <Modal.Content>
+                    <div className={classes.content}>
+                        <Group
+                            className={classes.header}
+                            px="xl"
+                            py="md"
+                            justify="space-between"
+                            wrap="nowrap"
+                        >
+                            <Group gap="sm" wrap="nowrap">
+                                <Paper p="6px" withBorder radius="md">
+                                    <MantineIcon
+                                        icon={
+                                            isThresholdAlert
+                                                ? IconBell
+                                                : IconSend
+                                        }
+                                        size="md"
+                                    />
+                                </Paper>
+                                <Stack gap={0}>
+                                    <span className={classes.headerTitle}>
+                                        {isThresholdAlert
+                                            ? 'Alerts'
+                                            : 'Scheduled deliveries'}
+                                    </span>
+                                    <Text
+                                        size="xs"
+                                        className={classes.subtitle}
+                                    >
+                                        {name}
+                                    </Text>
+                                </Stack>
+                            </Group>
+                            <Group gap="xs" wrap="nowrap">
+                                <DocumentationHelpButton
+                                    href={
+                                        isThresholdAlert
+                                            ? 'https://docs.lightdash.com/guides/how-to-create-alerts'
+                                            : 'https://docs.lightdash.com/guides/how-to-create-scheduled-deliveries'
+                                    }
+                                />
+                                <Modal.CloseButton />
+                            </Group>
+                        </Group>
+                        <SchedulerListV2
+                            schedulersQuery={schedulersQuery}
+                            isThresholdAlert={!!isThresholdAlert}
+                            searchQuery={searchQuery}
+                            onSearchQueryChange={onSearchQueryChange}
+                            onCreate={() => setModalState(States.CREATE)}
+                            onEdit={(schedulerUuid) => {
+                                setModalState(States.EDIT);
+                                setSchedulerUuidToEdit(schedulerUuid);
+                            }}
+                            onViewHistory={handleViewHistory}
+                        />
+                    </div>
+                </Modal.Content>
+            </Modal.Root>
+        );
+    }
 
     if (modalState === States.LIST) {
         return (

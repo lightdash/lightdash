@@ -154,3 +154,117 @@
     justify-content: space-between;
     padding: var(--mantine-spacing-md) var(--mantine-spacing-xl);
 }
+
+/* List (master-detail) mode */
+
+.listBody {
+    display: grid;
+    grid-template-columns: 264px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    height: clamp(420px, 56vh, 560px);
+    min-height: 0;
+}
+
+.listSidebar {
+    border-right: 1px solid var(--mantine-color-default-border);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: var(--mantine-spacing-md) var(--mantine-spacing-sm);
+    gap: var(--mantine-spacing-sm);
+}
+
+.listItems {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.listItem {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--mantine-spacing-xs);
+    width: 100%;
+    padding: 8px var(--mantine-spacing-sm);
+    border-radius: var(--mantine-radius-md);
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    text-align: left;
+    transition: background-color 120ms ease;
+}
+
+.listItem:hover {
+    background: var(--mantine-color-default-hover);
+}
+
+.listItemActive,
+.listItemActive:hover {
+    background: var(--mantine-primary-color-light);
+}
+
+.listItemName {
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 500;
+    color: var(--mantine-color-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.listItemActive .listItemName {
+    font-weight: 600;
+    color: var(--mantine-primary-color-light-color);
+}
+
+.listItemMeta {
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-dimmed);
+}
+
+.statusDot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 6px;
+}
+
+.statusDotActive {
+    background: var(--mantine-color-green-6);
+}
+
+.statusDotPaused {
+    background: var(--mantine-color-ldGray-4);
+}
+
+.newDeliveryButton {
+    border: 1px dashed var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    background: transparent;
+    padding: 10px;
+    font-size: var(--mantine-font-size-sm);
+    color: var(--mantine-color-text);
+    cursor: pointer;
+    transition:
+        background-color 120ms ease,
+        border-color 120ms ease;
+}
+
+.newDeliveryButton:hover {
+    background: var(--mantine-color-default-hover);
+    border-color: var(--mantine-color-ldGray-5);
+}
+
+.listDetail {
+    overflow-y: auto;
+    min-height: 0;
+    padding: var(--mantine-spacing-xl);
+}
+
+.detailMetaLabel {
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-dimmed);
+}
