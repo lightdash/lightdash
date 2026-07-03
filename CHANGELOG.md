@@ -1,3 +1,10 @@
+# [0.3308.0](https://github.com/lightdash/lightdash/compare/0.3307.1...0.3308.0) (2026-07-03)
+
+
+### Features
+
+* **data-apps:** dashboard-tile filters reach live-linked charts [GLITCH-599] ([#25137](https://github.com/lightdash/lightdash/issues/25137)) ([45b7a7e](https://github.com/lightdash/lightdash/commit/45b7a7ebc8bbeb5a0ae73c4a25a1ada78446768e))
+
 ## [0.3307.1](https://github.com/lightdash/lightdash/compare/0.3307.0...0.3307.1) (2026-07-03)
 
 
