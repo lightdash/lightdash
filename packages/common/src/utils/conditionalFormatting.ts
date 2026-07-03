@@ -127,6 +127,7 @@ export const hasMatchingConditionalRules = (
     minMaxMap: ConditionalFormattingMinMaxMap,
     config: ConditionalFormattingConfig | undefined,
     rowFields?: ConditionalFormattingRowFields,
+    options?: { matchOutOfRangeValues?: boolean },
 ) => {
     if (!config) return false;
 
@@ -514,9 +515,13 @@ export const hasMatchingConditionalRules = (
             max = config.rule.max;
         }
 
-        // Out-of-range values still match — they are clamped to the range
-        // colors by getColorFromRange
-        return min <= max;
+        if (min > max) return false;
+
+        // With matchOutOfRangeValues, out-of-range values match so they can be
+        // clamped to the range colors by getColorFromRange
+        if (options?.matchOutOfRangeValues) return true;
+
+        return convertedValue >= min && convertedValue <= max;
     }
 
     return assertUnreachable(config, 'Unknown conditional formatting config');
@@ -549,23 +554,41 @@ export const getConditionalFormattingConfig = ({
     )
         return undefined;
 
-    return findLast(conditionalFormattings, (config) => {
-        if (
-            applyTo !== undefined &&
-            (config.applyTo ?? ConditionalFormattingColorApplyTo.CELL) !==
-                applyTo
-        ) {
-            return false;
-        }
+    const matchesApplyTo = (config: ConditionalFormattingConfig) =>
+        applyTo === undefined ||
+        (config.applyTo ?? ConditionalFormattingColorApplyTo.CELL) === applyTo;
 
-        return hasMatchingConditionalRules(
-            field,
-            value,
-            minMaxMap,
-            config,
-            rowFields,
-        );
-    });
+    const strictMatch = findLast(
+        conditionalFormattings,
+        (config) =>
+            matchesApplyTo(config) &&
+            hasMatchingConditionalRules(
+                field,
+                value,
+                minMaxMap,
+                config,
+                rowFields,
+            ),
+    );
+    if (strictMatch) return strictMatch;
+
+    // Fall back to the last color range rule so out-of-range values saturate
+    // to the range colors instead of rendering with no color. Rules whose
+    // range contains the value always take precedence via the strict pass.
+    return findLast(
+        conditionalFormattings,
+        (config) =>
+            isConditionalFormattingConfigWithColorRange(config) &&
+            matchesApplyTo(config) &&
+            hasMatchingConditionalRules(
+                field,
+                value,
+                minMaxMap,
+                config,
+                rowFields,
+                { matchOutOfRangeValues: true },
+            ),
+    );
 };
 
 export const getConditionalFormattingDescription = (
