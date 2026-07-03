@@ -1,3 +1,16 @@
+# [0.3302.0](https://github.com/lightdash/lightdash/compare/0.3301.0...0.3302.0) (2026-07-03)
+
+
+### Bug Fixes
+
+* **ai-agents:** persist Slack "approve & don't ask again" for SQL across pods and suspend/resume ([#25113](https://github.com/lightdash/lightdash/issues/25113)) ([89b635c](https://github.com/lightdash/lightdash/commit/89b635cc578af3bbc0ff1729eb6d611c9d0a7a27))
+
+
+### Features
+
+* **avatars:** add shuffleable mesh gradient vibes with grain finish ([#25112](https://github.com/lightdash/lightdash/issues/25112)) ([0195fe7](https://github.com/lightdash/lightdash/commit/0195fe7f66c438ac75e0ff0ed111494437e836f0))
+* **data-apps:** persistent lineage selection + upgrade hint on disabled Inspect-data toggle (GLITCH-590) ([#25098](https://github.com/lightdash/lightdash/issues/25098)) ([e079b4f](https://github.com/lightdash/lightdash/commit/e079b4fbd6c2f5abd15365f5a2a22906b0a2b0d9))
+
 # [0.3301.0](https://github.com/lightdash/lightdash/compare/0.3300.1...0.3301.0) (2026-07-03)
 
 
