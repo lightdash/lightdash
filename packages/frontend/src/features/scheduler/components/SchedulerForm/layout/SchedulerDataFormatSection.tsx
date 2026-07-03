@@ -177,16 +177,9 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                         </Box>
                     </Tooltip>
                 )}
-            </Stack>
-
-            {(format === SchedulerFormat.CSV ||
-                format === SchedulerFormat.XLSX) && (
-                <>
-                    <Divider />
-                    <Stack gap="xs">
-                        <span className={classes.subBlockLabel}>
-                            Formatting
-                        </span>
+                {(format === SchedulerFormat.CSV ||
+                    format === SchedulerFormat.XLSX) && (
+                    <Box mt="sm">
                         <CsvFormattingOptions
                             inline
                             format={
@@ -223,9 +216,9 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                                 )
                             }
                         />
-                    </Stack>
-                </>
-            )}
+                    </Box>
+                )}
+            </Stack>
 
             {isDashboard && (
                 <>
