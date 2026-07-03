@@ -173,7 +173,7 @@ export const SchedulerModalCreateOrEditV2: FC<Props> = ({
             case 'message':
                 return <SchedulerMessageSection />;
             case 'ai':
-                return <SchedulerFormAiInput projectUuid={projectUuid} />;
+                return <SchedulerFormAiInput projectUuid={projectUuid} bare />;
             case 'alert':
                 return (
                     <SchedulerAlertSection

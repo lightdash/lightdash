@@ -1,6 +1,7 @@
 import { Stack } from '@mantine-8/core';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { AiAgentIcon } from '../../../../../ee/features/aiCopilot/components/AiAgentIcon';
 import {
     NAV_GROUP_LABELS,
     SCHEDULER_SECTIONS,
@@ -48,10 +49,14 @@ export const SchedulerDeliveryNav: FC<Props> = ({
                                                 : classes.navItem
                                         }
                                     >
-                                        <MantineIcon
-                                            icon={section.icon}
-                                            size="md"
-                                        />
+                                        {id === 'ai' ? (
+                                            <AiAgentIcon muted size={16} />
+                                        ) : (
+                                            <MantineIcon
+                                                icon={section.icon}
+                                                size="md"
+                                            />
+                                        )}
                                         <span className={classes.navItemLabel}>
                                             {section.label}
                                         </span>
