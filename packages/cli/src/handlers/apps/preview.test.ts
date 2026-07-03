@@ -6,6 +6,7 @@ import { writeBundleToDir } from './appCodeFiles';
 import {
     assertNodeModulesPresent,
     buildPreviewEnv,
+    projectNotFoundMessage,
     resolvePreviewTarget,
 } from './preview';
 
@@ -90,5 +91,18 @@ describe('assertNodeModulesPresent', () => {
         await expect(assertNodeModulesPresent(dir)).rejects.toThrow(
             /Run 'pnpm install' in .* \(preview does not auto-install\)/,
         );
+    });
+});
+
+describe('projectNotFoundMessage', () => {
+    it('names the project, the server, and both remedies', () => {
+        const msg = projectNotFoundMessage({
+            projectUuid: 'proj-uuid-1',
+            serverUrl: 'https://cloud.example.com',
+        });
+        expect(msg).toContain('proj-uuid-1');
+        expect(msg).toContain('https://cloud.example.com');
+        expect(msg).toMatch(/lightdash login/);
+        expect(msg).toMatch(/--project/);
     });
 });

@@ -5,7 +5,7 @@ import * as path from 'path';
 import { getConfig } from '../../config';
 import GlobalState from '../../globalState';
 import * as styles from '../../styles';
-import { checkLightdashVersion, lightdashApi } from '../dbt/apiClient';
+import { checkLightdashVersion } from '../dbt/apiClient';
 import { readManifestFromDir } from './appCodeFiles';
 
 export const buildPreviewEnv = (args: {
@@ -63,6 +63,18 @@ export const assertNodeModulesPresent = async (
     }
 };
 
+/**
+ * The login context can point at a different instance than the one the app
+ * was downloaded from — the credential pre-flight passes there, but the
+ * app's project doesn't exist, which would surface as a confusing 404
+ * inside the running app.
+ */
+export const projectNotFoundMessage = (args: {
+    projectUuid: string;
+    serverUrl: string;
+}): string =>
+    `Project ${args.projectUuid} was not found on ${args.serverUrl} (or you don't have access). This app belongs to a different project or instance than the one you're logged into — run 'lightdash login <url>' for the server the app was downloaded from, or pass --project to preview against another project.`;
+
 type AppsPreviewOptions = {
     project?: string;
     url?: string;
@@ -94,23 +106,33 @@ export const appsPreviewHandler = async (
 
     // Pre-flight the credential before starting vite: an expired/revoked
     // token would otherwise surface as opaque query failures inside the app.
-    if (options.url || options.token) {
-        // lightdashApi reads the stored config, so flag-overridden
-        // credentials can't be pre-flighted through it; skip the check.
-        GlobalState.debug('Skipping credential pre-flight (--url/--token).');
-    } else {
+    // Flag-supplied credentials (--url/--token) bypass the stored config, so
+    // hit the API directly with exactly what will be written to .env.local.
+    if (!options.url && !options.token) {
         await checkLightdashVersion();
+    }
+    const preflight = async (apiPath: string): Promise<boolean> => {
         try {
-            await lightdashApi({
-                method: 'GET',
-                url: '/api/v1/user',
-                body: undefined,
+            const res = await fetch(new URL(apiPath, serverUrl), {
+                headers: { Authorization: `ApiKey ${apiKey}` },
             });
-        } catch (err) {
-            throw new AuthorizationError(
-                `Your Lightdash credential was rejected by ${serverUrl}. Run 'lightdash login ${serverUrl}' to refresh it.`,
-            );
+            return res.ok;
+        } catch {
+            return false;
         }
+    };
+    if (!(await preflight('/api/v1/user'))) {
+        throw new AuthorizationError(
+            `Your Lightdash credential was rejected by ${serverUrl}. Run 'lightdash login ${serverUrl}' to refresh it, or check the --url/--token values.`,
+        );
+    }
+    if (!(await preflight(`/api/v1/projects/${target.projectUuid}`))) {
+        throw new Error(
+            projectNotFoundMessage({
+                projectUuid: target.projectUuid,
+                serverUrl,
+            }),
+        );
     }
 
     const envPath = path.join(target.appDir, '.env.local');

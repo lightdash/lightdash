@@ -29,7 +29,7 @@ You are editing a Lightdash **data app** that was downloaded with the Lightdash 
 - If `pnpm install` fails (registry policy, an unavailable pinned SDK version, no network access), **skip the local build entirely and go straight to upload**. The server rebuild is authoritative and surfaces build errors on the app page.
 - Do **not** modify machine configuration, `.npmrc` files, registry settings, or the project's dependency files to force an install to work.
 - A missing `node_modules` is a normal state, not a problem to fix. Never run installs just because it is absent.
-- **Exception — adding a dependency** (only on instances with custom dependencies enabled — see "Library boundaries" above). Upload rejects new dependencies unless `pnpm-lock.yaml` was regenerated to match `package.json`, so dependency resolution MUST succeed locally. Use `pnpm add <pkg>`, or after editing `package.json` run `pnpm install --lockfile-only` (updates the lockfile without installing). If resolution fails, **stop and report the exact pnpm error to the user** — never hand-edit `package.json` and proceed without the lockfile; the upload will fail.
+- **Exception — adding a dependency** (only on instances with custom dependencies enabled — see "Library boundaries" above). Upload rejects new dependencies unless `pnpm-lock.yaml` was regenerated to match `package.json`, so dependency resolution MUST succeed locally. Use `pnpm add <pkg>` — prefixed with Socket Firewall when available (`sfw pnpm add <pkg>`; check with `command -v sfw`) to block known-malicious packages — or after editing `package.json` run `pnpm install --lockfile-only` (updates the lockfile without installing). If resolution fails, **stop and report the exact pnpm error to the user** — never hand-edit `package.json` and proceed without the lockfile; the upload will fail.
 - **Never run dependency lifecycle scripts.** The app's `.npmrc` sets `ignore-scripts=true` — leave it. A downloaded app can be authored by someone else, and their dependencies' install scripts must not execute on this machine. Explicit `pnpm build`/`pnpm dev` still work.
 
 ## Preview locally against real data
@@ -37,7 +37,9 @@ You are editing a Lightdash **data app** that was downloaded with the Lightdash 
 `lightdash apps preview` (run in this folder) starts a local dev server that renders the app against the Lightdash instance you are logged into, using your CLI credential. It writes `.env.local` (gitignored — contains your API key) and runs `pnpm dev`. Requires `pnpm install` to have succeeded; if it hasn't, skip preview and rely on the server rebuild.
 
 - Manual equivalent: write `VITE_LIGHTDASH_URL`, `VITE_LIGHTDASH_API_KEY`, `VITE_LIGHTDASH_PROJECT_UUID` into `.env.local` and run `pnpm dev`.
+- Declared custom dependencies work in preview too — the dev server bundles whatever `pnpm install` put in `node_modules`, the same set the server installs on upload.
 - Preview shows **your** data under **your** permissions and user attributes — viewers of the deployed app may see different data. Do not treat preview as verification of viewer-specific behavior.
+- Preview does **not** apply the deployed Content-Security-Policy. A library that works in preview may still be blocked when deployed; the app page after upload is the final check.
 
 ## Project context (read-only reference)
 
