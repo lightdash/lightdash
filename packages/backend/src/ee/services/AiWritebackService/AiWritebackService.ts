@@ -1043,7 +1043,6 @@ export class AiWritebackService extends BaseService {
             await this.getSandboxManager().suspend({
                 sandboxUuid,
                 handle: sandbox,
-                workspace: WRITEBACK_WORKSPACE,
             });
             const durationMs = AiWritebackService.elapsed(start);
             this.logger.info('AI writeback sandbox suspended', {
@@ -1067,12 +1066,15 @@ export class AiWritebackService extends BaseService {
 
     private async resumeSandbox(
         sandboxUuid: string,
+        organizationUuid: string,
         projectUuid: string,
     ): Promise<{ sandbox: SandboxHandle; durationMs: number }> {
         const start = performance.now();
         const sandbox = await this.getSandboxManager().resume({
             sandboxUuid,
             spec: this.buildSandboxSpec(),
+            expectedOrganizationUuid: organizationUuid,
+            expectedProjectUuid: projectUuid,
         });
         const durationMs = AiWritebackService.elapsed(start);
         this.logger.info('AI writeback sandbox resumed', {
@@ -1488,6 +1490,7 @@ export class AiWritebackService extends BaseService {
                     sandboxUuid,
                     sandbox,
                     pauseOnExit,
+                    turn.organizationUuid,
                     projectUuid,
                 );
             }
@@ -1978,6 +1981,7 @@ export class AiWritebackService extends BaseService {
             try {
                 const { sandbox } = await this.resumeSandbox(
                     existingRow.sandbox_uuid,
+                    organizationUuid,
                     projectUuid,
                 );
                 return { sandbox, sandboxUuid: existingRow.sandbox_uuid };
@@ -1992,6 +1996,8 @@ export class AiWritebackService extends BaseService {
                 if (!(error instanceof SandboxExpiredError)) {
                     await this.getSandboxManager().destroy({
                         sandboxUuid: existingRow.sandbox_uuid,
+                        expectedOrganizationUuid: organizationUuid,
+                        expectedProjectUuid: projectUuid,
                     });
                 }
                 await this.aiWritebackThreadModel.deleteByAiThreadUuid(
@@ -2723,6 +2729,7 @@ export class AiWritebackService extends BaseService {
         sandboxUuid: string,
         sandbox: SandboxHandle,
         shouldPause: boolean,
+        organizationUuid: string,
         projectUuid: string,
     ): Promise<void> {
         if (shouldPause) {
@@ -2735,6 +2742,8 @@ export class AiWritebackService extends BaseService {
             await this.getSandboxManager().destroy({
                 sandboxUuid,
                 handle: sandbox,
+                expectedOrganizationUuid: organizationUuid,
+                expectedProjectUuid: projectUuid,
             });
         } catch (error) {
             this.logger.warn(
