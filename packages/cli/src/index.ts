@@ -754,6 +754,8 @@ program
         'skip writing space metadata files during download',
         false,
     )
+    .option('--skip-charts', 'skip downloading charts', false)
+    .option('--skip-dashboards', 'skip downloading dashboards', false)
     .option(
         '--strip-pivot-series',
         'strip per-value pivot series config from chart YAML for portable downloads',
@@ -766,6 +768,11 @@ program
     .option(
         '--include-apps',
         'Include the project\'s data apps (enterprise), capped at the first 10. Only lists apps that are in a space; use "--apps <uuids>" for the rest.',
+        false,
+    )
+    .option(
+        '--apps-only',
+        'Download only data apps (implies --skip-charts --skip-dashboards --skip-spaces). Requires --apps <appUuids...> or --include-apps.',
         false,
     )
     .action(downloadHandler);

@@ -18,6 +18,7 @@ import {
     getErrorMessage,
     isMalformedEmptyDashboardFilter,
     LightdashError,
+    ParameterError,
     Project,
     PromotionAction,
     PromotionChanges,
@@ -86,6 +87,9 @@ export type DownloadHandlerOptions = {
     includeCharts: boolean;
     nested: boolean; // Use nested folder structure (projectName/spaceSlug/charts|dashboards)
     skipSpaces: boolean; // Skip writing space metadata files during download
+    skipCharts: boolean; // Skip downloading charts and SQL charts
+    skipDashboards: boolean; // Skip downloading dashboards
+    appsOnly?: boolean; // download only: implies skipCharts + skipDashboards + skipSpaces
     stripPivotSeries: boolean; // Strip per-value pivot series config for portable chart YAML
     validate?: boolean; // Validate charts and dashboards after upload
     concurrency: number;
@@ -839,6 +843,21 @@ export const downloadHandler = async (
 ): Promise<void> => {
     GlobalState.setVerbose(options.verbose);
 
+    if (options.appsOnly) {
+        const appsOnlySelection = selectAppsToDownload({
+            apps: Array.isArray(options.apps) ? options.apps : undefined,
+            includeApps: options.includeApps === true,
+        });
+        if (appsOnlySelection.mode === 'none') {
+            throw new ParameterError(
+                'Nothing to download: --apps-only requires --apps <appUuids...> or --include-apps.',
+            );
+        }
+        options.skipCharts = true;
+        options.skipDashboards = true;
+        options.skipSpaces = true;
+    }
+
     await checkLightdashVersion();
 
     const config = await getConfig();
@@ -896,14 +915,19 @@ export const downloadHandler = async (
         let allMetadataEntries: MetadataEntry[] = [];
         let allSpaces: SpaceAsCode[] = [];
 
-        // Download regular charts
-        if (hasFilters && options.charts.length === 0) {
-            console.info(
-                styles.warning(`No charts filters provided, skipping`),
-            );
-        } else {
-            const [regularChartTotal, , regularChartMeta, regularChartSpaces] =
-                await downloadContent(
+        // Download regular charts and SQL charts
+        if (!options.skipCharts) {
+            if (hasFilters && options.charts.length === 0) {
+                console.info(
+                    styles.warning(`No charts filters provided, skipping`),
+                );
+            } else {
+                const [
+                    regularChartTotal,
+                    ,
+                    regularChartMeta,
+                    regularChartSpaces,
+                ] = await downloadContent(
                     options.charts,
                     'charts',
                     projectId,
@@ -914,65 +938,78 @@ export const downloadHandler = async (
                     skipSpaces,
                     options.stripPivotSeries,
                 );
-            spinner.succeed(`Downloaded ${regularChartTotal} charts`);
-            allMetadataEntries = [...allMetadataEntries, ...regularChartMeta];
-            allSpaces = [...allSpaces, ...regularChartSpaces];
+                spinner.succeed(`Downloaded ${regularChartTotal} charts`);
+                allMetadataEntries = [
+                    ...allMetadataEntries,
+                    ...regularChartMeta,
+                ];
+                allSpaces = [...allSpaces, ...regularChartSpaces];
 
-            // Download SQL charts
-            spinner.start(`Downloading SQL charts`);
-            const [sqlChartTotal, , sqlChartMeta, sqlChartSpaces] =
-                await downloadContent(
-                    options.charts,
-                    'sqlCharts',
-                    projectId,
-                    projectName,
-                    options.path,
-                    options.languageMap,
-                    options.nested,
-                    skipSpaces,
-                    false,
-                );
-            spinner.succeed(`Downloaded ${sqlChartTotal} SQL charts`);
-            allMetadataEntries = [...allMetadataEntries, ...sqlChartMeta];
-            allSpaces = [...allSpaces, ...sqlChartSpaces];
+                // Download SQL charts
+                spinner.start(`Downloading SQL charts`);
+                const [sqlChartTotal, , sqlChartMeta, sqlChartSpaces] =
+                    await downloadContent(
+                        options.charts,
+                        'sqlCharts',
+                        projectId,
+                        projectName,
+                        options.path,
+                        options.languageMap,
+                        options.nested,
+                        skipSpaces,
+                        false,
+                    );
+                spinner.succeed(`Downloaded ${sqlChartTotal} SQL charts`);
+                allMetadataEntries = [...allMetadataEntries, ...sqlChartMeta];
+                allSpaces = [...allSpaces, ...sqlChartSpaces];
 
-            chartTotal = regularChartTotal + sqlChartTotal;
+                chartTotal = regularChartTotal + sqlChartTotal;
+            }
         }
 
         // Download dashboards
-        if (hasFilters && options.dashboards.length === 0) {
-            console.info(
-                styles.warning(`No dashboards filters provided, skipping`),
-            );
-        } else {
-            let chartSlugs: string[] = [];
-
-            let dashMeta: MetadataEntry[];
-            let dashSpaces: SpaceAsCode[];
-            [dashboardTotal, chartSlugs, dashMeta, dashSpaces] =
-                await downloadContent(
-                    options.dashboards,
-                    'dashboards',
-                    projectId,
-                    projectName,
-                    options.path,
-                    options.languageMap,
-                    options.nested,
-                    skipSpaces,
-                    false,
+        if (!options.skipDashboards) {
+            if (hasFilters && options.dashboards.length === 0) {
+                console.info(
+                    styles.warning(`No dashboards filters provided, skipping`),
                 );
-            allMetadataEntries = [...allMetadataEntries, ...dashMeta];
-            allSpaces = [...allSpaces, ...dashSpaces];
+            } else {
+                let chartSlugs: string[] = [];
 
-            spinner.succeed(`Downloaded ${dashboardTotal} dashboards`);
-
-            if (hasFilters && chartSlugs.length > 0) {
-                spinner.start(
-                    `Downloading ${chartSlugs.length} charts linked to dashboards`,
-                );
-
-                const [regularCharts, , linkedChartMeta, linkedChartSpaces] =
+                let dashMeta: MetadataEntry[];
+                let dashSpaces: SpaceAsCode[];
+                [dashboardTotal, chartSlugs, dashMeta, dashSpaces] =
                     await downloadContent(
+                        options.dashboards,
+                        'dashboards',
+                        projectId,
+                        projectName,
+                        options.path,
+                        options.languageMap,
+                        options.nested,
+                        skipSpaces,
+                        false,
+                    );
+                allMetadataEntries = [...allMetadataEntries, ...dashMeta];
+                allSpaces = [...allSpaces, ...dashSpaces];
+
+                spinner.succeed(`Downloaded ${dashboardTotal} dashboards`);
+
+                if (
+                    hasFilters &&
+                    chartSlugs.length > 0 &&
+                    !options.skipCharts
+                ) {
+                    spinner.start(
+                        `Downloading ${chartSlugs.length} charts linked to dashboards`,
+                    );
+
+                    const [
+                        regularCharts,
+                        ,
+                        linkedChartMeta,
+                        linkedChartSpaces,
+                    ] = await downloadContent(
                         chartSlugs,
                         'charts',
                         projectId,
@@ -983,31 +1020,35 @@ export const downloadHandler = async (
                         skipSpaces,
                         options.stripPivotSeries,
                     );
-                allMetadataEntries = [
-                    ...allMetadataEntries,
-                    ...linkedChartMeta,
-                ];
-                allSpaces = [...allSpaces, ...linkedChartSpaces];
+                    allMetadataEntries = [
+                        ...allMetadataEntries,
+                        ...linkedChartMeta,
+                    ];
+                    allSpaces = [...allSpaces, ...linkedChartSpaces];
 
-                const [sqlCharts, , linkedSqlMeta, linkedSqlSpaces] =
-                    await downloadContent(
-                        chartSlugs,
-                        'sqlCharts',
-                        projectId,
-                        projectName,
-                        options.path,
-                        options.languageMap,
-                        options.nested,
-                        skipSpaces,
+                    const [sqlCharts, , linkedSqlMeta, linkedSqlSpaces] =
+                        await downloadContent(
+                            chartSlugs,
+                            'sqlCharts',
+                            projectId,
+                            projectName,
+                            options.path,
+                            options.languageMap,
+                            options.nested,
+                            skipSpaces,
+                        );
+                    allMetadataEntries = [
+                        ...allMetadataEntries,
+                        ...linkedSqlMeta,
+                    ];
+                    allSpaces = [...allSpaces, ...linkedSqlSpaces];
+
+                    spinner.succeed(
+                        `Downloaded ${
+                            regularCharts + sqlCharts
+                        } charts linked to dashboards`,
                     );
-                allMetadataEntries = [...allMetadataEntries, ...linkedSqlMeta];
-                allSpaces = [...allSpaces, ...linkedSqlSpaces];
-
-                spinner.succeed(
-                    `Downloaded ${
-                        regularCharts + sqlCharts
-                    } charts linked to dashboards`,
-                );
+                }
             }
         }
 
