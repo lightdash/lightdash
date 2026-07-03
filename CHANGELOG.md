@@ -1,3 +1,10 @@
+# [0.3301.0](https://github.com/lightdash/lightdash/compare/0.3300.1...0.3301.0) (2026-07-03)
+
+
+### Features
+
+* **ai:** judge-side dedup for review items + notify only on new items ([#25108](https://github.com/lightdash/lightdash/issues/25108)) ([fac67e2](https://github.com/lightdash/lightdash/commit/fac67e28b7779ae31673e6d3610ab49b5933f1c9))
+
 ## [0.3300.1](https://github.com/lightdash/lightdash/compare/0.3300.0...0.3300.1) (2026-07-02)
 
 
