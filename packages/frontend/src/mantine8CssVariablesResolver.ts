@@ -35,6 +35,11 @@ export const cssVariablesResolver: CSSVariablesResolver = () => ({
         '--dashboard-tab-height': `${DASHBOARD_TAB_HEIGHT}px`,
         '--dashboard-tabs-zindex': `${DASHBOARD_TABS_ZINDEX}`,
     },
-    light: {},
-    dark: {},
+    light: {
+        // Mantine's default (gray-4) reads too heavy against our surfaces
+        '--mantine-color-default-border': 'var(--mantine-color-ldGray-2)',
+    },
+    dark: {
+        '--mantine-color-default-border': 'var(--mantine-color-dark-5)',
+    },
 });
