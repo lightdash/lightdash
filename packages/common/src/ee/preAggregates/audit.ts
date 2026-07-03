@@ -14,7 +14,9 @@ export type TilePreAggregateAuditHit = {
     tileName: string;
     tileType: DashboardTileTypes.SAVED_CHART;
     savedChartUuid: string;
+    chartName: string;
     exploreName: string;
+    exploreLabel: string;
     preAggregateName: string;
 };
 
@@ -24,7 +26,9 @@ export type TilePreAggregateAuditMiss = {
     tileName: string;
     tileType: DashboardTileTypes.SAVED_CHART;
     savedChartUuid: string;
+    chartName: string;
     exploreName: string;
+    exploreLabel: string;
     miss: PreAggregateMatchMiss;
     missFieldLabel: string | null;
 };
