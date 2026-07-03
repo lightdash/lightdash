@@ -293,6 +293,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     contentVerificationModel:
                         models.getContentVerificationModel(),
                     groupsModel: models.getGroupsModel(),
+                    rolesModel: models.getRolesModel(),
                     featureFlagService: repository.getFeatureFlagService(),
                     slackClient: clients.getSlackClient(),
                     projectService: repository.getProjectService(),

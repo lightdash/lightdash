@@ -172,6 +172,7 @@ import { GroupsModel } from '../../../models/GroupsModel';
 import { OpenIdIdentityModel } from '../../../models/OpenIdIdentitiesModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { PullRequestsModel } from '../../../models/PullRequestsModel';
+import { RolesModel } from '../../../models/RolesModel';
 import { SearchModel } from '../../../models/SearchModel';
 import { SlackUnfurlImageModel } from '../../../models/SlackUnfurlImageModel';
 import { SpaceModel } from '../../../models/SpaceModel';
@@ -236,6 +237,10 @@ import {
     getModel,
 } from '../ai/models';
 import { matchesPreset } from '../ai/models/presets';
+import {
+    requestingUserRoleFromCustomRole,
+    requestingUserRoleFromSystemRole,
+} from '../ai/prompts/systemV2RequestingUser';
 import { parseRepoTarget, runShellCommandOnFs } from '../ai/repoFs/bashShell';
 import {
     createGithubRepoSource,
@@ -255,6 +260,7 @@ import {
     AiAgentDependencies,
     type AiAgentMcpServer,
     type AiAgentRequestingUser,
+    type AiAgentRequestingUserRole,
 } from '../ai/types/aiAgent';
 import {
     DiscoverReposFn,
@@ -362,6 +368,7 @@ type AiAgentServiceDependencies = {
     searchService: SearchService;
     featureFlagService: FeatureFlagService;
     groupsModel: GroupsModel;
+    rolesModel: RolesModel;
     lightdashConfig: LightdashConfig;
     openIdIdentityModel: OpenIdIdentityModel;
     projectService: ProjectService;
@@ -587,6 +594,8 @@ export class AiAgentService extends BaseService {
     private readonly featureFlagService: FeatureFlagService;
 
     private readonly groupsModel: GroupsModel;
+
+    private readonly rolesModel: RolesModel;
 
     private readonly lightdashConfig: LightdashConfig;
 
@@ -908,6 +917,7 @@ export class AiAgentService extends BaseService {
         this.searchService = dependencies.searchService;
         this.featureFlagService = dependencies.featureFlagService;
         this.groupsModel = dependencies.groupsModel;
+        this.rolesModel = dependencies.rolesModel;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.openIdIdentityModel = dependencies.openIdIdentityModel;
         this.projectService = dependencies.projectService;
@@ -7416,9 +7426,21 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 userUuid: user.userUuid,
                 organizationUuid: user.organizationUuid,
             });
+            // A custom org role stores 'member' as a placeholder in user.role,
+            // so resolve the real role (and its register) from roleUuid first.
+            let role: AiAgentRequestingUserRole | null = null;
+            if (user.roleUuid) {
+                const customRole =
+                    await this.rolesModel.getRoleWithScopesByUuid(
+                        user.roleUuid,
+                    );
+                role = requestingUserRoleFromCustomRole(customRole);
+            } else if (user.role) {
+                role = requestingUserRoleFromSystemRole(user.role);
+            }
             requestingUser = {
                 name: [user.firstName, user.lastName].filter(Boolean).join(' '),
-                role: user.role ?? null,
+                role,
                 groups: userGroups.map((group) => group.name),
             };
         }

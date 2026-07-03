@@ -1,14 +1,47 @@
 import {
+    getAllScopesForRole,
     OrganizationMemberRole,
     OrganizationMemberRoleLabels,
+    ProjectMemberRole,
 } from '@lightdash/common';
-import { AiAgentRequestingUser } from '../types/aiAgent';
+import {
+    AiAgentRequestingUser,
+    AiAgentRequestingUserRole,
+} from '../types/aiAgent';
 
 const TECHNICAL_ROLES = new Set<OrganizationMemberRole>([
     OrganizationMemberRole.EDITOR,
     OrganizationMemberRole.DEVELOPER,
     OrganizationMemberRole.ADMIN,
 ]);
+
+// Scopes exclusive to editor tier and above — the same threshold TECHNICAL_ROLES
+// draws for system roles, applied to a custom role's scope list.
+const TECHNICAL_SCOPES = (() => {
+    const interactiveViewerScopes = new Set(
+        getAllScopesForRole(ProjectMemberRole.INTERACTIVE_VIEWER),
+    );
+    return new Set(
+        getAllScopesForRole(ProjectMemberRole.ADMIN).filter(
+            (scope) => !interactiveViewerScopes.has(scope),
+        ),
+    );
+})();
+
+export const requestingUserRoleFromSystemRole = (
+    role: OrganizationMemberRole,
+): AiAgentRequestingUserRole => ({
+    name: OrganizationMemberRoleLabels[role],
+    isTechnical: TECHNICAL_ROLES.has(role),
+});
+
+export const requestingUserRoleFromCustomRole = (customRole: {
+    name: string;
+    scopes: string[];
+}): AiAgentRequestingUserRole => ({
+    name: customRole.name,
+    isTechnical: customRole.scopes.some((scope) => TECHNICAL_SCOPES.has(scope)),
+});
 
 const BUSINESS_USER_GUIDANCE = `Assume a business user consuming data, not someone who maintains it:
 - Answer in plain language. Avoid data-modeling jargon (dbt, semantic layer, joins, table/model names as recommendations).
@@ -26,19 +59,15 @@ export const getRequestingUserSection = (
 
     const identityParts: string[] = [];
     if (name) identityParts.push(name);
-    if (role)
-        identityParts.push(
-            `organization role: ${OrganizationMemberRoleLabels[role]}`,
-        );
+    if (role) identityParts.push(`organization role: ${role.name}`);
     if (groups.length > 0)
         identityParts.push(`member of: ${groups.join(', ')}`);
     if (identityParts.length === 0) return '';
 
     // Unknown role → default to the safe, non-technical register.
-    const guidance =
-        role && TECHNICAL_ROLES.has(role)
-            ? TECHNICAL_USER_GUIDANCE
-            : BUSINESS_USER_GUIDANCE;
+    const guidance = role?.isTechnical
+        ? TECHNICAL_USER_GUIDANCE
+        : BUSINESS_USER_GUIDANCE;
 
     const teamGuidance =
         groups.length > 0

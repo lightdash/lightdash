@@ -4,7 +4,6 @@ import {
     AiMcpServer,
     AiMcpServerConnectionStatus,
     AiWritebackAttribution,
-    OrganizationMemberRole,
     ProjectContextEntry,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -82,9 +81,14 @@ export type UnavailableMcpServer = {
     status: AiMcpServerConnectionStatus;
 };
 
+export type AiAgentRequestingUserRole = {
+    name: string;
+    isTechnical: boolean;
+};
+
 export type AiAgentRequestingUser = {
     name: string;
-    role: OrganizationMemberRole | null;
+    role: AiAgentRequestingUserRole | null;
     groups: string[];
 };
 

@@ -1,5 +1,9 @@
 import { OrganizationMemberRole } from '@lightdash/common';
 import { getSystemPromptV2 } from './systemV2';
+import {
+    requestingUserRoleFromCustomRole,
+    requestingUserRoleFromSystemRole,
+} from './systemV2RequestingUser';
 
 const promptText = (args: Parameters<typeof getSystemPromptV2>[0]): string => {
     const { content } = getSystemPromptV2(args);
@@ -40,7 +44,9 @@ describe('getSystemPromptV2 requesting user', () => {
             availableExplores: [],
             requestingUser: {
                 name: 'Ada Lovelace',
-                role: OrganizationMemberRole.VIEWER,
+                role: requestingUserRoleFromSystemRole(
+                    OrganizationMemberRole.VIEWER,
+                ),
                 groups: ['Finance', 'Ops'],
             },
         });
@@ -58,7 +64,9 @@ describe('getSystemPromptV2 requesting user', () => {
             availableExplores: [],
             requestingUser: {
                 name: 'Grace Hopper',
-                role: OrganizationMemberRole.DEVELOPER,
+                role: requestingUserRoleFromSystemRole(
+                    OrganizationMemberRole.DEVELOPER,
+                ),
                 groups: [],
             },
         });
@@ -81,6 +89,36 @@ describe('getSystemPromptV2 requesting user', () => {
         expect(content).toContain('Sam Service');
         expect(content).not.toContain('organization role:');
         expect(content).toContain('business user');
+    });
+
+    test('renders a custom role name and derives the register from its scopes', () => {
+        const technical = promptText({
+            availableExplores: [],
+            requestingUser: {
+                name: 'Grace Hopper',
+                role: requestingUserRoleFromCustomRole({
+                    name: 'Analytics Engineer',
+                    scopes: ['view:Dashboard', 'manage:SqlRunner'],
+                }),
+                groups: [],
+            },
+        });
+        expect(technical).toContain('organization role: Analytics Engineer');
+        expect(technical).toContain('technical detail is appropriate');
+
+        const business = promptText({
+            availableExplores: [],
+            requestingUser: {
+                name: 'Ada Lovelace',
+                role: requestingUserRoleFromCustomRole({
+                    name: 'Finance Viewer',
+                    scopes: ['view:Dashboard', 'manage:Explore'],
+                }),
+                groups: [],
+            },
+        });
+        expect(business).toContain('organization role: Finance Viewer');
+        expect(business).toContain('business user');
     });
 
     test('omits the section entirely when the requesting user is unknown', () => {
