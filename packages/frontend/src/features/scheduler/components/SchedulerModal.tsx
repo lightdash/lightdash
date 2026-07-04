@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     type ApiError,
     type ApiSavedChartPaginatedSchedulersResponse,
     type ItemsMap,
@@ -7,37 +6,22 @@ import {
     type SchedulerRun,
     type SchedulerRunLog,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Box,
-    Button,
-    Group,
-    Loader,
-    Modal,
-    Paper,
-    Stack,
-    Text,
-    TextInput,
-} from '@mantine-8/core';
-import { IconBell, IconSearch, IconSend, IconX } from '@tabler/icons-react';
+import { Group, Modal, Paper, Stack, Text } from '@mantine-8/core';
+import { IconBell, IconSend } from '@tabler/icons-react';
 import { type UseInfiniteQueryResult } from '@tanstack/react-query';
 import React, { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
-import MantineModal from '../../../components/common/MantineModal';
 import DocumentationHelpButton from '../../../components/DocumentationHelpButton';
 import RunDetailsModal from '../../../components/SchedulersView/RunDetailsModal';
 import { useGetSlackChannelName } from '../../../hooks/slack/useGetSlackChannelName';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useFetchRunLogs } from '../hooks/useScheduler';
 import { States } from '../utils';
 import classes from './SchedulerForm/layout/SchedulerDeliveryModal.module.css';
 import { SchedulerListV2 } from './SchedulerForm/layout/SchedulerListV2';
-import { SchedulerModalCreateOrEdit } from './SchedulerModalCreateOrEdit';
 import { SchedulerModalCreateOrEditV2 } from './SchedulerModalCreateOrEditV2';
 import SchedulerRunsHistoryModal from './SchedulerRunsHistoryModal';
-import SchedulersList from './SchedulersList';
 
 type HistoryContext = {
     schedulerUuid: string;
@@ -48,7 +32,7 @@ type HistoryContext = {
 
 const SchedulersModal: FC<
     Pick<
-        React.ComponentProps<typeof SchedulerModalCreateOrEdit>,
+        React.ComponentProps<typeof SchedulerModalCreateOrEditV2>,
         | 'resourceUuid'
         | 'createMutation'
         | 'isChart'
@@ -71,7 +55,7 @@ const SchedulersModal: FC<
         defaultCreate?: boolean;
         /** Create-mode only: pre-fills the new delivery. */
         initialFormValues?: React.ComponentProps<
-            typeof SchedulerModalCreateOrEdit
+            typeof SchedulerModalCreateOrEditV2
         >['initialFormValues'];
         searchQuery?: string;
         onSearchQueryChange?: (searchQuery: string | undefined) => void;
@@ -110,20 +94,10 @@ const SchedulersModal: FC<
         null,
     );
     const { activeProjectUuid } = useActiveProjectUuid();
-    const { data: redesignFlag } = useServerFeatureFlag(
-        FeatureFlags.SchedulerRedesign,
-    );
-    const useRedesign = redesignFlag?.enabled === true;
     const [selectedRun, setSelectedRun] = useState<SchedulerRun | null>(null);
     const [childLogsMap, setChildLogsMap] = useState<
         Map<string, SchedulerRunLog[]>
     >(new Map());
-
-    const { isFetching, isInitialLoading, data } = schedulersQuery;
-    const hasSchedulers =
-        (data?.pages.flatMap((page) => page.data) ?? []).length > 0;
-    const showSearchBar =
-        onSearchQueryChange && (Boolean(searchQuery) || hasSchedulers);
 
     const handleViewHistory = useCallback((scheduler: SchedulerAndTargets) => {
         const ctx: HistoryContext | null = scheduler.dashboardUuid
@@ -190,24 +164,7 @@ const SchedulersModal: FC<
         [childLogsMap, fetchRunLogsMutation, showToastError],
     );
 
-    const Actions = () => {
-        if (modalState === States.LIST) {
-            return (
-                <Group>
-                    <Button variant="default" onClick={onClose}>
-                        Cancel
-                    </Button>
-                    <Button onClick={() => setModalState(States.CREATE)}>
-                        Create new
-                    </Button>
-                </Group>
-            );
-        }
-
-        return null;
-    };
-
-    if (modalState === States.LIST && useRedesign) {
+    if (modalState === States.LIST) {
         return (
             <Modal.Root opened={isOpen} onClose={onClose} size={880} centered>
                 <Modal.Overlay />
@@ -274,110 +231,27 @@ const SchedulersModal: FC<
         );
     }
 
-    if (modalState === States.LIST) {
-        return (
-            <MantineModal
-                opened={isOpen}
-                onClose={onClose}
-                size="xl"
-                title={isThresholdAlert ? 'Alerts' : 'Scheduled deliveries'}
-                icon={isThresholdAlert ? IconBell : IconSend}
-                headerActions={
-                    isThresholdAlert ? (
-                        <DocumentationHelpButton
-                            href="https://docs.lightdash.com/guides/how-to-create-alerts"
-                            pos="relative"
-                            top="2px"
-                        />
-                    ) : (
-                        <DocumentationHelpButton
-                            href="https://docs.lightdash.com/guides/how-to-create-scheduled-deliveries"
-                            pos="relative"
-                            top="2px"
-                        />
-                    )
-                }
-                modalBodyProps={{ bg: 'background' }}
-                actions={<Actions />}
-                cancelLabel={false}
-            >
-                <Stack gap="md" mih={220}>
-                    {showSearchBar && (
-                        <TextInput
-                            placeholder={`Search ${
-                                isThresholdAlert
-                                    ? 'alerts'
-                                    : 'scheduled deliveries'
-                            }...`}
-                            leftSection={<MantineIcon icon={IconSearch} />}
-                            rightSection={
-                                isFetching && !isInitialLoading ? (
-                                    <Loader size={14} />
-                                ) : (
-                                    searchQuery && (
-                                        <ActionIcon
-                                            onClick={() =>
-                                                onSearchQueryChange?.(undefined)
-                                            }
-                                            variant="transparent"
-                                            size="xs"
-                                            color="ldGray.5"
-                                        >
-                                            <MantineIcon icon={IconX} />
-                                        </ActionIcon>
-                                    )
-                                )
-                            }
-                            value={searchQuery ?? ''}
-                            onChange={(e) =>
-                                onSearchQueryChange?.(
-                                    e.currentTarget.value || undefined,
-                                )
-                            }
-                        />
-                    )}
-                    <Box>
-                        <SchedulersList
-                            schedulersQuery={schedulersQuery}
-                            isThresholdAlertList={isThresholdAlert}
-                            isSearching={Boolean(searchQuery)}
-                            onEdit={(schedulerUuid) => {
-                                setModalState(States.EDIT);
-                                setSchedulerUuidToEdit(schedulerUuid);
-                            }}
-                            onViewHistory={handleViewHistory}
-                        />
-                    </Box>
-                </Stack>
-            </MantineModal>
-        );
-    }
-
     if (modalState === States.EDIT || modalState === States.CREATE) {
-        const createOrEditProps = {
-            resourceUuid,
-            schedulerUuidToEdit:
-                modalState === States.EDIT ? schedulerUuidToEdit : undefined,
-            initialFormValues:
-                modalState === States.CREATE ? initialFormValues : undefined,
-            createMutation,
-            onClose,
-            onBack: () => setModalState(States.LIST),
-            isChart,
-            isApp,
-            isThresholdAlert,
-            itemsMap,
-            currentParameterValues,
-            availableParameters,
-        } as const;
-
-        return useRedesign ? (
+        return (
             <SchedulerModalCreateOrEditV2
-                {...createOrEditProps}
+                resourceUuid={resourceUuid}
                 resourceName={name}
+                schedulerUuidToEdit={
+                    modalState === States.EDIT ? schedulerUuidToEdit : undefined
+                }
+                initialFormValues={
+                    modalState === States.CREATE ? initialFormValues : undefined
+                }
+                createMutation={createMutation}
+                onClose={onClose}
+                onBack={() => setModalState(States.LIST)}
+                isChart={isChart}
+                isApp={isApp}
+                isThresholdAlert={isThresholdAlert}
+                itemsMap={itemsMap}
+                currentParameterValues={currentParameterValues}
+                availableParameters={availableParameters}
             />
-        ) : (
-            <SchedulerModalCreateOrEdit {...createOrEditProps} />
         );
     }
 

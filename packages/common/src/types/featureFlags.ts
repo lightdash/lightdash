@@ -287,14 +287,6 @@ export enum FeatureFlags {
     AiFieldValueSearchGuard = 'ai-field-value-search-guard',
 
     /**
-     * Gate the redesigned scheduled-deliveries / alerts modal: a three-pane
-     * layout (grouped nav, section form, live preview) replacing the tabbed
-     * form. Off by default while it is built behind the flag; the existing
-     * modal renders when disabled.
-     */
-    SchedulerRedesign = 'scheduler-redesign',
-
-    /**
      * Allow a single Lightdash project to connect to multiple dbt sources
      * (repos/CLI deploys). Each source stores its latest compiled manifest in
      * S3; on every deploy or preview the backend merges all sources' manifests
