@@ -255,6 +255,9 @@ export const findForbiddenRoadmapFields = (
 export const redactRoadmapItem = (
     raw: Record<string, unknown>,
 ): RoadmapItem => {
+    if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+        throw new ParameterError('Roadmap item is not an object');
+    }
     const forbidden = findForbiddenRoadmapFields(raw);
     if (forbidden.length > 0) {
         throw new ParameterError(
@@ -327,8 +330,16 @@ export const redactRoadmapItems = (
         try {
             items.push(redactRoadmapItem(item));
         } catch (error) {
+            // `item` may be any junk (null, primitives) — never let the
+            // rejection bookkeeping itself throw.
+            const title =
+                typeof item === 'object' &&
+                item !== null &&
+                typeof item.title === 'string'
+                    ? item.title
+                    : undefined;
             rejected.push({
-                title: typeof item.title === 'string' ? item.title : undefined,
+                title,
                 reason: error instanceof Error ? error.message : String(error),
             });
         }
