@@ -146,6 +146,51 @@ describe('RoadmapService', () => {
             });
         });
 
+        it('resolves a lightdash-prefixed external id among other ids', async () => {
+            const roadmapModel = createRoadmapModel();
+            const linearClient = createLinearClient();
+            linearClient.listCustomers.mockResolvedValue([
+                {
+                    id: 'cust-1',
+                    name: 'Acme',
+                    externalIds: [
+                        'attio-record-id',
+                        `lightdash:${organizationUuid}`,
+                    ],
+                },
+            ]);
+            linearClient.getCustomerFeatureRequests.mockResolvedValue([]);
+
+            const service = buildService(roadmapModel, linearClient);
+            const summary = await service.syncMirror();
+
+            expect(summary.skippedCustomers).toBe(0);
+            expect(roadmapModel.replaceCustomerMirror).toHaveBeenCalledWith(
+                expect.objectContaining({ organizationUuid }),
+            );
+        });
+
+        it('skips customers with more than one lightdash-prefixed id', async () => {
+            const roadmapModel = createRoadmapModel();
+            const linearClient = createLinearClient();
+            linearClient.listCustomers.mockResolvedValue([
+                {
+                    id: 'cust-1',
+                    name: 'Acme',
+                    externalIds: [
+                        `lightdash:${organizationUuid}`,
+                        'lightdash:22222222-2222-2222-2222-222222222222',
+                    ],
+                },
+            ]);
+
+            const service = buildService(roadmapModel, linearClient);
+            const summary = await service.syncMirror();
+
+            expect(summary.skippedCustomers).toBe(1);
+            expect(roadmapModel.replaceCustomerMirror).not.toHaveBeenCalled();
+        });
+
         it('skips customers that do not resolve to exactly one org', async () => {
             const roadmapModel = createRoadmapModel();
             const linearClient = createLinearClient();
