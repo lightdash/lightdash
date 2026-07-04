@@ -3505,6 +3505,8 @@ export class AsyncQueryService extends ProjectService {
         args: ExecuteAsyncMetricQueryArgs & {
             queryTags: RunQueryTags;
             explore: Explore;
+            // Saved chart (metric or SQL) the query was executed from, for analytics attribution
+            chart?: { uuid: string };
             fields: ItemsMap;
             sql: string; // SQL generated from metric query or provided by user
             originalColumns?: ResultColumns;
@@ -3533,6 +3535,7 @@ export class AsyncQueryService extends ProjectService {
                     dateZoom,
                     queryTags,
                     explore,
+                    chart,
                     sql: compiledQuery,
                     metricQuery,
                     fields: fieldsMap,
@@ -3690,10 +3693,7 @@ export class AsyncQueryService extends ProjectService {
                             metricQuery,
                             queryTags,
                             dateZoom,
-                            chartUuid:
-                                'chartUuid' in requestParameters
-                                    ? requestParameters.chartUuid
-                                    : undefined,
+                            chartUuid: chart?.uuid,
                             explore,
                             parameters: requestParameters.parameters,
                         }),
@@ -4065,6 +4065,8 @@ export class AsyncQueryService extends ProjectService {
         args: ExecuteAsyncMetricQueryArgs & {
             queryTags: RunQueryTags;
             explore: Explore;
+            // Saved chart (metric or SQL) the query was executed from, for analytics attribution
+            chart?: { uuid: string };
             fields: ItemsMap;
             sql: string; // SQL generated from metric query or provided by user
             originalColumns?: ResultColumns;
@@ -4905,6 +4907,7 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
                 organizationUuid: savedChartOrganizationUuid,
                 explore,
+                chart: { uuid: savedChart.uuid },
                 context,
                 queryTags,
                 invalidateCache,
@@ -5370,6 +5373,7 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
                 organizationUuid,
                 explore,
+                chart: { uuid: savedChart.uuid },
                 metricQuery: metricQueryWithLimit,
                 context,
                 queryTags,
@@ -6197,6 +6201,7 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
                 organizationUuid: sqlChart.organization.organizationUuid,
                 explore: virtualView,
+                chart: { uuid: sqlChart.savedSqlUuid },
                 queryTags,
                 metricQuery,
                 context,
@@ -6353,6 +6358,7 @@ export class AsyncQueryService extends ProjectService {
                 projectUuid,
                 organizationUuid: savedChart.organization.organizationUuid,
                 explore: virtualView,
+                chart: { uuid: savedChart.savedSqlUuid },
                 queryTags,
                 metricQuery,
                 context,
