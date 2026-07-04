@@ -1,3 +1,10 @@
+# [0.3309.0](https://github.com/lightdash/lightdash/compare/0.3308.0...0.3309.0) (2026-07-04)
+
+
+### Features
+
+* **analytics:** attribute query.executed to saved charts incl. SQL charts (PROD-8604) ([#25135](https://github.com/lightdash/lightdash/issues/25135)) ([0ed3aa2](https://github.com/lightdash/lightdash/commit/0ed3aa286fe54fc78655495d60d58b41bb32c84d))
+
 # [0.3308.0](https://github.com/lightdash/lightdash/compare/0.3307.1...0.3308.0) (2026-07-03)
 
 
