@@ -171,7 +171,15 @@ export class RoadmapService extends BaseService {
         const items: CuratedRoadmapItem[] = [];
         let rejectedItems = 0;
         let nonPublicItems = 0;
+        // Multiple customer needs can point at the same Linear issue; mirror
+        // each issue once or the batch insert violates the per-link unique
+        // constraint on linear_issue_id.
+        const seenIssueIds = new Set<string>();
         issues.forEach((issue) => {
+            if (seenIssueIds.has(issue.id)) {
+                return;
+            }
+            seenIssueIds.add(issue.id);
             if (issue.issueUrl === null) {
                 nonPublicItems += 1;
                 this.logger.debug(
