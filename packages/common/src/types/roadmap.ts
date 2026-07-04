@@ -349,5 +349,13 @@ export const redactRoadmapItems = (
 
 export type ApiRoadmapResponse = {
     status: 'ok';
-    results: RoadmapItem[];
+    results: {
+        /**
+         * False when the organization has no mapped Linear customer yet —
+         * the roadmap channel hasn't been set up (an onboarding gap), as
+         * opposed to a connected org that simply has no requests.
+         */
+        mapped: boolean;
+        items: RoadmapItem[];
+    };
 };

@@ -247,14 +247,14 @@ describe('RoadmapService', () => {
     });
 
     describe('getRoadmapForOrg', () => {
-        it('returns an empty list when the org has no mapped customer', async () => {
+        it('returns mapped:false when the org has no mapped customer', async () => {
             const roadmapModel = createRoadmapModel();
             roadmapModel.findCustomerLinkForOrg.mockResolvedValue(null);
             const service = buildService(roadmapModel, createLinearClient());
 
             const result = await service.getRoadmapForOrg({ organizationUuid });
 
-            expect(result).toEqual([]);
+            expect(result).toEqual({ mapped: false, items: [] });
             expect(roadmapModel.getRoadmapItemsForOrg).not.toHaveBeenCalled();
         });
 
@@ -279,15 +279,18 @@ describe('RoadmapService', () => {
 
             const result = await service.getRoadmapForOrg({ organizationUuid });
 
-            expect(result).toEqual([
-                {
-                    title: 'Dark mode',
-                    description: 'Please',
-                    status: RoadmapItemStatus.BUILDING,
-                    issueUrl: null,
-                    pullRequestUrl: null,
-                },
-            ]);
+            expect(result).toEqual({
+                mapped: true,
+                items: [
+                    {
+                        title: 'Dark mode',
+                        description: 'Please',
+                        status: RoadmapItemStatus.BUILDING,
+                        issueUrl: null,
+                        pullRequestUrl: null,
+                    },
+                ],
+            });
         });
 
         it('excludes stored items that fail the redaction checkpoint', async () => {
@@ -318,7 +321,8 @@ describe('RoadmapService', () => {
 
             const result = await service.getRoadmapForOrg({ organizationUuid });
 
-            expect(result).toEqual([
+            expect(result.mapped).toBe(true);
+            expect(result.items).toEqual([
                 {
                     title: 'Safe',
                     description: null,
