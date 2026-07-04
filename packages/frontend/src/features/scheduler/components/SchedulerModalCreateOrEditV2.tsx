@@ -181,6 +181,11 @@ export const SchedulerModalCreateOrEditV2: FC<Props> = ({
                         isThresholdAlertWithNoFields={
                             !!isThresholdAlertWithNoFields
                         }
+                        projectUuid={projectUuid}
+                        itemsMap={itemsMap}
+                        currentParameterValues={currentParameterValues}
+                        availableParameters={availableParameters}
+                        loading={isMutating || isLoading}
                     />
                 );
             default:

@@ -4,16 +4,22 @@ import {
     ThresholdOperator,
     type CustomDimension,
     type Field,
+    type ItemsMap,
     type Metric,
+    type ParameterDefinitions,
+    type ParametersValuesMap,
     type TableCalculation,
 } from '@lightdash/common';
-import { Checkbox, Group, Select, Stack, Text } from '@mantine-8/core';
+import { Checkbox, Divider, Group, Select, Stack, Text } from '@mantine-8/core';
 import { IconPercentage } from '@tabler/icons-react';
 import { type FC } from 'react';
 import FieldSelect from '../../../../../components/common/FieldSelect';
 import FilterNumberInput from '../../../../../components/common/Filters/FilterInputs/FilterNumberInput';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { SchedulerFormChartFiltersTab } from '../SchedulerFormChartFiltersTab';
 import { useSchedulerFormContext } from '../schedulerFormContext';
+import { SchedulerFormParametersTab } from '../SchedulerFormParametersTab';
+import classes from './SchedulerDeliveryModal.module.css';
 
 const thresholdOperatorOptions = [
     { label: 'is greater than', value: ThresholdOperator.GREATER_THAN },
@@ -28,11 +34,21 @@ type Props = {
         TableCalculation | Metric | Field | CustomDimension
     >;
     isThresholdAlertWithNoFields: boolean;
+    projectUuid: string | undefined;
+    itemsMap: ItemsMap | undefined;
+    currentParameterValues?: ParametersValuesMap;
+    availableParameters?: ParameterDefinitions;
+    loading: boolean;
 };
 
 export const SchedulerAlertSection: FC<Props> = ({
     numericMetrics,
     isThresholdAlertWithNoFields,
+    projectUuid,
+    itemsMap,
+    currentParameterValues,
+    availableParameters,
+    loading,
 }) => {
     const form = useSchedulerFormContext();
     const operator = form.values.thresholds?.[0]?.operator;
@@ -125,6 +141,34 @@ export const SchedulerAlertSection: FC<Props> = ({
                             whenever the threshold conditions are met
                         </Text>
                     )}
+            </Stack>
+
+            <Divider />
+            <Stack gap="xs">
+                <span className={classes.subBlockLabel}>Filters</span>
+                <SchedulerFormChartFiltersTab
+                    projectUuid={projectUuid}
+                    itemsMap={itemsMap}
+                    filters={form.values.chartFilters ?? {}}
+                    onChange={(chartFilters) => {
+                        form.setFieldValue('chartFilters', chartFilters);
+                    }}
+                />
+            </Stack>
+
+            <Divider />
+            <Stack gap="xs">
+                <span className={classes.subBlockLabel}>Parameters</span>
+                <SchedulerFormParametersTab
+                    projectUuid={projectUuid}
+                    currentParameterValues={currentParameterValues}
+                    schedulerParameterValues={form.values.parameters}
+                    availableParameters={availableParameters}
+                    isLoading={loading}
+                    onChange={(schedulerParameters) => {
+                        form.setFieldValue('parameters', schedulerParameters);
+                    }}
+                />
             </Stack>
         </Stack>
     );
