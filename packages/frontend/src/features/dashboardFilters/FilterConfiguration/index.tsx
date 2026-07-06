@@ -33,7 +33,8 @@ import {
 } from '@mantine/core';
 import { IconRotate2, IconSql } from '@tabler/icons-react';
 import { produce } from 'immer';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import { useCallback, useMemo, useRef, useState, type FC } from 'react';
+import { flushSync } from 'react-dom';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import FieldLabel from '../../../components/common/Filters/FieldLabel';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -100,6 +101,9 @@ const FilterConfiguration: FC<Props> = ({
     const [draftFilterRule, setDraftFilterRule] = useState<
         DashboardFilterRule | undefined
     >(defaultFilterRule);
+
+    const draftFilterRuleRef = useRef(draftFilterRule);
+    draftFilterRuleRef.current = draftFilterRule;
 
     const isFilterModified = useMemo(() => {
         if (!originalFilterRule || !draftFilterRule) return false;
@@ -348,6 +352,21 @@ const FilterConfiguration: FC<Props> = ({
         ],
     );
 
+    const handleApply = useCallback(() => {
+        setSelectedTabId(FilterTabs.SETTINGS);
+
+        const activeElement = document.activeElement;
+        if (
+            activeElement instanceof HTMLInputElement ||
+            activeElement instanceof HTMLTextAreaElement
+        ) {
+            flushSync(() => activeElement.blur());
+        }
+
+        const ruleToSave = draftFilterRuleRef.current;
+        if (ruleToSave) onSave(ruleToSave);
+    }, [onSave]);
+
     const isApplyDisabled = !isFilterEnabled(
         draftFilterRule,
         isEditMode,
@@ -573,10 +592,7 @@ const FilterConfiguration: FC<Props> = ({
                             // mousedown and the subsequent click event never
                             // reaches the Apply button — so a real-user click
                             // would otherwise need two presses to apply.
-                            onMouseDown={() => {
-                                setSelectedTabId(FilterTabs.SETTINGS);
-                                if (!!draftFilterRule) onSave(draftFilterRule);
-                            }}
+                            onMouseDown={handleApply}
                         >
                             Apply
                         </Button>
