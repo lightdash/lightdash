@@ -54,6 +54,10 @@
                 },
                 "fetch_from_warehouse": {
                     "type": "boolean"
+                },
+                "label_dimension": {
+                    "type": "string",
+                    "description": "Name of another dimension in the same table whose value is shown as the display label for each warehouse-fetched value."
                 }
             }
         },

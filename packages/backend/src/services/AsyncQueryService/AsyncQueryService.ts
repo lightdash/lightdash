@@ -4638,7 +4638,7 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid,
         );
 
-        const { metricQuery, explore, fieldId } =
+        const { metricQuery, explore, fieldId, labelFieldId } =
             await getFieldValuesMetricQuery({
                 projectUuid,
                 table,
@@ -4745,6 +4745,8 @@ export class AsyncQueryService extends ProjectService {
         return {
             queryUuid,
             cacheMetadata,
+            valueFieldId: fieldId,
+            labelFieldId,
         };
     }
 

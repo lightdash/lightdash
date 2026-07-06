@@ -4095,6 +4095,9 @@
             },
             "FilterAutocompleteConfig": {
                 "properties": {
+                    "labelDimension": {
+                        "type": "string"
+                    },
                     "fetchFromWarehouse": {
                         "type": "boolean"
                     },
@@ -10661,9 +10664,16 @@
                     "cached": {
                         "type": "boolean"
                     },
+                    "resultsWithLabels": {
+                        "items": {
+                            "$ref": "#/components/schemas/FilterAutocompleteValue"
+                        },
+                        "type": "array"
+                    },
                     "results": {
                         "items": {},
-                        "type": "array"
+                        "type": "array",
+                        "deprecated": true
                     },
                     "search": {
                         "type": "string"
@@ -40855,6 +40865,13 @@
             },
             "ApiExecuteAsyncFieldValueSearchResults": {
                 "properties": {
+                    "labelFieldId": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "valueFieldId": {
+                        "type": "string"
+                    },
                     "cacheMetadata": {
                         "$ref": "#/components/schemas/CacheMetadata"
                     },
@@ -40862,7 +40879,12 @@
                         "type": "string"
                     }
                 },
-                "required": ["cacheMetadata", "queryUuid"],
+                "required": [
+                    "labelFieldId",
+                    "valueFieldId",
+                    "cacheMetadata",
+                    "queryUuid"
+                ],
                 "type": "object"
             },
             "ApiSuccess_ApiExecuteAsyncFieldValueSearchResults_": {

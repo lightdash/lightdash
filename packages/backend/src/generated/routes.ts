@@ -3991,6 +3991,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                labelDimension: { dataType: 'string' },
                 fetchFromWarehouse: { dataType: 'boolean', required: true },
                 values: {
                     dataType: 'array',
@@ -9351,6 +9352,13 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 refreshedAt: { dataType: 'datetime', required: true },
                 cached: { dataType: 'boolean', required: true },
+                resultsWithLabels: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'FilterAutocompleteValue',
+                    },
+                },
                 results: {
                     dataType: 'array',
                     array: { dataType: 'any' },
@@ -40629,6 +40637,15 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                labelFieldId: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                valueFieldId: { dataType: 'string', required: true },
                 cacheMetadata: { ref: 'CacheMetadata', required: true },
                 queryUuid: { dataType: 'string', required: true },
             },
