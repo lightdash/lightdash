@@ -1,3 +1,10 @@
+## [0.3315.5](https://github.com/lightdash/lightdash/compare/0.3315.4...0.3315.5) (2026-07-06)
+
+
+### Bug Fixes
+
+* **filters:** commit typed filter value on blur and when Apply is clicked ([#25168](https://github.com/lightdash/lightdash/issues/25168)) ([a5f2560](https://github.com/lightdash/lightdash/commit/a5f2560dbc2fd743f458e34a7e2a5a7c38255656))
+
 ## [0.3315.4](https://github.com/lightdash/lightdash/compare/0.3315.3...0.3315.4) (2026-07-06)
 
 
