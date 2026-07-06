@@ -317,6 +317,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     contentService: repository.getContentService(),
                     aiOrganizationSettingsService:
                         repository.getAiOrganizationSettingsService(),
+                    orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
+                        lightdashConfig: context.lightdashConfig,
+                        aiOrganizationSettingsModel:
+                            models.getAiOrganizationSettingsModel(),
+                        featureFlagService: repository.getFeatureFlagService(),
+                    }),
                     shareService: repository.getShareService(),
                     fileStorageClient: clients.getFileStorageClient(),
                     downloadFileModel: models.getDownloadFileModel(),

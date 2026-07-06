@@ -240,6 +240,7 @@ import {
     getModel,
 } from '../ai/models';
 import { matchesPreset } from '../ai/models/presets';
+import { OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
 import {
     requestingUserRoleFromCustomRole,
     requestingUserRoleFromSystemRole,
@@ -392,6 +393,7 @@ type AiAgentServiceDependencies = {
     savedChartService: SavedChartService;
     contentService: ContentService;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
+    orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
     shareService: ShareService;
     fileStorageClient: FileStorageClient;
     downloadFileModel: DownloadFileModel;
@@ -641,6 +643,8 @@ export class AiAgentService extends BaseService {
     private readonly prometheusMetrics?: PrometheusMetrics;
 
     private readonly aiOrganizationSettingsService: AiOrganizationSettingsService;
+
+    private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 
     private readonly shareService: ShareService;
 
@@ -943,6 +947,8 @@ export class AiAgentService extends BaseService {
         this.prometheusMetrics = dependencies.prometheusMetrics;
         this.aiOrganizationSettingsService =
             dependencies.aiOrganizationSettingsService;
+        this.orgAiCopilotConfigResolver =
+            dependencies.orgAiCopilotConfigResolver;
         this.shareService = dependencies.shareService;
         this.fileStorageClient = dependencies.fileStorageClient;
         this.downloadFileModel = dependencies.downloadFileModel;
@@ -1682,7 +1688,11 @@ export class AiAgentService extends BaseService {
         let modelId = 'fallback';
 
         try {
-            const modelOptions = getModel(this.lightdashConfig.ai.copilot, {
+            const copilotConfig =
+                await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                    organizationUuid,
+                );
+            const modelOptions = getModel(copilotConfig, {
                 enableReasoning: false,
                 useFastModel: true,
             });
@@ -2113,25 +2123,27 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        const defaultModel = getDefaultModel(this.lightdashConfig.ai.copilot);
+        const copilotConfig =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                organizationUuid,
+            );
+        const defaultModel = getDefaultModel(copilotConfig);
 
-        return getAvailableModels(this.lightdashConfig.ai.copilot).map(
-            (preset) => {
-                const isDefault =
-                    defaultModel !== null &&
-                    preset.provider === defaultModel.provider &&
-                    matchesPreset(preset, defaultModel.name);
+        return getAvailableModels(copilotConfig).map((preset) => {
+            const isDefault =
+                defaultModel !== null &&
+                preset.provider === defaultModel.provider &&
+                matchesPreset(preset, defaultModel.name);
 
-                return {
-                    name: preset.name,
-                    displayName: preset.displayName,
-                    description: preset.description,
-                    provider: preset.provider,
-                    default: isDefault,
-                    supportsReasoning: preset.supportsReasoning,
-                };
-            },
-        );
+            return {
+                name: preset.name,
+                displayName: preset.displayName,
+                description: preset.description,
+                provider: preset.provider,
+                default: isDefault,
+                supportsReasoning: preset.supportsReasoning,
+            };
+        });
     }
 
     async listAgentThreads(
@@ -3996,6 +4008,10 @@ export class AiAgentService extends BaseService {
         // Web-app only for now. Slack still needs compaction UX + thread replay
         // semantics before we can safely reuse this flow there.
         const compactionLogContext = `[AiAgent][Compaction] thread=${threadUuid} prompt=${prompt.promptUuid}`;
+        const copilotConfig =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                user.organizationUuid ?? null,
+            );
         const latestCompaction =
             await this.aiAgentModel.findLatestThreadCompaction(threadUuid);
 
@@ -4019,7 +4035,7 @@ export class AiAgentService extends BaseService {
         }
 
         const { supportsCompaction, contextWindowTokens } =
-            getCompactionModelMetadata(this.lightdashConfig.ai.copilot, {
+            getCompactionModelMetadata(copilotConfig, {
                 provider: prompt.modelConfig?.modelProvider as AnyType,
                 modelName: prompt.modelConfig?.modelName,
             });
@@ -4094,7 +4110,7 @@ export class AiAgentService extends BaseService {
         }
 
         const compactionModel = {
-            ...getModel(this.lightdashConfig.ai.copilot, {
+            ...getModel(copilotConfig, {
                 provider: prompt.modelConfig?.modelProvider as AnyType,
                 modelName: prompt.modelConfig?.modelName,
                 useFastModel: true,
@@ -4787,8 +4803,12 @@ export class AiAgentService extends BaseService {
                 });
 
             // Use fast model for title generation (lightweight task)
+            const copilotConfig =
+                await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                    user.organizationUuid ?? null,
+                );
             const modelOptions = {
-                ...getModel(this.lightdashConfig.ai.copilot, {
+                ...getModel(copilotConfig, {
                     enableReasoning: false,
                     useFastModel: true,
                 }),
@@ -4847,7 +4867,11 @@ export class AiAgentService extends BaseService {
             agent.tags,
         );
 
-        const { model } = getModel(this.lightdashConfig.ai.copilot, {
+        const copilotConfig =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                user.organizationUuid ?? null,
+            );
+        const { model } = getModel(copilotConfig, {
             enableReasoning: false,
         });
 
@@ -7756,7 +7780,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const availableSkills = canUseContentTools
             ? await this.aiAgentToolsService.listAgentSkills()
             : [];
-        const modelProperties = getModel(this.lightdashConfig.ai.copilot, {
+        const copilotConfig =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                promptProject.organizationUuid,
+            );
+        const modelProperties = getModel(copilotConfig, {
             enableReasoning: prompt.modelConfig?.reasoning,
             modelName: prompt.modelConfig?.modelName,
             provider: prompt.modelConfig?.modelProvider as AnyType,
@@ -10581,7 +10609,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         // sets the project for this thread and all subsequent messages.
         if (promptText.trim().length > 0) {
             try {
-                const { model } = getModel(this.lightdashConfig.ai.copilot);
+                const copilotConfig =
+                    await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                        organizationUuid,
+                    );
+                const { model } = getModel(copilotConfig);
                 const routedProjectUuid = await routeProjectForSlack(
                     model,
                     candidateProjects.map((project) => ({
@@ -10694,7 +10726,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             };
         }
 
-        const { model } = getModel(this.lightdashConfig.ai.copilot);
+        const copilotConfig =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                organizationUuid,
+            );
+        const { model } = getModel(copilotConfig);
 
         const decision = await selectAgent({
             model,
