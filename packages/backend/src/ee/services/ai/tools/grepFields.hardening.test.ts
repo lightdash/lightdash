@@ -12,6 +12,7 @@ type FieldSpec = {
     name: string;
     label?: string;
     description?: string;
+    table?: string;
 };
 
 const makeExplore = (over: {
@@ -27,39 +28,61 @@ const makeExplore = (over: {
     aiHint: over.aiHint,
     spotlight: { visibility: 'show', categories: [] },
     baseTable: over.name,
-    joinedTables: [],
+    joinedTables: Array.from(
+        new Set(
+            over.fields
+                .map((f) => f.table)
+                .filter((table): table is string => Boolean(table)),
+        ),
+    ).map((table) => ({
+        table,
+        sqlOn: '${orders.id} = ${TABLE}.order_id',
+        compiledSqlOn: 'orders.id = joined.order_id',
+    })),
     tables: {
-        [over.name]: {
-            name: over.name,
-            label: over.label ?? over.name,
-            database: 'test_db',
-            schema: 'public',
-            sqlTable: over.name,
-            sqlWhere: undefined,
-            uncompiledSqlWhere: undefined,
-            description: undefined,
-            dimensions: Object.fromEntries(
-                over.fields.map((f) => [
-                    f.name,
+        ...Object.fromEntries(
+            [
+                over.name,
+                ...new Set(over.fields.map((f) => f.table).filter(Boolean)),
+            ]
+                .filter((table): table is string => Boolean(table))
+                .map((table) => [
+                    table,
                     {
-                        fieldType: FieldType.DIMENSION,
-                        type: DimensionType.STRING,
-                        name: f.name,
-                        label: f.label ?? f.name,
-                        table: over.name,
-                        tableLabel: over.label ?? over.name,
-                        sql: `\${TABLE}.${f.name}`,
-                        hidden: false,
-                        source: undefined,
-                        compiledSql: `${over.name}.${f.name}`,
-                        tablesReferences: [over.name],
-                        description: f.description,
+                        name: table,
+                        label: table,
+                        database: 'test_db',
+                        schema: 'public',
+                        sqlTable: table,
+                        sqlWhere: undefined,
+                        uncompiledSqlWhere: undefined,
+                        description: undefined,
+                        dimensions: Object.fromEntries(
+                            over.fields
+                                .filter((f) => (f.table ?? over.name) === table)
+                                .map((f) => [
+                                    f.name,
+                                    {
+                                        fieldType: FieldType.DIMENSION,
+                                        type: DimensionType.STRING,
+                                        name: f.name,
+                                        label: f.label ?? f.name,
+                                        table,
+                                        tableLabel: table,
+                                        sql: `\${TABLE}.${f.name}`,
+                                        hidden: false,
+                                        source: undefined,
+                                        compiledSql: `${table}.${f.name}`,
+                                        tablesReferences: [table],
+                                        description: f.description,
+                                    },
+                                ]),
+                        ),
+                        metrics: {},
+                        lineageGraph: {},
                     },
                 ]),
-            ),
-            metrics: {},
-            lineageGraph: {},
-        },
+        ),
     },
 });
 
@@ -160,6 +183,39 @@ describe('grepFields FTS cross-check on successful greps', () => {
         });
         expect(metadata.status).toBe('success');
         expect(result).toContain('orders_status');
+    });
+
+    it('keeps joined-table FTS matches when scoped to an explore', async () => {
+        const joinedExplore = makeExplore({
+            name: 'orders',
+            fields: [
+                { name: 'status', label: 'Status' },
+                {
+                    table: 'customers',
+                    name: 'name',
+                    label: 'Customer name',
+                },
+            ],
+        });
+        const findExplores = vi.fn(async () => ({
+            topMatchingFields: [
+                ftsField('name', 'customers'),
+                ftsField('name', 'products'),
+            ],
+        })) as unknown as FindExploresFn;
+        const tool = getGrepFields({
+            availableExplores: [joinedExplore],
+            findExplores,
+            verifiedFieldUsage: new Map(),
+        });
+
+        const { result } = await execute(tool, {
+            patterns: ['client'],
+            exploreName: 'orders',
+        });
+
+        expect(result).toContain('customers_name');
+        expect(result).not.toContain('products_name');
     });
 });
 
