@@ -16700,6 +16700,13 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "joinedTables": {
+                                                                            "items": {
+                                                                                "type": "string"
+                                                                            },
+                                                                            "type": "array",
+                                                                            "nullable": true
+                                                                        },
                                                                         "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
@@ -16739,13 +16746,6 @@
                                                                                 "type": "object"
                                                                             },
                                                                             "type": "array"
-                                                                        },
-                                                                        "joinedTables": {
-                                                                            "items": {
-                                                                                "type": "string"
-                                                                            },
-                                                                            "type": "array",
-                                                                            "nullable": true
                                                                         },
                                                                         "label": {
                                                                             "type": "string"
@@ -16789,6 +16789,9 @@
                                                             "searchQueries": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "error": {
+                                                                            "type": "string"
+                                                                        },
                                                                         "pagination": {
                                                                             "properties": {
                                                                                 "totalPageCount": {
@@ -16815,9 +16818,6 @@
                                                                                 "page"
                                                                             ],
                                                                             "type": "object"
-                                                                        },
-                                                                        "error": {
-                                                                            "type": "string"
                                                                         },
                                                                         "status": {
                                                                             "type": "string",
@@ -16951,11 +16951,15 @@
                                                         "anyOf": [
                                                             {
                                                                 "properties": {
+                                                                    "rationale": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
                                                                     "fields": {
                                                                         "items": {
                                                                             "properties": {
-                                                                                "isFromJoinedTable": {
-                                                                                    "type": "boolean"
+                                                                                "fieldValueType": {
+                                                                                    "type": "string"
                                                                                 },
                                                                                 "caseSensitiveFilters": {
                                                                                     "type": "string",
@@ -16965,10 +16969,10 @@
                                                                                         "not_applicable"
                                                                                     ]
                                                                                 },
-                                                                                "fieldFilterType": {
-                                                                                    "type": "string"
+                                                                                "isFromJoinedTable": {
+                                                                                    "type": "boolean"
                                                                                 },
-                                                                                "fieldValueType": {
+                                                                                "fieldFilterType": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "fieldType": {
@@ -16996,10 +17000,10 @@
                                                                                 }
                                                                             },
                                                                             "required": [
-                                                                                "isFromJoinedTable",
-                                                                                "caseSensitiveFilters",
-                                                                                "fieldFilterType",
                                                                                 "fieldValueType",
+                                                                                "caseSensitiveFilters",
+                                                                                "isFromJoinedTable",
+                                                                                "fieldFilterType",
                                                                                 "fieldType",
                                                                                 "description",
                                                                                 "label",
@@ -17010,10 +17014,6 @@
                                                                             "type": "object"
                                                                         },
                                                                         "type": "array"
-                                                                    },
-                                                                    "rationale": {
-                                                                        "type": "string",
-                                                                        "nullable": true
                                                                     },
                                                                     "explore": {
                                                                         "properties": {
@@ -17052,14 +17052,14 @@
                                                                                 },
                                                                                 "type": "array"
                                                                             },
+                                                                            "baseTable": {
+                                                                                "type": "string"
+                                                                            },
                                                                             "joinedTables": {
                                                                                 "items": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "type": "array"
-                                                                            },
-                                                                            "baseTable": {
-                                                                                "type": "string"
                                                                             },
                                                                             "label": {
                                                                                 "type": "string"
@@ -17069,8 +17069,8 @@
                                                                             }
                                                                         },
                                                                         "required": [
-                                                                            "joinedTables",
                                                                             "baseTable",
+                                                                            "joinedTables",
                                                                             "label",
                                                                             "name"
                                                                         ],
@@ -17085,8 +17085,8 @@
                                                                     }
                                                                 },
                                                                 "required": [
-                                                                    "fields",
                                                                     "rationale",
+                                                                    "fields",
                                                                     "explore",
                                                                     "status"
                                                                 ],
@@ -17295,9 +17295,9 @@
                                                         "type": "string",
                                                         "enum": [
                                                             "unknown",
-                                                            "unsupported_source_control",
                                                             "github_not_installed",
                                                             "gitlab_not_installed",
+                                                            "unsupported_source_control",
                                                             "pull_request_not_open",
                                                             "git_write_permission",
                                                             null
@@ -17360,10 +17360,10 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "timeout",
                                                             "error",
+                                                            "success",
                                                             "rejected",
-                                                            "success"
+                                                            "timeout"
                                                         ]
                                                     }
                                                 },
@@ -17374,6 +17374,10 @@
                                                 "properties": {
                                                     "ranking": {
                                                         "properties": {
+                                                            "searchQuery": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
                                                             "fields": {
                                                                 "items": {
                                                                     "properties": {
@@ -17410,10 +17414,6 @@
                                                                 },
                                                                 "type": "array"
                                                             },
-                                                            "searchQuery": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            },
                                                             "type": {
                                                                 "type": "string",
                                                                 "enum": [
@@ -17425,8 +17425,8 @@
                                                             }
                                                         },
                                                         "required": [
-                                                            "fields",
                                                             "searchQuery",
+                                                            "fields",
                                                             "type"
                                                         ],
                                                         "type": "object"
@@ -43239,7 +43239,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3307.1",
+        "version": "0.3309.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
