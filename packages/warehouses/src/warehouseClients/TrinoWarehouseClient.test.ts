@@ -83,7 +83,7 @@ describe('TrinoWarehouseClient', () => {
         it('sends X-Trino-Client-Tags header as comma-separated key=value pairs when tags are provided', async () => {
             const warehouse = new TrinoWarehouseClient(credentials);
             queryResultMock.mockReturnValue({
-                next: jest
+                next: vi
                     .fn()
                     .mockResolvedValue({ done: true, value: queryResponse }),
             });
@@ -106,7 +106,7 @@ describe('TrinoWarehouseClient', () => {
         it('sanitizes tag values that are unsafe for the header', async () => {
             const warehouse = new TrinoWarehouseClient(credentials);
             queryResultMock.mockReturnValue({
-                next: jest
+                next: vi
                     .fn()
                     .mockResolvedValue({ done: true, value: queryResponse }),
             });
@@ -129,7 +129,7 @@ describe('TrinoWarehouseClient', () => {
         it('sends query as plain string (no extraHeaders) when no tags are provided', async () => {
             const warehouse = new TrinoWarehouseClient(credentials);
             queryResultMock.mockReturnValue({
-                next: jest
+                next: vi
                     .fn()
                     .mockResolvedValue({ done: true, value: queryResponse }),
             });
