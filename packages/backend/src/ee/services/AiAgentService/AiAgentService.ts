@@ -12711,12 +12711,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
      * TODO: Consider adding explores information for extra context relevancy assessment
      * @param resultUuid
      * @param canAccessData - Indicates whether the agent can access data (data access is enabled) which means the assessment will be including the data in the context.
-     * @returns boolean - Indicates whether the result is correct or not.
+     * @returns boolean - Indicates whether the result is correct, or null when there wasn't enough information to assess it.
      */
     async assessResult(
         resultUuid: string,
         canAccessData: boolean,
-    ): Promise<boolean> {
+    ): Promise<boolean | null> {
         Logger.info(`Assessing result ${resultUuid}`);
         const { query, response, expectedAnswer, artifact, toolResults } =
             await this.aiAgentModel.getEvalResultDataForAssessment(resultUuid);
@@ -12771,7 +12771,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             : null;
 
         const contextRelevancyScore =
-            artifact || toolResults.length > 0
+            contextParts.length > 0
                 ? await llmAsAJudge({
                       query,
                       response,
@@ -12804,9 +12804,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             passed = passed && contextRelevancyScore.meta.passed;
         }
 
+        // No scorers ran (no expected answer and no context) — leave the result unassessed (N/A) instead of failing it
         if (reasoning.length === 0) {
-            reasoning.push('Not enough information to assess this result');
-            passed = false;
+            Logger.info(
+                `Skipping assessment for result ${resultUuid}: not enough information to assess`,
+            );
+            return null;
         }
 
         await this.aiAgentModel.createLlmAssessment({
