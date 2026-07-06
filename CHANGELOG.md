@@ -1,3 +1,10 @@
+# [0.3310.0](https://github.com/lightdash/lightdash/compare/0.3309.2...0.3310.0) (2026-07-06)
+
+
+### Features
+
+* add AI agent thread history and resume support for embed SDK ([#25148](https://github.com/lightdash/lightdash/issues/25148)) ([90c6e78](https://github.com/lightdash/lightdash/commit/90c6e781b6c0c09549ebbda47a46538d4fe80e33))
+
 ## [0.3309.2](https://github.com/lightdash/lightdash/compare/0.3309.1...0.3309.2) (2026-07-06)
 
 
