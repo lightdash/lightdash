@@ -1,5 +1,5 @@
 import { type AiAgentSummary } from '@lightdash/common';
-import { useMemo, type FC } from 'react';
+import { useEffect, useMemo, type FC } from 'react';
 import {
     openPanel,
     type LauncherDockItem,
@@ -30,8 +30,20 @@ export const LauncherDock: FC<Props> = ({ projectUuid, agents }) => {
         () => new Map(agents.map((a) => [a.uuid, a])),
         [agents],
     );
+    const visibleDock = useMemo(
+        () => dock.filter((item) => agentsByUuid.has(item.agentUuid)),
+        [agentsByUuid, dock],
+    );
 
-    if (dock.length === 0) return null;
+    useEffect(() => {
+        dock.forEach((item) => {
+            if (!agentsByUuid.has(item.agentUuid)) {
+                removeItem(item.threadId);
+            }
+        });
+    }, [agentsByUuid, dock, removeItem]);
+
+    if (visibleDock.length === 0) return null;
 
     const handleSelect = (item: LauncherDockItem) => {
         dispatch(
@@ -49,11 +61,11 @@ export const LauncherDock: FC<Props> = ({ projectUuid, agents }) => {
 
     return (
         <div className={styles.dock}>
-            {dock.map((item) => (
+            {visibleDock.map((item) => (
                 <DockTab
                     key={item.threadId}
                     item={item}
-                    agent={agentsByUuid.get(item.agentUuid) ?? null}
+                    agent={agentsByUuid.get(item.agentUuid)!}
                     isActive={isPanelOpen && item.threadId === activeThreadId}
                     onSelect={handleSelect}
                     onClose={handleClose}
