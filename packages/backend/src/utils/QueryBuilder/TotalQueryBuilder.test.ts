@@ -6,12 +6,7 @@ import {
     type MetricQuery,
     type PivotConfiguration,
 } from '@lightdash/common';
-import {
-    getColumnSubtotalQueryFromSource,
-    getColumnTotalQueryFromSource,
-    getGrandTotalMetricQuery,
-    getRowTotalQueryFromSource,
-} from './getTotalsQueryFromSource';
+import { TotalQueryBuilder } from './TotalQueryBuilder';
 
 const emptyFilters: MetricQuery['filters'] = {};
 
@@ -43,19 +38,23 @@ const pivotConfiguration: PivotConfiguration = {
     sortBy: undefined,
 };
 
-describe('getGrandTotalMetricQuery', () => {
+describe('TotalQueryBuilder: grandTotal', () => {
     it('strips dimensions and sorts, clamps the limit to 1, and drops calcs referencing non-metric fields', () => {
-        const result = getGrandTotalMetricQuery({
-            ...baseMetricQuery,
-            tableCalculations: [
-                {
-                    name: 'profit_margin',
-                    displayName: 'Profit margin',
-                    // references orders_total_cost which is not a metric
-                    sql: '${orders.total_revenue} - ${orders.total_cost}',
-                } as never,
-            ],
-        });
+        const result = new TotalQueryBuilder({
+            metricQuery: {
+                ...baseMetricQuery,
+                tableCalculations: [
+                    {
+                        name: 'profit_margin',
+                        displayName: 'Profit margin',
+                        // references orders_total_cost which is not a metric
+                        sql: '${orders.total_revenue} - ${orders.total_cost}',
+                    } as never,
+                ],
+            },
+            pivotConfiguration: null,
+            kind: 'grandTotal',
+        }).compileQuery().metricQuery;
 
         expect(result.dimensions).toEqual([]);
         expect(result.sorts).toEqual([]);
@@ -64,22 +63,26 @@ describe('getGrandTotalMetricQuery', () => {
     });
 
     it('keeps SQL and formula table calcs that reference only metrics', () => {
-        const result = getGrandTotalMetricQuery({
-            ...baseMetricQuery,
-            tableCalculations: [
-                {
-                    name: 'rev_per_customer_sql',
-                    displayName: 'Rev per customer (sql)',
-                    sql: '${orders.total_revenue} / ${orders.unique_customer_count}',
-                } as never,
-                {
-                    name: 'rev_per_customer_formula',
-                    displayName: 'Rev per customer (formula)',
-                    formula:
-                        '=orders_total_revenue / orders_unique_customer_count',
-                } as never,
-            ],
-        });
+        const result = new TotalQueryBuilder({
+            metricQuery: {
+                ...baseMetricQuery,
+                tableCalculations: [
+                    {
+                        name: 'rev_per_customer_sql',
+                        displayName: 'Rev per customer (sql)',
+                        sql: '${orders.total_revenue} / ${orders.unique_customer_count}',
+                    } as never,
+                    {
+                        name: 'rev_per_customer_formula',
+                        displayName: 'Rev per customer (formula)',
+                        formula:
+                            '=orders_total_revenue / orders_unique_customer_count',
+                    } as never,
+                ],
+            },
+            pivotConfiguration: null,
+            kind: 'grandTotal',
+        }).compileQuery().metricQuery;
 
         expect(result.tableCalculations.map((tc) => tc.name)).toEqual([
             'rev_per_customer_sql',
@@ -88,68 +91,94 @@ describe('getGrandTotalMetricQuery', () => {
     });
 
     it('drops calcs that reference a dimension, use window functions, or are template-based', () => {
-        const result = getGrandTotalMetricQuery({
-            ...baseMetricQuery,
-            tableCalculations: [
-                {
-                    name: 'sql_with_dimension',
-                    displayName: 'Sql with dimension',
-                    sql: '${orders.total_revenue} / ${orders.status}',
-                } as never,
-                {
-                    name: 'sql_with_window',
-                    displayName: 'Sql with window',
-                    sql: 'SUM(${orders.total_revenue}) OVER ()',
-                } as never,
-                {
-                    name: 'formula_with_dimension',
-                    displayName: 'Formula with dimension',
-                    formula: '=orders_total_revenue / orders_status',
-                } as never,
-                {
-                    name: 'template_rank',
-                    displayName: 'Template rank',
-                    template: { type: 'rank_in_column' },
-                } as never,
-            ],
-        });
+        const result = new TotalQueryBuilder({
+            metricQuery: {
+                ...baseMetricQuery,
+                tableCalculations: [
+                    {
+                        name: 'sql_with_dimension',
+                        displayName: 'Sql with dimension',
+                        sql: '${orders.total_revenue} / ${orders.status}',
+                    } as never,
+                    {
+                        name: 'sql_with_window',
+                        displayName: 'Sql with window',
+                        sql: 'SUM(${orders.total_revenue}) OVER ()',
+                    } as never,
+                    {
+                        name: 'formula_with_dimension',
+                        displayName: 'Formula with dimension',
+                        formula: '=orders_total_revenue / orders_status',
+                    } as never,
+                    {
+                        name: 'template_rank',
+                        displayName: 'Template rank',
+                        template: { type: 'rank_in_column' },
+                    } as never,
+                ],
+            },
+            pivotConfiguration: null,
+            kind: 'grandTotal',
+        }).compileQuery().metricQuery;
 
         expect(result.tableCalculations).toEqual([]);
     });
 
     it('drops SQL calcs using row/pivot/total helper functions', () => {
-        const result = getGrandTotalMetricQuery({
-            ...baseMetricQuery,
-            tableCalculations: [
-                {
-                    name: 'with_offset',
-                    displayName: 'With offset',
-                    sql: 'offset(${orders.total_revenue}, 1)',
-                } as never,
-                {
-                    name: 'with_row',
-                    displayName: 'With row',
-                    sql: 'row()',
-                } as never,
-                {
-                    name: 'percent_of_total',
-                    displayName: 'Percent of total',
-                    sql: '${orders.total_revenue} / total(${orders.total_revenue})',
-                } as never,
-                {
-                    name: 'with_pivot_offset',
-                    displayName: 'With pivot offset',
-                    sql: 'pivot_offset(${orders.total_revenue}, -1)',
-                } as never,
-            ],
-        });
+        const result = new TotalQueryBuilder({
+            metricQuery: {
+                ...baseMetricQuery,
+                tableCalculations: [
+                    {
+                        name: 'with_offset',
+                        displayName: 'With offset',
+                        sql: 'offset(${orders.total_revenue}, 1)',
+                    } as never,
+                    {
+                        name: 'with_row',
+                        displayName: 'With row',
+                        sql: 'row()',
+                    } as never,
+                    {
+                        name: 'percent_of_total',
+                        displayName: 'Percent of total',
+                        sql: '${orders.total_revenue} / total(${orders.total_revenue})',
+                    } as never,
+                    {
+                        name: 'with_pivot_offset',
+                        displayName: 'With pivot offset',
+                        sql: 'pivot_offset(${orders.total_revenue}, -1)',
+                    } as never,
+                ],
+            },
+            pivotConfiguration: null,
+            kind: 'grandTotal',
+        }).compileQuery().metricQuery;
 
         expect(result.tableCalculations).toEqual([]);
     });
 
     it('drops calcs with unresolvable references instead of throwing', () => {
-        expect(() =>
-            getGrandTotalMetricQuery({
+        expect(
+            () =>
+                new TotalQueryBuilder({
+                    metricQuery: {
+                        ...baseMetricQuery,
+                        tableCalculations: [
+                            {
+                                name: 'bad_ref',
+                                displayName: 'Bad ref',
+                                sql: '${orders.total.revenue} + 1',
+                            } as never,
+                        ],
+                    },
+                    pivotConfiguration: null,
+                    kind: 'grandTotal',
+                }).compileQuery().metricQuery,
+        ).not.toThrow();
+
+        const result = new TotalQueryBuilder({
+            metricQuery: {
                 ...baseMetricQuery,
                 tableCalculations: [
                     {
@@ -158,76 +187,82 @@ describe('getGrandTotalMetricQuery', () => {
                         sql: '${orders.total.revenue} + 1',
                     } as never,
                 ],
-            }),
-        ).not.toThrow();
-
-        const result = getGrandTotalMetricQuery({
-            ...baseMetricQuery,
-            tableCalculations: [
-                {
-                    name: 'bad_ref',
-                    displayName: 'Bad ref',
-                    sql: '${orders.total.revenue} + 1',
-                } as never,
-            ],
-        });
+            },
+            pivotConfiguration: null,
+            kind: 'grandTotal',
+        }).compileQuery().metricQuery;
 
         expect(result.tableCalculations).toEqual([]);
     });
 
     it('drops formula calcs that use aggregates or window functions', () => {
-        const result = getGrandTotalMetricQuery({
-            ...baseMetricQuery,
-            tableCalculations: [
-                {
-                    name: 'formula_aggregate',
-                    displayName: 'Formula aggregate',
-                    formula:
-                        '=SUM(orders_total_revenue) / SUM(orders_unique_customer_count)',
-                } as never,
-                {
-                    name: 'formula_window',
-                    displayName: 'Formula window',
-                    formula:
-                        '=SUM(orders_total_revenue) OVER (ORDER BY orders_total_revenue)',
-                } as never,
-            ],
-        });
+        const result = new TotalQueryBuilder({
+            metricQuery: {
+                ...baseMetricQuery,
+                tableCalculations: [
+                    {
+                        name: 'formula_aggregate',
+                        displayName: 'Formula aggregate',
+                        formula:
+                            '=SUM(orders_total_revenue) / SUM(orders_unique_customer_count)',
+                    } as never,
+                    {
+                        name: 'formula_window',
+                        displayName: 'Formula window',
+                        formula:
+                            '=SUM(orders_total_revenue) OVER (ORDER BY orders_total_revenue)',
+                    } as never,
+                ],
+            },
+            pivotConfiguration: null,
+            kind: 'grandTotal',
+        }).compileQuery().metricQuery;
 
         expect(result.tableCalculations).toEqual([]);
     });
 
     it('drops calcs that reference a stripped period-over-period metric', () => {
-        const result = getGrandTotalMetricQuery({
-            ...baseMetricQuery,
-            metrics: ['orders_total_revenue', 'orders_total_revenue_pop_12m'],
-            additionalMetrics: [
-                {
-                    name: 'total_revenue_pop_12m',
-                    table: 'orders',
-                    sql: '${TABLE}.revenue',
-                    type: 'sum' as never,
-                    generationType: 'periodOverPeriod',
-                    baseMetricId: 'orders_total_revenue',
-                    timeDimensionId: 'orders_created_at',
-                    granularity: 'MONTH' as never,
-                    periodOffset: 12,
-                } as never,
-            ],
-            tableCalculations: [
-                {
-                    name: 'pop_delta',
-                    displayName: 'PoP delta',
-                    sql: '${orders.total_revenue} - ${orders_total_revenue_pop_12m}',
-                } as never,
-            ],
-        });
+        const result = new TotalQueryBuilder({
+            metricQuery: {
+                ...baseMetricQuery,
+                metrics: [
+                    'orders_total_revenue',
+                    'orders_total_revenue_pop_12m',
+                ],
+                additionalMetrics: [
+                    {
+                        name: 'total_revenue_pop_12m',
+                        table: 'orders',
+                        sql: '${TABLE}.revenue',
+                        type: 'sum' as never,
+                        generationType: 'periodOverPeriod',
+                        baseMetricId: 'orders_total_revenue',
+                        timeDimensionId: 'orders_created_at',
+                        granularity: 'MONTH' as never,
+                        periodOffset: 12,
+                    } as never,
+                ],
+                tableCalculations: [
+                    {
+                        name: 'pop_delta',
+                        displayName: 'PoP delta',
+                        sql: '${orders.total_revenue} - ${orders_total_revenue_pop_12m}',
+                    } as never,
+                ],
+            },
+            pivotConfiguration: null,
+            kind: 'grandTotal',
+        }).compileQuery().metricQuery;
 
         expect(result.tableCalculations).toEqual([]);
     });
 
     it('preserves the metrics list when no PoP metrics are present', () => {
-        const result = getGrandTotalMetricQuery(baseMetricQuery);
+        const result = new TotalQueryBuilder({
+            metricQuery: baseMetricQuery,
+            pivotConfiguration: null,
+            kind: 'grandTotal',
+        }).compileQuery().metricQuery;
 
         expect(result.metrics).toEqual(baseMetricQuery.metrics);
         expect(result.additionalMetrics ?? []).toEqual([]);
@@ -245,87 +280,111 @@ describe('getGrandTotalMetricQuery', () => {
             } as never,
         ];
 
-        const result = getGrandTotalMetricQuery({
-            ...baseMetricQuery,
-            customDimensions,
-        });
+        const result = new TotalQueryBuilder({
+            metricQuery: {
+                ...baseMetricQuery,
+                customDimensions,
+            },
+            pivotConfiguration: null,
+            kind: 'grandTotal',
+        }).compileQuery().metricQuery;
 
         expect(result.customDimensions).toBe(customDimensions);
     });
 
     it('strips period-over-period additional metrics from both lists', () => {
-        const result = getGrandTotalMetricQuery({
-            ...baseMetricQuery,
-            metrics: ['orders_total_revenue', 'orders_total_revenue_pop_12m'],
-            additionalMetrics: [
-                {
-                    name: 'total_revenue_pop_12m',
-                    table: 'orders',
-                    sql: '${TABLE}.revenue',
-                    type: 'sum' as never,
-                    generationType: 'periodOverPeriod',
-                    baseMetricId: 'orders_total_revenue',
-                    timeDimensionId: 'orders_created_at',
-                    granularity: 'MONTH' as never,
-                    periodOffset: 12,
-                } as never,
-            ],
-        });
+        const result = new TotalQueryBuilder({
+            metricQuery: {
+                ...baseMetricQuery,
+                metrics: [
+                    'orders_total_revenue',
+                    'orders_total_revenue_pop_12m',
+                ],
+                additionalMetrics: [
+                    {
+                        name: 'total_revenue_pop_12m',
+                        table: 'orders',
+                        sql: '${TABLE}.revenue',
+                        type: 'sum' as never,
+                        generationType: 'periodOverPeriod',
+                        baseMetricId: 'orders_total_revenue',
+                        timeDimensionId: 'orders_created_at',
+                        granularity: 'MONTH' as never,
+                        periodOffset: 12,
+                    } as never,
+                ],
+            },
+            pivotConfiguration: null,
+            kind: 'grandTotal',
+        }).compileQuery().metricQuery;
 
         expect(result.metrics).toEqual(['orders_total_revenue']);
         expect(result.additionalMetrics).toEqual([]);
     });
 
     it('rejects sources that use metric filters', () => {
-        expect(() =>
-            getGrandTotalMetricQuery({
-                ...baseMetricQuery,
-                filters: {
-                    metrics: {
-                        id: 'metric-filter-group',
-                        and: [
-                            {
-                                id: 'rule-1',
-                                target: { fieldId: 'orders_total_revenue' },
-                                operator: 'greaterThan' as never,
-                                values: [0],
-                            },
-                        ],
-                    } as never,
-                },
-            }),
+        expect(
+            () =>
+                new TotalQueryBuilder({
+                    metricQuery: {
+                        ...baseMetricQuery,
+                        filters: {
+                            metrics: {
+                                id: 'metric-filter-group',
+                                and: [
+                                    {
+                                        id: 'rule-1',
+                                        target: {
+                                            fieldId: 'orders_total_revenue',
+                                        },
+                                        operator: 'greaterThan' as never,
+                                        values: [0],
+                                    },
+                                ],
+                            } as never,
+                        },
+                    },
+                    pivotConfiguration: null,
+                    kind: 'grandTotal',
+                }).compileQuery().metricQuery,
         ).toThrow(NotSupportedError);
     });
 
     it('rejects sources that use table-calculation filters', () => {
-        expect(() =>
-            getGrandTotalMetricQuery({
-                ...baseMetricQuery,
-                filters: {
-                    tableCalculations: {
-                        id: 'tc-filter-group',
-                        and: [
-                            {
-                                id: 'rule-1',
-                                target: { fieldId: 'profit_margin' },
-                                operator: 'greaterThan' as never,
-                                values: [0],
-                            },
-                        ],
-                    } as never,
-                },
-            }),
+        expect(
+            () =>
+                new TotalQueryBuilder({
+                    metricQuery: {
+                        ...baseMetricQuery,
+                        filters: {
+                            tableCalculations: {
+                                id: 'tc-filter-group',
+                                and: [
+                                    {
+                                        id: 'rule-1',
+                                        target: { fieldId: 'profit_margin' },
+                                        operator: 'greaterThan' as never,
+                                        values: [0],
+                                    },
+                                ],
+                            } as never,
+                        },
+                    },
+                    pivotConfiguration: null,
+                    kind: 'grandTotal',
+                }).compileQuery().metricQuery,
         ).toThrow(NotSupportedError);
     });
 });
 
-describe('getColumnTotalQueryFromSource', () => {
+describe('TotalQueryBuilder: columnTotal', () => {
     describe('pivoted source', () => {
         it('keeps only groupBy dimensions and drops the index column', () => {
-            const result = getColumnTotalQueryFromSource({
+            const result = new TotalQueryBuilder({
                 metricQuery: baseMetricQuery,
                 pivotConfiguration,
-            });
+                kind: 'columnTotal',
+            }).compileQuery();
 
             expect(result.metricQuery.dimensions).toEqual([
                 'orders_payment_method',
@@ -341,7 +400,7 @@ describe('getColumnTotalQueryFromSource', () => {
         });
 
         it('keeps metric-only table calcs and drops dimension-referencing ones', () => {
-            const result = getColumnTotalQueryFromSource({
+            const result = new TotalQueryBuilder({
                 metricQuery: {
                     ...baseMetricQuery,
                     tableCalculations: [
@@ -358,7 +417,8 @@ describe('getColumnTotalQueryFromSource', () => {
                     ],
                 },
                 pivotConfiguration,
-            });
+                kind: 'columnTotal',
+            }).compileQuery();
 
             expect(
                 result.metricQuery.tableCalculations.map((tc) => tc.name),
@@ -366,7 +426,7 @@ describe('getColumnTotalQueryFromSource', () => {
         });
 
         it('drops non-totalable value columns so the pivot query never aggregates a dropped column', () => {
-            const result = getColumnTotalQueryFromSource({
+            const result = new TotalQueryBuilder({
                 metricQuery: {
                     ...baseMetricQuery,
                     tableCalculations: [
@@ -399,7 +459,8 @@ describe('getColumnTotalQueryFromSource', () => {
                         },
                     ],
                 },
-            });
+                kind: 'columnTotal',
+            }).compileQuery();
 
             expect(
                 result.pivotConfiguration?.valuesColumns.map(
@@ -410,13 +471,14 @@ describe('getColumnTotalQueryFromSource', () => {
 
         it('throws when groupByColumns reference dimensions not in the source query', () => {
             expect(() =>
-                getColumnTotalQueryFromSource({
+                new TotalQueryBuilder({
                     metricQuery: {
                         ...baseMetricQuery,
                         dimensions: ['orders_created_at'],
                     },
                     pivotConfiguration,
-                }),
+                    kind: 'columnTotal',
+                }).compileQuery(),
             ).toThrow(NotSupportedError);
         });
 
@@ -444,10 +506,11 @@ describe('getColumnTotalQueryFromSource', () => {
                 ],
             };
 
-            const result = getColumnTotalQueryFromSource({
+            const result = new TotalQueryBuilder({
                 metricQuery: popMetricQuery,
                 pivotConfiguration,
-            });
+                kind: 'columnTotal',
+            }).compileQuery();
 
             expect(result.metricQuery.metrics).toEqual([
                 'orders_total_revenue',
@@ -457,7 +520,7 @@ describe('getColumnTotalQueryFromSource', () => {
 
         it('rejects sources that use metric filters', () => {
             expect(() =>
-                getColumnTotalQueryFromSource({
+                new TotalQueryBuilder({
                     metricQuery: {
                         ...baseMetricQuery,
                         filters: {
@@ -477,17 +540,19 @@ describe('getColumnTotalQueryFromSource', () => {
                         },
                     },
                     pivotConfiguration,
-                }),
+                    kind: 'columnTotal',
+                }).compileQuery(),
             ).toThrow(NotSupportedError);
         });
     });
 
     describe('non-pivoted source', () => {
         it('drops all dimensions and returns no pivot configuration', () => {
-            const result = getColumnTotalQueryFromSource({
+            const result = new TotalQueryBuilder({
                 metricQuery: baseMetricQuery,
                 pivotConfiguration: null,
-            });
+                kind: 'columnTotal',
+            }).compileQuery();
 
             expect(result.metricQuery.dimensions).toEqual([]);
             expect(result.metricQuery.sorts).toEqual([]);
@@ -496,13 +561,14 @@ describe('getColumnTotalQueryFromSource', () => {
         });
 
         it('drops all dimensions when pivot configuration has no groupBy columns', () => {
-            const result = getColumnTotalQueryFromSource({
+            const result = new TotalQueryBuilder({
                 metricQuery: baseMetricQuery,
                 pivotConfiguration: {
                     ...pivotConfiguration,
                     groupByColumns: [],
                 },
-            });
+                kind: 'columnTotal',
+            }).compileQuery();
 
             expect(result.metricQuery.dimensions).toEqual([]);
             expect(result.pivotConfiguration).toBeUndefined();
@@ -510,13 +576,14 @@ describe('getColumnTotalQueryFromSource', () => {
     });
 });
 
-describe('getRowTotalQueryFromSource', () => {
+describe('TotalQueryBuilder: rowTotal', () => {
     describe('pivoted source', () => {
         it('keeps only index dimensions and clears groupByColumns', () => {
-            const result = getRowTotalQueryFromSource({
+            const result = new TotalQueryBuilder({
                 metricQuery: baseMetricQuery,
                 pivotConfiguration,
-            });
+                kind: 'rowTotal',
+            }).compileQuery();
 
             expect(result.metricQuery.dimensions).toEqual([
                 'orders_created_at',
@@ -531,7 +598,7 @@ describe('getRowTotalQueryFromSource', () => {
         });
 
         it('keeps metric-only table calcs and drops dimension-referencing ones', () => {
-            const result = getRowTotalQueryFromSource({
+            const result = new TotalQueryBuilder({
                 metricQuery: {
                     ...baseMetricQuery,
                     tableCalculations: [
@@ -548,7 +615,8 @@ describe('getRowTotalQueryFromSource', () => {
                     ],
                 },
                 pivotConfiguration,
-            });
+                kind: 'rowTotal',
+            }).compileQuery();
 
             expect(
                 result.metricQuery.tableCalculations.map((tc) => tc.name),
@@ -556,7 +624,7 @@ describe('getRowTotalQueryFromSource', () => {
         });
 
         it('drops non-totalable value columns so the pivot query never aggregates a dropped column', () => {
-            const result = getRowTotalQueryFromSource({
+            const result = new TotalQueryBuilder({
                 metricQuery: {
                     ...baseMetricQuery,
                     tableCalculations: [
@@ -589,7 +657,8 @@ describe('getRowTotalQueryFromSource', () => {
                         },
                     ],
                 },
-            });
+                kind: 'rowTotal',
+            }).compileQuery();
 
             expect(
                 result.pivotConfiguration?.valuesColumns.map(
@@ -614,10 +683,11 @@ describe('getRowTotalQueryFromSource', () => {
                 groupByColumns: [{ reference: 'orders_payment_method' }],
             };
 
-            const result = getRowTotalQueryFromSource({
+            const result = new TotalQueryBuilder({
                 metricQuery: baseMetricQuery,
                 pivotConfiguration: multiIndexPivotConfiguration,
-            });
+                kind: 'rowTotal',
+            }).compileQuery();
 
             expect(result.metricQuery.dimensions).toEqual([
                 'orders_created_at',
@@ -630,13 +700,14 @@ describe('getRowTotalQueryFromSource', () => {
 
         it('throws when an index column references a dimension not in the source query', () => {
             expect(() =>
-                getRowTotalQueryFromSource({
+                new TotalQueryBuilder({
                     metricQuery: {
                         ...baseMetricQuery,
                         dimensions: ['orders_payment_method', 'orders_status'],
                     },
                     pivotConfiguration,
-                }),
+                    kind: 'rowTotal',
+                }).compileQuery(),
             ).toThrow(NotSupportedError);
         });
 
@@ -662,10 +733,11 @@ describe('getRowTotalQueryFromSource', () => {
                 ],
             };
 
-            const result = getRowTotalQueryFromSource({
+            const result = new TotalQueryBuilder({
                 metricQuery: popMetricQuery,
                 pivotConfiguration,
-            });
+                kind: 'rowTotal',
+            }).compileQuery();
 
             expect(result.metricQuery.metrics).toEqual([
                 'orders_total_revenue',
@@ -675,7 +747,7 @@ describe('getRowTotalQueryFromSource', () => {
 
         it('rejects sources that use metric filters', () => {
             expect(() =>
-                getRowTotalQueryFromSource({
+                new TotalQueryBuilder({
                     metricQuery: {
                         ...baseMetricQuery,
                         filters: {
@@ -695,13 +767,14 @@ describe('getRowTotalQueryFromSource', () => {
                         },
                     },
                     pivotConfiguration,
-                }),
+                    kind: 'rowTotal',
+                }).compileQuery(),
             ).toThrow(NotSupportedError);
         });
 
         it('rejects sources that use table-calculation filters', () => {
             expect(() =>
-                getRowTotalQueryFromSource({
+                new TotalQueryBuilder({
                     metricQuery: {
                         ...baseMetricQuery,
                         filters: {
@@ -719,12 +792,13 @@ describe('getRowTotalQueryFromSource', () => {
                         },
                     },
                     pivotConfiguration,
-                }),
+                    kind: 'rowTotal',
+                }).compileQuery(),
             ).toThrow(NotSupportedError);
         });
 
         it('drops sortBy on the pivot column dimension that the collapse removes', () => {
-            const result = getRowTotalQueryFromSource({
+            const result = new TotalQueryBuilder({
                 metricQuery: baseMetricQuery,
                 pivotConfiguration: {
                     ...pivotConfiguration,
@@ -735,13 +809,14 @@ describe('getRowTotalQueryFromSource', () => {
                         },
                     ],
                 },
-            });
+                kind: 'rowTotal',
+            }).compileQuery();
 
             expect(result.pivotConfiguration?.sortBy).toEqual([]);
         });
 
         it('drops sortBy on a metric (exposed under an `_any` alias in the collapsed query)', () => {
-            const result = getRowTotalQueryFromSource({
+            const result = new TotalQueryBuilder({
                 metricQuery: baseMetricQuery,
                 pivotConfiguration: {
                     ...pivotConfiguration,
@@ -752,13 +827,14 @@ describe('getRowTotalQueryFromSource', () => {
                         },
                     ],
                 },
-            });
+                kind: 'rowTotal',
+            }).compileQuery();
 
             expect(result.pivotConfiguration?.sortBy).toEqual([]);
         });
 
         it('keeps sortBy on index columns and drops sorts on non-index dimensions', () => {
-            const result = getRowTotalQueryFromSource({
+            const result = new TotalQueryBuilder({
                 metricQuery: baseMetricQuery,
                 pivotConfiguration: {
                     ...pivotConfiguration,
@@ -773,7 +849,8 @@ describe('getRowTotalQueryFromSource', () => {
                         },
                     ],
                 },
-            });
+                kind: 'rowTotal',
+            }).compileQuery();
 
             expect(result.pivotConfiguration?.sortBy).toEqual([
                 {
@@ -784,7 +861,7 @@ describe('getRowTotalQueryFromSource', () => {
         });
 
         it('clears sortOnlyDimensions and passthroughDimensions on the totals pivot config', () => {
-            const result = getRowTotalQueryFromSource({
+            const result = new TotalQueryBuilder({
                 metricQuery: baseMetricQuery,
                 pivotConfiguration: {
                     ...pivotConfiguration,
@@ -793,7 +870,8 @@ describe('getRowTotalQueryFromSource', () => {
                     ],
                     passthroughDimensions: [{ reference: 'orders_status' }],
                 },
-            });
+                kind: 'rowTotal',
+            }).compileQuery();
 
             expect(
                 result.pivotConfiguration?.sortOnlyDimensions,
@@ -804,7 +882,7 @@ describe('getRowTotalQueryFromSource', () => {
         });
 
         it('supports metrics-as-rows pivots with no index column', () => {
-            const result = getRowTotalQueryFromSource({
+            const result = new TotalQueryBuilder({
                 metricQuery: baseMetricQuery,
                 pivotConfiguration: {
                     ...pivotConfiguration,
@@ -816,7 +894,8 @@ describe('getRowTotalQueryFromSource', () => {
                         },
                     ],
                 },
-            });
+                kind: 'rowTotal',
+            }).compileQuery();
 
             expect(result.metricQuery.dimensions).toEqual([]);
             expect(result.metricQuery.sorts).toEqual([]);
@@ -828,28 +907,30 @@ describe('getRowTotalQueryFromSource', () => {
     describe('non-pivoted source', () => {
         it('throws when the source has no pivot configuration', () => {
             expect(() =>
-                getRowTotalQueryFromSource({
+                new TotalQueryBuilder({
                     metricQuery: baseMetricQuery,
                     pivotConfiguration: null,
-                }),
+                    kind: 'rowTotal',
+                }).compileQuery(),
             ).toThrow(NotSupportedError);
         });
 
         it('throws when the pivot configuration has no groupBy columns', () => {
             expect(() =>
-                getRowTotalQueryFromSource({
+                new TotalQueryBuilder({
                     metricQuery: baseMetricQuery,
                     pivotConfiguration: {
                         ...pivotConfiguration,
                         groupByColumns: [],
                     },
-                }),
+                    kind: 'rowTotal',
+                }).compileQuery(),
             ).toThrow(NotSupportedError);
         });
     });
 });
 
-describe('getColumnSubtotalQueryFromSource', () => {
+describe('TotalQueryBuilder: columnSubtotal', () => {
     const singleGroupByPivotConfiguration: PivotConfiguration = {
         ...pivotConfiguration,
         groupByColumns: [{ reference: 'orders_payment_method' }],
@@ -861,11 +942,12 @@ describe('getColumnSubtotalQueryFromSource', () => {
 
     describe('pivoted source', () => {
         it('groups by the subtotal dimensions plus the pivot groupBy columns, flat output', () => {
-            const result = getColumnSubtotalQueryFromSource({
+            const result = new TotalQueryBuilder({
                 metricQuery: baseMetricQuery,
                 pivotConfiguration: singleGroupByPivotConfiguration,
                 subtotalDimensions: ['orders_status'],
-            });
+                kind: 'columnSubtotal',
+            }).compileQuery();
 
             expect(result.metricQuery.dimensions).toEqual([
                 'orders_status',
@@ -877,7 +959,7 @@ describe('getColumnSubtotalQueryFromSource', () => {
         });
 
         it('keeps metric-only table calcs and drops dimension-referencing ones', () => {
-            const result = getColumnSubtotalQueryFromSource({
+            const result = new TotalQueryBuilder({
                 metricQuery: {
                     ...baseMetricQuery,
                     tableCalculations: [
@@ -895,7 +977,8 @@ describe('getColumnSubtotalQueryFromSource', () => {
                 },
                 pivotConfiguration: singleGroupByPivotConfiguration,
                 subtotalDimensions: ['orders_status'],
-            });
+                kind: 'columnSubtotal',
+            }).compileQuery();
 
             expect(
                 result.metricQuery.tableCalculations.map((tc) => tc.name),
@@ -903,11 +986,12 @@ describe('getColumnSubtotalQueryFromSource', () => {
         });
 
         it('dedupes when a subtotal dimension is also a pivot groupBy column', () => {
-            const result = getColumnSubtotalQueryFromSource({
+            const result = new TotalQueryBuilder({
                 metricQuery: baseMetricQuery,
                 pivotConfiguration: singleGroupByPivotConfiguration,
                 subtotalDimensions: ['orders_payment_method'],
-            });
+                kind: 'columnSubtotal',
+            }).compileQuery();
 
             expect(result.metricQuery.dimensions).toEqual([
                 'orders_payment_method',
@@ -916,21 +1000,23 @@ describe('getColumnSubtotalQueryFromSource', () => {
 
         it('throws when a subtotal dimension is not in the source query', () => {
             expect(() =>
-                getColumnSubtotalQueryFromSource({
+                new TotalQueryBuilder({
                     metricQuery: baseMetricQuery,
                     pivotConfiguration: singleGroupByPivotConfiguration,
                     subtotalDimensions: ['orders_unknown_dimension'],
-                }),
+                    kind: 'columnSubtotal',
+                }).compileQuery(),
             ).toThrow(NotSupportedError);
         });
 
         it('throws when no subtotal dimensions are provided', () => {
             expect(() =>
-                getColumnSubtotalQueryFromSource({
+                new TotalQueryBuilder({
                     metricQuery: baseMetricQuery,
                     pivotConfiguration: singleGroupByPivotConfiguration,
                     subtotalDimensions: [],
-                }),
+                    kind: 'columnSubtotal',
+                }).compileQuery(),
             ).toThrow(NotSupportedError);
         });
 
@@ -956,11 +1042,12 @@ describe('getColumnSubtotalQueryFromSource', () => {
                 ],
             };
 
-            const result = getColumnSubtotalQueryFromSource({
+            const result = new TotalQueryBuilder({
                 metricQuery: popMetricQuery,
                 pivotConfiguration: singleGroupByPivotConfiguration,
                 subtotalDimensions: ['orders_status'],
-            });
+                kind: 'columnSubtotal',
+            }).compileQuery();
 
             expect(result.metricQuery.metrics).toEqual([
                 'orders_total_revenue',
@@ -970,7 +1057,7 @@ describe('getColumnSubtotalQueryFromSource', () => {
 
         it('rejects sources that use metric filters', () => {
             expect(() =>
-                getColumnSubtotalQueryFromSource({
+                new TotalQueryBuilder({
                     metricQuery: {
                         ...baseMetricQuery,
                         filters: {
@@ -991,18 +1078,20 @@ describe('getColumnSubtotalQueryFromSource', () => {
                     },
                     pivotConfiguration: singleGroupByPivotConfiguration,
                     subtotalDimensions: ['orders_status'],
-                }),
+                    kind: 'columnSubtotal',
+                }).compileQuery(),
             ).toThrow(NotSupportedError);
         });
     });
 
     describe('non-pivoted source (treemap)', () => {
         it('groups by only the subtotal dimensions', () => {
-            const result = getColumnSubtotalQueryFromSource({
+            const result = new TotalQueryBuilder({
                 metricQuery: baseMetricQuery,
                 pivotConfiguration: null,
                 subtotalDimensions: ['orders_payment_method', 'orders_status'],
-            });
+                kind: 'columnSubtotal',
+            }).compileQuery();
 
             expect(result.metricQuery.dimensions).toEqual([
                 'orders_payment_method',
