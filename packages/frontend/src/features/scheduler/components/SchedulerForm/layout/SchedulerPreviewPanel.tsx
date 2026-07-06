@@ -30,7 +30,7 @@ import {
     IconSparkles,
     IconTable,
 } from '@tabler/icons-react';
-import { useCallback, useState, type FC } from 'react';
+import { useCallback, useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useExportDashboard } from '../../../../../hooks/dashboard/useDashboard';
 import { CUSTOM_WIDTH_OPTIONS } from '../../../constants';
@@ -57,6 +57,15 @@ const AiSummaryChip: FC = () => (
             <Skeleton height={6} width="55%" animate={false} />
         </Stack>
     </Paper>
+);
+
+const BentoPlaceholder: FC<{ cta?: ReactNode }> = ({ cta }) => (
+    <div className={classes.previewBento}>
+        {[0, 1, 2, 3].map((tile) => (
+            <div key={tile} className={classes.previewBentoTile} />
+        ))}
+        {cta && <div className={classes.previewBentoCta}>{cta}</div>}
+    </div>
 );
 
 const AttachmentChip: FC<{ filename: string }> = ({ filename }) => (
@@ -178,10 +187,10 @@ export const SchedulerPreviewPanel: FC<Props> = ({
 }) => {
     const form = useSchedulerFormContext();
     const format = form.values.format;
+    const isDashboard = dashboard !== undefined;
     const isImageLike =
         format === SchedulerFormat.IMAGE || format === SchedulerFormat.PDF;
-    const canRender =
-        isImageLike && dashboard !== undefined && !isThresholdAlert;
+    const canRender = isImageLike && isDashboard && !isThresholdAlert;
     const withAi = form.values.aiAugmentation !== null;
     const placeholderIcon =
         format === SchedulerFormat.PDF
@@ -276,27 +285,34 @@ export const SchedulerPreviewPanel: FC<Props> = ({
                                         h={canRender ? 96 : 64}
                                         bg="var(--mantine-color-default-hover)"
                                     >
-                                        <Center h="100%">
-                                            <Stack gap="xs" align="center">
+                                        {isDashboard ? (
+                                            <BentoPlaceholder
+                                                cta={
+                                                    canRender ? (
+                                                        <Button
+                                                            variant="default"
+                                                            size="xs"
+                                                            loading={
+                                                                exportDashboardMutation.isLoading
+                                                            }
+                                                            onClick={
+                                                                handleGenerate
+                                                            }
+                                                        >
+                                                            Generate preview
+                                                        </Button>
+                                                    ) : undefined
+                                                }
+                                            />
+                                        ) : (
+                                            <Center h="100%">
                                                 <MantineIcon
                                                     icon={placeholderIcon}
                                                     size="lg"
                                                     color="ldGray.5"
                                                 />
-                                                {canRender && (
-                                                    <Button
-                                                        variant="default"
-                                                        size="xs"
-                                                        loading={
-                                                            exportDashboardMutation.isLoading
-                                                        }
-                                                        onClick={handleGenerate}
-                                                    >
-                                                        Generate preview
-                                                    </Button>
-                                                )}
-                                            </Stack>
-                                        </Center>
+                                            </Center>
+                                        )}
                                     </Paper>
                                 )
                             ) : (
@@ -305,13 +321,17 @@ export const SchedulerPreviewPanel: FC<Props> = ({
                                     h={64}
                                     bg="var(--mantine-color-default-hover)"
                                 >
-                                    <Center h="100%">
-                                        <MantineIcon
-                                            icon={placeholderIcon}
-                                            size="lg"
-                                            color="ldGray.5"
-                                        />
-                                    </Center>
+                                    {isDashboard ? (
+                                        <BentoPlaceholder />
+                                    ) : (
+                                        <Center h="100%">
+                                            <MantineIcon
+                                                icon={placeholderIcon}
+                                                size="lg"
+                                                color="ldGray.5"
+                                            />
+                                        </Center>
+                                    )}
                                 </Paper>
                             )}
                             {format === SchedulerFormat.CSV &&
