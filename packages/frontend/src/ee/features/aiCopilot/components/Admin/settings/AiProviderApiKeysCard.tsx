@@ -60,28 +60,34 @@ const ProviderKeyRow: FC<ProviderKeyRowProps> = ({
                     disabled={disabled}
                     onChange={(event) => setValue(event.currentTarget.value)}
                 />
-                <Button
-                    size="xs"
-                    variant="default"
-                    disabled={disabled || value.trim().length === 0}
-                    onClick={() => {
-                        onSave(value.trim());
-                        setValue('');
-                    }}
-                >
-                    {isSet ? 'Update' : 'Set key'}
-                </Button>
-                {isSet && (
+                <Box w={90}>
                     <Button
                         size="xs"
-                        variant="subtle"
-                        color="red"
-                        disabled={disabled}
-                        onClick={onRemove}
+                        variant="default"
+                        fullWidth
+                        disabled={disabled || value.trim().length === 0}
+                        onClick={() => {
+                            onSave(value.trim());
+                            setValue('');
+                        }}
                     >
-                        Remove
+                        {isSet ? 'Update' : 'Set key'}
                     </Button>
-                )}
+                </Box>
+                <Box w={80}>
+                    {isSet && (
+                        <Button
+                            size="xs"
+                            variant="subtle"
+                            color="red"
+                            fullWidth
+                            disabled={disabled}
+                            onClick={onRemove}
+                        >
+                            Remove
+                        </Button>
+                    )}
+                </Box>
             </Group>
         </Group>
     );
