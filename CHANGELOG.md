@@ -1,3 +1,10 @@
+# [0.3317.0](https://github.com/lightdash/lightdash/compare/0.3316.1...0.3317.0) (2026-07-06)
+
+
+### Features
+
+* **common:** add scope graph helpers ([#25190](https://github.com/lightdash/lightdash/issues/25190)) ([6c67710](https://github.com/lightdash/lightdash/commit/6c67710a827870b656f3def291d99f7993b4a6b0))
+
 ## [0.3316.1](https://github.com/lightdash/lightdash/compare/0.3316.0...0.3316.1) (2026-07-06)
 
 
