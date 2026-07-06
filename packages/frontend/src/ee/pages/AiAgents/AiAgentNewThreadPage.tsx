@@ -28,6 +28,7 @@ import { usePendingPrompt } from '../../features/aiCopilot/components/PendingPro
 import { PinnedContextCard } from '../../features/aiCopilot/components/PinnedContextCard/PinnedContextCard';
 import { SuggestedQuestions } from '../../features/aiCopilot/components/SuggestedQuestions/SuggestedQuestions';
 import { isEmbedAiAgentRoute } from '../../features/aiCopilot/hooks/aiAgentRouting';
+import { emitEmbedAiAgentThreadChange } from '../../features/aiCopilot/hooks/embedAiAgentThreadChange';
 import { useAiAgentModelSelection } from '../../features/aiCopilot/hooks/useAiAgentModelSelection';
 import { useAiAgentSqlModeAvailable } from '../../features/aiCopilot/hooks/useAiAgentSqlModeAvailable';
 import { usePinnedContext } from '../../features/aiCopilot/hooks/usePinnedContext';
@@ -98,6 +99,13 @@ const AiAgentNewThreadPage: FC = () => {
                     uuid: thread.uuid,
                     title: thread.firstMessage.message,
                 };
+                if (isEmbed && projectUuid && agentUuid) {
+                    emitEmbedAiAgentThreadChange({
+                        projectUuid,
+                        agentUuid,
+                        threadUuid: thread.uuid,
+                    });
+                }
                 dispatch(
                     setThreadSqlMode({
                         threadUuid: thread.uuid,

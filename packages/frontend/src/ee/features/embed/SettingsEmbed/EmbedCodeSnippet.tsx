@@ -433,8 +433,11 @@ const data = {
     userAttributes: {{userAttributes}},
 {{writeActionsSnippet}}
 };
-const token = jwt.sign(data, LIGHTDASH_EMBED_SECRET, { expiresIn: '{{expiresIn}}' });
-const url = \`{{siteUrl}}/embed/\${projectUuid}/ai-agents/\${agentUuid}/threads#\${token}\`;
+const embedJwt = jwt.sign(data, LIGHTDASH_EMBED_SECRET, { expiresIn: '{{expiresIn}}' });
+const threadUuid = undefined; // Set this to resume an existing conversation.
+const url = threadUuid
+    ? \`{{siteUrl}}/embed/\${projectUuid}/ai-agents/\${agentUuid}/threads/\${threadUuid}#\${embedJwt}\`
+    : \`{{siteUrl}}/embed/\${projectUuid}/ai-agents/\${agentUuid}/threads#\${embedJwt}\`;
 `,
     [SnippetLanguage.PYTHON]: `import datetime
 import jwt # pip install pyjwt
@@ -458,8 +461,13 @@ data = {
     "userAttributes": {{userAttributes}},
 {{writeActionsSnippet}}
 };
-token = jwt.encode(data, key, algorithm="HS256")
-url = f"{{siteUrl}}/embed/{projectUuid}/ai-agents/{agentUuid}/threads#{token}"
+embedJwt = jwt.encode(data, key, algorithm="HS256")
+threadUuid = None # Set this to resume an existing conversation.
+url = (
+    f"{{siteUrl}}/embed/{projectUuid}/ai-agents/{agentUuid}/threads/{threadUuid}#{embedJwt}"
+    if threadUuid
+    else f"{{siteUrl}}/embed/{projectUuid}/ai-agents/{agentUuid}/threads#{embedJwt}"
+)
 `,
     [SnippetLanguage.GO]: `
 package main
@@ -525,13 +533,136 @@ func main() {
     }
 
     token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-    signedToken, err := token.SignedString([]byte(LIGHTDASH_EMBED_SECRET))
+    embedJwt, err := token.SignedString([]byte(LIGHTDASH_EMBED_SECRET))
     if err != nil {
         panic(err)
     }
 
-    url := fmt.Sprintf("{{siteUrl}}/embed/%s/ai-agents/%s/threads#%s", projectUuid, agentUuid, signedToken)
+    threadUuid := "" // Set this to resume an existing conversation.
+    path := fmt.Sprintf("{{siteUrl}}/embed/%s/ai-agents/%s/threads", projectUuid, agentUuid)
+    if threadUuid != "" {
+        path = fmt.Sprintf("%s/%s", path, threadUuid)
+    }
+    url := fmt.Sprintf("%s#%s", path, embedJwt)
     fmt.Println("URL:", url)
+}
+`,
+};
+
+const aiAgentSdkCodeTemplates: Record<SnippetLanguage, string> = {
+    [SnippetLanguage.NODE]: `import jwt from 'jsonwebtoken';
+const LIGHTDASH_EMBED_SECRET = 'secret'; // replace with your secret
+const projectUuid = '{{projectUuid}}';
+const agentUuid = '{{agentUuid}}';
+const data = {
+    content: {
+        type: 'aiAgent',
+        projectUuid: projectUuid,
+        agentUuid: agentUuid,
+    },
+    user: {
+        externalId: {{externalId}},
+        email: {{email}}
+    },
+    userAttributes: {{userAttributes}},
+{{writeActionsSnippet}}
+};
+const embedJwt = jwt.sign(data, LIGHTDASH_EMBED_SECRET, { expiresIn: '{{expiresIn}}' });
+`,
+    [SnippetLanguage.PYTHON]: `import datetime
+import jwt # pip install pyjwt
+
+key = "secret" # replace with your secret
+projectUuid = '{{projectUuid}}'
+agentUuid = '{{agentUuid}}'
+
+data = {
+    "exp": datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(hours=1), # replace with your expiration time,
+    "iat": datetime.datetime.now(tz=datetime.timezone.utc),
+    "content": {
+        "type": "aiAgent",
+        "projectUuid": projectUuid,
+        "agentUuid": agentUuid,
+    },
+    "user": {
+        "externalId": {{externalId}},
+        "email": {{email}}
+    },
+    "userAttributes": {{userAttributes}},
+{{writeActionsSnippet}}
+};
+embedJwt = jwt.encode(data, key, algorithm="HS256")
+`,
+    [SnippetLanguage.GO]: `
+package main
+
+import (
+    "fmt"
+    "time"
+
+    jwt "github.com/dgrijalva/jwt-go"
+)
+
+const LIGHTDASH_EMBED_SECRET = "secret" // replace with your secret
+const projectUuid = "{{projectUuid}}"
+const agentUuid = "{{agentUuid}}"
+
+func main() {
+    {{externalIdDef}}
+    {{emailDef}}
+
+    type CustomClaims struct {
+        Content struct {
+            Type        string \`json:"type"\`
+            ProjectUuid string \`json:"projectUuid"\`
+            AgentUuid   string \`json:"agentUuid"\`
+        } \`json:"content"\`
+        UserAttributes map[string]string \`json:"userAttributes"\`
+        WriteActions *struct {
+            ServiceAccountUserUuid string \`json:"serviceAccountUserUuid,omitempty"\`
+            UserUuid               string \`json:"userUuid,omitempty"\`
+            SpaceUuid              string \`json:"spaceUuid"\`
+        } \`json:"writeActions,omitempty"\`
+        jwt.StandardClaims
+        User *struct {
+            ExternalId *string \`json:"externalId,omitempty"\`
+            Email      *string \`json:"email,omitempty"\`
+        } \`json:"user,omitempty"\`
+    }
+
+    claims := CustomClaims{
+        Content: struct {
+            Type        string \`json:"type"\`
+            ProjectUuid string \`json:"projectUuid"\`
+            AgentUuid   string \`json:"agentUuid"\`
+        }{
+            Type:        "aiAgent",
+            ProjectUuid: projectUuid,
+            AgentUuid:   agentUuid,
+        },
+        User: &struct {
+            ExternalId *string \`json:"externalId,omitempty"\`
+            Email      *string \`json:"email,omitempty"\`
+        }{
+            ExternalId: {{externalIdUsage}},
+            Email:      {{emailUsage}},
+        },
+        UserAttributes: map[string]string{{userAttributes}},
+        // ServiceAccountUserUuid is the selected service account's user UUID.
+        // To run actions as a user instead, set UserUuid and leave ServiceAccountUserUuid empty.
+        WriteActions: {{writeActionsGo}},
+        StandardClaims: jwt.StandardClaims{
+            ExpiresAt: time.Now().Add(time.Hour).Unix(), // replace with your expiration
+        },
+    }
+
+    token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+    embedJwt, err := token.SignedString([]byte(LIGHTDASH_EMBED_SECRET))
+    if err != nil {
+        panic(err)
+    }
+
+    fmt.Println("JWT:", embedJwt)
 }
 `,
 };
@@ -1102,8 +1233,10 @@ const getBackendCodeSnippet = (
         // component for them yet.
         codeTemplate = dataAppIframeCodeTemplates[language];
     } else if (data.content.type === 'aiAgent') {
-        // AI agent embeds are iframe-only.
-        codeTemplate = aiAgentIframeCodeTemplates[language];
+        codeTemplate =
+            mode === 'iframe'
+                ? aiAgentIframeCodeTemplates[language]
+                : aiAgentSdkCodeTemplates[language];
     } else {
         codeTemplate =
             mode === 'iframe'
@@ -1354,8 +1487,42 @@ export const EmbeddedChart = ({ embedJwt }: EmbeddedChartProps) => (
     />
 );
 `;
-        case 'dataApp':
         case 'aiAgent':
+            return `import '@lightdash/sdk/sdk.css';
+import Lightdash from '@lightdash/sdk';
+import { useState } from 'react';
+
+type EmbeddedAiAgentProps = {
+    embedJwt: string;
+};
+
+export const EmbeddedAiAgent = ({ embedJwt }: EmbeddedAiAgentProps) => {
+    const [threadUuid, setThreadUuid] = useState<string | undefined>();
+
+    return (
+        <Lightdash.AiAgent
+            instanceUrl="${siteUrl}"
+            token={embedJwt}
+            agentUuid="${
+                'agentUuid' in data.content
+                    ? data.content.agentUuid || '<AGENT_UUID>'
+                    : '<AGENT_UUID>'
+            }"
+            threadUuid={threadUuid}
+            onThreadChange={({ threadUuid: nextThreadUuid }) => {
+                // Persist this value in your app if users should resume later.
+                setThreadUuid(nextThreadUuid);
+            }}
+            styles={{
+                // Optional: customize supported SDK styles here:
+                // backgroundColor: '#fff',
+                // fontFamily: 'Inter, sans-serif',
+            }}
+        />
+    );
+};
+`;
+        case 'dataApp':
         case 'apiAccess':
             return '';
         default:

@@ -125,7 +125,7 @@ vi.mock('../src/features/comments', () => ({
 }));
 
 import { FilterOperator } from '@lightdash/common';
-import { AiAgent, Dashboard } from './index';
+import { AiAgent, Dashboard, createLightdashApiClient } from './index';
 
 describe('SDK Dashboard - URL Sync Behavior', () => {
     const mockToken =
@@ -344,6 +344,125 @@ describe('SDK AI agent', () => {
 
         expect(container.querySelector('iframe')?.getAttribute('src')).toBe(
             `${mockInstanceUrl}/embed/test-project-uuid/ai-agents/test-agent-uuid/threads#${mockToken}`,
+        );
+    });
+
+    it('renders an existing embed AI agent thread when threadUuid is provided', async () => {
+        const { container } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                threadUuid="test-thread-uuid"
+            />,
+        );
+
+        await waitFor(() => {
+            expect(container.querySelector('iframe')).toBeTruthy();
+        });
+
+        expect(container.querySelector('iframe')?.getAttribute('src')).toBe(
+            `${mockInstanceUrl}/embed/test-project-uuid/ai-agents/test-agent-uuid/threads/test-thread-uuid#${mockToken}`,
+        );
+    });
+
+    it('calls onThreadChange for matching embed AI agent thread messages', async () => {
+        const onThreadChange = vi.fn();
+        const { container } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+                onThreadChange={onThreadChange}
+            />,
+        );
+
+        await waitFor(() => {
+            expect(container.querySelector('iframe')).toBeTruthy();
+        });
+
+        const iframeSrc = new URL(
+            container.querySelector('iframe')?.getAttribute('src') ?? '',
+        );
+        expect(iframeSrc.searchParams.get('targetOrigin')).toBe(
+            window.location.origin,
+        );
+
+        window.dispatchEvent(
+            new MessageEvent('message', {
+                origin: mockInstanceUrl,
+                data: {
+                    type: 'lightdash:aiAgentThreadChanged',
+                    payload: {
+                        projectUuid: 'test-project-uuid',
+                        agentUuid: 'test-agent-uuid',
+                        threadUuid: 'test-thread-uuid',
+                    },
+                    timestamp: Date.now(),
+                },
+            }),
+        );
+
+        expect(onThreadChange).toHaveBeenCalledWith({
+            threadUuid: 'test-thread-uuid',
+        });
+    });
+});
+
+describe('SDK API client', () => {
+    it('lists AI agent threads with the embed token header', async () => {
+        const threads = [
+            {
+                uuid: 'test-thread-uuid',
+                agentUuid: 'test-agent-uuid',
+                createdAt: '2026-07-06T08:00:00.000Z',
+                createdFrom: 'web_app',
+                title: 'Revenue check',
+                titleGeneratedAt: null,
+                firstMessage: {
+                    uuid: 'test-message-uuid',
+                    message: 'How is revenue looking?',
+                },
+                user: {
+                    uuid: 'test-user-uuid',
+                    name: 'Test User',
+                },
+            },
+        ];
+        const fetchMock = vi.fn().mockResolvedValue(
+            new Response(
+                JSON.stringify({
+                    status: 'ok',
+                    results: threads,
+                }),
+                { status: 200 },
+            ),
+        );
+        const client = createLightdashApiClient({
+            instanceUrl: 'https://example.lightdash.cloud/',
+            projectUuid: 'test-project-uuid',
+            auth: {
+                type: 'embedToken',
+                token: 'test-embed-token',
+            },
+            fetch: fetchMock,
+        });
+
+        await expect(
+            client.listAiAgentThreads({ agentUuid: 'test-agent-uuid' }),
+        ).resolves.toEqual(threads);
+
+        expect(fetchMock).toHaveBeenCalledWith(
+            'https://example.lightdash.cloud/api/v1/projects/test-project-uuid/aiAgents/test-agent-uuid/threads',
+            {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'lightdash-embed-token': 'test-embed-token',
+                },
+                body: undefined,
+                signal: undefined,
+            },
         );
     });
 });
