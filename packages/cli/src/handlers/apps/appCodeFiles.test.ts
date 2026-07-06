@@ -1,11 +1,14 @@
-import { type DataAppCode } from '@lightdash/common';
+import { type DataAppCode, type DataAppDependencies } from '@lightdash/common';
 import { promises as fs } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import {
     appFolderName,
+    attachDependenciesToCode,
+    buildDepsWarningLines,
     buildImportBody,
     readBundleFromDir,
+    readDependenciesFromDir,
     retargetManifest,
     writeBundleToDir,
     writeContextToDir,
@@ -274,5 +277,120 @@ describe('appFolderName', () => {
         expect(first).not.toBe(second);
         expect(first).toBe('my-sales-app-aaaa1111');
         expect(second).toBe('my-sales-app-cccc2222');
+    });
+});
+
+// ─── readDependenciesFromDir ──────────────────────────────────────────────────
+
+const makePackageJson = (deps: Record<string, string> = {}): string =>
+    JSON.stringify({ name: 'test-app', dependencies: deps });
+
+const LOCKFILE_CONTENT = 'lockfileVersion: 9.0\n\npackages:\n  react@19.0.0:\n';
+
+describe('readDependenciesFromDir', () => {
+    let dir: string;
+
+    beforeEach(async () => {
+        dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-deps-'));
+    });
+
+    afterEach(async () => {
+        await fs.rm(dir, { recursive: true, force: true });
+    });
+
+    it('returns null when neither package.json nor pnpm-lock.yaml exist', async () => {
+        expect(await readDependenciesFromDir(dir)).toBeNull();
+    });
+
+    it('returns the deps pair when both files are present', async () => {
+        await fs.writeFile(path.join(dir, 'package.json'), makePackageJson());
+        await fs.writeFile(path.join(dir, 'pnpm-lock.yaml'), LOCKFILE_CONTENT);
+        const result = await readDependenciesFromDir(dir);
+        expect(result).not.toBeNull();
+        expect(result?.packageJson).toBe(makePackageJson());
+        expect(result?.lockfile).toBe(LOCKFILE_CONTENT);
+    });
+
+    it('throws when package.json exists but pnpm-lock.yaml is absent', async () => {
+        await fs.writeFile(path.join(dir, 'package.json'), makePackageJson());
+        await expect(readDependenciesFromDir(dir)).rejects.toThrow(
+            /pnpm-lock\.yaml/,
+        );
+    });
+
+    it('throws when pnpm-lock.yaml exists but package.json is absent', async () => {
+        await fs.writeFile(path.join(dir, 'pnpm-lock.yaml'), LOCKFILE_CONTENT);
+        await expect(readDependenciesFromDir(dir)).rejects.toThrow(
+            /package\.json/,
+        );
+    });
+});
+
+// ─── buildDepsWarningLines ────────────────────────────────────────────────────
+
+describe('buildDepsWarningLines', () => {
+    const TEMPLATE: Record<string, string> = {
+        react: '19.2.5',
+        lodash: '4.17.21',
+    };
+
+    it('labels a brand-new package as "not in default template"', () => {
+        const lines = buildDepsWarningLines({ 'my-lib': '^2.0.0' }, TEMPLATE);
+        expect(lines).toHaveLength(1);
+        expect(lines[0]).toContain('my-lib@^2.0.0');
+        expect(lines[0]).toContain('not in default template');
+    });
+
+    it('labels a version override with the template version', () => {
+        const lines = buildDepsWarningLines({ react: '18.3.1' }, TEMPLATE);
+        expect(lines).toHaveLength(1);
+        expect(lines[0]).toContain('react@18.3.1');
+        expect(lines[0]).toContain('overrides template 19.2.5');
+    });
+
+    it('returns one line per custom package', () => {
+        const custom = { 'pkg-a': '^1.0.0', 'pkg-b': '2.0.0' };
+        const lines = buildDepsWarningLines(custom, TEMPLATE);
+        expect(lines).toHaveLength(2);
+    });
+
+    it('returns an empty array when there are no custom deps', () => {
+        expect(buildDepsWarningLines({}, TEMPLATE)).toEqual([]);
+    });
+});
+
+// ─── attachDependenciesToCode ─────────────────────────────────────────────────
+
+describe('attachDependenciesToCode', () => {
+    const baseCode = makeCode('app-1', 'proj-1');
+    const deps: DataAppDependencies = {
+        packageJson: makePackageJson({ react: '18.3.1' }),
+        lockfile: LOCKFILE_CONTENT,
+    };
+
+    it('returns the original code object (by reference) when customDeps is empty', () => {
+        const result = attachDependenciesToCode(baseCode, {}, deps);
+        expect(result).toBe(baseCode);
+        expect(result.dependencies).toBeUndefined();
+    });
+
+    it('returns a new code object with dependencies attached when customDeps is non-empty', () => {
+        const result = attachDependenciesToCode(
+            baseCode,
+            { react: '18.3.1' },
+            deps,
+        );
+        expect(result).not.toBe(baseCode);
+        expect(result.dependencies).toEqual(deps);
+    });
+
+    it('preserves all other code fields when attaching dependencies', () => {
+        const result = attachDependenciesToCode(
+            baseCode,
+            { react: '18.3.1' },
+            deps,
+        );
+        expect(result.manifest).toBe(baseCode.manifest);
+        expect(result.files).toBe(baseCode.files);
     });
 });

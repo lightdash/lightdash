@@ -24,6 +24,7 @@ import {
     PromotionChanges,
     removePivotedSeriesValuesFromChartConfig,
     SqlChartAsCode,
+    validateDataAppDependencies,
     type DataAppCodeDownload,
     type SpaceAsCode,
 } from '@lightdash/common';
@@ -40,8 +41,11 @@ import GlobalState from '../globalState';
 import * as styles from '../styles';
 import {
     appFolderName,
+    attachDependenciesToCode,
+    buildDepsWarningLines,
     buildImportBody,
     readBundleFromDir,
+    readDependenciesFromDir,
     retargetManifest,
     writeBundleToDir,
     writeContextToDir,
@@ -58,7 +62,10 @@ import {
     shouldWarnAllSkipped,
     type AppDownloadFailure,
 } from './apps/appsDownload';
-import { buildStaticAuthoringFiles } from './apps/scaffolding';
+import {
+    buildStaticAuthoringFiles,
+    loadTemplateDependencies,
+} from './apps/scaffolding';
 import {
     checkLightdashVersion,
     lightdashApi,
@@ -1998,7 +2005,78 @@ export const uploadHandler = async (
                         }
                     }
 
-                    const body = buildImportBody(code, projectId, {
+                    // Read declared dependencies from the app folder (optional).
+                    // eslint-disable-next-line no-await-in-loop
+                    const rawDeps = await readDependenciesFromDir(folderPath);
+                    let codeToUpload = code;
+
+                    if (rawDeps !== null) {
+                        const templateDeps =
+                            loadTemplateDependencies(CLI_VERSION);
+                        let customDeps: Record<string, string>;
+                        try {
+                            ({ customDeps } = validateDataAppDependencies(
+                                rawDeps,
+                                { templateDependencies: templateDeps },
+                            ));
+                        } catch (depsErr) {
+                            GlobalState.log(
+                                styles.error(
+                                    `Skipping "${subDir.name}": declared dependencies are invalid — ${getErrorMessage(depsErr)}`,
+                                ),
+                            );
+                            appsFailed += 1;
+                            // eslint-disable-next-line no-continue
+                            continue;
+                        }
+
+                        if (Object.keys(customDeps).length > 0) {
+                            const warningLines = buildDepsWarningLines(
+                                customDeps,
+                                templateDeps,
+                            );
+                            GlobalState.log(
+                                styles.warning(
+                                    `"${subDir.name}" declares custom dependencies that will be installed in the build sandbox:`,
+                                ),
+                            );
+                            warningLines.forEach((line) =>
+                                GlobalState.log(line),
+                            );
+
+                            if (process.stdin.isTTY && process.stdout.isTTY) {
+                                // eslint-disable-next-line no-await-in-loop
+                                const { proceed } = await inquirer.prompt<{
+                                    proceed: boolean;
+                                }>([
+                                    {
+                                        type: 'confirm',
+                                        name: 'proceed',
+                                        message: `Upload "${subDir.name}" with custom dependencies?`,
+                                        default: true,
+                                    },
+                                ]);
+                                if (!proceed) {
+                                    GlobalState.log(
+                                        `Skipped "${subDir.name}" (custom dependency upload declined).`,
+                                    );
+                                    appsSkipped += 1;
+                                    // eslint-disable-next-line no-continue
+                                    continue;
+                                }
+                            }
+                            // Non-TTY: proceed without prompting (upload is deliberate).
+
+                            codeToUpload = attachDependenciesToCode(
+                                code,
+                                customDeps,
+                                rawDeps,
+                            );
+                        }
+                        // Empty custom set: upload payload identical to today's format.
+                    }
+
+                    const body = buildImportBody(codeToUpload, projectId, {
                         createNew: options.createNew === true,
                     });
 

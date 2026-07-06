@@ -6,6 +6,7 @@ import {
     type DataAppCodeFile,
     type DataAppContext,
     type DataAppContextFile,
+    type DataAppDependencies,
     type DataAppManifest,
     type ImportAppCodeRequestBody,
 } from '@lightdash/common';
@@ -163,6 +164,74 @@ export const retargetManifest = async (
         'utf-8',
     );
 };
+
+/**
+ * Reads package.json + pnpm-lock.yaml from the app folder root when both are
+ * present. Returns null when neither file exists (no declared deps).
+ * Throws when exactly one of the two files is present (incomplete pair).
+ */
+export const readDependenciesFromDir = async (
+    dir: string,
+): Promise<DataAppDependencies | null> => {
+    const pkgJsonPath = path.join(dir, 'package.json');
+    const lockfilePath = path.join(dir, 'pnpm-lock.yaml');
+
+    const [pkgJsonExists, lockfileExists] = await Promise.all([
+        fs
+            .stat(pkgJsonPath)
+            .then(() => true)
+            .catch(() => false),
+        fs
+            .stat(lockfilePath)
+            .then(() => true)
+            .catch(() => false),
+    ]);
+
+    if (!pkgJsonExists && !lockfileExists) return null;
+
+    if (!pkgJsonExists || !lockfileExists) {
+        const missing = pkgJsonExists ? 'pnpm-lock.yaml' : 'package.json';
+        const present = pkgJsonExists ? 'package.json' : 'pnpm-lock.yaml';
+        throw new Error(
+            `App folder has ${present} but is missing ${missing}. Both are required to declare custom dependencies.`,
+        );
+    }
+
+    const [packageJson, lockfile] = await Promise.all([
+        fs.readFile(pkgJsonPath, 'utf-8'),
+        fs.readFile(lockfilePath, 'utf-8'),
+    ]);
+
+    return { packageJson, lockfile };
+};
+
+/**
+ * Builds the human-readable warning lines listing packages that will be
+ * installed in the build sandbox (i.e., the custom dep set).
+ */
+export const buildDepsWarningLines = (
+    customDeps: Record<string, string>,
+    templateDependencies: Record<string, string>,
+): string[] =>
+    Object.entries(customDeps).map(([name, spec]) => {
+        const templateSpec = templateDependencies[name];
+        const note = templateSpec
+            ? `overrides template ${templateSpec}`
+            : 'not in default template';
+        return `  + ${name}@${spec} (${note})`;
+    });
+
+/**
+ * Returns a new DataAppCode with `dependencies` attached when the custom set
+ * is non-empty, or the original code object unchanged when there are no custom
+ * deps (payload stays identical to today's format).
+ */
+export const attachDependenciesToCode = (
+    code: DataAppCode,
+    customDeps: Record<string, string>,
+    deps: DataAppDependencies,
+): DataAppCode =>
+    Object.keys(customDeps).length > 0 ? { ...code, dependencies: deps } : code;
 
 export const readBundleFromDir = async (dir: string): Promise<DataAppCode> => {
     const manifestRaw = await fs.readFile(
