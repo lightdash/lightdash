@@ -110,6 +110,9 @@ const handleError = (err: any): ApiError => {
         }
         return err;
     }
+    // Surface the real transport error (abort, CORS, DNS, connection reset)
+    // instead of silently masking it as the generic message below.
+    console.error('Failed to reach the Lightdash server:', err);
     return {
         status: 'error',
         error: {
