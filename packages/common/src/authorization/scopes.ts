@@ -664,11 +664,12 @@ const scopes: Scope[] = [
             },
             {
                 name: 'view:Dashboard',
-                description: 'Send deliveries that target a dashboard',
+                description:
+                    'Create and send deliveries that target a dashboard',
             },
             {
                 name: 'view:Space',
-                description: 'Send deliveries that target a chart',
+                description: 'Create and send deliveries that target a chart',
             },
         ],
         getConditions: addDefaultUuidCondition,
@@ -1311,7 +1312,13 @@ const scopes: Scope[] = [
         description: 'View own personal data apps',
         isEnterprise: false,
         group: ScopeGroup.AI,
-        dependencies: [{ name: 'view:Project' }, { name: 'create:DataApp' }],
+        dependencies: [
+            { name: 'view:Project' },
+            {
+                name: 'create:DataApp',
+                description: 'Create your own apps to view',
+            },
+        ],
         getConditions: (context) => [
             {
                 ...addUuidCondition(context),
@@ -1324,7 +1331,13 @@ const scopes: Scope[] = [
         description: 'Edit and delete own personal data apps',
         isEnterprise: false,
         group: ScopeGroup.AI,
-        dependencies: [{ name: 'view:Project' }, { name: 'create:DataApp' }],
+        dependencies: [
+            { name: 'view:Project' },
+            {
+                name: 'create:DataApp',
+                description: 'Create your own apps to manage',
+            },
+        ],
         getConditions: (context) => [
             {
                 ...addUuidCondition(context),
