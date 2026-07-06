@@ -1,0 +1,407 @@
+.content {
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
+    overflow: hidden;
+}
+
+.headerTitle {
+    font-weight: 700;
+    font-size: var(--mantine-font-size-md);
+    line-height: 1.2;
+    color: var(--mantine-color-text);
+}
+
+.header {
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.subtitle {
+    color: var(--mantine-color-dimmed);
+}
+
+.body {
+    display: grid;
+    grid-template-columns: 216px minmax(0, 1fr) 340px;
+    /* Fixed track so the modal never resizes between sections; each column
+       scrolls internally instead of growing the row. */
+    grid-template-rows: minmax(0, 1fr);
+    height: clamp(460px, 68vh, 700px);
+    min-height: 0;
+}
+
+.nav {
+    border-right: 1px solid var(--mantine-color-default-border);
+    overflow-y: auto;
+    min-height: 0;
+    padding: var(--mantine-spacing-md) var(--mantine-spacing-sm);
+}
+
+.navGroupLabel {
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--mantine-color-dimmed);
+    padding: 0 var(--mantine-spacing-sm);
+}
+
+.navItem {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    width: 100%;
+    padding: 7px var(--mantine-spacing-sm);
+    border-radius: var(--mantine-radius-md);
+    margin-bottom: 2px;
+    font-weight: 500;
+    color: light-dark(
+        var(--mantine-color-ldGray-8),
+        var(--mantine-color-dark-1)
+    );
+    font-size: var(--mantine-font-size-sm);
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    text-align: left;
+    transition:
+        background-color 150ms ease,
+        color 150ms ease;
+}
+
+.navItem svg {
+    color: light-dark(
+        var(--mantine-color-ldGray-6),
+        var(--mantine-color-dark-2)
+    );
+    transition:
+        color 150ms ease,
+        transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Icon micro-pop on hover (settles with a touch of spring) */
+.navItem:hover svg {
+    transform: scale(1.12);
+}
+
+.navItem:not(.navItemActive):hover {
+    background-color: light-dark(
+        var(--mantine-color-ldGray-1),
+        var(--mantine-color-dark-6)
+    );
+    color: light-dark(
+        var(--mantine-color-ldGray-9),
+        var(--mantine-color-dark-0)
+    );
+}
+
+.navItem:not(.navItemActive):hover svg {
+    color: light-dark(
+        var(--mantine-color-ldGray-9),
+        var(--mantine-color-dark-0)
+    );
+}
+
+.navItemActive {
+    background-color: light-dark(
+        var(--mantine-color-ldGray-2),
+        var(--mantine-color-dark-5)
+    );
+    color: light-dark(
+        var(--mantine-color-ldGray-9),
+        var(--mantine-color-dark-0)
+    );
+    font-weight: 600;
+}
+
+.navItemActive:hover {
+    background-color: light-dark(
+        var(--mantine-color-ldGray-3),
+        var(--mantine-color-dark-4)
+    );
+}
+
+.navItemActive svg {
+    color: light-dark(
+        var(--mantine-color-ldGray-9),
+        var(--mantine-color-dark-0)
+    );
+}
+
+.navItemLabel {
+    flex: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .navItem,
+    .navItem svg {
+        transition: none;
+    }
+    .navItem:hover svg {
+        transform: none;
+    }
+}
+
+/* Mantine ScrollArea host: overlay scrollbars, so no layout shift when the
+   vertical scrollbar appears. Padding lives on the inner wrapper. */
+.center {
+    min-height: 0;
+    height: 100%;
+}
+
+.centerInner {
+    max-width: 62ch;
+    padding: var(--mantine-spacing-xl);
+}
+
+.sectionTitle {
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--mantine-color-text);
+}
+
+.sectionDescription {
+    color: var(--mantine-color-dimmed);
+    font-size: 13px;
+    line-height: 1.4;
+}
+
+/* Sub-block heading inside a section — same kicker voice as the nav group
+   labels and preview rail, one unmistakable level above field labels. */
+.subBlockLabel {
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--mantine-color-dimmed);
+}
+
+.preview {
+    border-left: 1px solid var(--mantine-color-default-border);
+    background: var(--mantine-color-default);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.previewHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--mantine-spacing-md) var(--mantine-spacing-md) 0;
+}
+
+.previewLabel {
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--mantine-color-dimmed);
+}
+
+.previewBody {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--mantine-spacing-md);
+}
+
+.previewFooter {
+    border-top: 1px solid var(--mantine-color-default-border);
+    padding: var(--mantine-spacing-md);
+}
+
+.previewNextRuns {
+    border-top: 1px solid var(--mantine-color-default-border);
+    padding: var(--mantine-spacing-md);
+}
+
+/* Miniature dashboard layout hinting at what the delivery contains */
+.previewBento {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(2, 1fr);
+    gap: 6px;
+    padding: 8px;
+    height: 100%;
+}
+
+.previewBentoTile {
+    border-radius: 4px;
+    border: 1px solid
+        light-dark(var(--mantine-color-ldGray-3), var(--mantine-color-dark-4));
+    background: var(--mantine-color-body);
+}
+
+.previewBentoTile:nth-child(1) {
+    grid-column: span 2;
+}
+
+.previewBentoTile:nth-child(4) {
+    grid-column: span 2;
+}
+
+.previewBentoCta {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.footer {
+    border-top: 1px solid var(--mantine-color-default-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--mantine-spacing-md) var(--mantine-spacing-xl);
+}
+
+/* List (master-detail) mode */
+
+.listBody {
+    display: grid;
+    grid-template-columns: 264px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    height: clamp(420px, 56vh, 560px);
+    min-height: 0;
+}
+
+.listSidebar {
+    border-right: 1px solid var(--mantine-color-default-border);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding: var(--mantine-spacing-md) var(--mantine-spacing-sm);
+    gap: var(--mantine-spacing-sm);
+}
+
+.listItems {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.listItem {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--mantine-spacing-xs);
+    width: 100%;
+    padding: 8px var(--mantine-spacing-sm);
+    border-radius: var(--mantine-radius-md);
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    text-align: left;
+    transition: background-color 120ms ease;
+}
+
+.listItem:hover {
+    background: var(--mantine-color-default-hover);
+}
+
+.listItemActive {
+    background-color: light-dark(
+        var(--mantine-color-ldGray-2),
+        var(--mantine-color-dark-5)
+    );
+}
+
+.listItemActive:hover {
+    background-color: light-dark(
+        var(--mantine-color-ldGray-3),
+        var(--mantine-color-dark-4)
+    );
+}
+
+.listItemName {
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 500;
+    color: var(--mantine-color-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.listItemActive .listItemName {
+    font-weight: 600;
+    color: light-dark(
+        var(--mantine-color-ldGray-9),
+        var(--mantine-color-dark-0)
+    );
+}
+
+.listItemMeta {
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-dimmed);
+}
+
+.statusDot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 6px;
+}
+
+.badgeDot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.statusDotActive {
+    background: var(--mantine-color-green-6);
+}
+
+.statusDotPaused {
+    background: var(--mantine-color-ldGray-4);
+}
+
+.newDeliveryButton {
+    border: 1px dashed var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    background: transparent;
+    padding: 10px;
+    font-size: var(--mantine-font-size-sm);
+    color: var(--mantine-color-text);
+    cursor: pointer;
+    transition:
+        background-color 120ms ease,
+        border-color 120ms ease;
+}
+
+.newDeliveryButton:hover {
+    background: var(--mantine-color-default-hover);
+    border-color: var(--mantine-color-ldGray-5);
+}
+
+.listDetail {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.listDetailContent {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    padding: var(--mantine-spacing-xl);
+}
+
+.listDetailFooter {
+    border-top: 1px solid var(--mantine-color-default-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--mantine-spacing-md) var(--mantine-spacing-xl);
+}
+
+.detailMetaLabel {
+    font-size: var(--mantine-font-size-xs);
+    color: var(--mantine-color-dimmed);
+}
