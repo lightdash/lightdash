@@ -139,6 +139,18 @@ export const SchedulerModalCreateOrEditV2: FC<Props> = ({
     const canSendNow =
         hasRecipient && requiredFiltersWithoutValues.length === 0;
 
+    // Name why the submit is blocked instead of failing silently on submit —
+    // the offending field may live in a section the user isn't looking at.
+    const blockedReason = !form.values.name
+        ? `Give your ${isThresholdAlert ? 'alert' : 'delivery'} a name`
+        : isThresholdAlert && !form.values.thresholds?.[0]?.fieldId
+          ? 'Pick an alert field'
+          : requiredFiltersWithoutValues.length > 0
+            ? 'Some required filters are missing values'
+            : !form.isValid()
+              ? 'Complete the required fields'
+              : null;
+
     const subtitle = [
         resourceName ?? dashboard?.name,
         isEditMode
@@ -339,11 +351,8 @@ export const SchedulerModalCreateOrEditV2: FC<Props> = ({
                                             </Button>
                                         )}
                                         <Tooltip
-                                            label="Some required filters are missing values"
-                                            disabled={
-                                                requiredFiltersWithoutValues.length ===
-                                                0
-                                            }
+                                            label={blockedReason ?? ''}
+                                            disabled={blockedReason === null}
                                             fz="xs"
                                         >
                                             <Box>
@@ -353,8 +362,7 @@ export const SchedulerModalCreateOrEditV2: FC<Props> = ({
                                                     disabled={
                                                         isLoadingSendNow ||
                                                         isThresholdAlertWithNoFields ||
-                                                        requiredFiltersWithoutValues.length >
-                                                            0
+                                                        blockedReason !== null
                                                     }
                                                     loading={isMutating}
                                                 >

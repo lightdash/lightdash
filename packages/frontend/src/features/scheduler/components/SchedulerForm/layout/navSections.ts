@@ -78,7 +78,7 @@ export const getVisibleSections = ({
     isApp: boolean;
 }): SchedulerSectionId[] => {
     if (isThresholdAlert) {
-        return ['alert', 'setup'];
+        return ['setup', 'alert'];
     }
     const sections: SchedulerSectionId[] = ['setup', 'data', 'message'];
     // AI summaries only apply to chart/dashboard deliveries

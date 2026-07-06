@@ -209,6 +209,9 @@ export const useSchedulerFormModal = ({
                     cronExpression,
                 );
             },
+            thresholds: {
+                fieldId: (value) => (value ? null : 'Alert field is required'),
+            },
             selectedTabs: (value) => {
                 if (value && value.length === 0) {
                     return 'Selected tabs should not be empty';
