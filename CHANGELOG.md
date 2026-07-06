@@ -1,3 +1,15 @@
+## [0.3315.3](https://github.com/lightdash/lightdash/compare/0.3315.2...0.3315.3) (2026-07-06)
+
+
+### Bug Fixes
+
+* use token-aware pre-grep matching ([#25174](https://github.com/lightdash/lightdash/issues/25174)) ([6918846](https://github.com/lightdash/lightdash/commit/6918846b46f45e9084205d13fc451531134f1818))
+
+
+### Reverts
+
+* Revert "ci: speed up release job with Depot runner and Turbo cache (#25169)" (#25184) ([82f2498](https://github.com/lightdash/lightdash/commit/82f249886af5d64a3a9dfc22ab867171dcd057de)), closes [#25169](https://github.com/lightdash/lightdash/issues/25169) [#25184](https://github.com/lightdash/lightdash/issues/25184)
+
 ## [0.3315.2](https://github.com/lightdash/lightdash/compare/0.3315.1...0.3315.2) (2026-07-06)
 
 
