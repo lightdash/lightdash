@@ -51,6 +51,17 @@ const ProviderKeyRow: FC<ProviderKeyRowProps> = ({
                 )}
             </Group>
             <Group gap="xs" wrap="nowrap">
+                {isSet && (
+                    <Button
+                        size="xs"
+                        variant="subtle"
+                        color="red"
+                        disabled={disabled}
+                        onClick={onRemove}
+                    >
+                        Remove
+                    </Button>
+                )}
                 <PasswordInput
                     w={280}
                     size="xs"
@@ -73,20 +84,6 @@ const ProviderKeyRow: FC<ProviderKeyRowProps> = ({
                     >
                         {isSet ? 'Update' : 'Set key'}
                     </Button>
-                </Box>
-                <Box w={80}>
-                    {isSet && (
-                        <Button
-                            size="xs"
-                            variant="subtle"
-                            color="red"
-                            fullWidth
-                            disabled={disabled}
-                            onClick={onRemove}
-                        >
-                            Remove
-                        </Button>
-                    )}
                 </Box>
             </Group>
         </Group>
