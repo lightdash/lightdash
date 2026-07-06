@@ -1,3 +1,10 @@
+## [0.3316.1](https://github.com/lightdash/lightdash/compare/0.3316.0...0.3316.1) (2026-07-06)
+
+
+### Bug Fixes
+
+* **ai-copilot:** play merged-PR card shimmer once instead of looping forever ([#25189](https://github.com/lightdash/lightdash/issues/25189)) ([259ddc8](https://github.com/lightdash/lightdash/commit/259ddc8bce544b599e5f1a31555911cc5d656ce9))
+
 # [0.3316.0](https://github.com/lightdash/lightdash/compare/0.3315.5...0.3316.0) (2026-07-06)
 
 
