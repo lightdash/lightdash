@@ -508,7 +508,7 @@ type Props = {
     onViewHistory: (scheduler: SchedulerAndTargets) => void;
 };
 
-export const SchedulerListV2: FC<Props> = ({
+export const SchedulerList: FC<Props> = ({
     schedulersQuery,
     isThresholdAlert,
     searchQuery,

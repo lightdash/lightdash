@@ -67,7 +67,7 @@ interface Props {
     initialFormValues?: Partial<SchedulerFormValues>;
 }
 
-export const SchedulerModalCreateOrEditV2: FC<Props> = ({
+export const SchedulerModalCreateOrEdit: FC<Props> = ({
     resourceUuid,
     resourceName,
     createMutation,

@@ -19,8 +19,8 @@ import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useFetchRunLogs } from '../hooks/useScheduler';
 import { States } from '../utils';
 import classes from './SchedulerForm/layout/SchedulerDeliveryModal.module.css';
-import { SchedulerListV2 } from './SchedulerForm/layout/SchedulerListV2';
-import { SchedulerModalCreateOrEditV2 } from './SchedulerModalCreateOrEditV2';
+import { SchedulerList } from './SchedulerForm/layout/SchedulerList';
+import { SchedulerModalCreateOrEdit } from './SchedulerModalCreateOrEdit';
 import SchedulerRunsHistoryModal from './SchedulerRunsHistoryModal';
 
 type HistoryContext = {
@@ -32,7 +32,7 @@ type HistoryContext = {
 
 const SchedulersModal: FC<
     Pick<
-        React.ComponentProps<typeof SchedulerModalCreateOrEditV2>,
+        React.ComponentProps<typeof SchedulerModalCreateOrEdit>,
         | 'resourceUuid'
         | 'createMutation'
         | 'isChart'
@@ -55,7 +55,7 @@ const SchedulersModal: FC<
         defaultCreate?: boolean;
         /** Create-mode only: pre-fills the new delivery. */
         initialFormValues?: React.ComponentProps<
-            typeof SchedulerModalCreateOrEditV2
+            typeof SchedulerModalCreateOrEdit
         >['initialFormValues'];
         searchQuery?: string;
         onSearchQueryChange?: (searchQuery: string | undefined) => void;
@@ -213,7 +213,7 @@ const SchedulersModal: FC<
                                 <Modal.CloseButton />
                             </Group>
                         </Group>
-                        <SchedulerListV2
+                        <SchedulerList
                             schedulersQuery={schedulersQuery}
                             isThresholdAlert={!!isThresholdAlert}
                             searchQuery={searchQuery}
@@ -233,7 +233,7 @@ const SchedulersModal: FC<
 
     if (modalState === States.EDIT || modalState === States.CREATE) {
         return (
-            <SchedulerModalCreateOrEditV2
+            <SchedulerModalCreateOrEdit
                 resourceUuid={resourceUuid}
                 resourceName={name}
                 schedulerUuidToEdit={
