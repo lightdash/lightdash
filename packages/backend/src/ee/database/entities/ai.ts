@@ -396,6 +396,7 @@ export type DbAiOrganizationSettings = {
     ai_agent_reviews_enabled: boolean;
     mcp_content_writes_enabled: boolean;
     default_ai_agent_model_config: AiAgentModelConfig | null;
+    encrypted_provider_api_keys: Buffer | null;
     created_at: Date;
     updated_at: Date;
 };
@@ -409,6 +410,7 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
                 | 'ai_agent_reviews_enabled'
                 | 'mcp_content_writes_enabled'
                 | 'default_ai_agent_model_config'
+                | 'encrypted_provider_api_keys'
             >
         >,
     Partial<
@@ -418,6 +420,7 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
             | 'ai_agent_reviews_enabled'
             | 'mcp_content_writes_enabled'
             | 'default_ai_agent_model_config'
+            | 'encrypted_provider_api_keys'
         >
     >
 >;

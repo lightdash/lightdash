@@ -804,8 +804,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             schedulerAiAugmentationModel: ({ database }) =>
                 new SchedulerAiAugmentationModel({ database }),
             aiRouterModel: ({ database }) => new AiRouterModel({ database }),
-            aiOrganizationSettingsModel: ({ database }) =>
-                new AiOrganizationSettingsModel({ database }),
+            aiOrganizationSettingsModel: ({ database, utils }) =>
+                new AiOrganizationSettingsModel({
+                    database,
+                    encryptionUtil: utils.getEncryptionUtil(),
+                }),
             embedModel: ({ database }) => new EmbedModel({ database }),
             mcpContextModel: ({ database }) => new McpContextModel(database),
             dashboardSummaryModel: ({ database }) =>

@@ -341,6 +341,7 @@ describe('AiAgentReviewClassifierService', () => {
             aiAgentReviewsEnabled: true,
             mcpContentWritesEnabled: true,
             defaultAiAgentModelConfig: null,
+            providerApiKeysSet: { anthropic: false, openai: false },
         });
         model.createRun.mockResolvedValue(makeRun());
         model.updateRun.mockResolvedValue(makeRun({ status: 'completed' }));
@@ -406,6 +407,7 @@ describe('AiAgentReviewClassifierService', () => {
                 aiAgentReviewsEnabled: false,
                 mcpContentWritesEnabled: true,
                 defaultAiAgentModelConfig: null,
+                providerApiKeysSet: { anthropic: false, openai: false },
             },
         );
 

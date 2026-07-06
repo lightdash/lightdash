@@ -1,10 +1,15 @@
 import {
     AiOrganizationSettings,
+    BYO_AI_PROVIDERS,
     CreateAiOrganizationSettings,
     NotFoundError,
+    ParameterError,
     UpdateAiOrganizationSettings,
+    UpdateAiProviderApiKeys,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import Logger from '../../logging/logger';
+import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import {
     AiOrganizationSettingsTable,
     AiOrganizationSettingsTableName,
@@ -13,25 +18,82 @@ import {
 
 type Dependencies = {
     database: Knex;
+    encryptionUtil: EncryptionUtil;
+};
+
+export type AiOrgProviderApiKeys = {
+    anthropic?: string;
+    openai?: string;
+};
+
+export const applyProviderApiKeyUpdates = (
+    existing: AiOrgProviderApiKeys,
+    updates: UpdateAiProviderApiKeys,
+): AiOrgProviderApiKeys => {
+    const next: AiOrgProviderApiKeys = { ...existing };
+    BYO_AI_PROVIDERS.forEach((provider) => {
+        const update = updates[provider];
+        if (update === undefined) return;
+        if (update === null) {
+            delete next[provider];
+            return;
+        }
+        const trimmed = update.trim();
+        if (trimmed.length === 0) {
+            throw new ParameterError(`API key for ${provider} cannot be empty`);
+        }
+        next[provider] = trimmed;
+    });
+    return next;
 };
 
 export class AiOrganizationSettingsModel {
     private database: Knex;
 
+    private encryptionUtil: EncryptionUtil;
+
     constructor(dependencies: Dependencies) {
         this.database = dependencies.database;
+        this.encryptionUtil = dependencies.encryptionUtil;
     }
 
-    // eslint-disable-next-line class-methods-use-this
+    private decryptProviderApiKeys(
+        encrypted: Buffer | null,
+    ): AiOrgProviderApiKeys {
+        if (!encrypted) return {};
+        try {
+            return JSON.parse(
+                this.encryptionUtil.decrypt(encrypted),
+            ) as AiOrgProviderApiKeys;
+        } catch {
+            Logger.warn(
+                'Failed to decrypt AI provider API keys; treating as unset',
+            );
+            return {};
+        }
+    }
+
+    private encryptProviderApiKeys(keys: AiOrgProviderApiKeys): Buffer | null {
+        if (!keys.anthropic && !keys.openai) return null;
+        return this.encryptionUtil.encrypt(JSON.stringify(keys));
+    }
+
     private mapDbToEntity(
         db: DbAiOrganizationSettings,
     ): AiOrganizationSettings {
+        const keys = this.decryptProviderApiKeys(
+            db.encrypted_provider_api_keys,
+        );
         return {
             organizationUuid: db.organization_uuid,
             aiAgentsVisible: db.ai_agents_visible,
             aiAgentReviewsEnabled: db.ai_agent_reviews_enabled,
             mcpContentWritesEnabled: db.mcp_content_writes_enabled,
             defaultAiAgentModelConfig: db.default_ai_agent_model_config,
+            providerApiKeysSet: {
+                anthropic: Boolean(keys.anthropic),
+                openai: Boolean(keys.openai),
+            },
         };
     }
 
@@ -59,6 +121,24 @@ export class AiOrganizationSettingsModel {
         return settings;
     }
 
+    async findDecryptedProviderApiKeys(
+        organizationUuid: string,
+    ): Promise<AiOrgProviderApiKeys | null> {
+        const row = await this.database(AiOrganizationSettingsTableName)
+            .select('encrypted_provider_api_keys')
+            .where('organization_uuid', organizationUuid)
+            .first<
+                | Pick<DbAiOrganizationSettings, 'encrypted_provider_api_keys'>
+                | undefined
+            >();
+
+        if (!row?.encrypted_provider_api_keys) return null;
+        const keys = this.decryptProviderApiKeys(
+            row.encrypted_provider_api_keys,
+        );
+        return keys.anthropic || keys.openai ? keys : null;
+    }
+
     async create(
         data: CreateAiOrganizationSettings,
     ): Promise<AiOrganizationSettings> {
@@ -71,6 +151,9 @@ export class AiOrganizationSettingsModel {
                 ai_agent_reviews_enabled: data.aiAgentReviewsEnabled,
                 mcp_content_writes_enabled: data.mcpContentWritesEnabled,
                 default_ai_agent_model_config: data.defaultAiAgentModelConfig,
+                encrypted_provider_api_keys: this.encryptProviderApiKeys(
+                    applyProviderApiKeyUpdates({}, data.providerApiKeys ?? {}),
+                ),
             })
             .returning('*');
 
@@ -88,6 +171,7 @@ export class AiOrganizationSettingsModel {
                 | 'ai_agent_reviews_enabled'
                 | 'mcp_content_writes_enabled'
                 | 'default_ai_agent_model_config'
+                | 'encrypted_provider_api_keys'
             >
         > = {};
         if (data.aiAgentsVisible !== undefined) {
@@ -103,6 +187,54 @@ export class AiOrganizationSettingsModel {
         if (data.defaultAiAgentModelConfig !== undefined) {
             updateData.default_ai_agent_model_config =
                 data.defaultAiAgentModelConfig;
+        }
+        if (data.providerApiKeys !== undefined) {
+            const providerApiKeyUpdates = data.providerApiKeys;
+            return this.database.transaction(async (trx) => {
+                const currentRow = await trx(AiOrganizationSettingsTableName)
+                    .select('encrypted_provider_api_keys')
+                    .where('organization_uuid', organizationUuid)
+                    .forUpdate()
+                    .first<
+                        | Pick<
+                              DbAiOrganizationSettings,
+                              'encrypted_provider_api_keys'
+                          >
+                        | undefined
+                    >();
+
+                if (!currentRow) {
+                    throw new NotFoundError(
+                        `AI organization settings not found for organization ${organizationUuid}`,
+                    );
+                }
+
+                const existingKeys = this.decryptProviderApiKeys(
+                    currentRow.encrypted_provider_api_keys,
+                );
+                updateData.encrypted_provider_api_keys =
+                    this.encryptProviderApiKeys(
+                        applyProviderApiKeyUpdates(
+                            existingKeys,
+                            providerApiKeyUpdates,
+                        ),
+                    );
+
+                const [row] = await trx<AiOrganizationSettingsTable>(
+                    AiOrganizationSettingsTableName,
+                )
+                    .where('organization_uuid', organizationUuid)
+                    .update(updateData)
+                    .returning('*');
+
+                if (!row) {
+                    throw new NotFoundError(
+                        `AI organization settings not found for organization ${organizationUuid}`,
+                    );
+                }
+
+                return this.mapDbToEntity(row);
+            });
         }
         if (Object.keys(updateData).length === 0) {
             return this.getByOrganizationUuid(organizationUuid);
@@ -139,6 +271,7 @@ export class AiOrganizationSettingsModel {
             aiAgentReviewsEnabled: data.aiAgentReviewsEnabled ?? false,
             mcpContentWritesEnabled: data.mcpContentWritesEnabled ?? true,
             defaultAiAgentModelConfig: data.defaultAiAgentModelConfig ?? null,
+            providerApiKeys: data.providerApiKeys,
         });
     }
 
