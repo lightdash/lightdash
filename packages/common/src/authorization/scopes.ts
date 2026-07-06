@@ -1,13 +1,17 @@
+import camelCase from 'lodash/camelCase';
 import flow from 'lodash/flow';
+import upperFirst from 'lodash/upperFirst';
 import { ProjectType } from '../types/projects';
 import type { RoleLevel } from '../types/roles';
 import {
     ScopeGroup,
     type Scope,
     type ScopeContext,
+    type ScopeModifer,
     type ScopeName,
 } from '../types/scopes';
 import { SpaceMemberRole } from '../types/space';
+import { type AbilityAction, type CaslSubjectNames } from './types';
 
 /** Context can have either/or organizationUuid or projectUuid. Applies the one we have. */
 const addUuidCondition = (
@@ -1465,3 +1469,205 @@ export const getAllScopeMap = ({ isEnterprise = false } = {}): Record<
         },
         Object.create({}),
     );
+
+type ScopeGraphOptions = {
+    isEnterprise?: boolean;
+};
+
+type ScopeNameParts = {
+    action: AbilityAction;
+    subject: CaslSubjectNames;
+    modifier?: ScopeModifer;
+};
+
+const MANAGE_IMPLIED_ACTIONS = new Set<AbilityAction>([
+    'create',
+    'delete',
+    'export',
+    'update',
+    'view',
+]);
+
+const parseScopeNameParts = (scopeName: ScopeName): ScopeNameParts => {
+    const [action, subjectAndModifier] = scopeName.split(':');
+    const [subject, modifier] = subjectAndModifier.split('@');
+
+    return {
+        action: action as AbilityAction,
+        subject: subject as CaslSubjectNames,
+        modifier: modifier as ScopeModifer | undefined,
+    };
+};
+
+const normalizeScopeName = (scopeName: string): ScopeName | null => {
+    const [action, predicate] = scopeName.split(':');
+
+    if (!action || !predicate) return null;
+
+    const [subjectPart, modifier] = predicate.split('@');
+
+    return `${action}:${upperFirst(camelCase(subjectPart))}${
+        modifier ? `@${modifier}` : ''
+    }` as ScopeName;
+};
+
+const getValidScopeName = (
+    scopeName: string,
+    scopeMap: Record<ScopeName, Scope>,
+): ScopeName | null => {
+    const normalizedScopeName = normalizeScopeName(scopeName);
+
+    if (
+        normalizedScopeName &&
+        Object.prototype.hasOwnProperty.call(scopeMap, normalizedScopeName)
+    ) {
+        return normalizedScopeName;
+    }
+
+    return null;
+};
+
+const getValidScopeNames = (
+    scopeNames: string[],
+    scopeMap: Record<ScopeName, Scope>,
+): ScopeName[] =>
+    scopeNames
+        .map((scopeName) => getValidScopeName(scopeName, scopeMap))
+        .filter((scopeName): scopeName is ScopeName => scopeName !== null);
+
+const collectReachableScopes = (
+    rootScopeNames: ScopeName[],
+    getAdjacentScopeNames: (scopeName: ScopeName) => ScopeName[],
+): ScopeName[] => {
+    const visited = new Set<ScopeName>(rootScopeNames);
+    const reachableScopeNames: ScopeName[] = [];
+    const queue = [...rootScopeNames];
+    let queueIndex = 0;
+
+    while (queueIndex < queue.length) {
+        const scopeName = queue[queueIndex];
+        queueIndex += 1;
+
+        getAdjacentScopeNames(scopeName).forEach((adjacentScopeName) => {
+            if (visited.has(adjacentScopeName)) return;
+
+            visited.add(adjacentScopeName);
+            reachableScopeNames.push(adjacentScopeName);
+            queue.push(adjacentScopeName);
+        });
+    }
+
+    return reachableScopeNames;
+};
+
+export const getScopeAncestors = (
+    scopeName: string,
+    { isEnterprise = false }: ScopeGraphOptions = {},
+): ScopeName[] => {
+    const scopeMap = getAllScopeMap({ isEnterprise });
+    const rootScopeNames = getValidScopeNames([scopeName], scopeMap);
+
+    return collectReachableScopes(rootScopeNames, (dependencyRootScopeName) =>
+        scopeMap[dependencyRootScopeName].dependencies
+            .map(({ name }) => name)
+            .filter((dependencyName) => scopeMap[dependencyName]),
+    );
+};
+
+export const getScopeDescendants = (
+    scopeName: string,
+    { isEnterprise = false }: ScopeGraphOptions = {},
+): ScopeName[] => {
+    const scopeMap = getAllScopeMap({ isEnterprise });
+    const rootScopeNames = getValidScopeNames([scopeName], scopeMap);
+    const ancestorMap = getScopes({ isEnterprise }).reduce<
+        Record<ScopeName, ScopeName[]>
+    >((acc, scope) => {
+        scope.dependencies.forEach(({ name }) => {
+            if (!scopeMap[name]) return;
+
+            acc[name] = [...(acc[name] ?? []), scope.name];
+        });
+
+        return acc;
+    }, Object.create({}));
+
+    return collectReachableScopes(
+        rootScopeNames,
+        (ancestorRootScopeName) => ancestorMap[ancestorRootScopeName] ?? [],
+    );
+};
+
+const canSubstituteActionSatisfy = (
+    substituteAction: AbilityAction,
+    requiredAction: AbilityAction,
+): boolean =>
+    substituteAction === requiredAction ||
+    (substituteAction === 'manage' &&
+        MANAGE_IMPLIED_ACTIONS.has(requiredAction));
+
+const canSubstituteModifierSatisfy = (
+    substitute: ScopeNameParts,
+    required: ScopeNameParts,
+): boolean => {
+    if (substitute.modifier === required.modifier) return true;
+
+    if (!substitute.modifier) return true;
+
+    return !required.modifier && substitute.action !== required.action;
+};
+
+export const getScopeSubstitutes = (
+    scopeName: string,
+    { isEnterprise = false }: ScopeGraphOptions = {},
+): ScopeName[] => {
+    const scopeMap = getAllScopeMap({ isEnterprise });
+
+    const normalizedScopeName = getValidScopeName(scopeName, scopeMap);
+
+    if (!normalizedScopeName) return [];
+
+    const required = parseScopeNameParts(normalizedScopeName);
+
+    return getScopes({ isEnterprise })
+        .map(({ name }) => name)
+        .filter((substituteScopeName) => {
+            if (substituteScopeName === normalizedScopeName) return false;
+
+            const substitute = parseScopeNameParts(substituteScopeName);
+
+            return (
+                substitute.subject === required.subject &&
+                canSubstituteActionSatisfy(
+                    substitute.action,
+                    required.action,
+                ) &&
+                canSubstituteModifierSatisfy(substitute, required)
+            );
+        });
+};
+
+export const getUnsatisfiedScopeDependencies = (
+    existingScopeNames: string[],
+    scopeName: string,
+    { isEnterprise = false }: ScopeGraphOptions = {},
+): ScopeName[] => {
+    const scopeMap = getAllScopeMap({ isEnterprise });
+
+    const normalizedScopeName = getValidScopeName(scopeName, scopeMap);
+
+    if (!normalizedScopeName) return [];
+
+    const existingScopes = new Set(
+        getValidScopeNames(existingScopeNames, scopeMap),
+    );
+
+    return getScopeAncestors(normalizedScopeName, { isEnterprise }).filter(
+        (dependencyScopeName) =>
+            !existingScopes.has(dependencyScopeName) &&
+            !getScopeSubstitutes(dependencyScopeName, { isEnterprise }).some(
+                (substituteScopeName) =>
+                    existingScopes.has(substituteScopeName),
+            ),
+    );
+};
