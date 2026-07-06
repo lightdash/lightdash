@@ -508,6 +508,7 @@ const InfiniteResourceTable = ({
     const table = useContentTable({
         columns: ResourceColumns,
         data: tableData,
+        getRowId: (item) => `${item.type}-${item.data.uuid}`,
         enableColumnResizing: true,
         enableRowNumbers: false,
         positionActionsColumn: 'last',
@@ -831,6 +832,11 @@ const InfiniteResourceTable = ({
             size: 'sm',
         },
     });
+
+    const spaceUuidsKey = (filters.spaceUuids ?? []).join(',');
+    useEffect(() => {
+        table.resetRowSelection();
+    }, [spaceUuidsKey, table]);
 
     const {
         mutateAsync: contentBulkAction,
