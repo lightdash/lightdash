@@ -34,15 +34,10 @@ jobs:
         run: pnpm build
 
   release:
-    runs-on: depot-ubuntu-24.04-8
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: build-and-test
     concurrency: ${{ github.ref }}
-    env:
-      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-      TURBO_TEAM: ${{ vars.TURBO_TEAM }}
-      TURBO_API: https://cache.depot.dev
-      NODE_OPTIONS: '--max-old-space-size=8192'
     permissions:
       contents: read
       id-token: write  # Required for OIDC authentication with npm
