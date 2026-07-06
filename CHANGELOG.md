@@ -1,3 +1,10 @@
+# [0.3312.0](https://github.com/lightdash/lightdash/compare/0.3311.0...0.3312.0) (2026-07-06)
+
+
+### Features
+
+* **analytics:** usage event sink with query_events stream ([#25045](https://github.com/lightdash/lightdash/issues/25045)) ([01272ff](https://github.com/lightdash/lightdash/commit/01272ffbe924721dba883c5d83af56968dd0fcdf)), closes [#25036](https://github.com/lightdash/lightdash/issues/25036) [#25037](https://github.com/lightdash/lightdash/issues/25037) [#25037](https://github.com/lightdash/lightdash/issues/25037)
+
 # [0.3311.0](https://github.com/lightdash/lightdash/compare/0.3310.1...0.3311.0) (2026-07-06)
 
 
