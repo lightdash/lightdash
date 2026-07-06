@@ -1,3 +1,15 @@
+# [0.3314.0](https://github.com/lightdash/lightdash/compare/0.3313.0...0.3314.0) (2026-07-06)
+
+
+### Bug Fixes
+
+* prune stale ai launcher dock items ([#25162](https://github.com/lightdash/lightdash/issues/25162)) ([7b66ab5](https://github.com/lightdash/lightdash/commit/7b66ab52801e828db871f61f38d329815bf0e0c7)), closes [#25161](https://github.com/lightdash/lightdash/issues/25161)
+
+
+### Features
+
+* trino headers - send query metadata to trino in header X-Trino-Client-Tags ([#25020](https://github.com/lightdash/lightdash/issues/25020)) ([ac68758](https://github.com/lightdash/lightdash/commit/ac68758de959285399cc2d141145db4e8fcf8e53))
+
 # [0.3313.0](https://github.com/lightdash/lightdash/compare/0.3312.0...0.3313.0) (2026-07-06)
 
 
