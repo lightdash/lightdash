@@ -3,6 +3,7 @@ import {
     CreateOrganization,
     NotFoundError,
     Organization,
+    OrganizationBrand,
     OrganizationColorPalette,
     OrganizationColorPaletteWithIsActive,
     ParameterError,
@@ -12,6 +13,11 @@ import {
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { LightdashConfig } from '../config/parseConfig';
+import {
+    DbOrganizationBrand,
+    DbOrganizationBrandData,
+    OrganizationBrandsTableName,
+} from '../database/entities/organizationBrands';
 import {
     DbOrganizationColorPalette,
     OrganizationColorPaletteTableName,
@@ -520,6 +526,51 @@ export class OrganizationModel {
         await this.database(OrganizationTableName)
             .where('organization_uuid', organizationUuid)
             .update({ impersonation_enabled: enabled });
+    }
+
+    private static mapDBBrand(row: DbOrganizationBrand): OrganizationBrand {
+        return {
+            organizationUuid: row.organization_uuid,
+            domain: row.domain,
+            name: row.brand.name,
+            description: row.brand.description,
+            logos: row.brand.logos,
+            colors: row.brand.colors,
+            fonts: row.brand.fonts,
+            updatedAt: row.updated_at,
+        };
+    }
+
+    async findBrand(
+        organizationUuid: string,
+    ): Promise<OrganizationBrand | undefined> {
+        const row = await this.database(OrganizationBrandsTableName)
+            .where('organization_uuid', organizationUuid)
+            .first();
+
+        return row ? OrganizationModel.mapDBBrand(row) : undefined;
+    }
+
+    async upsertBrand(
+        organizationUuid: string,
+        domain: string,
+        brand: DbOrganizationBrandData,
+    ): Promise<OrganizationBrand> {
+        const [row] = await this.database(OrganizationBrandsTableName)
+            .insert({
+                organization_uuid: organizationUuid,
+                domain,
+                brand,
+            })
+            .onConflict('organization_uuid')
+            .merge({
+                domain,
+                brand,
+                updated_at: new Date(),
+            })
+            .returning('*');
+
+        return OrganizationModel.mapDBBrand(row);
     }
 
     private static mapDBColorPaletteWithIsActive(

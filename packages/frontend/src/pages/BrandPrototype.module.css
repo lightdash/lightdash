@@ -1,0 +1,109 @@
+.root {
+    display: flex;
+    min-height: 100vh;
+    background-color: #ffffff;
+}
+
+.leftPanel {
+    width: 480px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 64px;
+    background-color: #f7f8fa;
+    border-right: 1px solid #eceef1;
+}
+
+.rightPanel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px;
+}
+
+.detectedPill {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 20px 8px 8px;
+    border: 1px solid #eceef1;
+    border-radius: 999px;
+    background-color: #ffffff;
+    box-shadow: 0 1px 3px rgba(16, 24, 40, 0.06);
+}
+
+.logoTile {
+    width: 64px;
+    height: 64px;
+    border-radius: 14px;
+    background-color: #ffffff;
+    border: 1px solid #eceef1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.logoTileImage {
+    max-width: 44px;
+    max-height: 44px;
+    object-fit: contain;
+}
+
+.logoBadge {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 16px;
+    overflow: hidden;
+}
+
+.logoBadgeImage {
+    max-width: 24px;
+    max-height: 24px;
+    object-fit: contain;
+}
+
+.swatch {
+    cursor: pointer;
+    outline-offset: 3px;
+}
+
+.swatchSelected {
+    outline: 2px solid #1a1b1e;
+}
+
+.chartGrid {
+    display: grid;
+    grid-template-columns: repeat(2, 320px);
+    gap: 24px;
+}
+
+.chartCard {
+    background-color: #ffffff;
+    border: 1px solid #eceef1;
+    border-radius: 16px;
+    padding: 24px;
+    box-shadow: 0 1px 3px rgba(16, 24, 40, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-height: 180px;
+}
+
+.continueButton {
+    background-color: #1a1b1e;
+    color: #ffffff;
+}
+
+.continueButton:hover {
+    background-color: #2d2e30;
+}

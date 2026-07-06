@@ -1350,6 +1350,9 @@ export type LightdashConfig = {
         queueTimeoutMs: number;
     };
     slack?: SlackConfig;
+    brandfetch?: {
+        apiKey: string;
+    };
     scheduler: {
         enabled: boolean;
         concurrency: number;
@@ -2557,6 +2560,11 @@ export const parseConfig = (): LightdashConfig => {
             linkShareImagePreviewEnabled:
                 process.env.SLACK_LINK_SHARE_IMAGE_PREVIEW_ENABLED !== 'false',
         },
+        brandfetch: process.env.BRANDFETCH_API_KEY
+            ? {
+                  apiKey: process.env.BRANDFETCH_API_KEY,
+              }
+            : undefined,
         scheduler: {
             enabled: process.env.SCHEDULER_ENABLED !== 'false',
             concurrency: parseInt(process.env.SCHEDULER_CONCURRENCY || '3', 10),

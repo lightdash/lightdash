@@ -647,6 +647,16 @@ const PRIVATE_ROUTES: RouteObject[] = [
                 element: <Navigate to="/projects" replace />,
             },
             {
+                // Hidden prototype page — only accessible via direct link
+                path: '/brand-prototype',
+                handle: { hideAILauncher: true },
+                lazy: async () => {
+                    const { default: BrandPrototype } =
+                        await import('./pages/BrandPrototype');
+                    return { Component: BrandPrototype };
+                },
+            },
+            {
                 path: '/createProject/:method?',
                 lazy: async () => {
                     const { default: CreateProject } =
