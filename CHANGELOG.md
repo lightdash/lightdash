@@ -1,3 +1,10 @@
+# [0.3313.0](https://github.com/lightdash/lightdash/compare/0.3312.0...0.3313.0) (2026-07-06)
+
+
+### Features
+
+* **filters:** source filter-autocomplete labels from a dimension ([#25022](https://github.com/lightdash/lightdash/issues/25022)) ([fb9591c](https://github.com/lightdash/lightdash/commit/fb9591c2c783dc0322201177f26ab77d5dcecfe3))
+
 # [0.3312.0](https://github.com/lightdash/lightdash/compare/0.3311.0...0.3312.0) (2026-07-06)
 
 
