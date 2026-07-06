@@ -1415,6 +1415,14 @@ export class AppGenerateService extends BaseService {
         version: number,
         versionDeps: AppVersionDependencies,
     ): Promise<number> {
+        // Kill-switch: enforced at upload time too, but re-checked here so
+        // flipping it off also stops installs of previously-approved dep sets
+        // (iterations and rebuilds), not just new uploads.
+        if (!this.lightdashConfig.appRuntime.customDependenciesEnabled) {
+            throw new Error(
+                'Custom app dependencies are disabled on this instance (LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED); this app version declares custom packages so it cannot be built.',
+            );
+        }
         const start = performance.now();
         const depsPrefix = `apps/${appUuid}/versions/${version}/deps/`;
 
@@ -4469,6 +4477,13 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         // to the newest version whose files actually exist.
         let carriedDependencies: AppVersionDependencies | undefined;
         if (latestVersion?.dependencies) {
+            // Kill-switch: iterations restore the stored dep set, so they must
+            // stop too when custom dependencies are disabled instance-wide.
+            if (!this.lightdashConfig.appRuntime.customDependenciesEnabled) {
+                throw new ParameterError(
+                    'Custom app dependencies are disabled on this instance (LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED). This app declares custom packages, so it cannot be iterated until they are re-enabled.',
+                );
+            }
             carriedDependencies = latestVersion.dependencies;
             const { client, bucket } = this.getS3Client();
             const toPrefix = versionPrefix(appUuid, newVersion);

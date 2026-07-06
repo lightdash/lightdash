@@ -9,6 +9,7 @@ import {
     type AppClarification,
     type AppDashboardReference,
     type AppExternalConnectionReference,
+    type AppVersionDependencyEntry,
     type DataAppClaudeModel,
     type DataAppTemplate,
     type DataAppVizContext,
@@ -37,6 +38,7 @@ import {
     IconArrowBackUp,
     IconLayoutDashboard,
     IconLink,
+    IconPackage,
     IconPlayerStop,
     IconRestore,
     IconPlugConnected,
@@ -407,6 +409,37 @@ const ConnectionChip: FC<{ name: string; onRemove: () => void }> = ({
     >
         {name}
     </Badge>
+);
+
+/** A small informational badge shown on assistant bubbles for versions that
+ *  were uploaded with a custom dependency set. Lists `name@version` per line
+ *  in the tooltip so the author can confirm what was installed. */
+const DepsChip: FC<{ deps: AppVersionDependencyEntry[] }> = ({ deps }) => (
+    <Tooltip
+        withArrow
+        position="top-start"
+        label={
+            <Stack gap={2}>
+                <Text size="xs" fw={600}>
+                    Installed in the build sandbox
+                </Text>
+                {deps.map((d) => (
+                    <Text key={d.name} size="xs">
+                        {d.name}@{d.version}
+                    </Text>
+                ))}
+            </Stack>
+        }
+    >
+        <Badge
+            variant="light"
+            color="gray"
+            size="sm"
+            leftSection={<MantineIcon icon={IconPackage} size={10} />}
+        >
+            {deps.length} {deps.length === 1 ? 'package' : 'packages'}
+        </Badge>
+    </Tooltip>
 );
 
 /** A status pill (theme-pill style) listing the connections this app can call. */
@@ -921,6 +954,16 @@ const AppGenerate: FC = () => {
             return msgs;
         });
     }, [allVersions, activeAppUuid]);
+
+    // Lookup table: version number → full version summary. Used to retrieve
+    // declared-dependency metadata when rendering assistant bubbles.
+    const versionByNumber = useMemo(
+        () =>
+            new Map<number, ApiAppVersionSummary>(
+                allVersions.map((v) => [v.version, v]),
+            ),
+        [allVersions],
+    );
 
     // Highest server-known version number, used by `mergeChatMessages` to drop
     // optimistic local bubbles whose corresponding server version has already
@@ -2260,6 +2303,29 @@ const AppGenerate: FC = () => {
                                                                     : undefined
                                                             }
                                                         />
+                                                        {msg.version !== null &&
+                                                            (() => {
+                                                                const vDeps =
+                                                                    versionByNumber.get(
+                                                                        msg.version,
+                                                                    )
+                                                                        ?.dependencies
+                                                                        ?.custom;
+                                                                return vDeps &&
+                                                                    vDeps.length >
+                                                                        0 ? (
+                                                                    <Group
+                                                                        gap="xs"
+                                                                        mt={4}
+                                                                    >
+                                                                        <DepsChip
+                                                                            deps={
+                                                                                vDeps
+                                                                            }
+                                                                        />
+                                                                    </Group>
+                                                                ) : null;
+                                                            })()}
                                                         {msg.vizSchema ? (
                                                             msg.version !==
                                                                 null &&

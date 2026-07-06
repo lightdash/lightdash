@@ -23,6 +23,8 @@ You are editing a Lightdash **data app** that was downloaded with `lightdash dow
 - If `pnpm install` fails (registry policy, an unavailable pinned SDK version, no network access), **skip the local build entirely and go straight to upload**. The server rebuild is authoritative and surfaces build errors on the app page.
 - Do **not** modify machine configuration, `.npmrc` files, registry settings, or the project's dependency files to force an install to work.
 - A missing `node_modules` is a normal state, not a problem to fix. Never run installs just because it is absent.
+- **Exception — adding a dependency.** Upload rejects new dependencies unless `pnpm-lock.yaml` was regenerated to match `package.json`, so dependency resolution MUST succeed locally. Use `pnpm add <pkg>`, or after editing `package.json` run `pnpm install --lockfile-only` (updates the lockfile without installing). If resolution fails, **stop and report the exact pnpm error to the user** — never hand-edit `package.json` and proceed without the lockfile; the upload will fail.
+- **Never run dependency lifecycle scripts.** The app's `.npmrc` sets `ignore-scripts=true` — leave it. A downloaded app can be authored by someone else, and their dependencies' install scripts must not execute on this machine. Explicit `pnpm build`/`pnpm dev` still work.
 
 ## Project context (read-only reference)
 
@@ -35,4 +37,6 @@ You are editing a Lightdash **data app** that was downloaded with `lightdash dow
 
 ## Read-only files
 
-Root config (`package.json`, `vite.config.js`, `tailwind.config.js`, `tsconfig.json`, etc.) is reference only. Editing it has **no effect** — the server rebuilds against its trusted template. Adding dependencies or changing the build is not supported yet.
+Most root config is reference only — editing it has **no effect** because the server rebuilds against its trusted template. This applies to `vite.config.js`, `tailwind.config.js`, `tsconfig.json`, and other build/tooling files.
+
+`package.json` is **partially editable** when custom dependencies are enabled on the Lightdash instance (upload says clearly if they are not): you may add npm dependencies with `pnpm add <pkg>` — registry packages with plain semver versions only (no git/file/url specs), up to 60 direct dependencies, and `pnpm-lock.yaml` must be updated alongside (see the exception above — this is the one step that must succeed locally). On upload the CLI warns which packages will be installed in the build sandbox; install scripts never run. Other root config (vite/tailwind/tsconfig) remains read-only.
