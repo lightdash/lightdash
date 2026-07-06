@@ -9,6 +9,7 @@ import {
     buildExploreIndex,
     buildFieldIndex,
     compileMatcher,
+    selectCandidateFields,
 } from './grepFieldsIndex';
 
 type FieldSpec = {
@@ -175,5 +176,23 @@ describe('buildExploreIndex', () => {
         const matches = compileMatcher('comment');
         const hits = index.filter((e) => matches(e.haystack));
         expect(hits.map((e) => e.exploreName)).toEqual(['learner_reviews']);
+    });
+});
+
+describe('selectCandidateFields', () => {
+    it('uses token-aware matching for short keywords', () => {
+        const index = buildFieldIndex([
+            makeExplore({
+                name: 'events',
+                fields: [
+                    { name: 'canceled_date', label: 'Canceled date' },
+                    { name: 'sales_led_flag', label: 'Sales-led flag' },
+                ],
+            }),
+        ]);
+
+        expect(
+            selectCandidateFields(index, ['led']).map((field) => field.path),
+        ).toEqual(['events/events_sales_led_flag']);
     });
 });
