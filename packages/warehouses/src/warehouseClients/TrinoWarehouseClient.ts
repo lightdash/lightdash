@@ -31,6 +31,11 @@ import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
 
 const TRINO_CLIENT_TAGS_HEADER = 'X-Trino-Client-Tags';
 
+// Trino splits the header on commas and Node rejects non-latin1 header values,
+// so tag keys/values are restricted to a safe charset
+const sanitizeClientTag = (tag: string): string =>
+    tag.replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 60);
+
 export enum TrinoTypes {
     BOOLEAN = 'boolean',
     TINYINT = 'tinyint',
@@ -283,18 +288,12 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
     ): Promise<void> {
         const { session, close } = await this.getSession();
         let query: Iterator<QueryResult>;
-        let clientTagHeaders: Record<string, string> = {};
         try {
             let alteredQuery = sql;
             if (options?.tags) {
                 alteredQuery = `${alteredQuery}\n-- ${JSON.stringify(
                     options?.tags,
                 )}`;
-                clientTagHeaders = {
-                    [TRINO_CLIENT_TAGS_HEADER]: Object.entries(options.tags)
-                        .map(([k, v]) => `${k}=${v}`)
-                        .join(','),
-                };
             }
             if (options?.timezone) {
                 console.debug(`Setting Trino timezone to ${options?.timezone}`);
@@ -305,7 +304,18 @@ export class TrinoWarehouseClient extends WarehouseBaseClient<CreateTrinoCredent
                 options?.tags
                     ? {
                           query: alteredQuery,
-                          extraHeaders: clientTagHeaders,
+                          extraHeaders: {
+                              [TRINO_CLIENT_TAGS_HEADER]: Object.entries(
+                                  options.tags,
+                              )
+                                  .map(
+                                      ([key, value]) =>
+                                          `${sanitizeClientTag(
+                                              key,
+                                          )}=${sanitizeClientTag(value)}`,
+                                  )
+                                  .join(','),
+                          },
                       }
                     : alteredQuery,
             );
