@@ -1,3 +1,11 @@
+## [0.3310.1](https://github.com/lightdash/lightdash/compare/0.3310.0...0.3310.1) (2026-07-06)
+
+
+### Bug Fixes
+
+* **api-tests:** add required enabled/includeLinks to scheduler create body ([#25152](https://github.com/lightdash/lightdash/issues/25152)) ([fb63d65](https://github.com/lightdash/lightdash/commit/fb63d65b102c703052ec31cd4d5e170c8b78c4ed))
+* **frontend:** log the real error behind the generic NetworkError ([#25154](https://github.com/lightdash/lightdash/issues/25154)) ([58ae5d2](https://github.com/lightdash/lightdash/commit/58ae5d2548cbbbcf91fc5d21d1c635d38a8cd965))
+
 # [0.3310.0](https://github.com/lightdash/lightdash/compare/0.3309.2...0.3310.0) (2026-07-06)
 
 
