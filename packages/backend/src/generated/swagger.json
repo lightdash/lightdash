@@ -1355,6 +1355,76 @@
                 "type": "object",
                 "additionalProperties": true
             },
+            "SchedulerAiAugmentation": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "sourceThreadUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "agentUuid": {
+                                "type": "string"
+                            },
+                            "prompt": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["agent"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "sourceThreadUuid",
+                            "agentUuid",
+                            "prompt",
+                            "type"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "prompt": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["fast_model"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["prompt", "type"],
+                        "type": "object"
+                    }
+                ],
+                "description": "Enterprise-only AI augmentation attached to a scheduled delivery. On each\nfire the agent (or ambient fast model) writes the delivery message from the\ndelivery's content and the prompt. Persisted in the EE `scheduler_ai_augmentation`\nsatellite table, not on the scheduler itself, so OSS carries none of it."
+            },
+            "ApiSchedulerAiAugmentationResponse": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SchedulerAiAugmentation"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "UUID": {
+                "type": "string",
+                "format": "uuid",
+                "description": "Stringified UUIDv4.\nSee [RFC 4112](https://tools.ietf.org/html/rfc4122)",
+                "pattern": "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}"
+            },
             "ManagedAgentScheduleOption": {
                 "enum": [
                     "every_6_hours",
@@ -13884,7 +13954,7 @@
                 "required": ["modelProvider", "modelName"],
                 "type": "object"
             },
-            "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-adminOnly-or-modelConfig-or-version_": {
+            "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-adminOnly-or-modelConfig-or-version_": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -13974,6 +14044,9 @@
                     "enableContentTools": {
                         "type": "boolean"
                     },
+                    "enableUserContext": {
+                        "type": "boolean"
+                    },
                     "adminOnly": {
                         "type": "boolean"
                     },
@@ -14009,6 +14082,7 @@
                     "enableDataAccess",
                     "enableSelfImprovement",
                     "enableContentTools",
+                    "enableUserContext",
                     "adminOnly",
                     "modelConfig",
                     "version"
@@ -14017,7 +14091,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgentSummary": {
-                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-adminOnly-or-modelConfig-or-version_"
+                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-adminOnly-or-modelConfig-or-version_"
             },
             "ApiAiAgentSummaryResponse": {
                 "properties": {
@@ -14374,6 +14448,10 @@
                 },
                 "type": "object"
             },
+            "AiThreadCreatedFrom": {
+                "type": "string",
+                "enum": ["slack", "web_app", "evals", "scheduler"]
+            },
             "AiAgentUser": {
                 "properties": {
                     "name": {
@@ -14412,7 +14490,7 @@
                         "nullable": true
                     },
                     "createdFrom": {
-                        "type": "string"
+                        "$ref": "#/components/schemas/AiThreadCreatedFrom"
                     },
                     "createdAt": {
                         "type": "string"
@@ -14506,7 +14584,7 @@
             "ApiAiAgentProjectThreadSummaryListResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_AiAgentProjectThreadSummary-Array__"
             },
-            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-adminOnly-or-modelConfig-or-version_": {
+            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-adminOnly-or-modelConfig-or-version_": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -14596,6 +14674,9 @@
                     "enableContentTools": {
                         "type": "boolean"
                     },
+                    "enableUserContext": {
+                        "type": "boolean"
+                    },
                     "adminOnly": {
                         "type": "boolean"
                     },
@@ -14631,6 +14712,7 @@
                     "enableDataAccess",
                     "enableSelfImprovement",
                     "enableContentTools",
+                    "enableUserContext",
                     "adminOnly",
                     "modelConfig",
                     "version"
@@ -14639,7 +14721,7 @@
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgent": {
-                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-adminOnly-or-modelConfig-or-version_"
+                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-adminOnly-or-modelConfig-or-version_"
             },
             "ApiAiAgentResponse": {
                 "properties": {
@@ -15243,6 +15325,9 @@
                             "adminOnly": {
                                 "type": "boolean"
                             },
+                            "enableUserContext": {
+                                "type": "boolean"
+                            },
                             "enableContentTools": {
                                 "type": "boolean"
                             }
@@ -15251,7 +15336,7 @@
                     }
                 ]
             },
-            "Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-description-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-adminOnly-or-modelConfig-or-version__": {
+            "Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-description-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-adminOnly-or-modelConfig-or-version__": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -15322,6 +15407,9 @@
                     "enableContentTools": {
                         "type": "boolean"
                     },
+                    "enableUserContext": {
+                        "type": "boolean"
+                    },
                     "adminOnly": {
                         "type": "boolean"
                     },
@@ -15344,7 +15432,7 @@
             "ApiUpdateAiAgent": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-description-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-adminOnly-or-modelConfig-or-version__"
+                        "$ref": "#/components/schemas/Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-description-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-enableUserContext-or-adminOnly-or-modelConfig-or-version__"
                     },
                     {
                         "properties": {
@@ -15406,7 +15494,7 @@
                         "nullable": true
                     },
                     "createdFrom": {
-                        "type": "string"
+                        "$ref": "#/components/schemas/AiThreadCreatedFrom"
                     },
                     "createdAt": {
                         "type": "string"
@@ -18185,6 +18273,10 @@
             "ApiCloneThreadResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiAgentThreadSummary_"
             },
+            "AiClonedThreadCreatedFrom": {
+                "type": "string",
+                "enum": ["web_app", "evals"]
+            },
             "AiAgentExploreAccessSummary": {
                 "properties": {
                     "metrics": {
@@ -19276,7 +19368,13 @@
                     "preAggregateName": {
                         "type": "string"
                     },
+                    "exploreLabel": {
+                        "type": "string"
+                    },
                     "exploreName": {
+                        "type": "string"
+                    },
+                    "chartName": {
                         "type": "string"
                     },
                     "savedChartUuid": {
@@ -19299,7 +19397,9 @@
                 },
                 "required": [
                     "preAggregateName",
+                    "exploreLabel",
                     "exploreName",
+                    "chartName",
                     "savedChartUuid",
                     "tileType",
                     "tileName",
@@ -19317,7 +19417,13 @@
                     "miss": {
                         "$ref": "#/components/schemas/PreAggregateMatchMiss"
                     },
+                    "exploreLabel": {
+                        "type": "string"
+                    },
                     "exploreName": {
+                        "type": "string"
+                    },
+                    "chartName": {
                         "type": "string"
                     },
                     "savedChartUuid": {
@@ -19341,7 +19447,9 @@
                 "required": [
                     "missFieldLabel",
                     "miss",
+                    "exploreLabel",
                     "exploreName",
+                    "chartName",
                     "savedChartUuid",
                     "tileType",
                     "tileName",
@@ -23241,7 +23349,8 @@
                         "nullable": true
                     },
                     "createdFrom": {
-                        "type": "string"
+                        "type": "string",
+                        "enum": ["slack", "web_app", "evals", "scheduler"]
                     }
                 },
                 "required": [
@@ -24053,6 +24162,66 @@
                     "description",
                     "title"
                 ],
+                "type": "object"
+            },
+            "AiAgentReviewReplayCaptureEntry": {
+                "properties": {
+                    "input": {},
+                    "captureError": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "threadUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "promptUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "signalUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "input",
+                    "captureError",
+                    "threadUuid",
+                    "promptUuid",
+                    "signalUuid"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_AiAgentReviewReplayCaptureEntry-Array_": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentReviewReplayCaptureEntry"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentReviewReplayCaptureResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiAgentReviewReplayCaptureEntry-Array_"
+            },
+            "AiAgentReviewReplayCaptureRequest": {
+                "properties": {
+                    "signalUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["signalUuids"],
                 "type": "object"
             },
             "AiAgentReviewRemediationEventDetail": {
@@ -25658,6 +25827,9 @@
             "HexColor": {
                 "type": "string"
             },
+            "MeshColor": {
+                "type": "string"
+            },
             "SolidColor": {
                 "type": "string"
             },
@@ -25668,6 +25840,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/HexColor"
+                    },
+                    {
+                        "$ref": "#/components/schemas/MeshColor"
                     },
                     {
                         "$ref": "#/components/schemas/SolidColor"
@@ -26756,12 +26931,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "UUID": {
-                "type": "string",
-                "format": "uuid",
-                "description": "Stringified UUIDv4.\nSee [RFC 4112](https://tools.ietf.org/html/rfc4122)",
-                "pattern": "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}"
             },
             "UserAttributeValue": {
                 "properties": {
@@ -28581,6 +28750,14 @@
                             "$ref": "#/components/schemas/CreateSchedulerTarget"
                         },
                         "type": "array"
+                    },
+                    "aiAugmentation": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SchedulerAiAugmentation"
+                            }
+                        ],
+                        "nullable": true
                     }
                 },
                 "required": [
@@ -29793,6 +29970,22 @@
                 "required": ["type"],
                 "type": "object"
             },
+            "PartialFailureType.AI_AUGMENTATION": {
+                "enum": ["ai_augmentation"],
+                "type": "string"
+            },
+            "AiAugmentationPartialFailure": {
+                "properties": {
+                    "error": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/PartialFailureType.AI_AUGMENTATION"
+                    }
+                },
+                "required": ["error", "type"],
+                "type": "object"
+            },
             "PartialFailure": {
                 "anyOf": [
                     {
@@ -29803,6 +29996,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/MissingTargetsPartialFailure"
+                    },
+                    {
+                        "$ref": "#/components/schemas/AiAugmentationPartialFailure"
                     }
                 ]
             },
@@ -40722,6 +40918,12 @@
                     },
                     {
                         "properties": {
+                            "dashboardFilters": {
+                                "$ref": "#/components/schemas/DashboardFilters"
+                            },
+                            "filters": {
+                                "$ref": "#/components/schemas/Filters"
+                            },
                             "pivotResults": {
                                 "type": "boolean"
                             },
@@ -42711,16 +42913,16 @@
                     },
                     {
                         "properties": {
-                            "schedulerCount": {
+                            "chartCount": {
                                 "type": "number",
                                 "format": "double"
                             },
-                            "chartCount": {
+                            "schedulerCount": {
                                 "type": "number",
                                 "format": "double"
                             }
                         },
-                        "required": ["schedulerCount", "chartCount"],
+                        "required": ["chartCount", "schedulerCount"],
                         "type": "object"
                     }
                 ]
@@ -42802,11 +43004,11 @@
                                 "type": "number",
                                 "format": "double"
                             },
-                            "schedulerCount": {
+                            "chartCount": {
                                 "type": "number",
                                 "format": "double"
                             },
-                            "chartCount": {
+                            "schedulerCount": {
                                 "type": "number",
                                 "format": "double"
                             },
@@ -42818,8 +43020,8 @@
                         "required": [
                             "appCount",
                             "nestedSpaceCount",
-                            "schedulerCount",
                             "chartCount",
+                            "schedulerCount",
                             "dashboardCount"
                         ],
                         "type": "object"
@@ -43100,7 +43302,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3297.0",
+        "version": "0.3309.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -44468,6 +44670,135 @@
                 ]
             }
         },
+        "/api/v1/schedulers/{schedulerUuid}/ai-augmentation": {
+            "get": {
+                "operationId": "getSchedulerAiAugmentation",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSchedulerAiAugmentationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the AI augmentation attached to a scheduled delivery, or null.",
+                "summary": "Get scheduler AI augmentation",
+                "tags": ["Schedulers"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "schedulerUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "put": {
+                "operationId": "upsertSchedulerAiAugmentation",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSchedulerAiAugmentationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Attach or replace the AI augmentation on a scheduled delivery.",
+                "summary": "Upsert scheduler AI augmentation",
+                "tags": ["Schedulers"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "schedulerUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SchedulerAiAugmentation"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "deleteSchedulerAiAugmentation",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Remove the AI augmentation from a scheduled delivery.",
+                "summary": "Delete scheduler AI augmentation",
+                "tags": ["Schedulers"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "schedulerUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/databricks/sso/is-authenticated": {
             "get": {
                 "operationId": "getDatabricksAccessToken",
@@ -45570,8 +45901,7 @@
                         "name": "createdFrom",
                         "required": false,
                         "schema": {
-                            "type": "string",
-                            "enum": ["web_app", "slack"]
+                            "$ref": "#/components/schemas/AiThreadCreatedFrom"
                         }
                     },
                     {
@@ -46982,8 +47312,7 @@
                         "name": "createdFrom",
                         "required": false,
                         "schema": {
-                            "type": "string",
-                            "enum": ["web_app", "evals"]
+                            "$ref": "#/components/schemas/AiClonedThreadCreatedFrom"
                         }
                     }
                 ]
@@ -50023,8 +50352,7 @@
                         "name": "createdFrom",
                         "required": false,
                         "schema": {
-                            "type": "string",
-                            "enum": ["slack", "web_app"]
+                            "$ref": "#/components/schemas/AiThreadCreatedFrom"
                         }
                     },
                     {
@@ -50325,6 +50653,47 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/UpdateAiAgentReviewItemStatus"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/aiAgents/admin/review-replay-capture": {
+            "post": {
+                "operationId": "captureAiAgentReviewReplayInputs",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentReviewReplayCaptureResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Rebuild judge replay inputs for historical review signals so the eval\nscoreboard can replay the judge offline. Read-only; feature-flag gated.",
+                "summary": "Capture AI review judge replay inputs",
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AiAgentReviewReplayCaptureRequest"
                             }
                         }
                     }
@@ -56439,7 +56808,17 @@
                             "type": "string"
                         }
                     }
-                ]
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateSchedulerAndTargetsWithoutIds"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/saved/{chartUuid}/export": {
