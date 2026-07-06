@@ -272,6 +272,17 @@ export class AppModel {
             .first();
     }
 
+    /** Versions that declared custom dependencies, newest first. */
+    async getVersionsWithDependencies(
+        appId: string,
+    ): Promise<Pick<DbAppVersion, 'version' | 'dependencies'>[]> {
+        return this.database(AppVersionsTableName)
+            .select('version', 'dependencies')
+            .where('app_id', appId)
+            .whereNotNull('dependencies')
+            .orderBy('version', 'desc');
+    }
+
     async getVersion(
         appId: string,
         version: number,

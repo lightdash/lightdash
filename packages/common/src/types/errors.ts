@@ -587,6 +587,7 @@ export class DeprecatedRouteError extends LightdashError {
 
 export const getErrorMessage = (e: unknown) => {
     if (e instanceof Error && e.message) return e.message;
+    if (typeof e === 'string' && e.trim().length > 0) return e;
     return `Unknown ${typeof e} error`;
 };
 

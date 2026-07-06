@@ -580,12 +580,15 @@ export class AppGenerateService extends BaseService {
         };
     }
 
-    private buildSandboxSpec(): SandboxSpec {
+    private buildSandboxSpec(extraEgressHosts: string[] = []): SandboxSpec {
         return {
             templateRef: this.getSandboxTemplateRef(),
             timeoutMs: 60 * 60 * 1000,
             egress: {
-                allow: claudeCodeAllowedHosts(this.lightdashConfig.ai.copilot),
+                allow: [
+                    ...claudeCodeAllowedHosts(this.lightdashConfig.ai.copilot),
+                    ...extraEgressHosts,
+                ],
             },
         };
     }
@@ -1288,13 +1291,14 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         organizationUuid: string,
         projectUuid: string,
+        extraEgressHosts: string[] = [],
     ): Promise<{
         sandboxUuid: string;
         sandbox: SandboxHandle;
         durationMs: number;
     }> {
         const start = performance.now();
-        const spec = this.buildSandboxSpec();
+        const spec = this.buildSandboxSpec(extraEgressHosts);
         this.logger.info(
             `App ${appUuid}: launching sandbox from template ${spec.templateRef} (provider=${this.lightdashConfig.appRuntime.sandboxProvider})`,
         );
@@ -1342,11 +1346,12 @@ export class AppGenerateService extends BaseService {
     private async resumeSandbox(
         sandboxUuid: string,
         appUuid: string,
+        extraEgressHosts: string[] = [],
     ): Promise<{ sandbox: SandboxHandle; durationMs: number }> {
         const start = performance.now();
         const sandbox = await this.getSandboxManager().resume({
             sandboxUuid,
-            spec: this.buildSandboxSpec(),
+            spec: this.buildSandboxSpec(extraEgressHosts),
         });
         const durationMs = AppGenerateService.elapsed(start);
         this.logger.info(
@@ -1394,6 +1399,91 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
+     * Restore the stored `package.json` + `pnpm-lock.yaml` from S3 into `/app`
+     * and run `pnpm install --frozen-lockfile`. This enforces the "restore,
+     * never modify" rule: the sandbox always builds with the dep set that was
+     * stored at upload time, not whatever the Claude agent may have edited.
+     *
+     * Only called when `versionDeps` is non-null (custom dependency set).
+     * Throws when install exits non-zero so the caller can surface the error.
+     */
+    private async restoreDepsToSandbox(
+        sandbox: SandboxHandle,
+        s3Client: S3Client,
+        bucket: string,
+        appUuid: string,
+        version: number,
+        versionDeps: AppVersionDependencies,
+    ): Promise<number> {
+        const start = performance.now();
+        const depsPrefix = `apps/${appUuid}/versions/${version}/deps/`;
+
+        const [packageJsonBuf, lockfileBuf] = await Promise.all([
+            readS3ObjectAsBuffer(s3Client, bucket, `${depsPrefix}package.json`),
+            readS3ObjectAsBuffer(
+                s3Client,
+                bucket,
+                `${depsPrefix}pnpm-lock.yaml`,
+            ),
+        ]);
+
+        await Promise.all([
+            sandbox.files.write('/app/package.json', packageJsonBuf),
+            sandbox.files.write('/app/pnpm-lock.yaml', lockfileBuf),
+        ]);
+
+        const packageList = versionDeps.custom
+            .map((d) => `${d.name}@${d.version}`)
+            .join(', ');
+        this.logger.info(
+            `App ${appUuid}: installing custom dependencies (version=${version}, packages=${packageList})`,
+        );
+
+        let installResult: { exitCode: number; stdout: string; stderr: string };
+        try {
+            installResult = await sandbox.commands.run(
+                'CI=true pnpm install --frozen-lockfile --ignore-scripts',
+                {
+                    cwd: '/app',
+                    timeoutMs:
+                        this.lightdashConfig.appRuntime
+                            .dependencyInstallTimeoutMs,
+                    onStderr: (chunk) => {
+                        this.logger.debug(
+                            `App ${appUuid}: install: ${chunk.trimEnd()}`,
+                        );
+                    },
+                },
+            );
+        } catch (err) {
+            if (!(err instanceof SandboxCommandError)) throw err;
+            installResult = {
+                exitCode: err.exitCode,
+                stdout: err.stdout,
+                stderr: err.stderr,
+            };
+        }
+
+        const durationMs = AppGenerateService.elapsed(start);
+        this.logger.info(
+            `App ${appUuid}: dependency install completed (exit=${installResult.exitCode}, ${durationMs}ms)`,
+        );
+
+        if (installResult.exitCode !== 0) {
+            // pnpm writes its error report to stdout; include both streams.
+            const output = [installResult.stderr, installResult.stdout]
+                .filter(Boolean)
+                .join('\n')
+                .slice(-2000);
+            throw new Error(
+                `Dependency install failed (exit ${installResult.exitCode}): ${output}`,
+            );
+        }
+
+        return durationMs;
+    }
+
+    /**
      * Resume an existing sandbox or create a new one with source restored from S3.
      * Always returns a running sandbox handle (and its stable `sandbox_uuid`) or
      * throws. A resumed sandbox already has `/app/src` restored from its snapshot
@@ -1407,6 +1497,7 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         s3Client: S3Client,
         bucket: string,
+        extraEgressHosts: string[] = [],
     ): Promise<{
         sandbox: SandboxHandle;
         sandboxUuid: string;
@@ -1421,6 +1512,7 @@ export class AppGenerateService extends BaseService {
                 const result = await this.resumeSandbox(
                     app.sandbox_id,
                     appUuid,
+                    extraEgressHosts,
                 );
                 durations.resumeMs = result.durationMs;
                 return {
@@ -1441,6 +1533,7 @@ export class AppGenerateService extends BaseService {
             appUuid,
             organizationUuid,
             projectUuid,
+            extraEgressHosts,
         );
         durations.sandboxMs = createResult.durationMs;
         await this.appModel.updateSandboxUuid(
@@ -2792,6 +2885,16 @@ export class AppGenerateService extends BaseService {
         const overallStart = performance.now();
         const durations: Record<string, number> = {};
 
+        // Look up the version's custom dependency set once. Null means the
+        // version builds with the template set only — no install step, no
+        // extra egress hosts added to the sandbox spec.
+        const versionRow = await this.appModel.getVersion(appUuid, version);
+        const versionDeps = versionRow?.dependencies ?? null;
+        const registryHosts =
+            versionDeps !== null
+                ? this.lightdashConfig.appRuntime.dependencyRegistryHosts
+                : [];
+
         this.logger.info(
             `App ${appUuid}: pipeline started (version=${version}, status=${currentStatus}, isIteration=${isIteration}, model=${
                 payload.claudeModel ?? DEFAULT_DATA_APP_CLAUDE_MODEL
@@ -2825,6 +2928,7 @@ export class AppGenerateService extends BaseService {
                         projectUuid,
                         s3Client,
                         bucket,
+                        registryHosts,
                     );
                     sandbox = acquired.sandbox;
                     sandboxUuid = acquired.sandboxUuid;
@@ -2835,6 +2939,7 @@ export class AppGenerateService extends BaseService {
                         appUuid,
                         payload.organizationUuid,
                         projectUuid,
+                        registryHosts,
                     );
                     sandbox = result.sandbox;
                     sandboxUuid = result.sandboxUuid;
@@ -2889,6 +2994,7 @@ export class AppGenerateService extends BaseService {
                 const result = await this.resumeSandbox(
                     app.sandbox_id,
                     appUuid,
+                    registryHosts,
                 );
                 sandbox = result.sandbox;
                 sandboxUuid = app.sandbox_id;
@@ -2942,6 +3048,7 @@ export class AppGenerateService extends BaseService {
                 claudeCodeEnv,
                 imageIds,
                 chartReferences,
+                versionDeps,
             );
         } finally {
             clearInterval(heartbeat);
@@ -2961,6 +3068,7 @@ export class AppGenerateService extends BaseService {
         claudeCodeEnv: Record<string, string>,
         imageIds: string[] | undefined,
         chartReferences: ChartReference[] | undefined,
+        versionDeps: AppVersionDependencies | null,
     ): Promise<void> {
         const { appUuid, version, projectUuid, prompt, template } = payload;
         // Drives the data-app-viz prompt instructions + schema collection.
@@ -3169,6 +3277,72 @@ export class AppGenerateService extends BaseService {
                 if (!advanced) {
                     return;
                 }
+
+                // Restore custom dep files from S3 and run pnpm install before
+                // the Vite build. Skipped for template-only versions.
+                if (versionDeps !== null) {
+                    try {
+                        await this.appModel.updateStatusMessage(
+                            appUuid,
+                            version,
+                            'Installing dependencies',
+                        );
+                    } catch (e) {
+                        this.logger.warn(
+                            `App ${appUuid}: failed to update status message: ${getErrorMessage(e)}`,
+                        );
+                    }
+                    try {
+                        await this.restoreDepsToSandbox(
+                            sandbox,
+                            s3Client,
+                            bucket,
+                            appUuid,
+                            version,
+                            versionDeps,
+                        );
+                    } catch (installError) {
+                        const totalMs =
+                            AppGenerateService.elapsed(overallStart);
+                        // Full pnpm output goes to the version error (author-
+                        // facing) and debug logs; keep operator logs summary-only.
+                        this.logger.error(
+                            `App ${appUuid}: dep install failed after ${totalMs}ms`,
+                        );
+                        this.logger.debug(
+                            `App ${appUuid}: dep install failure detail: ${getErrorMessage(installError)}`,
+                        );
+                        const marked = await this.markError(
+                            appUuid,
+                            version,
+                            installError,
+                            'Installing dependencies',
+                        );
+                        if (marked) {
+                            this.trackVersionFailed(
+                                payload,
+                                'building',
+                                installError,
+                                durations,
+                                overallStart,
+                                buildFixAttempts,
+                            );
+                        }
+                        return;
+                    }
+                    try {
+                        await this.appModel.updateStatusMessage(
+                            appUuid,
+                            version,
+                            'Packaging your app',
+                        );
+                    } catch (e) {
+                        this.logger.warn(
+                            `App ${appUuid}: failed to update status message: ${getErrorMessage(e)}`,
+                        );
+                    }
+                }
+
                 const buildResult = await this.runBuildWithAutoFix(
                     sandbox,
                     appUuid,
@@ -4288,12 +4462,57 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             design: designSnapshot,
         };
 
+        // Carry the latest version's custom dependency set forward. The dep
+        // FILES must be copied under the new version's S3 prefix BEFORE the
+        // row is created so a copy failure can't orphan a pending version.
+        // An errored version can hold a summary without files, so walk back
+        // to the newest version whose files actually exist.
+        let carriedDependencies: AppVersionDependencies | undefined;
+        if (latestVersion?.dependencies) {
+            carriedDependencies = latestVersion.dependencies;
+            const { client, bucket } = this.getS3Client();
+            const toPrefix = versionPrefix(appUuid, newVersion);
+            const candidates =
+                await this.appModel.getVersionsWithDependencies(appUuid);
+            let copied = false;
+            for (const candidate of candidates) {
+                const fromPrefix = versionPrefix(appUuid, candidate.version);
+                try {
+                    // eslint-disable-next-line no-await-in-loop
+                    await Promise.all(
+                        ['deps/package.json', 'deps/pnpm-lock.yaml'].map(
+                            (key) =>
+                                client.send(
+                                    new CopyObjectCommand({
+                                        Bucket: bucket,
+                                        CopySource: `${bucket}/${fromPrefix}${key}`,
+                                        Key: `${toPrefix}${key}`,
+                                    }),
+                                ),
+                        ),
+                    );
+                    copied = true;
+                    break;
+                } catch (err) {
+                    this.logger.warn(
+                        `App ${appUuid}: dependency files missing for version ${candidate.version}, trying an earlier version (${getErrorMessage(err)})`,
+                    );
+                }
+            }
+            if (!copied) {
+                throw new ParameterError(
+                    "Could not carry this app's custom dependencies forward: no stored dependency files found. Re-upload the app with 'lightdash upload --apps' to restore them.",
+                );
+            }
+        }
+
         await this.appModel.createVersion(
             appUuid,
             { version: newVersion, prompt },
             'pending',
             user.userUuid,
             resources,
+            carriedDependencies,
         );
 
         if (isThemeChange) {
@@ -7073,6 +7292,11 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                         templateDependencies: buildTemplateBaseline(
                             code.dependencies.packageJson,
                         ),
+                        // Lockfile tarball URLs must resolve to hosts the
+                        // sandbox egress will actually allow.
+                        allowedTarballHosts:
+                            this.lightdashConfig.appRuntime
+                                .dependencyRegistryHosts,
                     },
                 ));
             } catch (err) {
@@ -7281,6 +7505,15 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         const { appUuid, version, organizationUuid, projectUuid } = payload;
         const { client, bucket } = this.getS3Client();
 
+        // Look up the version's custom dependency set once — null means the
+        // build uses the template set only (no install step).
+        const versionRow = await this.appModel.getVersion(appUuid, version);
+        const versionDeps = versionRow?.dependencies ?? null;
+        const registryHosts =
+            versionDeps !== null
+                ? this.lightdashConfig.appRuntime.dependencyRegistryHosts
+                : [];
+
         let sandbox: SandboxHandle | undefined;
         let sandboxUuid: string | undefined;
         const heartbeat = setInterval(() => {
@@ -7307,6 +7540,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 appUuid,
                 organizationUuid,
                 projectUuid,
+                registryHosts,
             );
             sandbox = result.sandbox;
             sandboxUuid = result.sandboxUuid;
@@ -7330,12 +7564,51 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 return;
             }
 
+            // When the version declares custom deps, restore the stored
+            // package.json + lockfile and run pnpm install before the build.
+            if (versionDeps !== null) {
+                try {
+                    await this.appModel.updateStatusMessage(
+                        appUuid,
+                        version,
+                        'Installing dependencies',
+                    );
+                } catch (e) {
+                    this.logger.warn(
+                        `App ${appUuid}: failed to update status message: ${getErrorMessage(e)}`,
+                    );
+                }
+                try {
+                    await this.restoreDepsToSandbox(
+                        sandbox,
+                        client,
+                        bucket,
+                        appUuid,
+                        version,
+                        versionDeps,
+                    );
+                } catch (installError) {
+                    await this.markError(
+                        appUuid,
+                        version,
+                        installError,
+                        'Installing dependencies',
+                    );
+                    return;
+                }
+            }
+
             const build = await this.runBuild(sandbox, appUuid);
             if (build.exitCode !== 0) {
+                const buildOutput = [build.stderr, build.stdout]
+                    .filter(Boolean)
+                    .join('\n')
+                    .slice(-2000);
                 await this.markError(
                     appUuid,
                     version,
-                    build.stderr || build.stdout,
+                    buildOutput ||
+                        `Build exited with code ${build.exitCode} and no output`,
                     'Build failed',
                 );
                 return;
