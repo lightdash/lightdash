@@ -27,6 +27,7 @@ import {
     generateDocumentSummary,
 } from './ai/agents/documentSummaryGenerator';
 import { getModel } from './ai/models';
+import { OrgAiCopilotConfigResolver } from './ai/OrgAiCopilotConfigResolver';
 import type { AiAgentService } from './AiAgentService/AiAgentService';
 
 const ALLOWED_MIME_TYPES = new Set([
@@ -67,6 +68,7 @@ type AiAgentDocumentServiceDependencies = {
     commercialFeatureFlagModel: CommercialFeatureFlagModel;
     aiAgentService: AiAgentService;
     lightdashConfig: LightdashConfig;
+    orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 };
 
 export class AiAgentDocumentService extends BaseService {
@@ -80,6 +82,8 @@ export class AiAgentDocumentService extends BaseService {
 
     private readonly lightdashConfig: LightdashConfig;
 
+    private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
+
     constructor(dependencies: AiAgentDocumentServiceDependencies) {
         super();
         this.analytics = dependencies.analytics;
@@ -88,6 +92,8 @@ export class AiAgentDocumentService extends BaseService {
             dependencies.commercialFeatureFlagModel;
         this.aiAgentService = dependencies.aiAgentService;
         this.lightdashConfig = dependencies.lightdashConfig;
+        this.orgAiCopilotConfigResolver =
+            dependencies.orgAiCopilotConfigResolver;
     }
 
     /**
@@ -261,8 +267,12 @@ export class AiAgentDocumentService extends BaseService {
             user,
             body,
         );
+        const copilotConfig =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                organizationUuid,
+            );
         const modelOptions = {
-            ...getModel(this.lightdashConfig.ai.copilot, {
+            ...getModel(copilotConfig, {
                 enableReasoning: false,
                 useFastModel: true,
             }),

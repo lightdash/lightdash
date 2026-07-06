@@ -25,6 +25,7 @@ import { BaseService } from '../../../services/BaseService';
 import { type AiRouterModel } from '../../models/AiRouterModel';
 import { selectAgent } from '../ai/agents/agentSelector';
 import { getModel } from '../ai/models';
+import { OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
 import { type AiAgentService } from '../AiAgentService/AiAgentService';
 
 type Deps = {
@@ -32,6 +33,7 @@ type Deps = {
     lightdashConfig: LightdashConfig;
     aiRouterModel: AiRouterModel;
     aiAgentService: AiAgentService;
+    orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 };
 
 type RoutePromptMode = 'web' | 'mcp';
@@ -55,17 +57,21 @@ export class AiRouterService extends BaseService {
 
     private readonly aiAgentService: AiAgentService;
 
+    private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
+
     constructor({
         analytics,
         lightdashConfig,
         aiRouterModel,
         aiAgentService,
+        orgAiCopilotConfigResolver,
     }: Deps) {
         super({ serviceName: 'AiRouterService' });
         this.analytics = analytics;
         this.lightdashConfig = lightdashConfig;
         this.aiRouterModel = aiRouterModel;
         this.aiAgentService = aiAgentService;
+        this.orgAiCopilotConfigResolver = orgAiCopilotConfigResolver;
     }
 
     private static organizationUuidOf(account: RegisteredAccount): string {
@@ -172,7 +178,11 @@ export class AiRouterService extends BaseService {
             projectUuid,
         });
 
-        const { model } = getModel(this.lightdashConfig.ai.copilot);
+        const copilotConfig =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                organizationUuid,
+            );
+        const { model } = getModel(copilotConfig);
         const brain = await selectAgent({
             model,
             candidates,
