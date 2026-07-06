@@ -13,11 +13,14 @@ import {
     Text,
     Title,
 } from '@mantine-8/core';
-import { useState, type FC } from 'react';
+import { useState, type ComponentType, type FC, type SVGProps } from 'react';
 import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
+import AnthropicIcon from '../../../../../../svgs/anthropic.svg?react';
+import OpenAiIcon from '../../../../../../svgs/openai.svg?react';
 
 type ProviderKeyRowProps = {
     label: string;
+    icon: ComponentType<SVGProps<SVGSVGElement>>;
     placeholder: string;
     isSet: boolean;
     disabled: boolean;
@@ -27,6 +30,7 @@ type ProviderKeyRowProps = {
 
 const ProviderKeyRow: FC<ProviderKeyRowProps> = ({
     label,
+    icon: Icon,
     placeholder,
     isSet,
     disabled,
@@ -38,6 +42,7 @@ const ProviderKeyRow: FC<ProviderKeyRowProps> = ({
     return (
         <Group justify="space-between" wrap="nowrap" gap="md">
             <Group gap="xs">
+                <Icon width={18} height={18} />
                 <Title order={6}>{label}</Title>
                 {isSet && (
                     <Badge size="sm" variant="light" color="green">
@@ -108,6 +113,7 @@ export const AiProviderApiKeysCard: FC<AiProviderApiKeysCardProps> = ({
             </Box>
             <ProviderKeyRow
                 label="Anthropic"
+                icon={AnthropicIcon}
                 placeholder="sk-ant-..."
                 isSet={providerApiKeysSet.anthropic}
                 disabled={disabled}
@@ -117,6 +123,7 @@ export const AiProviderApiKeysCard: FC<AiProviderApiKeysCardProps> = ({
             <Divider />
             <ProviderKeyRow
                 label="OpenAI"
+                icon={OpenAiIcon}
                 placeholder="sk-..."
                 isSet={providerApiKeysSet.openai}
                 disabled={disabled}
