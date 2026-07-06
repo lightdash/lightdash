@@ -1,3 +1,10 @@
+## [0.3315.2](https://github.com/lightdash/lightdash/compare/0.3315.1...0.3315.2) (2026-07-06)
+
+
+### Bug Fixes
+
+* **cli:** tolerate audit tiles missing chartName/exploreLabel ([#25170](https://github.com/lightdash/lightdash/issues/25170)) ([64f7f1b](https://github.com/lightdash/lightdash/commit/64f7f1b34e8a4278d5aa7c05dd6a0a07aa744386))
+
 ## [0.3315.1](https://github.com/lightdash/lightdash/compare/0.3315.0...0.3315.1) (2026-07-06)
 
 
