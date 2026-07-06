@@ -162,7 +162,7 @@
         "dev:fast": "pnpm -r --stream --parallel -F common -F warehouses -F backend -F frontend run dev:fast",
         "build": "turbo run build --filter=@lightdash/common --filter=@lightdash/warehouses --filter=backend --filter=@lightdash/frontend",
         "build:fast": "turbo run build:fast --filter=@lightdash/common --filter=@lightdash/warehouses --filter=backend --filter=@lightdash/frontend",
-        "build-published-packages": "pnpm -r --stream --sequential -F common -F warehouses -F query-sdk -F cli -F formula build && pnpm frontend-build-sdk",
+        "build-published-packages": "turbo run build --filter=@lightdash/common --filter=@lightdash/warehouses --filter=@lightdash/query-sdk --filter=@lightdash/cli --filter=@lightdash/formula && pnpm frontend-build-sdk",
         "build-published-packages:fast": "pnpm -r --stream --sequential -F common -F warehouses -F query-sdk -F cli -F formula build:fast && pnpm frontend-build-sdk:fast",
         "release-packages": "pnpm -r --stream --sequential -F common -F warehouses -F query-sdk -F cli -F frontend release",
         "start": "pnpm run backend-start",
