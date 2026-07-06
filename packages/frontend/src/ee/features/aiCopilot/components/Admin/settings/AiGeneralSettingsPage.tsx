@@ -1,3 +1,4 @@
+import { FeatureFlags } from '@lightdash/common';
 import {
     Anchor,
     Badge,
@@ -18,6 +19,7 @@ import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { getModelKey } from '../../../../../../components/common/ModelSelector/utils';
 import PageBreadcrumbs from '../../../../../../components/common/PageBreadcrumbs';
 import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
+import { useServerFeatureFlag } from '../../../../../../hooks/useServerOrClientFeatureFlag';
 import {
     getAiAgentModelConfig,
     getModelOptionByKey,
@@ -31,6 +33,7 @@ import {
     useAiRouterConfig,
     useUpsertAiRouterConfig,
 } from '../../../hooks/useAiRouter';
+import { AiProviderApiKeysCard } from './AiProviderApiKeysCard';
 import { AiRouterInstructionsCard } from './AiRouterInstructionsCard';
 import { ReviewNotificationsSettings } from './ReviewNotificationsSettings';
 
@@ -39,6 +42,10 @@ export const AiGeneralSettingsPage = () => {
         useAiOrganizationSettings();
     const { mutate: updateSettings, isLoading: isUpdatingSettings } =
         useUpdateAiOrganizationSettings();
+
+    const orgAiProviderKeysFlag = useServerFeatureFlag(
+        FeatureFlags.OrgAiProviderApiKeys,
+    );
 
     const aiRouterQuery = useAiRouterConfig();
     const isRouterEnabled = aiRouterQuery.data?.enabled ?? false;
@@ -224,6 +231,16 @@ export const AiGeneralSettingsPage = () => {
                             )}
                         </Stack>
                     </SettingsCard>
+
+                    {orgAiProviderKeysFlag.data?.enabled && (
+                        <AiProviderApiKeysCard
+                            providerApiKeysSet={settings.providerApiKeysSet}
+                            disabled={isUpdatingSettings}
+                            onUpdate={(providerApiKeys) =>
+                                updateSettings({ providerApiKeys })
+                            }
+                        />
+                    )}
 
                     <SettingsCard>
                         <Stack gap="md">
