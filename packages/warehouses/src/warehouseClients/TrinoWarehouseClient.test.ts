@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-floating-promises */
-import { AnyType, DimensionType } from '@lightdash/common';
+import { AnyType, QueryExecutionContext } from '@lightdash/common';
 import { Columns, Iterator, QueryData, QueryResult, Trino } from 'trino-client';
 import { TrinoTypes, TrinoWarehouseClient } from './TrinoWarehouseClient';
 import {
@@ -77,5 +77,66 @@ describe('TrinoWarehouseClient', () => {
         expect(warehouse.getCatalog(wharehouseClient.config)).resolves.toEqual(
             wharehouseClient.expectedWarehouseSchema,
         );
+    });
+
+    describe('streamQuery client tag headers', () => {
+        it('sends X-Trino-Client-Tags header as comma-separated key=value pairs when tags are provided', async () => {
+            const warehouse = new TrinoWarehouseClient(credentials);
+            queryResultMock.mockReturnValue({
+                next: vi
+                    .fn()
+                    .mockResolvedValue({ done: true, value: queryResponse }),
+            });
+
+            await warehouse.runQuery('SELECT 1', {
+                dashboard_uuid: 'abc-123',
+                chart_uuid: 'def-456',
+            });
+
+            expect(queryResultMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    extraHeaders: expect.objectContaining({
+                        'X-Trino-Client-Tags':
+                            'dashboard_uuid=abc-123,chart_uuid=def-456',
+                    }),
+                }),
+            );
+        });
+
+        it('sanitizes tag values that are unsafe for the header', async () => {
+            const warehouse = new TrinoWarehouseClient(credentials);
+            queryResultMock.mockReturnValue({
+                next: vi
+                    .fn()
+                    .mockResolvedValue({ done: true, value: queryResponse }),
+            });
+
+            await warehouse.runQuery('SELECT 1', {
+                scheduler_name: 'Weekly report, EMEA 📊',
+                query_context: QueryExecutionContext.SCHEDULED_DELIVERY,
+            });
+
+            expect(queryResultMock).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    extraHeaders: {
+                        'X-Trino-Client-Tags':
+                            'scheduler_name=Weekly_report__EMEA___,query_context=scheduledDelivery',
+                    },
+                }),
+            );
+        });
+
+        it('sends query as plain string (no extraHeaders) when no tags are provided', async () => {
+            const warehouse = new TrinoWarehouseClient(credentials);
+            queryResultMock.mockReturnValue({
+                next: vi
+                    .fn()
+                    .mockResolvedValue({ done: true, value: queryResponse }),
+            });
+
+            await warehouse.runQuery('SELECT 1');
+
+            expect(queryResultMock).toHaveBeenCalledWith('SELECT 1');
+        });
     });
 });
