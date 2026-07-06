@@ -16,12 +16,14 @@ import { AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsMod
 import { CommercialFeatureFlagModel } from '../models/CommercialFeatureFlagModel';
 import { getAvailableModels, getDefaultModel } from './ai/models';
 import { matchesPreset } from './ai/models/presets';
+import { OrgAiCopilotConfigResolver } from './ai/OrgAiCopilotConfigResolver';
 
 type AiOrganizationSettingsServiceDependencies = {
     aiOrganizationSettingsModel: AiOrganizationSettingsModel;
     organizationModel: OrganizationModel;
     commercialFeatureFlagModel: CommercialFeatureFlagModel;
     lightdashConfig: LightdashConfig;
+    orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 };
 
 export class AiOrganizationSettingsService extends BaseService {
@@ -32,6 +34,8 @@ export class AiOrganizationSettingsService extends BaseService {
     private readonly commercialFeatureFlagModel: CommercialFeatureFlagModel;
 
     private readonly lightdashConfig: LightdashConfig;
+
+    private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 
     // Date when trial feature was enabled for new organizations
     private static readonly TRIAL_START_DATE = new Date('2025-10-13T00:00:00Z');
@@ -44,6 +48,8 @@ export class AiOrganizationSettingsService extends BaseService {
         this.commercialFeatureFlagModel =
             dependencies.commercialFeatureFlagModel;
         this.lightdashConfig = dependencies.lightdashConfig;
+        this.orgAiCopilotConfigResolver =
+            dependencies.orgAiCopilotConfigResolver;
     }
 
     private checkManageAiAgentAccess(user: SessionUser): void {
@@ -72,22 +78,26 @@ export class AiOrganizationSettingsService extends BaseService {
         return isCopilotEnabled.enabled;
     }
 
-    private getDefaultModelOptions(): AiModelOption[] {
-        const defaultModel = getDefaultModel(this.lightdashConfig.ai.copilot);
+    private async getDefaultModelOptions(
+        organizationUuid: string,
+    ): Promise<AiModelOption[]> {
+        const copilotConfig =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                organizationUuid,
+            );
+        const defaultModel = getDefaultModel(copilotConfig);
 
-        return getAvailableModels(this.lightdashConfig.ai.copilot).map(
-            (preset) => ({
-                name: preset.name,
-                displayName: preset.displayName,
-                description: preset.description,
-                provider: preset.provider,
-                default:
-                    defaultModel !== null &&
-                    preset.provider === defaultModel.provider &&
-                    matchesPreset(preset, defaultModel.name),
-                supportsReasoning: preset.supportsReasoning,
-            }),
-        );
+        return getAvailableModels(copilotConfig).map((preset) => ({
+            name: preset.name,
+            displayName: preset.displayName,
+            description: preset.description,
+            provider: preset.provider,
+            default:
+                defaultModel !== null &&
+                preset.provider === defaultModel.provider &&
+                matchesPreset(preset, defaultModel.name),
+            supportsReasoning: preset.supportsReasoning,
+        }));
     }
 
     /**
@@ -152,7 +162,9 @@ export class AiOrganizationSettingsService extends BaseService {
                 defaultAiAgentModelConfig: null,
                 providerApiKeysSet: { anthropic: false, openai: false },
                 providerApiKeyHints: { anthropic: null, openai: null },
-                defaultAiAgentModelOptions: this.getDefaultModelOptions(),
+                defaultAiAgentModelOptions: await this.getDefaultModelOptions(
+                    user.organizationUuid,
+                ),
                 isTrial: isTrialEligible,
             };
         }
@@ -161,7 +173,9 @@ export class AiOrganizationSettingsService extends BaseService {
             ...settings,
             isTrial: isTrialEligible,
             isCopilotEnabled,
-            defaultAiAgentModelOptions: this.getDefaultModelOptions(),
+            defaultAiAgentModelOptions: await this.getDefaultModelOptions(
+                user.organizationUuid,
+            ),
         };
     }
 
@@ -174,6 +188,17 @@ export class AiOrganizationSettingsService extends BaseService {
         }
 
         this.checkManageAiAgentAccess(user);
+
+        if (
+            data.providerApiKeys !== undefined &&
+            !(await this.orgAiCopilotConfigResolver.isEnabled(
+                user.organizationUuid,
+            ))
+        ) {
+            throw new ForbiddenError(
+                'Organization AI provider API keys are not enabled',
+            );
+        }
 
         return this.aiOrganizationSettingsModel.upsert(
             user.organizationUuid,
