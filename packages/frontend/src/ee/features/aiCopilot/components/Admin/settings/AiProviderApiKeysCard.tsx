@@ -49,6 +49,7 @@ const ProviderKeyRow: FC<ProviderKeyRowProps> = ({
                 <PasswordInput
                     w={280}
                     size="xs"
+                    aria-label={label}
                     value={value}
                     placeholder={isSet ? '••••••••••••••••' : placeholder}
                     disabled={disabled}
