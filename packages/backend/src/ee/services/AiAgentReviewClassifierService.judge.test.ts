@@ -19,13 +19,8 @@ vi.mock('./ai/utils/aiCallTelemetry', () => ({
 const generateObjectMock = vi.mocked(generateObject);
 const getModelMock = vi.mocked(getModel);
 
-const GATE_MODEL = {
+const JUDGE_MODEL = {
     model: { modelId: 'claude-haiku-4-5' },
-    callOptions: {},
-    providerOptions: {},
-};
-const ESCALATION_MODEL = {
-    model: { modelId: 'claude-sonnet-4-6' },
     callOptions: {},
     providerOptions: {},
 };
@@ -149,120 +144,42 @@ const makeService = () =>
         aiAgentReviewNotificationService: {} as never,
     });
 
-describe('two-tier judge escalation', () => {
+describe('single-tier judge', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        getModelMock.mockImplementation(
-            (_config, options) =>
-                (options?.useFastModel
-                    ? GATE_MODEL
-                    : ESCALATION_MODEL) as never,
-        );
+        getModelMock.mockReturnValue(JUDGE_MODEL as never);
     });
 
-    it('returns the gate output without escalating when not promoted', async () => {
-        const gateOutput = judgeOutput({
+    it('judges with the fast model in a single call when not promoted', async () => {
+        const output = judgeOutput({
             promotedToFinding: false,
             promotionReason: null,
             primaryRootCause: 'not_a_failure',
             signal: 'acceptance_or_continuation',
             implicitSignalSources: [],
         });
-        generateObjectMock.mockResolvedValueOnce({
-            object: gateOutput,
-        } as never);
+        generateObjectMock.mockResolvedValueOnce({ object: output } as never);
 
         const result = await makeService().replayJudge(replayInput);
 
         expect(generateObjectMock).toHaveBeenCalledTimes(1);
+        expect(getModelMock).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({ useFastModel: true }),
+        );
         expect(generateObjectMock).toHaveBeenCalledWith(
-            expect.objectContaining({ model: GATE_MODEL.model }),
+            expect.objectContaining({ model: JUDGE_MODEL.model }),
         );
-        expect(result.judgeOutput).toEqual(gateOutput);
+        expect(result.judgeOutput).toEqual(output);
     });
 
-    it('escalates promoted turns to the strong model and returns its verdict', async () => {
-        const escalatedOutput = judgeOutput({
-            primaryRootCause: 'agent_configuration',
-        });
-        generateObjectMock
-            .mockResolvedValueOnce({ object: judgeOutput() } as never)
-            .mockResolvedValueOnce({ object: escalatedOutput } as never);
-
-        const result = await makeService().replayJudge(replayInput);
-
-        expect(generateObjectMock).toHaveBeenCalledTimes(2);
-        expect(generateObjectMock).toHaveBeenLastCalledWith(
-            expect.objectContaining({ model: ESCALATION_MODEL.model }),
-        );
-        expect(result.judgeOutput).toEqual(escalatedOutput);
-    });
-
-    it('lets the strong model demote a gate promotion', async () => {
-        const demoted = judgeOutput({
-            promotedToFinding: false,
-            promotionReason: null,
-            primaryRootCause: 'not_a_failure',
-            signal: 'acceptance_or_continuation',
-            implicitSignalSources: [],
-        });
-        generateObjectMock
-            .mockResolvedValueOnce({ object: judgeOutput() } as never)
-            .mockResolvedValueOnce({ object: demoted } as never);
-
-        const result = await makeService().replayJudge(replayInput);
-
-        expect(result.judgeOutput?.promotedToFinding).toBe(false);
-    });
-
-    it('skips escalation when disabled via options', async () => {
-        const gateOutput = judgeOutput();
-        generateObjectMock.mockResolvedValueOnce({
-            object: gateOutput,
-        } as never);
-
-        const result = await makeService().replayJudge(replayInput, {
-            escalationEnabled: false,
-        });
-
-        expect(generateObjectMock).toHaveBeenCalledTimes(1);
-        expect(result.judgeOutput).toEqual(gateOutput);
-    });
-
-    it('skips escalation when the strong model is the same as the gate model', async () => {
-        getModelMock.mockImplementation(() => GATE_MODEL as never);
-        const gateOutput = judgeOutput();
-        generateObjectMock.mockResolvedValueOnce({
-            object: gateOutput,
-        } as never);
+    it('judges promoted turns with the same single fast-model call', async () => {
+        const output = judgeOutput();
+        generateObjectMock.mockResolvedValueOnce({ object: output } as never);
 
         const result = await makeService().replayJudge(replayInput);
 
         expect(generateObjectMock).toHaveBeenCalledTimes(1);
-        expect(result.judgeOutput).toEqual(gateOutput);
-    });
-});
-
-describe('two-tier judge escalation resilience', () => {
-    beforeEach(() => {
-        vi.clearAllMocks();
-        getModelMock.mockImplementation(
-            (_config, options) =>
-                (options?.useFastModel
-                    ? GATE_MODEL
-                    : ESCALATION_MODEL) as never,
-        );
-    });
-
-    it('keeps the gate verdict when the escalation call fails', async () => {
-        const gateOutput = judgeOutput();
-        generateObjectMock
-            .mockResolvedValueOnce({ object: gateOutput } as never)
-            .mockRejectedValueOnce(new Error('rate limited'));
-
-        const result = await makeService().replayJudge(replayInput);
-
-        expect(generateObjectMock).toHaveBeenCalledTimes(2);
-        expect(result.judgeOutput).toEqual(gateOutput);
+        expect(result.judgeOutput).toEqual(output);
     });
 });
