@@ -77,6 +77,7 @@ import {
     ParseError,
     PivotConfig,
     PivotConfiguration,
+    ProjectType,
     QueryExecutionContext,
     QueryHistoryStatus,
     resolveQueryTimezone,
@@ -2326,6 +2327,7 @@ export class AsyncQueryService extends ProjectService {
         warehouseQuery,
         queryCreatedAt,
         displayTimezone,
+        isPreviewProject,
     }: RunAsyncPreAggregateQueryArgs) {
         try {
             const duckDbWarehouseClient =
@@ -2334,6 +2336,7 @@ export class AsyncQueryService extends ProjectService {
             await this.runAsyncWarehouseQuery({
                 userUuid,
                 organizationUuid,
+                isPreviewProject,
                 isRegisteredUser,
                 isServiceAccount,
                 projectUuid,
@@ -2371,6 +2374,7 @@ export class AsyncQueryService extends ProjectService {
             await this.runAsyncWarehouseQuery({
                 userUuid,
                 organizationUuid,
+                isPreviewProject,
                 isRegisteredUser,
                 isServiceAccount,
                 projectUuid,
@@ -2491,6 +2495,7 @@ export class AsyncQueryService extends ProjectService {
     public async runAsyncWarehouseQuery({
         userUuid,
         organizationUuid,
+        isPreviewProject,
         isRegisteredUser,
         isServiceAccount,
         projectUuid,
@@ -2730,6 +2735,33 @@ export class AsyncQueryService extends ProjectService {
                 },
             });
 
+            this.analytics.track({
+                ...analyticsIdentity,
+                event: 'query.completed',
+                properties: {
+                    queryId: queryUuid,
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    isPreviewProject,
+                    status: 'success',
+                    context: queryTags.query_context,
+                    exploreName: queryTags.explore_name ?? null,
+                    chartId: queryTags.chart_uuid ?? null,
+                    dashboardId: queryTags.dashboard_uuid ?? null,
+                    cacheHit: false,
+                    executionSource,
+                    warehouseType: warehouseClient.credentials.type,
+                    warehouseExecutionTimeMs: Math.round(durationMs),
+                    totalRowCount: pivotDetails?.totalRows ?? totalRows,
+                    columnsCount:
+                        pivotDetails?.totalColumnCount ??
+                        Object.keys(fieldsMap).length,
+                    ...(isRegisteredUser
+                        ? undefined
+                        : { externalId: userUuid }),
+                },
+            });
+
             const queryExecMs = Date.now() - queryStartTime;
 
             if (stream) {
@@ -2889,6 +2921,30 @@ export class AsyncQueryService extends ProjectService {
                         : { externalId: userUuid }),
                 },
             });
+            this.analytics.track({
+                ...analyticsIdentity,
+                event: 'query.completed',
+                properties: {
+                    queryId: queryUuid,
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    isPreviewProject,
+                    status: 'error',
+                    context: queryTags.query_context,
+                    exploreName: queryTags.explore_name ?? null,
+                    chartId: queryTags.chart_uuid ?? null,
+                    dashboardId: queryTags.dashboard_uuid ?? null,
+                    cacheHit: false,
+                    executionSource,
+                    warehouseType: warehouseCredentialsType ?? null,
+                    warehouseExecutionTimeMs: null,
+                    totalRowCount: null,
+                    columnsCount: null,
+                    ...(isRegisteredUser
+                        ? undefined
+                        : { externalId: userUuid }),
+                },
+            });
             await this.queryHistoryModel.updateStatusToError(
                 queryUuid,
                 projectUuid,
@@ -2984,11 +3040,13 @@ export class AsyncQueryService extends ProjectService {
         const warehouseCredentialsOverrides =
             await this.deriveWarehouseCredentialsOverrides(query);
         const displayTimezone = query.metricQuery.timezone ?? null;
+        const isPreviewProject = await this.isProjectPreview(query.projectUuid);
 
         return {
             projectUuid: query.projectUuid ?? '',
             userUuid: actor.userUuid,
             organizationUuid: query.organizationUuid,
+            isPreviewProject,
             queryUuid: query.queryUuid,
             isRegisteredUser: actor.isRegisteredUser,
             isServiceAccount: actor.isServiceAccount,
@@ -3002,6 +3060,14 @@ export class AsyncQueryService extends ProjectService {
             query: query.compiledSql,
             displayTimezone,
         };
+    }
+
+    private async isProjectPreview(
+        projectUuid: string | null,
+    ): Promise<boolean> {
+        if (!projectUuid) return false;
+        const summary = await this.projectModel.getSummary(projectUuid);
+        return summary.type === ProjectType.PREVIEW;
     }
 
     private async buildPreAggregateQueryArgs(
@@ -3020,11 +3086,13 @@ export class AsyncQueryService extends ProjectService {
         const warehouseCredentialsOverrides =
             await this.deriveWarehouseCredentialsOverrides(query);
         const displayTimezone = query.metricQuery.timezone ?? null;
+        const isPreviewProject = await this.isProjectPreview(query.projectUuid);
 
         return {
             projectUuid: query.projectUuid ?? '',
             userUuid: actor.userUuid,
             organizationUuid: query.organizationUuid,
+            isPreviewProject,
             queryUuid: query.queryUuid,
             isRegisteredUser: actor.isRegisteredUser,
             isServiceAccount: actor.isServiceAccount,
@@ -3233,8 +3301,14 @@ export class AsyncQueryService extends ProjectService {
         }
 
         const params = query.requestParameters;
-        const chartUuid =
-            params && 'chartUuid' in params ? params.chartUuid : undefined;
+        // SQL chart runs identify the chart as savedSqlUuid; slug-only runs
+        // can't be attributed without a lookup and resolve to undefined.
+        let chartUuid: string | undefined;
+        if (params && 'chartUuid' in params) {
+            chartUuid = params.chartUuid;
+        } else if (params && 'savedSqlUuid' in params) {
+            chartUuid = params.savedSqlUuid;
+        }
         const dashboardUuid =
             params && 'dashboardUuid' in params
                 ? params.dashboardUuid
@@ -3505,6 +3579,7 @@ export class AsyncQueryService extends ProjectService {
         args: ExecuteAsyncMetricQueryArgs & {
             queryTags: RunQueryTags;
             explore: Explore;
+            isPreviewProject: boolean;
             // Saved chart (metric or SQL) the query was executed from, for analytics attribution
             chart?: { uuid: string };
             fields: ItemsMap;
@@ -3536,6 +3611,7 @@ export class AsyncQueryService extends ProjectService {
                     queryTags,
                     explore,
                     chart,
+                    isPreviewProject,
                     sql: compiledQuery,
                     metricQuery,
                     fields: fieldsMap,
@@ -3715,6 +3791,38 @@ export class AsyncQueryService extends ProjectService {
                                     : undefined),
                             },
                         });
+                    // Terminal outcome for queries that never reach the
+                    // background executor (cache hits and pre-execution
+                    // errors). Warehouse completions emit their own
+                    // query.completed in runAsyncWarehouseQuery.
+                    const trackQueryCompleted = (outcome: {
+                        status: 'success' | 'error';
+                        cacheHit: boolean;
+                        totalRowCount?: number | null;
+                        columnsCount?: number | null;
+                    }) =>
+                        this.analytics.trackAccount(account, {
+                            event: 'query.completed',
+                            properties: {
+                                queryId: queryHistoryUuid,
+                                organizationId: organizationUuid,
+                                projectId: projectUuid,
+                                isPreviewProject,
+                                status: outcome.status,
+                                context,
+                                exploreName: explore.name,
+                                chartId: chart?.uuid ?? null,
+                                dashboardId: queryTags.dashboard_uuid ?? null,
+                                cacheHit: outcome.cacheHit,
+                                executionSource: null,
+                                warehouseType: warehouseCredentialsType,
+                                warehouseExecutionTimeMs: outcome.cacheHit
+                                    ? 0
+                                    : null,
+                                totalRowCount: outcome.totalRowCount ?? null,
+                                columnsCount: outcome.columnsCount ?? null,
+                            },
+                        });
 
                     // Track cache hit/miss
                     this.prometheusMetrics?.incrementQueryCacheHit(
@@ -3725,6 +3833,14 @@ export class AsyncQueryService extends ProjectService {
 
                     if (resultsCache.cacheHit) {
                         trackQueryExecuted();
+                        trackQueryCompleted({
+                            status: 'success',
+                            cacheHit: true,
+                            totalRowCount: resultsCache.totalRowCount,
+                            columnsCount: resultsCache.columns
+                                ? Object.keys(resultsCache.columns).length
+                                : null,
+                        });
                         if (this.lightdashConfig.natsWorker.enabled) {
                             await this.queryHistoryModel.updateStatusToExecuting(
                                 queryHistoryUuid,
@@ -3776,6 +3892,10 @@ export class AsyncQueryService extends ProjectService {
 
                     if (missingParameterReferences.length > 0) {
                         trackQueryExecuted();
+                        trackQueryCompleted({
+                            status: 'error',
+                            cacheHit: false,
+                        });
                         await this.queryHistoryModel.updateStatusToError(
                             queryHistoryUuid,
                             projectUuid,
@@ -3852,6 +3972,10 @@ export class AsyncQueryService extends ProjectService {
 
                     if (executionPlan.target === 'error') {
                         trackQueryExecuted();
+                        trackQueryCompleted({
+                            status: 'error',
+                            cacheHit: false,
+                        });
                         await this.queryHistoryModel.updateStatusToError(
                             queryHistoryUuid,
                             projectUuid,
@@ -3886,6 +4010,7 @@ export class AsyncQueryService extends ProjectService {
                     const warehouseArgs: RunAsyncWarehouseQueryArgs = {
                         userUuid: account.user.id,
                         organizationUuid,
+                        isPreviewProject,
                         isRegisteredUser: account.isRegisteredUser(),
                         isServiceAccount: account.isServiceAccount(),
                         projectUuid,
@@ -4086,10 +4211,13 @@ export class AsyncQueryService extends ProjectService {
     ): Promise<ExecuteAsyncQueryReturn> {
         assertIsAccountWithOrg(args.account);
 
+        const projectSummary = await this.projectModel.getSummary(
+            args.projectUuid,
+        );
         const organizationUuid =
-            args.organizationUuid ??
-            (await this.projectModel.getSummary(args.projectUuid))
-                .organizationUuid;
+            args.organizationUuid ?? projectSummary.organizationUuid;
+        // Preview project queries are excluded from the usage event stream
+        const isPreviewProject = projectSummary.type === ProjectType.PREVIEW;
         const auditedAbility = this.createAuditedAbility(args.account);
         const isForbidden =
             auditedAbility.cannot(
@@ -4116,7 +4244,7 @@ export class AsyncQueryService extends ProjectService {
         }
 
         return this.executePreparedAsyncQuery(
-            args,
+            { ...args, isPreviewProject },
             requestParameters,
             organizationUuid,
         );
@@ -6749,6 +6877,7 @@ export class AsyncQueryService extends ProjectService {
                 {
                     account,
                     projectUuid,
+                    isPreviewProject: await this.isProjectPreview(projectUuid),
                     explore,
                     metricQuery,
                     context,

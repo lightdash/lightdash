@@ -5,6 +5,8 @@ import http from 'http';
 import knex, { Knex } from 'knex';
 import { BufferedEventStreamWriter } from './analytics/eventStream/BufferedEventStreamWriter';
 import { createEventStreamWriter } from './analytics/eventStream/createEventStreamWriter';
+import { EventStreamSink } from './analytics/eventStream/EventStreamSink';
+import { eventStreamRegistry } from './analytics/eventStream/registry';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
 import { registerOAuthRefreshStrategies } from './auth/registerOAuthRefreshStrategies';
 import {
@@ -106,6 +108,13 @@ export default class NatsWorkerApp {
         this.port = args.port;
         this.environment = args.environment || 'production';
 
+        this.prometheusMetrics = new PrometheusMetrics(
+            this.lightdashConfig.prometheus,
+        );
+        this.eventStreamWriter = createEventStreamWriter(
+            this.lightdashConfig,
+            this.prometheusMetrics,
+        );
         this.analytics = new LightdashAnalytics({
             lightdashConfig: this.lightdashConfig,
             writeKey: this.lightdashConfig.rudder.writeKey || 'notrack',
@@ -115,6 +124,12 @@ export default class NatsWorkerApp {
                     !!this.lightdashConfig.rudder.writeKey &&
                     !!this.lightdashConfig.rudder.dataPlaneUrl,
             },
+            eventStreamSink: this.eventStreamWriter
+                ? new EventStreamSink(
+                      eventStreamRegistry,
+                      this.eventStreamWriter,
+                  )
+                : undefined,
         });
 
         this.database = knex(
@@ -143,14 +158,6 @@ export default class NatsWorkerApp {
             }),
             models,
         });
-        this.prometheusMetrics = new PrometheusMetrics(
-            this.lightdashConfig.prometheus,
-        );
-        this.eventStreamWriter = createEventStreamWriter(
-            this.lightdashConfig,
-            this.prometheusMetrics,
-        );
-
         this.clients = clients;
         this.modelRepository = models;
         this.serviceRepository = new ServiceRepository({
