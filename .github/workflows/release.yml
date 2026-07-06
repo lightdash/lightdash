@@ -34,7 +34,9 @@ jobs:
         run: pnpm build
 
   release:
-    runs-on: depot-ubuntu-24.04-8
+    # npm provenance publishing only works on GitHub-hosted runners; Depot
+    # runners report as "self-hosted" and the registry rejects the bundle (E422).
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: build-and-test
     concurrency: ${{ github.ref }}
