@@ -1,36 +1,14 @@
 import { Group, Stack, Text } from '@mantine-8/core';
-import { getSchedule, stringToArray } from 'cron-converter';
-import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
 import { useMemo, type FC } from 'react';
 import { useSchedulerFormContext } from '../schedulerFormContext';
+import { getNextRuns } from './nextRuns';
 import classes from './SchedulerDeliveryModal.module.css';
-
-dayjs.extend(relativeTime);
 
 export const SchedulerNextRuns: FC = () => {
     const form = useSchedulerFormContext();
     const { cron, timezone } = form.values;
 
-    const runs = useMemo(() => {
-        if (!cron) return [];
-        try {
-            const schedule = getSchedule(
-                stringToArray(cron),
-                new Date(),
-                timezone,
-            );
-            return [0, 1, 2].map(() => {
-                const next = schedule.next();
-                return {
-                    label: next.toFormat('ccc, LLL d · h:mm a'),
-                    relative: dayjs(next.toJSDate()).fromNow(),
-                };
-            });
-        } catch {
-            return [];
-        }
-    }, [cron, timezone]);
+    const runs = useMemo(() => getNextRuns(cron, timezone), [cron, timezone]);
 
     if (runs.length === 0) return null;
 

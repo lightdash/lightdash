@@ -99,14 +99,26 @@ const AlertConditionCard: FC<{
 
     const emailCount = form.values.emailTargets?.length || 0;
     const slackCount = form.values.slackTargets?.length || 0;
-    const destinations = [
+    const msTeamsCount = form.values.msTeamsTargets?.length || 0;
+    const googleChatCount = form.values.googleChatTargets?.length || 0;
+    const destinationParts = [
         emailCount > 0 &&
             `${emailCount} email recipient${emailCount > 1 ? 's' : ''}`,
         slackCount > 0 &&
             `${slackCount} Slack channel${slackCount > 1 ? 's' : ''}`,
-    ]
-        .filter(Boolean)
-        .join(' and ');
+        msTeamsCount > 0 &&
+            `${msTeamsCount} Teams webhook${msTeamsCount > 1 ? 's' : ''}`,
+        googleChatCount > 0 &&
+            `${googleChatCount} Google Chat webhook${
+                googleChatCount > 1 ? 's' : ''
+            }`,
+    ].filter(Boolean);
+    const destinations =
+        destinationParts.length > 1
+            ? `${destinationParts.slice(0, -1).join(', ')} and ${
+                  destinationParts[destinationParts.length - 1]
+              }`
+            : (destinationParts[0] ?? '');
 
     return (
         <Paper withBorder radius="md" p="md" bg="var(--mantine-color-body)">

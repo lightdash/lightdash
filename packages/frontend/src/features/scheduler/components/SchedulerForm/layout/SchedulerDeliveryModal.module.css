@@ -313,6 +313,13 @@
     margin-top: 6px;
 }
 
+.badgeDot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
 .statusDotActive {
     background: var(--mantine-color-green-6);
 }
@@ -340,9 +347,24 @@
 }
 
 .listDetail {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.listDetailContent {
+    flex: 1;
     overflow-y: auto;
     min-height: 0;
     padding: var(--mantine-spacing-xl);
+}
+
+.listDetailFooter {
+    border-top: 1px solid var(--mantine-color-default-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--mantine-spacing-md) var(--mantine-spacing-xl);
 }
 
 .detailMetaLabel {

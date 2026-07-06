@@ -2,6 +2,8 @@ import { subject } from '@casl/ability';
 import {
     getHumanReadableCronExpression,
     isEmailTarget,
+    isGoogleChatTarget,
+    isMsTeamsTarget,
     isSlackTarget,
     SchedulerFormat,
     type ApiError,
@@ -14,6 +16,7 @@ import {
     Button,
     Group,
     Loader,
+    Paper,
     Stack,
     Switch,
     Text,
@@ -22,8 +25,11 @@ import {
 } from '@mantine-8/core';
 import {
     IconBell,
+    IconBrandGoogle,
     IconBrandSlack,
+    IconBrandTeams,
     IconCalendarClock,
+    IconCalendarTime,
     IconClock,
     IconHistory,
     IconMail,
@@ -34,6 +40,7 @@ import {
     IconSparkles,
     IconTrash,
     IconX,
+    type Icon,
 } from '@tabler/icons-react';
 import { type UseInfiniteQueryResult } from '@tanstack/react-query';
 import dayjs from 'dayjs';
@@ -54,6 +61,7 @@ import {
 } from '../../../../../components/CronInput/cronInputUtils';
 import { getRunStatusConfig } from '../../../../../components/SchedulersView/SchedulersViewUtils';
 import { useAiAgentButtonVisibility } from '../../../../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
+import { useGetSlackChannelName } from '../../../../../hooks/slack/useGetSlackChannelName';
 import { useActiveProjectUuid } from '../../../../../hooks/useActiveProject';
 import { useProject } from '../../../../../hooks/useProject';
 import useApp from '../../../../../providers/App/useApp';
@@ -64,6 +72,7 @@ import ConfirmPauseSchedulerModal from '../../ConfirmPauseSchedulerModal';
 import ConfirmSendNowModal from '../../ConfirmSendNowModal';
 import { SchedulerDeleteModal } from '../../SchedulerDeleteModal';
 import { getSchedulerDeliveryType } from '../../types';
+import { getNextRuns } from './nextRuns';
 import classes from './SchedulerDeliveryModal.module.css';
 
 dayjs.extend(relativeTime);
@@ -82,6 +91,30 @@ const FORMAT_LABEL: Partial<Record<SchedulerFormat, string>> = {
     [SchedulerFormat.IMAGE]: 'Image',
     [SchedulerFormat.PDF]: 'PDF',
 };
+
+const DetailPill: FC<{
+    icon?: Icon;
+    dot?: 'active' | 'paused';
+    label: string;
+}> = ({ icon, dot, label }) => (
+    <Paper withBorder radius="xl" px="xs" py={2}>
+        <Group gap={6} wrap="nowrap">
+            {dot && (
+                <span
+                    className={`${classes.badgeDot} ${
+                        dot === 'active'
+                            ? classes.statusDotActive
+                            : classes.statusDotPaused
+                    }`}
+                />
+            )}
+            {icon && <MantineIcon icon={icon} size="sm" color="ldGray.6" />}
+            <Text size="xs" truncate maw={220}>
+                {label}
+            </Text>
+        </Group>
+    </Paper>
+);
 
 const SchedulerDetail: FC<{
     scheduler: SchedulerAndTargets;
@@ -132,9 +165,53 @@ const SchedulerDetail: FC<{
 
     const frequency =
         FREQUENCY_LABEL[mapCronExpressionToFrequency(scheduler.cron)];
-    const emailCount = scheduler.targets.filter(isEmailTarget).length;
-    const slackCount = scheduler.targets.filter(isSlackTarget).length;
-    const otherCount = scheduler.targets.length - emailCount - slackCount;
+    const formatLabel = FORMAT_LABEL[scheduler.format];
+
+    const slackChannelIds = useMemo(
+        () => scheduler.targets.filter(isSlackTarget).map((t) => t.channel),
+        [scheduler.targets],
+    );
+    const { getSlackChannelName } = useGetSlackChannelName({
+        includeChannelIds: slackChannelIds,
+        enabled: slackChannelIds.length > 0,
+    });
+    const recipientChips = useMemo(
+        () =>
+            scheduler.targets.map((target) => {
+                if (isEmailTarget(target)) {
+                    return {
+                        key: target.schedulerEmailTargetUuid,
+                        icon: IconMail,
+                        label: target.recipient,
+                    };
+                }
+                if (isSlackTarget(target)) {
+                    return {
+                        key: target.schedulerSlackTargetUuid,
+                        icon: IconBrandSlack,
+                        label:
+                            getSlackChannelName(target.channel) ??
+                            target.channel,
+                    };
+                }
+                if (isMsTeamsTarget(target)) {
+                    return {
+                        key: target.schedulerMsTeamsTargetUuid,
+                        icon: IconBrandTeams,
+                        label: 'Microsoft Teams',
+                    };
+                }
+                if (isGoogleChatTarget(target)) {
+                    return {
+                        key: target.schedulerGoogleChatTargetUuid,
+                        icon: IconBrandGoogle,
+                        label: 'Google Chat',
+                    };
+                }
+                return null;
+            }),
+        [scheduler.targets, getSlackChannelName],
+    );
     const runStatus = scheduler.latestRun
         ? getRunStatusConfig(scheduler.latestRun.runStatus)
         : null;
@@ -142,84 +219,81 @@ const SchedulerDetail: FC<{
         scheduler.dashboardUuid || scheduler.savedChartUuid
     );
 
+    const nextRuns = useMemo(
+        () =>
+            scheduler.enabled
+                ? getNextRuns(
+                      scheduler.cron,
+                      scheduler.timezone || project?.schedulerTimezone,
+                  )
+                : [],
+        [
+            scheduler.enabled,
+            scheduler.cron,
+            scheduler.timezone,
+            project?.schedulerTimezone,
+        ],
+    );
+
     if (!project) return null;
 
     return (
         <div className={classes.listDetail}>
-            <Stack gap="md">
-                <Group justify="space-between" wrap="nowrap" align="flex-start">
-                    <Text fw={700} fz="xl" lineClamp={2}>
-                        {scheduler.name}
-                    </Text>
-                    {canManage && (
-                        <Tooltip
-                            withinPortal
-                            label={
-                                scheduler.enabled
-                                    ? 'Pause this delivery'
-                                    : 'Paused. Toggle to resume'
-                            }
-                        >
-                            <Switch
-                                size="md"
-                                checked={scheduler.enabled}
-                                onChange={() => {
-                                    if (scheduler.enabled) {
-                                        setIsConfirmPauseOpen(true);
-                                    } else {
-                                        mutateSchedulerEnabled(true);
-                                    }
-                                }}
-                            />
-                        </Tooltip>
-                    )}
-                </Group>
-
-                <Group gap="xs">
-                    <Badge variant="light" radius="sm" size="sm">
-                        {frequency}
-                    </Badge>
-                    {FORMAT_LABEL[scheduler.format] && (
-                        <Badge
-                            variant="light"
-                            color="ldGray.6"
-                            radius="sm"
-                            size="sm"
-                        >
-                            {FORMAT_LABEL[scheduler.format]}
-                        </Badge>
-                    )}
-                    <Badge
-                        variant="light"
-                        radius="sm"
-                        size="sm"
-                        color={scheduler.enabled ? 'green' : 'ldGray.6'}
+            <Stack gap="md" className={classes.listDetailContent}>
+                <Stack gap={8}>
+                    <Group
+                        justify="space-between"
+                        wrap="nowrap"
+                        align="flex-start"
                     >
-                        {scheduler.enabled ? 'Active' : 'Paused'}
-                    </Badge>
-                    {isThresholdAlert && (
-                        <Badge
-                            variant="light"
-                            radius="sm"
-                            size="sm"
-                            color="orange"
-                            leftSection={
-                                <MantineIcon icon={IconBell} size={10} />
-                            }
-                        >
-                            Alert
-                        </Badge>
-                    )}
-                </Group>
+                        <Text fw={600} fz="xl" lineClamp={2}>
+                            {scheduler.name}
+                        </Text>
+                        {canManage && (
+                            <Tooltip
+                                withinPortal
+                                label={
+                                    scheduler.enabled
+                                        ? 'Pause this delivery'
+                                        : 'Paused. Toggle to resume'
+                                }
+                            >
+                                <Switch
+                                    size="md"
+                                    checked={scheduler.enabled}
+                                    onChange={() => {
+                                        if (scheduler.enabled) {
+                                            setIsConfirmPauseOpen(true);
+                                        } else {
+                                            mutateSchedulerEnabled(true);
+                                        }
+                                    }}
+                                />
+                            </Tooltip>
+                        )}
+                    </Group>
 
-                <Stack gap="sm" mt="xs">
+                    <Group gap={6}>
+                        <DetailPill label={frequency} />
+                        {formatLabel && <DetailPill label={formatLabel} />}
+                        <DetailPill
+                            dot={scheduler.enabled ? 'active' : 'paused'}
+                            label={scheduler.enabled ? 'Active' : 'Paused'}
+                        />
+                        {isThresholdAlert && (
+                            <DetailPill icon={IconBell} label="Alert" />
+                        )}
+                    </Group>
+                </Stack>
+
+                <Stack gap="lg" mt="sm">
                     <Group gap="sm" wrap="nowrap" align="flex-start">
                         <MantineIcon
                             icon={IconClock}
                             size="md"
-                            color="ldGray.6"
+                            color="ldGray.5"
                         />
-                        <Stack gap={0}>
+                        <Stack gap={4}>
                             <span className={classes.detailMetaLabel}>
                                 Runs
                             </span>
@@ -233,13 +307,38 @@ const SchedulerDetail: FC<{
                         </Stack>
                     </Group>
 
+                    {nextRuns.length > 0 && (
+                        <Group gap="sm" wrap="nowrap" align="flex-start">
+                            <MantineIcon
+                                icon={IconCalendarTime}
+                                size="md"
+                                color="ldGray.5"
+                            />
+                            <Stack gap={4}>
+                                <span className={classes.detailMetaLabel}>
+                                    Next runs
+                                </span>
+                                <Stack gap={2}>
+                                    {nextRuns.map((run) => (
+                                        <Group key={run.label} gap="xs">
+                                            <Text size="sm">{run.label}</Text>
+                                            <Text size="xs" c="dimmed">
+                                                {run.relative}
+                                            </Text>
+                                        </Group>
+                                    ))}
+                                </Stack>
+                            </Stack>
+                        </Group>
+                    )}
+
                     <Group gap="sm" wrap="nowrap" align="flex-start">
                         <MantineIcon
                             icon={IconCalendarClock}
                             size="md"
-                            color="ldGray.6"
+                            color="ldGray.5"
                         />
-                        <Stack gap={0}>
+                        <Stack gap={4}>
                             <span className={classes.detailMetaLabel}>
                                 Last run
                             </span>
@@ -277,59 +376,23 @@ const SchedulerDetail: FC<{
                         <MantineIcon
                             icon={IconMail}
                             size="md"
-                            color="ldGray.6"
+                            color="ldGray.5"
                         />
-                        <Stack gap={0}>
+                        <Stack gap={4}>
                             <span className={classes.detailMetaLabel}>
-                                Recipients
+                                {scheduler.targets.length} recipient
+                                {scheduler.targets.length === 1 ? '' : 's'}
                             </span>
-                            <Group gap="xs">
-                                <Text size="sm">
-                                    {scheduler.targets.length} recipient
-                                    {scheduler.targets.length === 1 ? '' : 's'}
-                                </Text>
-                                {emailCount > 0 && (
-                                    <Badge
-                                        variant="light"
-                                        color="ldGray.6"
-                                        radius="sm"
-                                        size="sm"
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconMail}
-                                                size={10}
-                                            />
-                                        }
-                                    >
-                                        {emailCount}
-                                    </Badge>
-                                )}
-                                {slackCount > 0 && (
-                                    <Badge
-                                        variant="light"
-                                        color="ldGray.6"
-                                        radius="sm"
-                                        size="sm"
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconBrandSlack}
-                                                size={10}
-                                            />
-                                        }
-                                    >
-                                        {slackCount}
-                                    </Badge>
-                                )}
-                                {otherCount > 0 && (
-                                    <Badge
-                                        variant="light"
-                                        color="ldGray.6"
-                                        radius="sm"
-                                        size="sm"
-                                    >
-                                        +{otherCount}
-                                    </Badge>
-                                )}
+                            <Group gap={6}>
+                                {recipientChips
+                                    .filter((chip) => chip !== null)
+                                    .map((chip) => (
+                                        <DetailPill
+                                            key={chip.key}
+                                            icon={chip.icon}
+                                            label={chip.label}
+                                        />
+                                    ))}
                             </Group>
                         </Stack>
                     </Group>
@@ -339,9 +402,9 @@ const SchedulerDetail: FC<{
                             <MantineIcon
                                 icon={IconSparkles}
                                 size="md"
-                                color="ldGray.6"
+                                color="ldGray.5"
                             />
-                            <Stack gap={0}>
+                            <Stack gap={4}>
                                 <span className={classes.detailMetaLabel}>
                                     AI summary
                                 </span>
@@ -367,29 +430,11 @@ const SchedulerDetail: FC<{
                         </Button>
                     )}
                 </Stack>
+            </Stack>
 
-                <Group mt="md" justify="space-between">
-                    <Group gap="sm">
-                        {(canManage || canCreate) && (
-                            <Button
-                                leftSection={<MantineIcon icon={IconSend} />}
-                                onClick={() => setIsConfirmSendNowOpen(true)}
-                                loading={sendNowMutation.isLoading}
-                            >
-                                Send now
-                            </Button>
-                        )}
-                        {canManage && (
-                            <Button
-                                variant="default"
-                                leftSection={<MantineIcon icon={IconPencil} />}
-                                onClick={() => onEdit(scheduler.schedulerUuid)}
-                            >
-                                Edit
-                            </Button>
-                        )}
-                    </Group>
-                    {canManage && (
+            {(canManage || canCreate) && (
+                <div className={classes.listDetailFooter}>
+                    {canManage ? (
                         <Tooltip withinPortal label="Delete">
                             <ActionIcon
                                 variant="default"
@@ -401,9 +446,29 @@ const SchedulerDetail: FC<{
                                 <MantineIcon icon={IconTrash} color="red" />
                             </ActionIcon>
                         </Tooltip>
+                    ) : (
+                        <span />
                     )}
-                </Group>
-            </Stack>
+                    <Group gap="sm">
+                        {canManage && (
+                            <Button
+                                variant="default"
+                                leftSection={<MantineIcon icon={IconPencil} />}
+                                onClick={() => onEdit(scheduler.schedulerUuid)}
+                            >
+                                Edit
+                            </Button>
+                        )}
+                        <Button
+                            leftSection={<MantineIcon icon={IconSend} />}
+                            onClick={() => setIsConfirmSendNowOpen(true)}
+                            loading={sendNowMutation.isLoading}
+                        >
+                            Send now
+                        </Button>
+                    </Group>
+                </div>
+            )}
 
             <ConfirmSendNowModal
                 opened={isConfirmSendNowOpen}
