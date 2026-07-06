@@ -275,12 +275,17 @@ export const getGrepFields = ({
                     >['topMatchingFields']
                 > = [];
                 try {
+                    const scopedFieldIds = new Set(
+                        scoped.map((field) => field.path.split('/')[1]),
+                    );
                     const fts = await findExplores({
                         fieldSearchSize: 25,
                         searchQuery: toFtsQuery(patterns),
                     });
                     ftsFields = (fts.topMatchingFields ?? []).filter(
-                        (f) => !exploreName || f.tableName === exploreName,
+                        (f) =>
+                            !exploreName ||
+                            scopedFieldIds.has(`${f.tableName}_${f.name}`),
                     );
                 } catch {
                     ftsFields = [];
