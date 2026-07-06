@@ -1,3 +1,10 @@
+# [0.3315.0](https://github.com/lightdash/lightdash/compare/0.3314.0...0.3315.0) (2026-07-06)
+
+
+### Features
+
+* **scheduler:** redesign the scheduled deliveries modal ([#25159](https://github.com/lightdash/lightdash/issues/25159)) ([0ac704d](https://github.com/lightdash/lightdash/commit/0ac704d43b7db7d809f0069edf8554abfaa4a4cc))
+
 # [0.3314.0](https://github.com/lightdash/lightdash/compare/0.3313.0...0.3314.0) (2026-07-06)
 
 
