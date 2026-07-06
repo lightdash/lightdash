@@ -211,6 +211,11 @@
     padding: var(--mantine-spacing-md);
 }
 
+.previewNextRuns {
+    border-top: 1px solid var(--mantine-color-default-border);
+    padding: var(--mantine-spacing-md);
+}
+
 .footer {
     border-top: 1px solid var(--mantine-color-default-border);
     display: flex;

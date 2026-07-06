@@ -23,9 +23,12 @@ import {
 } from '@mantine-8/core';
 import {
     IconBell,
+    IconChartBar,
+    IconFileTypePdf,
     IconPaperclip,
     IconRefresh,
     IconSparkles,
+    IconTable,
 } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -33,17 +36,14 @@ import { useExportDashboard } from '../../../../../hooks/dashboard/useDashboard'
 import { CUSTOM_WIDTH_OPTIONS } from '../../../constants';
 import { useSchedulerFormContext } from '../schedulerFormContext';
 import classes from './SchedulerDeliveryModal.module.css';
+import { SchedulerNextRuns } from './SchedulerNextRuns';
 
 const DEFAULT_WIDTH = '1400';
 
 const AiSummaryChip: FC = () => (
-    <Paper radius="md" p="sm" bg="var(--mantine-primary-color-light)">
+    <Paper radius="md" p="sm" bg="var(--mantine-color-default-hover)">
         <Stack gap={6}>
-            <Text
-                size="xs"
-                fw={600}
-                c="var(--mantine-primary-color-light-color)"
-            >
+            <Text size="xs" fw={600}>
                 <MantineIcon
                     icon={IconSparkles}
                     size="sm"
@@ -171,6 +171,12 @@ export const SchedulerPreviewPanel: FC<Props> = ({
     const canRender =
         isImageLike && dashboard !== undefined && !isThresholdAlert;
     const withAi = form.values.aiAugmentation !== null;
+    const placeholderIcon =
+        format === SchedulerFormat.PDF
+            ? IconFileTypePdf
+            : format === SchedulerFormat.IMAGE
+              ? IconChartBar
+              : IconTable;
 
     const exportDashboardMutation = useExportDashboard();
     const [previewUrl, setPreviewUrl] = useState<string>();
@@ -214,7 +220,7 @@ export const SchedulerPreviewPanel: FC<Props> = ({
     return (
         <aside className={classes.preview}>
             <div className={classes.previewHeader}>
-                <span className={classes.previewLabel}>Live preview</span>
+                <span className={classes.previewLabel}>Preview</span>
                 {canRender && previewUrl && (
                     <Button
                         variant="subtle"
@@ -253,14 +259,19 @@ export const SchedulerPreviewPanel: FC<Props> = ({
                                         onClick={() => setIsEnlarged(true)}
                                     />
                                 ) : (
-                                    <>
-                                        <Paper
-                                            radius="sm"
-                                            h={canRender ? 88 : 64}
-                                            bg="var(--mantine-color-default-hover)"
-                                        >
-                                            {canRender && (
-                                                <Center h="100%">
+                                    <Paper
+                                        radius="sm"
+                                        h={canRender ? 96 : 64}
+                                        bg="var(--mantine-color-default-hover)"
+                                    >
+                                        <Center h="100%">
+                                            <Stack gap="xs" align="center">
+                                                <MantineIcon
+                                                    icon={placeholderIcon}
+                                                    size="lg"
+                                                    color="ldGray.5"
+                                                />
+                                                {canRender && (
                                                     <Button
                                                         variant="default"
                                                         size="xs"
@@ -271,23 +282,25 @@ export const SchedulerPreviewPanel: FC<Props> = ({
                                                     >
                                                         Generate preview
                                                     </Button>
-                                                </Center>
-                                            )}
-                                        </Paper>
-                                        {!canRender && (
-                                            <Text size="xs" c="dimmed">
-                                                Image previews are available for
-                                                dashboards.
-                                            </Text>
-                                        )}
-                                    </>
+                                                )}
+                                            </Stack>
+                                        </Center>
+                                    </Paper>
                                 )
                             ) : (
                                 <Paper
                                     radius="sm"
                                     h={64}
                                     bg="var(--mantine-color-default-hover)"
-                                />
+                                >
+                                    <Center h="100%">
+                                        <MantineIcon
+                                            icon={placeholderIcon}
+                                            size="lg"
+                                            color="ldGray.5"
+                                        />
+                                    </Center>
+                                </Paper>
                             )}
                             {format === SchedulerFormat.CSV &&
                                 form.values.options.asAttachment && (
@@ -301,6 +314,7 @@ export const SchedulerPreviewPanel: FC<Props> = ({
                     </Paper>
                 )}
             </div>
+            <SchedulerNextRuns />
             {canRender && (
                 <div className={classes.previewFooter}>
                     <Select
