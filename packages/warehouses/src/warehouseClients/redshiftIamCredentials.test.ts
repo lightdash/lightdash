@@ -16,6 +16,9 @@ vi.mock('@aws-sdk/client-redshift', () => ({
     GetClusterCredentialsCommand: vi.fn(function (input: unknown) {
         return { __command: 'cluster', input };
     }),
+    GetClusterCredentialsWithIAMCommand: vi.fn(function (input: unknown) {
+        return { __command: 'cluster-with-iam', input };
+    }),
 }));
 
 vi.mock('@aws-sdk/client-redshift-serverless', () => ({
@@ -149,6 +152,36 @@ describe('mintRedshiftIamCredentials', () => {
             expiration,
         });
         expect(mockClusterSend).toHaveBeenCalledTimes(1);
+        expect(mockServerlessSend).not.toHaveBeenCalled();
+    });
+
+    test('mints credentials from the IAM identity when no database user is provided', async () => {
+        const expiration = new Date('2026-01-01T00:00:00Z');
+        mockClusterSend.mockResolvedValue({
+            DbUser: 'IAMR:user-role',
+            DbPassword: 'temp-password',
+            Expiration: expiration,
+        });
+
+        const result = await mintRedshiftIamCredentials({
+            ...provisionedCredentials,
+            user: '',
+            assumeRoleArn: 'arn:aws:iam::123456789012:role/user-role',
+        });
+
+        expect(result).toEqual({
+            dbUser: 'IAMR:user-role',
+            dbPassword: 'temp-password',
+            expiration,
+        });
+        expect(mockClusterSend).toHaveBeenCalledWith({
+            __command: 'cluster-with-iam',
+            input: {
+                ClusterIdentifier: 'my-cluster',
+                DbName: 'dev',
+                DurationSeconds: 3600,
+            },
+        });
         expect(mockServerlessSend).not.toHaveBeenCalled();
     });
 

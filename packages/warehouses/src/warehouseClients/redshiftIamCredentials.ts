@@ -1,5 +1,6 @@
 import {
     GetClusterCredentialsCommand,
+    GetClusterCredentialsWithIAMCommand,
     RedshiftClient,
     type RedshiftClientConfig,
 } from '@aws-sdk/client-redshift';
@@ -126,15 +127,32 @@ export const mintRedshiftIamCredentials = async (
                 'Redshift IAM authentication requires a cluster identifier',
             );
         }
-        if (!credentials.user) {
-            throw new WarehouseConnectionError(
-                'Redshift IAM authentication requires a database user',
-            );
-        }
+
         const client = new RedshiftClient({
             region: credentials.region,
             credentials: awsCredentials,
         });
+
+        if (!credentials.user) {
+            const response = await client.send(
+                new GetClusterCredentialsWithIAMCommand({
+                    ClusterIdentifier: credentials.clusterIdentifier,
+                    DbName: credentials.dbname,
+                    DurationSeconds: CREDENTIALS_DURATION_SECONDS,
+                }),
+            );
+            if (!response.DbUser || !response.DbPassword) {
+                throw new WarehouseConnectionError(
+                    'Redshift did not return temporary credentials',
+                );
+            }
+            return {
+                dbUser: response.DbUser,
+                dbPassword: response.DbPassword,
+                expiration: response.Expiration,
+            };
+        }
+
         const response = await client.send(
             new GetClusterCredentialsCommand({
                 ClusterIdentifier: credentials.clusterIdentifier,

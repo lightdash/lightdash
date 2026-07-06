@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
     DatabricksAuthenticationType,
+    RedshiftAuthenticationType,
     SnowflakeAuthenticationType,
     WarehouseTypes,
     type CreateAthenaCredentials,
@@ -30,7 +31,10 @@ export type UserWarehouseCredentials = {
     updatedAt: Date;
     credentials:
         | Pick<
-              | CreateRedshiftCredentials
+              CreateRedshiftCredentials,
+              'type' | 'user' | 'authenticationType' | 'assumeRoleArn'
+          >
+        | Pick<
               | CreatePostgresCredentials
               | CreateSnowflakeCredentials
               | CreateTrinoCredentials
@@ -50,6 +54,17 @@ export type UserWarehouseCredentialsWithSecrets = Pick<
 > & {
     credentials:
         | Pick<CreateRedshiftCredentials, 'type' | 'user' | 'password'>
+        | Pick<
+              CreateRedshiftCredentials,
+              | 'type'
+              | 'user'
+              | 'authenticationType'
+              | 'accessKeyId'
+              | 'secretAccessKey'
+              | 'sessionToken'
+              | 'assumeRoleArn'
+              | 'assumeRoleExternalId'
+          >
         | Pick<CreatePostgresCredentials, 'type' | 'user' | 'password'>
         | Pick<
               CreateSnowflakeCredentials,
@@ -133,3 +148,39 @@ export const bigquerySsoUserCredentialsSchema = z
             .passthrough(),
     })
     .passthrough();
+
+export const redshiftIamUserCredentialsSchema = z
+    .object({
+        type: z.literal(WarehouseTypes.REDSHIFT),
+        authenticationType: z.literal(RedshiftAuthenticationType.IAM),
+        user: z.string().optional(),
+        password: z.string().optional(),
+        accessKeyId: z.string().optional(),
+        secretAccessKey: z.string().optional(),
+        sessionToken: z.string().optional(),
+        assumeRoleArn: z.string().optional(),
+        assumeRoleExternalId: z.string().optional(),
+    })
+    .strict()
+    .superRefine((credentials, ctx) => {
+        const hasAccessKeyId = !!credentials.accessKeyId;
+        const hasSecretAccessKey = !!credentials.secretAccessKey;
+        const hasStaticCredentials = hasAccessKeyId && hasSecretAccessKey;
+        const hasAssumeRole = !!credentials.assumeRoleArn;
+
+        if (hasAccessKeyId !== hasSecretAccessKey) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message:
+                    'Redshift IAM credentials require both AWS access key ID and secret access key.',
+            });
+        }
+
+        if (!hasStaticCredentials && !hasAssumeRole) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message:
+                    'Redshift IAM credentials require an assume-role ARN or AWS access keys.',
+            });
+        }
+    });

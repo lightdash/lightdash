@@ -16564,8 +16564,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "accepted",
-                                                            "rejected"
+                                                            "rejected",
+                                                            "accepted"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -16623,8 +16623,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "accepted",
-                                                            "rejected"
+                                                            "rejected",
+                                                            "accepted"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -16803,6 +16803,9 @@
                                                             "searchQueries": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "error": {
+                                                                            "type": "string"
+                                                                        },
                                                                         "pagination": {
                                                                             "properties": {
                                                                                 "totalPageCount": {
@@ -16829,9 +16832,6 @@
                                                                                 "page"
                                                                             ],
                                                                             "type": "object"
-                                                                        },
-                                                                        "error": {
-                                                                            "type": "string"
                                                                         },
                                                                         "status": {
                                                                             "type": "string",
@@ -16965,6 +16965,10 @@
                                                         "anyOf": [
                                                             {
                                                                 "properties": {
+                                                                    "rationale": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
                                                                     "fields": {
                                                                         "items": {
                                                                             "properties": {
@@ -16979,10 +16983,10 @@
                                                                                         "not_applicable"
                                                                                     ]
                                                                                 },
-                                                                                "fieldValueType": {
+                                                                                "fieldFilterType": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "fieldFilterType": {
+                                                                                "fieldValueType": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "fieldType": {
@@ -17012,8 +17016,8 @@
                                                                             "required": [
                                                                                 "isFromJoinedTable",
                                                                                 "caseSensitiveFilters",
-                                                                                "fieldValueType",
                                                                                 "fieldFilterType",
+                                                                                "fieldValueType",
                                                                                 "fieldType",
                                                                                 "description",
                                                                                 "label",
@@ -17024,10 +17028,6 @@
                                                                             "type": "object"
                                                                         },
                                                                         "type": "array"
-                                                                    },
-                                                                    "rationale": {
-                                                                        "type": "string",
-                                                                        "nullable": true
                                                                     },
                                                                     "explore": {
                                                                         "properties": {
@@ -17099,8 +17099,8 @@
                                                                     }
                                                                 },
                                                                 "required": [
-                                                                    "fields",
                                                                     "rationale",
+                                                                    "fields",
                                                                     "explore",
                                                                     "status"
                                                                 ],
@@ -17114,10 +17114,10 @@
                                                                     "candidates": {
                                                                         "items": {
                                                                             "properties": {
-                                                                                "exploreLabel": {
+                                                                                "reason": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "reason": {
+                                                                                "exploreLabel": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "exploreName": {
@@ -17125,8 +17125,8 @@
                                                                                 }
                                                                             },
                                                                             "required": [
-                                                                                "exploreLabel",
                                                                                 "reason",
+                                                                                "exploreLabel",
                                                                                 "exploreName"
                                                                             ],
                                                                             "type": "object"
@@ -17237,6 +17237,32 @@
                                             },
                                             {
                                                 "properties": {
+                                                    "steps": {
+                                                        "items": {
+                                                            "properties": {
+                                                                "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                        "search",
+                                                                        "edit",
+                                                                        "compile",
+                                                                        "read",
+                                                                        "stage"
+                                                                    ]
+                                                                },
+                                                                "label": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "kind",
+                                                                "label"
+                                                            ],
+                                                            "type": "object"
+                                                        },
+                                                        "type": "array",
+                                                        "nullable": true
+                                                    },
                                                     "previewUrl": {
                                                         "type": "string",
                                                         "nullable": true
@@ -17264,32 +17290,6 @@
                                                         ],
                                                         "nullable": true
                                                     },
-                                                    "steps": {
-                                                        "items": {
-                                                            "properties": {
-                                                                "kind": {
-                                                                    "type": "string",
-                                                                    "enum": [
-                                                                        "search",
-                                                                        "read",
-                                                                        "edit",
-                                                                        "compile",
-                                                                        "stage"
-                                                                    ]
-                                                                },
-                                                                "label": {
-                                                                    "type": "string"
-                                                                }
-                                                            },
-                                                            "required": [
-                                                                "kind",
-                                                                "label"
-                                                            ],
-                                                            "type": "object"
-                                                        },
-                                                        "type": "array",
-                                                        "nullable": true
-                                                    },
                                                     "prUrl": {
                                                         "type": "string",
                                                         "nullable": true
@@ -17309,9 +17309,9 @@
                                                         "type": "string",
                                                         "enum": [
                                                             "unknown",
-                                                            "unsupported_source_control",
                                                             "github_not_installed",
                                                             "gitlab_not_installed",
+                                                            "unsupported_source_control",
                                                             "pull_request_not_open",
                                                             "git_write_permission",
                                                             null
@@ -17374,10 +17374,10 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
+                                                            "timeout",
                                                             "error",
                                                             "rejected",
-                                                            "success",
-                                                            "timeout"
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -25311,8 +25311,40 @@
             "UpdateAiReviewNotificationSettings": {
                 "$ref": "#/components/schemas/Pick_AiReviewNotificationSettings.enabled-or-slackChannelId_"
             },
+            "AiProviderApiKeysSet": {
+                "properties": {
+                    "openai": {
+                        "type": "boolean"
+                    },
+                    "anthropic": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["openai", "anthropic"],
+                "type": "object"
+            },
+            "AiProviderApiKeyHints": {
+                "properties": {
+                    "openai": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "anthropic": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["openai", "anthropic"],
+                "type": "object"
+            },
             "AiOrganizationSettings": {
                 "properties": {
+                    "providerApiKeyHints": {
+                        "$ref": "#/components/schemas/AiProviderApiKeyHints"
+                    },
+                    "providerApiKeysSet": {
+                        "$ref": "#/components/schemas/AiProviderApiKeysSet"
+                    },
                     "defaultAiAgentModelConfig": {
                         "allOf": [
                             {
@@ -25335,6 +25367,8 @@
                     }
                 },
                 "required": [
+                    "providerApiKeyHints",
+                    "providerApiKeysSet",
                     "defaultAiAgentModelConfig",
                     "mcpContentWritesEnabled",
                     "aiAgentReviewsEnabled",
@@ -25406,16 +25440,23 @@
             "ApiUpdateAiOrganizationSettingsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiOrganizationSettings_"
             },
-            "Partial_Omit_AiOrganizationSettings.organizationUuid__": {
+            "UpdateAiProviderApiKeys": {
                 "properties": {
-                    "aiAgentsVisible": {
-                        "type": "boolean"
+                    "openai": {
+                        "type": "string",
+                        "nullable": true
                     },
-                    "aiAgentReviewsEnabled": {
-                        "type": "boolean"
-                    },
-                    "mcpContentWritesEnabled": {
-                        "type": "boolean"
+                    "anthropic": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateAiOrganizationSettings": {
+                "properties": {
+                    "providerApiKeys": {
+                        "$ref": "#/components/schemas/UpdateAiProviderApiKeys"
                     },
                     "defaultAiAgentModelConfig": {
                         "allOf": [
@@ -25424,13 +25465,18 @@
                             }
                         ],
                         "nullable": true
+                    },
+                    "mcpContentWritesEnabled": {
+                        "type": "boolean"
+                    },
+                    "aiAgentReviewsEnabled": {
+                        "type": "boolean"
+                    },
+                    "aiAgentsVisible": {
+                        "type": "boolean"
                     }
                 },
-                "type": "object",
-                "description": "Make all properties in T optional"
-            },
-            "UpdateAiOrganizationSettings": {
-                "$ref": "#/components/schemas/Partial_Omit_AiOrganizationSettings.organizationUuid__"
+                "type": "object"
             },
             "ApiJobScheduledResponse": {
                 "properties": {
@@ -26186,15 +26232,31 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_CreateRedshiftCredentials-or-CreatePostgresCredentials-or-CreateSnowflakeCredentials-or-CreateTrinoCredentials-or-CreateClickhouseCredentials.type-or-user_": {
+            "Pick_CreateRedshiftCredentials.type-or-user-or-authenticationType-or-assumeRoleArn_": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.REDSHIFT"
+                    },
+                    "user": {
+                        "type": "string"
+                    },
+                    "authenticationType": {
+                        "$ref": "#/components/schemas/RedshiftAuthenticationType"
+                    },
+                    "assumeRoleArn": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type", "user"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_CreatePostgresCredentials-or-CreateSnowflakeCredentials-or-CreateTrinoCredentials-or-CreateClickhouseCredentials.type-or-user_": {
                 "properties": {
                     "type": {
                         "anyOf": [
                             {
                                 "$ref": "#/components/schemas/WarehouseTypes.POSTGRES"
-                            },
-                            {
-                                "$ref": "#/components/schemas/WarehouseTypes.REDSHIFT"
                             },
                             {
                                 "$ref": "#/components/schemas/WarehouseTypes.SNOWFLAKE"
@@ -26287,7 +26349,10 @@
                     "credentials": {
                         "anyOf": [
                             {
-                                "$ref": "#/components/schemas/Pick_CreateRedshiftCredentials-or-CreatePostgresCredentials-or-CreateSnowflakeCredentials-or-CreateTrinoCredentials-or-CreateClickhouseCredentials.type-or-user_"
+                                "$ref": "#/components/schemas/Pick_CreateRedshiftCredentials.type-or-user-or-authenticationType-or-assumeRoleArn_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreatePostgresCredentials-or-CreateSnowflakeCredentials-or-CreateTrinoCredentials-or-CreateClickhouseCredentials.type-or-user_"
                             },
                             {
                                 "$ref": "#/components/schemas/Pick_CreateBigqueryCredentials.type_"
@@ -26341,6 +26406,37 @@
                         "type": "string"
                     },
                     "password": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type", "user"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_CreateRedshiftCredentials.type-or-user-or-authenticationType-or-accessKeyId-or-secretAccessKey-or-sessionToken-or-assumeRoleArn-or-assumeRoleExternalId_": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.REDSHIFT"
+                    },
+                    "user": {
+                        "type": "string"
+                    },
+                    "accessKeyId": {
+                        "type": "string"
+                    },
+                    "secretAccessKey": {
+                        "type": "string"
+                    },
+                    "sessionToken": {
+                        "type": "string"
+                    },
+                    "authenticationType": {
+                        "$ref": "#/components/schemas/RedshiftAuthenticationType"
+                    },
+                    "assumeRoleArn": {
+                        "type": "string"
+                    },
+                    "assumeRoleExternalId": {
                         "type": "string"
                     }
                 },
@@ -26506,6 +26602,9 @@
                         "anyOf": [
                             {
                                 "$ref": "#/components/schemas/Pick_CreateRedshiftCredentials.type-or-user-or-password_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateRedshiftCredentials.type-or-user-or-authenticationType-or-accessKeyId-or-secretAccessKey-or-sessionToken-or-assumeRoleArn-or-assumeRoleExternalId_"
                             },
                             {
                                 "$ref": "#/components/schemas/Pick_CreatePostgresCredentials.type-or-user-or-password_"
@@ -43393,7 +43492,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3320.0",
+        "version": "0.3321.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
