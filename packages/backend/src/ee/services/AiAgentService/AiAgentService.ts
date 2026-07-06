@@ -271,6 +271,7 @@ import {
     EditRepoFn,
     ExploreRepoFn,
     GetPromptFn,
+    GetPullRequestDiffFn,
     ListWorkstreamsFn,
     SendFileFn,
     SendSlackBlocksFn,
@@ -6671,6 +6672,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         projectUuid,
                         prompt: writebackPrompt,
                         prUrl: args.prUrl,
+                        startNewPullRequest: args.startNewPullRequest ?? false,
                         aiThreadUuid: prompt.threadUuid,
                         source,
                         onProgress: writebackProgressCallback,
@@ -7136,6 +7138,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             });
         };
 
+        const getPullRequestDiff: GetPullRequestDiffFn = async ({ prUrl }) =>
+            this.aiWritebackService.getPullRequestDiff({
+                user,
+                projectUuid,
+                prUrl,
+            });
+
         return {
             listExplores: toolsRuntime.listExplores,
             getProjectContextDocument,
@@ -7189,6 +7198,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             discoverRepos,
             listWorkstreams,
             closePullRequest,
+            getPullRequestDiff,
             listProjects: toolsRuntime.listProjects,
             getProjectInfo: toolsRuntime.getProjectInfo,
             loadSkill: toolsRuntime.loadSkill,
@@ -7360,6 +7370,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             discoverRepos,
             listWorkstreams,
             closePullRequest,
+            getPullRequestDiff,
             listProjects,
             getProjectInfo,
         } = await this.getAiAgentDependencies(user, prompt, {
@@ -7834,6 +7845,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             discoverRepos,
             listWorkstreams,
             closePullRequest,
+            getPullRequestDiff,
             listProjects,
             getProjectInfo,
             updateProgress: (progress, toolName, progressId, progressStatus) =>

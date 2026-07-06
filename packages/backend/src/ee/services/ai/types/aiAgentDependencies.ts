@@ -500,6 +500,8 @@ export type EditDbtProjectFn = (args: {
     prompt: string | null;
     prUrl: string | null;
     fromActiveChangeset: boolean;
+    /** Open a new PR instead of continuing the thread's existing one. */
+    startNewPullRequest: boolean | null;
     progressId?: string;
 }) => Promise<
     AiWritebackRunResult & {
@@ -580,6 +582,10 @@ export type ListWorkstreamsFn = (args: {
  * `manage:SourceCode` and that the URL targets this project's own repo.
  */
 export type ClosePullRequestFn = (args: { prUrl: string }) => Promise<void>;
+
+export type GetPullRequestDiffFn = (args: {
+    prUrl: string;
+}) => Promise<string | null>;
 
 export type ListProjectsFn = () => Promise<
     {

@@ -340,14 +340,16 @@ export type AiWritebackRunArgs = {
      * Ignored on a resumed thread — it stays bound to its original source.
      */
     dbtSourceUuid?: string;
-    // Honoured only when the thread has no writeback PR yet; the PR must live
-    // in the project's own repo (validated before adoption).
+    // Target a specific pull request to update: one of the thread's own
+    // workstreams (resumed by URL), or an external PR the user pasted that lives
+    // in the project's own repo (validated before adoption). Honoured by both
+    // the general and dbt-writeback paths.
     prUrl?: string | null;
     /**
-     * General coding agent: open a NEW pull request for this turn even when the
-     * thread already has one open against the same repo, instead of continuing
-     * the existing one. Lets a single conversation drive several independent PRs
-     * per repo. Ignored by the dbt-writeback path (which always continues).
+     * Open a NEW pull request for this turn even when the thread already has one
+     * open against the same repo, instead of continuing the existing one. Lets a
+     * single conversation drive several independent PRs per repo. Honoured by
+     * both the general coding agent and the dbt-writeback path.
      */
     startNewPullRequest?: boolean;
     aiThreadUuid?: string;

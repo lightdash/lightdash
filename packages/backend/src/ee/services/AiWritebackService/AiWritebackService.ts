@@ -536,6 +536,29 @@ export class AiWritebackService extends BaseService {
     }
 
     /**
+     * Read-only: the raw unified diff of a pull request in the project's repo.
+     * Lets the top agent see exactly what a PR contains before deciding how to
+     * split, consolidate, or continue changes across pull requests. Delegates to
+     * {@link CiService.getPullRequestDiff} — the same path the chat's diff viewer
+     * uses — which checks `view:SourceCode` and confirms the URL targets the
+     * project's own repository, so it can't read arbitrary repos the
+     * installation happens to cover. Returns null when the diff can't be
+     * resolved (wrong repo, no installation, unparseable URL).
+     */
+    async getPullRequestDiff(args: {
+        user: SessionUser;
+        projectUuid: string;
+        prUrl: string;
+    }): Promise<string | null> {
+        const { user, projectUuid, prUrl } = args;
+        return this.ciService.getPullRequestDiff({
+            user,
+            projectUuid,
+            prUrl,
+        });
+    }
+
+    /**
      * Merge a write-back PR, then auto-sync the dbt project so the merged
      * change goes live without a manual refresh. Delegates the merge itself to
      * {@link CiService} (which owns the PR write guard), and on a successful
@@ -2084,8 +2107,10 @@ export class AiWritebackService extends BaseService {
             dbtVersion = resolved.dbtVersion;
         } else {
             this.assertCanManageSourceCode(user, project, projectUuid);
-            // The thread's bound row (dbt = one workstream per thread) supplies
-            // the source binding so a resume never retargets the cloned repo.
+            // The thread's most-recent workstream row supplies the source
+            // binding so a resume never retargets the cloned repo. A dbt thread
+            // can now hold several workstreams; they all target the same project
+            // dbt source, so the latest row is a correct source anchor.
             const boundStored = aiThreadUuid
                 ? await this.aiWritebackThreadModel.findByAiThreadUuid(
                       aiThreadUuid,
@@ -2119,27 +2144,26 @@ export class AiWritebackService extends BaseService {
         }
 
         // Route this turn to a workstream (one sandbox + one PR). A thread can
-        // hold several per repo, so the resume row is selected — never just the
-        // repo:
+        // hold several per repo — for both the general agent and dbt writeback —
+        // so the resume row is selected, never just the repo:
         //  - startNewPullRequest → no resume row: a fresh sandbox + new PR
-        //    (general agent, "open a separate PR" even when one exists).
-        //  - explicit prUrl (general) → the workstream owning that PR; null when
-        //    the URL is an external paste, so the adopt path takes over.
+        //    ("open a separate PR" even when one exists).
+        //  - explicit prUrl → the workstream owning that PR; null when the URL is
+        //    an external paste, so the adopt path takes over.
         //  - default → the repo's most-recent workstream (the single row for a
-        //    dbt thread or any one-PR-per-repo thread), i.e. unchanged.
+        //    thread that has only opened one PR on the repo), i.e. unchanged.
         const targetRepo = `${gitConnection.owner}/${gitConnection.repo}`;
         let storedRow: AiWritebackThreadWithPrUrl | null = null;
         if (aiThreadUuid && !startNewPullRequest) {
-            storedRow =
-                mode === 'general' && prUrl
-                    ? await this.aiWritebackThreadModel.findByAiThreadUuidAndPrUrl(
-                          aiThreadUuid,
-                          prUrl,
-                      )
-                    : await this.aiWritebackThreadModel.findActiveWorkstreamByRepo(
-                          aiThreadUuid,
-                          targetRepo,
-                      );
+            storedRow = prUrl
+                ? await this.aiWritebackThreadModel.findByAiThreadUuidAndPrUrl(
+                      aiThreadUuid,
+                      prUrl,
+                  )
+                : await this.aiWritebackThreadModel.findActiveWorkstreamByRepo(
+                      aiThreadUuid,
+                      targetRepo,
+                  );
         }
         // A null `sandbox_uuid` means an old pod inserted this row mid-rollout
         // (it set the legacy `sandbox_id` column the new code no longer reads),

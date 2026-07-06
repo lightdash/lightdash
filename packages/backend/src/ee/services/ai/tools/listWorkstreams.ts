@@ -19,8 +19,8 @@ export const getListWorkstreams = ({ listWorkstreams }: Dependencies) =>
                 if (workstreams.length === 0) {
                     return {
                         result: repoTarget
-                            ? `This conversation has not opened any pull requests on ${repoTarget} yet. Use editRepo to open one.`
-                            : 'This conversation has not opened any pull requests yet. Use editRepo to open one.',
+                            ? `This conversation has not opened any pull requests on ${repoTarget} yet. Use editRepo or editDbtProject to open one.`
+                            : 'This conversation has not opened any pull requests yet. Use editRepo or editDbtProject to open one.',
                         metadata: { status: 'success' as const },
                     };
                 }
@@ -28,7 +28,7 @@ export const getListWorkstreams = ({ listWorkstreams }: Dependencies) =>
                 const lines = [
                     `${workstreams.length} pull request${
                         workstreams.length === 1 ? '' : 's'
-                    } opened in this conversation. To continue one, pass its URL as the editRepo \`prUrl\`; for a separate change set editRepo \`startNewPullRequest\`:`,
+                    } opened in this conversation. To continue one, pass its URL as the edit tool's \`prUrl\` (editRepo or editDbtProject); for a separate change set \`startNewPullRequest\`:`,
                     ...workstreams.map(
                         (w) =>
                             `• ${w.repository} #${w.prNumber} — ${w.prUrl}${

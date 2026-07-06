@@ -5,7 +5,7 @@ export const TOOL_EDIT_DBT_PROJECT_DESCRIPTION = [
     'Use this tool ONLY when the user asks to CHANGE something in the underlying repo — e.g. add or rename a metric, edit a dimension definition, modify a dbt model, update YAML metadata.',
     'Do NOT use this tool for read-only questions, querying data, exploring fields, or for changes that can be made inside Lightdash (use editContent for those).',
     'This tool applies the change on your behalf: it runs in an isolated sandbox, edits the repo, runs `lightdash compile`, and opens a pull request. The call is synchronous and can take several minutes. Treat the result as your own work when you report it to the user.',
-    'If the user pastes a link to an existing pull request and asks to iterate on it, pass that link as prUrl so the change updates that PR instead of opening a duplicate.',
+    'A single conversation can open several pull requests: follow-up edits continue the most recent one, prUrl targets a specific existing one, and startNewPullRequest opens a fresh one for an unrelated change.',
 ].join(' ');
 
 export const toolEditDbtProjectArgsSchema = z.object({
@@ -19,12 +19,18 @@ export const toolEditDbtProjectArgsSchema = z.object({
         .string()
         .nullable()
         .describe(
-            "If the user pasted a link to an existing GitHub pull request they want to UPDATE instead of opening a new one, put the full PR URL here (e.g. 'https://github.com/owner/repo/pull/123'). The PR must belong to this project's own dbt repository. Only set this when the user explicitly references an existing PR to edit; otherwise pass null to open a new pull request.",
+            "To UPDATE a specific existing pull request instead of opening a new one, put its full URL here (e.g. 'https://github.com/owner/repo/pull/123'). The PR must belong to this project's own dbt repository. Use this both for a PR the user pasted AND to target one of several pull requests this conversation has already opened (get the URL from listWorkstreams or a previous editDbtProject result). Otherwise pass null.",
         ),
     fromActiveChangeset: z
         .boolean()
         .describe(
             'Set to true when the user asks to write back, apply, or open a pull request FROM their changeset(s) — e.g. "create a PR from my changesets". The server then reads the project\'s active changeset and builds the writeback instructions deterministically from its structured changes, ignoring `prompt` (pass null). Leave false for ordinary free-text writeback requests where you compose `prompt` yourself.',
+        ),
+    startNewPullRequest: z
+        .boolean()
+        .nullable()
+        .describe(
+            "Set true to open a brand-new pull request even when this conversation already has one open against this project's dbt repository — use it when the user asks for a SEPARATE, unrelated change rather than a follow-up to existing work. Leave null (the default) to continue the most recent pull request. Ignored when prUrl is set.",
         ),
 });
 

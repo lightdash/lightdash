@@ -2,8 +2,8 @@ import { z } from 'zod';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 
 export const TOOL_LIST_WORKSTREAMS_DESCRIPTION = [
-    'List the pull requests this conversation has already opened with editRepo (its "workstreams"), so you can decide where a change should go.',
-    'Use this before editRepo when the user asks to change a repo you may have an open pull request on already: read the list, then either pass an existing pull request URL as editRepo `prUrl` to continue that one, or set editRepo `startNewPullRequest` to open a separate pull request.',
+    'List the pull requests this conversation has already opened with the repository-edit tools editRepo and editDbtProject (its "workstreams"), so you can decide where a change should go.',
+    "Use this before editRepo / editDbtProject when the user asks to change a repo you may have an open pull request on already: read the list, then either pass an existing pull request URL as the edit tool's `prUrl` to continue that one, or set `startNewPullRequest` to open a separate pull request.",
     'Returns each workstream as owner/repo with its pull request URL, number, and a short summary. Optionally filter to a single repository. Read-only.',
 ].join(' ');
 

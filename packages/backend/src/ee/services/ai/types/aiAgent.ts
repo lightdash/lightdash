@@ -34,6 +34,7 @@ import {
     GetKnowledgeDocumentContentFn,
     GetProjectInfoFn,
     GetPromptFn,
+    GetPullRequestDiffFn,
     GetSavedChartFn,
     GetVerifiedFieldUsageFn,
     IsPromptInterruptedFn,
@@ -224,6 +225,7 @@ export type AiAgentDependencies = {
     discoverRepos: DiscoverReposFn;
     listWorkstreams: ListWorkstreamsFn;
     closePullRequest: ClosePullRequestFn;
+    getPullRequestDiff: GetPullRequestDiffFn;
     listProjects: ListProjectsFn;
     getProjectInfo: GetProjectInfoFn;
     waitForSqlApproval: WaitForSqlApprovalFn;

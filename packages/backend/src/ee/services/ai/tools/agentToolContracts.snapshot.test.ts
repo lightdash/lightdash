@@ -20,6 +20,7 @@ import { getGenerateVisualization } from './generateVisualization';
 import { getGetDashboardCharts } from './getDashboardCharts';
 import { getGetKnowledgeDocumentContent } from './getKnowledgeDocumentContent';
 import { getGetProjectInfo } from './getProjectInfo';
+import { getGetPullRequestDiff } from './getPullRequestDiff';
 import { getImproveContext } from './improveContext';
 import { getListContent } from './listContent';
 import { getListKnowledgeDocuments } from './listKnowledgeDocuments';
@@ -161,6 +162,9 @@ const makeAgentTools = () => {
         discoverRepos: getDiscoverRepos({ discoverRepos: noop }),
         listWorkstreams: getListWorkstreams({ listWorkstreams: noop }),
         closePullRequest: getClosePullRequest({ closePullRequest: noopAsync }),
+        getPullRequestDiff: getGetPullRequestDiff({
+            getPullRequestDiff: noop,
+        }),
         readContent: getReadContent({ readContent: noop }),
         runContentQuery: getRunContentQuery({
             enableDataAccess: true,

@@ -150,6 +150,11 @@ import {
     toolGetProjectInfoOutputSchema,
 } from './toolGetProjectInfoArgs';
 import {
+    TOOL_GET_PULL_REQUEST_DIFF_DESCRIPTION,
+    toolGetPullRequestDiffArgsSchema,
+    toolGetPullRequestDiffOutputSchema,
+} from './toolGetPullRequestDiffArgs';
+import {
     TOOL_GET_QUERY_RESULT_DESCRIPTION,
     toolGetQueryResultArgsSchema,
 } from './toolGetQueryResultArgs';
@@ -938,6 +943,20 @@ export const closePullRequestToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolClosePullRequestOutputSchema },
 });
 
+export const getPullRequestDiffToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'getPullRequestDiff',
+    typeof toolGetPullRequestDiffArgsSchema,
+    typeof toolGetPullRequestDiffArgsSchema,
+    typeof toolGetPullRequestDiffOutputSchema
+> = defineTool({
+    name: 'getPullRequestDiff',
+    title: 'Read pull request diff',
+    description: TOOL_GET_PULL_REQUEST_DIFF_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolGetPullRequestDiffArgsSchema,
+    agent: { outputSchema: toolGetPullRequestDiffOutputSchema },
+});
+
 export const setupPreviewDeployToolDefinition: ToolDefinitionWithoutMcpOutput<
     'setupPreviewDeploy',
     typeof toolSetupPreviewDeployArgsSchema,
@@ -1379,6 +1398,7 @@ type AgentToolDefinitionsByName = {
     discoverRepos: typeof discoverReposToolDefinition;
     listWorkstreams: typeof listWorkstreamsToolDefinition;
     closePullRequest: typeof closePullRequestToolDefinition;
+    getPullRequestDiff: typeof getPullRequestDiffToolDefinition;
     setupPreviewDeploy: typeof setupPreviewDeployToolDefinition;
     runSavedChart: typeof runSavedChartToolDefinition;
     listWarehouseTables: typeof listWarehouseTablesToolDefinition;
@@ -1429,6 +1449,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     discoverRepos: discoverReposToolDefinition,
     listWorkstreams: listWorkstreamsToolDefinition,
     closePullRequest: closePullRequestToolDefinition,
+    getPullRequestDiff: getPullRequestDiffToolDefinition,
     setupPreviewDeploy: setupPreviewDeployToolDefinition,
     runSavedChart: runSavedChartToolDefinition,
     listWarehouseTables: listWarehouseTablesToolDefinition,
@@ -1481,6 +1502,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     discoverReposToolDefinition,
     listWorkstreamsToolDefinition,
     closePullRequestToolDefinition,
+    getPullRequestDiffToolDefinition,
     setupPreviewDeployToolDefinition,
     runSavedChartToolDefinition,
     listWarehouseTablesToolDefinition,
