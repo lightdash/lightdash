@@ -238,9 +238,31 @@ const escapeRegExp = (value: string): string =>
     value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 /**
+ * Defense-in-depth (L3/R2/vector-b): redact token-shaped substrings from any
+ * agent-produced text that reaches a PR title/body or the user-facing reply. The
+ * clone token is already scoped + revoked and `.git` is read-denied, so a live
+ * token should be unreachable — this is a belt-and-suspenders pass against an
+ * unexpected leak (e.g. a token the agent echoed from somewhere we didn't deny).
+ */
+export const redactTokens = (text: string): string =>
+    text
+        // Credentials embedded in a clone/remote URL: user:secret@host
+        .replace(/(https?:\/\/)[^/\s:@]+:[^/\s@]+@/gi, '$1[REDACTED]@')
+        // GitHub PAT / OAuth / app / refresh / server-to-server tokens
+        .replace(/\bgh[pousr]_[A-Za-z0-9]{20,}\b/g, '[REDACTED]')
+        // GitHub fine-grained PAT
+        .replace(/\bgithub_pat_[A-Za-z0-9_]{20,}\b/g, '[REDACTED]')
+        // GitLab PAT / OAuth / trigger / pipeline-trigger / runner tokens
+        .replace(
+            /\bgl(pat|oas|ptt|rt|cbt|soat)-[A-Za-z0-9_-]{20,}\b/g,
+            '[REDACTED]',
+        );
+
+/**
  * Parse the agent's PR title/description from the structured-output delimiters
  * in its stdout, and return the stdout with those blocks stripped so they don't
- * leak into the user-facing reply.
+ * leak into the user-facing reply. All returned text is passed through
+ * {@link redactTokens} so a token can never ride into a PR body or the reply.
  */
 export const extractPrMetadata = (stdout: string): PrMetadata => {
     const titleRe = new RegExp(
@@ -275,7 +297,12 @@ export const extractPrMetadata = (stdout: string): PrMetadata => {
         .replace(stripRe, '')
         .replace(/\n{3,}/g, '\n\n')
         .trim();
-    return { title, description, summary, sanitizedStdout };
+    return {
+        title: title === null ? null : redactTokens(title),
+        description: description === null ? null : redactTokens(description),
+        summary: summary === null ? null : redactTokens(summary),
+        sanitizedStdout: redactTokens(sanitizedStdout),
+    };
 };
 
 /**

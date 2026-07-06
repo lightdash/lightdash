@@ -101,6 +101,8 @@ Use the fieldId in \`queryConfig.metrics\`, \`chartConfig.yAxisMetrics\`, \`sort
 
 {{ai_writeback_section}}
 
+{{coding_agent_section}}
+
 {{repo_fs_section}}
 
 ## Internal mechanics — recap

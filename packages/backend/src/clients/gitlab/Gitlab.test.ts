@@ -4,6 +4,7 @@ import {
     getFileContent,
     getGitlabRepoTree,
     getMergeRequestComments,
+    getRepositorySizeMb,
     isGitlabRateLimitError,
 } from './Gitlab';
 
@@ -230,6 +231,43 @@ describe('GitlabClient.getBranches', () => {
         expect(url).toContain(
             'https://gitlab.internal.acme.com/api/v4/projects/my-group%2Fmy-repo/repository/branches',
         );
+    });
+});
+
+describe('GitlabClient.getRepositorySizeMb', () => {
+    beforeEach(() => {
+        fetchMock.resetMocks();
+    });
+
+    it('requests the project statistics and returns repository_size in MB', async () => {
+        fetchMock.mockResponseOnce(
+            JSON.stringify({
+                statistics: { repository_size: 5 * 1024 * 1024 },
+            }),
+        );
+
+        const sizeMb = await getRepositorySizeMb({
+            owner: 'my-group',
+            repo: 'my-repo',
+            token: 'glpat-xxx',
+        });
+
+        expect(sizeMb).toBe(5);
+        expect(fetchMock.mock.calls[0][0]).toBe(
+            'https://gitlab.com/api/v4/projects/my-group%2Fmy-repo?statistics=true',
+        );
+    });
+
+    it('returns null when statistics are not exposed (cannot enforce the size guard)', async () => {
+        fetchMock.mockResponseOnce(JSON.stringify({ id: 1 }));
+
+        const sizeMb = await getRepositorySizeMb({
+            owner: 'my-group',
+            repo: 'my-repo',
+            token: 'glpat-xxx',
+        });
+
+        expect(sizeMb).toBeNull();
     });
 });
 

@@ -129,6 +129,8 @@ export type DbAiWritebackThread = {
      * NULL — deleting the source degrades a resume back to the primary.
      */
     project_dbt_source_uuid: string | null;
+    /** "owner/repo" this row's sandbox + PR target; null only on legacy rows. */
+    target_repo: string | null;
     created_at: Date;
 };
 
@@ -136,10 +138,10 @@ export type AiWritebackThreadTable = Knex.CompositeTableType<
     DbAiWritebackThread,
     Pick<
         DbAiWritebackThread,
-        'ai_thread_uuid' | 'sandbox_uuid' | 'pull_request_uuid'
+        'ai_thread_uuid' | 'sandbox_uuid' | 'pull_request_uuid' | 'target_repo'
     > &
         Partial<Pick<DbAiWritebackThread, 'project_dbt_source_uuid'>>,
-    Pick<DbAiWritebackThread, 'sandbox_uuid' | 'pull_request_uuid'>
+    Partial<Pick<DbAiWritebackThread, 'sandbox_uuid' | 'pull_request_uuid'>>
 >;
 
 export const AiPromptTableName = 'ai_prompt';
