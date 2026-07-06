@@ -348,6 +348,7 @@ export const ToolCallDescription: FC<{
         case 'discoverRepos':
         case 'listWorkstreams':
         case 'closePullRequest':
+        case 'getPullRequestDiff':
         case 'proposeChange':
         case 'editDbtProject':
         case 'editProjectContext':

@@ -59,6 +59,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     discoverRepos: 'discover_repos',
     listWorkstreams: 'list_workstreams',
     closePullRequest: 'close_pull_request',
+    getPullRequestDiff: 'get_pull_request_diff',
     setupPreviewDeploy: 'setup_preview_deploy',
 } satisfies Record<ToolName, string>;
 

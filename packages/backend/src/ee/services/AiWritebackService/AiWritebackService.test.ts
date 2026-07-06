@@ -608,6 +608,97 @@ describe('AiWritebackService.prepareTurn', () => {
             turn: { existingRow: null, isResume: false },
         });
     });
+
+    // Change C: `prUrl` routing is no longer gated on `mode === 'general'`, so a
+    // dbt-writeback thread can resume a specific one of its own workstreams by
+    // URL. This asserts the by-URL lookup is taken (not the repo-level resume).
+    it('resumes a specific pull request by prUrl, regardless of mode (change C)', async () => {
+        const findActiveWorkstreamByRepo = vi.fn();
+        const findByAiThreadUuidAndPrUrl = vi
+            .fn()
+            .mockResolvedValue(workstreamRow);
+        const service = buildService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            } as AnyType,
+            projectModel: {
+                get: vi.fn().mockResolvedValue(githubProject()),
+            } as AnyType,
+            aiWritebackThreadModel: {
+                findByAiThreadUuid: vi.fn().mockResolvedValue(null),
+                findActiveWorkstreamByRepo,
+                findByAiThreadUuidAndPrUrl,
+            } as AnyType,
+        });
+        // The resumed row carries a live PR, so the edit-state guard runs.
+        vi.spyOn(
+            (service as AnyType).githubProvider,
+            'resolveInstallation',
+        ).mockResolvedValue({
+            provider: PullRequestProvider.GITHUB,
+            installationId: 'inst-1',
+            token: 'install-token',
+            userToken: null,
+            commitAuthor: { name: 'n', email: 'e' },
+            coAuthorTrailer: '',
+        } as AnyType);
+        vi.spyOn(
+            (service as AnyType).githubProvider,
+            'getPullRequestEditState',
+        ).mockResolvedValue({ editable: true, reason: null });
+
+        const turn = await (service as AnyType).prepareTurn({
+            user: userWithOrg(true),
+            projectUuid: 'p1',
+            aiThreadUuid: 't1',
+            prUrl: PR_3,
+        });
+
+        expect(findByAiThreadUuidAndPrUrl).toHaveBeenCalledWith('t1', PR_3);
+        expect(findActiveWorkstreamByRepo).not.toHaveBeenCalled();
+        expect(turn).toMatchObject({
+            kind: 'run',
+            turn: {
+                existingRow: workstreamRow,
+                isResume: true,
+            },
+        });
+    });
+
+    // Change C, adopt fallback: a prUrl that isn't one of this thread's own
+    // workstreams (an external paste) resolves to null, so the turn is fresh and
+    // the later adopt path validates + records the pasted PR.
+    it('looks up by prUrl then falls through to the adopt path for an external paste', async () => {
+        const findActiveWorkstreamByRepo = vi.fn();
+        const findByAiThreadUuidAndPrUrl = vi.fn().mockResolvedValue(null);
+        const service = buildService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            } as AnyType,
+            projectModel: {
+                get: vi.fn().mockResolvedValue(githubProject()),
+            } as AnyType,
+            aiWritebackThreadModel: {
+                findByAiThreadUuid: vi.fn().mockResolvedValue(null),
+                findActiveWorkstreamByRepo,
+                findByAiThreadUuidAndPrUrl,
+            } as AnyType,
+        });
+
+        const turn = await (service as AnyType).prepareTurn({
+            user: userWithOrg(true),
+            projectUuid: 'p1',
+            aiThreadUuid: 't1',
+            prUrl: PR_7,
+        });
+
+        expect(findByAiThreadUuidAndPrUrl).toHaveBeenCalledWith('t1', PR_7);
+        expect(findActiveWorkstreamByRepo).not.toHaveBeenCalled();
+        expect(turn).toMatchObject({
+            kind: 'run',
+            turn: { existingRow: null, isResume: false },
+        });
+    });
 });
 
 describe('AiWritebackService workstream concurrency', () => {

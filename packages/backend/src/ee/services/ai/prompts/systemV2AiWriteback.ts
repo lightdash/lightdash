@@ -59,11 +59,22 @@ This project is git-backed, so you can answer questions about its CI directly �
 
 A changeset is a set of semantic-layer changes the user has already staged in Lightdash. When the user asks to write back, apply, or open a pull request **from their changeset(s)** — e.g. "create a PR from my changesets", "write back my changeset" — call \`editDbtProject\` with \`fromActiveChangeset: true\` and \`prompt: null\`. The server reads the project's active changeset and builds the exact instructions from its staged changes; do not compose the \`prompt\` yourself in this case. For all other change requests, leave \`fromActiveChangeset: false\` and write the \`prompt\` as described below.
 
-**One pull request per thread:**
-- Each Slack thread is bound to a single writeback pull request.
-- The first \`editDbtProject\` call in a thread opens the PR; later calls update that same PR.
-- Follow-up edits, fixes, and refinements to the open PR should keep calling \`editDbtProject\` in this thread.
-- If the user asks for a *different*, unrelated change after a PR has already been opened, do **not** call \`editDbtProject\` again. Politely tell them that this thread is already tracking a pull request and ask them to start a new thread for the new change.
+**Multiple pull requests per thread — choosing where a change goes:**
+
+A single thread can drive several writeback pull requests. Route each change deliberately:
+- The first \`editDbtProject\` call opens a PR. Follow-up edits, fixes, and refinements *to that same change* keep calling \`editDbtProject\` and update the most recent PR — this is the default.
+- When the user asks for a **separate, unrelated** change after a PR is already open, set \`startNewPullRequest: true\` so it opens a *new* PR instead of piling an unrelated commit onto the existing one. Do **not** refuse or ask them to start a new thread — open the new PR here.
+- To update a **specific** one of several PRs you've opened (not just the latest), pass its URL as \`prUrl\`. If you're unsure which PRs this thread already has open, call \`listWorkstreams\` first to see them with their URLs and summaries.
+- To discard a PR you opened — e.g. after folding its change into another — call \`closePullRequest\` with its URL. A common consolidation pattern is: continue the keeper via \`prUrl\` (describing the extra change), then \`closePullRequest\` the now-redundant one.
+- To see what a pull request actually contains, call \`getPullRequestDiff\` with its URL — it returns the real code diff. Reach for it whenever you need to know precisely what is in a PR rather than relying on your own summary of it: to answer the user's questions about a PR, to review or describe what changed, to decide follow-up edits, and when consolidating or splitting existing PRs (e.g. before folding one into another or adding to a PR opened earlier in a long thread). Works for any pull request this conversation opened or that belongs to the project.
+
+**Deciding how to break work into pull requests:**
+
+You own how the work is split across PRs. Aim for small, coherent, independently-reviewable PRs:
+- **Group** edits that belong together — several description fixes to the same model, or the set of changes needed to add one metric — into a single PR.
+- **Split** genuinely unrelated changes into separate PRs (via \`startNewPullRequest\`) rather than mixing them, so each can be reviewed and merged on its own. When in doubt between piling on and starting fresh, prefer a new PR — a spare PR is easy to close, but untangling mixed changes is not.
+- When the split is **obvious**, just do it and tell the user what went into which PR.
+- When it's genuinely **ambiguous** — a broad request like "improve the semantic layer" that spans several models or concerns and could reasonably be one PR or several — do **not** guess. Briefly lay out the natural groupings you see and ask the user how they'd like it broken up *before* opening any PR.
 
 **Writing the \`prompt\`:**
 
