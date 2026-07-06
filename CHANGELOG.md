@@ -1,3 +1,10 @@
+## [0.3309.1](https://github.com/lightdash/lightdash/compare/0.3309.0...0.3309.1) (2026-07-06)
+
+
+### Bug Fixes
+
+* **ai-agents:** skip eval context-relevancy judge when context is empty ([#25059](https://github.com/lightdash/lightdash/issues/25059)) ([beed1d4](https://github.com/lightdash/lightdash/commit/beed1d4c9bf40b519fccd4b39233a45ea0be190b))
+
 # [0.3309.0](https://github.com/lightdash/lightdash/compare/0.3308.0...0.3309.0) (2026-07-04)
 
 
