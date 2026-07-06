@@ -1,3 +1,16 @@
+# [0.3316.0](https://github.com/lightdash/lightdash/compare/0.3315.5...0.3316.0) (2026-07-06)
+
+
+### Bug Fixes
+
+* **ai:** anchor relative time expressions to the current date in agent prompt ([#25185](https://github.com/lightdash/lightdash/issues/25185)) ([4383640](https://github.com/lightdash/lightdash/commit/4383640859c14f05b7ca2732b514e5246b36f8a5))
+
+
+### Features
+
+* **ai-writeback:** multiple pull requests per thread + getPullRequestDiff tool ([#25187](https://github.com/lightdash/lightdash/issues/25187)) ([b3facdc](https://github.com/lightdash/lightdash/commit/b3facdc8a9a8e2d5003c899750558955ae0bc534))
+* **common:** add dependencies to scope definitions ([#25186](https://github.com/lightdash/lightdash/issues/25186)) ([73ff2fe](https://github.com/lightdash/lightdash/commit/73ff2fe5ae31ce5c8ecffe406367b4c188742eb7))
+
 ## [0.3315.5](https://github.com/lightdash/lightdash/compare/0.3315.4...0.3315.5) (2026-07-06)
 
 
