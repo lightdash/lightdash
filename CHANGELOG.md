@@ -1,3 +1,10 @@
+# [0.3311.0](https://github.com/lightdash/lightdash/compare/0.3310.1...0.3311.0) (2026-07-06)
+
+
+### Features
+
+* **coding-agent:** general-purpose editRepo agent ([#24542](https://github.com/lightdash/lightdash/issues/24542)) ([87ddc1a](https://github.com/lightdash/lightdash/commit/87ddc1a8062d8ce3f6d42f92a1f3ee3de8ec5fd7)), closes [#24502](https://github.com/lightdash/lightdash/issues/24502) [#24967](https://github.com/lightdash/lightdash/issues/24967) [#24967](https://github.com/lightdash/lightdash/issues/24967)
+
 ## [0.3310.1](https://github.com/lightdash/lightdash/compare/0.3310.0...0.3310.1) (2026-07-06)
 
 
