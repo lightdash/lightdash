@@ -107,9 +107,11 @@ export type CreateAiOrganizationSettings = Omit<
     providerApiKeys?: UpdateAiProviderApiKeys;
 };
 
-export type UpdateAiOrganizationSettings = Partial<
-    Omit<AiOrganizationSettings, 'organizationUuid' | 'providerApiKeysSet'>
-> & {
+export type UpdateAiOrganizationSettings = {
+    aiAgentsVisible?: boolean;
+    aiAgentReviewsEnabled?: boolean;
+    mcpContentWritesEnabled?: boolean;
+    defaultAiAgentModelConfig?: AiAgentModelConfig | null;
     providerApiKeys?: UpdateAiProviderApiKeys;
 };
 

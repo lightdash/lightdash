@@ -150,6 +150,7 @@ export class AiOrganizationSettingsService extends BaseService {
                 aiAgentReviewsEnabled: false,
                 mcpContentWritesEnabled: true,
                 defaultAiAgentModelConfig: null,
+                providerApiKeysSet: { anthropic: false, openai: false },
                 defaultAiAgentModelOptions: this.getDefaultModelOptions(),
                 isTrial: isTrialEligible,
             };
