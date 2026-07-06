@@ -1,6 +1,6 @@
 <summary>
 SQL generation and transformation utilities for Lightdash queries.
-Three main builders: MetricQueryBuilder (metrics/dimensions with joins), PivotQueryBuilder (flat → pivot table with row/column indexes), SqlQueryBuilder (SQL charts with filtering).
+Four builders: MetricQueryBuilder (metrics/dimensions with joins), PivotQueryBuilder (flat → pivot table with row/column indexes), SqlQueryBuilder (SQL charts with filtering), TotalQueryBuilder (source query → grand/row/column/subtotal query transform).
 PivotQueryBuilder does NOT pivot data — it generates SQL that tags each row with `row_index` and `column_index` metadata via DENSE_RANK(). The actual pivoting happens downstream in AsyncQueryService.runQueryAndTransformRows.
 
 This file covers SQL generation only. For the end-to-end pivot pipeline (config → SQL → transform → reshape → render), see `/docs/pivoting.md`.
@@ -58,6 +58,19 @@ const builder = new SqlQueryBuilder(
     warehouseConfig,
 );
 const { sql, parameterReferences } = builder.getSqlAndReferences();
+```
+
+**TotalQueryBuilder** — transforms a source query (`metricQuery` + `pivotConfiguration`) into the totals query that reproduces a requested grain (`grandTotal` / `columnTotal` / `rowTotal` / `columnSubtotal`). It does NOT emit SQL — it returns a transformed `MetricQuery` + `PivotConfiguration` that is then executed through the normal path (`MetricQueryBuilder` / `PivotQueryBuilder`). Mirrors `MetricQueryBuilder`'s surface: configure via the constructor, then call `compileQuery()`. Used by `AsyncQueryService` to compute table-calc/metric totals for a previously-executed query.
+
+```typescript
+import { TotalQueryBuilder } from './TotalQueryBuilder';
+
+const { metricQuery, pivotConfiguration } = new TotalQueryBuilder({
+    metricQuery: source.metricQuery,
+    pivotConfiguration: source.pivotConfiguration, // or null
+    kind: 'columnTotal',
+    subtotalDimensions, // only for kind: 'columnSubtotal'
+}).compileQuery();
 ```
 
 </howToUse>

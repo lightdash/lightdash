@@ -159,6 +159,7 @@ import {
     ReferenceMap,
     SqlQueryBuilder,
 } from '../../utils/QueryBuilder/SqlQueryBuilder';
+import { TotalQueryBuilder } from '../../utils/QueryBuilder/TotalQueryBuilder';
 import {
     applyLimitToSqlQuery,
     replaceUserAttributesAsStrings,
@@ -189,12 +190,6 @@ import {
 } from '../UserAttributesService/UserAttributeUtils';
 import { getValidatedDashboardSorts } from './dashboardSorts';
 import { getPivotedColumns } from './getPivotedColumns';
-import {
-    getColumnSubtotalQueryFromSource,
-    getColumnTotalQueryFromSource,
-    getGrandTotalMetricQuery,
-    getRowTotalQueryFromSource,
-} from './getTotalsQueryFromSource';
 import { getUnpivotedColumns } from './getUnpivotedColumns';
 import {
     NoOpPreAggregateStrategy,
@@ -4541,34 +4536,12 @@ export class AsyncQueryService extends ProjectService {
             this.projectModel.getSummary(projectUuid),
         ]);
 
-        const sourceInputs = {
+        const { metricQuery, pivotConfiguration } = new TotalQueryBuilder({
             metricQuery: source.metricQuery,
             pivotConfiguration: source.pivotConfiguration,
-        };
-        let metricQuery: MetricQuery;
-        let pivotConfiguration: PivotConfiguration | undefined;
-        switch (kind) {
-            case 'columnTotal':
-                ({ metricQuery, pivotConfiguration } =
-                    getColumnTotalQueryFromSource(sourceInputs));
-                break;
-            case 'rowTotal':
-                ({ metricQuery, pivotConfiguration } =
-                    getRowTotalQueryFromSource(sourceInputs));
-                break;
-            case 'columnSubtotal':
-                ({ metricQuery, pivotConfiguration } =
-                    getColumnSubtotalQueryFromSource({
-                        ...sourceInputs,
-                        subtotalDimensions: subtotalDimensions ?? [],
-                    }));
-                break;
-            default:
-                return assertUnreachable(
-                    kind,
-                    `Calculate-total kind "${kind}" is not yet supported`,
-                );
-        }
+            kind,
+            subtotalDimensions,
+        }).compileQuery();
 
         // Reuse the source's parameter values so the totals query sees the
         // same parameter context as the original. The execution path
@@ -7076,7 +7049,11 @@ export class AsyncQueryService extends ProjectService {
         invalidateCache?: boolean;
         userAccessControls?: UserAccessControls;
     }): Promise<Record<string, unknown> | undefined> {
-        const totalMetricQuery = getGrandTotalMetricQuery(metricQuery);
+        const { metricQuery: totalMetricQuery } = new TotalQueryBuilder({
+            metricQuery,
+            pivotConfiguration: null,
+            kind: 'grandTotal',
+        }).compileQuery();
 
         const { rows } = await this.executeMetricQueryAndGetResultsForTotals({
             account,
