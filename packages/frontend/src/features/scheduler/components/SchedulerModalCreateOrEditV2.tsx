@@ -201,6 +201,7 @@ export const SchedulerModalCreateOrEditV2: FC<Props> = ({
                 size={1080}
                 padding={0}
                 centered
+                closeOnClickOutside={false}
             >
                 <Modal.Overlay />
                 <Modal.Content>
