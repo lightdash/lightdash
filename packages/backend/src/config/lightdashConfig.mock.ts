@@ -376,6 +376,7 @@ export const lightdashConfigMock: LightdashConfig = {
         cspAllowedOrigins: [],
         s3: null,
         e2bApiKey: null,
+        customDependenciesEnabled: true,
         e2bTemplateName: 'lightdash-data-app',
         e2bTemplateTag: '',
         e2bAiWritebackTemplateName: 'lightdash-ai-writeback',

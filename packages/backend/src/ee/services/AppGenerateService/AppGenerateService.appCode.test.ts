@@ -2,10 +2,13 @@ import {
     ParameterError,
     TooManyRequestsError,
     type DataAppCode,
+    type DataAppDependencies,
     type ImportAppCodeRequestBody,
 } from '@lightdash/common';
+import { createHash } from 'node:crypto';
 import { extract as tarExtract } from 'tar-stream';
 import { AppGenerateService } from './AppGenerateService';
+import { TEMPLATE_DEPENDENCIES } from './templateDependencies';
 
 vi.mock('e2b', () => ({
     Sandbox: class {},
@@ -52,9 +55,26 @@ const makeCode = (files?: DataAppCode['files']): DataAppCode => ({
     ],
 });
 
+const makeDeps = (
+    customDeps: Record<string, string> = {},
+    opts: { sdkVersion?: string; lockfile?: string } = {},
+): DataAppDependencies => {
+    const dependencies = {
+        ...TEMPLATE_DEPENDENCIES,
+        '@lightdash/query-sdk': opts.sdkVersion ?? '0.999.0',
+        ...customDeps,
+    };
+    return {
+        packageJson: JSON.stringify({ dependencies }),
+        lockfile:
+            opts.lockfile ??
+            `lockfileVersion: '9.0'\n# ${Object.keys(dependencies).join(' ')}\n`,
+    };
+};
+
 const s3SendSpy = vi.fn().mockResolvedValue({});
 
-function buildService() {
+function buildService(opts: { customDependenciesEnabled?: boolean } = {}) {
     const appModel = {
         findApp: vi.fn(),
         getApp: vi.fn(),
@@ -87,8 +107,14 @@ function buildService() {
         getSpaceAccessContext: vi.fn().mockResolvedValue({}),
     };
 
+    const lightdashConfig = {
+        appRuntime: {
+            customDependenciesEnabled: opts.customDependenciesEnabled ?? true,
+        },
+    };
+
     const service = new AppGenerateService({
-        lightdashConfig: {} as never,
+        lightdashConfig: lightdashConfig as never,
         analytics: {} as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
@@ -156,6 +182,7 @@ describe('AppGenerateService.importAppCode', () => {
             { version: 1, prompt: '' },
             'pending',
             expect.any(Object),
+            undefined, // no declared dependencies
         );
 
         // S3 PutObjectCommand sent for source.tar
@@ -210,6 +237,7 @@ describe('AppGenerateService.importAppCode', () => {
             'pending',
             USER_UUID,
             expect.any(Object),
+            undefined, // no declared dependencies
         );
 
         // scheduler enqueued with version 5 and project org, not user's org
@@ -369,6 +397,47 @@ describe('AppGenerateService.importAppCode', () => {
         } as ImportAppCodeRequestBody);
 
         expect(appModel.updateApp).not.toHaveBeenCalled();
+    });
+
+    it('throws ParameterError when custom deps are present but customDependenciesEnabled is false', async () => {
+        const { service, appModel } = buildService({
+            customDependenciesEnabled: false,
+        });
+
+        appModel.findApp.mockResolvedValue(undefined);
+
+        const codeWithCustomDep = {
+            ...makeCode(),
+            dependencies: makeDeps({ 'deck.gl': '9.3.5' }),
+        };
+
+        await expect(
+            service.importAppCode(makeUser(), PROJECT_UUID, {
+                code: codeWithCustomDep,
+            } as ImportAppCodeRequestBody),
+        ).rejects.toThrow(ParameterError);
+
+        await expect(
+            service.importAppCode(makeUser(), PROJECT_UUID, {
+                code: codeWithCustomDep,
+            } as ImportAppCodeRequestBody),
+        ).rejects.toThrow('LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED');
+    });
+
+    it('accepts template-only upload when customDependenciesEnabled is false', async () => {
+        const { service, appModel, schedulerClient } = buildService({
+            customDependenciesEnabled: false,
+        });
+
+        appModel.findApp.mockResolvedValue(undefined);
+
+        // Template-only = no custom deps above the baseline
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: { ...makeCode(), dependencies: makeDeps() },
+        } as ImportAppCodeRequestBody);
+
+        expect(result.action).toBe('create');
+        expect(schedulerClient.appBuildFromSource).toHaveBeenCalledOnce();
     });
 
     it('create mode: source.tar contains only src/ entries when bundle has mixed files', async () => {

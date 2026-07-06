@@ -245,6 +245,20 @@ export type AppVersionResources = {
     vizSchema?: DataAppVizSchema | null;
 };
 
+export type AppVersionDependencyEntry = {
+    name: string;
+    version: string;
+};
+
+// Persisted on app_versions.dependencies (jsonb). Null on the row = the
+// version builds with the template dependency set.
+export type AppVersionDependencies = {
+    // Packages that differ from the template baseline (new or version override).
+    custom: AppVersionDependencyEntry[];
+    // sha256 of the stored pnpm-lock.yaml, for integrity checks.
+    lockfileHash: string;
+};
+
 export type ApiAppImageUrlResponse = ApiSuccess<{
     imageUrl: string;
 }>;
@@ -276,6 +290,9 @@ export type ApiAppVersionSummary = {
         lastName: string;
     } | null;
     resources: AppVersionResources | null;
+    // Declared-dependency summary when the version was uploaded with a custom
+    // dependency set; absent for template-dependency versions.
+    dependencies?: { custom: AppVersionDependencyEntry[] };
 };
 
 export type ApiGetAppResponse = ApiSuccess<{

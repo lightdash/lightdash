@@ -29,8 +29,10 @@ import {
     NotFoundError,
     ParameterError,
     QueryExecutionContext,
+    sanitizeAppPackageJsonScripts,
     TooManyRequestsError,
     validateDataAppCode,
+    validateDataAppDependencies,
     type AnonymousAccount,
     type AppBuildFromSourceJobPayload,
     type AppChartReference,
@@ -39,6 +41,7 @@ import {
     type AppExternalConnectionReference,
     type AppGeneratePipelineJobPayload,
     type AppVersionChartResource,
+    type AppVersionDependencies,
     type AppVersionExternalConnectionResource,
     type AppVersionResources,
     type ChartReference,
@@ -49,6 +52,7 @@ import {
     type DataAppCode,
     type DataAppCodeDownload,
     type DataAppContext,
+    type DataAppDependencies,
     type DataAppTemplate,
     type DataAppViz,
     type DataAppVizSchema,
@@ -68,6 +72,7 @@ import {
 } from '@lightdash/common';
 import { generateObject } from 'ai';
 import { Knex } from 'knex';
+import { createHash } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { PassThrough, Readable } from 'node:stream';
 import { extract, pack as tarPack, type Headers } from 'tar-stream';
@@ -87,6 +92,7 @@ import {
     isAppVersionInProgress,
     type AppVersionStatus,
     type DbApp,
+    type DbAppVersion,
 } from '../../../database/entities/apps';
 import { AnalyticsModel } from '../../../models/AnalyticsModel';
 import { AppModel } from '../../../models/AppModel';
@@ -151,6 +157,11 @@ import {
     type DesignSandboxCopyResult,
 } from './designSandboxCopy';
 import { readDesignForDownload } from './readDesignForDownload';
+import { readS3ObjectAsBuffer } from './s3Utils';
+import {
+    buildTemplateBaseline,
+    TEMPLATE_SCRIPTS,
+} from './templateDependencies';
 import { getTemplateInstructions } from './templates';
 
 /**
@@ -5594,6 +5605,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 lastName: string;
             } | null;
             resources: AppVersionResources | null;
+            dependencies?: { custom: AppVersionDependencies['custom'] };
         }[];
         hasMore: boolean;
     }> {
@@ -5656,6 +5668,10 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                         : null,
                 createdAt: v.created_at,
                 statusUpdatedAt: v.status_updated_at,
+                // Custom-deps summary only; the lockfile hash is internal.
+                ...(v.dependencies
+                    ? { dependencies: { custom: v.dependencies.custom } }
+                    : {}),
                 // LEFT JOIN may miss for hard-deleted users — collapse the
                 // whole object to null in that case rather than expose
                 // individually-nullable fields to API consumers.
@@ -6783,8 +6799,10 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         await this.assertCanViewApp(user, app);
 
         let resolvedVersion: number;
+        let versionRow: DbAppVersion | null;
         if (version !== undefined) {
             resolvedVersion = version;
+            versionRow = await this.appModel.getVersion(app.app_id, version);
         } else {
             const latestReady = await this.appModel.getLatestReadyVersion(
                 app.app_id,
@@ -6795,6 +6813,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 );
             }
             resolvedVersion = latestReady.version;
+            versionRow = latestReady;
         }
 
         const { client: s3Client, bucket } = this.getS3Client();
@@ -6885,7 +6904,36 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             app.organization_uuid,
         );
 
-        return { manifest, files, context };
+        // Round-trip the declared dependency files when this version was
+        // uploaded with a custom dependency set. Failures propagate: silently
+        // dropping the files would make a re-upload build with template deps.
+        let dependencies: DataAppDependencies | undefined;
+        if (versionRow?.dependencies) {
+            const depsPrefix = `${versionPrefix(appUuid, resolvedVersion)}deps/`;
+            const [packageJsonBuffer, lockfileBuffer] = await Promise.all([
+                readS3ObjectAsBuffer(
+                    s3Client,
+                    bucket,
+                    `${depsPrefix}package.json`,
+                ),
+                readS3ObjectAsBuffer(
+                    s3Client,
+                    bucket,
+                    `${depsPrefix}pnpm-lock.yaml`,
+                ),
+            ]);
+            dependencies = {
+                packageJson: packageJsonBuffer.toString('utf-8'),
+                lockfile: lockfileBuffer.toString('utf-8'),
+            };
+        }
+
+        return {
+            manifest,
+            files,
+            ...(dependencies !== undefined ? { dependencies } : {}),
+            context,
+        };
     }
 
     private async assembleAppContext(
@@ -7012,6 +7060,43 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             );
         }
 
+        // Validate the declared dependency set against the template baseline.
+        // An empty custom set is treated as no-dependencies (some CLIs attach
+        // the template set redundantly) and nothing is stored.
+        let dependencySummary: AppVersionDependencies | undefined;
+        if (code.dependencies !== undefined) {
+            let customDeps: Record<string, string>;
+            try {
+                ({ customDeps } = validateDataAppDependencies(
+                    code.dependencies,
+                    {
+                        templateDependencies: buildTemplateBaseline(
+                            code.dependencies.packageJson,
+                        ),
+                    },
+                ));
+            } catch (err) {
+                throw new ParameterError(getErrorMessage(err));
+            }
+            if (Object.keys(customDeps).length > 0) {
+                if (
+                    !this.lightdashConfig.appRuntime.customDependenciesEnabled
+                ) {
+                    throw new ParameterError(
+                        'Custom app dependencies are disabled on this instance (LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED). Remove the added packages or ask an admin to enable them.',
+                    );
+                }
+                dependencySummary = {
+                    custom: Object.entries(customDeps).map(
+                        ([name, version]) => ({ name, version }),
+                    ),
+                    lockfileHash: createHash('sha256')
+                        .update(code.dependencies.lockfile)
+                        .digest('hex'),
+                };
+            }
+        }
+
         // Determine mode: append to existing app or create new one
         const existingApp = body.targetAppUuid
             ? await this.appModel.findApp(body.targetAppUuid, projectUuid)
@@ -7067,6 +7152,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 'pending',
                 user.userUuid,
                 AppGenerateService.buildCopiedResources(null),
+                dependencySummary,
             );
         } else {
             this.assertDataAppAbility(
@@ -7104,6 +7190,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 { version: newVersion, prompt: '' },
                 'pending',
                 AppGenerateService.buildCopiedResources(null),
+                dependencySummary,
             );
             newAppUuid = app.app_id;
         }
@@ -7144,6 +7231,37 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 ContentType: 'application/x-tar',
             }),
         );
+
+        // Store the declared dependency files next to the source archive so
+        // download can round-trip them (builds consume them in a later slice).
+        // The stored package.json carries the TRUSTED template scripts, not
+        // the uploader's — the sandbox `pnpm build` and every downstream
+        // download read this file, so script commands must stay server-owned.
+        if (
+            dependencySummary !== undefined &&
+            code.dependencies !== undefined
+        ) {
+            const depsPrefix = `${versionPrefix(newAppUuid, newVersion)}deps/`;
+            await client.send(
+                new PutObjectCommand({
+                    Bucket: bucket,
+                    Key: `${depsPrefix}package.json`,
+                    Body: sanitizeAppPackageJsonScripts(
+                        code.dependencies.packageJson,
+                        TEMPLATE_SCRIPTS,
+                    ),
+                    ContentType: 'application/json',
+                }),
+            );
+            await client.send(
+                new PutObjectCommand({
+                    Bucket: bucket,
+                    Key: `${depsPrefix}pnpm-lock.yaml`,
+                    Body: code.dependencies.lockfile,
+                    ContentType: 'text/yaml',
+                }),
+            );
+        }
 
         // Enqueue the build-only pipeline
         await this.schedulerClient.appBuildFromSource({

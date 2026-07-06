@@ -50,6 +50,7 @@ import {
     retargetManifest,
     writeBundleToDir,
     writeContextToDir,
+    writeDependenciesToDir,
     writeFilesToDir,
 } from './apps/appCodeFiles';
 import {
@@ -1163,6 +1164,15 @@ export const downloadHandler = async (
                                 sdkVersion: CLI_VERSION,
                             }),
                         );
+                        // Server-provided deps override the scaffold's
+                        // template package.json so re-uploads round-trip.
+                        if (code.dependencies) {
+                            // eslint-disable-next-line no-await-in-loop
+                            await writeDependenciesToDir(
+                                appDir,
+                                code.dependencies,
+                            );
+                        }
                         // eslint-disable-next-line no-await-in-loop
                         await writeContextToDir(appDir, code.context);
                         appSuccessCount += 1;
