@@ -1,3 +1,10 @@
+## [0.3309.2](https://github.com/lightdash/lightdash/compare/0.3309.1...0.3309.2) (2026-07-06)
+
+
+### Bug Fixes
+
+* **spaces:** clear row selection when navigating between nested spaces (PROD-8682) ([#25150](https://github.com/lightdash/lightdash/issues/25150)) ([38d8d61](https://github.com/lightdash/lightdash/commit/38d8d61d2880ede4837719337cacd3df05ef2da1))
+
 ## [0.3309.1](https://github.com/lightdash/lightdash/compare/0.3309.0...0.3309.1) (2026-07-06)
 
 
