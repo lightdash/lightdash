@@ -1,3 +1,10 @@
+## [0.3315.1](https://github.com/lightdash/lightdash/compare/0.3315.0...0.3315.1) (2026-07-06)
+
+
+### Bug Fixes
+
+* hide fields from metadata lookup ([#25172](https://github.com/lightdash/lightdash/issues/25172)) ([0a1af2e](https://github.com/lightdash/lightdash/commit/0a1af2e0138243ee0d2e96cded7ed95bf663d370))
+
 # [0.3315.0](https://github.com/lightdash/lightdash/compare/0.3314.0...0.3315.0) (2026-07-06)
 
 
