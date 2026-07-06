@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { Box, Center, Flex, Loader } from '@mantine-8/core';
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { useOutletContext, useParams } from 'react-router';
 import useApp from '../../../providers/App/useApp';
 import { ReviewVerificationPanel } from '../../features/aiCopilot/components/Admin/ReviewVerificationPanel';
@@ -11,6 +11,7 @@ import {
     mergeContentMentionSuggestionItems,
 } from '../../features/aiCopilot/components/ChatElements/contentMentions';
 import { isEmbedAiAgentRoute } from '../../features/aiCopilot/hooks/aiAgentRouting';
+import { emitEmbedAiAgentThreadChange } from '../../features/aiCopilot/hooks/embedAiAgentThreadChange';
 import {
     useAiAgentReviewItemByPreviewThread,
     useUpdateAiAgentReviewItemStatus,
@@ -48,6 +49,18 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         isLoading: isLoadingThread,
         refetch,
     } = useAiAgentThread(projectUuid!, agentUuid, threadUuid);
+
+    useEffect(() => {
+        if (!isEmbed || !projectUuid || !agentUuid || !threadUuid || !thread) {
+            return;
+        }
+
+        emitEmbedAiAgentThreadChange({
+            projectUuid,
+            agentUuid,
+            threadUuid,
+        });
+    }, [agentUuid, isEmbed, projectUuid, thread, threadUuid]);
 
     // Handle artifact selection based on thread changes
     useAiAgentThreadArtifact({

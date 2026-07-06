@@ -4447,6 +4447,46 @@ export class AiAgentService extends BaseService {
         return this.getAgentThread(user, agentUuid, threadUuid);
     }
 
+    async listEmbedAgentThreads(
+        account: AnonymousAccount,
+        projectUuid: string,
+        agentUuid: string,
+    ): Promise<AiAgentThreadSummary[]> {
+        const { user, runtimeOptions } = await this.getEmbedAgent(
+            account,
+            projectUuid,
+            agentUuid,
+        );
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError();
+        }
+
+        const threads = await this.aiAgentModel.findThreads({
+            organizationUuid,
+            agentUuid,
+            userUuid: user.userUuid,
+            createdFrom: ['web_app'],
+        });
+
+        const threadsWithEmbedSpace = await Promise.all(
+            threads.map(async (thread) => ({
+                thread,
+                embedSpaceUuid:
+                    await this.aiAgentModel.getWebAppThreadEmbedSpace(
+                        thread.uuid,
+                    ),
+            })),
+        );
+
+        return threadsWithEmbedSpace
+            .filter(
+                ({ embedSpaceUuid }) =>
+                    embedSpaceUuid === runtimeOptions.embedSpaceUuid,
+            )
+            .map(({ thread }) => thread);
+    }
+
     async createEmbedAgentThread(
         account: AnonymousAccount,
         projectUuid: string,

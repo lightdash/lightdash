@@ -358,6 +358,23 @@ const EmbedPreviewAiAgentForm: FC<{
                     data={convertFormValuesToCreateEmbedJwt(formValues)}
                 />
             </Stack>
+
+            <Stack gap="md" mb="md">
+                <Stack gap="xs">
+                    <Title order={5}>React SDK embed code</Title>
+                    <Text c="dimmed" fz="sm">
+                        Use this to mount the AI agent with the React SDK,
+                        resume a known thread UUID, and persist newly-created
+                        thread UUIDs.
+                    </Text>
+                </Stack>
+                <EmbedCodeSnippet
+                    mode="sdk"
+                    projectUuid={projectUuid}
+                    siteUrl={siteUrl}
+                    data={convertFormValuesToCreateEmbedJwt(formValues)}
+                />
+            </Stack>
         </form>
     );
 };

@@ -844,8 +844,21 @@ export class AiAgentController extends BaseController {
         @Path() agentUuid: string,
         @Query() allUsers?: boolean,
     ): Promise<ApiAiAgentThreadSummaryListResponse> {
-        assertRegisteredAccount(req.account);
         this.setStatus(200);
+
+        if (req.account?.authentication.type === 'jwt') {
+            assertEmbeddedAuth(req.account);
+            return {
+                status: 'ok',
+                results: await this.getAiAgentService().listEmbedAgentThreads(
+                    req.account,
+                    projectUuid,
+                    agentUuid,
+                ),
+            };
+        }
+
+        assertRegisteredAccount(req.account);
         return {
             status: 'ok',
             results: await this.getAiAgentService().listAgentThreads(

@@ -1,4 +1,7 @@
-import type { ApiContentResponse } from '@lightdash/common';
+import type {
+    ApiAiAgentThreadSummaryListResponse,
+    ApiContentResponse,
+} from '@lightdash/common';
 
 export type LightdashSdkContentType =
     | 'chart'
@@ -39,6 +42,15 @@ export type ListContentOptions = {
 
 export type LightdashContentResults = ApiContentResponse['results'];
 export type LightdashContentItem = LightdashContentResults['data'][number];
+
+export type ListAiAgentThreadsOptions = {
+    agentUuid: string;
+    projectUuid?: string;
+};
+
+export type LightdashAiAgentThreadResults =
+    ApiAiAgentThreadSummaryListResponse['results'];
+export type LightdashAiAgentThread = LightdashAiAgentThreadResults[number];
 
 export class LightdashSdkApiError extends Error {
     statusCode: number | null;
@@ -166,7 +178,24 @@ export const createLightdashApiClient = (config: LightdashApiClientConfig) => {
         });
     };
 
+    const listAiAgentThreads = async (options: ListAiAgentThreadsOptions) => {
+        const projectUuid = options.projectUuid ?? config.projectUuid;
+
+        if (!projectUuid) {
+            throw new LightdashSdkApiError(
+                'projectUuid is required to list AI agent threads',
+                null,
+                null,
+            );
+        }
+
+        return request<LightdashAiAgentThreadResults>({
+            path: `/api/v1/projects/${projectUuid}/aiAgents/${options.agentUuid}/threads`,
+        });
+    };
+
     return {
+        listAiAgentThreads,
         listContent,
     };
 };
