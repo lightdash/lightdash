@@ -84,9 +84,10 @@ function buildExploreGroups(audit: DashboardPreAggregateAudit): ExploreGroups {
 
     const byLabel = new Map<string, EligibleTile[]>();
     for (const tile of eligible) {
-        const arr = byLabel.get(tile.exploreLabel) ?? [];
+        const label = tile.exploreLabel ?? tile.exploreName;
+        const arr = byLabel.get(label) ?? [];
         arr.push(tile);
-        byLabel.set(tile.exploreLabel, arr);
+        byLabel.set(label, arr);
     }
 
     let anyCollapsed = false;
@@ -95,9 +96,10 @@ function buildExploreGroups(audit: DashboardPreAggregateAudit): ExploreGroups {
         .map(([exploreLabel, tiles]) => {
             const byName = new Map<string, EligibleTile[]>();
             for (const tile of tiles) {
-                const arr = byName.get(tile.chartName) ?? [];
+                const name = tile.chartName ?? tile.tileName;
+                const arr = byName.get(name) ?? [];
                 arr.push(tile);
-                byName.set(tile.chartName, arr);
+                byName.set(name, arr);
             }
             const charts = [...byName.entries()]
                 .sort(([a], [b]) => a.localeCompare(b))
