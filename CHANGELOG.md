@@ -1,3 +1,10 @@
+## [0.3315.4](https://github.com/lightdash/lightdash/compare/0.3315.3...0.3315.4) (2026-07-06)
+
+
+### Bug Fixes
+
+* keep joined fields in scoped FTS search ([#25173](https://github.com/lightdash/lightdash/issues/25173)) ([d5e5d32](https://github.com/lightdash/lightdash/commit/d5e5d321fc3bc83a14af8b62a4045d7d54761b66)), closes [#25181](https://github.com/lightdash/lightdash/issues/25181)
+
 ## [0.3315.3](https://github.com/lightdash/lightdash/compare/0.3315.2...0.3315.3) (2026-07-06)
 
 
