@@ -842,6 +842,7 @@ export class ProjectModel {
                   created_by_user_uuid: string | null;
                   organization_warehouse_credentials_uuid: string | null;
                   has_default_user_spaces: boolean;
+                  system_explores_enabled: boolean;
                   project_defaults: ProjectDefaults | null;
                   color_palette_uuid: string | null;
                   expires_at: Date | null;
@@ -865,6 +866,7 @@ export class ProjectModel {
                   created_by_user_uuid: string | null;
                   organization_warehouse_credentials_uuid: string | null;
                   has_default_user_spaces: boolean;
+                  system_explores_enabled: boolean;
                   project_defaults: ProjectDefaults | null;
                   color_palette_uuid: string | null;
                   expires_at: Date | null;
@@ -944,6 +946,9 @@ export class ProjectModel {
                             .ref('has_default_user_spaces')
                             .withSchema(ProjectTableName),
                         this.database
+                            .ref('system_explores_enabled')
+                            .withSchema(ProjectTableName),
+                        this.database
                             .ref('project_defaults')
                             .withSchema(ProjectTableName),
                         this.database
@@ -1001,6 +1006,7 @@ export class ProjectModel {
                         project.organization_warehouse_credentials_uuid ??
                         undefined,
                     hasDefaultUserSpaces: project.has_default_user_spaces,
+                    systemExploresEnabled: project.system_explores_enabled,
                     projectDefaults: project.project_defaults ?? undefined,
                     colorPaletteUuid: project.color_palette_uuid ?? null,
                     expiresAt: project.expires_at ?? null,
@@ -1230,6 +1236,7 @@ export class ProjectModel {
             organizationWarehouseCredentialsUuid:
                 project.organizationWarehouseCredentialsUuid,
             hasDefaultUserSpaces: project.hasDefaultUserSpaces,
+            systemExploresEnabled: project.systemExploresEnabled,
             projectDefaults: project.projectDefaults,
             colorPaletteUuid: project.colorPaletteUuid ?? null,
             expiresAt: project.expiresAt,
@@ -1814,6 +1821,15 @@ export class ProjectModel {
             .update({
                 copied_from_project_uuid: data.upstreamProjectUuid, // if upstreamProjectUuid is undefined, it will do nothing, if it is null, it will be unset
             })
+            .where('project_uuid', projectUuid);
+    }
+
+    async updateSystemExplores(
+        projectUuid: string,
+        systemExploresEnabled: boolean,
+    ): Promise<void> {
+        await this.database(ProjectTableName)
+            .update({ system_explores_enabled: systemExploresEnabled })
             .where('project_uuid', projectUuid);
     }
 

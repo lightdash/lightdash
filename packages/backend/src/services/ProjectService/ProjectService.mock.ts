@@ -383,6 +383,7 @@ export const projectWithSensitiveFields: Project = {
     schedulerFailureContactOverride: null,
     createdByUserUuid: sessionAccount.user.id,
     hasDefaultUserSpaces: false,
+    systemExploresEnabled: false,
     colorPaletteUuid: null,
     expiresAt: null,
 };

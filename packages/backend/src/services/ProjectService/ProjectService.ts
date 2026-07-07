@@ -182,6 +182,7 @@ import {
     UpdateProjectMember,
     UpdateQueryTimezoneSettings,
     UpdateSchedulerSettings,
+    UpdateSystemExplores,
     UpdateVirtualViewPayload,
     UserAccessControls,
     UserAttributeValueMap,
@@ -7954,6 +7955,32 @@ export class ProjectService extends BaseService {
         }
 
         await this.projectModel.updateMetadata(projectUuid, data);
+    }
+
+    async updateSystemExplores(
+        user: SessionUser,
+        projectUuid: string,
+        data: UpdateSystemExplores,
+    ): Promise<void> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        await this.projectModel.updateSystemExplores(
+            projectUuid,
+            data.systemExploresEnabled,
+        );
     }
 
     async updateDefaultUserSpaces(
