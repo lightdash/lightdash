@@ -5,7 +5,6 @@ import {
     Button,
     Center,
     ColorSwatch,
-    Divider,
     Group,
     Loader,
     Paper,
@@ -21,14 +20,11 @@ import {
     useOrganizationBrandUpdateMutation,
 } from '../hooks/organization/useOrganizationBrand';
 import classes from './BrandPrototype.module.css';
-
-const DEFAULT_THEME_COLORS = [
-    '#4263eb',
-    '#7950f2',
-    '#2f9e44',
-    '#f08c00',
-    '#e64980',
-];
+import {
+    deriveBrandTheme,
+    isValidHexColor,
+    type DerivedBrandTheme,
+} from './brandPrototypeTheme';
 
 const LOGO_TYPE_PRIORITY = ['icon', 'symbol', 'logo', 'other'];
 const LOGO_FORMAT_PRIORITY = ['svg', 'png', 'jpeg', 'jpg', 'webp'];
@@ -52,125 +48,204 @@ const pickLogoUrl = (brand: OrganizationBrand | null | undefined) => {
     return sorted[0].url;
 };
 
-const getThemeColors = (brand: OrganizationBrand | null | undefined) => {
-    if (!brand || brand.colors.length === 0) return DEFAULT_THEME_COLORS;
+const getBrandSwatches = (brand: OrganizationBrand) => {
     // Accent/brand colors first, then the rest
     const prioritized = [...brand.colors].sort((a, b) => {
         const rank = (type: string) =>
             type === 'accent' || type === 'brand' ? 0 : 1;
         return rank(a.type) - rank(b.type);
     });
-    const uniqueHexes = [...new Set(prioritized.map((color) => color.hex))];
-    return uniqueHexes.slice(0, 6);
+    return [
+        ...new Set(
+            prioritized
+                .map((color) => color.hex)
+                .filter((hex) => isValidHexColor(hex)),
+        ),
+    ].slice(0, 6);
 };
 
-const BarChart: FC<{ color: string }> = ({ color }) => (
-    <svg viewBox="0 0 260 110" width="100%" height="110">
-        {[
-            { x: 0, height: 38, opacity: 0.25 },
-            { x: 52, height: 56, opacity: 0.45 },
-            { x: 104, height: 50, opacity: 0.4 },
-            { x: 156, height: 78, opacity: 0.75 },
-            { x: 208, height: 104, opacity: 1 },
-        ].map((bar) => (
-            <rect
-                key={bar.x}
-                x={bar.x}
-                y={110 - bar.height}
-                width={42}
-                height={bar.height}
-                rx={5}
-                fill={color}
-                opacity={bar.opacity}
-            />
-        ))}
-    </svg>
+const KPIS = [
+    { label: 'ARR', value: '$4.2M', delta: '+12%' },
+    { label: 'Users', value: '18.3k', delta: '+4%' },
+    { label: 'Churn', value: '2.1%', delta: '-0.3%' },
+];
+const BAR_VALUES = [62, 88, 45, 73, 54, 91, 38];
+const LINE_SERIES = [
+    [20, 35, 28, 50, 42, 60, 55],
+    [10, 18, 25, 22, 34, 30, 44],
+    [40, 30, 32, 25, 20, 26, 18],
+];
+const SEGMENT_LABELS = ['ent', 'mid', 'smb', 'plg'];
+
+const linePath = (points: number[]) => {
+    const width = 300;
+    const height = 70;
+    const max = Math.max(...points);
+    return points
+        .map((point, i) => {
+            const x = (i / (points.length - 1)) * width;
+            const y = height - (point / max) * height * 0.9 - 4;
+            return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
+        })
+        .join(' ');
+};
+
+const PaletteSection: FC<{ label: string; colors: string[] }> = ({
+    label,
+    colors,
+}) => (
+    <Stack gap={6}>
+        <Text size="xs" fw={600} c="dimmed" tt="uppercase">
+            {label}
+        </Text>
+        <Box className={classes.paletteBar}>
+            {colors.map((color, index) => (
+                <Box
+                    key={`step-${index}`}
+                    className={classes.paletteBarStep}
+                    bg={color}
+                />
+            ))}
+        </Box>
+    </Stack>
 );
 
-const LineChart: FC<{ color: string }> = ({ color }) => {
-    const points =
-        '0,78 35,66 70,71 105,55 135,60 170,45 205,28 235,37 260,26';
+const AppPreview: FC<{
+    theme: DerivedBrandTheme;
+    orgName: string;
+    logoUrl: string | null;
+}> = ({ theme, orgName, logoUrl }) => {
+    const { tokens, categorical, sequential } = theme;
+    const heatmap = Array.from(
+        { length: 24 },
+        (_, i) => sequential[Math.floor((i / 24) * sequential.length)],
+    );
     return (
-        <svg viewBox="0 0 260 100" width="100%" height="100">
-            <defs>
-                <linearGradient
-                    id="brand-prototype-area"
-                    x1="0"
-                    y1="0"
-                    x2="0"
-                    y2="1"
-                >
-                    <stop offset="0%" stopColor={color} stopOpacity={0.25} />
-                    <stop offset="100%" stopColor={color} stopOpacity={0} />
-                </linearGradient>
-            </defs>
-            <polygon
-                points={`${points} 260,100 0,100`}
-                fill="url(#brand-prototype-area)"
-            />
-            <polyline
-                points={points}
-                fill="none"
-                stroke={color}
-                strokeWidth={3}
-                strokeLinejoin="round"
-                strokeLinecap="round"
-            />
-        </svg>
+        <Paper className={classes.previewCard}>
+            <Box className={classes.previewHeader} bg={tokens.headerBg}>
+                <Group gap="xs">
+                    <Box className={classes.previewLogo}>
+                        {logoUrl ? (
+                            <img
+                                src={logoUrl}
+                                alt={orgName}
+                                className={classes.previewLogoImage}
+                            />
+                        ) : (
+                            <Text size="xs" fw={700} c={tokens.headerBg}>
+                                {(orgName[0] ?? 'A').toUpperCase()}
+                            </Text>
+                        )}
+                    </Box>
+                    <Text size="sm" fw={600} c={tokens.headerText}>
+                        {orgName}
+                    </Text>
+                </Group>
+                <Text size="xs" c={tokens.headerText} opacity={0.85}>
+                    Revenue overview
+                </Text>
+            </Box>
+            <Box className={classes.previewBody} bg={tokens.appBg}>
+                <Box className={classes.kpiRow}>
+                    {KPIS.map((kpi) => (
+                        <Box
+                            key={kpi.label}
+                            className={classes.kpiCard}
+                            bg={tokens.cardBg}
+                            bd={`1px solid ${tokens.line}`}
+                        >
+                            <Text fz={10} c={tokens.sub} tt="uppercase">
+                                {kpi.label}
+                            </Text>
+                            <Text fz={19} fw={600} c={tokens.text}>
+                                {kpi.value}
+                            </Text>
+                            <Text fz={10} c={tokens.sub}>
+                                {kpi.delta}
+                            </Text>
+                        </Box>
+                    ))}
+                </Box>
+                <Box className={classes.chartsRow}>
+                    <Box
+                        className={classes.previewChartCard}
+                        bg={tokens.cardBg}
+                        bd={`1px solid ${tokens.line}`}
+                    >
+                        <Text size="xs" c={tokens.sub} mb={10}>
+                            By segment
+                        </Text>
+                        <Box className={classes.barsRow}>
+                            {BAR_VALUES.map((value, index) => (
+                                <Box
+                                    key={`bar-${index}`}
+                                    className={classes.previewBar}
+                                    h={`${value}%`}
+                                    bg={categorical[index % categorical.length]}
+                                />
+                            ))}
+                        </Box>
+                        <Box className={classes.legendRow}>
+                            {SEGMENT_LABELS.map((label, index) => (
+                                <Group key={label} gap={4}>
+                                    <Box
+                                        className={classes.legendDot}
+                                        bg={categorical[index]}
+                                    />
+                                    <Text fz={10} c={tokens.sub}>
+                                        {label}
+                                    </Text>
+                                </Group>
+                            ))}
+                        </Box>
+                    </Box>
+                    <Box
+                        className={classes.previewChartCard}
+                        bg={tokens.cardBg}
+                        bd={`1px solid ${tokens.line}`}
+                    >
+                        <Text size="xs" c={tokens.sub} mb={8}>
+                            Trend
+                        </Text>
+                        <svg viewBox="0 0 300 70" width="100%" height="70">
+                            {LINE_SERIES.map((series, index) => (
+                                <path
+                                    key={`series-${index}`}
+                                    d={linePath(series)}
+                                    fill="none"
+                                    stroke={categorical[index]}
+                                    strokeWidth={2}
+                                />
+                            ))}
+                        </svg>
+                        <Text size="xs" c={tokens.sub} mt={10} mb={5}>
+                            Activity
+                        </Text>
+                        <Box className={classes.heatmapRow}>
+                            {heatmap.map((color, index) => (
+                                <Box
+                                    key={`cell-${index}`}
+                                    className={classes.heatCell}
+                                    bg={color}
+                                />
+                            ))}
+                        </Box>
+                    </Box>
+                </Box>
+                <Group>
+                    <Button
+                        size="xs"
+                        variant="filled"
+                        color={tokens.btnBg}
+                        c={tokens.btnText}
+                    >
+                        Run a query
+                    </Button>
+                </Group>
+            </Box>
+        </Paper>
     );
 };
-
-const DonutChart: FC<{ color: string; percentage: number }> = ({
-    color,
-    percentage,
-}) => {
-    const radius = 34;
-    const circumference = 2 * Math.PI * radius;
-    return (
-        <svg viewBox="0 0 88 88" width={88} height={88}>
-            <circle
-                cx={44}
-                cy={44}
-                r={radius}
-                fill="none"
-                stroke="var(--mantine-color-ldGray-2)"
-                strokeWidth={14}
-            />
-            <circle
-                cx={44}
-                cy={44}
-                r={radius}
-                fill="none"
-                stroke={color}
-                strokeWidth={14}
-                strokeLinecap="round"
-                strokeDasharray={`${
-                    (percentage / 100) * circumference
-                } ${circumference}`}
-                transform="rotate(-90 44 44)"
-            />
-        </svg>
-    );
-};
-
-const LogoBadge: FC<{ logoUrl: string | null; name: string; color: string }> =
-    ({ logoUrl, name, color }) => (
-        <Box
-            className={classes.logoBadge}
-            bg={logoUrl ? '#ffffff' : color}
-            bd={logoUrl ? '1px solid var(--mantine-color-ldGray-2)' : undefined}
-        >
-            {logoUrl ? (
-                <img
-                    src={logoUrl}
-                    alt={name}
-                    className={classes.logoBadgeImage}
-                />
-            ) : (
-                (name[0] ?? 'A').toUpperCase()
-            )}
-        </Box>
-    );
 
 const BrandPrototype: FC = () => {
     const { data: organization } = useOrganization();
@@ -178,17 +253,23 @@ const BrandPrototype: FC = () => {
         useOrganizationBrand();
     const brandUpdateMutation = useOrganizationBrandUpdateMutation();
 
-    const [orgNameInput, setOrgNameInput] = useState<string | null>(null);
     const [domainInput, setDomainInput] = useState('');
     const [selectedColor, setSelectedColor] = useState<string | null>(null);
 
-    const orgName = orgNameInput ?? organization?.name ?? '';
-    const themeColors = getThemeColors(brand);
-    const themeColor = themeColors.includes(selectedColor ?? '')
+    const brandSwatches = brand ? getBrandSwatches(brand) : [];
+    const primarySeed = brandSwatches.includes(selectedColor ?? '')
         ? selectedColor!
-        : themeColors[0];
+        : brandSwatches[0];
+    const seedHexes = primarySeed
+        ? [
+              primarySeed,
+              ...brandSwatches.filter((hex) => hex !== primarySeed),
+          ].slice(0, 3)
+        : [];
+    const theme = deriveBrandTheme(seedHexes);
+
     const logoUrl = pickLogoUrl(brand);
-    const brandDisplayName = brand?.name ?? orgName ?? 'Acme';
+    const orgName = brand?.name ?? organization?.name ?? 'Acme';
 
     const handleFetchBrand = (event: FormEvent) => {
         event.preventDefault();
@@ -207,42 +288,26 @@ const BrandPrototype: FC = () => {
 
     return (
         <Box className={classes.root}>
-            <Box className={classes.leftPanel}>
-                <Stack gap="lg">
-                    <Stack gap="xs">
-                        <Title order={2}>Name your organization</Title>
-                        <Text c="ldGray.7">
-                            This is how your team and your agent will refer to
-                            your workspace.
-                        </Text>
-                    </Stack>
-
-                    <TextInput
-                        label="Organization name"
-                        size="md"
-                        value={orgName}
-                        onChange={(event) =>
-                            setOrgNameInput(event.currentTarget.value)
-                        }
-                    />
-
-                    <Divider />
-
-                    <Stack gap="sm">
-                        <Group gap="sm">
-                            <Text fw={600}>Brand</Text>
-                            <Badge variant="light" color="ldGray">
-                                Optional · you can change this later
-                            </Badge>
-                        </Group>
-
+            <Box className={classes.content}>
+                <Stack gap="xl">
+                    <Group justify="space-between" align="flex-end">
+                        <Stack gap={4}>
+                            <Group gap="sm">
+                                <Title order={3}>Brand theme</Title>
+                                <Badge variant="light" color="ldGray">
+                                    Prototype
+                                </Badge>
+                            </Group>
+                            <Text c="ldGray.7" size="sm">
+                                Fetch a brand, then preview Lightdash themed
+                                with palettes derived from it.
+                            </Text>
+                        </Stack>
                         <form onSubmit={handleFetchBrand}>
-                            <Group gap="sm" align="flex-end">
+                            <Group gap="sm">
                                 <TextInput
-                                    label="Company website"
                                     placeholder="acme.com"
-                                    size="md"
-                                    flex={1}
+                                    w={220}
                                     value={domainInput}
                                     onChange={(event) =>
                                         setDomainInput(
@@ -252,8 +317,6 @@ const BrandPrototype: FC = () => {
                                 />
                                 <Button
                                     type="submit"
-                                    size="md"
-                                    variant="default"
                                     loading={brandUpdateMutation.isLoading}
                                     disabled={domainInput.trim().length === 0}
                                 >
@@ -261,131 +324,138 @@ const BrandPrototype: FC = () => {
                                 </Button>
                             </Group>
                         </form>
+                    </Group>
 
-                        <Group gap="lg" align="center">
-                            <Box className={classes.logoTile}>
-                                {logoUrl ? (
-                                    <img
-                                        src={logoUrl}
-                                        alt={brandDisplayName}
-                                        className={classes.logoTileImage}
-                                    />
-                                ) : (
-                                    <Box
-                                        className={classes.logoBadge}
-                                        bg={themeColor}
-                                    >
-                                        {(
-                                            brandDisplayName[0] ?? 'A'
-                                        ).toUpperCase()}
-                                    </Box>
-                                )}
-                            </Box>
-                            <Stack gap="xs">
-                                <Text fw={600} size="sm">
-                                    Theme color
-                                </Text>
-                                <Group gap="sm">
-                                    {themeColors.map((color) => (
-                                        <ColorSwatch
-                                            key={color}
-                                            component="button"
-                                            type="button"
-                                            aria-label={`Select ${color}`}
-                                            color={color}
-                                            size={26}
-                                            className={`${classes.swatch} ${
-                                                color === themeColor
-                                                    ? classes.swatchSelected
-                                                    : ''
-                                            }`}
-                                            onClick={() =>
-                                                setSelectedColor(color)
-                                            }
-                                        />
-                                    ))}
-                                </Group>
-                            </Stack>
-                        </Group>
-                    </Stack>
-
-                    <Button size="md" w="fit-content" px="xl" mt="md">
-                        Continue
-                    </Button>
-                </Stack>
-            </Box>
-
-            <Box className={classes.rightPanel}>
-                <Stack gap="xl" align="center">
                     {brand ? (
-                        <Box className={classes.detectedPill}>
-                            <LogoBadge
+                        <Box className={classes.grid}>
+                            <Stack gap="lg">
+                                <Paper p="lg">
+                                    <Stack gap="md">
+                                        <Group gap="md">
+                                            <Box className={classes.logoTile}>
+                                                {logoUrl ? (
+                                                    <img
+                                                        src={logoUrl}
+                                                        alt={orgName}
+                                                        className={
+                                                            classes.logoTileImage
+                                                        }
+                                                    />
+                                                ) : (
+                                                    <Text fw={600}>
+                                                        {(
+                                                            orgName[0] ?? 'A'
+                                                        ).toUpperCase()}
+                                                    </Text>
+                                                )}
+                                            </Box>
+                                            <Stack gap={0}>
+                                                <Text fw={600}>{orgName}</Text>
+                                                <Text
+                                                    size="sm"
+                                                    c="ldGray.6"
+                                                >
+                                                    {brand.domain}
+                                                </Text>
+                                            </Stack>
+                                        </Group>
+                                        <Stack gap={6}>
+                                            <Text
+                                                size="xs"
+                                                fw={600}
+                                                c="dimmed"
+                                                tt="uppercase"
+                                            >
+                                                Primary brand color
+                                            </Text>
+                                            <Group gap="sm">
+                                                {brandSwatches.map((color) => (
+                                                    <ColorSwatch
+                                                        key={color}
+                                                        component="button"
+                                                        type="button"
+                                                        aria-label={`Select ${color}`}
+                                                        color={color}
+                                                        size={26}
+                                                        className={`${
+                                                            classes.swatch
+                                                        } ${
+                                                            color ===
+                                                            primarySeed
+                                                                ? classes.swatchSelected
+                                                                : ''
+                                                        }`}
+                                                        onClick={() =>
+                                                            setSelectedColor(
+                                                                color,
+                                                            )
+                                                        }
+                                                    />
+                                                ))}
+                                            </Group>
+                                        </Stack>
+                                    </Stack>
+                                </Paper>
+
+                                <Paper p="lg">
+                                    <Stack gap="md">
+                                        <Stack gap={6}>
+                                            <Text
+                                                size="xs"
+                                                fw={600}
+                                                c="dimmed"
+                                                tt="uppercase"
+                                            >
+                                                Categorical
+                                            </Text>
+                                            <Box className={classes.paletteRow}>
+                                                {theme.categorical.map(
+                                                    (color) => (
+                                                        <Box
+                                                            key={color}
+                                                            className={
+                                                                classes.paletteChip
+                                                            }
+                                                            bg={color}
+                                                        />
+                                                    ),
+                                                )}
+                                            </Box>
+                                        </Stack>
+                                        <PaletteSection
+                                            label="Sequential"
+                                            colors={theme.sequential}
+                                        />
+                                        <PaletteSection
+                                            label="Diverging"
+                                            colors={theme.diverging}
+                                        />
+                                        <Text size="xs" c="ldGray.6">
+                                            Palettes are derived in OKLCH from
+                                            the brand hues — the raw brand
+                                            colors aren&apos;t reused as data
+                                            colors.
+                                        </Text>
+                                    </Stack>
+                                </Paper>
+                            </Stack>
+
+                            <AppPreview
+                                theme={theme}
+                                orgName={orgName}
                                 logoUrl={logoUrl}
-                                name={brandDisplayName}
-                                color={themeColor}
                             />
-                            <ColorSwatch
-                                color="var(--mantine-color-green-6)"
-                                size={8}
-                            />
-                            <Text size="sm">
-                                Theme detected from <b>{brand.domain}</b>
-                            </Text>
                         </Box>
                     ) : (
-                        <Text c="ldGray.6" size="sm">
-                            Enter your company website to detect your brand
-                        </Text>
+                        <Paper p="xl" variant="dotted">
+                            <Center mih={200}>
+                                <Text c="ldGray.6">
+                                    Enter your company website above to fetch
+                                    your brand and preview the derived theme.
+                                </Text>
+                            </Center>
+                        </Paper>
                     )}
-
-                    <Box className={classes.chartGrid}>
-                        <Paper p="lg" className={classes.chartCard}>
-                            <Text c="ldGray.6" size="sm" fw={500}>
-                                Weekly active users
-                            </Text>
-                            <BarChart color={themeColor} />
-                        </Paper>
-                        <Paper p="lg" className={classes.chartCard}>
-                            <Stack gap={4} justify="center" flex={1}>
-                                <Text c="ldGray.6" size="sm" fw={500}>
-                                    Revenue
-                                </Text>
-                                <Text fz={40} fw={600} lh={1.1}>
-                                    $248k
-                                </Text>
-                                <Text fw={600} size="sm" c={themeColor}>
-                                    ↑ 12.4% MoM
-                                </Text>
-                            </Stack>
-                        </Paper>
-                        <Paper p="lg" className={classes.chartCard}>
-                            <Text c="ldGray.6" size="sm" fw={500}>
-                                Signups
-                            </Text>
-                            <LineChart color={themeColor} />
-                        </Paper>
-                        <Paper p="lg" className={classes.chartCard}>
-                            <Group gap="xl" justify="center" flex={1}>
-                                <DonutChart
-                                    color={themeColor}
-                                    percentage={64}
-                                />
-                                <Stack gap={4}>
-                                    <Text c="ldGray.6" size="sm" fw={500}>
-                                        Conversion
-                                    </Text>
-                                    <Text fz={32} fw={600} lh={1.1}>
-                                        64%
-                                    </Text>
-                                </Stack>
-                            </Group>
-                        </Paper>
-                    </Box>
-
-                    <Text c="ldGray.6" size="sm">
-                        Example charts — themed to your brand and saved to your
-                        workspace.
-                    </Text>
                 </Stack>
             </Box>
         </Box>

@@ -1,43 +1,30 @@
 .root {
-    display: flex;
     min-height: 100vh;
     background-color: var(--mantine-color-body);
 }
 
-.leftPanel {
-    width: 480px;
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    padding: 64px;
-    background-color: var(--mantine-color-ldGray-0);
-    border-right: 1px solid var(--mantine-color-ldGray-2);
+.content {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 40px 32px 80px;
 }
 
-.rightPanel {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 48px;
+.grid {
+    display: grid;
+    grid-template-columns: 360px 1fr;
+    gap: var(--mantine-spacing-xl);
+    align-items: start;
 }
 
-.detectedPill {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 20px 8px 8px;
-    border: 1px solid var(--mantine-color-ldGray-2);
-    border-radius: 999px;
-    background-color: var(--mantine-color-body);
-    box-shadow: var(--mantine-shadow-subtle);
+@media (max-width: 1000px) {
+    .grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 .logoTile {
-    width: 64px;
-    height: 64px;
+    width: 48px;
+    height: 48px;
     border-radius: var(--mantine-radius-md);
     background-color: var(--mantine-color-body);
     border: 1px solid var(--mantine-color-ldGray-2);
@@ -45,30 +32,12 @@
     align-items: center;
     justify-content: center;
     overflow: hidden;
+    flex-shrink: 0;
 }
 
 .logoTileImage {
-    max-width: 44px;
-    max-height: 44px;
-    object-fit: contain;
-}
-
-.logoBadge {
-    width: 36px;
-    height: 36px;
-    border-radius: var(--mantine-radius-md);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--mantine-color-white);
-    font-weight: 600;
-    font-size: 16px;
-    overflow: hidden;
-}
-
-.logoBadgeImage {
-    max-width: 24px;
-    max-height: 24px;
+    max-width: 32px;
+    max-height: 32px;
     object-fit: contain;
 }
 
@@ -81,15 +50,126 @@
     outline: 2px solid var(--mantine-color-foreground-0);
 }
 
-.chartGrid {
-    display: grid;
-    grid-template-columns: repeat(2, 320px);
-    gap: var(--mantine-spacing-xl);
+.paletteRow {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
 }
 
-.chartCard {
+.paletteChip {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--mantine-radius-sm);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.paletteBar {
+    display: flex;
+    border-radius: var(--mantine-radius-sm);
+    overflow: hidden;
+    border: 1px solid var(--mantine-color-ldGray-2);
+}
+
+.paletteBarStep {
+    flex: 1;
+    height: 26px;
+}
+
+.previewCard {
+    overflow: hidden;
+    padding: 0;
+}
+
+.previewHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+}
+
+.previewLogo {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background-color: var(--mantine-color-white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.previewLogoImage {
+    max-width: 20px;
+    max-height: 20px;
+    object-fit: contain;
+}
+
+.previewBody {
+    padding: 16px;
     display: flex;
     flex-direction: column;
-    gap: var(--mantine-spacing-md);
-    min-height: 180px;
+    gap: 14px;
+}
+
+.kpiRow {
+    display: flex;
+    gap: 10px;
+}
+
+.kpiCard {
+    flex: 1;
+    border-radius: var(--mantine-radius-md);
+    padding: 10px 12px;
+}
+
+.chartsRow {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+}
+
+.previewChartCard {
+    flex: 1;
+    border-radius: var(--mantine-radius-md);
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+}
+
+.barsRow {
+    display: flex;
+    align-items: flex-end;
+    gap: 7px;
+    height: 90px;
+}
+
+.previewBar {
+    flex: 1;
+    border-radius: 3px 3px 0 0;
+}
+
+.legendRow {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+
+.legendDot {
+    width: 9px;
+    height: 9px;
+    border-radius: 2px;
+    flex-shrink: 0;
+}
+
+.heatmapRow {
+    display: flex;
+    gap: 2px;
+}
+
+.heatCell {
+    flex: 1;
+    height: 14px;
+    border-radius: 2px;
 }
