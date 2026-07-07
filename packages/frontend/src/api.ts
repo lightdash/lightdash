@@ -9,7 +9,10 @@ import {
     type ApiResponse,
 } from '@lightdash/common';
 import { spanToTraceHeader, startSpan } from '@sentry/react';
-import fetch from 'isomorphic-fetch';
+// No fetch import on purpose: `isomorphic-fetch` captures `window.fetch` at
+// module evaluation, so a host page (SDK embeds) that patches and later
+// restores fetch strands us with a stale reference. The global `fetch`
+// resolves at call time instead.
 import { EMBED_KEY, type InMemoryEmbed } from './ee/providers/Embed/types';
 import { getFromInMemoryStorage } from './utils/inMemoryStorage';
 
