@@ -1,3 +1,10 @@
+## [0.3328.1](https://github.com/lightdash/lightdash/compare/0.3328.0...0.3328.1) (2026-07-07)
+
+
+### Bug Fixes
+
+* **ai:** don't require admin ability to resolve org default model in Slack ([#25265](https://github.com/lightdash/lightdash/issues/25265)) ([4b89ee3](https://github.com/lightdash/lightdash/commit/4b89ee39e19280705cc19dbe11c5c0a63c850b49)), closes [#25194](https://github.com/lightdash/lightdash/issues/25194)
+
 # [0.3328.0](https://github.com/lightdash/lightdash/compare/0.3327.0...0.3328.0) (2026-07-07)
 
 
