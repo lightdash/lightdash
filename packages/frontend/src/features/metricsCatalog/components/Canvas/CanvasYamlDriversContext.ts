@@ -1,11 +1,7 @@
+import { type CatalogMetricsTreeNode } from '@lightdash/common';
 import { createContext, useContext } from 'react';
 
-export type YamlDriverInfo = {
-    catalogSearchUuid: string;
-    name: string;
-    label: string;
-    tableName: string;
-};
+export type YamlDriverInfo = CatalogMetricsTreeNode;
 
 export type CanvasYamlDriversContextValue = {
     yamlDriversByTarget: Map<string, YamlDriverInfo[]>;

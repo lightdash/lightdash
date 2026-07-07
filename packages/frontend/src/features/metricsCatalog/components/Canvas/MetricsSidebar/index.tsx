@@ -1,4 +1,3 @@
-import { friendlyName } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -16,7 +15,7 @@ import {
     IconHierarchy3,
     IconInfoCircle,
 } from '@tabler/icons-react';
-import React, { useCallback, useMemo, type DragEvent, type FC } from 'react';
+import React, { useCallback, type DragEvent, type FC } from 'react';
 import { Panel, PanelResizeHandle } from 'react-resizable-panels';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../../../hooks/useIsTruncated';
@@ -43,10 +42,7 @@ type DraggableMetricItemProps = {
 
 const DraggableMetricItem: FC<DraggableMetricItemProps> = React.memo(
     ({ node, hasYamlDrivers, onDragStart }) => {
-        const title = useMemo(
-            () => node.data.label || friendlyName(node.data.metricName),
-            [node.data.label, node.data.metricName],
-        );
+        const title = node.data.label;
 
         const { ref, isTruncated } = useIsTruncated();
         return (
@@ -116,14 +112,7 @@ const MetricsSidebar: FC<MetricsSidebarProps> = React.memo(
     ({ nodes, yamlDriversByTarget, hasMore, isLoadingMore, onLoadMore }) => {
         const handleDragStart = useCallback(
             (event: DragEvent<HTMLDivElement>, node: ExpandedNodeData) => {
-                event.dataTransfer.setData(
-                    'application/reactflow',
-                    JSON.stringify({
-                        catalogSearchUuid: node.id,
-                        name: node.data.metricName,
-                        tableName: node.data.tableName,
-                    }),
-                );
+                event.dataTransfer.setData('application/reactflow', node.id);
                 event.dataTransfer.effectAllowed = 'move';
             },
             [],
