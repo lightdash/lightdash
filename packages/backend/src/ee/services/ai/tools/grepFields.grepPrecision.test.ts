@@ -1,8 +1,10 @@
 import {
     DimensionType,
     FieldType,
+    FilterOperator,
     SupportedDbtAdapter,
     type Explore,
+    type ModelRequiredFilterRule,
 } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
 import type { FindExploresFn } from '../types/aiAgentDependencies';
@@ -20,6 +22,7 @@ const makeExplore = (over: {
     label?: string;
     aiHint?: string | string[];
     fields: FieldSpec[];
+    requiredFilters?: ModelRequiredFilterRule[];
 }): Explore => ({
     targetDatabase: SupportedDbtAdapter.POSTGRES,
     name: over.name,
@@ -39,6 +42,7 @@ const makeExplore = (over: {
             sqlWhere: undefined,
             uncompiledSqlWhere: undefined,
             description: undefined,
+            requiredFilters: over.requiredFilters,
             dimensions: Object.fromEntries(
                 over.fields.map((f) => [
                     f.name,
@@ -129,6 +133,50 @@ describe('grepFields locality ranking', () => {
         const channelIdx = result.indexOf('subscription_events_channel');
         const junkIdx = result.indexOf('subscription_events_junk_field_');
         expect(channelIdx).toBeLessThan(junkIdx);
+    });
+});
+
+describe('grepFields table filters', () => {
+    it('shows required and suggested filters distinctly', async () => {
+        const explore = makeExplore({
+            name: 'data_app_usage',
+            fields: [{ name: 'role', label: 'Role' }],
+            requiredFilters: [
+                {
+                    id: 'required-filter',
+                    target: { fieldRef: 'timestamp' },
+                    operator: FilterOperator.IN_THE_PAST,
+                    values: [4],
+                    required: true,
+                },
+                {
+                    id: 'default-filter',
+                    target: { fieldRef: 'role' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['interactive_viewer'],
+                    required: false,
+                },
+            ],
+        });
+        const tool = getGrepFields({
+            availableExplores: [explore],
+            findExplores: noFtsResults,
+            verifiedFieldUsage: new Map(),
+        });
+
+        const { result } = await execute(tool, {
+            patterns: ['role'],
+            exploreName: 'data_app_usage',
+        });
+
+        expect(result).toContain('⚠ table filters:');
+        expect(result).toContain(
+            'required data_app_usage_timestamp inThePast [4]',
+        );
+        expect(result).toContain(
+            'suggested data_app_usage_role equals ["interactive_viewer"]',
+        );
+        expect(result).not.toContain('must be applied');
     });
 });
 

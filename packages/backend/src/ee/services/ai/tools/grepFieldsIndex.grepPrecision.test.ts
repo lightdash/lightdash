@@ -1,8 +1,10 @@
 import {
     DimensionType,
     FieldType,
+    FilterOperator,
     SupportedDbtAdapter,
     type Explore,
+    type ModelRequiredFilterRule,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
@@ -10,6 +12,7 @@ import {
     buildFieldIndex,
     compileMatcher,
     selectCandidateFields,
+    summarizeRequiredFilters,
 } from './grepFieldsIndex';
 
 type FieldSpec = {
@@ -24,6 +27,7 @@ const makeExplore = (over: {
     label?: string;
     aiHint?: string | string[];
     fields: FieldSpec[];
+    requiredFilters?: ModelRequiredFilterRule[];
 }): Explore => ({
     targetDatabase: SupportedDbtAdapter.POSTGRES,
     name: over.name,
@@ -43,6 +47,7 @@ const makeExplore = (over: {
             sqlWhere: undefined,
             uncompiledSqlWhere: undefined,
             description: undefined,
+            requiredFilters: over.requiredFilters,
             dimensions: Object.fromEntries(
                 over.fields.map((f) => [
                     f.name,
@@ -67,6 +72,35 @@ const makeExplore = (over: {
             lineageGraph: {},
         },
     },
+});
+
+describe('summarizeRequiredFilters', () => {
+    it('distinguishes backend-required filters from suggested filters', () => {
+        const explore = makeExplore({
+            name: 'data_app_usage',
+            fields: [{ name: 'timestamp' }, { name: 'role' }],
+            requiredFilters: [
+                {
+                    id: 'required-filter',
+                    target: { fieldRef: 'timestamp' },
+                    operator: FilterOperator.IN_THE_PAST,
+                    values: [4],
+                    required: true,
+                },
+                {
+                    id: 'default-filter',
+                    target: { fieldRef: 'role' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['interactive_viewer'],
+                    required: false,
+                },
+            ],
+        });
+
+        expect(summarizeRequiredFilters(explore)).toBe(
+            '⚠ table filters: required data_app_usage_timestamp inThePast [4]; suggested data_app_usage_role equals ["interactive_viewer"]',
+        );
+    });
 });
 
 describe('compileMatcher word boundaries for short terms', () => {
