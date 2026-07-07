@@ -164,6 +164,7 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
             const term = search.toLowerCase();
             return (
                 node.data.label.toLowerCase().includes(term) ||
+                node.data.metricName.toLowerCase().includes(term) ||
                 node.data.tableName.toLowerCase().includes(term)
             );
         },

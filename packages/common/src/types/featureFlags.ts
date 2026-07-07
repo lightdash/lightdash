@@ -309,6 +309,11 @@ export enum FeatureFlags {
      * is presence-of-feature, not permission.
      */
     CodingAgent = 'ai-coding-agent',
+
+    /**
+     * Let org admins set their own Anthropic/OpenAI API keys for AI agents.
+     */
+    OrgAiProviderApiKeys = 'org-ai-provider-api-keys',
 }
 
 export type FeatureFlag = {

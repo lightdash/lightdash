@@ -1,5 +1,6 @@
 import Dagre from '@dagrejs/dagre';
 import {
+    friendlyName,
     TimeFrames,
     type CatalogMetricsTreeEdge,
     type CatalogMetricsTreeNode,
@@ -15,6 +16,19 @@ export type CanvasMetric = CatalogMetricsTreeNode & {
     xPosition?: number | null;
     yPosition?: number | null;
 };
+
+/**
+ * Single constructor for the metric part of node data. `label` guards against
+ * empty/missing labels (responses from older backends) so it is always a
+ * renderable title that sidebar search can match against.
+ */
+export const buildNodeMetricData = (
+    metric: Pick<CanvasMetric, 'name' | 'label' | 'tableName'>,
+): Pick<ExpandedNodeData['data'], 'label' | 'tableName' | 'metricName'> => ({
+    label: metric.label || friendlyName(metric.name),
+    tableName: metric.tableName,
+    metricName: metric.name,
+});
 
 const getEdgeId = (
     edge: Pick<CatalogMetricsTreeEdge, 'source' | 'target'>,
@@ -141,9 +155,7 @@ export const buildAllNodes = (
             position: savedPosition ?? { x: 0, y: 0 },
             type: 'expanded',
             data: {
-                label: metric.name,
-                tableName: metric.tableName,
-                metricName: metric.name,
+                ...buildNodeMetricData(metric),
                 timeFrame: TimeFrames.MONTH, // Default, will be updated by effect
                 rollingDays: undefined,
                 isEdgeTarget,

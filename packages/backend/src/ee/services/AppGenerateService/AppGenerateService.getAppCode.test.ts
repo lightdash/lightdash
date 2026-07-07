@@ -212,6 +212,7 @@ function buildService(overrides: {
         promoteService: {} as never,
         externalConnectionModel: {} as never,
         sandboxRegistryModel: {} as never,
+        orgAiCopilotConfigResolver: {} as never,
     });
 
     if (s3ClientOverride) {

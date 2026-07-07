@@ -48,6 +48,7 @@ import { enhanceExploresForPreAggregates } from './preAggregates/enhanceExplores
 import { preAggregatePostProcessor } from './preAggregates/postProcessor';
 import { CommercialSchedulerClient } from './scheduler/SchedulerClient';
 import { CommercialSchedulerWorker } from './scheduler/SchedulerWorker';
+import { OrgAiCopilotConfigResolver } from './services/ai/OrgAiCopilotConfigResolver';
 import { BuiltInSkills } from './services/ai/skills/builtInSkills';
 import { AiAgentContentValidation } from './services/ai/utils/AiAgentContentValidation';
 import { AiAgentAdminService } from './services/AiAgentAdminService';
@@ -203,6 +204,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getExternalConnectionModel(),
                     sandboxRegistryModel:
                         models.getSandboxRegistryModel<SandboxRegistryModel>(),
+                    orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
+                        lightdashConfig: context.lightdashConfig,
+                        aiOrganizationSettingsModel:
+                            models.getAiOrganizationSettingsModel(),
+                        featureFlagService: repository.getFeatureFlagService(),
+                    }),
                 }),
             embedService: ({ repository, context, models }) =>
                 new EmbedService({
@@ -239,6 +246,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     openAi: new OpenAi(
                         context.lightdashConfig.ai.copilot.providers.openai,
                     ), // TODO This should go in client repository as soon as it is available
+                    orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
+                        lightdashConfig: context.lightdashConfig,
+                        aiOrganizationSettingsModel:
+                            models.getAiOrganizationSettingsModel(),
+                        featureFlagService: repository.getFeatureFlagService(),
+                    }),
                 }),
             aiAgentToolsService: ({ models, repository, context }) =>
                 new AiAgentToolsService({
@@ -316,6 +329,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     contentService: repository.getContentService(),
                     aiOrganizationSettingsService:
                         repository.getAiOrganizationSettingsService(),
+                    orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
+                        lightdashConfig: context.lightdashConfig,
+                        aiOrganizationSettingsModel:
+                            models.getAiOrganizationSettingsModel(),
+                        featureFlagService: repository.getFeatureFlagService(),
+                    }),
                     shareService: repository.getShareService(),
                     fileStorageClient: clients.getFileStorageClient(),
                     downloadFileModel: models.getDownloadFileModel(),
@@ -394,6 +413,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiRouterModel: models.getAiRouterModel<AiRouterModel>(),
                     aiAgentService:
                         repository.getAiAgentService<AiAgentService>(),
+                    orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
+                        lightdashConfig: context.lightdashConfig,
+                        aiOrganizationSettingsModel:
+                            models.getAiOrganizationSettingsModel(),
+                        featureFlagService: repository.getFeatureFlagService(),
+                    }),
                 }),
             aiAgentDocumentService: ({ models, repository, context }) =>
                 new AiAgentDocumentService({
@@ -405,6 +430,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentService:
                         repository.getAiAgentService<AiAgentService>(),
                     lightdashConfig: context.lightdashConfig,
+                    orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
+                        lightdashConfig: context.lightdashConfig,
+                        aiOrganizationSettingsModel:
+                            models.getAiOrganizationSettingsModel(),
+                        featureFlagService: repository.getFeatureFlagService(),
+                    }),
                 }),
             aiAgentReviewClassifierService: ({ models, repository, context }) =>
                 new AiAgentReviewClassifierService({
@@ -422,7 +453,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentReviewNotificationService:
                         repository.getAiAgentReviewNotificationService<AiAgentReviewNotificationService>(),
                 }),
-            aiOrganizationSettingsService: ({ models, context }) =>
+            aiOrganizationSettingsService: ({ models, context, repository }) =>
                 new AiOrganizationSettingsService({
                     aiOrganizationSettingsModel:
                         models.getAiOrganizationSettingsModel(),
@@ -430,6 +461,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     commercialFeatureFlagModel:
                         models.getFeatureFlagModel() as CommercialFeatureFlagModel,
                     lightdashConfig: context.lightdashConfig,
+                    orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
+                        lightdashConfig: context.lightdashConfig,
+                        aiOrganizationSettingsModel:
+                            models.getAiOrganizationSettingsModel(),
+                        featureFlagService: repository.getFeatureFlagService(),
+                    }),
                 }),
             schedulerAiAugmentationService: ({ models, repository }) =>
                 new SchedulerAiAugmentationService({
@@ -804,8 +841,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             schedulerAiAugmentationModel: ({ database }) =>
                 new SchedulerAiAugmentationModel({ database }),
             aiRouterModel: ({ database }) => new AiRouterModel({ database }),
-            aiOrganizationSettingsModel: ({ database }) =>
-                new AiOrganizationSettingsModel({ database }),
+            aiOrganizationSettingsModel: ({ database, utils }) =>
+                new AiOrganizationSettingsModel({
+                    database,
+                    encryptionUtil: utils.getEncryptionUtil(),
+                }),
             embedModel: ({ database }) => new EmbedModel({ database }),
             mcpContextModel: ({ database }) => new McpContextModel(database),
             dashboardSummaryModel: ({ database }) =>

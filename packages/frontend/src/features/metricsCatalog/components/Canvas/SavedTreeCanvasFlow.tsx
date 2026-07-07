@@ -75,11 +75,7 @@ const SavedTreeCanvasFlow: FC<Props> = ({
         if (!allProjectYamlEdges) return map;
         allProjectYamlEdges.forEach((edge) => {
             const targetUuid = edge.target.catalogSearchUuid;
-            const driver: YamlDriverInfo = {
-                catalogSearchUuid: edge.source.catalogSearchUuid,
-                name: edge.source.name,
-                tableName: edge.source.tableName,
-            };
+            const driver: YamlDriverInfo = edge.source;
             const arr = map.get(targetUuid);
             if (arr) arr.push(driver);
             else map.set(targetUuid, [driver]);

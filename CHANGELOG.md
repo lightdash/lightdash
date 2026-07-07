@@ -1,3 +1,26 @@
+# [0.3323.0](https://github.com/lightdash/lightdash/compare/0.3322.0...0.3323.0) (2026-07-07)
+
+
+### Features
+
+* add pinned "Selected" section to field tree in Explorer ([#25222](https://github.com/lightdash/lightdash/issues/25222)) ([7badd57](https://github.com/lightdash/lightdash/commit/7badd575126e23afdcd9f8eb0a1df83e3024ac70))
+
+# [0.3322.0](https://github.com/lightdash/lightdash/compare/0.3321.0...0.3322.0) (2026-07-07)
+
+
+### Bug Fixes
+
+* **metrics-catalog:** show metric labels in Canvas instead of names ([#24816](https://github.com/lightdash/lightdash/issues/24816)) ([ed9bc2c](https://github.com/lightdash/lightdash/commit/ed9bc2cef86643d8292371a0688fcf33d5cdd51b))
+
+
+### Features
+
+* **backend:** add OrgAiCopilotConfigResolver overlaying org API keys ([#25193](https://github.com/lightdash/lightdash/issues/25193)) ([f3e6897](https://github.com/lightdash/lightdash/commit/f3e68979e8feb5dba60322e1b5f97e6277dd871b))
+* **backend:** org-aware AI model options and provider key settings ([#25194](https://github.com/lightdash/lightdash/issues/25194)) ([1ffc6e7](https://github.com/lightdash/lightdash/commit/1ffc6e76b70e34ed9968aa48cee7edf426a4e6b1))
+* **backend:** resolve org AI provider keys in AiAgentService model calls ([#25195](https://github.com/lightdash/lightdash/issues/25195)) ([895328d](https://github.com/lightdash/lightdash/commit/895328d79c75276d43a45a6de273a54811df7065))
+* **common:** add provider API key types and feature flag for org AI keys ([#25192](https://github.com/lightdash/lightdash/issues/25192)) ([e31c0fb](https://github.com/lightdash/lightdash/commit/e31c0fbc141dca97cddca11d12200e9446e41b8e))
+* **frontend:** org AI provider API keys card in Ask AI general settings ([#25196](https://github.com/lightdash/lightdash/issues/25196)) ([e6ba823](https://github.com/lightdash/lightdash/commit/e6ba8237b2450c03f13eb04656f92c55e650e31c))
+
 # [0.3321.0](https://github.com/lightdash/lightdash/compare/0.3320.2...0.3321.0) (2026-07-07)
 
 

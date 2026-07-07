@@ -14,6 +14,7 @@ import {
     convertToAiHints,
     Explore,
     FieldType,
+    friendlyName,
     isExploreError,
     NotFoundError,
     TableSelectionType,
@@ -122,6 +123,53 @@ const parseLockInfo = (
         acquiredAt: row.lock_acquired_at,
     };
 };
+
+type DbMetricsTreeEdgeWithMetricInfo = DbMetricsTreeEdge & {
+    source_metric_name: string;
+    source_metric_label: string | null;
+    source_metric_table_name: string;
+    target_metric_name: string;
+    target_metric_label: string | null;
+    target_metric_table_name: string;
+};
+
+const metricsTreeEdgeSelectColumns = {
+    source_metric_catalog_search_uuid: `${MetricsTreeEdgesTableName}.source_metric_catalog_search_uuid`,
+    target_metric_catalog_search_uuid: `${MetricsTreeEdgesTableName}.target_metric_catalog_search_uuid`,
+    project_uuid: `${MetricsTreeEdgesTableName}.project_uuid`,
+    created_at: `${MetricsTreeEdgesTableName}.created_at`,
+    created_by_user_uuid: `${MetricsTreeEdgesTableName}.created_by_user_uuid`,
+    source: `${MetricsTreeEdgesTableName}.source`,
+    source_metric_name: `source_metric.name`,
+    source_metric_label: `source_metric.label`,
+    source_metric_table_name: `source_metric.table_name`,
+    target_metric_name: `target_metric.name`,
+    target_metric_label: `target_metric.label`,
+    target_metric_table_name: `target_metric.table_name`,
+};
+
+// Label can be NULL for catalog rows indexed before the label column existed;
+// fall back to the same friendly name the catalog indexer would generate.
+const parseMetricsTreeEdge = (
+    row: DbMetricsTreeEdgeWithMetricInfo,
+): CatalogMetricsTreeEdge => ({
+    source: {
+        catalogSearchUuid: row.source_metric_catalog_search_uuid,
+        name: row.source_metric_name,
+        label: row.source_metric_label ?? friendlyName(row.source_metric_name),
+        tableName: row.source_metric_table_name,
+    },
+    target: {
+        catalogSearchUuid: row.target_metric_catalog_search_uuid,
+        name: row.target_metric_name,
+        label: row.target_metric_label ?? friendlyName(row.target_metric_name),
+        tableName: row.target_metric_table_name,
+    },
+    createdAt: row.created_at,
+    createdByUserUuid: row.created_by_user_uuid,
+    projectUuid: row.project_uuid,
+    createdFrom: row.source,
+});
 
 export class CatalogModel {
     protected database: Knex;
@@ -1706,24 +1754,9 @@ export class CatalogModel {
         metricUuids: string[],
     ): Promise<{ edges: CatalogMetricsTreeEdge[] }> {
         const edges = await this.database(MetricsTreeEdgesTableName)
-            .select<
-                (DbMetricsTreeEdge & {
-                    source_metric_name: string;
-                    source_metric_table_name: string;
-                    target_metric_name: string;
-                    target_metric_table_name: string;
-                })[]
-            >({
-                source_metric_catalog_search_uuid: `${MetricsTreeEdgesTableName}.source_metric_catalog_search_uuid`,
-                target_metric_catalog_search_uuid: `${MetricsTreeEdgesTableName}.target_metric_catalog_search_uuid`,
-                created_at: `${MetricsTreeEdgesTableName}.created_at`,
-                created_by_user_uuid: `${MetricsTreeEdgesTableName}.created_by_user_uuid`,
-                source: `${MetricsTreeEdgesTableName}.source`,
-                source_metric_name: `source_metric.name`,
-                source_metric_table_name: `source_metric.table_name`,
-                target_metric_name: `target_metric.name`,
-                target_metric_table_name: `target_metric.table_name`,
-            })
+            .select<DbMetricsTreeEdgeWithMetricInfo[]>(
+                metricsTreeEdgeSelectColumns,
+            )
             .innerJoin(
                 { source_metric: CatalogTableName },
                 `${MetricsTreeEdgesTableName}.source_metric_catalog_search_uuid`,
@@ -1750,22 +1783,7 @@ export class CatalogModel {
             .andWhere('target_metric.project_uuid', projectUuid);
 
         return {
-            edges: edges.map((e) => ({
-                source: {
-                    catalogSearchUuid: e.source_metric_catalog_search_uuid,
-                    name: e.source_metric_name,
-                    tableName: e.source_metric_table_name,
-                },
-                target: {
-                    catalogSearchUuid: e.target_metric_catalog_search_uuid,
-                    name: e.target_metric_name,
-                    tableName: e.target_metric_table_name,
-                },
-                createdAt: e.created_at,
-                createdByUserUuid: e.created_by_user_uuid,
-                projectUuid,
-                createdFrom: e.source,
-            })),
+            edges: edges.map(parseMetricsTreeEdge),
         };
     }
 
@@ -1773,25 +1791,9 @@ export class CatalogModel {
         projectUuid: string,
     ): Promise<CatalogMetricsTreeEdge[]> {
         const edges = await this.database(MetricsTreeEdgesTableName)
-            .select<
-                (DbMetricsTreeEdge & {
-                    source_metric_name: string;
-                    source_metric_table_name: string;
-                    target_metric_name: string;
-                    target_metric_table_name: string;
-                })[]
-            >({
-                source_metric_catalog_search_uuid: `${MetricsTreeEdgesTableName}.source_metric_catalog_search_uuid`,
-                target_metric_catalog_search_uuid: `${MetricsTreeEdgesTableName}.target_metric_catalog_search_uuid`,
-                project_uuid: `${MetricsTreeEdgesTableName}.project_uuid`,
-                created_at: `${MetricsTreeEdgesTableName}.created_at`,
-                created_by_user_uuid: `${MetricsTreeEdgesTableName}.created_by_user_uuid`,
-                source: `${MetricsTreeEdgesTableName}.source`,
-                source_metric_name: `source_metric.name`,
-                source_metric_table_name: `source_metric.table_name`,
-                target_metric_name: `target_metric.name`,
-                target_metric_table_name: `target_metric.table_name`,
-            })
+            .select<DbMetricsTreeEdgeWithMetricInfo[]>(
+                metricsTreeEdgeSelectColumns,
+            )
             .where(`${MetricsTreeEdgesTableName}.project_uuid`, projectUuid)
             .innerJoin(
                 { source_metric: CatalogTableName },
@@ -1804,22 +1806,7 @@ export class CatalogModel {
                 `target_metric.catalog_search_uuid`,
             );
 
-        return edges.map((e) => ({
-            source: {
-                catalogSearchUuid: e.source_metric_catalog_search_uuid,
-                name: e.source_metric_name,
-                tableName: e.source_metric_table_name,
-            },
-            target: {
-                catalogSearchUuid: e.target_metric_catalog_search_uuid,
-                name: e.target_metric_name,
-                tableName: e.target_metric_table_name,
-            },
-            createdAt: e.created_at,
-            createdByUserUuid: e.created_by_user_uuid,
-            projectUuid: e.project_uuid,
-            createdFrom: e.source,
-        }));
+        return edges.map(parseMetricsTreeEdge);
     }
 
     // Omiting the project_uuid from the input so the model decides whether to include it or not
@@ -1860,6 +1847,7 @@ export class CatalogModel {
                     metrics_tree_uuid: string;
                     catalog_search_uuid: string;
                     name: string;
+                    label: string | null;
                     table_name: string;
                     x_position: number | null;
                     y_position: number | null;
@@ -1870,6 +1858,7 @@ export class CatalogModel {
                 metrics_tree_uuid: `${MetricsTreeNodesTableName}.metrics_tree_uuid`,
                 catalog_search_uuid: `${MetricsTreeNodesTableName}.catalog_search_uuid`,
                 name: `${CatalogTableName}.name`,
+                label: `${CatalogTableName}.label`,
                 table_name: `${CatalogTableName}.table_name`,
                 x_position: `${MetricsTreeNodesTableName}.x_position`,
                 y_position: `${MetricsTreeNodesTableName}.y_position`,
@@ -2148,6 +2137,7 @@ export class CatalogModel {
             xPosition: row.x_position,
             yPosition: row.y_position,
             name: row.name,
+            label: row.label ?? friendlyName(row.name),
             tableName: row.table_name,
             source: row.source,
         }));
@@ -2190,12 +2180,14 @@ export class CatalogModel {
                         catalogSearchUuid:
                             row.source_metric_catalog_search_uuid,
                         name: sourceNode.name,
+                        label: sourceNode.label,
                         tableName: sourceNode.tableName,
                     },
                     target: {
                         catalogSearchUuid:
                             row.target_metric_catalog_search_uuid,
                         name: targetNode.name,
+                        label: targetNode.label,
                         tableName: targetNode.tableName,
                     },
                     createdAt: row.created_at,

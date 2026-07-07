@@ -104,6 +104,7 @@ import { type ExternalConnectionModel } from '../../models/ExternalConnectionMod
 import type { SandboxRegistryModel } from '../../models/SandboxRegistryModel';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { getModel } from '../ai/models';
+import { OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
 import { getAiCallTelemetry } from '../ai/utils/aiCallTelemetry';
 import {
     createSandboxManager,
@@ -199,6 +200,7 @@ type AppGenerateServiceDeps = {
     promoteService: PromoteService;
     externalConnectionModel: ExternalConnectionModel;
     sandboxRegistryModel: SandboxRegistryModel;
+    orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 };
 
 type GenerateAppOptions = {
@@ -275,6 +277,8 @@ export class AppGenerateService extends BaseService {
 
     private readonly sandboxRegistryModel: SandboxRegistryModel;
 
+    private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
+
     // Lazily built from config on first use; memoized for the service lifetime.
     private sandboxManager: SandboxManager | undefined;
 
@@ -298,6 +302,7 @@ export class AppGenerateService extends BaseService {
         promoteService,
         externalConnectionModel,
         sandboxRegistryModel,
+        orgAiCopilotConfigResolver,
     }: AppGenerateServiceDeps) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -319,6 +324,7 @@ export class AppGenerateService extends BaseService {
         this.promoteService = promoteService;
         this.externalConnectionModel = externalConnectionModel;
         this.sandboxRegistryModel = sandboxRegistryModel;
+        this.orgAiCopilotConfigResolver = orgAiCopilotConfigResolver;
     }
 
     /**
@@ -3652,7 +3658,10 @@ export class AppGenerateService extends BaseService {
             throw new ParameterError('Prompt is required');
         }
 
-        const { copilot } = this.lightdashConfig.ai;
+        const copilot =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                organizationUuid,
+            );
         const llmProvider: 'anthropic' | 'bedrock' =
             copilot.defaultProvider === 'bedrock' ? 'bedrock' : 'anthropic';
 

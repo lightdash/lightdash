@@ -76,6 +76,7 @@ function buildService() {
             promoteService: {} as never,
             externalConnectionModel: {} as never,
             sandboxRegistryModel: {} as never,
+            orgAiCopilotConfigResolver: {} as never,
         }) as unknown as PrivateWithSamples,
         featureFlagModel,
     };

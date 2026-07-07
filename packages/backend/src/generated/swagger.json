@@ -16691,10 +16691,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -16703,8 +16703,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "tableName",
                                                                         "label",
+                                                                        "tableName",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -16743,10 +16743,10 @@
                                                                                     "fieldRef": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "operator": {
+                                                                                    "fieldId": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "fieldId": {
+                                                                                    "operator": {
                                                                                         "type": "string"
                                                                                     }
                                                                                 },
@@ -16754,8 +16754,8 @@
                                                                                     "required",
                                                                                     "tableName",
                                                                                     "fieldRef",
-                                                                                    "operator",
-                                                                                    "fieldId"
+                                                                                    "fieldId",
+                                                                                    "operator"
                                                                                 ],
                                                                                 "type": "object"
                                                                             },
@@ -16806,13 +16806,6 @@
                                                                         "error": {
                                                                             "type": "string"
                                                                         },
-                                                                        "status": {
-                                                                            "type": "string",
-                                                                            "enum": [
-                                                                                "success",
-                                                                                "error"
-                                                                            ]
-                                                                        },
                                                                         "pagination": {
                                                                             "properties": {
                                                                                 "totalPageCount": {
@@ -16840,6 +16833,13 @@
                                                                             ],
                                                                             "type": "object"
                                                                         },
+                                                                        "status": {
+                                                                            "type": "string",
+                                                                            "enum": [
+                                                                                "success",
+                                                                                "error"
+                                                                            ]
+                                                                        },
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
@@ -16861,10 +16861,10 @@
                                                                                     "fieldType": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
+                                                                                    "label": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "label": {
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "name": {
@@ -16873,8 +16873,8 @@
                                                                                 },
                                                                                 "required": [
                                                                                     "fieldType",
-                                                                                    "tableName",
                                                                                     "label",
+                                                                                    "tableName",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -16984,10 +16984,10 @@
                                                                                         "fieldRef": {
                                                                                             "type": "string"
                                                                                         },
-                                                                                        "operator": {
+                                                                                        "fieldId": {
                                                                                             "type": "string"
                                                                                         },
-                                                                                        "fieldId": {
+                                                                                        "operator": {
                                                                                             "type": "string"
                                                                                         }
                                                                                     },
@@ -16995,8 +16995,8 @@
                                                                                         "required",
                                                                                         "tableName",
                                                                                         "fieldRef",
-                                                                                        "operator",
-                                                                                        "fieldId"
+                                                                                        "fieldId",
+                                                                                        "operator"
                                                                                     ],
                                                                                     "type": "object"
                                                                                 },
@@ -17053,14 +17053,14 @@
                                                                                         "metric"
                                                                                     ]
                                                                                 },
-                                                                                "fieldId": {
-                                                                                    "type": "string"
-                                                                                },
                                                                                 "description": {
                                                                                     "type": "string",
                                                                                     "nullable": true
                                                                                 },
                                                                                 "label": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "fieldId": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "name": {
@@ -17076,9 +17076,9 @@
                                                                                 "isFromJoinedTable",
                                                                                 "fieldFilterType",
                                                                                 "fieldType",
-                                                                                "fieldId",
                                                                                 "description",
                                                                                 "label",
+                                                                                "fieldId",
                                                                                 "name",
                                                                                 "table"
                                                                             ],
@@ -17203,6 +17203,12 @@
                                                     "href": {
                                                         "type": "string"
                                                     },
+                                                    "warnings": {
+                                                        "items": {
+                                                            "type": "string"
+                                                        },
+                                                        "type": "array"
+                                                    },
                                                     "status": {
                                                         "type": "string",
                                                         "enum": ["success"],
@@ -17214,12 +17220,6 @@
                                                     "uuid": {
                                                         "type": "string"
                                                     },
-                                                    "warnings": {
-                                                        "items": {
-                                                            "type": "string"
-                                                        },
-                                                        "type": "array"
-                                                    },
                                                     "name": {
                                                         "type": "string"
                                                     }
@@ -17227,10 +17227,10 @@
                                                 "required": [
                                                     "versionUuids",
                                                     "href",
+                                                    "warnings",
                                                     "status",
                                                     "slug",
                                                     "uuid",
-                                                    "warnings",
                                                     "name"
                                                 ],
                                                 "type": "object"
@@ -17404,10 +17404,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -17416,8 +17416,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "tableName",
                                                                         "label",
+                                                                        "tableName",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -25311,8 +25311,40 @@
             "UpdateAiReviewNotificationSettings": {
                 "$ref": "#/components/schemas/Pick_AiReviewNotificationSettings.enabled-or-slackChannelId_"
             },
+            "AiProviderApiKeysSet": {
+                "properties": {
+                    "openai": {
+                        "type": "boolean"
+                    },
+                    "anthropic": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["openai", "anthropic"],
+                "type": "object"
+            },
+            "AiProviderApiKeyHints": {
+                "properties": {
+                    "openai": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "anthropic": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["openai", "anthropic"],
+                "type": "object"
+            },
             "AiOrganizationSettings": {
                 "properties": {
+                    "providerApiKeyHints": {
+                        "$ref": "#/components/schemas/AiProviderApiKeyHints"
+                    },
+                    "providerApiKeysSet": {
+                        "$ref": "#/components/schemas/AiProviderApiKeysSet"
+                    },
                     "defaultAiAgentModelConfig": {
                         "allOf": [
                             {
@@ -25335,6 +25367,8 @@
                     }
                 },
                 "required": [
+                    "providerApiKeyHints",
+                    "providerApiKeysSet",
                     "defaultAiAgentModelConfig",
                     "mcpContentWritesEnabled",
                     "aiAgentReviewsEnabled",
@@ -25406,16 +25440,23 @@
             "ApiUpdateAiOrganizationSettingsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiOrganizationSettings_"
             },
-            "Partial_Omit_AiOrganizationSettings.organizationUuid__": {
+            "UpdateAiProviderApiKeys": {
                 "properties": {
-                    "aiAgentsVisible": {
-                        "type": "boolean"
+                    "openai": {
+                        "type": "string",
+                        "nullable": true
                     },
-                    "aiAgentReviewsEnabled": {
-                        "type": "boolean"
-                    },
-                    "mcpContentWritesEnabled": {
-                        "type": "boolean"
+                    "anthropic": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateAiOrganizationSettings": {
+                "properties": {
+                    "providerApiKeys": {
+                        "$ref": "#/components/schemas/UpdateAiProviderApiKeys"
                     },
                     "defaultAiAgentModelConfig": {
                         "allOf": [
@@ -25424,13 +25465,18 @@
                             }
                         ],
                         "nullable": true
+                    },
+                    "mcpContentWritesEnabled": {
+                        "type": "boolean"
+                    },
+                    "aiAgentReviewsEnabled": {
+                        "type": "boolean"
+                    },
+                    "aiAgentsVisible": {
+                        "type": "boolean"
                     }
                 },
-                "type": "object",
-                "description": "Make all properties in T optional"
-            },
-            "UpdateAiOrganizationSettings": {
-                "$ref": "#/components/schemas/Partial_Omit_AiOrganizationSettings.organizationUuid__"
+                "type": "object"
             },
             "ApiJobScheduledResponse": {
                 "properties": {
@@ -26186,15 +26232,31 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "Pick_CreateRedshiftCredentials-or-CreatePostgresCredentials-or-CreateSnowflakeCredentials-or-CreateTrinoCredentials-or-CreateClickhouseCredentials.type-or-user_": {
+            "Pick_CreateRedshiftCredentials.type-or-user-or-authenticationType-or-assumeRoleArn_": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.REDSHIFT"
+                    },
+                    "user": {
+                        "type": "string"
+                    },
+                    "authenticationType": {
+                        "$ref": "#/components/schemas/RedshiftAuthenticationType"
+                    },
+                    "assumeRoleArn": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type", "user"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_CreatePostgresCredentials-or-CreateSnowflakeCredentials-or-CreateTrinoCredentials-or-CreateClickhouseCredentials.type-or-user_": {
                 "properties": {
                     "type": {
                         "anyOf": [
                             {
                                 "$ref": "#/components/schemas/WarehouseTypes.POSTGRES"
-                            },
-                            {
-                                "$ref": "#/components/schemas/WarehouseTypes.REDSHIFT"
                             },
                             {
                                 "$ref": "#/components/schemas/WarehouseTypes.SNOWFLAKE"
@@ -26287,7 +26349,10 @@
                     "credentials": {
                         "anyOf": [
                             {
-                                "$ref": "#/components/schemas/Pick_CreateRedshiftCredentials-or-CreatePostgresCredentials-or-CreateSnowflakeCredentials-or-CreateTrinoCredentials-or-CreateClickhouseCredentials.type-or-user_"
+                                "$ref": "#/components/schemas/Pick_CreateRedshiftCredentials.type-or-user-or-authenticationType-or-assumeRoleArn_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreatePostgresCredentials-or-CreateSnowflakeCredentials-or-CreateTrinoCredentials-or-CreateClickhouseCredentials.type-or-user_"
                             },
                             {
                                 "$ref": "#/components/schemas/Pick_CreateBigqueryCredentials.type_"
@@ -26341,6 +26406,37 @@
                         "type": "string"
                     },
                     "password": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type", "user"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Pick_CreateRedshiftCredentials.type-or-user-or-authenticationType-or-accessKeyId-or-secretAccessKey-or-sessionToken-or-assumeRoleArn-or-assumeRoleExternalId_": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.REDSHIFT"
+                    },
+                    "user": {
+                        "type": "string"
+                    },
+                    "accessKeyId": {
+                        "type": "string"
+                    },
+                    "secretAccessKey": {
+                        "type": "string"
+                    },
+                    "sessionToken": {
+                        "type": "string"
+                    },
+                    "authenticationType": {
+                        "$ref": "#/components/schemas/RedshiftAuthenticationType"
+                    },
+                    "assumeRoleArn": {
+                        "type": "string"
+                    },
+                    "assumeRoleExternalId": {
                         "type": "string"
                     }
                 },
@@ -26506,6 +26602,9 @@
                         "anyOf": [
                             {
                                 "$ref": "#/components/schemas/Pick_CreateRedshiftCredentials.type-or-user-or-password_"
+                            },
+                            {
+                                "$ref": "#/components/schemas/Pick_CreateRedshiftCredentials.type-or-user-or-authenticationType-or-accessKeyId-or-secretAccessKey-or-sessionToken-or-assumeRoleArn-or-assumeRoleExternalId_"
                             },
                             {
                                 "$ref": "#/components/schemas/Pick_CreatePostgresCredentials.type-or-user-or-password_"
@@ -33372,22 +33471,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "chart": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ContentAsCodeType.SPACE": {
@@ -33951,22 +34050,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -39617,18 +39716,24 @@
                             "tableName": {
                                 "type": "string"
                             },
+                            "label": {
+                                "type": "string"
+                            },
                             "name": {
                                 "type": "string"
                             }
                         },
-                        "required": ["source", "tableName", "name"],
+                        "required": ["source", "tableName", "label", "name"],
                         "type": "object"
                     }
                 ]
             },
-            "Pick_CatalogField.catalogSearchUuid-or-name-or-tableName_": {
+            "Pick_CatalogField.catalogSearchUuid-or-name-or-label-or-tableName_": {
                 "properties": {
                     "name": {
+                        "type": "string"
+                    },
+                    "label": {
                         "type": "string"
                     },
                     "tableName": {
@@ -39638,12 +39743,12 @@
                         "type": "string"
                     }
                 },
-                "required": ["name", "tableName", "catalogSearchUuid"],
+                "required": ["name", "label", "tableName", "catalogSearchUuid"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "CatalogMetricsTreeNode": {
-                "$ref": "#/components/schemas/Pick_CatalogField.catalogSearchUuid-or-name-or-tableName_"
+                "$ref": "#/components/schemas/Pick_CatalogField.catalogSearchUuid-or-name-or-label-or-tableName_"
             },
             "CatalogMetricsTreeEdge": {
                 "properties": {
@@ -43528,7 +43633,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3321.0",
+        "version": "0.3323.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
