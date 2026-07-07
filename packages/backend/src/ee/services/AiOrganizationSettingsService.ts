@@ -18,6 +18,23 @@ import { getAvailableModels, getDefaultModel } from './ai/models';
 import { matchesPreset } from './ai/models/presets';
 import { OrgAiCopilotConfigResolver } from './ai/OrgAiCopilotConfigResolver';
 
+/**
+ * Redact partial key material (hints) and the "key is set" booleans for callers
+ * without the manage-AI-agent ability. Non-admin org members read the settings
+ * endpoint (agent chat surfaces) and must not see key hints.
+ */
+export const maskProviderKeyExposure = (
+    settings: AiOrganizationSettings,
+    canManage: boolean,
+): AiOrganizationSettings =>
+    canManage
+        ? settings
+        : {
+              ...settings,
+              providerApiKeysSet: { anthropic: false, openai: false },
+              providerApiKeyHints: { anthropic: null, openai: null },
+          };
+
 type AiOrganizationSettingsServiceDependencies = {
     aiOrganizationSettingsModel: AiOrganizationSettingsModel;
     organizationModel: OrganizationModel;
@@ -53,19 +70,20 @@ export class AiOrganizationSettingsService extends BaseService {
     }
 
     private checkManageAiAgentAccess(user: SessionUser): void {
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('OrganizationAiAgent', {
-                    organizationUuid: user.organizationUuid!,
-                }),
-            )
-        ) {
+        if (!this.canManageAiAgent(user)) {
             throw new ForbiddenError(
                 'Insufficient permissions to manage AI agent settings',
             );
         }
+    }
+
+    private canManageAiAgent(user: SessionUser): boolean {
+        return this.createAuditedAbility(user).can(
+            'manage',
+            subject('OrganizationAiAgent', {
+                organizationUuid: user.organizationUuid!,
+            }),
+        );
     }
 
     private async getIsCopilotEnabled(
@@ -169,8 +187,13 @@ export class AiOrganizationSettingsService extends BaseService {
             };
         }
 
+        // Partial key material (hints) and the "key is set" booleans are only
+        // exposed to org admins; other members read this endpoint too (agent
+        // chat surfaces) but must not see another org member's key hints.
+        const canManage = this.canManageAiAgent(user);
+
         return {
-            ...settings,
+            ...maskProviderKeyExposure(settings, canManage),
             isTrial: isTrialEligible,
             isCopilotEnabled,
             defaultAiAgentModelOptions: await this.getDefaultModelOptions(
