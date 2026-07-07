@@ -1,3 +1,10 @@
+# [0.3318.0](https://github.com/lightdash/lightdash/compare/0.3317.1...0.3318.0) (2026-07-07)
+
+
+### Features
+
+* **analytics:** nightly compaction of usage events raw zone to typed parquet ([#25047](https://github.com/lightdash/lightdash/issues/25047)) ([8300569](https://github.com/lightdash/lightdash/commit/830056902213ae49733794507c1df62eb0804b19)), closes [#25045](https://github.com/lightdash/lightdash/issues/25045)
+
 ## [0.3317.1](https://github.com/lightdash/lightdash/compare/0.3317.0...0.3317.1) (2026-07-07)
 
 
