@@ -57,12 +57,11 @@ export class OrgAiCopilotConfigResolver {
     }
 
     async isEnabled(organizationUuid: string): Promise<boolean> {
-        // Non-UUID userUuid is tolerated by FeatureFlagModel (embed-account guard)
+        // Org-scoped check with no acting user: use the 'system' placeholder
+        // like other AI flag checks; a non-uuid userUuid skips the per-user
+        // lookup and the flag resolves via the org override.
         const flag = await this.featureFlagService.get({
-            user: {
-                userUuid: 'org-ai-copilot-config-resolver',
-                organizationUuid,
-            },
+            user: { userUuid: 'system', organizationUuid },
             featureFlagId: FeatureFlags.OrgAiProviderApiKeys,
         });
         return flag.enabled;
