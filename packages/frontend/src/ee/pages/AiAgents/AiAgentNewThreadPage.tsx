@@ -62,7 +62,7 @@ const AiAgentNewThreadPage: FC = () => {
     });
 
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
-    const [sqlMode, setSqlMode] = useState(false);
+    const [sqlMode, setSqlMode] = useState(true);
     const dispatch = useAiAgentStoreDispatch();
     const { agent, agents, navigateFromAgentChat } =
         useOutletContext<AgentContext>();

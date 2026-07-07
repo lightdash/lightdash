@@ -13,17 +13,14 @@ const wrap = (aiAgentThreadMode: ReturnType<typeof reducer>) => ({
 });
 
 describe('aiAgentThreadModeSlice', () => {
-    it('selectThreadSqlMode defaults to false for an unknown thread', () => {
+    it('selectThreadSqlMode defaults to true for an unknown thread', () => {
         const state = wrap(reducer(undefined, { type: '@@init' }));
-        expect(selectThreadSqlMode('t1')(state)).toBe(false);
+        expect(selectThreadSqlMode('t1')(state)).toBe(true);
     });
 
     it('selectThreadSqlModeRaw is undefined until the thread is toggled', () => {
-        // undefined lets callers (e.g. workspace build threads) pick their own
-        // default — `raw ?? true` — without changing the global default.
         const state = wrap(reducer(undefined, { type: '@@init' }));
         expect(selectThreadSqlModeRaw('t1')(state)).toBeUndefined();
-        expect(selectThreadSqlModeRaw('t1')(state) ?? true).toBe(true);
     });
 
     it('reflects the stored value once set', () => {
@@ -33,6 +30,6 @@ describe('aiAgentThreadModeSlice', () => {
         );
         const state = wrap(next);
         expect(selectThreadSqlModeRaw('t1')(state)).toBe(false);
-        expect(selectThreadSqlModeRaw('t1')(state) ?? true).toBe(false);
+        expect(selectThreadSqlMode('t1')(state)).toBe(false);
     });
 });
