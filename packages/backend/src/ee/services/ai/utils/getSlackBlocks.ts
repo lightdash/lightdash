@@ -620,23 +620,22 @@ export async function getModernArtifactCardBlocks(
                     vizConfig.metricQuery.metrics.length +
                     additionalMetricsWithSql.length;
                 const dimensionCount = vizConfig.metricQuery.dimensions.length;
-                // A prompt upserts a single artifact, so its retried
-                // visualizations produce several images for that one artifact —
-                // the latest is its current render. Use it for the single-artifact
-                // case; for multiple artifacts fall back to positional matching.
+                // A single chart with several images is a retried render — show
+                // the latest. Multiple charts (one card per version) match their
+                // image positionally by version.
                 const chartImageUrl =
                     chartArtifacts.length === 1
                         ? chartImageUrls[chartImageUrls.length - 1]
                         : chartImageUrls[
                               chartArtifacts.findIndex(
                                   (chartArtifact) =>
-                                      chartArtifact.artifactUuid ===
-                                      artifact.artifactUuid,
+                                      chartArtifact.versionUuid ===
+                                      artifact.versionUuid,
                               )
                           ];
 
                 return buildSlackCardBlock({
-                    blockId: `ai_agent_chart_card_${artifact.artifactUuid}`,
+                    blockId: `ai_agent_chart_card_${artifact.versionUuid}`,
                     title: getArtifactTitle(artifact),
                     subtitle: `${vizConfig.metricQuery.exploreName} chart`,
                     heroImageUrl: chartImageUrl,
@@ -678,7 +677,7 @@ export async function getModernArtifactCardBlocks(
 
             if (artifact.dashboardConfig && agentUuid) {
                 return buildSlackCardBlock({
-                    blockId: `ai_agent_dashboard_card_${artifact.artifactUuid}`,
+                    blockId: `ai_agent_dashboard_card_${artifact.versionUuid}`,
                     title: getArtifactTitle(artifact),
                     subtitle: 'Lightdash dashboard',
                     body:
@@ -704,7 +703,21 @@ export async function getModernArtifactCardBlocks(
         }),
     );
 
-    return blocks.filter((block): block is Block => Boolean(block));
+    const cards = blocks.filter((block): block is Block => Boolean(block));
+
+    // A single card renders on its own; multiple cards go in a horizontally
+    // scrollable carousel (Slack allows up to 10 cards).
+    if (cards.length <= 1) {
+        return cards;
+    }
+
+    return [
+        {
+            type: 'carousel',
+            block_id: `ai_agent_artifact_carousel_${slackPrompt.promptUuid}`,
+            elements: cards.slice(0, 10),
+        } as unknown as Block,
+    ];
 }
 
 // Tool names whose successful results count as "an answer the user can score".

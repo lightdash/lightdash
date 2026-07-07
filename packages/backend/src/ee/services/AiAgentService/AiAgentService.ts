@@ -8396,6 +8396,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             (artifact) => artifact.promptUuid === slackPrompt.promptUuid,
         );
 
+        // Each generateVisualization call in a turn adds a version to the
+        // thread's artifact, so a "make me 3 charts" turn produces one artifact
+        // with several versions. Render each version as its own card (with its
+        // own config + image) so all charts from the turn are shown.
+        const promptArtifactVersions =
+            await this.aiAgentModel.findArtifactVersionsByPromptUuid(
+                slackPrompt.promptUuid,
+            );
+
         const toolResults = await this.aiAgentModel.getToolResultsForPrompt(
             slackPrompt.promptUuid,
         );
@@ -8442,7 +8451,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     exploreName,
                 ),
             agent?.uuid,
-            promptArtifacts,
+            promptArtifactVersions.length > 0
+                ? promptArtifactVersions
+                : promptArtifacts,
             toolResults,
         );
         const proposeChangeBlocks = getProposeChangeBlocks(

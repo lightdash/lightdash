@@ -374,4 +374,102 @@ describe('Slack AI agent blocks', () => {
             },
         ]);
     });
+
+    it('renders one turn with multiple chart versions as a carousel', async () => {
+        const chartVersion = (versionUuid: string, title: string) => ({
+            artifactUuid: 'artifact-1',
+            threadUuid: 'thread-1',
+            promptUuid: 'prompt-1',
+            artifactType: 'chart' as const,
+            savedQueryUuid: null,
+            savedDashboardUuid: null,
+            createdAt: new Date(),
+            versionNumber: Number(versionUuid.split('-')[1]),
+            versionUuid,
+            title,
+            description: null,
+            dashboardConfig: null,
+            versionCreatedAt: new Date(),
+            verifiedByUserUuid: null,
+            verifiedAt: null,
+            chartConfig: {
+                title,
+                description: title,
+                queryConfig: {
+                    exploreName: 'orders',
+                    dimensions: ['orders_order_date_month'],
+                    metrics: ['orders_unique_order_count'],
+                    sorts: [],
+                    limit: 500,
+                    customMetrics: [],
+                    tableCalculations: [],
+                    filters: null,
+                },
+                chartConfig: null,
+            },
+        });
+
+        const attempt = (callId: string, url: string) => ({
+            uuid: `result-${callId}`,
+            promptUuid: 'prompt-1',
+            toolCallId: callId,
+            toolType: 'built-in' as const,
+            toolName: 'generateVisualization' as const,
+            result: 'ok',
+            createdAt: new Date(),
+            metadata: { status: 'success', chartImageUrl: url } as never,
+        });
+
+        const blocks = await getModernArtifactCardBlocks(
+            {
+                promptUuid: 'prompt-1',
+                projectUuid: 'project-1',
+                threadUuid: 'thread-1',
+            } as never,
+            'https://lightdash.example.com',
+            500,
+            async () => 'https://lightdash.example.com/share/chart',
+            async () => ({}) as never,
+            'agent-1',
+            [
+                chartVersion('version-1', 'Placed orders by month'),
+                chartVersion('version-2', 'Shipped orders by month'),
+                chartVersion('version-3', 'Completed orders by month'),
+            ],
+            [
+                attempt('call-1', 'https://files.slack.com/placed.png'),
+                attempt('call-2', 'https://files.slack.com/shipped.png'),
+                attempt('call-3', 'https://files.slack.com/completed.png'),
+            ],
+        );
+
+        expect(blocks).toMatchObject([
+            {
+                type: 'carousel',
+                elements: [
+                    {
+                        type: 'card',
+                        title: { text: 'Placed orders by month' },
+                        hero_image: {
+                            image_url: 'https://files.slack.com/placed.png',
+                        },
+                    },
+                    {
+                        type: 'card',
+                        title: { text: 'Shipped orders by month' },
+                        hero_image: {
+                            image_url: 'https://files.slack.com/shipped.png',
+                        },
+                    },
+                    {
+                        type: 'card',
+                        title: { text: 'Completed orders by month' },
+                        hero_image: {
+                            image_url: 'https://files.slack.com/completed.png',
+                        },
+                    },
+                ],
+            },
+        ]);
+    });
 });
