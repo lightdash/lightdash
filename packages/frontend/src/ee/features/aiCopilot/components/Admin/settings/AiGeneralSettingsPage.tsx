@@ -232,16 +232,19 @@ export const AiGeneralSettingsPage = () => {
                         </Stack>
                     </SettingsCard>
 
-                    {orgAiProviderKeysFlag.data?.enabled && (
-                        <AiProviderApiKeysCard
-                            providerApiKeysSet={settings.providerApiKeysSet}
-                            providerApiKeyHints={settings.providerApiKeyHints}
-                            disabled={isUpdatingSettings}
-                            onUpdate={(providerApiKeys) =>
-                                updateSettings({ providerApiKeys })
-                            }
-                        />
-                    )}
+                    {orgAiProviderKeysFlag.data?.enabled &&
+                        settings.isCopilotEnabled && (
+                            <AiProviderApiKeysCard
+                                providerApiKeysSet={settings.providerApiKeysSet}
+                                providerApiKeyHints={
+                                    settings.providerApiKeyHints
+                                }
+                                disabled={isUpdatingSettings}
+                                onUpdate={(providerApiKeys) =>
+                                    updateSettings({ providerApiKeys })
+                                }
+                            />
+                        )}
 
                     <SettingsCard>
                         <Stack gap="md">
