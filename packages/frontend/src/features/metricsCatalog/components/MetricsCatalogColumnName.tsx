@@ -1,12 +1,6 @@
 import { isEmojiIcon, type CatalogField } from '@lightdash/common';
-import { Box, Button, Group } from '@mantine-8/core';
-import {
-    ActionIcon,
-    getDefaultZIndex,
-    Highlight,
-    Paper,
-    Portal,
-} from '@mantine/core';
+import { Box, Button, Group, Paper } from '@mantine-8/core';
+import { ActionIcon, getDefaultZIndex, Highlight, Portal } from '@mantine/core';
 import { useClickOutside } from '@mantine/hooks';
 import { IconTrash } from '@tabler/icons-react';
 import EmojiPicker, {
@@ -26,6 +20,7 @@ import { EventName } from '../../../types/Events';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useUpdateCatalogItemIcon } from '../hooks/useCatalogItemIcon';
 import { MetricDetailPopover } from './MetricDetailPopover';
+import classes from './MetricsCatalogColumnName.module.css';
 import '../../../styles/emoji-picker-react.css';
 
 const PICKER_HEIGHT = 300;
@@ -62,9 +57,7 @@ const SharedEmojiPicker = forwardRef(
                         withBorder
                         pt="xs"
                         px="two"
-                        sx={(theme) => ({
-                            border: `1px solid ${theme.colors.ldGray[2]}`,
-                        })}
+                        className={classes.emojiPickerPaper}
                     >
                         {emoji && (
                             <Group justify="flex-end">

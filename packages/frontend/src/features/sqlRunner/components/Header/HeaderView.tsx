@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { DashboardTileTypes } from '@lightdash/common';
-import { Button, Group, Stack } from '@mantine-8/core';
-import { ActionIcon, Menu, Paper, Title, Tooltip } from '@mantine/core';
+import { Button, Group, Paper, Stack } from '@mantine-8/core';
+import { ActionIcon, Menu, Title, Tooltip } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconCirclesRelation,
@@ -33,6 +33,7 @@ import {
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { toggleModal } from '../../store/sqlRunnerSlice';
 import { DeleteSqlChartModal } from '../DeleteSqlChartModal';
+import classes from './Header.module.css';
 
 export const HeaderView: FC = () => {
     const navigate = useNavigate();
@@ -148,13 +149,7 @@ export const HeaderView: FC = () => {
                 withBorder={false}
                 px="md"
                 py="xs"
-                sx={(theme) => ({
-                    borderBottom: `1px solid ${
-                        theme.colorScheme === 'dark'
-                            ? theme.colors.ldDark[8]
-                            : theme.colors.ldGray[3]
-                    }`,
-                })}
+                className={classes.pageHeader}
             >
                 <Group justify="space-between">
                     <Stack gap="none">

@@ -8,12 +8,11 @@ import {
     type VizTableHeaderSortConfig,
     formatSql,
 } from '@lightdash/common';
-import { Box, Group, Stack } from '@mantine-8/core';
+import { Box, Group, Paper, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Indicator,
     LoadingOverlay,
-    Paper,
     SegmentedControl,
     Tooltip,
     Transition,
@@ -446,11 +445,11 @@ export const ContentPanel: FC = () => {
                     radius={0}
                     px="md"
                     py={6}
-                    sx={(theme) => ({
+                    style={{
                         borderWidth: '0 0 1px 1px',
                         borderStyle: 'solid',
-                        borderColor: theme.colors.ldGray[3],
-                    })}
+                        borderColor: 'var(--mantine-color-ldGray-3)',
+                    }}
                 >
                     <Group justify="space-between">
                         <Group justify="space-between">
@@ -636,17 +635,15 @@ export const ContentPanel: FC = () => {
                             ref={inputSectionRef}
                             shadow="none"
                             radius={0}
-                            style={{ flex: 1 }}
-                            sx={(theme) => ({
+                            style={{
+                                flex: 1,
                                 borderWidth: '0 0 0 1px',
                                 borderStyle: 'solid',
-                                borderColor: theme.colors.ldGray[3],
+                                borderColor: 'var(--mantine-color-ldGray-3)',
                                 overflow: 'auto',
                                 backgroundColor:
-                                    theme.colorScheme === 'dark'
-                                        ? theme.colors.dark[6]
-                                        : 'white',
-                            })}
+                                    'light-dark(white, var(--mantine-color-dark-6))',
+                            }}
                         >
                             <Box
                                 style={{

@@ -1,0 +1,4 @@
+.pageHeader {
+    border-bottom: 1px solid
+        light-dark(var(--mantine-color-ldGray-3), var(--mantine-color-ldDark-8));
+}

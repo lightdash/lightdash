@@ -5,22 +5,15 @@ import {
     type MetricExplorerQuery,
     type MetricWithAssociatedTimeDimension,
 } from '@lightdash/common';
-import { Group, Stack } from '@mantine-8/core';
-import {
-    Anchor,
-    Loader,
-    Paper,
-    Radio,
-    Select,
-    Tooltip,
-    Text,
-} from '@mantine/core';
+import { Group, Paper, Stack } from '@mantine-8/core';
+import { Anchor, Loader, Radio, Select, Tooltip, Text } from '@mantine/core';
 import { IconCalendar, IconStack } from '@tabler/icons-react';
 import { type UseQueryResult } from '@tanstack/react-query';
 import { useCallback, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useSelectStyles } from '../../styles/useSelectStyles';
 import SelectItem from '../SelectItem';
+import comparisonClasses from './MetricExploreComparison.module.css';
 
 type Props = {
     baseMetricLabel: string | undefined;
@@ -137,31 +130,10 @@ export const MetricExploreComparison: FC<Props> = ({
                                 p="sm"
                                 withBorder
                                 radius="md"
-                                sx={(theme) => ({
-                                    cursor: 'pointer',
-                                    transition: `all ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                                    '&[data-with-border="true"]': {
-                                        border:
-                                            query.comparison === comparison.type
-                                                ? `1px solid ${theme.colors.indigo[5]}`
-                                                : `1px solid ${theme.colors.ldGray[2]}`,
-                                    },
-                                    '&:hover': {
-                                        backgroundColor:
-                                            theme.colorScheme === 'dark'
-                                                ? theme.colors.ldDark[3]
-                                                : theme.colors.ldGray[0],
-                                    },
-                                    backgroundColor:
-                                        query.comparison === comparison.type
-                                            ? theme.colorScheme === 'dark'
-                                                ? theme.colors.ldDark[2]
-                                                : theme.fn.lighten(
-                                                      theme.colors.ldGray[1],
-                                                      0.3,
-                                                  )
-                                            : theme.colors.background[0],
-                                })}
+                                className={comparisonClasses.comparisonCard}
+                                data-selected={
+                                    query.comparison === comparison.type
+                                }
                                 onClick={() =>
                                     handleComparisonChange(comparison.type)
                                 }

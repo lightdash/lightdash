@@ -5,8 +5,8 @@ import {
     type CatalogField,
     type CatalogItem,
 } from '@lightdash/common';
-import { Box, Center, Divider, Group } from '@mantine-8/core';
-import { Anchor, Paper, useMantineTheme, Text } from '@mantine/core';
+import { Box, Center, Divider, Group, Paper } from '@mantine-8/core';
+import { Anchor, useMantineTheme, Text } from '@mantine/core';
 import {
     IconArrowDown,
     IconArrowsSort,
@@ -52,6 +52,7 @@ import {
 import { MetricCatalogView } from '../types';
 import { MetricExploreModal } from './MetricExploreModal';
 import { MetricsCatalogColumns } from './MetricsCatalogColumns';
+import classes from './MetricsTable.module.css';
 import { MetricsTableTopToolbar } from './MetricsTableTopToolbar';
 import SavedTreesContainer from './SavedTrees/SavedTreesContainer';
 
@@ -635,7 +636,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
         case MetricCatalogView.CANVAS:
             return (
                 <>
-                    <Paper {...mantinePaperProps}>
+                    <Paper className={classes.canvasPaper}>
                         <Box>
                             <MetricsTableTopToolbar
                                 search={search}

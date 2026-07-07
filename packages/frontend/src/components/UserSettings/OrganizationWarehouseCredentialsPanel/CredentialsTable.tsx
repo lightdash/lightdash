@@ -1,6 +1,6 @@
 import { type OrganizationWarehouseCredentials } from '@lightdash/common';
-import { Group } from '@mantine-8/core';
-import { ActionIcon, Paper, Table, Text } from '@mantine/core';
+import { Group, Paper } from '@mantine-8/core';
+import { ActionIcon, Table, Text } from '@mantine/core';
 import { IconEdit, IconTrash } from '@tabler/icons-react';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
@@ -72,7 +72,7 @@ export const CredentialsTable: FC<CredentialsTableProps> = ({
     const { cx, classes } = useTableStyles();
 
     return (
-        <Paper withBorder sx={{ overflow: 'hidden' }}>
+        <Paper withBorder style={{ overflow: 'hidden' }}>
             <Table
                 className={cx(classes.root, classes.alignLastTdRight)}
                 ta="left"
