@@ -3,6 +3,7 @@ import {
     Box,
     Button,
     Flex,
+    Group,
     Input,
     SegmentedControl,
     Stack,
@@ -11,10 +12,20 @@ import {
     TextInput,
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
+import {
+    IconAlertTriangleFilled,
+    IconCircleCheckFilled,
+    IconCircleXFilled,
+} from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
+import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SettingsCard } from '../../../../../components/common/Settings/SettingsCard';
 import { validateRoleName, validateScopes } from '../../utils/roleValidation';
+import {
+    getScopeDependencyStatusCounts,
+    type DependencyStatus,
+} from '../../utils/scopeUtils';
 import { ScopeSelector } from '../ScopeSelector';
 import { type RoleFormValues } from '../types';
 import styles from './RoleBuilder.module.css';
@@ -48,6 +59,16 @@ type Props = {
      */
     rederiveScopesOnLevelChange?: boolean;
 };
+
+const dependencyStatusItems = [
+    { key: 'full', icon: IconCircleCheckFilled, color: 'green' },
+    { key: 'partial', icon: IconAlertTriangleFilled, color: 'yellow' },
+    { key: 'empty', icon: IconCircleXFilled, color: 'red' },
+] as const satisfies Array<{
+    key: DependencyStatus;
+    icon: typeof IconCircleCheckFilled;
+    color: string;
+}>;
 
 /**
  * Allows admins to create and edit roles. Includes a selectable list of scopes to assign to the role.
@@ -135,6 +156,11 @@ export const RoleBuilder: FC<Props> = ({
               ? levelLockedHint
               : undefined;
 
+    const dependencyStatusCounts = getScopeDependencyStatusCounts({
+        level: form.values.level,
+        scopes: form.values.scopes || {},
+    });
+
     return (
         <form onSubmit={handleSubmit} className={styles.container}>
             <Box className={styles.content}>
@@ -189,27 +215,49 @@ export const RoleBuilder: FC<Props> = ({
                             />
                         </Box>
                         <Flex
-                            justify="flex-end"
+                            justify="space-between"
+                            align="center"
                             gap="sm"
                             className={styles.footer}
                         >
-                            <Button
-                                variant="default"
-                                component={Link}
-                                to="/generalSettings/customRoles"
-                                disabled={isWorking}
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                type="submit"
-                                loading={isWorking}
-                                disabled={mode === 'edit' && !form.isDirty()}
-                            >
-                                {mode === 'create'
-                                    ? 'Create role'
-                                    : 'Save changes'}
-                            </Button>
+                            <Group gap={4}>
+                                {dependencyStatusItems.map((status) => (
+                                    <Group key={status.key} gap={4}>
+                                        <MantineIcon
+                                            icon={status.icon}
+                                            size={13}
+                                            color={status.color}
+                                        />
+                                        <Text fz="sm" c="dimmed">
+                                            {dependencyStatusCounts[status.key]}
+                                        </Text>
+                                    </Group>
+                                ))}
+                                <Text fz="sm" c="dimmed">
+                                    dependencies
+                                </Text>
+                            </Group>
+                            <Group gap="sm">
+                                <Button
+                                    variant="default"
+                                    component={Link}
+                                    to="/generalSettings/customRoles"
+                                    disabled={isWorking}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    loading={isWorking}
+                                    disabled={
+                                        mode === 'edit' && !form.isDirty()
+                                    }
+                                >
+                                    {mode === 'create'
+                                        ? 'Create role'
+                                        : 'Save changes'}
+                                </Button>
+                            </Group>
                         </Flex>
                     </SettingsCard>
                 </Stack>
