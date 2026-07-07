@@ -1,3 +1,10 @@
+## [0.3320.2](https://github.com/lightdash/lightdash/compare/0.3320.1...0.3320.2) (2026-07-07)
+
+
+### Bug Fixes
+
+* **ai-writeback:** support monorepo dbt projects with local packages ([#25217](https://github.com/lightdash/lightdash/issues/25217)) ([d017223](https://github.com/lightdash/lightdash/commit/d017223dca0d462e70318a2dc02165483be33219))
+
 ## [0.3320.1](https://github.com/lightdash/lightdash/compare/0.3320.0...0.3320.1) (2026-07-07)
 
 
