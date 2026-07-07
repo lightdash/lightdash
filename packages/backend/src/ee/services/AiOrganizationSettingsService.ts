@@ -1,12 +1,16 @@
 import { subject } from '@casl/ability';
 import {
     AiOrganizationSettings,
+    BYO_AI_PROVIDERS,
     CommercialFeatureFlags,
     ComputedAiOrganizationSettings,
     ForbiddenError,
     LightdashUser,
+    ParameterError,
     UpdateAiOrganizationSettings,
+    UpdateAiProviderApiKeys,
     type AiModelOption,
+    type ByoAiProvider,
     type SessionUser,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -34,6 +38,22 @@ export const maskProviderKeyExposure = (
               providerApiKeysSet: { anthropic: false, openai: false },
               providerApiKeyHints: { anthropic: null, openai: null },
           };
+
+/**
+ * Providers being SET to a key that this instance does not configure. BYO can
+ * only swap the key of a provider the instance already runs, so setting a key
+ * for an unconfigured provider is rejected. Removing a key (null) is always
+ * allowed.
+ */
+export const findUnconfiguredProviderKeyWrites = (
+    providerApiKeys: UpdateAiProviderApiKeys,
+    configuredProviders: Partial<Record<ByoAiProvider, unknown>>,
+): ByoAiProvider[] =>
+    BYO_AI_PROVIDERS.filter(
+        (provider) =>
+            typeof providerApiKeys[provider] === 'string' &&
+            !configuredProviders[provider],
+    );
 
 type AiOrganizationSettingsServiceDependencies = {
     aiOrganizationSettingsModel: AiOrganizationSettingsModel;
@@ -212,15 +232,32 @@ export class AiOrganizationSettingsService extends BaseService {
 
         this.checkManageAiAgentAccess(user);
 
-        if (
-            data.providerApiKeys !== undefined &&
-            !(await this.orgAiCopilotConfigResolver.isEnabled(
-                user.organizationUuid,
-            ))
-        ) {
-            throw new ForbiddenError(
-                'Organization AI provider API keys are not enabled',
+        if (data.providerApiKeys !== undefined) {
+            // BYO keys require both AI copilot (env/ai-copilot flag) and the
+            // org-ai-provider-api-keys flag to be enabled for this org.
+            const [copilotEnabled, byoKeysEnabled] = await Promise.all([
+                this.getIsCopilotEnabled(user),
+                this.orgAiCopilotConfigResolver.isEnabled(
+                    user.organizationUuid,
+                ),
+            ]);
+            if (!copilotEnabled || !byoKeysEnabled) {
+                throw new ForbiddenError(
+                    'Organization AI provider API keys are not enabled',
+                );
+            }
+
+            const unconfigured = findUnconfiguredProviderKeyWrites(
+                data.providerApiKeys,
+                this.lightdashConfig.ai.copilot.providers,
             );
+            if (unconfigured.length > 0) {
+                throw new ParameterError(
+                    `Cannot set an API key for a provider this instance does not configure: ${unconfigured.join(
+                        ', ',
+                    )}`,
+                );
+            }
         }
 
         return this.aiOrganizationSettingsModel.upsert(

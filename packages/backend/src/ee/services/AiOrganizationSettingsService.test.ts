@@ -1,5 +1,8 @@
 import { AiOrganizationSettings } from '@lightdash/common';
-import { maskProviderKeyExposure } from './AiOrganizationSettingsService';
+import {
+    findUnconfiguredProviderKeyWrites,
+    maskProviderKeyExposure,
+} from './AiOrganizationSettingsService';
 
 const settingsWithKeys: AiOrganizationSettings = {
     organizationUuid: 'org-uuid',
@@ -35,5 +38,40 @@ describe('maskProviderKeyExposure', () => {
         expect(masked.aiAgentsVisible).toBe(true);
         expect(masked.mcpContentWritesEnabled).toBe(true);
         expect(masked.organizationUuid).toBe('org-uuid');
+    });
+});
+
+describe('findUnconfiguredProviderKeyWrites', () => {
+    it('flags setting a key for a provider the instance does not configure', () => {
+        expect(
+            findUnconfiguredProviderKeyWrites(
+                { anthropic: 'sk-ant-123' },
+                { openai: {} },
+            ),
+        ).toEqual(['anthropic']);
+    });
+
+    it('allows setting a key for a configured provider', () => {
+        expect(
+            findUnconfiguredProviderKeyWrites(
+                { openai: 'sk-123' },
+                { openai: {} },
+            ),
+        ).toEqual([]);
+    });
+
+    it('always allows removing a key (null) regardless of instance config', () => {
+        expect(
+            findUnconfiguredProviderKeyWrites({ anthropic: null }, {}),
+        ).toEqual([]);
+    });
+
+    it('ignores providers not present in the update', () => {
+        expect(
+            findUnconfiguredProviderKeyWrites(
+                { openai: 'sk-123' },
+                { openai: {} },
+            ),
+        ).toEqual([]);
     });
 });
