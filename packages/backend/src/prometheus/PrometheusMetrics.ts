@@ -178,6 +178,23 @@ export default class PrometheusMetrics {
 
     public usageEventsPutFailuresCounter: prometheus.Counter | null = null;
 
+    public usageEventsCompactedPartitionsCounter: prometheus.Counter | null =
+        null;
+
+    public usageEventsCompactionFailuresCounter: prometheus.Counter | null =
+        null;
+
+    public usageEventsCompactionRunDurationHistogram: prometheus.Histogram<string> | null =
+        null;
+
+    public usageEventsCompactionPartitionDurationHistogram: prometheus.Histogram<string> | null =
+        null;
+
+    public usageEventsCompactionPartitionBytesHistogram: prometheus.Histogram | null =
+        null;
+
+    public usageEventsCompactionBacklogGauge: prometheus.Gauge | null = null;
+
     public preAggregateMaterializationFileSizeHistogram: prometheus.Histogram<string> | null =
         null;
 
@@ -793,6 +810,60 @@ export default class PrometheusMetrics {
                     ...rest,
                 });
 
+                this.usageEventsCompactedPartitionsCounter =
+                    new prometheus.Counter({
+                        name: 'lightdash_usage_events_compacted_partitions_total',
+                        help: 'Total raw usage event partitions compacted to parquet',
+                        ...rest,
+                    });
+
+                this.usageEventsCompactionFailuresCounter =
+                    new prometheus.Counter({
+                        name: 'lightdash_usage_events_compaction_failures_total',
+                        help: 'Total usage event partition compactions that failed',
+                        ...rest,
+                    });
+
+                this.usageEventsCompactionRunDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'lightdash_usage_events_compaction_run_duration_ms',
+                        help: 'Duration of a full usage events compaction run in milliseconds',
+                        labelNames: ['outcome'],
+                        buckets: [
+                            1_000, 5_000, 15_000, 60_000, 300_000, 900_000,
+                            1_800_000, 3_600_000,
+                        ],
+                        ...rest,
+                    });
+
+                this.usageEventsCompactionPartitionDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'lightdash_usage_events_compaction_partition_duration_ms',
+                        help: 'Duration of a single partition compaction in milliseconds',
+                        labelNames: ['outcome'],
+                        buckets: [
+                            100, 500, 1_000, 5_000, 15_000, 60_000, 300_000,
+                        ],
+                        ...rest,
+                    });
+
+                this.usageEventsCompactionPartitionBytesHistogram =
+                    new prometheus.Histogram({
+                        name: 'lightdash_usage_events_compaction_partition_raw_bytes',
+                        help: 'Total gzip raw bytes read per partition compaction (DuckDB memory pressure signal)',
+                        buckets: [
+                            10_000, 100_000, 1_000_000, 10_000_000, 50_000_000,
+                            100_000_000, 250_000_000, 1_000_000_000,
+                        ],
+                        ...rest,
+                    });
+
+                this.usageEventsCompactionBacklogGauge = new prometheus.Gauge({
+                    name: 'lightdash_usage_events_compaction_backlog_partitions',
+                    help: 'Closed raw partitions still awaiting compaction after the last run (cap deferrals + failures)',
+                    ...rest,
+                });
+
                 const app = express();
                 this.server = http.createServer(app);
                 app.get(metricsPath, async (req, res) => {
@@ -1389,6 +1460,40 @@ export default class PrometheusMetrics {
 
     public incrementUsageEventsPutFailure() {
         this.usageEventsPutFailuresCounter?.inc();
+    }
+
+    public incrementUsageEventsCompactedPartitions() {
+        this.usageEventsCompactedPartitionsCounter?.inc();
+    }
+
+    public incrementUsageEventsCompactionFailures() {
+        this.usageEventsCompactionFailuresCounter?.inc();
+    }
+
+    public observeUsageEventsCompactionRunDuration(
+        durationMs: number,
+        outcome: 'success' | 'partial',
+    ) {
+        this.usageEventsCompactionRunDurationHistogram?.observe(
+            { outcome },
+            durationMs,
+        );
+    }
+
+    public observeUsageEventsCompactionPartition(
+        durationMs: number,
+        outcome: 'success' | 'failed',
+        rawBytes: number,
+    ) {
+        this.usageEventsCompactionPartitionDurationHistogram?.observe(
+            { outcome },
+            durationMs,
+        );
+        this.usageEventsCompactionPartitionBytesHistogram?.observe(rawBytes);
+    }
+
+    public setUsageEventsCompactionBacklog(partitions: number) {
+        this.usageEventsCompactionBacklogGauge?.set(partitions);
     }
 
     public monitorEventMetrics(eventEmitter: EventEmitter) {

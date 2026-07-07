@@ -7,6 +7,7 @@ import {
     SchedulerJobStatus,
     type SchedulerTaskName,
 } from '@lightdash/common';
+import * as Sentry from '@sentry/node';
 import {
     Logger as GraphileLogger,
     parseCronItems,
@@ -15,8 +16,10 @@ import {
     type CronItem,
 } from 'graphile-worker';
 import moment from 'moment';
+import { UsageEventsCompactor } from '../analytics/eventStream/UsageEventsCompactor';
 import { DEFAULT_DB_MAX_CONNECTIONS } from '../knexfile';
 import Logger from '../logging/logger';
+import type PrometheusMetrics from '../prometheus/PrometheusMetrics';
 import { type OrganizationNameResolver } from '../sentry/organizationNameResolver';
 import { SchedulerClient } from './SchedulerClient';
 import {
@@ -35,6 +38,8 @@ export type SchedulerWorkerArguments = SchedulerTaskArguments & {
     // job-activity events alone.
     workerHealth?: SchedulerWorkerHealth;
     resolveOrganizationName?: OrganizationNameResolver;
+    // When omitted, worker tasks that report metrics simply skip reporting.
+    prometheusMetrics?: PrometheusMetrics;
 };
 
 const workerLogger = new GraphileLogger(
@@ -67,12 +72,15 @@ export class SchedulerWorker extends SchedulerTask {
 
     private readonly resolveOrganizationName?: OrganizationNameResolver;
 
+    private readonly prometheusMetrics: PrometheusMetrics | null;
+
     constructor(schedulerWorkerArgs: SchedulerWorkerArguments) {
         super(schedulerWorkerArgs);
         this.enabledTasks = this.lightdashConfig.scheduler.tasks;
         this.workerHealth = schedulerWorkerArgs.workerHealth;
         this.resolveOrganizationName =
             schedulerWorkerArgs.resolveOrganizationName;
+        this.prometheusMetrics = schedulerWorkerArgs.prometheusMetrics ?? null;
     }
 
     async run() {
@@ -232,6 +240,14 @@ export class SchedulerWorker extends SchedulerTask {
                 pattern: '0 * * * *', // Every hour
                 options: {
                     backfillPeriod: 2 * 3600 * 1000, // 2 hours in ms
+                    maxAttempts: 3,
+                },
+            },
+            {
+                task: SCHEDULER_TASKS.COMPACT_USAGE_EVENTS,
+                pattern: '30 0 * * *', // 00:30 UTC daily
+                options: {
+                    backfillPeriod: 12 * 3600 * 1000, // 12 hours in ms
                     maxAttempts: 3,
                 },
             },
@@ -1327,6 +1343,32 @@ export class SchedulerWorker extends SchedulerTask {
             },
             [SCHEDULER_TASKS.CHECK_FOR_STUCK_JOBS]: async () => {
                 await this.schedulerService.checkForStuckJobs();
+            },
+            [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS]: async () => {
+                const { usageEvents } = this.lightdashConfig;
+                if (!usageEvents.enabled || usageEvents.s3 === null) {
+                    Logger.debug(
+                        'Usage events compaction skipped: usage events are not enabled',
+                    );
+                    return;
+                }
+                const compactor = new UsageEventsCompactor({
+                    s3Config: usageEvents.s3,
+                    prometheusMetrics: this.prometheusMetrics,
+                });
+                const summary = await compactor.run();
+                Sentry.getActiveSpan()?.setAttributes({
+                    'lightdash.usage_events.partitions_discovered':
+                        summary.partitionsDiscovered,
+                    'lightdash.usage_events.partitions_compacted':
+                        summary.partitionsCompacted,
+                    'lightdash.usage_events.partitions_failed':
+                        summary.partitionsFailed,
+                    'lightdash.usage_events.partitions_skipped_unknown_stream':
+                        summary.partitionsSkippedUnknownStream,
+                    'lightdash.usage_events.raw_objects_deleted':
+                        summary.rawObjectsDeleted,
+                });
             },
             [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: async () => {
                 // EE-only: implemented in CommercialSchedulerWorker

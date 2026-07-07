@@ -103,6 +103,7 @@ const schedulerWorkerFactory = (context: {
     utils: UtilRepository;
     // Optional only so the EE factory override (which reads context.workerHealth) typechecks against this shape.
     workerHealth?: SchedulerWorkerHealth;
+    prometheusMetrics?: PrometheusMetrics;
 }) =>
     new SchedulerWorker({
         lightdashConfig: context.lightdashConfig,
@@ -138,6 +139,7 @@ const schedulerWorkerFactory = (context: {
         resolveOrganizationName: createOrganizationNameResolver(
             context.models.getOrganizationModel(),
         ),
+        prometheusMetrics: context.prometheusMetrics,
     });
 
 export type AppArguments = {
@@ -980,6 +982,7 @@ export default class App {
             models: this.models,
             clients: this.clients,
             utils: this.utils,
+            prometheusMetrics: this.prometheusMetrics,
         });
 
         this.schedulerWorker.run().catch((e) => {
