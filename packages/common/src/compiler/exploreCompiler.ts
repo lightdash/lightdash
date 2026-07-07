@@ -63,8 +63,9 @@ import {
 } from './referenceLookup';
 
 // exclude lightdash prefix from variable pattern
+// hyphens are allowed so references to hyphenated dbt model names resolve
 export const lightdashVariablePattern =
-    /\$\{((?!(lightdash|ld)\.)[a-zA-Z0-9_.]+)\}/g;
+    /\$\{((?!(lightdash|ld)\.)[a-zA-Z0-9_.-]+)\}/g;
 
 type Reference = {
     refTable: string;
