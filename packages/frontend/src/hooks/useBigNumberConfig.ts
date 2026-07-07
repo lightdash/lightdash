@@ -48,6 +48,62 @@ export const calculateComparisonValue = (
 
 const NOT_APPLICABLE = 'n/a';
 const UNDEFINED = 'undefined';
+
+// Formats a numeric big number value (main value or comparison delta) honouring
+// the field's custom format: table calculations, format expressions, format
+// options (currency/unit/prefix/suffix) and legacy formats. The optional compact
+// `style` overrides the field's compact setting. Keeping this shared ensures the
+// main value and the comparison value never format differently.
+const formatBigNumberValue = (
+    item: ItemsMap[string] | undefined,
+    value: unknown,
+    style: CompactOrAlias | undefined,
+    parameters?: ParametersValuesMap,
+    timezone?: string,
+): string => {
+    if (item !== undefined && isTableCalculation(item)) {
+        return formatItemValue(item, value, false, parameters, timezone);
+    } else if (
+        item !== undefined &&
+        hasValidFormatExpression(item) &&
+        // When a compact style is set, fall through so the style is applied
+        !style
+    ) {
+        return formatItemValue(item, value, false, parameters, timezone);
+    } else if (item !== undefined && hasFormatOptions(item)) {
+        // If the format has no explicit type but a compact style is set, treat
+        // it as a number so the style can be applied
+        const type =
+            item.formatOptions?.type === CustomFormatType.DEFAULT
+                ? style
+                    ? CustomFormatType.NUMBER
+                    : CustomFormatType.DEFAULT
+                : item.formatOptions?.type;
+
+        return applyCustomFormat(
+            value,
+            {
+                ...item.formatOptions,
+                type,
+                compact: style ?? item.formatOptions?.compact,
+            },
+            timezone,
+        );
+    } else {
+        const metricRound = isField(item) ? item.round : undefined;
+        const compactStyleDefault = style ? 2 : undefined;
+        return applyCustomFormat(
+            value,
+            getCustomFormatFromLegacy({
+                format: isField(item) ? item.format : undefined,
+                round: metricRound ?? compactStyleDefault,
+                compact: style,
+            }),
+            timezone,
+        );
+    }
+};
+
 const formatComparisonValue = (
     format: ComparisonFormatTypes | undefined,
     comparisonDiff: ComparisonDiffTypes | undefined,
@@ -72,52 +128,14 @@ const formatComparisonValue = (
                 type: CustomFormatType.PERCENT,
             })}`;
         case ComparisonFormatTypes.RAW:
-            if (item !== undefined && isTableCalculation(item)) {
-                return `${prefix}${formatItemValue(
-                    item,
-                    value,
-                    false,
-                    parameters,
-                    timezone,
-                )}`;
-            }
-
-            const metricRoundRaw = isField(item) ? item.round : undefined;
-            const formattedValue = bigNumberComparisonStyle
-                ? applyCustomFormat(
-                      value,
-                      getCustomFormatFromLegacy({
-                          format: isField(item) ? item.format : undefined,
-                          round: metricRoundRaw ?? 2,
-                          compact: bigNumberComparisonStyle,
-                      }),
-                      timezone,
-                  )
-                : formatItemValue(item, value, false, parameters, timezone);
-
-            return `${prefix}${formattedValue}`;
         default:
-            if (item !== undefined && isTableCalculation(item)) {
-                return formatItemValue(
-                    item,
-                    value,
-                    false,
-                    parameters,
-                    timezone,
-                );
-            }
-            const metricRoundDefault = isField(item) ? item.round : undefined;
-            return bigNumberComparisonStyle
-                ? applyCustomFormat(
-                      value,
-                      getCustomFormatFromLegacy({
-                          format: isField(item) ? item.format : undefined,
-                          round: metricRoundDefault ?? 2,
-                          compact: bigNumberComparisonStyle,
-                      }),
-                      timezone,
-                  )
-                : formatItemValue(item, value, false, parameters, timezone);
+            return `${prefix}${formatBigNumberValue(
+                item,
+                value,
+                bigNumberComparisonStyle,
+                parameters,
+                timezone,
+            )}`;
     }
 };
 
@@ -320,60 +338,14 @@ const useBigNumberConfig = (
                 selectedField &&
                 resultsData?.rows?.[0]?.[selectedField]?.value.formatted
             );
-        } else if (item !== undefined && isTableCalculation(item)) {
-            return formatItemValue(
-                item,
-                firstRowValueRaw,
-                false,
-                parameters,
-                resultsData?.resolvedTimezone,
-            );
-        } else if (
-            item !== undefined &&
-            hasValidFormatExpression(item) &&
-            !bigNumberStyle // If the big number has a comparison style, don't use the format expression returned by the backend
-        ) {
-            return formatItemValue(
-                item,
-                firstRowValueRaw,
-                false,
-                parameters,
-                resultsData?.resolvedTimezone,
-            );
-        } else if (item !== undefined && hasFormatOptions(item)) {
-            // Custom metrics case
-
-            // If the custom metric has no format, but the big number has
-            // compact, treat the custom metric as a number
-            const type =
-                item.formatOptions?.type === CustomFormatType.DEFAULT
-                    ? bigNumberStyle
-                        ? CustomFormatType.NUMBER
-                        : CustomFormatType.DEFAULT
-                    : item.formatOptions?.type;
-
-            return applyCustomFormat(
-                firstRowValueRaw,
-                {
-                    ...item.formatOptions,
-                    type,
-                    compact: bigNumberStyle ?? item.formatOptions?.compact,
-                },
-                resultsData?.resolvedTimezone,
-            );
-        } else {
-            const metricRound = isField(item) ? item.round : undefined;
-            const compactStyleDefault = bigNumberStyle ? 2 : undefined;
-            return applyCustomFormat(
-                firstRowValueRaw,
-                getCustomFormatFromLegacy({
-                    format: isField(item) ? item.format : undefined,
-                    round: metricRound ?? compactStyleDefault,
-                    compact: bigNumberStyle,
-                }),
-                resultsData?.resolvedTimezone,
-            );
         }
+        return formatBigNumberValue(
+            item,
+            firstRowValueRaw,
+            bigNumberStyle,
+            parameters,
+            resultsData?.resolvedTimezone,
+        );
     }, [
         item,
         firstRowValueRaw,
@@ -426,7 +398,10 @@ const useBigNumberConfig = (
             : formatComparisonValue(
                   comparisonFormat,
                   comparisonDiff,
-                  comparisonItem,
+                  // Format the delta with the selected field's format so the
+                  // comparison inherits the column's custom formatting, not the
+                  // comparison field's (which may be unformatted)
+                  item,
                   unformattedValue,
                   bigNumberComparisonStyle,
                   parameters,
@@ -435,7 +410,7 @@ const useBigNumberConfig = (
     }, [
         comparisonFormat,
         comparisonDiff,
-        comparisonItem,
+        item,
         unformattedValue,
         secondRowValueFormatted,
         bigNumberComparisonStyle,
