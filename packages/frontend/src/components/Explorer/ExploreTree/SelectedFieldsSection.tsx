@@ -59,12 +59,14 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
             data-testid={`selected-field-${fieldId}`}
         >
             <FieldIcon item={item} size="md" />
-            <span className={classes.label} title={label}>
-                {label}
+            <span className={classes.labels}>
+                <span className={classes.label} title={label}>
+                    {label}
+                </span>
+                {tableLabel && (
+                    <span className={classes.tableLabel}>{tableLabel}</span>
+                )}
             </span>
-            {tableLabel && (
-                <span className={classes.tableLabel}>{tableLabel}</span>
-            )}
         </UnstyledButton>
     );
 });

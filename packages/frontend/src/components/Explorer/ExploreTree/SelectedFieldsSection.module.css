@@ -80,6 +80,15 @@
     background-color: var(--ld-field-default-bg-hover);
 }
 
+/* Inner flex so the field and table labels align on their text baselines
+   despite different font sizes */
+.labels {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+}
+
 .label {
     min-width: 0;
     overflow: hidden;
