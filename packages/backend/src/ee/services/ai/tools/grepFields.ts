@@ -201,7 +201,11 @@ const renderHits = (
     matches: MatchFn,
     requiredFiltersByExplore: Map<string, string>,
 ): string =>
-    groupOrderedHitsByExplore(hits, matches, requiredFiltersByExplore)
+    groupOrderedHitsByExplore(
+        getOrderedHits(hits, matches),
+        matches,
+        requiredFiltersByExplore,
+    )
         .map(({ exploreName, exploreLabel, requiredFilters, fields }) => {
             const lines = fields
                 .map((field) => {
@@ -335,7 +339,7 @@ const renderPattern = (
             matchedAllFields,
             note,
             resultsByExplore: groupOrderedHitsByExplore(
-                hits,
+                getOrderedHits(hits, matches),
                 matches,
                 requiredFiltersByExplore,
             ),
