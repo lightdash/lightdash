@@ -14,6 +14,7 @@ vi.mock('./ai/models', () => ({ getModel: vi.fn() }));
 vi.mock('./ai/agents/agentV2', () => ({ defaultAgentOptions: {} }));
 vi.mock('./ai/utils/aiCallTelemetry', () => ({
     getAiCallTelemetry: () => ({}),
+    getLanguageModelAttribution: () => ({}),
 }));
 
 const generateObjectMock = vi.mocked(generateObject);

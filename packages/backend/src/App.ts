@@ -28,6 +28,7 @@ import path from 'path';
 import qs from 'qs';
 import reDoc from 'redoc-express';
 import { URL } from 'url';
+import { registerAiUsageTracker } from './analytics/aiUsage';
 import { BufferedEventStreamWriter } from './analytics/eventStream/BufferedEventStreamWriter';
 import { createEventStreamWriter } from './analytics/eventStream/createEventStreamWriter';
 import { EventStreamSink } from './analytics/eventStream/EventStreamSink';
@@ -220,6 +221,7 @@ export default class App {
                   )
                 : undefined,
         });
+        registerAiUsageTracker((event) => this.analytics.track(event));
         this.database = knex(
             this.environment === 'production'
                 ? args.knexConfig.production

@@ -44,6 +44,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../config/parseConfig';
 import { type ExternalConnectionEvent } from '../ee/analytics';
 import { VERSION } from '../version';
+import type { AiUsageEvent } from './aiUsage';
 import type { EventStreamSink } from './eventStream/EventStreamSink';
 
 type Identify = {
@@ -2534,7 +2535,8 @@ type TypedEvent =
     | AiRouterMessageRoutedEvent
     | ContentVerificationEvent
     | SchedulerOwnershipReassignedEvent
-    | ImpersonationEvent;
+    | ImpersonationEvent
+    | AiUsageEvent;
 
 type UntypedEvent<T extends BaseTrack> = Omit<BaseTrack, 'event'> &
     T & {

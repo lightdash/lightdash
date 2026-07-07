@@ -33,6 +33,10 @@ import {
 } from '@lightdash/common';
 import { generateObject } from 'ai';
 import { createHash } from 'crypto';
+import {
+    emitAiUsage,
+    languageModelUsageToTokens,
+} from '../../analytics/aiUsage';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { type CatalogModel } from '../../models/CatalogModel/CatalogModel';
@@ -45,7 +49,10 @@ import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassi
 import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
 import { defaultAgentOptions } from './ai/agents/agentV2';
 import { getModel } from './ai/models';
-import { getAiCallTelemetry } from './ai/utils/aiCallTelemetry';
+import {
+    getAiCallTelemetry,
+    getLanguageModelAttribution,
+} from './ai/utils/aiCallTelemetry';
 import { type AiAgentReviewNotificationService } from './AiAgentReviewNotificationService';
 
 const REVIEW_AGENT_VERSION = 'llm-judge-v1';
@@ -1545,20 +1552,22 @@ export class AiAgentReviewClassifierService extends BaseService {
                 evidencePacket.suggestedEvidenceExcerpts.length,
         });
 
+        const telemetry = getAiCallTelemetry({
+            functionId: 'aiAgentReviewClassifierJudge',
+            feature: 'review-classifier',
+            organizationUuid: candidate.subject.organizationUuid,
+            projectUuid: candidate.subject.projectUuid,
+            agentUuid: candidate.subject.agentUuid,
+            threadUuid: candidate.subject.threadUuid,
+            promptUuid: candidate.subject.assistantPromptUuid,
+            ...getLanguageModelAttribution(model.model),
+        });
         const result = await generateObject({
             model: model.model,
             ...defaultAgentOptions,
             ...model.callOptions,
             providerOptions: model.providerOptions,
-            experimental_telemetry: getAiCallTelemetry({
-                functionId: 'aiAgentReviewClassifierJudge',
-                feature: 'review-classifier',
-                organizationUuid: candidate.subject.organizationUuid,
-                projectUuid: candidate.subject.projectUuid,
-                agentUuid: candidate.subject.agentUuid,
-                threadUuid: candidate.subject.threadUuid,
-                promptUuid: candidate.subject.assistantPromptUuid,
-            }),
+            experimental_telemetry: telemetry,
             schema: aiAgentReviewClassifierJudgeOutputSchema,
             messages: [
                 {
@@ -1670,6 +1679,7 @@ Existing review items — dedup rules. The evidence packet field existingReviewI
                 },
             ],
         });
+        emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
 
         return result.object as AiAgentReviewClassifierJudgeOutput;
     }

@@ -1,27 +1,7 @@
-/**
- * Coarse feature bucket for an AI call. Lets us attribute token usage and cost
- * to a product surface (data apps vs the agent vs metadata generation, etc.) in
- * tracing, independently of the fine-grained `functionId`.
- */
-export type AiCallFeature =
-    | 'agent'
-    | 'agent-subtask'
-    | 'chart-metadata'
-    | 'document-summary'
-    | 'thread-title'
-    | 'tooltip'
-    | 'artifact-question'
-    | 'agent-suggestions'
-    | 'table-calc'
-    | 'formula-table-calc'
-    | 'compaction'
-    | 'embedding'
-    | 'project-router'
-    | 'agent-selector'
-    | 'review-classifier'
-    | 'llm-judge'
-    | 'data-app'
-    | 'managed-agent';
+import type { LanguageModel } from 'ai';
+import type { AiCallFeature } from '../../../../analytics/aiUsage';
+
+export type { AiCallFeature };
 
 /**
  * Attribution dimensions stamped on an AI-call span. All optional because not
@@ -37,7 +17,26 @@ export type AiCallAttribution = {
     promptUuid?: string | null;
     userUuid?: string | null;
     model?: string | null;
+    provider?: string | null;
 };
+
+/**
+ * Model name + provider attribution derived from an AI SDK model object.
+ * The SDK provider id is dot-namespaced (e.g. `azure.chat`,
+ * `bedrock.anthropic.messages`); the first segment matches our configured
+ * provider names (openai/azure/anthropic/bedrock/openrouter), which is what
+ * cost accounting joins on — the same model name bills differently per
+ * provider. Bare string models carry no provider information.
+ */
+export const getLanguageModelAttribution = (
+    model: LanguageModel,
+): Pick<AiCallAttribution, 'model' | 'provider'> =>
+    typeof model === 'string'
+        ? { model, provider: null }
+        : {
+              model: model.modelId,
+              provider: model.provider?.split('.')[0] ?? null,
+          };
 
 export type AiCallTelemetryOptions = AiCallAttribution & {
     functionId: string;
@@ -60,6 +59,7 @@ const ATTRIBUTION_KEYS: (keyof AiCallAttribution)[] = [
     'promptUuid',
     'userUuid',
     'model',
+    'provider',
 ];
 
 /**
@@ -111,12 +111,15 @@ export const getAiCallTelemetry = ({
  * avoid an import cycle with the models package.
  */
 export const getGeneratorTelemetry = (
-    modelOptions: { telemetry?: AiCallAttribution },
+    modelOptions: { model?: LanguageModel; telemetry?: AiCallAttribution },
     functionId: string,
     feature: AiCallFeature,
 ) =>
     getAiCallTelemetry({
         functionId,
         feature,
+        ...(modelOptions.model != null
+            ? getLanguageModelAttribution(modelOptions.model)
+            : {}),
         ...(modelOptions.telemetry ?? {}),
     });

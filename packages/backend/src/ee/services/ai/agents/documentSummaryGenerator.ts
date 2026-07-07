@@ -4,6 +4,10 @@ import {
 } from '@lightdash/common';
 import { generateObject } from 'ai';
 import { z } from 'zod';
+import {
+    emitAiUsage,
+    languageModelUsageToTokens,
+} from '../../../../analytics/aiUsage';
 import { GeneratorModelOptions } from '../models/types';
 import { renderAvailableExplores } from '../prompts/availableExplores';
 import { getGeneratorTelemetry } from '../utils/aiCallTelemetry';
@@ -81,15 +85,16 @@ export async function generateDocumentSummary(
         projectExplores: Explore[];
     },
 ): Promise<AiAgentDocumentStructuredSummary> {
+    const telemetry = getGeneratorTelemetry(
+        modelOptions,
+        'generateDocumentSummary',
+        'document-summary',
+    );
     const result = await generateObject({
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
-        experimental_telemetry: getGeneratorTelemetry(
-            modelOptions,
-            'generateDocumentSummary',
-            'document-summary',
-        ),
+        experimental_telemetry: telemetry,
         schema: DocumentSummarySchema,
         messages: [
             {
@@ -113,6 +118,8 @@ Output the structured fields per the schema. Pay attention to the \`relevance\` 
             },
         ],
     });
+
+    emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
 
     return result.object;
 }

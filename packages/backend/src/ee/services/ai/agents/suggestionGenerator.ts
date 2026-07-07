@@ -5,8 +5,15 @@ import {
     type AgentSuggestionsModelObject,
 } from '@lightdash/common';
 import { generateObject } from 'ai';
+import {
+    emitAiUsage,
+    languageModelUsageToTokens,
+} from '../../../../analytics/aiUsage';
 import { GeneratorModelOptions } from '../models/types';
-import { getAiCallTelemetry } from '../utils/aiCallTelemetry';
+import {
+    getAiCallTelemetry,
+    getLanguageModelAttribution,
+} from '../utils/aiCallTelemetry';
 
 const EMPTY_STATE_PROMPT = `You write 3-6 starter "chips" that appear above an empty AI agent chat input in a business-intelligence tool.
 
@@ -225,6 +232,15 @@ export async function generateAgentSuggestions(
         canManageContent: context.canManageContent,
     });
 
+    const telemetry = getAiCallTelemetry({
+        functionId: 'generateAgentSuggestions',
+        feature: 'agent-suggestions',
+        ...getLanguageModelAttribution(modelOptions.model),
+        extra: {
+            ...metadata,
+            mode: isPostResponse ? 'post-response' : 'empty-state',
+        },
+    });
     const result = await generateObject({
         model: modelOptions.model,
         ...modelOptions.callOptions,
@@ -242,15 +258,10 @@ export async function generateAgentSuggestions(
                     : `Generate empty-state suggestion chips for this agent.\n\nContext:\n${userContent}`,
             },
         ],
-        experimental_telemetry: getAiCallTelemetry({
-            functionId: 'generateAgentSuggestions',
-            feature: 'agent-suggestions',
-            extra: {
-                ...metadata,
-                mode: isPostResponse ? 'post-response' : 'empty-state',
-            },
-        }),
+        experimental_telemetry: telemetry,
     });
+
+    emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
 
     return result.object;
 }

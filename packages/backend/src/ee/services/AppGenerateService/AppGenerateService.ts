@@ -73,6 +73,10 @@ import { PassThrough, Readable } from 'node:stream';
 import { extract, pack as tarPack, type Headers } from 'tar-stream';
 import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
+import {
+    emitAiUsage,
+    languageModelUsageToTokens,
+} from '../../../analytics/aiUsage';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
 import { resolveS3Credentials } from '../../../clients/Aws/S3BaseClient';
@@ -104,7 +108,10 @@ import { type ExternalConnectionModel } from '../../models/ExternalConnectionMod
 import type { SandboxRegistryModel } from '../../models/SandboxRegistryModel';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { getModel } from '../ai/models';
-import { getAiCallTelemetry } from '../ai/utils/aiCallTelemetry';
+import {
+    getAiCallTelemetry,
+    getLanguageModelAttribution,
+} from '../ai/utils/aiCallTelemetry';
 import {
     createSandboxManager,
     S3SnapshotStore,
@@ -3333,6 +3340,33 @@ export class AppGenerateService extends BaseService {
                 )}, numTurns=${generationUsage.numTurns}, inputTokens=${generationUsage.inputTokens}, outputTokens=${generationUsage.outputTokens}, cacheReadTokens=${generationUsage.cacheReadInputTokens}, cacheCreationTokens=${generationUsage.cacheCreationInputTokens}, costUsd=${generationUsage.costUsd})`,
         );
 
+        // Aggregated across every `claude` CLI invocation in the pipeline;
+        // the CLI reports inputTokens excluding cache reads/writes.
+        emitAiUsage(
+            getAiCallTelemetry({
+                functionId: 'appClaudeGeneration',
+                feature: 'data-app',
+                organizationUuid: payload.organizationUuid,
+                projectUuid,
+                userUuid: payload.userUuid,
+                model: claudeModel,
+                provider: 'anthropic',
+                extra: { appUuid },
+            }),
+            {
+                inputTokens: generationUsage.inputTokens,
+                outputTokens: generationUsage.outputTokens,
+                cacheReadTokens: generationUsage.cacheReadInputTokens,
+                cacheWriteTokens: generationUsage.cacheCreationInputTokens,
+                reasoningTokens: null,
+                totalTokens:
+                    generationUsage.inputTokens +
+                    generationUsage.cacheReadInputTokens +
+                    generationUsage.cacheCreationInputTokens +
+                    generationUsage.outputTokens,
+            },
+        );
+
         this.analytics.track({
             event: 'data_app.version.completed',
             userId: payload.userUuid,
@@ -3693,19 +3727,21 @@ export class AppGenerateService extends BaseService {
         const CLARIFY_TIMEOUT_MS = 15_000;
 
         const start = performance.now();
+        const telemetry = getAiCallTelemetry({
+            functionId: 'clarifyApp',
+            feature: 'data-app',
+            organizationUuid,
+            projectUuid,
+            userUuid: user.userUuid,
+            ...getLanguageModelAttribution(modelOptions.model),
+        });
         let result;
         try {
             result = await generateObject({
                 model: modelOptions.model,
                 ...modelOptions.callOptions,
                 providerOptions: modelOptions.providerOptions,
-                experimental_telemetry: getAiCallTelemetry({
-                    functionId: 'clarifyApp',
-                    feature: 'data-app',
-                    organizationUuid,
-                    projectUuid,
-                    userUuid: user.userUuid,
-                }),
+                experimental_telemetry: telemetry,
                 schema: clarifySchema,
                 abortSignal: AbortSignal.timeout(CLARIFY_TIMEOUT_MS),
                 messages: [
@@ -3761,6 +3797,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             );
             return { questions: [] };
         }
+        emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
         const elapsedMs = AppGenerateService.elapsed(start);
 
         const questions = result.object.questions
