@@ -1,4 +1,5 @@
 import type {
+    AiProviderApiKeyHints,
     AiProviderApiKeysSet,
     UpdateAiProviderApiKeys,
 } from '@lightdash/common';
@@ -23,6 +24,7 @@ type ProviderKeyRowProps = {
     icon: ComponentType<SVGProps<SVGSVGElement>>;
     placeholder: string;
     isSet: boolean;
+    hint: string | null;
     disabled: boolean;
     onSave: (key: string) => void;
     onRemove: () => void;
@@ -33,6 +35,7 @@ const ProviderKeyRow: FC<ProviderKeyRowProps> = ({
     icon: Icon,
     placeholder,
     isSet,
+    hint,
     disabled,
     onSave,
     onRemove,
@@ -67,7 +70,9 @@ const ProviderKeyRow: FC<ProviderKeyRowProps> = ({
                     size="xs"
                     aria-label={label}
                     value={value}
-                    placeholder={isSet ? '••••••••••••••••' : placeholder}
+                    placeholder={
+                        isSet ? (hint ?? '••••••••••••••••') : placeholder
+                    }
                     disabled={disabled}
                     onChange={(event) => setValue(event.currentTarget.value)}
                 />
@@ -92,12 +97,14 @@ const ProviderKeyRow: FC<ProviderKeyRowProps> = ({
 
 type AiProviderApiKeysCardProps = {
     providerApiKeysSet: AiProviderApiKeysSet;
+    providerApiKeyHints: AiProviderApiKeyHints;
     disabled: boolean;
     onUpdate: (providerApiKeys: UpdateAiProviderApiKeys) => void;
 };
 
 export const AiProviderApiKeysCard: FC<AiProviderApiKeysCardProps> = ({
     providerApiKeysSet,
+    providerApiKeyHints,
     disabled,
     onUpdate,
 }) => (
@@ -119,6 +126,7 @@ export const AiProviderApiKeysCard: FC<AiProviderApiKeysCardProps> = ({
                 icon={AnthropicIcon}
                 placeholder="sk-ant-..."
                 isSet={providerApiKeysSet.anthropic}
+                hint={providerApiKeyHints.anthropic}
                 disabled={disabled}
                 onSave={(key) => onUpdate({ anthropic: key })}
                 onRemove={() => onUpdate({ anthropic: null })}
@@ -129,6 +137,7 @@ export const AiProviderApiKeysCard: FC<AiProviderApiKeysCardProps> = ({
                 icon={OpenAiIcon}
                 placeholder="sk-..."
                 isSet={providerApiKeysSet.openai}
+                hint={providerApiKeyHints.openai}
                 disabled={disabled}
                 onSave={(key) => onUpdate({ openai: key })}
                 onRemove={() => onUpdate({ openai: null })}

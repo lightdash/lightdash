@@ -235,6 +235,7 @@ export const AiGeneralSettingsPage = () => {
                     {orgAiProviderKeysFlag.data?.enabled && (
                         <AiProviderApiKeysCard
                             providerApiKeysSet={settings.providerApiKeysSet}
+                            providerApiKeyHints={settings.providerApiKeyHints}
                             disabled={isUpdatingSettings}
                             onUpdate={(providerApiKeys) =>
                                 updateSettings({ providerApiKeys })
