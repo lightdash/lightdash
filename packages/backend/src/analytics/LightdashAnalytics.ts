@@ -2152,6 +2152,7 @@ export type ContentVerificationEvent = BaseTrack & {
         projectId: string;
         contentType: ContentType;
         contentId: string;
+        source?: 'ai_artifact';
     };
 };
 

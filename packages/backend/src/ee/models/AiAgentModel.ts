@@ -4602,6 +4602,14 @@ export class AiAgentModel {
             });
     }
 
+    async findPromptSavedQueryUuid(promptUuid: string): Promise<string | null> {
+        const row = await this.database(AiPromptTableName)
+            .select('saved_query_uuid')
+            .where({ ai_prompt_uuid: promptUuid })
+            .first<{ saved_query_uuid: string | null }>();
+        return row?.saved_query_uuid ?? null;
+    }
+
     async updateMessageSavedQuery(data: {
         messageUuid: string;
         savedQueryUuid: string | null;
