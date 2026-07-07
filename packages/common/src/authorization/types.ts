@@ -9,7 +9,8 @@ export type AbilityAction =
     | 'manage'
     | 'promote'
     | 'update'
-    | 'view';
+    | 'view'
+    | 'write';
 
 interface Project {
     organizationUuid: string;

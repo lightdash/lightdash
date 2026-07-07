@@ -8203,7 +8203,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             agentSettings.enableDataAccess &&
             hasTrustedPromptUserIdentity &&
             this.createAuditedAbility(user).can(
-                'manage',
+                'write',
                 subject('ContentAsCode', {
                     organizationUuid: promptProject.organizationUuid,
                     projectUuid: promptProject.projectUuid,

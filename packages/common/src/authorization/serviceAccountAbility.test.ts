@@ -102,6 +102,29 @@ describe('ServiceAccountScope.SYSTEM_MEMBER', () => {
     });
 });
 
+describe('content-as-code writes', () => {
+    it('lets system editors write but not manage', () => {
+        const ability = buildAbility([ServiceAccountScope.SYSTEM_EDITOR]);
+        const contentAsCode = subject('ContentAsCode', {
+            organizationUuid: ORG,
+        });
+
+        expect(ability.can('write', contentAsCode)).toBe(true);
+        expect(ability.can('manage', contentAsCode)).toBe(false);
+    });
+
+    it('preserves legacy org edit manage access', () => {
+        const ability = buildAbility([ServiceAccountScope.ORG_EDIT]);
+
+        expect(
+            ability.can(
+                'manage',
+                subject('ContentAsCode', { organizationUuid: ORG }),
+            ),
+        ).toBe(true);
+    });
+});
+
 describe('SYSTEM_MEMBER + project_memberships (system roles)', () => {
     // Parity: SA with a system-role grant should view/manage in that project
     // the same way a human ProjectMember with that role does. Drives off

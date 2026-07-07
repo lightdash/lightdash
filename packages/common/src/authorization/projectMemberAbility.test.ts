@@ -542,6 +542,13 @@ describe('Project member permissions', () => {
                 ability = defineAbilityForProjectMember(PROJECT_EDITOR);
             });
 
+            it('can write but cannot manage content as code', () => {
+                const contentAsCode = subject('ContentAsCode', { projectUuid });
+
+                expect(ability.can('write', contentAsCode)).toEqual(true);
+                expect(ability.can('manage', contentAsCode)).toEqual(false);
+            });
+
             it('can view and manage public & accessible dashboards', () => {
                 expect(
                     ability.can(
@@ -1090,6 +1097,15 @@ describe('Project member permissions', () => {
         describe('when user is an developer', () => {
             beforeEach(() => {
                 ability = defineAbilityForProjectMember(PROJECT_DEVELOPER);
+            });
+
+            it('can write content as code through manage', () => {
+                expect(
+                    ability.can(
+                        'write',
+                        subject('ContentAsCode', { projectUuid }),
+                    ),
+                ).toEqual(true);
             });
 
             it('can use SQL runner', () => {
