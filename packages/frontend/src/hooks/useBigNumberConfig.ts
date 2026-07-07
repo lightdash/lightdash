@@ -49,11 +49,8 @@ export const calculateComparisonValue = (
 const NOT_APPLICABLE = 'n/a';
 const UNDEFINED = 'undefined';
 
-// Formats a numeric big number value (main value or comparison delta) honouring
-// the field's custom format: table calculations, format expressions, format
-// options (currency/unit/prefix/suffix) and legacy formats. The optional compact
-// `style` overrides the field's compact setting. Keeping this shared ensures the
-// main value and the comparison value never format differently.
+// Formats a big number value (main value or comparison delta) with the field's
+// custom format; `style` overrides the field's compact. Shared so both stay in sync.
 const formatBigNumberValue = (
     item: ItemsMap[string] | undefined,
     value: unknown,
@@ -89,14 +86,17 @@ const formatBigNumberValue = (
             },
             timezone,
         );
+    } else if (!style) {
+        // No compact override: honour the field's full format (legacy compact,
+        // separator, round), matching the results table
+        return formatItemValue(item, value, false, parameters, timezone);
     } else {
         const metricRound = isField(item) ? item.round : undefined;
-        const compactStyleDefault = style ? 2 : undefined;
         return applyCustomFormat(
             value,
             getCustomFormatFromLegacy({
                 format: isField(item) ? item.format : undefined,
-                round: metricRound ?? compactStyleDefault,
+                round: metricRound ?? 2,
                 compact: style,
             }),
             timezone,
@@ -398,9 +398,8 @@ const useBigNumberConfig = (
             : formatComparisonValue(
                   comparisonFormat,
                   comparisonDiff,
-                  // Format the delta with the selected field's format so the
-                  // comparison inherits the column's custom formatting, not the
-                  // comparison field's (which may be unformatted)
+                  // Use the selected field's format so the comparison inherits
+                  // the column's formatting, not the comparison field's
                   item,
                   unformattedValue,
                   bigNumberComparisonStyle,
