@@ -1694,6 +1694,13 @@ export const selectContinuousDateRange = (
 ): string[] | undefined =>
     flipAxes ? leftAxisExtraConfig.data : bottomAxisExtraConfig.data;
 
+// Spacing that keeps `bottom`/`left` bar value labels clear of the category-axis
+// tick labels they render next to. Bottom is height-based; left is width-based.
+const BOTTOM_VALUE_LABEL_AXIS_MARGIN = 24;
+const BOTTOM_VALUE_LABEL_NAME_GAP_EXTRA = 16;
+const DEFAULT_AXIS_LABEL_MARGIN = 8;
+const LEFT_VALUE_LABEL_GUTTER_PADDING = 12;
+
 const getEchartAxes = ({
     itemsMap,
     validCartesianConfig,
@@ -1931,14 +1938,47 @@ const getEchartAxes = ({
         timezone: resolvedTimezone,
         displayTimezone,
     });
+    // `bottom` (vertical) and `left` (horizontal) value labels render at the
+    // value=0 baseline, overlapping the category-axis tick labels there.
+    const barSeriesUsesLabelPosition = (position: 'bottom' | 'left') =>
+        (validCartesianConfig.eChartsConfig.series ?? []).some(
+            (serie) =>
+                serie.type === CartesianSeriesType.BAR &&
+                serie.label?.show === true &&
+                serie.label?.position === position,
+        );
+    const hasBottomBarValueLabels =
+        !validCartesianConfig.layout.flipAxes &&
+        barSeriesUsesLabelPosition('bottom');
+    const hasLeftBarValueLabels =
+        !!validCartesianConfig.layout.flipAxes &&
+        barSeriesUsesLabelPosition('left');
+    // Left labels need a gutter as wide as the widest value label
+    // (longestValueXAxisBottom is that value when flipped).
+    const leftValueLabelGutter = hasLeftBarValueLabels
+        ? calculateWidthText(longestValueXAxisBottom) +
+          LEFT_VALUE_LABEL_GUTTER_PADDING
+        : 0;
+
     const bottomAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
         bottomAxisFormatterConfig,
+        hasBottomBarValueLabels &&
+            typeof bottomAxisFormatterConfig.nameGap === 'number'
+            ? {
+                  nameGap:
+                      bottomAxisFormatterConfig.nameGap +
+                      BOTTOM_VALUE_LABEL_NAME_GAP_EXTRA,
+              }
+            : {},
         showXAxis && bottomAxisFormatterConfig.axisLabel
             ? {
                   axisLabel: {
                       ...getAxisLabelStyle(axisLabelFontSize),
                       ...bottomAxisFormatterConfig.axisLabel,
+                      ...(hasBottomBarValueLabels
+                          ? { margin: BOTTOM_VALUE_LABEL_AXIS_MARGIN }
+                          : {}),
                   },
               }
             : {},
@@ -1977,11 +2017,25 @@ const getEchartAxes = ({
     const leftAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
         leftAxisFormatterConfig,
+        hasLeftBarValueLabels &&
+            typeof leftAxisFormatterConfig.nameGap === 'number'
+            ? {
+                  nameGap:
+                      leftAxisFormatterConfig.nameGap + leftValueLabelGutter,
+              }
+            : {},
         showLeftYAxis && leftAxisFormatterConfig.axisLabel
             ? {
                   axisLabel: {
                       ...getAxisLabelStyle(axisLabelFontSize),
                       ...leftAxisFormatterConfig.axisLabel,
+                      ...(hasLeftBarValueLabels
+                          ? {
+                                margin:
+                                    DEFAULT_AXIS_LABEL_MARGIN +
+                                    leftValueLabelGutter,
+                            }
+                          : {}),
                   },
               }
             : {},
