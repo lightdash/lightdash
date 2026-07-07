@@ -3,6 +3,9 @@ import { type DataAppTemplate } from './types';
 
 export const currentDataAppCodeVersion = 1 as const;
 
+export const MAX_DECLARED_DEPENDENCIES = 60;
+export const MAX_LOCKFILE_BYTES = 2 * 1024 * 1024; // 2 MB
+
 export type DataAppManifest = {
     codeVersion: 1;
     appUuid: string;
@@ -22,9 +25,18 @@ export type DataAppCodeFile = {
     contentBase64: string;
 };
 
+export type DataAppDependencies = {
+    packageJson: string; // serialised package.json (src-of-truth)
+    lockfile: string; // serialised pnpm-lock.yaml
+};
+
 export type DataAppCode = {
     manifest: DataAppManifest;
     files: DataAppCodeFile[];
+    // When present the server will install these deps in the build sandbox.
+    // Kept separate from `files` so the src-only invariant on `files` is
+    // unaffected.
+    dependencies?: DataAppDependencies;
 };
 
 export type DataAppContextFile = {
@@ -62,6 +74,201 @@ export type ApiImportAppCodeResponse = ApiSuccess<{
     action: 'create' | 'append';
 }>;
 
+export type DataAppDepsValidationResult = {
+    // Packages that differ from the template baseline (new or version override).
+    customDeps: Record<string, string>;
+};
+
+// Positive allowlist: a spec must BE a semver range (exact versions, ^/~,
+// comparators, hyphen and x-ranges, || unions). Everything else — git hosts
+// (github:/gitlab:/bitbucket:/gist:), file:/link:/workspace:, URLs, bare
+// relative paths, dist-tags like "latest" — is rejected, so validation agrees
+// with what the sandbox egress allowlist actually permits.
+const SEMVER_ATOM = String.raw`(?:[<>]=?|=|~|\^)?\s*v?(?:\d+|[xX*])(?:\.(?:\d+|[xX*]))?(?:\.(?:\d+|[xX*]))?(?:-[0-9A-Za-z][0-9A-Za-z.-]*)?(?:\+[0-9A-Za-z][0-9A-Za-z.-]*)?`;
+const SEMVER_RANGE_PART = `${SEMVER_ATOM}(?:\\s+(?:-\\s+)?${SEMVER_ATOM})*`;
+const SEMVER_RANGE_RE = new RegExp(
+    `^\\s*${SEMVER_RANGE_PART}(?:\\s*\\|\\|\\s*${SEMVER_RANGE_PART})*\\s*$`,
+);
+const NPM_PACKAGE_NAME_RE =
+    /^(@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/;
+
+function isRegistrySemverSpec(spec: string): boolean {
+    if (spec.startsWith('npm:')) {
+        // npm:<pkg>@<range> alias — both parts must independently validate.
+        // An alias without an explicit range would resolve a dist-tag; reject
+        // it like any other non-semver spec.
+        const rest = spec.slice(4);
+        const lastAt = rest.lastIndexOf('@');
+        if (lastAt <= 0) return false;
+        return (
+            NPM_PACKAGE_NAME_RE.test(rest.slice(0, lastAt)) &&
+            SEMVER_RANGE_RE.test(rest.slice(lastAt + 1))
+        );
+    }
+    return SEMVER_RANGE_RE.test(spec);
+}
+
+// pnpm lockfiles record off-registry packages as `tarball: <url>` under
+// `resolution:`; registry packages carry only an integrity hash. Any tarball
+// URL therefore points outside the default registry flow and its host must be
+// explicitly allowed.
+const LOCKFILE_TARBALL_RE = /\btarball:\s*['"]?(https?:\/\/[^\s'",}]+)/g;
+
+function validateLockfileTarballHosts(
+    lockfile: string,
+    allowedHosts: string[],
+): void {
+    const allowed = new Set(allowedHosts.map((h) => h.toLowerCase()));
+    for (const match of lockfile.matchAll(LOCKFILE_TARBALL_RE)) {
+        let host: string;
+        try {
+            host = new URL(match[1]).hostname.toLowerCase();
+        } catch {
+            throw new Error(
+                `Invalid dependencies: lockfile contains an unparseable tarball URL: "${match[1]}"`,
+            );
+        }
+        if (!allowed.has(host)) {
+            throw new Error(
+                `Invalid dependencies: lockfile resolves a package from "${host}", which is not an allowed registry host`,
+            );
+        }
+    }
+}
+
+/**
+ * Returns `packageJson` with its `scripts` replaced by the trusted template
+ * scripts. The build sandbox runs `pnpm build` against this file, and download
+ * round-trips it to other developers' machines — in both places the script
+ * commands must stay server-controlled, not uploader-controlled.
+ */
+export function sanitizeAppPackageJsonScripts(
+    packageJson: string,
+    templateScripts: Record<string, string>,
+): string {
+    let parsed: Record<string, unknown>;
+    try {
+        parsed = JSON.parse(packageJson) as Record<string, unknown>;
+    } catch {
+        // Callers validate JSON before sanitizing; keep the original on failure.
+        return packageJson;
+    }
+    return JSON.stringify(
+        { ...parsed, scripts: templateScripts },
+        null,
+        4,
+    ).concat('\n');
+}
+
+/**
+ * Validates a declared dependency set against an optional template baseline.
+ *
+ * Rules enforced:
+ *  1. `packageJson` parses as JSON with a `dependencies` object.
+ *  2. Every spec is a registry semver spec (git+/file:/workspace:/http(s): rejected).
+ *  3. Direct-dependency count ≤ MAX_DECLARED_DEPENDENCIES.
+ *  4. `lockfile` is non-empty, ≤ MAX_LOCKFILE_BYTES, and mentions every custom
+ *     package name (cheap consistency guard).
+ *
+ * Returns the "custom set": declared deps whose name+version differ from the
+ * template baseline (new packages or version overrides).
+ */
+export function validateDataAppDependencies(
+    deps: unknown,
+    opts: {
+        templateDependencies: Record<string, string>;
+        // When provided, lockfile `tarball:` resolution URLs must point at one
+        // of these hosts (the backend passes its registry egress allowlist).
+        allowedTarballHosts?: string[];
+    },
+): DataAppDepsValidationResult {
+    if (!deps || typeof deps !== 'object')
+        throw new Error('Invalid dependencies: not an object');
+
+    const d = deps as Partial<DataAppDependencies>;
+
+    if (typeof d.packageJson !== 'string' || d.packageJson.length === 0)
+        throw new Error(
+            'Invalid dependencies: packageJson must be a non-empty string',
+        );
+    if (typeof d.lockfile !== 'string' || d.lockfile.length === 0)
+        throw new Error(
+            'Invalid dependencies: lockfile must be a non-empty string',
+        );
+    if (Buffer.byteLength(d.lockfile, 'utf-8') > MAX_LOCKFILE_BYTES)
+        throw new Error(
+            `Invalid dependencies: lockfile exceeds ${MAX_LOCKFILE_BYTES / 1024 / 1024} MB limit`,
+        );
+    if (opts.allowedTarballHosts !== undefined) {
+        validateLockfileTarballHosts(d.lockfile, opts.allowedTarballHosts);
+    }
+
+    let parsed: unknown;
+    try {
+        parsed = JSON.parse(d.packageJson);
+    } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        throw new Error(
+            `Invalid dependencies: packageJson is not valid JSON: ${msg}`,
+        );
+    }
+
+    if (
+        !parsed ||
+        typeof parsed !== 'object' ||
+        !('dependencies' in parsed) ||
+        typeof (parsed as Record<string, unknown>).dependencies !== 'object' ||
+        (parsed as Record<string, unknown>).dependencies === null ||
+        Array.isArray((parsed as Record<string, unknown>).dependencies)
+    ) {
+        throw new Error(
+            'Invalid dependencies: packageJson must have a "dependencies" object',
+        );
+    }
+
+    const declared = (parsed as { dependencies: Record<string, unknown> })
+        .dependencies;
+    const entries = Object.entries(declared);
+
+    if (entries.length > MAX_DECLARED_DEPENDENCIES) {
+        throw new Error(
+            `Invalid dependencies: declared dependency count (${entries.length}) exceeds maximum (${MAX_DECLARED_DEPENDENCIES})`,
+        );
+    }
+
+    for (const [name, spec] of entries) {
+        if (typeof spec !== 'string') {
+            throw new Error(
+                `Invalid dependencies: version spec for "${name}" must be a string`,
+            );
+        }
+        if (!isRegistrySemverSpec(spec)) {
+            throw new Error(
+                `Invalid dependencies: spec for "${name}" is not a registry semver spec: "${spec}"`,
+            );
+        }
+    }
+
+    // Compute the custom set and validate lockfile mentions each custom name.
+    const customDeps: Record<string, string> = {};
+    for (const [name, spec] of entries) {
+        // typeof spec already verified as string in the loop above.
+        if (
+            typeof spec === 'string' &&
+            opts.templateDependencies[name] !== spec
+        ) {
+            if (!d.lockfile.includes(name)) {
+                throw new Error(
+                    `Invalid dependencies: "${name}" is declared in package.json but not found in pnpm-lock.yaml. Run 'pnpm install --lockfile-only' to update the lockfile, then upload again`,
+                );
+            }
+            customDeps[name] = spec;
+        }
+    }
+
+    return { customDeps };
+}
+
 const isSafeRelPath = (p: string): boolean => {
     if (typeof p !== 'string' || p.length === 0 || p.startsWith('/'))
         return false;
@@ -75,7 +282,10 @@ const isSafeRelPath = (p: string): boolean => {
         );
 };
 
-export function validateDataAppCode(value: unknown): DataAppCode {
+export function validateDataAppCode(
+    value: unknown,
+    opts?: { templateDependencies?: Record<string, string> },
+): DataAppCode {
     const v = value as Partial<DataAppCode>;
     if (!v || typeof v !== 'object')
         throw new Error('Invalid app bundle: not an object');
@@ -95,5 +305,28 @@ export function validateDataAppCode(value: unknown): DataAppCode {
                 `Invalid app bundle: file "${f?.path}" missing content`,
             );
     }
+
+    if (v.dependencies !== undefined) {
+        const d = v.dependencies as Partial<DataAppDependencies>;
+        if (!d || typeof d !== 'object')
+            throw new Error(
+                'Invalid app bundle: dependencies must be an object',
+            );
+        if (typeof d.packageJson !== 'string')
+            throw new Error(
+                'Invalid app bundle: dependencies.packageJson must be a string',
+            );
+        if (typeof d.lockfile !== 'string')
+            throw new Error(
+                'Invalid app bundle: dependencies.lockfile must be a string',
+            );
+        // Full validation when a template baseline is available.
+        if (opts?.templateDependencies !== undefined) {
+            validateDataAppDependencies(v.dependencies, {
+                templateDependencies: opts.templateDependencies,
+            });
+        }
+    }
+
     return v as DataAppCode;
 }
