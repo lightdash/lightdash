@@ -987,7 +987,7 @@ export const generateAgentResponse = async ({
             promptUuid: args.promptUuid,
             response: result.text,
             tokenUsage: {
-                totalTokens: result.usage.totalTokens ?? 0,
+                totalTokens: result.totalUsage.totalTokens ?? 0,
             },
         });
 
@@ -1338,7 +1338,7 @@ export const streamAgentResponse = async ({
                             new AiAgentStepCapReachedError(steps.length),
                         ),
                         tokenUsage: {
-                            totalTokens: usage.totalTokens ?? 0,
+                            totalTokens: totalUsage.totalTokens ?? 0,
                         },
                     });
                 } else {
@@ -1346,7 +1346,7 @@ export const streamAgentResponse = async ({
                         response: completeResponse,
                         promptUuid: args.promptUuid,
                         tokenUsage: {
-                            totalTokens: usage.totalTokens ?? 0,
+                            totalTokens: totalUsage.totalTokens ?? 0,
                         },
                     });
                 }
@@ -1363,7 +1363,7 @@ export const streamAgentResponse = async ({
                         projectId: args.agentSettings.projectUuid,
                         aiAgentId: args.agentSettings.uuid,
                         agentName: args.agentSettings.name,
-                        usageTokensCount: usage.totalTokens ?? 0,
+                        usageTokensCount: totalUsage.totalTokens ?? 0,
                         stepsCount: steps.length,
                         model:
                             typeof args.model === 'string'

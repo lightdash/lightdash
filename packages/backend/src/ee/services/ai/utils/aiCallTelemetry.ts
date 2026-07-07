@@ -21,22 +21,38 @@ export type AiCallAttribution = {
 };
 
 /**
+ * SDK provider ids that don't match our configured provider names
+ * (openai/azure/anthropic/bedrock/openrouter), which cost accounting joins on.
+ */
+const PROVIDER_ID_TO_CONFIGURED_NAME: Record<string, string> = {
+    'amazon-bedrock': 'bedrock',
+};
+
+/**
  * Model name + provider attribution derived from an AI SDK model object.
  * The SDK provider id is dot-namespaced (e.g. `azure.chat`,
- * `bedrock.anthropic.messages`); the first segment matches our configured
- * provider names (openai/azure/anthropic/bedrock/openrouter), which is what
- * cost accounting joins on — the same model name bills differently per
- * provider. Bare string models carry no provider information.
+ * `anthropic.messages`); the first segment matches our configured provider
+ * names — normalized where the SDK id differs (e.g. `amazon-bedrock` →
+ * `bedrock`) — which is what cost accounting joins on, since the same model
+ * name bills differently per provider. Bare string models carry no provider
+ * information.
  */
 export const getLanguageModelAttribution = (
     model: LanguageModel,
-): Pick<AiCallAttribution, 'model' | 'provider'> =>
-    typeof model === 'string'
-        ? { model, provider: null }
-        : {
-              model: model.modelId,
-              provider: model.provider?.split('.')[0] ?? null,
-          };
+): Pick<AiCallAttribution, 'model' | 'provider'> => {
+    if (typeof model === 'string') {
+        return { model, provider: null };
+    }
+    // `|| null` (not `??`) so an empty provider string doesn't leak through
+    const providerId = model.provider?.split('.')[0] || null;
+    return {
+        model: model.modelId,
+        provider:
+            providerId != null
+                ? PROVIDER_ID_TO_CONFIGURED_NAME[providerId] ?? providerId
+                : null,
+    };
+};
 
 export type AiCallTelemetryOptions = AiCallAttribution & {
     functionId: string;

@@ -8,6 +8,7 @@ import {
 import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
+    type AiCallAttribution,
 } from '../utils/aiCallTelemetry';
 
 const AgentSelectionSchema = z.object({
@@ -126,11 +127,13 @@ export async function selectAgent({
     candidates,
     prompt,
     instructions = null,
+    telemetry: attribution,
 }: {
     model: LanguageModel;
     candidates: AiAgentWithContext[];
     prompt: string;
     instructions?: string | null;
+    telemetry: AiCallAttribution;
 }): Promise<RouterDecision> {
     if (candidates.length === 0) {
         throw new Error('No agents available for selection');
@@ -157,6 +160,7 @@ export async function selectAgent({
         functionId: 'selectAgent',
         feature: 'agent-selector',
         ...getLanguageModelAttribution(model),
+        ...attribution,
     });
     const result = await generateObject({
         model,

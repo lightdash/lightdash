@@ -11,6 +11,7 @@ import { getOpenaiGptmodel } from '../models/openai-gpt';
 import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
+    type AiCallAttribution,
 } from './aiCallTelemetry';
 
 export const factualityScores = {
@@ -89,6 +90,7 @@ type BaseLlmAsJudgeParams = {
     contextRelevancyThreshold?: number; // Threshold for context relevancy (default 0.7)
     factualityThreshold?: 'A' | 'B' | 'C' | 'D' | 'E'; // Minimum acceptable factuality score (default 'A' = subset or better)
     jsonDiffThreshold?: number; // Threshold for JSON diff score (default 0.9)
+    telemetry?: AiCallAttribution;
 };
 
 // Function overloads for type safety
@@ -134,6 +136,7 @@ export async function llmAsAJudge({
     contextRelevancyThreshold = 0.7,
     factualityThreshold = 'A',
     jsonDiffThreshold = 0.9,
+    telemetry: attribution,
 }: BaseLlmAsJudgeParams & {
     scorerType: 'factuality' | 'jsonDiff' | 'contextRelevancy';
 }): Promise<{
@@ -190,6 +193,7 @@ export async function llmAsAJudge({
                 functionId: 'llmAsAJudge',
                 feature: 'llm-judge',
                 ...getLanguageModelAttribution(judge),
+                ...attribution,
             });
             const result = await generateObject({
                 model: judge,
@@ -276,6 +280,7 @@ ${
                 functionId: 'llmAsAJudge',
                 feature: 'llm-judge',
                 ...getLanguageModelAttribution(judge),
+                ...attribution,
             });
             const result = await generateObject({
                 model: judge,

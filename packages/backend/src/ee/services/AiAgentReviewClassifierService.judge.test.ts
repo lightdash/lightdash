@@ -13,7 +13,13 @@ vi.mock('ai', () => ({ generateObject: vi.fn() }));
 vi.mock('./ai/models', () => ({ getModel: vi.fn() }));
 vi.mock('./ai/agents/agentV2', () => ({ defaultAgentOptions: {} }));
 vi.mock('./ai/utils/aiCallTelemetry', () => ({
-    getAiCallTelemetry: () => ({}),
+    getAiCallTelemetry: () => ({
+        functionId: 'test',
+        isEnabled: true,
+        recordInputs: false,
+        recordOutputs: false,
+        metadata: { feature: 'review-classifier' },
+    }),
     getLanguageModelAttribution: () => ({}),
 }));
 

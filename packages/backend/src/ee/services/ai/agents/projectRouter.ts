@@ -7,6 +7,7 @@ import {
 import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
+    type AiCallAttribution,
 } from '../utils/aiCallTelemetry';
 
 const ProjectRoutingSchema = z.object({
@@ -35,6 +36,7 @@ export async function routeProjectForSlack(
     model: LanguageModel,
     projects: { projectUuid: string; name: string }[],
     userQuery: string,
+    attribution: AiCallAttribution,
 ): Promise<string | null> {
     if (projects.length === 0) {
         return null;
@@ -51,6 +53,7 @@ export async function routeProjectForSlack(
         functionId: 'routeProjectForSlack',
         feature: 'project-router',
         ...getLanguageModelAttribution(model),
+        ...attribution,
     });
     const result = await generateObject({
         model,

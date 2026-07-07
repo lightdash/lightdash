@@ -8,7 +8,10 @@ import { LightdashConfig } from '../../../../config/parseConfig';
 import { getAzureProvider } from '../models/azure-openai-gpt-4.1';
 import { getBedrockEmbeddingModel } from '../models/bedrock';
 import { getOpenAIEmbeddingModel } from '../models/openai-embedding';
-import { getAiCallTelemetry } from '../utils/aiCallTelemetry';
+import {
+    getAiCallTelemetry,
+    type AiCallAttribution,
+} from '../utils/aiCallTelemetry';
 
 const EMBEDDING_DIMENSIONS = 1536;
 
@@ -61,6 +64,7 @@ function getEmbeddingModelConfig(config: LightdashConfig):
 export async function generateEmbedding(
     text: string,
     config: LightdashConfig,
+    attribution: AiCallAttribution,
     metadata: Record<string, string> = {},
 ): Promise<{
     embedding: number[];
@@ -83,6 +87,7 @@ export async function generateEmbedding(
         feature: 'embedding',
         model: modelName,
         provider,
+        ...attribution,
         extra: metadata,
     });
     const result = await embed({

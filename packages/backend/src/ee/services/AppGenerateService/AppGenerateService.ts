@@ -3340,8 +3340,15 @@ export class AppGenerateService extends BaseService {
                 )}, numTurns=${generationUsage.numTurns}, inputTokens=${generationUsage.inputTokens}, outputTokens=${generationUsage.outputTokens}, cacheReadTokens=${generationUsage.cacheReadInputTokens}, cacheCreationTokens=${generationUsage.cacheCreationInputTokens}, costUsd=${generationUsage.costUsd})`,
         );
 
-        // Aggregated across every `claude` CLI invocation in the pipeline;
-        // the CLI reports inputTokens excluding cache reads/writes.
+        // Aggregated across every `claude` CLI invocation in the pipeline.
+        // The CLI reports inputTokens excluding cache reads/writes, but
+        // AI-SDK rows store cache-INCLUSIVE inputTokens (ai@6 semantics), so
+        // normalize here: inputTokens = raw input + cacheRead + cacheWrite,
+        // keeping SUM(input_tokens) comparable across features.
+        const normalizedInputTokens =
+            generationUsage.inputTokens +
+            generationUsage.cacheReadInputTokens +
+            generationUsage.cacheCreationInputTokens;
         emitAiUsage(
             getAiCallTelemetry({
                 functionId: 'appClaudeGeneration',
@@ -3354,16 +3361,13 @@ export class AppGenerateService extends BaseService {
                 extra: { appUuid },
             }),
             {
-                inputTokens: generationUsage.inputTokens,
+                inputTokens: normalizedInputTokens,
                 outputTokens: generationUsage.outputTokens,
                 cacheReadTokens: generationUsage.cacheReadInputTokens,
                 cacheWriteTokens: generationUsage.cacheCreationInputTokens,
                 reasoningTokens: null,
                 totalTokens:
-                    generationUsage.inputTokens +
-                    generationUsage.cacheReadInputTokens +
-                    generationUsage.cacheCreationInputTokens +
-                    generationUsage.outputTokens,
+                    normalizedInputTokens + generationUsage.outputTokens,
             },
         );
 

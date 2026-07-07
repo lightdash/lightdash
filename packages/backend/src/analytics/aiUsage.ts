@@ -56,16 +56,26 @@ export const languageModelUsageToTokens = (
     totalTokens: usage?.totalTokens ?? null,
 });
 
+// Defensive against the type: the AI SDK substitutes `{ tokens: NaN }` when
+// the provider omits embedding usage, and call sites may pass undefined —
+// neither must throw or leak NaN into the token fields.
 export const embeddingModelUsageToTokens = (
-    usage: EmbeddingModelUsage,
-): AiUsageTokens => ({
-    inputTokens: usage.tokens,
-    outputTokens: null,
-    cacheReadTokens: null,
-    cacheWriteTokens: null,
-    reasoningTokens: null,
-    totalTokens: usage.tokens,
-});
+    usage: EmbeddingModelUsage | null | undefined,
+): AiUsageTokens => {
+    const reported = usage?.tokens;
+    const tokens =
+        typeof reported === 'number' && Number.isFinite(reported)
+            ? reported
+            : null;
+    return {
+        inputTokens: tokens,
+        outputTokens: null,
+        cacheReadTokens: null,
+        cacheWriteTokens: null,
+        reasoningTokens: null,
+        totalTokens: tokens,
+    };
+};
 
 /**
  * One event per AI model call, emitted 100% unsampled (unlike traces) so
@@ -119,11 +129,37 @@ const getMetadataString = (
     return typeof value === 'string' ? value : null;
 };
 
+// Compact key=value summary so the pretty/plain log formats (which render
+// only the message, not metadata) still carry the usage data. Null fields
+// are omitted.
+const getUsageLogMessage = (
+    properties: AiUsageEvent['properties'],
+): string => {
+    const parts = Object.entries({
+        feature: properties.feature,
+        functionId: properties.functionId,
+        model: properties.model,
+        provider: properties.provider,
+        inputTokens: properties.inputTokens,
+        outputTokens: properties.outputTokens,
+        cacheReadTokens: properties.cacheReadTokens,
+        cacheWriteTokens: properties.cacheWriteTokens,
+        reasoningTokens: properties.reasoningTokens,
+        totalTokens: properties.totalTokens,
+    })
+        .filter(([, value]) => value !== null)
+        .map(([key, value]) => `${key}=${value}`);
+    return `AI usage ${parts.join(' ')}`;
+};
+
 /**
  * Emits token usage for a single AI call in two forms:
  * 1. A structured log line (marker `event: 'ai.usage'`) so any log stack can
  *    consume it. Level `info` on purpose — prod log thresholds must include
- *    it or usage silently vanishes from log-based consumers.
+ *    it or usage silently vanishes from log-based consumers. Note that the
+ *    structured metadata is only rendered with LIGHTDASH_LOG_FORMAT=json;
+ *    the default `pretty` (and `plain`) format prints only the message, so
+ *    the message itself inlines the key fields as `key=value` pairs.
  * 2. An `ai.usage` analytics event through `track()`, which the usage event
  *    stream sink projects into the `ai_usage` stream.
  */
@@ -147,7 +183,7 @@ export const emitAiUsage = (
             ...tokens,
         };
 
-        Logger.info('AI usage', {
+        Logger.info(getUsageLogMessage(properties), {
             event: 'ai.usage',
             userId: userUuid,
             ...properties,

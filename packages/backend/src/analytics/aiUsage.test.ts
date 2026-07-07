@@ -72,6 +72,15 @@ describe('languageModelUsageToTokens', () => {
 });
 
 describe('embeddingModelUsageToTokens', () => {
+    const nullTokens = {
+        inputTokens: null,
+        outputTokens: null,
+        cacheReadTokens: null,
+        cacheWriteTokens: null,
+        reasoningTokens: null,
+        totalTokens: null,
+    };
+
     it('maps embedding tokens to input and total', () => {
         expect(embeddingModelUsageToTokens({ tokens: 42 })).toEqual({
             inputTokens: 42,
@@ -81,6 +90,16 @@ describe('embeddingModelUsageToTokens', () => {
             reasoningTokens: null,
             totalTokens: 42,
         });
+    });
+
+    it('maps NaN tokens (AI SDK substitute for missing usage) to null', () => {
+        expect(embeddingModelUsageToTokens({ tokens: NaN })).toEqual(
+            nullTokens,
+        );
+    });
+
+    it('does not throw when usage is undefined', () => {
+        expect(embeddingModelUsageToTokens(undefined)).toEqual(nullTokens);
     });
 });
 
@@ -134,11 +153,14 @@ describe('emitAiUsage', () => {
             ...tokens,
         };
 
-        expect(Logger.info).toHaveBeenCalledWith('AI usage', {
-            event: 'ai.usage',
-            userId: 'user-1',
-            ...expectedProperties,
-        });
+        expect(Logger.info).toHaveBeenCalledWith(
+            'AI usage feature=agent functionId=generateAgentResponse model=claude-sonnet-5 provider=anthropic inputTokens=1000 outputTokens=200 cacheReadTokens=800 cacheWriteTokens=50 reasoningTokens=30 totalTokens=1200',
+            {
+                event: 'ai.usage',
+                userId: 'user-1',
+                ...expectedProperties,
+            },
+        );
         expect(track).toHaveBeenCalledWith({
             event: 'ai.usage',
             userId: 'user-1',
@@ -165,6 +187,25 @@ describe('emitAiUsage', () => {
             expect.objectContaining({ anonymousId: 'anonymous' }),
         );
         expect(track.mock.calls[0][0].userId).toBeUndefined();
+    });
+
+    it('omits null fields from the log message', () => {
+        emitAiUsage(
+            { functionId: 'embedDocs', metadata: { feature: 'embedding' } },
+            {
+                inputTokens: 42,
+                outputTokens: null,
+                cacheReadTokens: null,
+                cacheWriteTokens: null,
+                reasoningTokens: null,
+                totalTokens: 42,
+            },
+        );
+
+        expect(Logger.info).toHaveBeenCalledWith(
+            'AI usage feature=embedding functionId=embedDocs inputTokens=42 totalTokens=42',
+            expect.objectContaining({ event: 'ai.usage' }),
+        );
     });
 
     it('still logs when no tracker is registered', () => {

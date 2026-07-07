@@ -178,6 +178,11 @@ export class AiRouterService extends BaseService {
             candidates,
             prompt,
             instructions: instruction?.instruction ?? null,
+            telemetry: {
+                organizationUuid,
+                projectUuid,
+                userUuid: account.user.userUuid,
+            },
         });
 
         const suggestedAgent =
