@@ -3,7 +3,6 @@ import {
     ComparisonFormatTypes,
     CustomFormatType,
     formatItemValue,
-    friendlyName,
     getDefaultMetricTreeNodeDateRange,
     getRollingPeriodDates,
     MetricTotalComparisonType,
@@ -104,7 +103,7 @@ const ExpandedNode: React.FC<NodeProps<ExpandedNodeData>> = ({
     isConnectable,
     selected,
 }) => {
-    const title = useMemo(() => friendlyName(data.label), [data.label]);
+    const title = data.label;
 
     const projectUuid = useAppSelector(
         (state) => state.metricsCatalog.projectUuid,

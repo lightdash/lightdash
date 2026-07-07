@@ -127,7 +127,7 @@ export type CatalogItem = CatalogField | CatalogTable;
 
 export type CatalogMetricsTreeNode = Pick<
     CatalogField,
-    'catalogSearchUuid' | 'name' | 'tableName'
+    'catalogSearchUuid' | 'name' | 'label' | 'tableName'
 >;
 
 export type MetricsTreeSource = 'ui' | 'yaml';
@@ -186,6 +186,7 @@ export type MetricsTreeNodePosition = {
 
 export type MetricsTreeNode = MetricsTreeNodePosition & {
     name: string;
+    label: string;
     tableName: string;
     source: MetricsTreeSource;
 };
