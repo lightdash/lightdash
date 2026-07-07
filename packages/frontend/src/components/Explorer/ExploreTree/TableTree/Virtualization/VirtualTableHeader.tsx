@@ -1,13 +1,6 @@
-import { ActionIcon, Group, Tooltip } from '@mantine-8/core';
-import { NavLink, Text, useMantineTheme } from '@mantine/core';
-import { IconInfoCircle, IconTable } from '@tabler/icons-react';
+import { Group, NavLink, Text, useMantineTheme } from '@mantine/core';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
-import {
-    explorerActions,
-    useExplorerDispatch,
-} from '../../../../../features/explorer/store';
-import MantineIcon from '../../../../common/MantineIcon';
 import { TableItemDetailPreview } from '../ItemDetailPreview';
 import type { TableHeaderItem } from './types';
 
@@ -24,11 +17,15 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
     onToggle,
 }) => {
     const theme = useMantineTheme();
-    const dispatch = useExplorerDispatch();
     const { table, isExpanded } = item.data;
     const [isHover, toggleHover] = useToggle(false);
-    const showMetadataIcon = Boolean(
-        table.dbtPackageName || table.ymlPath || table.sqlPath,
+
+    // Matches what the tree renders: hidden fields are excluded
+    const fieldCount = useMemo(
+        () =>
+            Object.values(table.dimensions).filter((d) => !d.hidden).length +
+            Object.values(table.metrics).filter((m) => !m.hidden).length,
+        [table.dimensions, table.metrics],
     );
 
     const tableMetadata = useMemo(
@@ -49,18 +46,6 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
         () => toggleHover(false),
         [toggleHover],
     );
-
-    const openMetadataModal = useCallback(() => {
-        toggleHover(false);
-        dispatch(
-            explorerActions.openItemDetail({
-                itemType: 'table',
-                label: table.label,
-                description: table.description,
-                tableMetadata,
-            }),
-        );
-    }, [toggleHover, dispatch, table.label, table.description, tableMetadata]);
 
     const stickyStyle = useMemo(
         () => ({
@@ -83,25 +68,14 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
             closePreview={handleMouseLeave}
             tableMetadata={tableMetadata}
         >
-            <Group gap="xs" wrap="nowrap">
+            <Group spacing="xs" noWrap>
                 <Text truncate fw={600}>
                     {table.label}
                 </Text>
-                {showMetadataIcon && (
-                    <Tooltip label="View dbt model details" withinPortal>
-                        <ActionIcon
-                            variant="subtle"
-                            size="sm"
-                            color="gray"
-                            aria-label="View dbt model details"
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                openMetadataModal();
-                            }}
-                        >
-                            <MantineIcon icon={IconInfoCircle} />
-                        </ActionIcon>
-                    </Tooltip>
+                {!isExpanded && (
+                    <Text size="xs" color="ldGray.6" fw={400}>
+                        {fieldCount} {fieldCount === 1 ? 'field' : 'fields'}
+                    </Text>
                 )}
             </Group>
         </TableItemDetailPreview>
@@ -113,7 +87,6 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
             onClick={onToggle}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
-            icon={<MantineIcon icon={IconTable} size="lg" color="ldGray.7" />}
             label={label}
             style={stickyStyle}
         >
