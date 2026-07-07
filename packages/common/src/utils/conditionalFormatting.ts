@@ -121,13 +121,34 @@ export class ConditionalFormattingError extends LightdashError {
     }
 }
 
+// Resolves a color-range rule's 'auto' bounds against the min/max map
+const getColorRangeBounds = (
+    config: ConditionalFormattingConfigWithColorRange,
+    targetFieldId: string | undefined,
+    minMaxMap: ConditionalFormattingMinMaxMap,
+): ConditionalFormattingMinMax => {
+    const resolveAuto = (bound: 'min' | 'max') =>
+        targetFieldId && targetFieldId in minMaxMap
+            ? minMaxMap[targetFieldId][bound]
+            : getMinMaxFromMinMaxMap(minMaxMap)[bound];
+
+    return {
+        min: config.rule.min === 'auto' ? resolveAuto('min') : config.rule.min,
+        max: config.rule.max === 'auto' ? resolveAuto('max') : config.rule.max,
+    };
+};
+
+// Number(null) and Number('') coerce to 0, so empty cells must be rejected
+// before numeric comparisons against a color range
+const isEmptyCellValue = (value: unknown): boolean =>
+    value === null || value === undefined || value === '';
+
 export const hasMatchingConditionalRules = (
     field: ItemsMap[string],
     value: unknown,
     minMaxMap: ConditionalFormattingMinMaxMap,
     config: ConditionalFormattingConfig | undefined,
     rowFields?: ConditionalFormattingRowFields,
-    options?: { matchOutOfRangeValues?: boolean },
 ) => {
     if (!config) return false;
 
@@ -491,35 +512,18 @@ export const hasMatchingConditionalRules = (
     }
 
     if (isConditionalFormattingConfigWithColorRange(config)) {
-        if (typeof convertedValue !== 'number' || Number.isNaN(convertedValue))
+        if (
+            isEmptyCellValue(value) ||
+            typeof convertedValue !== 'number' ||
+            Number.isNaN(convertedValue)
+        )
             return false;
 
-        let min: number;
-        let max: number;
-
-        if (config.rule.min === 'auto') {
-            min =
-                targetFieldId && targetFieldId in minMaxMap
-                    ? minMaxMap[targetFieldId].min
-                    : getMinMaxFromMinMaxMap(minMaxMap).min;
-        } else {
-            min = config.rule.min;
-        }
-
-        if (config.rule.max === 'auto') {
-            max =
-                targetFieldId && targetFieldId in minMaxMap
-                    ? minMaxMap[targetFieldId].max
-                    : getMinMaxFromMinMaxMap(minMaxMap).max;
-        } else {
-            max = config.rule.max;
-        }
-
-        if (min > max) return false;
-
-        // With matchOutOfRangeValues, out-of-range values match so they can be
-        // clamped to the range colors by getColorFromRange
-        if (options?.matchOutOfRangeValues) return true;
+        const { min, max } = getColorRangeBounds(
+            config,
+            targetFieldId,
+            minMaxMap,
+        );
 
         return convertedValue >= min && convertedValue <= max;
     }
@@ -572,28 +576,54 @@ export const getConditionalFormattingConfig = ({
     );
     if (strictMatch) return strictMatch;
 
-    // Fall back to the last color range rule so out-of-range values saturate
-    // to the range colors instead of rendering with no color. Rules whose
-    // range contains the value always take precedence via the strict pass.
-    return findLast(
-        conditionalFormattings,
-        (config) =>
-            isConditionalFormattingConfigWithColorRange(config) &&
-            matchesApplyTo(config) &&
-            hasMatchingConditionalRules(
-                field,
-                value,
-                minMaxMap,
-                config,
-                rowFields,
-                { matchOutOfRangeValues: true },
-            ),
-    );
+    // Values outside every range saturate on the nearest color-range rule
+    // instead of rendering with no color; getColorFromRange clamps them.
+    if (isEmptyCellValue(value)) return undefined;
+    const parsedValue = isNumericItem(field) ? Number(value) : value;
+    const convertedValue = convertFormattedValue(parsedValue, field);
+    if (typeof convertedValue !== 'number' || Number.isNaN(convertedValue))
+        return undefined;
+
+    const currentFieldId = getItemId(field);
+    return conditionalFormattings.reduce<
+        | {
+              config: ConditionalFormattingConfigWithColorRange;
+              distance: number;
+          }
+        | undefined
+    >((nearest, config) => {
+        if (
+            !isConditionalFormattingConfigWithColorRange(config) ||
+            !matchesApplyTo(config)
+        ) {
+            return nearest;
+        }
+
+        const targetFieldId = config.target?.fieldId;
+        if (targetFieldId !== undefined && targetFieldId !== currentFieldId) {
+            return nearest;
+        }
+
+        const { min, max } = getColorRangeBounds(
+            config,
+            targetFieldId,
+            minMaxMap,
+        );
+        if (min > max) return nearest;
+
+        const distance = Math.max(min - convertedValue, convertedValue - max);
+        // Ties keep the later rule, matching the strict pass's last-rule-wins order
+        return nearest && nearest.distance < distance
+            ? nearest
+            : { config, distance };
+    }, undefined)?.config;
 };
 
 export const getConditionalFormattingDescription = (
     field: ItemsMap[string] | undefined,
     conditionalFormattingConfig: ConditionalFormattingConfig | undefined,
+    value: unknown,
+    minMaxMap: ConditionalFormattingMinMaxMap | undefined,
     rowFields: ConditionalFormattingRowFields,
     getConditionalRuleLabel: (
         rule: ConditionalFormattingWithFilterOperator,
@@ -607,17 +637,40 @@ export const getConditionalFormattingDescription = (
     if (
         isConditionalFormattingConfigWithColorRange(conditionalFormattingConfig)
     ) {
+        const minLabel =
+            conditionalFormattingConfig.rule.min === 'auto'
+                ? 'min value in table'
+                : conditionalFormattingConfig.rule.min;
+        const maxLabel =
+            conditionalFormattingConfig.rule.max === 'auto'
+                ? 'max value in table'
+                : conditionalFormattingConfig.rule.max;
+
+        // Out-of-range values are clamped to the scale's edge colors, so
+        // describe them truthfully instead of asserting they are in range
+        const parsedValue = isNumericItem(field) ? Number(value) : value;
+        const convertedValue = convertFormattedValue(parsedValue, field);
+        if (
+            !isEmptyCellValue(value) &&
+            typeof convertedValue === 'number' &&
+            !Number.isNaN(convertedValue)
+        ) {
+            const { min, max } = getColorRangeBounds(
+                conditionalFormattingConfig,
+                conditionalFormattingConfig.target?.fieldId,
+                minMaxMap ?? {},
+            );
+            if (min <= max && convertedValue < min) {
+                return `is below the color scale minimum (${minLabel})`;
+            }
+            if (min <= max && convertedValue > max) {
+                return `is above the color scale maximum (${maxLabel})`;
+            }
+        }
+
         return [
-            `is greater than or equal to ${
-                conditionalFormattingConfig.rule.min === 'auto'
-                    ? 'min value in table'
-                    : conditionalFormattingConfig.rule.min
-            }`,
-            `is less than or equal to ${
-                conditionalFormattingConfig.rule.max === 'auto'
-                    ? 'max value in table'
-                    : conditionalFormattingConfig.rule.max
-            }`,
+            `is greater than or equal to ${minLabel}`,
+            `is less than or equal to ${maxLabel}`,
         ].join(' and ');
     }
 
@@ -711,28 +764,11 @@ export const getConditionalFormattingColorWithColorRange = ({
 
     if (typeof convertedValue !== 'number') return undefined;
 
-    let min: number;
-    let max: number;
-
-    if (config.rule.min === 'auto') {
-        min =
-            targetFieldId && targetFieldId in minMaxMap
-                ? minMaxMap[targetFieldId].min
-                : getMinMaxFromMinMaxMap(minMaxMap).min;
-    } else {
-        min = config.rule.min;
-    }
-
-    if (config.rule.max === 'auto') {
-        max =
-            targetFieldId && targetFieldId in minMaxMap
-                ? minMaxMap[targetFieldId].max
-                : getMinMaxFromMinMaxMap(minMaxMap).max;
-    } else {
-        max = config.rule.max;
-    }
-
-    const color = getColorFromRange(convertedValue, config.color, { min, max });
+    const color = getColorFromRange(
+        convertedValue,
+        config.color,
+        getColorRangeBounds(config, targetFieldId, minMaxMap),
+    );
     if (!color) return undefined;
 
     return {

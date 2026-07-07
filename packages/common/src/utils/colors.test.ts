@@ -157,6 +157,12 @@ describe('getColorFromRange', () => {
         );
     });
 
+    it('should return the start color for values below a min that equals max', () => {
+        expect(getColorFromRange(10, colorRange, { min: 50, max: 50 })).toBe(
+            '#fff',
+        );
+    });
+
     it('should return undefined for invalid color range', () => {
         expect(
             getColorFromRange(50, { start: 'red', end: '#000000' }, {

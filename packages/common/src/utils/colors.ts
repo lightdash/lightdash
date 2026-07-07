@@ -1,4 +1,5 @@
 import Color from 'colorjs.io';
+import clamp from 'lodash/clamp';
 import type {
     ConditionalFormattingColorRange,
     ConditionalFormattingMinMax,
@@ -73,13 +74,15 @@ export const getColorFromRange = (
     }
 
     if (min === max) {
-        return interpolateColor(1).toString({ format: 'hex' });
+        // Degenerate range: only below-range values saturate to the start color
+        return interpolateColor(value < min ? 0 : 1).toString({
+            format: 'hex',
+        });
     }
 
-    // Clamp values outside the range so out-of-range values saturate to the
-    // start/end colors rather than rendering with no color.
-    const clamped = Math.min(Math.max(value, min), max);
-    const percentage = (clamped - min) / (max - min);
+    // Clamp out-of-range values so they saturate to the start/end colors
+    // rather than rendering with no color.
+    const percentage = (clamp(value, min, max) - min) / (max - min);
 
     return interpolateColor(percentage).toString({ format: 'hex' });
 };

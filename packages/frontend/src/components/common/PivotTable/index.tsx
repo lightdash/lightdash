@@ -1772,12 +1772,16 @@ const PivotTable: FC<PivotTableProps> = ({
                                             getConditionalFormattingDescription(
                                                 item,
                                                 cellConditionalFormattingConfig,
+                                                value?.raw,
+                                                minMaxMap,
                                                 rowFieldsForCell,
                                                 getConditionalRuleLabelFromItem,
                                             ),
                                             getConditionalFormattingDescription(
                                                 item,
                                                 textConditionalFormattingConfig,
+                                                value?.raw,
+                                                minMaxMap,
                                                 rowFieldsForCell,
                                                 getConditionalRuleLabelFromItem,
                                             ),

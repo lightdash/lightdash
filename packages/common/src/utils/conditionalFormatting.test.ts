@@ -8,6 +8,7 @@ import {
     createConditionalFormattingConfigWithSingleColor,
     createConditionalFormattingRuleWithValues,
     getConditionalFormattingConfig,
+    getConditionalFormattingDescription,
     getConditionalFormattingTextStyle,
     getPivotRowContextKey,
     getRowConditionalFormattingColor,
@@ -243,6 +244,38 @@ describe('hasMatchingConditionalRules', () => {
                 ),
             ).toBe(false);
         });
+
+        it('should not match empty cells even when the range contains 0', () => {
+            // Number(null) and Number('') coerce to 0 — must not match [-10, 10]
+            const rangeAroundZero = {
+                ...colorRangeConfig,
+                rule: { min: -10, max: 10 },
+            };
+            expect(
+                hasMatchingConditionalRules(
+                    mockNumericField,
+                    null,
+                    {},
+                    rangeAroundZero,
+                ),
+            ).toBe(false);
+            expect(
+                hasMatchingConditionalRules(
+                    mockNumericField,
+                    '',
+                    {},
+                    rangeAroundZero,
+                ),
+            ).toBe(false);
+            expect(
+                hasMatchingConditionalRules(
+                    mockNumericField,
+                    undefined,
+                    {},
+                    rangeAroundZero,
+                ),
+            ).toBe(false);
+        });
     });
 });
 
@@ -315,7 +348,7 @@ describe('getConditionalFormattingConfig', () => {
         };
 
         const pick = (
-            value: number,
+            value: unknown,
             conditionalFormattings: ConditionalFormattingConfig[],
         ) =>
             getConditionalFormattingConfig({
@@ -335,8 +368,31 @@ describe('getConditionalFormattingConfig', () => {
             expect(pick(150, [lowRange, highRange])).toBe(highRange);
         });
 
-        it('falls back to the last color range rule when the value is outside all ranges', () => {
+        it('falls back to the nearest color range rule when the value is outside all ranges', () => {
             expect(pick(999, [lowRange, highRange])).toBe(highRange);
+            expect(pick(-10, [lowRange, highRange])).toBe(lowRange);
+            expect(pick(-10, [highRange, lowRange])).toBe(lowRange);
+        });
+
+        it('picks the nearest rule for values in a gap between two ranges', () => {
+            const band1 = { ...lowRange, rule: { min: 0, max: 50 } };
+            const band2 = { ...highRange, rule: { min: 100, max: 200 } };
+            expect(pick(60, [band1, band2])).toBe(band1);
+            expect(pick(90, [band1, band2])).toBe(band2);
+        });
+
+        it('breaks distance ties by picking the later rule', () => {
+            const band1 = { ...lowRange, rule: { min: 0, max: 50 } };
+            const band2 = { ...highRange, rule: { min: 100, max: 200 } };
+            // 75 is equidistant from both bands
+            expect(pick(75, [band1, band2])).toBe(band2);
+            expect(pick(75, [band2, band1])).toBe(band1);
+        });
+
+        it('does not fall back for empty cells', () => {
+            expect(pick(null, [lowRange])).toBeUndefined();
+            expect(pick(undefined, [lowRange])).toBeUndefined();
+            expect(pick('', [lowRange])).toBeUndefined();
         });
 
         it('prefers a matching single color rule over an out-of-range color range rule', () => {
@@ -381,6 +437,40 @@ describe('getConditionalFormattingConfig', () => {
                 }),
             ).toBeUndefined();
         });
+    });
+});
+
+describe('getConditionalFormattingDescription', () => {
+    const getRuleLabel = () => ({ field: '', operator: '', value: '' });
+    const colorRangeConfig = {
+        target: null,
+        color: { start: '#ffffff', end: '#000000' },
+        rule: { min: 0, max: 100 },
+    };
+
+    const describeValue = (value: unknown) =>
+        getConditionalFormattingDescription(
+            mockNumericField,
+            colorRangeConfig,
+            value,
+            {},
+            {},
+            getRuleLabel,
+        );
+
+    it('describes the range for in-range values', () => {
+        expect(describeValue(50)).toBe(
+            'is greater than or equal to 0 and is less than or equal to 100',
+        );
+    });
+
+    it('describes clamped out-of-range values truthfully', () => {
+        expect(describeValue(250)).toBe(
+            'is above the color scale maximum (100)',
+        );
+        expect(describeValue(-5)).toBe(
+            'is below the color scale minimum (0)',
+        );
     });
 });
 

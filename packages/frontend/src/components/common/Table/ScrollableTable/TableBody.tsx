@@ -214,12 +214,16 @@ const TableRow: FC<TableRowProps> = ({
                     getConditionalFormattingDescription(
                         field,
                         cellConditionalFormattingConfig,
+                        cellValue?.value?.raw,
+                        minMaxMap,
                         rowFields,
                         getConditionalRuleLabelFromItem,
                     ),
                     getConditionalFormattingDescription(
                         field,
                         textConditionalFormattingConfig,
+                        cellValue?.value?.raw,
+                        minMaxMap,
                         rowFields,
                         getConditionalRuleLabelFromItem,
                     ),
