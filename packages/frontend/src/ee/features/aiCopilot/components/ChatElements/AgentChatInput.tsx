@@ -535,18 +535,11 @@ export const AgentChatInput = ({
     const renderSqlModeControl = ({
         actionSize,
         iconSize,
-        labelPosition = 'after',
     }: {
         actionSize: number | 'sm' | 'md';
         iconSize: number;
-        labelPosition?: 'before' | 'after';
     }) => {
         if (!onSqlModeChange || disabled) return null;
-        const label = sqlMode ? (
-            <Text size="xs" fw={600} className={styles.sqlModeLabel}>
-                SQL mode on
-            </Text>
-        ) : null;
 
         return (
             <Tooltip
@@ -557,14 +550,13 @@ export const AgentChatInput = ({
                 label="Let the agent reach for raw SQL when the question can't be answered from the semantic layer alone. Each query still asks for your approval before running."
             >
                 <Group gap={6} wrap="nowrap" className={styles.sqlModeControl}>
-                    {labelPosition === 'before' && label}
                     <ActionIcon
                         variant={sqlMode ? 'light' : 'subtle'}
                         color={sqlMode ? 'indigo' : 'gray'}
                         size={actionSize}
                         className={styles.sqlModeButton}
                         onClick={() => onSqlModeChange(!sqlMode)}
-                        aria-label="Toggle SQL mode"
+                        aria-label="Toggle SQL Runner"
                         aria-pressed={sqlMode}
                     >
                         <MantineIcon
@@ -573,7 +565,6 @@ export const AgentChatInput = ({
                             color={sqlMode ? 'indigo.5' : 'ldGray.6'}
                         />
                     </ActionIcon>
-                    {labelPosition === 'after' && label}
                 </Group>
             </Tooltip>
         );
@@ -590,12 +581,7 @@ export const AgentChatInput = ({
                 {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
                 <Box className={styles.threadInputStack}>
-                    <Box
-                        className={`${styles.minimalInputWrapper} ${
-                            sqlMode ? styles.sqlModeActive : ''
-                        }`}
-                        pos="relative"
-                    >
+                    <Box className={styles.minimalInputWrapper} pos="relative">
                         <RichTextEditor
                             editor={editor}
                             classNames={{
@@ -681,7 +667,6 @@ export const AgentChatInput = ({
                         {renderSqlModeControl({
                             actionSize: 'sm',
                             iconSize: 14,
-                            labelPosition: 'before',
                         })}
                     </Box>
                 )}
@@ -710,11 +695,7 @@ export const AgentChatInput = ({
         >
             {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
-            <Box
-                className={`${styles.inputCard} ${
-                    sqlMode ? styles.sqlModeActive : ''
-                }`}
-            >
+            <Box className={styles.inputCard}>
                 <RichTextEditor
                     editor={editor}
                     classNames={{
@@ -829,7 +810,6 @@ export const AgentChatInput = ({
                           {renderSqlModeControl({
                               actionSize: 'sm',
                               iconSize: 14,
-                              labelPosition: 'before',
                           })}
                       </Box>
                   )

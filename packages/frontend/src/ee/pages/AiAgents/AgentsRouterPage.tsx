@@ -75,7 +75,7 @@ const AgentsRouterPage = () => {
 
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-    const [sqlMode, setSqlMode] = useState(false);
+    const [sqlMode, setSqlMode] = useState(true);
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
     const chartUuid = searchParams.get('chartUuid');
     const dashboardUuid = searchParams.get('dashboardUuid');
