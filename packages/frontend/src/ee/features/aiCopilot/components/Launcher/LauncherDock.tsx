@@ -1,5 +1,6 @@
 import { type AiAgentSummary } from '@lightdash/common';
-import { useEffect, useMemo, type FC, type KeyboardEvent } from 'react';
+import { Box } from '@mantine-8/core';
+import { useEffect, useMemo, type FC } from 'react';
 import {
     openPanel,
     type LauncherDockItem,
@@ -91,15 +92,8 @@ export const LauncherDock: FC<Props> = ({
         );
     };
 
-    const handleNewThreadKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            handleNewThread();
-        }
-    };
-
     return (
-        <div className={styles.dock}>
+        <Box className={styles.dock}>
             {visibleDock.map((item) => (
                 <DockTab
                     key={item.threadId}
@@ -111,18 +105,17 @@ export const LauncherDock: FC<Props> = ({
                 />
             ))}
             {selectedAgent && (
-                <div
-                    role="button"
-                    tabIndex={0}
+                <Box
+                    component="button"
+                    type="button"
                     title="Ask AI Agent"
                     aria-label="Ask AI Agent"
                     className={`${styles.dockTab} ${styles.dockIconTab} ${isPanelOpen && !activeThreadId ? styles.dockTabActive : ''}`}
                     onClick={handleNewThread}
-                    onKeyDown={handleNewThreadKeyDown}
                 >
                     <AiAgentIcon size={16} />
-                </div>
+                </Box>
             )}
-        </div>
+        </Box>
     );
 };
