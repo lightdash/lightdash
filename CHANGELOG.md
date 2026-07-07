@@ -1,3 +1,10 @@
+# [0.3323.0](https://github.com/lightdash/lightdash/compare/0.3322.0...0.3323.0) (2026-07-07)
+
+
+### Features
+
+* add pinned "Selected" section to field tree in Explorer ([#25222](https://github.com/lightdash/lightdash/issues/25222)) ([7badd57](https://github.com/lightdash/lightdash/commit/7badd575126e23afdcd9f8eb0a1df83e3024ac70))
+
 # [0.3322.0](https://github.com/lightdash/lightdash/compare/0.3321.0...0.3322.0) (2026-07-07)
 
 
