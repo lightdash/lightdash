@@ -1435,6 +1435,181 @@ describe('getStackTotalSeries', () => {
         );
         expect(result).toHaveLength(0);
     });
+
+    // Totals above a user-configured axis max used to be dropped entirely:
+    // the zero-height synthetic bar landed outside the grid and was clipped
+    // away together with its label. Those totals are carried on an extra
+    // invisible un-stacked line series pinned to the axis max so the label
+    // renders at the plot's top edge instead.
+    describe('axis max clamping', () => {
+        const verticalSeries: EChartsSeries[] = [
+            {
+                type: CartesianSeriesType.BAR,
+                stack: 'my_stack',
+                stackLabel: { show: true },
+                yAxisIndex: 0,
+                encode: { x: 'cat', y: 'a', tooltip: [], seriesName: 'a' },
+            },
+            {
+                type: CartesianSeriesType.BAR,
+                stack: 'my_stack',
+                stackLabel: { show: true },
+                yAxisIndex: 0,
+                encode: { x: 'cat', y: 'b', tooltip: [], seriesName: 'b' },
+            },
+        ];
+        const rows = [
+            { cat: 'A', a: 600, b: 300 }, // total 900 — above max
+            { cat: 'B', a: 400, b: 300 }, // total 700 — exactly max
+            { cat: 'C', a: 300, b: 200 }, // total 500 — below max
+        ];
+
+        test('carries totals above the configured value-axis max on an invisible line series', () => {
+            const result = getStackTotalSeries(
+                rows,
+                verticalSeries,
+                itemsMap,
+                false,
+                undefined,
+                false,
+                undefined,
+                undefined,
+                [700],
+            );
+            expect(result).toHaveLength(2);
+            // The stacked total series is untouched
+            expect(result[0].stack).toBe('my_stack');
+            expect(result[0].data).toEqual([
+                ['A', 0, 900],
+                ['B', 0, 700],
+                ['C', 0, 500],
+            ]);
+            // The carrier only holds the overflowing total, pinned to the max
+            expect(result[1].type).toBe(CartesianSeriesType.LINE);
+            expect(result[1].stack).toBeUndefined();
+            expect(result[1].data).toEqual([['A', 700, 900]]);
+            expect(result[1].label?.position).toBe('bottom');
+            expect(result[1].lineStyle?.opacity).toBe(0);
+        });
+
+        test('carrier formatter renders the total, not the pinned value', () => {
+            const result = getStackTotalSeries(
+                rows,
+                [
+                    {
+                        ...verticalSeries[0],
+                        pivotReference: { field: 'a' },
+                    },
+                    verticalSeries[1],
+                ],
+                itemsMap,
+                false,
+                undefined,
+                false,
+                undefined,
+                undefined,
+                [700],
+            );
+            const formatter = result[1].label?.formatter;
+            expect(formatter).toBeDefined();
+            expect(formatter!({ data: ['A', 700, 900] } as any)).toContain(
+                '900',
+            );
+        });
+
+        test('pins flipped-axis totals to the max with a left label', () => {
+            const flippedSeries: EChartsSeries[] = verticalSeries.map((s) => ({
+                ...s,
+                encode: {
+                    ...s.encode!,
+                    x: s.encode!.y,
+                    y: s.encode!.x,
+                },
+            }));
+            const result = getStackTotalSeries(
+                rows,
+                flippedSeries,
+                itemsMap,
+                true,
+                undefined,
+                false,
+                undefined,
+                undefined,
+                [700],
+            );
+            expect(result).toHaveLength(2);
+            expect(result[1].data).toEqual([[700, 'A', 900]]);
+            expect(result[1].label?.position).toBe('left');
+        });
+
+        test('emits no carrier when no axis max is configured', () => {
+            const result = getStackTotalSeries(
+                rows,
+                verticalSeries,
+                itemsMap,
+                false,
+                undefined,
+                false,
+            );
+            expect(result).toHaveLength(1);
+            expect(result[0].data).toEqual([
+                ['A', 0, 900],
+                ['B', 0, 700],
+                ['C', 0, 500],
+            ]);
+        });
+
+        test('emits no carrier when all totals fit under the max', () => {
+            const result = getStackTotalSeries(
+                rows,
+                verticalSeries,
+                itemsMap,
+                false,
+                undefined,
+                false,
+                undefined,
+                undefined,
+                [1000],
+            );
+            expect(result).toHaveLength(1);
+        });
+
+        test('emits no carrier for 100% stacked charts', () => {
+            const result = getStackTotalSeries(
+                rows,
+                verticalSeries,
+                itemsMap,
+                false,
+                undefined,
+                true,
+                undefined,
+                undefined,
+                [50],
+            );
+            expect(result).toHaveLength(1);
+        });
+
+        test('reads the max for the series axis index', () => {
+            const rightAxisSeries = verticalSeries.map((s) => ({
+                ...s,
+                yAxisIndex: 1,
+            }));
+            const result = getStackTotalSeries(
+                rows,
+                rightAxisSeries,
+                itemsMap,
+                false,
+                undefined,
+                false,
+                undefined,
+                undefined,
+                [10, 700],
+            );
+            expect(result).toHaveLength(2);
+            expect(result[1].data).toEqual([['A', 700, 900]]);
+            expect(result[1].yAxisIndex).toBe(1);
+        });
+    });
 });
 
 describe('mergeLegendSettings', () => {

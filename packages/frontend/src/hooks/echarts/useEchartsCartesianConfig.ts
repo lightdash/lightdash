@@ -2504,6 +2504,8 @@ export const getStackTotalSeries = (
     isStack100: boolean,
     connectNulls: boolean | undefined = true,
     resolvedTimezone?: string,
+    // User-configured max per value axis, used to clamp overflowing totals
+    valueAxisMaxes?: (number | undefined)[],
 ) => {
     const seriesGroupedByStack = groupBy(seriesWithStack, 'stack');
     return Object.entries(seriesGroupedByStack).reduce<EChartsSeries[]>(
@@ -2519,6 +2521,30 @@ export const getStackTotalSeries = (
             ) {
                 return acc;
             }
+            const formatTotal = (param: { data: unknown }) => {
+                const stackTotal = Array.isArray(param.data)
+                    ? param.data[2]
+                    : undefined;
+                const fieldId = series[0].pivotReference?.field;
+                if (fieldId) {
+                    return getFormattedValue(
+                        stackTotal,
+                        fieldId,
+                        itemsMap,
+                        undefined,
+                        undefined,
+                        undefined,
+                        resolvedTimezone,
+                    );
+                }
+                return '';
+            };
+            const totalRows = getStackTotalRows(
+                rows,
+                series,
+                flipAxis,
+                selectedLegendNames,
+            );
             const stackSeries: EChartsSeries = {
                 type: series[0].type,
                 ...(series[0].type === CartesianSeriesType.LINE ||
@@ -2532,22 +2558,7 @@ export const getStackTotalSeries = (
                 label: {
                     ...getBarTotalLabelStyle(),
                     show: true,
-                    formatter: (param) => {
-                        const stackTotal = param.data[2];
-                        const fieldId = series[0].pivotReference?.field;
-                        if (fieldId) {
-                            return getFormattedValue(
-                                stackTotal,
-                                fieldId,
-                                itemsMap,
-                                undefined,
-                                undefined,
-                                undefined,
-                                resolvedTimezone,
-                            );
-                        }
-                        return '';
-                    },
+                    formatter: formatTotal,
                     position: flipAxis ? 'right' : 'top',
                 },
                 labelLayout: {
@@ -2556,15 +2567,61 @@ export const getStackTotalSeries = (
                 tooltip: {
                     show: false,
                 },
-                data: getStackTotalRows(
-                    rows,
-                    series,
-                    flipAxis,
-                    selectedLegendNames,
-                ),
+                data: totalRows,
                 yAxisIndex: series[0].yAxisIndex,
             };
-            return [...acc, stackSeries];
+            acc.push(stackSeries);
+
+            // Totals above a user-configured axis max sit outside the grid, so
+            // the zero-height label bar above gets clipped away together with
+            // its label. Carry those totals on an invisible, un-stacked line
+            // series pinned to the axis max so the label renders at the plot's
+            // top edge. In 100% mode data values are transformed ratios while
+            // totals stay raw, so the raw-total vs axis-max comparison is
+            // meaningless there.
+            const axisMax = isStack100
+                ? undefined
+                : valueAxisMaxes?.[
+                      series[0].yAxisIndex ?? series[0].xAxisIndex ?? 0
+                  ];
+            const clampedRows =
+                axisMax === undefined
+                    ? []
+                    : totalRows
+                          .filter((row) => row[2] > axisMax)
+                          .map((row) =>
+                              flipAxis
+                                  ? [axisMax, row[1], row[2]]
+                                  : [row[0], axisMax, row[2]],
+                          );
+            if (clampedRows.length > 0) {
+                acc.push({
+                    type: CartesianSeriesType.LINE,
+                    showSymbol: true,
+                    symbolSize: 0,
+                    lineStyle: { opacity: 0 },
+                    itemStyle: { color: 'transparent' },
+                    label: {
+                        ...getBarTotalLabelStyle(),
+                        show: true,
+                        formatter: formatTotal,
+                        position: flipAxis ? 'left' : 'bottom',
+                        // Keep the label readable over the bar fill
+                        textBorderColor: '#fff',
+                        textBorderWidth: 2,
+                    },
+                    labelLayout: {
+                        hideOverlap: !isStack100,
+                    },
+                    tooltip: {
+                        show: false,
+                    },
+                    data: clampedRows,
+                    yAxisIndex: series[0].yAxisIndex,
+                    xAxisIndex: series[0].xAxisIndex,
+                });
+            }
+            return acc;
         },
         [],
     );
@@ -3354,6 +3411,17 @@ const useEchartsCartesianConfig = (
                   )
                 : stackedSeriesWithColorAssignments;
 
+        // User-configured value-axis maxes; the value axis config lives in
+        // eChartsConfig.yAxis for both orientations (flipped charts apply it
+        // to the echarts x axis).
+        const valueAxisMaxes = [0, 1].map((axisIndex) => {
+            const rawMax =
+                validCartesianConfig?.eChartsConfig?.yAxis?.[axisIndex]?.max;
+            if (rawMax === undefined || rawMax === '') return undefined;
+            const parsedMax = parseFloat(rawMax);
+            return Number.isNaN(parsedMax) ? undefined : parsedMax;
+        });
+
         return [
             ...seriesWithRoundedStacks,
             ...getStackTotalSeries(
@@ -3365,6 +3433,7 @@ const useEchartsCartesianConfig = (
                 isStack100,
                 validCartesianConfig?.layout.connectNulls,
                 resolvedTimezone,
+                valueAxisMaxes,
             ),
         ];
     }, [
@@ -3375,6 +3444,7 @@ const useEchartsCartesianConfig = (
         validCartesianConfig?.layout?.stack,
         validCartesianConfig?.layout?.flipAxes,
         validCartesianConfig?.layout.connectNulls,
+        validCartesianConfig?.eChartsConfig?.yAxis,
         validCartesianConfigLegend,
         resolvedTimezone,
     ]);
