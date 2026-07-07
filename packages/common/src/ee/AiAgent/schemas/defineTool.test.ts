@@ -174,7 +174,7 @@ describe('defineTool', () => {
         ).toThrow('duplicate runtimes');
     });
 
-    it('keeps MCP structured output schemas limited to current structured tools', () => {
+    it('keeps MCP structured output schemas aligned with current structured tools', () => {
         const structuredMcpToolNames = mcpToolDefinitions
             .map((tool) => tool.for('mcp'))
             .filter((tool) => 'outputSchema' in tool)
@@ -184,7 +184,9 @@ describe('defineTool', () => {
         expect(structuredMcpToolNames).toEqual([
             'find_explores',
             'find_fields',
+            'get_metadata',
             'get_query_result',
+            'grep_fields',
             'list_skills',
             'read_skill',
             'read_skill_resource',
