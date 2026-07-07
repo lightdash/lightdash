@@ -342,6 +342,7 @@ describe('AiAgentReviewClassifierService', () => {
             mcpContentWritesEnabled: true,
             defaultAiAgentModelConfig: null,
             providerApiKeysSet: { anthropic: false, openai: false },
+            providerApiKeyHints: { anthropic: null, openai: null },
         });
         model.createRun.mockResolvedValue(makeRun());
         model.updateRun.mockResolvedValue(makeRun({ status: 'completed' }));
@@ -408,6 +409,7 @@ describe('AiAgentReviewClassifierService', () => {
                 mcpContentWritesEnabled: true,
                 defaultAiAgentModelConfig: null,
                 providerApiKeysSet: { anthropic: false, openai: false },
+                providerApiKeyHints: { anthropic: null, openai: null },
             },
         );
 

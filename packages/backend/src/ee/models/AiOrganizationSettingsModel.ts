@@ -1,5 +1,6 @@
 import {
     AiOrganizationSettings,
+    AiProviderApiKeyHints,
     BYO_AI_PROVIDERS,
     CreateAiOrganizationSettings,
     NotFoundError,
@@ -45,6 +46,27 @@ export const applyProviderApiKeyUpdates = (
         next[provider] = trimmed;
     });
     return next;
+};
+
+export const buildProviderApiKeyHint = (key: string): string => {
+    const prefix = key.match(/^(sk-ant-[a-z0-9]+-|sk-proj-|sk-)/)?.[0] ?? '';
+    const headLength = prefix.length + 3;
+    if (key.length < headLength + 8) {
+        return `${key.slice(0, 2)}...`;
+    }
+    return `${key.slice(0, headLength)}...${key.slice(-4)}`;
+};
+
+export const buildProviderApiKeyHints = (
+    keys: AiOrgProviderApiKeys,
+): AiProviderApiKeyHints | null => {
+    if (!keys.anthropic && !keys.openai) return null;
+    return {
+        anthropic: keys.anthropic
+            ? buildProviderApiKeyHint(keys.anthropic)
+            : null,
+        openai: keys.openai ? buildProviderApiKeyHint(keys.openai) : null,
+    };
 };
 
 export class AiOrganizationSettingsModel {
@@ -94,6 +116,10 @@ export class AiOrganizationSettingsModel {
                 anthropic: Boolean(keys.anthropic),
                 openai: Boolean(keys.openai),
             },
+            providerApiKeyHints: db.provider_api_key_hints ?? {
+                anthropic: null,
+                openai: null,
+            },
         };
     }
 
@@ -142,6 +168,8 @@ export class AiOrganizationSettingsModel {
     async create(
         data: CreateAiOrganizationSettings,
     ): Promise<AiOrganizationSettings> {
+        const keys = applyProviderApiKeyUpdates({}, data.providerApiKeys ?? {});
+
         const [row] = await this.database<AiOrganizationSettingsTable>(
             AiOrganizationSettingsTableName,
         )
@@ -151,9 +179,8 @@ export class AiOrganizationSettingsModel {
                 ai_agent_reviews_enabled: data.aiAgentReviewsEnabled,
                 mcp_content_writes_enabled: data.mcpContentWritesEnabled,
                 default_ai_agent_model_config: data.defaultAiAgentModelConfig,
-                encrypted_provider_api_keys: this.encryptProviderApiKeys(
-                    applyProviderApiKeyUpdates({}, data.providerApiKeys ?? {}),
-                ),
+                encrypted_provider_api_keys: this.encryptProviderApiKeys(keys),
+                provider_api_key_hints: buildProviderApiKeyHints(keys),
             })
             .returning('*');
 
@@ -172,6 +199,7 @@ export class AiOrganizationSettingsModel {
                 | 'mcp_content_writes_enabled'
                 | 'default_ai_agent_model_config'
                 | 'encrypted_provider_api_keys'
+                | 'provider_api_key_hints'
             >
         > = {};
         if (data.aiAgentsVisible !== undefined) {
@@ -212,13 +240,14 @@ export class AiOrganizationSettingsModel {
                 const existingKeys = this.decryptProviderApiKeys(
                     currentRow.encrypted_provider_api_keys,
                 );
+                const mergedKeys = applyProviderApiKeyUpdates(
+                    existingKeys,
+                    providerApiKeyUpdates,
+                );
                 updateData.encrypted_provider_api_keys =
-                    this.encryptProviderApiKeys(
-                        applyProviderApiKeyUpdates(
-                            existingKeys,
-                            providerApiKeyUpdates,
-                        ),
-                    );
+                    this.encryptProviderApiKeys(mergedKeys);
+                updateData.provider_api_key_hints =
+                    buildProviderApiKeyHints(mergedKeys);
 
                 const [row] = await trx<AiOrganizationSettingsTable>(
                     AiOrganizationSettingsTableName,

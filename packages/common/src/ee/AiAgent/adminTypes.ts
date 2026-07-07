@@ -86,6 +86,11 @@ export type AiProviderApiKeysSet = {
     openai: boolean;
 };
 
+export type AiProviderApiKeyHints = {
+    anthropic: string | null;
+    openai: string | null;
+};
+
 export type UpdateAiProviderApiKeys = {
     anthropic?: string | null;
     openai?: string | null;
@@ -98,11 +103,12 @@ export type AiOrganizationSettings = {
     mcpContentWritesEnabled: boolean;
     defaultAiAgentModelConfig: AiAgentModelConfig | null;
     providerApiKeysSet: AiProviderApiKeysSet;
+    providerApiKeyHints: AiProviderApiKeyHints;
 };
 
 export type CreateAiOrganizationSettings = Omit<
     AiOrganizationSettings,
-    'providerApiKeysSet'
+    'providerApiKeysSet' | 'providerApiKeyHints'
 > & {
     providerApiKeys?: UpdateAiProviderApiKeys;
 };
