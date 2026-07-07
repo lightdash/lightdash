@@ -84,6 +84,8 @@ describe('overlayOrgProviderApiKeys', () => {
         expect(result.providers.openai?.modelName).toBe(
             DEFAULT_OPENAI_MODEL_NAME,
         );
+        // Non-key options flow from the schema defaults, not a hand-written literal.
+        expect(result.providers.openai?.zeroDataRetention).toBe(false);
         expect(result.defaultProvider).toBe('openai');
     });
 });

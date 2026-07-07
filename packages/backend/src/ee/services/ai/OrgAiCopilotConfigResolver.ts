@@ -1,9 +1,8 @@
 import { FeatureFlags } from '@lightdash/common';
 import {
     AiCopilotConfigSchemaType,
-    DEFAULT_ANTHROPIC_MODEL_NAME,
-    DEFAULT_OPENAI_EMBEDDING_MODEL,
-    DEFAULT_OPENAI_MODEL_NAME,
+    anthropicProviderSchema,
+    openaiProviderSchema,
 } from '../../../config/aiConfigSchema';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
@@ -20,31 +19,20 @@ export const overlayOrgProviderApiKeys = (
 ): CopilotConfig => {
     const providers = { ...config.providers };
 
+    // Only the apiKey is org-supplied. When the instance already configures the
+    // provider we inherit its options and override just the key; otherwise we
+    // synthesise the provider from the zod schema defaults (single source of
+    // truth) rather than hand-writing every option.
     if (orgKeys.anthropic) {
         providers.anthropic = providers.anthropic
             ? { ...providers.anthropic, apiKey: orgKeys.anthropic }
-            : {
-                  apiKey: orgKeys.anthropic,
-                  modelName: DEFAULT_ANTHROPIC_MODEL_NAME,
-                  availableModels: undefined,
-                  customHeaders: {},
-                  supportsStreaming: true,
-              };
+            : anthropicProviderSchema.parse({ apiKey: orgKeys.anthropic });
     }
 
     if (orgKeys.openai) {
         providers.openai = providers.openai
             ? { ...providers.openai, apiKey: orgKeys.openai }
-            : {
-                  apiKey: orgKeys.openai,
-                  modelName: DEFAULT_OPENAI_MODEL_NAME,
-                  embeddingModelName: DEFAULT_OPENAI_EMBEDDING_MODEL,
-                  baseUrl: undefined,
-                  availableModels: undefined,
-                  zeroDataRetention: false,
-                  customHeaders: {},
-                  supportsStreaming: true,
-              };
+            : openaiProviderSchema.parse({ apiKey: orgKeys.openai });
     }
 
     const defaultProvider = providers[config.defaultProvider]
