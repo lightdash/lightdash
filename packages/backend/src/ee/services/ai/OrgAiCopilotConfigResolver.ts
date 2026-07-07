@@ -1,9 +1,5 @@
 import { FeatureFlags } from '@lightdash/common';
-import {
-    AiCopilotConfigSchemaType,
-    anthropicProviderSchema,
-    openaiProviderSchema,
-} from '../../../config/aiConfigSchema';
+import { AiCopilotConfigSchemaType } from '../../../config/aiConfigSchema';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import {
@@ -13,35 +9,31 @@ import {
 
 export type CopilotConfig = AiCopilotConfigSchemaType;
 
+/**
+ * Overlay an org's own API key onto the instance copilot config. Only the
+ * apiKey is org-supplied — every other provider option comes from the instance
+ * config. Keys for providers the instance does not configure are ignored here
+ * (the write path rejects them), so BYO can only swap the key of a provider
+ * this instance already runs.
+ */
 export const overlayOrgProviderApiKeys = (
     config: CopilotConfig,
     orgKeys: AiOrgProviderApiKeys,
 ): CopilotConfig => {
     const providers = { ...config.providers };
 
-    // Only the apiKey is org-supplied. When the instance already configures the
-    // provider we inherit its options and override just the key; otherwise we
-    // synthesise the provider from the zod schema defaults (single source of
-    // truth) rather than hand-writing every option.
-    if (orgKeys.anthropic) {
-        providers.anthropic = providers.anthropic
-            ? { ...providers.anthropic, apiKey: orgKeys.anthropic }
-            : anthropicProviderSchema.parse({ apiKey: orgKeys.anthropic });
+    if (orgKeys.anthropic && providers.anthropic) {
+        providers.anthropic = {
+            ...providers.anthropic,
+            apiKey: orgKeys.anthropic,
+        };
     }
 
-    if (orgKeys.openai) {
-        providers.openai = providers.openai
-            ? { ...providers.openai, apiKey: orgKeys.openai }
-            : openaiProviderSchema.parse({ apiKey: orgKeys.openai });
+    if (orgKeys.openai && providers.openai) {
+        providers.openai = { ...providers.openai, apiKey: orgKeys.openai };
     }
 
-    const defaultProvider = providers[config.defaultProvider]
-        ? config.defaultProvider
-        : ((['anthropic', 'openai'] as const).find(
-              (provider) => providers[provider] !== undefined,
-          ) ?? config.defaultProvider);
-
-    return { ...config, providers, defaultProvider };
+    return { ...config, providers };
 };
 
 type Dependencies = {

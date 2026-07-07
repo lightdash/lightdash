@@ -23,28 +23,6 @@ const customHeadersSchema = z.record(z.string()).default({});
 // toggle — some LLM gateways don't support streaming (SSE) completions.
 const supportsStreamingSchema = z.boolean().default(true);
 
-// Exported so the per-org key overlay can synthesise a provider from just an
-// apiKey and inherit every other option from these defaults (single source of
-// truth), instead of duplicating the field list.
-export const openaiProviderSchema = z.object({
-    apiKey: z.string(),
-    modelName: z.string().default(DEFAULT_OPENAI_MODEL_NAME),
-    embeddingModelName: z.string().default(DEFAULT_OPENAI_EMBEDDING_MODEL),
-    baseUrl: z.string().optional(),
-    availableModels: z.array(z.string()).optional(),
-    zeroDataRetention: z.boolean().default(false),
-    customHeaders: customHeadersSchema,
-    supportsStreaming: supportsStreamingSchema,
-});
-
-export const anthropicProviderSchema = z.object({
-    apiKey: z.string(),
-    modelName: z.string().default(DEFAULT_ANTHROPIC_MODEL_NAME),
-    availableModels: z.array(z.string()).optional(),
-    customHeaders: customHeadersSchema,
-    supportsStreaming: supportsStreamingSchema,
-});
-
 export const aiCopilotConfigSchema = z
     .object({
         defaultProvider: z
@@ -54,7 +32,20 @@ export const aiCopilotConfigSchema = z
             .enum(['openai', 'bedrock', 'azure'])
             .default(DEFAULT_DEFAULT_AI_PROVIDER),
         providers: z.object({
-            openai: openaiProviderSchema.optional(),
+            openai: z
+                .object({
+                    apiKey: z.string(),
+                    modelName: z.string().default(DEFAULT_OPENAI_MODEL_NAME),
+                    embeddingModelName: z
+                        .string()
+                        .default(DEFAULT_OPENAI_EMBEDDING_MODEL),
+                    baseUrl: z.string().optional(),
+                    availableModels: z.array(z.string()).optional(),
+                    zeroDataRetention: z.boolean().default(false),
+                    customHeaders: customHeadersSchema,
+                    supportsStreaming: supportsStreamingSchema,
+                })
+                .optional(),
             azure: z
                 .object({
                     endpoint: z.string(),
@@ -70,7 +61,15 @@ export const aiCopilotConfigSchema = z
                     supportsStreaming: supportsStreamingSchema,
                 })
                 .optional(),
-            anthropic: anthropicProviderSchema.optional(),
+            anthropic: z
+                .object({
+                    apiKey: z.string(),
+                    modelName: z.string().default(DEFAULT_ANTHROPIC_MODEL_NAME),
+                    availableModels: z.array(z.string()).optional(),
+                    customHeaders: customHeadersSchema,
+                    supportsStreaming: supportsStreamingSchema,
+                })
+                .optional(),
             openrouter: z
                 .object({
                     apiKey: z.string(),

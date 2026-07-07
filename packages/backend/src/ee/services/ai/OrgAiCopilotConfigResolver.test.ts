@@ -1,9 +1,5 @@
 import { vi } from 'vitest';
-import {
-    aiCopilotConfigSchema,
-    DEFAULT_ANTHROPIC_MODEL_NAME,
-    DEFAULT_OPENAI_MODEL_NAME,
-} from '../../../config/aiConfigSchema';
+import { aiCopilotConfigSchema } from '../../../config/aiConfigSchema';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { AiOrganizationSettingsModel } from '../../models/AiOrganizationSettingsModel';
@@ -44,28 +40,14 @@ describe('overlayOrgProviderApiKeys', () => {
         expect(result.defaultProvider).toBe('openai');
     });
 
-    it('adds a provider with defaults when the instance has none configured', () => {
+    it('ignores a key for a provider the instance has not configured', () => {
         const result = overlayOrgProviderApiKeys(baseConfig, {
             anthropic: 'org-anthropic-key',
         });
-        expect(result.providers.anthropic).toEqual({
-            apiKey: 'org-anthropic-key',
-            modelName: DEFAULT_ANTHROPIC_MODEL_NAME,
-            availableModels: undefined,
-            customHeaders: {},
-            supportsStreaming: true,
-        });
-    });
-
-    it('retargets defaultProvider when the configured default has no provider config', () => {
-        const noProviders: CopilotConfig = {
-            ...baseConfig,
-            providers: {},
-        };
-        const result = overlayOrgProviderApiKeys(noProviders, {
-            anthropic: 'org-anthropic-key',
-        });
-        expect(result.defaultProvider).toBe('anthropic');
+        // No instance anthropic provider → nothing to override, key is dropped
+        // here (the write path rejects such keys before they are stored).
+        expect(result.providers.anthropic).toBeUndefined();
+        expect(result.defaultProvider).toBe('openai');
     });
 
     it('does not mutate the base config', () => {
@@ -73,19 +55,9 @@ describe('overlayOrgProviderApiKeys', () => {
         expect(baseConfig.providers.openai?.apiKey).toBe('instance-openai-key');
     });
 
-    it('uses openai defaults when adding an unconfigured openai provider', () => {
-        const noProviders: CopilotConfig = {
-            ...baseConfig,
-            providers: {},
-        };
-        const result = overlayOrgProviderApiKeys(noProviders, {
-            openai: 'org-openai-key',
-        });
-        expect(result.providers.openai?.modelName).toBe(
-            DEFAULT_OPENAI_MODEL_NAME,
-        );
-        // Non-key options flow from the schema defaults, not a hand-written literal.
-        expect(result.providers.openai?.zeroDataRetention).toBe(false);
+    it('leaves the config untouched when the org has no keys', () => {
+        const result = overlayOrgProviderApiKeys(baseConfig, {});
+        expect(result.providers.openai?.apiKey).toBe('instance-openai-key');
         expect(result.defaultProvider).toBe('openai');
     });
 });
