@@ -304,6 +304,26 @@ const InfiniteResourceTable = ({
             },
         },
         {
+            accessorKey: ColumnVisibility.VIEWS,
+            enableSorting: true,
+            enableEditing: false,
+            header: 'Views',
+            size: 100,
+            Cell: ({ row }) => {
+                if (isResourceViewSpaceItem(row.original))
+                    return (
+                        <Text fz={12} fw={500} color="ldGray.7">
+                            -
+                        </Text>
+                    );
+                return (
+                    <Text fz={12} fw={500} color="ldGray.7">
+                        {row.original.data.views}
+                    </Text>
+                );
+            },
+        },
+        {
             accessorKey: ColumnVisibility.ACCESS,
             enableSorting: false,
             enableEditing: false,
@@ -367,7 +387,7 @@ const InfiniteResourceTable = ({
     ];
     const initialSorting: ContentTableSortingState = [
         {
-            id: ContentSortByColumns.LAST_UPDATED_AT,
+            id: ColumnVisibility.UPDATED_AT,
             desc: true,
         },
     ];
@@ -391,18 +411,23 @@ const InfiniteResourceTable = ({
         | undefined = useMemo(() => {
         if (sorting.length === 0) return undefined;
 
+        // Sorting ids are column accessorKeys (ColumnVisibility values)
         const firstSorting = sorting[0].id;
 
         let sortByColumn: ContentSortByColumns =
             ContentSortByColumns.LAST_UPDATED_AT;
         const sortDirection: 'asc' | 'desc' = sorting[0].desc ? 'desc' : 'asc';
 
-        if (firstSorting === ContentSortByColumns.NAME) {
+        if (firstSorting === ColumnVisibility.NAME) {
             sortByColumn = ContentSortByColumns.NAME;
         }
 
-        if (firstSorting === ContentSortByColumns.SPACE_NAME) {
+        if (firstSorting === ColumnVisibility.SPACE) {
             sortByColumn = ContentSortByColumns.SPACE_NAME;
+        }
+
+        if (firstSorting === ColumnVisibility.VIEWS) {
+            sortByColumn = ContentSortByColumns.VIEWS;
         }
 
         return {
@@ -498,6 +523,7 @@ const InfiniteResourceTable = ({
             [ColumnVisibility.NAME]: true,
             [ColumnVisibility.SPACE]: true,
             [ColumnVisibility.UPDATED_AT]: true,
+            [ColumnVisibility.VIEWS]: true,
             [ColumnVisibility.ACCESS]: false,
             [ColumnVisibility.CONTENT]: false,
             ...columnVisibility,
