@@ -1,0 +1,6 @@
+# Appended verbatim to the end of docker-compose.preview.yml by
+# okteto.preview.yaml when a pre-seeded DB snapshot is available. The
+# indentation must match the pgdata volume entry at the bottom of that file.
+        labels:
+            dev.okteto.com/from-snapshot-name: ${SEED_SNAPSHOT_NAME}
+            dev.okteto.com/from-snapshot-namespace: ${SEED_SNAPSHOT_NAMESPACE}

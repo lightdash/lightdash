@@ -1,6 +1,21 @@
 deploy:
   commands:
-    - name: Generating postgres password...
-      command: echo "PGPASSWORD=$(openssl rand -hex 16)" >> "$OKTETO_ENV"
+    - name: Configuring database...
+      # When the PR workflow found a pre-seeded VolumeSnapshot (SEED_MODE=snapshot),
+      # clone the DB volume from it and reuse its baked-in password
+      # (PREVIEW_SEED_PGPASSWORD, a global Okteto variable that must match the
+      # one used by .github/workflows/preview-db-snapshot.yml). Otherwise fall
+      # back to an empty volume with a random password and a full seed at boot.
+      command: |
+        if [ "${SEED_MODE:-}" = "snapshot" ] && [ -n "${SEED_SNAPSHOT_NAME:-}" ] && [ -n "${PREVIEW_SEED_PGPASSWORD:-}" ]; then
+          echo "Cloning DB volume from snapshot ${SEED_SNAPSHOT_NAMESPACE}/${SEED_SNAPSHOT_NAME}"
+          cat docker/preview-seed-snapshot-labels.partial.yml >> docker/docker-compose.preview.yml
+          echo "EFFECTIVE_SEED_MODE=snapshot" >> "$OKTETO_ENV"
+          echo "PGPASSWORD=${PREVIEW_SEED_PGPASSWORD}" >> "$OKTETO_ENV"
+        else
+          echo "No pre-seeded snapshot available; the environment will run a full seed at boot"
+          echo "EFFECTIVE_SEED_MODE=full" >> "$OKTETO_ENV"
+          echo "PGPASSWORD=$(openssl rand -hex 16)" >> "$OKTETO_ENV"
+        fi
     - name: Deploying compose...
       command: okteto deploy -f docker/docker-compose.preview.yml

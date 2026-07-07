@@ -1,6 +1,3 @@
-volumes:
-    node_modules:
-
 # Okteto specific
 endpoints:
     - path: /
@@ -15,6 +12,10 @@ services:
             - POSTGRES_PASSWORD=${PGPASSWORD}
         ports:
             - '5432'
+        volumes:
+            # postgres 18+ images keep PGDATA under /var/lib/postgresql
+            # (not /var/lib/postgresql/data)
+            - pgdata:/var/lib/postgresql
 
     headless-browser:
         build:
@@ -64,6 +65,10 @@ services:
             PGDATABASE: postgres
             PGPASSWORD: ${PGPASSWORD}
             PGUSER: postgres
+            # snapshot = DB volume cloned from a pre-seeded VolumeSnapshot,
+            # renderDeployHook.sh only applies new migrations. full = seed
+            # everything at boot. Set by okteto.preview.yaml.
+            SEED_MODE: ${EFFECTIVE_SEED_MODE}
             HEADLESS_BROWSER_PORT: 3000
             HEADLESS_BROWSER_HOST: headless-browser
             S3_ACCESS_KEY: ${S3_ACCESS_KEY}
@@ -113,3 +118,13 @@ services:
             - '8080:8080'
         command: ['pnpm', 'start']
         entrypoint: ['/usr/bin/renderDeployHook.sh']
+
+# IMPORTANT: this block must stay at the very end of the file. When a
+# pre-seeded DB snapshot is available, okteto.preview.yaml appends the
+# dev.okteto.com/from-snapshot-* labels below (from
+# preview-seed-snapshot-labels.partial.yml) so the pgdata volume is cloned
+# from the VolumeSnapshot instead of starting empty.
+volumes:
+    pgdata:
+        driver_opts:
+            size: 5Gi

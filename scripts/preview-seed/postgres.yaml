@@ -1,0 +1,69 @@
+# Source database for the preview DB VolumeSnapshot. Deployed by
+# .github/workflows/preview-db-snapshot.yml into the ${SNAPSHOT_NAMESPACE}
+# okteto namespace, seeded from the GitHub runner, then scaled to zero and
+# snapshotted. The PVC is reused across builds so subsequent rebuilds are
+# incremental. Rendered with envsubst.
+#
+# The image and volume mount MUST match db-preview in
+# docker/docker-compose.preview.yml: the snapshot is a raw PGDATA directory,
+# so the postgres major version and data path have to be identical.
+# postgres 18+ images keep PGDATA under /var/lib/postgresql (not .../data).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+    name: preview-seed-db
+spec:
+    accessModes:
+        - ReadWriteOnce
+    # BYOC okteto clusters require the csi-okteto storage class for volumes
+    # that are used as VolumeSnapshot sources.
+    storageClassName: csi-okteto
+    resources:
+        requests:
+            storage: 5Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+    name: preview-seed-db
+spec:
+    replicas: 1
+    strategy:
+        type: Recreate
+    selector:
+        matchLabels:
+            app: preview-seed-db
+    template:
+        metadata:
+            labels:
+                app: preview-seed-db
+        spec:
+            containers:
+                - name: postgres
+                  image: pgvector/pgvector:pg18
+                  env:
+                      # Only used on first boot (initdb). The same password is
+                      # baked into the snapshot, so previews cloning it must
+                      # use the same value (okteto var PREVIEW_SEED_PGPASSWORD).
+                      - name: POSTGRES_PASSWORD
+                        value: '${PREVIEW_SEED_PGPASSWORD}'
+                  ports:
+                      - containerPort: 5432
+                  volumeMounts:
+                      - name: data
+                        mountPath: /var/lib/postgresql
+            volumes:
+                - name: data
+                  persistentVolumeClaim:
+                      claimName: preview-seed-db
+---
+apiVersion: v1
+kind: Service
+metadata:
+    name: preview-seed-db
+spec:
+    selector:
+        app: preview-seed-db
+    ports:
+        - port: 5432
+          targetPort: 5432

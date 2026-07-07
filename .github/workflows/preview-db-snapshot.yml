@@ -1,0 +1,173 @@
+name: Preview DB Snapshot
+
+# Builds the pre-seeded database VolumeSnapshot that preview environments
+# clone at deploy time (see okteto.preview.yaml + renderDeployHook.sh).
+# Runs only when a change to seed/db files lands on main; the snapshot is
+# content-addressed (jaffle-seed-<hash>) so re-runs are idempotent.
+# Bootstrap and required secrets are documented in scripts/preview-seed/README.md.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "examples/full-jaffle-shop-demo/dbt/**"
+      - "examples/full-jaffle-shop-demo/profiles/**"
+      - "packages/backend/src/database/migrations/**"
+      - "packages/backend/src/database/seeds/**"
+      - "packages/backend/src/ee/database/migrations/**"
+      - "packages/backend/src/ee/database/seeds/**"
+      - "scripts/preview-seed/**"
+      - ".github/workflows/preview-db-snapshot.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: preview-db-snapshot
+  cancel-in-progress: false
+
+env:
+  SNAPSHOT_NAMESPACE: preview-seed
+  SNAPSHOT_CLASS: okteto-snapshot-class
+  # Number of most recent snapshots to keep when garbage collecting
+  SNAPSHOT_KEEP: "5"
+  NODE_OPTIONS: "--max-old-space-size=8192"
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+  TURBO_API: https://cache.depot.dev
+
+jobs:
+  build-snapshot:
+    name: Build Seed Snapshot
+    runs-on: depot-ubuntu-24.04-4
+    timeout-minutes: 30
+    steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Compute DB content hash
+        id: hash
+        run: echo "hash=$(./scripts/preview-seed/compute-db-hash.sh HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Okteto context
+        env:
+          OKTETO_URL: ${{ secrets.OKTETO_CONTEXT }}
+          OKTETO_TOKEN: ${{ secrets.OKTETO_TOKEN }}
+        run: |
+          curl https://get.okteto.com -sSfL | sh
+          okteto context use "$OKTETO_URL" --token "$OKTETO_TOKEN"
+          okteto namespace create "$SNAPSHOT_NAMESPACE" || true
+          okteto kubeconfig
+
+      - name: Check if snapshot already exists
+        id: exists
+        env:
+          DB_HASH: ${{ steps.hash.outputs.hash }}
+        run: |
+          ready=$(kubectl get volumesnapshot "jaffle-seed-$DB_HASH" -n "$SNAPSHOT_NAMESPACE" \
+            -o jsonpath='{.status.readyToUse}' 2>/dev/null || echo "")
+          if [ "$ready" = "true" ]; then
+            echo "Snapshot jaffle-seed-$DB_HASH already exists and is ready; nothing to do."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Start source postgres
+        if: steps.exists.outputs.skip != 'true'
+        env:
+          PREVIEW_SEED_PGPASSWORD: ${{ secrets.PREVIEW_SEED_PGPASSWORD }}
+        run: |
+          envsubst < scripts/preview-seed/postgres.yaml | kubectl apply -n "$SNAPSHOT_NAMESPACE" -f -
+          kubectl rollout status deployment/preview-seed-db -n "$SNAPSHOT_NAMESPACE" --timeout=300s
+          kubectl port-forward svc/preview-seed-db 5432:5432 -n "$SNAPSHOT_NAMESPACE" &
+          echo $! > /tmp/port-forward.pid
+          for i in $(seq 1 30); do
+            if pg_isready -h localhost -p 5432 >/dev/null 2>&1; then exit 0; fi
+            sleep 2
+          done
+          echo "postgres did not become ready" && exit 1
+
+      - name: Setup Socket Firewall
+        if: steps.exists.outputs.skip != 'true'
+        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
+        if: steps.exists.outputs.skip != 'true'
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
+        if: steps.exists.outputs.skip != 'true'
+        with:
+          node-version-file: ".nvmrc"
+          cache: "pnpm"
+          cache-dependency-path: "pnpm-lock.yaml"
+
+      - name: Install packages
+        if: steps.exists.outputs.skip != 'true'
+        run: sfw pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Build packages/common module
+        if: steps.exists.outputs.skip != 'true'
+        run: pnpm common-build:fast
+
+      - name: Run migrations and seeds
+        if: steps.exists.outputs.skip != 'true'
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGDATABASE: postgres
+          PGPASSWORD: ${{ secrets.PREVIEW_SEED_PGPASSWORD }}
+          # Must be set so the ee migrations/seeds run, matching what the
+          # preview environment applies at boot (knexfile.ts includes
+          # src/ee/database when a license key is present).
+          LIGHTDASH_LICENSE_KEY: ${{ secrets.LIGHTDASH_LICENSE_KEY }}
+        run: |
+          pnpm -F backend migrate
+          pnpm -F backend seed
+
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
+        if: steps.exists.outputs.skip != 'true'
+        with:
+          python-version: "3.10.x"
+
+      - name: Seed and run dbt
+        if: steps.exists.outputs.skip != 'true'
+        env:
+          PROJECT_DIR: "./examples/full-jaffle-shop-demo/dbt"
+          PROFILES_DIR: "./examples/full-jaffle-shop-demo/profiles"
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGDATABASE: postgres
+          PGPASSWORD: ${{ secrets.PREVIEW_SEED_PGPASSWORD }}
+        run: |
+          # dbt 1.7 to match renderDeployHook.sh in the preview image
+          pip install "dbt-core~=1.7.0" "dbt-postgres~=1.7.0"
+          dbt deps --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR
+          dbt seed --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR --full-refresh
+          dbt run --profiles-dir $PROFILES_DIR --project-dir $PROJECT_DIR --full-refresh
+
+      - name: Snapshot the volume
+        if: steps.exists.outputs.skip != 'true'
+        env:
+          DB_HASH: ${{ steps.hash.outputs.hash }}
+        run: |
+          # Stop postgres cleanly so the snapshot is application-consistent
+          kill "$(cat /tmp/port-forward.pid)" 2>/dev/null || true
+          kubectl scale deployment/preview-seed-db --replicas=0 -n "$SNAPSHOT_NAMESPACE"
+          kubectl wait --for=delete pod -l app=preview-seed-db -n "$SNAPSHOT_NAMESPACE" --timeout=180s
+          envsubst < scripts/preview-seed/volume-snapshot.yaml | kubectl apply -n "$SNAPSHOT_NAMESPACE" -f -
+          kubectl wait volumesnapshot "jaffle-seed-$DB_HASH" -n "$SNAPSHOT_NAMESPACE" \
+            --for=jsonpath='{.status.readyToUse}'=true --timeout=600s
+          echo "Snapshot jaffle-seed-$DB_HASH is ready"
+
+      - name: Garbage collect old snapshots
+        if: steps.exists.outputs.skip != 'true'
+        run: |
+          kubectl get volumesnapshot -n "$SNAPSHOT_NAMESPACE" \
+            --sort-by=.metadata.creationTimestamp -o name \
+            | grep 'volumesnapshot.snapshot.storage.k8s.io/jaffle-seed-' \
+            | head -n "-$SNAPSHOT_KEEP" \
+            | xargs -r kubectl delete -n "$SNAPSHOT_NAMESPACE"

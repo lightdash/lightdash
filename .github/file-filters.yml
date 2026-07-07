@@ -29,3 +29,19 @@ api_schema:
 timezone:
   - "packages/frontend/src/components/common/TimeZonePicker/index.tsx"
   - "packages/common/src/types/timezone.ts"
+
+# Changes that invalidate the pre-seeded preview DB snapshot, forcing the
+# preview environment to run a full seed at boot instead of cloning the
+# snapshot. New migration files are NOT included: they are applied as a
+# delta on top of the snapshot by renderDeployHook.sh. Only edits/deletions
+# of existing migrations require a full re-seed.
+# Keep in sync with scripts/preview-seed/compute-db-hash.sh and the paths
+# trigger in .github/workflows/preview-db-snapshot.yml.
+db_seed:
+  - "examples/full-jaffle-shop-demo/dbt/**"
+  - "examples/full-jaffle-shop-demo/profiles/**"
+  - "examples/full-jaffle-shop-demo/renderDeployHook.sh"
+  - "packages/backend/src/database/seeds/**"
+  - "packages/backend/src/ee/database/seeds/**"
+  - modified|deleted: "packages/backend/src/database/migrations/**"
+  - modified|deleted: "packages/backend/src/ee/database/migrations/**"

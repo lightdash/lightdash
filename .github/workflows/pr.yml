@@ -163,6 +163,7 @@ jobs:
       api_schema: ${{ steps.changes.outputs.api_schema == 'true' }}
       timezone: ${{ steps.changes.outputs.timezone == 'true' || contains(github.event.pull_request.body, 'test-timezone') || contains(github.event.pull_request.body, 'test-all') }}
       cli: ${{ steps.changes.outputs.cli == 'true' || contains(github.event.pull_request.body, 'test-cli') || contains(github.event.pull_request.body, 'test-all') }}
+      db_seed: ${{ steps.changes.outputs.db_seed == 'true' || contains(github.event.pull_request.body, 'full-seed') }}
     steps:
       - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
@@ -326,6 +327,40 @@ jobs:
         with:
           egress-policy: audit
 
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Determine DB seed mode
+        id: seed
+        env:
+          DB_SEED_CHANGED: ${{ needs.files-changed.outputs.db_seed }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          OKTETO_URL: ${{ secrets.OKTETO_CONTEXT }}
+          OKTETO_TOKEN: ${{ secrets.OKTETO_TOKEN }}
+          SNAPSHOT_NAMESPACE: preview-seed
+        # Decides whether the preview DB volume can be cloned from a
+        # pre-seeded VolumeSnapshot (built by preview-db-snapshot.yml) or the
+        # environment must run a full seed at boot. Any failure here safely
+        # falls back to a full seed.
+        run: |
+          mode=full
+          name=""
+          if [ "$DB_SEED_CHANGED" != "true" ] && [ -n "$BASE_SHA" ]; then
+            set +e
+            git fetch --no-tags --depth=1 origin "$BASE_SHA" \
+              && hash=$(./scripts/preview-seed/compute-db-hash.sh "$BASE_SHA") \
+              && curl https://get.okteto.com -sSfL | sh \
+              && okteto context use "$OKTETO_URL" --token "$OKTETO_TOKEN" \
+              && okteto kubeconfig \
+              && ready=$(kubectl get volumesnapshot "jaffle-seed-$hash" -n "$SNAPSHOT_NAMESPACE" -o jsonpath='{.status.readyToUse}' 2>/dev/null) \
+              && [ "$ready" = "true" ] \
+              && mode=snapshot \
+              && name="jaffle-seed-$hash"
+            set -e
+          fi
+          echo "Seed mode: $mode ${name:+(snapshot: $name)}"
+          echo "mode=$mode" >> "$GITHUB_OUTPUT"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
       - name: Context
         uses: okteto/context@5212ce5ebf9d3584bafd33f4a295a8521fc5abe7 # latest
         with:
@@ -350,7 +385,7 @@ jobs:
           name: pr-${{ github.event.number }}
           timeout: 15m
           file: okteto.preview.yaml
-          variables: SITE_URL=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev
+          variables: SITE_URL=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev,SEED_MODE=${{ steps.seed.outputs.mode }},SEED_SNAPSHOT_NAME=${{ steps.seed.outputs.name }},SEED_SNAPSHOT_NAMESPACE=preview-seed
 
       - name: Set preview URL output
         run: echo "url=https://lightdash-preview-pr-${{ github.event.number }}.lightdash.okteto.dev" >> "$GITHUB_OUTPUT"

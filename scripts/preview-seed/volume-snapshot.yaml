@@ -1,0 +1,12 @@
+# VolumeSnapshot of the seeded preview source DB. Rendered with envsubst by
+# .github/workflows/preview-db-snapshot.yml. Preview environments clone their
+# db-preview volume from this snapshot via the dev.okteto.com/from-snapshot-*
+# labels (see okteto.preview.yaml).
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshot
+metadata:
+    name: jaffle-seed-${DB_HASH}
+spec:
+    volumeSnapshotClassName: ${SNAPSHOT_CLASS}
+    source:
+        persistentVolumeClaimName: preview-seed-db
