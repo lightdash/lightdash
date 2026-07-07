@@ -3386,7 +3386,7 @@ export class AiWritebackService extends BaseService {
      * the compile-timings log — the in-sandbox prerequisites for a dbt-writeback
      * turn. Extracted as the `beforeAgentRun` hook of {@link dbtWritebackConfig}.
      */
-    private static async prepareDbtAgentRun(
+    private async prepareDbtAgentRun(
         sandbox: SandboxHandle,
         turn: TurnContext,
     ): Promise<void> {
@@ -3422,6 +3422,32 @@ export class AiWritebackService extends BaseService {
         // Reset the timings log each turn — the sandbox filesystem persists across
         // pause/resume, so a resumed turn would otherwise double-count prior runs.
         await sandbox.files.write(COMPILE_TIMINGS_PATH, '');
+
+        // Install dbt package dependencies (`dbt deps`) once per turn, before the
+        // agent's first compile. A fresh clone has no `dbt_packages/`, so any
+        // project with a non-empty `packages.yml` — a `local:` monorepo package or
+        // an ordinary dbt-hub package — fails `lightdash compile`/`dbt ls` with
+        // "Run dbt deps to install package dependencies". Run it here (not in the
+        // compile wrapper, which is re-invoked on every compile within a turn — a
+        // per-compile `deps` would be wasteful). Reuse the wrapper's `dbtBin` PATH
+        // and secret-stripped env so a malicious dbt_project.yml can't read secrets
+        // via Jinja `env_var(...)` during parse. Best-effort: `commands.run` throws
+        // on a non-zero exit, so tolerate a deps failure (e.g. transient hub
+        // fetch) — the agent's compile surfaces the same error if it truly can't
+        // resolve, and we're no worse off than before this ran.
+        try {
+            await sandbox.commands.run(
+                `env ${unsetFlags} PATH="${dbtBin}:$PATH" dbt deps --project-dir ${JSON.stringify(
+                    `${CWD}/${turn.gitConnection.projectSubPath}`,
+                )}`,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `AiWriteback: 'dbt deps' failed (continuing; compile will surface any unresolved packages): ${getErrorMessage(
+                    error,
+                )} (sandboxId=${sandbox.sandboxId})`,
+            );
+        }
 
         // Push the warehouse skill files alongside the prompts. `shared.md`
         // always; the dialect file only when one exists for this warehouse.
@@ -3483,7 +3509,7 @@ export class AiWritebackService extends BaseService {
                 };
             },
             beforeAgentRun: (sandbox, turn) =>
-                AiWritebackService.prepareDbtAgentRun(sandbox, turn),
+                this.prepareDbtAgentRun(sandbox, turn),
             afterAgentRun: (sandbox) => this.reportCompileTimings(sandbox),
         };
     }

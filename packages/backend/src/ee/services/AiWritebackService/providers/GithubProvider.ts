@@ -64,6 +64,7 @@ import {
     collectDiffStat,
     collectFileChanges,
     commitLocal,
+    resolveDbtProjectPaths,
     stageChanges,
 } from './sandboxGit';
 
@@ -470,7 +471,12 @@ export class GithubProvider implements GitProvider {
         denyCiPaths: boolean;
     }): Promise<LandedCommit> {
         setStage('commit');
-        await stageChanges(sandbox, connection.projectSubPath, this.logger);
+        const projectPaths = await resolveDbtProjectPaths(
+            sandbox,
+            connection.projectSubPath,
+            this.logger,
+        );
+        await stageChanges(sandbox, projectPaths, this.logger);
         const fileChanges = await collectFileChanges(sandbox, { denyCiPaths });
         // Read the line stat while the change is still staged — the local commit
         // below clears the index.

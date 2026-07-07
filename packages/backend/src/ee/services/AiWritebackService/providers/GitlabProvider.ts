@@ -56,6 +56,7 @@ import {
     assertStagedPathsAllowed,
     collectDiffStat,
     commitLocal,
+    resolveDbtProjectPaths,
     stageChanges,
 } from './sandboxGit';
 
@@ -434,7 +435,12 @@ export class GitlabProvider implements GitProvider {
         denyCiPaths: boolean;
     }): Promise<LandedCommit> {
         setStage('commit');
-        await stageChanges(sandbox, connection.projectSubPath, this.logger);
+        const projectPaths = await resolveDbtProjectPaths(
+            sandbox,
+            connection.projectSubPath,
+            this.logger,
+        );
+        await stageChanges(sandbox, projectPaths, this.logger);
         // Host-side denied-path gate (GitLab pushes via git, so check the staged
         // paths here rather than in collectFileChanges). Reject the whole commit
         // — secrets always, CI/workflow for the general agent.
