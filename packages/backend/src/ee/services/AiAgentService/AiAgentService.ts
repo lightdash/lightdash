@@ -149,6 +149,7 @@ import {
     AiAgentSuggestionSubmitEvent,
     AiAgentToolCallEvent,
     AiAgentUpdatedEvent,
+    ContentVerificationEvent,
     LightdashAnalytics,
 } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
@@ -5319,6 +5320,65 @@ export class AiAgentService extends BaseService {
         });
     }
 
+    // Bridges AI artifact verification to the content_verification table
+    private async syncSavedContentVerification(
+        user: SessionUser,
+        organizationUuid: string,
+        projectUuid: string,
+        {
+            savedQueryUuid,
+            savedDashboardUuid,
+            verified,
+        }: {
+            savedQueryUuid: string | null;
+            savedDashboardUuid: string | null;
+            verified: boolean;
+        },
+    ): Promise<void> {
+        let savedContent: { contentType: ContentType; contentUuid: string };
+        if (savedQueryUuid) {
+            savedContent = {
+                contentType: ContentType.CHART,
+                contentUuid: savedQueryUuid,
+            };
+        } else if (savedDashboardUuid) {
+            savedContent = {
+                contentType: ContentType.DASHBOARD,
+                contentUuid: savedDashboardUuid,
+            };
+        } else {
+            return;
+        }
+
+        if (verified) {
+            await this.contentVerificationModel.verify(
+                savedContent.contentType,
+                savedContent.contentUuid,
+                projectUuid,
+                user.userUuid,
+            );
+        } else {
+            await this.contentVerificationModel.unverify(
+                savedContent.contentType,
+                savedContent.contentUuid,
+            );
+        }
+
+        this.analytics.track<ContentVerificationEvent>({
+            event: verified
+                ? 'content_verification.created'
+                : 'content_verification.deleted',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                contentType: savedContent.contentType,
+                contentId: savedContent.contentUuid,
+                source: 'ai_artifact',
+            },
+        });
+    }
+
     async setArtifactVersionVerified(
         user: SessionUser,
         {
@@ -5390,6 +5450,26 @@ export class AiAgentService extends BaseService {
             versionUuid,
             verified,
             user.userUuid,
+        );
+
+        // Charts saved from the web app link to the prompt, not the artifact version
+        const savedQueryUuid =
+            artifact.savedQueryUuid ??
+            (artifact.promptUuid
+                ? await this.aiAgentModel.findPromptSavedQueryUuid(
+                      artifact.promptUuid,
+                  )
+                : null);
+
+        await this.syncSavedContentVerification(
+            user,
+            organizationUuid,
+            agent.projectUuid,
+            {
+                savedQueryUuid,
+                savedDashboardUuid: artifact.savedDashboardUuid,
+                verified,
+            },
         );
 
         this.analytics.track<AiAgentArtifactVersionVerifiedEvent>({
