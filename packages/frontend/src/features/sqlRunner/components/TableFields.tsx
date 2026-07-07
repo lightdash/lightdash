@@ -1,7 +1,6 @@
-import { Box, Group, Stack } from '@mantine-8/core';
+import { Box, Center, Group, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
-    Center,
     CopyButton,
     Highlight,
     Loader,

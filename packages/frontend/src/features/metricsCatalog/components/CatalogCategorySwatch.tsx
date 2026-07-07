@@ -1,4 +1,4 @@
-import { Center } from '@mantine/core';
+import { Center } from '@mantine-8/core';
 import { IconCheck } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -22,7 +22,7 @@ export const CatalogCategorySwatch: FC<Props> = ({
             w={18}
             className={cx(classes.base, classes.withHover)}
             onClick={onClick}
-            sx={{
+            style={{
                 borderRadius: theme.radius.sm,
             }}
         >

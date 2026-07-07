@@ -23,6 +23,7 @@ import {
 import {
     Box,
     Button,
+    Center,
     Divider,
     Group,
     Stack,
@@ -31,7 +32,6 @@ import {
 import {
     ActionIcon,
     Badge,
-    Center,
     Popover,
     SegmentedControl,
     TextInput,

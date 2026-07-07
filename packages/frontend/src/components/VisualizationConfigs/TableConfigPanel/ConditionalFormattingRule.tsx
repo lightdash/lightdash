@@ -10,9 +10,8 @@ import {
     type ConditionalFormattingWithFilterOperator,
     type FilterableItem,
 } from '@lightdash/common';
-import { Accordion, Group, Stack } from '@mantine-8/core';
+import { Accordion, Center, Group, Stack } from '@mantine-8/core';
 import {
-    Center,
     SegmentedControl,
     Select,
     TextInput,
