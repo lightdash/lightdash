@@ -34,10 +34,9 @@ import {
     type SavedChart,
     type Series,
 } from '@lightdash/common';
-import { ActionIcon, Box, Menu, Stack } from '@mantine-8/core';
+import { ActionIcon, Box, Group, Menu, Stack } from '@mantine-8/core';
 import {
     Badge,
-    Group,
     HoverCard,
     Portal,
     Tooltip,

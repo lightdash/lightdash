@@ -3,9 +3,8 @@ import {
     getErrorMessage,
     type Space,
 } from '@lightdash/common';
-import { Button } from '@mantine-8/core';
+import { Button, Group } from '@mantine-8/core';
 import {
-    Group,
     MantineProvider,
     useMantineColorScheme,
     type DefaultMantineColor,
@@ -136,7 +135,7 @@ const SpaceModal: FC<ActionModalProps> = ({
                 title={title}
                 onClose={onClose}
                 actions={
-                    <Group spacing="xs" position="right">
+                    <Group gap="xs" justify="flex-end">
                         <Button
                             type="submit"
                             disabled={isDisabled || !form.isValid}

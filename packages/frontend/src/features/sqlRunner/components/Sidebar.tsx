@@ -1,6 +1,6 @@
 import { ChartKind } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
-import { ActionIcon, Group, ScrollArea, Title, Tooltip } from '@mantine/core';
+import { Group, Stack } from '@mantine-8/core';
+import { ActionIcon, ScrollArea, Title, Tooltip } from '@mantine/core';
 import { IconLayoutSidebarLeftCollapse, IconReload } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -34,8 +34,8 @@ export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
 
     return (
         <Stack gap="xs" style={{ flex: 1, overflow: 'hidden' }}>
-            <Group position="apart" p="sm">
-                <Group noWrap spacing="xs">
+            <Group justify="space-between" p="sm">
+                <Group wrap="nowrap" gap="xs">
                     <Title order={5} fz="sm" c="ldGray.6">
                         {activeSidebarTab === SidebarTabs.TABLES
                             ? 'TABLES'

@@ -7,8 +7,7 @@ import {
     type Series,
     type TableCalculation,
 } from '@lightdash/common';
-import { Box } from '@mantine-8/core';
-import { Group } from '@mantine/core';
+import { Box, Group } from '@mantine-8/core';
 import { useDebouncedState } from '@mantine/hooks';
 import { IconPalette } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -54,7 +53,7 @@ const BasicSeriesConfiguration: FC<BasicSeriesConfigurationProps> = ({
     return (
         <Config>
             <Config.Section>
-                <Group noWrap spacing="two">
+                <Group wrap="nowrap" gap="two">
                     <GrabIcon
                         dragHandleProps={dragHandleProps}
                         disabled={isDragDisabled}

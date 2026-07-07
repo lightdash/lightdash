@@ -9,9 +9,8 @@ import {
     MapChartLocation,
     MapChartType,
 } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
+import { Group, Stack } from '@mantine-8/core';
 import {
-    Group,
     Loader,
     SegmentedControl,
     Select,
@@ -350,7 +349,7 @@ export const Layout: FC = memo(() => {
                 <Config>
                     <Config.Section>
                         <Config.Heading>Coordinates</Config.Heading>
-                        <Group spacing="md" grow>
+                        <Group gap="md" grow>
                             <FieldSelect
                                 label="Latitude"
                                 placeholder="Select field"

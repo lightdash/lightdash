@@ -7,8 +7,8 @@ import {
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
 } from '@lightdash/common';
-import { Box, Stack } from '@mantine-8/core';
-import { ActionIcon, Group, Tooltip } from '@mantine/core';
+import { Box, Group, Stack } from '@mantine-8/core';
+import { ActionIcon, Tooltip } from '@mantine/core';
 import { IconMinus, IconPlus, IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
 import {
@@ -51,7 +51,7 @@ const YFieldsAxisConfig: FC<{
             >
                 <Config>
                     <Config.Section>
-                        <Group spacing="xs">
+                        <Group gap="xs">
                             <FieldReferenceSelect
                                 flex={1}
                                 data={yLayoutOptions.map((y) => ({
@@ -141,7 +141,7 @@ const XFieldAxisConfig = ({
     const dispatch = useVizDispatch();
 
     return (
-        <Group spacing="xs">
+        <Group gap="xs">
             <FieldReferenceSelect
                 flex={1}
                 data={xLayoutOptions.map((x) => ({

@@ -1,9 +1,8 @@
 import { isEmojiIcon, type CatalogField } from '@lightdash/common';
-import { Box, Button } from '@mantine-8/core';
+import { Box, Button, Group } from '@mantine-8/core';
 import {
     ActionIcon,
     getDefaultZIndex,
-    Group,
     Highlight,
     Paper,
     Portal,
@@ -68,7 +67,7 @@ const SharedEmojiPicker = forwardRef(
                         })}
                     >
                         {emoji && (
-                            <Group position="right">
+                            <Group justify="flex-end">
                                 <Button
                                     variant="light"
                                     size="compact-xs"
@@ -210,7 +209,7 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
 
         return (
             <Box ref={ref}>
-                <Group noWrap spacing="xs">
+                <Group wrap="nowrap" gap="xs">
                     <ActionIcon
                         ref={setIconRef}
                         variant="default"

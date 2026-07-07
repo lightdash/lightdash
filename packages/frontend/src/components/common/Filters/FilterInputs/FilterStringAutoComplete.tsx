@@ -1,8 +1,7 @@
 import { isDimension, type FilterableItem } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
+import { Group, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
-    Group,
     Highlight,
     Loader,
     MultiSelect,
@@ -494,7 +493,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                             query.trim().length > 0 && !values.includes(query)
                         }
                         getCreateLabel={(query: string) => (
-                            <Group spacing="xxs">
+                            <Group gap="xxs">
                                 <MantineIcon
                                     icon={IconPlus}
                                     color="blue.6"
@@ -521,9 +520,9 @@ const FilterStringAutoComplete: FC<Props> = ({
                         rightSectionWidth={30}
                         rightSection={
                             <Group
-                                spacing="xxs"
-                                noWrap
-                                sx={{
+                                gap="xxs"
+                                wrap="nowrap"
+                                style={{
                                     visibility: disabled ? 'hidden' : 'visible',
                                 }}
                             >

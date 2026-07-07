@@ -1,6 +1,6 @@
 import { VizIndexType, type ChartKind } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
-import { Group, TextInput } from '@mantine/core';
+import { Group, Stack } from '@mantine-8/core';
+import { TextInput } from '@mantine/core';
 import {
     useAppDispatch as useVizDispatch,
     useAppSelector as useVizSelector,
@@ -55,7 +55,7 @@ export const CartesianChartDisplayConfig = ({
             <Config>
                 <Config.Section>
                     <Config.Heading>{`X-axis`}</Config.Heading>
-                    <Group noWrap w="100%">
+                    <Group wrap="nowrap" w="100%">
                         <Config.Label>{`Label`}</Config.Label>
                         <TextInput
                             w="100%"
@@ -93,7 +93,7 @@ export const CartesianChartDisplayConfig = ({
                         <Config.Heading>{`Y-axis ${
                             rightYAxisFields.length > 0 ? '(left)' : ''
                         }`}</Config.Heading>
-                        <Group noWrap w="100%">
+                        <Group wrap="nowrap" w="100%">
                             <Config.Label>{`Label`}</Config.Label>
                             <TextInput
                                 w="100%"
@@ -133,7 +133,7 @@ export const CartesianChartDisplayConfig = ({
                 <Config>
                     <Config.Section>
                         <Config.Heading>{`Y-axis (right)`}</Config.Heading>
-                        <Group noWrap w="100%">
+                        <Group wrap="nowrap" w="100%">
                             <Config.Label>{`Label`}</Config.Label>
                             <TextInput
                                 w="100%"

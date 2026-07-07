@@ -1,9 +1,8 @@
-import { Box, Button, Stack } from '@mantine-8/core';
+import { Box, Button, Group, Stack } from '@mantine-8/core';
 import {
     Alert,
     Avatar,
     Flex,
-    Group,
     Loader,
     Title,
     Tooltip,
@@ -67,7 +66,7 @@ const GithubSettingsPanel: FC = () => {
     return (
         <SettingsGridCard>
             <Box>
-                <Group spacing="sm">
+                <Group gap="sm">
                     <Avatar src={githubIcon} size="md" />
                     <Title order={4}>Github</Title>
                 </Group>

@@ -1,5 +1,5 @@
-import { Box, Button, Stack } from '@mantine-8/core';
-import { Alert, Avatar, Flex, Group, Loader, Title, Text } from '@mantine/core';
+import { Box, Button, Group, Stack } from '@mantine-8/core';
+import { Alert, Avatar, Flex, Loader, Title, Text } from '@mantine/core';
 import { IconAlertCircle, IconRefresh, IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
 import gitlabIcon from '../../../svgs/gitlab-icon.svg';
@@ -26,7 +26,7 @@ const GitlabSettingsPanel: FC = () => {
     return (
         <SettingsGridCard>
             <Box>
-                <Group spacing="sm">
+                <Group gap="sm">
                     <Avatar src={gitlabIcon} size="md" />
                     <Title order={4}>GitLab</Title>
                 </Group>

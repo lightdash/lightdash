@@ -1,6 +1,6 @@
 import { SpotlightTableColumns, type CatalogField } from '@lightdash/common';
-import { Box, Button } from '@mantine-8/core';
-import { Flex, Group, Text } from '@mantine/core';
+import { Box, Button, Group } from '@mantine-8/core';
+import { Flex, Text } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconPlus, IconUser } from '@tabler/icons-react';
 import { useMemo } from 'react';
@@ -200,11 +200,11 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
                     h="100%"
                     left={0}
                     top={0}
-                    sx={{
+                    style={{
                         cursor: canManageTags ? 'pointer' : 'default',
                     }}
                 >
-                    <Group mx="md" spacing="xxs">
+                    <Group mx="md" gap="xxs">
                         {categories.map((category) => (
                             <CatalogCategory
                                 key={category.tagUuid}
@@ -278,7 +278,7 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
                     }}
                 >
                     {categories.length === 0 && hovered && canManageTags ? (
-                        <Group spacing={2}>
+                        <Group gap={2}>
                             <MantineIcon
                                 color="ldGray.4"
                                 icon={IconPlus}
@@ -290,11 +290,11 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
                         </Group>
                     ) : (
                         <Group
-                            spacing="xxs"
+                            gap="xxs"
                             pos="relative"
                             w="100%"
                             h="100%"
-                            sx={{
+                            style={{
                                 rowGap: 'unset',
                             }}
                         >

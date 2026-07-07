@@ -9,10 +9,9 @@ import {
     XAxisSort,
     type ItemsMap,
 } from '@lightdash/common';
-import { Button, Stack } from '@mantine-8/core';
+import { Button, Group, Stack } from '@mantine-8/core';
 import {
     Checkbox,
-    Group,
     NumberInput,
     SegmentedControl,
     Select,
@@ -41,7 +40,7 @@ const XAxisSortSelectItem = forwardRef<
     HTMLDivElement,
     { icon: Icon; label: string; mirrorIcon: boolean }
 >(({ icon, label, mirrorIcon, ...others }, ref) => (
-    <Group ref={ref} spacing="xs" {...others} noWrap>
+    <Group ref={ref} gap="xs" {...others} wrap="nowrap">
         <MantineIcon
             style={mirrorIcon ? { transform: 'rotateY(180deg)' } : undefined}
             icon={icon}
@@ -220,8 +219,8 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                             />
                         </>
                     )}
-                    <Group spacing="xs">
-                        <Group spacing="xs">
+                    <Group gap="xs">
+                        <Group gap="xs">
                             <Config.Label>Sort</Config.Label>
                             <Select
                                 value={getXAxisSort(
@@ -267,7 +266,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                             />
                         </Group>
                         {!dirtyLayout?.flipAxes && (
-                            <Group noWrap spacing="xs" align="baseline">
+                            <Group wrap="nowrap" gap="xs" align="baseline">
                                 <Config.Label>Rotation</Config.Label>
                                 <NumberInput
                                     type="number"
@@ -302,7 +301,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                             />
                             {dirtyEchartsConfig?.xAxis?.[0]?.enableDataZoom && (
                                 <>
-                                    <Group spacing="xs">
+                                    <Group gap="xs">
                                         <Config.Label>
                                             Initial scroll position
                                         </Config.Label>
@@ -328,7 +327,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                                             }
                                         />
                                     </Group>
-                                    <Group spacing="xs">
+                                    <Group gap="xs">
                                         <Config.Label>
                                             Visible items
                                         </Config.Label>
@@ -566,7 +565,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
             <Config>
                 <Config.Section>
                     <Config.Heading>Tick label size (px)</Config.Heading>
-                    <Group spacing="xs">
+                    <Group gap="xs">
                         <NumberInput
                             value={
                                 dirtyEchartsConfig?.axisLabelFontSize ?? 11.5
@@ -600,7 +599,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
             <Config>
                 <Config.Section>
                     <Config.Heading>Axis title size (px)</Config.Heading>
-                    <Group spacing="xs">
+                    <Group gap="xs">
                         <NumberInput
                             value={dirtyEchartsConfig?.axisTitleFontSize ?? 12}
                             min={8}

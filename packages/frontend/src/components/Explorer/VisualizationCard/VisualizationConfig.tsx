@@ -1,8 +1,8 @@
 import { assertUnreachable, ChartType } from '@lightdash/common';
+import { Group } from '@mantine-8/core';
 import {
     ActionIcon,
     Divider,
-    Group,
     Loader,
     ScrollArea,
     Tooltip,
@@ -75,7 +75,7 @@ const VisualizationConfig: FC<Props> = ({ chartType, onClose }) => {
 
     return (
         <>
-            <Group position="apart">
+            <Group justify="space-between">
                 <Text fz={16} fw={600}>
                     Configure chart
                 </Text>

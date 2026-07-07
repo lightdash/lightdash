@@ -3,16 +3,8 @@ import {
     type UserActivity as UserActivityResponse,
     type UserWithCount,
 } from '@lightdash/common';
-import { Box, Button, Stack } from '@mantine-8/core';
-import {
-    Anchor,
-    Card,
-    Group,
-    Table,
-    Title,
-    Tooltip,
-    Text,
-} from '@mantine/core';
+import { Box, Button, Group, Stack } from '@mantine-8/core';
+import { Anchor, Card, Table, Title, Tooltip, Text } from '@mantine/core';
 import { IconUsers } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link, useParams } from 'react-router';
@@ -232,7 +224,7 @@ const UserActivity: FC = () => {
 
     return (
         <Page title={`User activity for ${project?.name}`} withFitContent>
-            <Group mt={10} mb={30} position="apart">
+            <Group mt={10} mb={30} justify="space-between">
                 <PageBreadcrumbs
                     items={[
                         {

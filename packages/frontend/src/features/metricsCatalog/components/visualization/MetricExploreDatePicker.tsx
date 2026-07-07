@@ -4,10 +4,9 @@ import {
     type MetricExplorerDateRange,
     type TimeDimensionConfig,
 } from '@lightdash/common';
-import { Box, Button, Stack } from '@mantine-8/core';
+import { Box, Button, Group, Stack } from '@mantine-8/core';
 import {
     Divider,
-    Group,
     Popover,
     SegmentedControl,
     TextInput,
@@ -148,7 +147,7 @@ export const MetricExploreDatePicker: FC<Props> = ({
             shadow="sm"
         >
             <Popover.Target>
-                <Group position="apart" w="fill-available" noWrap>
+                <Group justify="space-between" w="fill-available" wrap="nowrap">
                     <SegmentedControl
                         disabled={isFetching || disabled}
                         size="xs"
@@ -246,7 +245,7 @@ export const MetricExploreDatePicker: FC<Props> = ({
             </Popover.Target>
 
             <Popover.Dropdown p={0}>
-                <Group spacing={0} align="flex-start">
+                <Group gap={0} align="flex-start">
                     <Stack gap={2} py="xs" px="sm">
                         {presets.map((preset) => (
                             <UnstyledButton
@@ -304,8 +303,8 @@ export const MetricExploreDatePicker: FC<Props> = ({
                         </Box>
                         <Divider color="ldGray.2" />
                         <Box p="sm">
-                            <Group position="apart" spacing="xl">
-                                <Group spacing="xs">
+                            <Group justify="space-between" gap="xl">
+                                <Group gap="xs">
                                     <TextInput
                                         size="xs"
                                         radius="md"
@@ -339,7 +338,7 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                     />
                                 </Group>
 
-                                <Group spacing="xs">
+                                <Group gap="xs">
                                     <Button
                                         size="xs"
                                         radius="md"

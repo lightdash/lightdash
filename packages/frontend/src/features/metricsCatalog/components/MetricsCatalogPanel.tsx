@@ -1,13 +1,7 @@
 import { subject } from '@casl/ability';
 import { CatalogCategoryFilterMode, isCompileJob } from '@lightdash/common';
-import { Box, Button, Stack, type ButtonProps } from '@mantine-8/core';
-import {
-    ActionIcon,
-    Group,
-    Popover,
-    useMantineTheme,
-    Text,
-} from '@mantine/core';
+import { Box, Button, Group, Stack, type ButtonProps } from '@mantine-8/core';
+import { ActionIcon, Popover, useMantineTheme, Text } from '@mantine/core';
 import { useClickOutside, useDisclosure } from '@mantine/hooks';
 import { IconRefresh, IconSparkles, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
@@ -103,7 +97,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                 }}
             >
                 <Stack gap="sm" w="100%" ref={ref}>
-                    <Group position="apart">
+                    <Group justify="space-between">
                         <Text fw={600} fz={14}>
                             ✨ Lightdash Spotlight is here!
                         </Text>
@@ -127,7 +121,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                         </Text>
                         .
                     </Text>
-                    <Group spacing="xs">
+                    <Group gap="xs">
                         <Button
                             variant="outline"
                             radius="md"
@@ -443,7 +437,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
 
     return (
         <Stack w="100%" gap="xxl">
-            <Group position="apart">
+            <Group justify="space-between">
                 <Box>
                     <Text c="ldGray.8" fw={600} size="xl">
                         Metrics Catalog
@@ -452,7 +446,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
                         Browse all Metrics & KPIs across this project
                     </Text>
                 </Box>
-                <Group spacing="xs">
+                <Group gap="xs">
                     {isIndexingCatalog ? (
                         <Button
                             size="xs"

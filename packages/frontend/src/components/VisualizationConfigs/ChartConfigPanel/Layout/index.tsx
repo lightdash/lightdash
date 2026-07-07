@@ -10,11 +10,10 @@ import {
     type Field,
     type TableCalculation,
 } from '@lightdash/common';
-import { NumberInput, Stack } from '@mantine-8/core';
+import { Group, NumberInput, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     CloseButton,
-    Group,
     SegmentedControl,
     TextInput,
     Tooltip,
@@ -215,7 +214,7 @@ export const Layout: FC<Props> = ({ items }) => {
                         <Config.Heading>{`${
                             validConfig?.layout.flipAxes ? 'Y' : 'X'
                         }-axis`}</Config.Heading>
-                        <Group spacing="two">
+                        <Group gap="two">
                             <Tooltip variant="xs" label="Flip Axes">
                                 <ActionIcon
                                     onClick={() =>
@@ -325,7 +324,7 @@ export const Layout: FC<Props> = ({ items }) => {
                 <Config.Section>
                     <Stack gap="xs">
                         <Config.Group>
-                            <Group spacing="one">
+                            <Group gap="one">
                                 <Config.Heading>Group</Config.Heading>
                             </Group>
                             {canAddPivot && (
@@ -391,7 +390,7 @@ export const Layout: FC<Props> = ({ items }) => {
                                     );
                                 }
                                 return (
-                                    <Group spacing="xs" key={pivotKey}>
+                                    <Group gap="xs" key={pivotKey}>
                                         <FieldSelect
                                             disabled={
                                                 !chartHasMetricOrTableCalc
@@ -445,7 +444,7 @@ export const Layout: FC<Props> = ({ items }) => {
                             position="top-start"
                             disabled={!isXAxisFieldNumeric}
                         >
-                            <Group spacing="xs">
+                            <Group gap="xs">
                                 <Config.Label>Stacking</Config.Label>
                                 <SegmentedControl
                                     disabled={isXAxisFieldNumeric}

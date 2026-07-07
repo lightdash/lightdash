@@ -1,11 +1,10 @@
 import { BigqueryAuthenticationType, WarehouseTypes } from '@lightdash/common';
-import { Button, Stack } from '@mantine-8/core';
+import { Button, Group, Stack } from '@mantine-8/core';
 import type { SelectItem } from '@mantine/core';
 import {
     Anchor,
     Autocomplete,
     FileInput,
-    Group,
     Image,
     Loader,
     NumberInput,
@@ -189,7 +188,7 @@ const BigQueryForm: FC<{
         <>
             <Stack mt={8}>
                 {
-                    <Group spacing="sm">
+                    <Group gap="sm">
                         <Select
                             name="warehouse.authenticationType"
                             {...form.getInputProps(
@@ -239,7 +238,7 @@ const BigQueryForm: FC<{
                         openLoginPopup={openLoginPopup}
                     />
                 )}
-                <Group spacing="sm">
+                <Group gap="sm">
                     {isSso && isAuthenticated ? (
                         <Autocomplete
                             name="warehouse.project"

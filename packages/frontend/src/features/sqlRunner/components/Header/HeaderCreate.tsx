@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { DbtProjectType } from '@lightdash/common';
-import { Button, Stack } from '@mantine-8/core';
-import { ActionIcon, Group, Menu, Paper, Tooltip, Text } from '@mantine/core';
+import { Button, Group, Stack } from '@mantine-8/core';
+import { ActionIcon, Menu, Paper, Tooltip, Text } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import {
     IconBrandGithub,
@@ -269,8 +269,8 @@ export const HeaderCreate: FC = () => {
                     }`,
                 })}
             >
-                <Group position="apart">
-                    <Group spacing="two">
+                <Group justify="space-between">
+                    <Group gap="two">
                         {hasAnyAction && (
                             <EditableText
                                 size="md"
@@ -284,7 +284,7 @@ export const HeaderCreate: FC = () => {
                         )}
                     </Group>
 
-                    <Group spacing="xs">
+                    <Group gap="xs">
                         {hasAnyAction && (
                             <Button.Group>
                                 <Button
@@ -332,7 +332,7 @@ export const HeaderCreate: FC = () => {
                                             disabled={canSaveChart}
                                         >
                                             <Group
-                                                sx={{
+                                                style={{
                                                     cursor: 'pointer',
                                                 }}
                                             >
@@ -387,7 +387,7 @@ export const HeaderCreate: FC = () => {
                                             disabled={canCreateVirtualView}
                                         >
                                             <Group
-                                                sx={{
+                                                style={{
                                                     cursor: 'pointer',
                                                 }}
                                             >
@@ -454,7 +454,7 @@ export const HeaderCreate: FC = () => {
                                             }}
                                         >
                                             <Group
-                                                sx={{
+                                                style={{
                                                     cursor: 'pointer',
                                                 }}
                                             >

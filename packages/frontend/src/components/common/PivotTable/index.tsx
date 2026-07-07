@@ -27,8 +27,8 @@ import {
     type ResultValue,
     type SortField,
 } from '@lightdash/common';
-import { Box, Button, Menu, type BoxProps } from '@mantine-8/core';
-import { Group, useMantineColorScheme, Text } from '@mantine/core';
+import { Box, Button, Group, Menu, type BoxProps } from '@mantine-8/core';
+import { useMantineColorScheme, Text } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import {
     flexRender,
@@ -1184,8 +1184,8 @@ const PivotTable: FC<PivotTableProps> = ({
                                         titleSortIcon ? (
                                             <Group
                                                 display="inline-flex"
-                                                spacing={4}
-                                                noWrap
+                                                gap={4}
+                                                wrap="nowrap"
                                                 align="center"
                                             >
                                                 {getFieldLabel(
@@ -1406,8 +1406,8 @@ const PivotTable: FC<PivotTableProps> = ({
                             const headerInnerContent = sortIcon ? (
                                 <Group
                                     display="inline-flex"
-                                    spacing={4}
-                                    noWrap
+                                    gap={4}
+                                    wrap="nowrap"
                                     align="center"
                                 >
                                     {isLabel
@@ -1965,7 +1965,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                                     cell.getContext(),
                                                 )
                                             ) : (
-                                                <Group spacing="two" noWrap>
+                                                <Group gap="two" wrap="nowrap">
                                                     <Button
                                                         size="compact-xs"
                                                         variant="subtle"

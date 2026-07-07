@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { DashboardTileTypes } from '@lightdash/common';
-import { Button, Stack } from '@mantine-8/core';
-import { ActionIcon, Group, Menu, Paper, Title, Tooltip } from '@mantine/core';
+import { Button, Group, Stack } from '@mantine-8/core';
+import { ActionIcon, Menu, Paper, Title, Tooltip } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconCirclesRelation,
@@ -156,9 +156,9 @@ export const HeaderView: FC = () => {
                     }`,
                 })}
             >
-                <Group position="apart">
+                <Group justify="space-between">
                     <Stack gap="none">
-                        <Group spacing="two">
+                        <Group gap="two">
                             {space && (
                                 <TitleBreadCrumbs
                                     projectUuid={projectUuid}
@@ -170,7 +170,7 @@ export const HeaderView: FC = () => {
                                 {savedSqlChart.name}
                             </Title>
                         </Group>
-                        <Group spacing="xs">
+                        <Group gap="xs">
                             <UpdatedInfo
                                 updatedAt={savedSqlChart.lastUpdatedAt}
                                 user={savedSqlChart.lastUpdatedBy}
@@ -189,7 +189,7 @@ export const HeaderView: FC = () => {
                         </Group>
                     </Stack>
 
-                    <Group spacing="xs">
+                    <Group gap="xs">
                         {canManageSqlRunner && canManageChart && (
                             <Button
                                 size="xs"

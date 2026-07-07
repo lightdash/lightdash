@@ -17,9 +17,9 @@ import {
     type FilterableField,
     type Item,
 } from '@lightdash/common';
+import { Group } from '@mantine-8/core';
 import {
     ActionIcon,
-    Group,
     Highlight,
     HoverCard,
     NavLink,
@@ -428,7 +428,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
             onMouseLeave={handleMouseLeave}
             pl={pl}
             label={
-                <Group noWrap spacing="xs">
+                <Group wrap="nowrap" gap="xs">
                     <HoverCard
                         openDelay={300}
                         keepMounted={false}

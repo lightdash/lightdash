@@ -4,8 +4,8 @@ import {
     type CompiledDimension,
     type FilterRule,
 } from '@lightdash/common';
-import { Button, Stack } from '@mantine-8/core';
-import { Group, Select, Text } from '@mantine/core';
+import { Button, Group, Stack } from '@mantine-8/core';
+import { Select, Text } from '@mantine/core';
 import { IconFilter, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -190,14 +190,14 @@ export const MetricExploreFilter: FC<Props> = ({
 
     return (
         <Stack gap="xs">
-            <Group position="apart">
-                <Group spacing="xs" align="normal">
+            <Group justify="space-between">
+                <Group gap="xs" align="normal">
                     <Text fw={500} c="ldGray.7">
                         Filter
                     </Text>
                 </Group>
 
-                <Group spacing="xs">
+                <Group gap="xs">
                     <Button
                         variant="subtle"
                         color="dark"
@@ -231,7 +231,7 @@ export const MetricExploreFilter: FC<Props> = ({
                     borderRadius: theme.radius.md,
                 }}
             >
-                <Group spacing={0} noWrap>
+                <Group gap={0} wrap="nowrap">
                     <Select
                         placeholder="Filter by"
                         icon={<MantineIcon icon={IconFilter} />}

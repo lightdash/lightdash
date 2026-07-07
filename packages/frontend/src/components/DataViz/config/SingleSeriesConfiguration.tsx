@@ -5,8 +5,8 @@ import {
     type CartesianChartDisplay,
     type ChartKind,
 } from '@lightdash/common';
-import { Box, Stack } from '@mantine-8/core';
-import { Flex, Group, SegmentedControl, TextInput, Text } from '@mantine/core';
+import { Box, Group, Stack } from '@mantine-8/core';
+import { Flex, SegmentedControl, TextInput, Text } from '@mantine/core';
 import { IconAlignLeft, IconAlignRight } from '@tabler/icons-react';
 import MantineIcon from '../../common/MantineIcon';
 import ColorSelector from '../../VisualizationConfigs/ColorSelector';
@@ -68,9 +68,9 @@ export const SingleSeriesConfiguration = ({
                 <Flex justify="flex-start" align="center" wrap="nowrap">
                     <Config.Label w={LABEL_WIDTH}>Label</Config.Label>
                     <Group
-                        spacing="xs"
-                        position="left"
-                        noWrap
+                        gap="xs"
+                        justify="flex-start"
+                        wrap="nowrap"
                         grow
                         style={{ flex: 3 }}
                     >
@@ -130,7 +130,7 @@ export const SingleSeriesConfiguration = ({
                             {
                                 value: 'left',
                                 label: (
-                                    <Group spacing="xs" noWrap>
+                                    <Group gap="xs" wrap="nowrap">
                                         <MantineIcon
                                             icon={IconAlignLeft}
                                             color="ldDark.8"
@@ -142,7 +142,11 @@ export const SingleSeriesConfiguration = ({
                             {
                                 value: 'right',
                                 label: (
-                                    <Group spacing="xs" noWrap position="right">
+                                    <Group
+                                        gap="xs"
+                                        wrap="nowrap"
+                                        justify="flex-end"
+                                    >
                                         <Text>Right</Text>
                                         <MantineIcon
                                             icon={IconAlignRight}

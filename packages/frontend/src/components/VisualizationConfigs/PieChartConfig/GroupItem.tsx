@@ -5,8 +5,8 @@ import {
     type PieChartValueLabel,
     type PieChartValueOptions,
 } from '@lightdash/common';
-import { Box, Stack, type StackProps } from '@mantine-8/core';
-import { ActionIcon, Collapse, Group, Tooltip } from '@mantine/core';
+import { Box, Group, Stack, type StackProps } from '@mantine-8/core';
+import { ActionIcon, Collapse, Tooltip } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 import { forwardRef } from 'react';
@@ -79,7 +79,7 @@ export const GroupItem = forwardRef<
 
         return (
             <Stack ref={ref} gap="xs" {...rest}>
-                <Group spacing="xs">
+                <Group gap="xs">
                     {!isOnlyItem && (
                         <GrabIcon dragHandleProps={dragHandleProps} />
                     )}

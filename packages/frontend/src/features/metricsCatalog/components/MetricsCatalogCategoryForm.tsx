@@ -1,12 +1,6 @@
 import { type CatalogField, type Tag } from '@lightdash/common';
-import { Box, Button, Stack } from '@mantine-8/core';
-import {
-    Group,
-    Popover,
-    UnstyledButton,
-    useMantineTheme,
-    Text,
-} from '@mantine/core';
+import { Box, Button, Group, Stack } from '@mantine-8/core';
+import { Popover, UnstyledButton, useMantineTheme, Text } from '@mantine/core';
 import differenceBy from 'lodash/differenceBy';
 import filter from 'lodash/filter';
 import includes from 'lodash/includes';
@@ -351,7 +345,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                                     },
                                 }}
                             >
-                                <Group spacing={4}>
+                                <Group gap={4}>
                                     <Text>Create</Text>
                                     {tagColor && (
                                         <CatalogCategory

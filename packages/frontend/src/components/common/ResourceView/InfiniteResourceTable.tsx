@@ -13,13 +13,12 @@ import {
     type ResourceViewItem,
     type SpaceSummary,
 } from '@lightdash/common';
-import { Box, Button } from '@mantine-8/core';
+import { Box, Button, Group } from '@mantine-8/core';
 import { useDebouncedCallback } from '@mantine-8/hooks';
 import {
     ActionIcon,
     Anchor,
     Divider,
-    Group,
     TextInput,
     Tooltip,
     useMantineTheme,
@@ -698,7 +697,7 @@ const InfiniteResourceTable = ({
             return (
                 <Box>
                     <Group p={`${theme.spacing.lg} ${theme.spacing.xl}`}>
-                        <Group spacing="xs">
+                        <Group gap="xs">
                             <DebouncedSearchInput onSearch={setSearch} />
 
                             {contentTypeFilter &&
@@ -761,7 +760,7 @@ const InfiniteResourceTable = ({
                 {isFetching ? (
                     <Text>Loading more...</Text>
                 ) : (
-                    <Group spacing="two">
+                    <Group gap="two">
                         <Text>
                             {hasNextPage
                                 ? 'Scroll for more results'

@@ -1,11 +1,10 @@
 import { type OrganizationColorPalette } from '@lightdash/common';
-import { Button } from '@mantine-8/core';
+import { Button, Group } from '@mantine-8/core';
 import {
     ActionIcon,
     Badge,
     ColorSwatch,
     Flex,
-    Group,
     Menu,
     Paper,
     Tooltip,
@@ -72,10 +71,10 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                 onMouseLeave={() => setIsHovered(false)}
             >
                 <Flex justify="space-between" align="center">
-                    <Group spacing="sm">
-                        <Group spacing="two">
+                    <Group gap="sm">
+                        <Group gap="two">
                             <Tooltip label="Light mode" position="top">
-                                <Group spacing="two">
+                                <Group gap="two">
                                     <MantineIcon
                                         icon={IconSun}
                                         size="sm"
@@ -98,7 +97,7 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                                         /
                                     </Text>
                                     <Tooltip label="Dark mode" position="top">
-                                        <Group spacing="two">
+                                        <Group gap="two">
                                             <MantineIcon
                                                 icon={IconMoon}
                                                 size="sm"
@@ -133,7 +132,7 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                                 variant="xs"
                             >
                                 <Badge color="gray" variant="light">
-                                    <Group spacing={2}>
+                                    <Group gap={2}>
                                         Override
                                         <MantineIcon
                                             size="sm"
@@ -145,7 +144,7 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                         )}
                     </Group>
 
-                    <Group spacing="xs">
+                    <Group gap="xs">
                         {onSetActive && (
                             <Button
                                 onClick={() =>

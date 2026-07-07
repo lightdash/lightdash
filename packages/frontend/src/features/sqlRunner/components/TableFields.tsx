@@ -1,9 +1,8 @@
-import { Box, Stack } from '@mantine-8/core';
+import { Box, Group, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Center,
     CopyButton,
-    Group,
     Highlight,
     Loader,
     ScrollArea,
@@ -31,7 +30,7 @@ const TableField: FC<{
     const { ref: hoverRef, hovered } = useHover();
     const { ref: truncatedRef, isTruncated } = useIsTruncated<HTMLDivElement>();
     return (
-        <Group spacing={'xs'} noWrap ref={hoverRef}>
+        <Group gap={'xs'} wrap="nowrap" ref={hoverRef}>
             {hovered ? (
                 <Box display={hovered ? 'block' : 'none'}>
                     <CopyButton value={`${activeTable}.${field.name}`}>
