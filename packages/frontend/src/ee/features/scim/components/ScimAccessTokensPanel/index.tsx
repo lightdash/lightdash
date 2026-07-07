@@ -1,12 +1,5 @@
-import {
-    Anchor,
-    Button,
-    Group,
-    Stack,
-    Text,
-    TextInput,
-    Title,
-} from '@mantine/core';
+import { Stack } from '@mantine-8/core';
+import { Anchor, Button, Group, TextInput, Title, Text } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
@@ -45,9 +38,9 @@ const ScimAccessTokensPanel: FC = () => {
             </Group>
 
             <SettingsGridCard>
-                <Stack spacing="sm">
+                <Stack gap="sm">
                     <Title order={4}>SCIM URL</Title>
-                    <Text color="dimmed">
+                    <Text c="dimmed">
                         Use the URL to connect your identity provider to
                         Lightdash via SCIM.
                     </Text>

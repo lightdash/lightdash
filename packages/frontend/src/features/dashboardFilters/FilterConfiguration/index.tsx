@@ -19,17 +19,16 @@ import {
     type DashboardTile,
     type ResultColumn,
 } from '@lightdash/common';
+import { Box, Stack } from '@mantine-8/core';
 import {
-    Box,
     Button,
     Flex,
     Group,
     Select,
-    Stack,
     Tabs,
-    Text,
     Tooltip,
     type PopoverProps,
+    Text,
 } from '@mantine/core';
 import { IconRotate2, IconSql } from '@tabler/icons-react';
 import { produce } from 'immer';
@@ -40,6 +39,7 @@ import FieldLabel from '../../../components/common/Filters/FieldLabel';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import { DEFAULT_TAB, FilterActions, FilterTabs } from './constants';
+import classes from './FilterConfiguration.module.css';
 import FilterCoverageSummary from './FilterCoverageSummary';
 import FilterFieldSelect from './FilterFieldSelect';
 import FilterSettings from './FilterSettings';
@@ -385,15 +385,7 @@ const FilterConfiguration: FC<Props> = ({
     return (
         // Make inline dropdowns flow in the panel (instead of absolute), so the
         // panel grows with them and Apply stays visible — PROD-2395 sketch.
-        <Stack
-            sx={{
-                '.mantine-Select-dropdown, .mantine-MultiSelect-dropdown': {
-                    position: 'static',
-                    width: '100%',
-                    marginTop: 4,
-                },
-            }}
-        >
+        <Stack className={classes.inlineDropdowns}>
             <Tabs
                 value={selectedTabId}
                 onTabChange={(tabId: FilterTabs) => setSelectedTabId(tabId)}
@@ -430,7 +422,7 @@ const FilterConfiguration: FC<Props> = ({
                 ) : null}
 
                 <Tabs.Panel value={FilterTabs.SETTINGS} w={400}>
-                    <Stack spacing="sm">
+                    <Stack gap="sm">
                         {isCreatingNew ? (
                             !!fields && fields.length > 0 ? (
                                 <FilterFieldSelect
@@ -449,7 +441,7 @@ const FilterConfiguration: FC<Props> = ({
                                     label={
                                         <Text>
                                             Select a column to filter{' '}
-                                            <Text color="red" span>
+                                            <Text c="red" span>
                                                 *
                                             </Text>{' '}
                                         </Text>
@@ -553,7 +545,7 @@ const FilterConfiguration: FC<Props> = ({
             </Tabs>
 
             <Flex gap="sm">
-                <Box sx={{ flexGrow: 1 }} />
+                <Box style={{ flexGrow: 1 }} />
 
                 {!isTemporary &&
                     isFilterModified &&

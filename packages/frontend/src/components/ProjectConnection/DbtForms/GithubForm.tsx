@@ -1,4 +1,5 @@
 import { DbtProjectType } from '@lightdash/common';
+import { Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Anchor,
@@ -8,11 +9,10 @@ import {
     PasswordInput,
     ScrollArea,
     Select,
-    Stack,
-    Text,
     TextInput,
     Tooltip,
     type ScrollAreaProps,
+    Text,
 } from '@mantine/core';
 import { IconCheck, IconRefresh } from '@tabler/icons-react';
 import React, { useEffect, type FC, type ReactNode } from 'react';
@@ -27,6 +27,7 @@ import { useFormContext } from '../formContext';
 import DbtVersionSelect from '../Inputs/DbtVersion';
 import { useProjectFormContext } from '../useProjectFormContext';
 import { githubDefaultValues } from './defaultValues';
+import styles from './GithubForm.module.css';
 
 const GITHUB_INSTALL_URL = `/api/v1/github/install`;
 
@@ -37,7 +38,7 @@ const DropdownComponentOverride = ({
     children: ReactNode;
     installationId: string | undefined;
 }) => (
-    <Stack w="100%" spacing={0}>
+    <Stack w="100%" gap={0}>
         <ScrollArea>{children}</ScrollArea>
 
         <Tooltip
@@ -48,17 +49,11 @@ const DropdownComponentOverride = ({
             label="Click here to open your Github installation page to add more repositories."
         >
             <Text
-                color="dimmed"
+                c="dimmed"
                 size="xs"
                 px="sm"
                 p="xxs"
-                sx={(theme) => ({
-                    cursor: 'pointer',
-                    borderTop: `1px solid ${theme.colors.ldGray[2]}`,
-                    '&:hover': {
-                        backgroundColor: theme.colors.ldGray[1],
-                    },
-                })}
+                className={styles.repositoryHint}
                 onClick={() =>
                     window.open(
                         `https://github.com/settings/installations/${installationId}`,

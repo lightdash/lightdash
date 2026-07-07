@@ -8,15 +8,8 @@ import {
     type ResultRow,
     type TableCalculation,
 } from '@lightdash/common';
-import { ScrollArea } from '@mantine-8/core';
-import {
-    Box,
-    Divider,
-    Group,
-    SegmentedControl,
-    Stack,
-    Text,
-} from '@mantine/core';
+import { Box, ScrollArea, Stack } from '@mantine-8/core';
+import { Divider, Group, SegmentedControl, Text } from '@mantine/core';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import ColorSelector from '../../ColorSelector';
 import { ChartConditionalFormatting } from './ChartConditionalFormatting';
@@ -169,12 +162,12 @@ export const CustomColors: FC<Props> = ({
                             bg="ldGray.1"
                             p="xxs"
                             py="xs"
-                            sx={(theme) => ({
-                                borderRadius: theme.radius.sm,
-                            })}
+                            style={{
+                                borderRadius: 'var(--mantine-radius-sm)',
+                            }}
                         >
                             <ScrollArea.Autosize mah={300}>
-                                <Stack spacing="xs">
+                                <Stack gap="xs">
                                     {uniqueCategories.map(
                                         ([rawKey, label], idx) => (
                                             <Group

@@ -3,6 +3,7 @@ import {
     RedshiftAuthenticationType,
     WarehouseTypes,
 } from '@lightdash/common';
+import { Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Anchor,
@@ -11,7 +12,6 @@ import {
     NumberInput,
     PasswordInput,
     Select,
-    Stack,
     TextInput,
     Tooltip,
 } from '@mantine/core';

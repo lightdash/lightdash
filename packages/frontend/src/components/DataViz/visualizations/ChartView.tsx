@@ -1,5 +1,6 @@
 import { isVizTableConfig, type AllVizChartConfig } from '@lightdash/common';
-import { Box, LoadingOverlay } from '@mantine/core';
+import { Box } from '@mantine-8/core';
+import { LoadingOverlay } from '@mantine/core';
 import { type SerializedError } from '@reduxjs/toolkit';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { memo } from 'react';

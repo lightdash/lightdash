@@ -1,4 +1,5 @@
-import { Box, Button, Flex, Text } from '@mantine/core';
+import { Box } from '@mantine-8/core';
+import { Button, Flex, Text } from '@mantine/core';
 import { noop } from '@mantine/utils';
 import { IconAlertCircle, IconRefresh, IconTable } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
@@ -253,7 +254,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                                 Refresh your browser to load the latest version
                                 and display this visualization correctly.
                             </Text>
-                            <Text size="sm" color="dimmed">
+                            <Text size="sm" c="dimmed">
                                 If this persists after refreshing, contact
                                 support.
                             </Text>

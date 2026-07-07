@@ -1,10 +1,12 @@
-import { Box, LoadingOverlay, Text } from '@mantine/core';
+import { Box } from '@mantine-8/core';
+import { LoadingOverlay, Text } from '@mantine/core';
 import { useTimeout } from '@mantine/hooks';
 import { IconGripHorizontal } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useAppSelector } from '../store/hooks';
+import styles from './ResizeHandle.module.css';
 import { TableFields } from './TableFields';
 import { Tables } from './Tables';
 
@@ -39,17 +41,17 @@ export const TablesPanel: React.FC<TablesPanelProps> = ({
     }, [isLoading, start, clear]);
 
     return (
-        <Box sx={{ position: 'relative', flex: 1 }}>
+        <Box style={{ position: 'relative', flex: 1 }}>
             <LoadingOverlay visible={isLoading} />
 
             {error && (
-                <Text color="red" align="center">
+                <Text c="red" ta="center">
                     {error}
                 </Text>
             )}
 
             {isLoading && showLoadingMessage && (
-                <Text color="ldGray.9" align="center">
+                <Text c="ldGray.9" ta="center">
                     Hang on, still loading...
                 </Text>
             )}
@@ -74,20 +76,7 @@ export const TablesPanel: React.FC<TablesPanelProps> = ({
                                 component={PanelResizeHandle}
                                 bg="ldGray.1"
                                 h={6}
-                                sx={(theme) => ({
-                                    transition:
-                                        'background-color 0.2s ease-in-out',
-                                    cursor: 'row-resize',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    '&:hover': {
-                                        backgroundColor: theme.colors.ldGray[2],
-                                    },
-                                    '&[data-resize-handle-state="drag"]': {
-                                        backgroundColor: theme.colors.ldGray[3],
-                                    },
-                                })}
+                                className={styles.resizeHandle}
                             >
                                 <MantineIcon
                                     color="gray"

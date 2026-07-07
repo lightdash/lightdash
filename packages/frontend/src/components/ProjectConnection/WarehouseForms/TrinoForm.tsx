@@ -1,10 +1,10 @@
 import { WarehouseTypes } from '@lightdash/common';
+import { Stack } from '@mantine-8/core';
 import {
     Anchor,
     NumberInput,
     PasswordInput,
     Select,
-    Stack,
     TextInput,
 } from '@mantine/core';
 import React, { type FC } from 'react';

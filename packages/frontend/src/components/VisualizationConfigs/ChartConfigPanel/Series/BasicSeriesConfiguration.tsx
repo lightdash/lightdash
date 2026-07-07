@@ -7,7 +7,8 @@ import {
     type Series,
     type TableCalculation,
 } from '@lightdash/common';
-import { Box, Group } from '@mantine/core';
+import { Box } from '@mantine-8/core';
+import { Group } from '@mantine/core';
 import { useDebouncedState } from '@mantine/hooks';
 import { IconPalette } from '@tabler/icons-react';
 import { type FC } from 'react';

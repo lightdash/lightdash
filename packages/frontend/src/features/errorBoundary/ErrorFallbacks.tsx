@@ -1,4 +1,5 @@
-import { Box, Button, Stack, Text } from '@mantine/core';
+import { Box, Stack } from '@mantine-8/core';
+import { Button, Text } from '@mantine/core';
 import { Prism } from '@mantine/prism';
 import { IconAlertCircle, IconRefresh } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -51,12 +52,12 @@ export const GeneralErrorFallback: FC<{ eventId: string; error: unknown }> = ({
         title="Something went wrong."
         description={
             <Stack
-                spacing="xs"
-                sx={(theme) => ({
-                    borderRadius: theme.radius.md,
-                    padding: theme.spacing.xs,
-                    backgroundColor: theme.colors.ldGray[1],
-                })}
+                gap="xs"
+                style={{
+                    borderRadius: 'var(--mantine-radius-md)',
+                    padding: 'var(--mantine-spacing-xs)',
+                    backgroundColor: 'var(--mantine-color-ldGray-1)',
+                }}
             >
                 <Text>You can contact support with the following error ID</Text>
                 <Prism

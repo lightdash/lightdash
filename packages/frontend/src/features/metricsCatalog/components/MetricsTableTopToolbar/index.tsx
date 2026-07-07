@@ -20,21 +20,20 @@ import {
     type CatalogCategoryFilterMode,
     type CatalogField,
 } from '@lightdash/common';
+import { Box, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Badge,
-    Box,
     Button,
     Center,
     Divider,
     Group,
     Popover,
     SegmentedControl,
-    Stack,
-    Text,
     TextInput,
     Tooltip,
     type GroupProps,
+    Text,
 } from '@mantine/core';
 import {
     IconEye,
@@ -125,13 +124,7 @@ const SortableColumn: FC<{
                         </ActionIcon>
                     </Box>
                 </Tooltip>
-                <Text
-                    variant="subtle"
-                    fz={13}
-                    radius="md"
-                    fw={500}
-                    color="ldDark.9"
-                >
+                <Text fz={13} fw={500} c="ldDark.9">
                     {column.name}
                 </Text>
             </Group>
@@ -454,8 +447,8 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                             </Tooltip>
                         </Popover.Target>
                         <Popover.Dropdown p="sm" miw={270}>
-                            <Stack spacing="sm">
-                                <Stack spacing={2}>
+                            <Stack gap="sm">
+                                <Stack gap={2}>
                                     <DndContext
                                         sensors={sensors}
                                         collisionDetection={closestCenter}

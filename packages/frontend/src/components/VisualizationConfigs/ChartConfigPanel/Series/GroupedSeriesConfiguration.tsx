@@ -19,7 +19,8 @@ import {
     type Series,
     type TableCalculation,
 } from '@lightdash/common';
-import { Box, Checkbox, Group, Select, Stack, Switch } from '@mantine/core';
+import { Box, Stack } from '@mantine-8/core';
+import { Checkbox, Group, Select, Switch } from '@mantine/core';
 import React, { useCallback, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
@@ -163,7 +164,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                         {getItemLabelWithoutTableName(item)} (grouped)
                     </Config.Heading>
                 </Group>
-                <Stack spacing="xs" ml="md">
+                <Stack gap="xs" ml="md">
                     <Group noWrap spacing="xs" align="start">
                         <ChartTypeSelect
                             chartValue={chartValue}
@@ -243,7 +244,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                         />
                         {seriesGroup[0].stack &&
                             chartValue === CartesianSeriesType.BAR && (
-                                <Stack spacing="xs" mt="two">
+                                <Stack gap="xs" mt="two">
                                     <Config.Label>Total</Config.Label>
                                     <Switch
                                         checked={
@@ -294,7 +295,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                     p="xxs"
                     ml="md"
                     py="xs"
-                    sx={(theme) => ({ borderRadius: theme.radius.sm })}
+                    style={{ borderRadius: 'var(--mantine-radius-sm)' }}
                 >
                     <DragDropContext onDragEnd={onDragEnd}>
                         <Droppable droppableId="grouped-series-sort-fields">

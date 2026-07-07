@@ -1,4 +1,5 @@
-import { ActionIcon, Box, Group, Text, Textarea } from '@mantine/core';
+import { Box } from '@mantine-8/core';
+import { ActionIcon, Group, Textarea, Text } from '@mantine/core';
 import { useHotkeys } from '@mantine/hooks';
 import { IconArrowUp, IconSparkles } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';

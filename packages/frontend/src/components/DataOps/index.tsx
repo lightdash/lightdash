@@ -1,5 +1,5 @@
 import { ProjectType } from '@lightdash/common';
-import { Button, Flex, Select, Text, Title } from '@mantine/core';
+import { Button, Flex, Select, Title, Text } from '@mantine/core';
 import { useState, type FC } from 'react';
 import { useProject } from '../../hooks/useProject';
 import { useProjects } from '../../hooks/useProjects';
@@ -15,7 +15,7 @@ export const DataOps: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     );
     return (
         <>
-            <Text color="dimmed">
+            <Text c="dimmed">
                 Perform data operations between on this project
             </Text>
 

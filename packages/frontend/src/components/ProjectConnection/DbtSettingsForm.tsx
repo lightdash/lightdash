@@ -4,7 +4,8 @@ import {
     DbtProjectTypeLabels,
     WarehouseTypes,
 } from '@lightdash/common';
-import { Anchor, Select, Stack, TextInput } from '@mantine/core';
+import { Stack } from '@mantine-8/core';
+import { Anchor, Select, TextInput } from '@mantine/core';
 import { useMemo, useState, type FC } from 'react';
 import useApp from '../../providers/App/useApp';
 import AzureDevOpsForm from './DbtForms/AzureDevOpsForm';

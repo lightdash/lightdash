@@ -1,14 +1,13 @@
+import { Box, Stack } from '@mantine-8/core';
 import {
     Alert,
     Avatar,
-    Box,
     Button,
     Flex,
     Group,
     Loader,
-    Stack,
-    Text,
     Title,
+    Text,
 } from '@mantine/core';
 import { IconAlertCircle, IconRefresh, IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -43,7 +42,7 @@ const GitlabSettingsPanel: FC = () => {
             </Box>
 
             <Stack>
-                <Text color="dimmed" fz="xs">
+                <Text c="dimmed" fz="xs">
                     Connect your GitLab account to enable write-back
                     functionality and create merge requests directly from
                     Lightdash.
@@ -59,7 +58,7 @@ const GitlabSettingsPanel: FC = () => {
                     </Alert>
                 )}
                 {isValidGitlabInstallation && data && data.length > 0 && (
-                    <Text color="dimmed" fz="xs">
+                    <Text c="dimmed" fz="xs">
                         Your GitLab integration has access to the following
                         projects:
                         <ul>

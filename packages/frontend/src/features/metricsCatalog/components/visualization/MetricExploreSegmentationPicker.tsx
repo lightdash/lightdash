@@ -5,16 +5,15 @@ import {
     type CompiledDimension,
     type MetricExplorerQuery,
 } from '@lightdash/common';
+import { Box, Stack } from '@mantine-8/core';
 import {
     Alert,
-    Box,
     Button,
     Group,
     Loader,
     Select,
-    Stack,
-    Text,
     Tooltip,
+    Text,
 } from '@mantine/core';
 import { IconInfoCircle, IconX } from '@tabler/icons-react';
 import { type UseQueryResult } from '@tanstack/react-query';
@@ -52,7 +51,7 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
     );
 
     return (
-        <Stack spacing="xs">
+        <Stack gap="xs">
             <Group position="apart">
                 <Text fw={500} c="ldGray.7">
                     Segment
@@ -149,7 +148,7 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
                         />
                     }
                 >
-                    <Text size="xs" color="blue.7" span>
+                    <Text size="xs" c="blue.7" span>
                         Only the first {MAX_SEGMENT_DIMENSION_UNIQUE_VALUES}{' '}
                         series are displayed to maintain a clear and readable
                         chart.

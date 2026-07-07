@@ -1,17 +1,16 @@
 import { getErrorMessage, type CatalogItem } from '@lightdash/common';
+import { Box, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
-    Box,
     Button,
     Divider,
     Group,
     Popover,
     SimpleGrid,
-    Stack,
-    Text,
     TextInput,
     Tooltip,
     UnstyledButton,
+    Text,
 } from '@mantine/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
 import { IconCode, IconDots, IconTrash } from '@tabler/icons-react';
@@ -112,8 +111,8 @@ const EditPopover: FC<EditPopoverProps> = ({
                     e.preventDefault();
                 }}
             >
-                <Stack spacing="xs">
-                    <Text size="xs" weight={500} c="ldGray.6">
+                <Stack gap="xs">
+                    <Text size="xs" fw={500} c="ldGray.6">
                         Edit category
                     </Text>
                     <TextInput
@@ -256,7 +255,7 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
                 >
                     <Box
                         p="xxs"
-                        sx={{
+                        style={{
                             visibility: hovered ? 'visible' : 'hidden',
                         }}
                     >

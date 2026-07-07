@@ -3,12 +3,12 @@ import {
     DownloadFileType,
     type VizTableConfig,
 } from '@lightdash/common';
+import { Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Center,
     Popover,
     SegmentedControl,
-    Stack,
     Text,
 } from '@mantine/core';
 import { IconDownload, IconPhoto, IconTableExport } from '@tabler/icons-react';
@@ -40,8 +40,8 @@ export const ChartDownload: React.FC<Props> = memo(
                     </ActionIcon>
                 </Popover.Target>
                 <Popover.Dropdown miw={250}>
-                    <Stack spacing="xs">
-                        <Stack spacing="xs">
+                    <Stack gap="xs">
+                        <Stack gap="xs">
                             <Text fw={500}>Download as</Text>
                             <SegmentedControl
                                 size="xs"

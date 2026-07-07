@@ -6,8 +6,8 @@ import {
     findReplaceableCustomMetrics,
     getMetrics,
 } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
-import { ActionIcon, Group, HoverCard, Stack, Text } from '@mantine/core';
+import { Menu, Stack } from '@mantine-8/core';
+import { ActionIcon, Group, HoverCard, Text } from '@mantine/core';
 import {
     IconAlertTriangle,
     IconCode,
@@ -189,7 +189,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         <>
             <Stack
                 id={VisualizationConfigPortalId}
-                sx={{
+                style={{
                     flexGrow: 1,
                     overflow: 'hidden',
                     display: isVisualizationConfigOpen ? 'flex' : 'none',
@@ -198,7 +198,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
 
             <Stack
                 h="100%"
-                sx={{
+                style={{
                     flexGrow: 1,
                     display: isVisualizationConfigOpen ? 'none' : 'flex',
                 }}

@@ -1,13 +1,12 @@
+import { Box, Stack } from '@mantine-8/core';
 import {
     Anchor,
-    Box,
     Button,
     Card,
     Center,
     PasswordInput,
-    Stack,
-    Text,
     Title,
+    Text,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
@@ -69,7 +68,7 @@ const PasswordReset: FC = () => {
                                                 }),
                                         )}
                                     >
-                                        <Stack spacing="lg">
+                                        <Stack gap="lg">
                                             <PasswordInput
                                                 label="Password"
                                                 name="password"
@@ -108,7 +107,7 @@ const PasswordReset: FC = () => {
                                     <Title order={3} ta="center" mb="md">
                                         Success!
                                     </Title>
-                                    <Text ta="center" mb="lg" color="dimmed">
+                                    <Text ta="center" mb="lg" c="dimmed">
                                         Your password has been successfully
                                         updated.
                                         <br /> Use your new password to log in.

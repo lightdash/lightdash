@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import { ContentType, FeatureFlags } from '@lightdash/common';
-import { Button, Group, Stack } from '@mantine/core';
+import { Stack } from '@mantine-8/core';
+import { Button, Group } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { Link, Navigate, useParams } from 'react-router';
 import Page from '../components/common/Page/Page';
@@ -37,7 +38,7 @@ const SavedApps = () => {
                 withXLargePaddedContent
                 withLargeContent
             >
-                <Stack spacing="xxl" w="100%">
+                <Stack gap="xxl" w="100%">
                     <Group position="apart">
                         <PageBreadcrumbs
                             items={[

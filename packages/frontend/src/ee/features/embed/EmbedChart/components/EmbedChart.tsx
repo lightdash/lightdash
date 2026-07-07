@@ -1,4 +1,4 @@
-import { Box } from '@mantine/core';
+import { Box } from '@mantine-8/core';
 import { IconUnlink } from '@tabler/icons-react';
 import { memo, useMemo, type FC } from 'react';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';

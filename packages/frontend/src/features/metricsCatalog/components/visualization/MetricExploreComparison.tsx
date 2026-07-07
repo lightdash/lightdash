@@ -5,6 +5,7 @@ import {
     type MetricExplorerQuery,
     type MetricWithAssociatedTimeDimension,
 } from '@lightdash/common';
+import { Stack } from '@mantine-8/core';
 import {
     Anchor,
     Group,
@@ -12,9 +13,8 @@ import {
     Paper,
     Radio,
     Select,
-    Stack,
-    Text,
     Tooltip,
+    Text,
 } from '@mantine/core';
 import { IconCalendar, IconStack } from '@tabler/icons-react';
 import { type UseQueryResult } from '@tanstack/react-query';
@@ -102,7 +102,7 @@ export const MetricExploreComparison: FC<Props> = ({
 
     return (
         <Radio.Group value={query.comparison} onChange={handleComparisonChange}>
-            <Stack spacing="sm">
+            <Stack gap="sm">
                 {[
                     {
                         type: MetricExplorerComparison.PREVIOUS_PERIOD,
@@ -184,7 +184,7 @@ export const MetricExploreComparison: FC<Props> = ({
                                                 />
                                             </Paper>
 
-                                            <Text color="ldGray.7" fw={500}>
+                                            <Text c="ldGray.7" fw={500}>
                                                 {comparison.label}
                                             </Text>
                                         </Group>

@@ -1,12 +1,6 @@
 import { type OrganizationWarehouseCredentials } from '@lightdash/common';
-import {
-    Button,
-    Group,
-    LoadingOverlay,
-    Stack,
-    Text,
-    Title,
-} from '@mantine/core';
+import { Stack } from '@mantine-8/core';
+import { Button, Group, LoadingOverlay, Title, Text } from '@mantine/core';
 import { IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useOrganizationWarehouseCredentials } from '../../../hooks/organization/useOrganizationWarehouseCredentials';
@@ -37,7 +31,7 @@ export const OrganizationWarehouseCredentialsPanel = () => {
                 {credentials && credentials.length > 0 ? (
                     <>
                         <Group position="apart">
-                            <Stack spacing="one">
+                            <Stack gap="one">
                                 <Title order={5}>
                                     Organization warehouse credentials
                                 </Title>

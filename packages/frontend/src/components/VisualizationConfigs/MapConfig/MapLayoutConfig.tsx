@@ -9,12 +9,12 @@ import {
     MapChartLocation,
     MapChartType,
 } from '@lightdash/common';
+import { Stack } from '@mantine-8/core';
 import {
     Group,
     Loader,
     SegmentedControl,
     Select,
-    Stack,
     Switch,
     TextInput,
 } from '@mantine/core';

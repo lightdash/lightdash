@@ -6,8 +6,8 @@ import {
     ResourceViewItemType,
     type ResourceViewSpaceItem,
 } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
-import { ActionIcon, Box, Button, Group, Stack } from '@mantine/core';
+import { Box, Menu, Stack } from '@mantine-8/core';
+import { ActionIcon, Button, Group } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconDots,
@@ -170,7 +170,7 @@ const Space: FC = () => {
                 withXLargePaddedContent
                 withLargeContent
             >
-                <Stack spacing="xxl" w="100%">
+                <Stack gap="xxl" w="100%">
                     <Group position="apart">
                         <PageBreadcrumbs
                             items={[

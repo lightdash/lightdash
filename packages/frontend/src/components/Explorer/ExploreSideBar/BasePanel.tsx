@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import { ExploreType, type SummaryExplore } from '@lightdash/common';
-import { ActionIcon, Stack, TextInput } from '@mantine/core';
+import { Stack } from '@mantine-8/core';
+import { ActionIcon, TextInput } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconAlertCircle,
@@ -156,7 +157,7 @@ const BasePanel = () => {
         return (
             <>
                 <ItemDetailProvider>
-                    <Stack h="100%" sx={{ flexGrow: 1 }}>
+                    <Stack h="100%" style={{ flexGrow: 1 }}>
                         <Can
                             I="manage"
                             this={subject('Explore', {

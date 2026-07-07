@@ -7,19 +7,18 @@ import {
     type DashboardFilterRule,
     type FilterRule,
 } from '@lightdash/common';
+import { Box, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
-    Box,
     Button,
     Checkbox,
     Group,
     Select,
-    Stack,
     Switch,
-    Text,
     TextInput,
     Tooltip,
     type PopoverProps,
+    Text,
 } from '@mantine/core';
 import { IconHelpCircle, IconX } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
@@ -101,7 +100,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
 
     return (
         <Stack>
-            <Stack spacing="xs">
+            <Stack gap="xs">
                 {isEditMode && (
                     <TextInput
                         label="Filter label"
@@ -271,7 +270,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                     <>
                         {filterRule.required &&
                             (filterRule?.values || []).length > 0 && (
-                                <Text size="xs" color={'ldGray.7'}>
+                                <Text size="xs" c={'ldGray.7'}>
                                     Temporary filter values for required filters
                                     will be removed on dashboard save
                                 </Text>

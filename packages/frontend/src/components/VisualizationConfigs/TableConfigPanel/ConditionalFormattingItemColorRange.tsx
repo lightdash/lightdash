@@ -5,7 +5,8 @@ import {
     type ConditionalFormattingMinMax,
     type FilterableItem,
 } from '@lightdash/common';
-import { Group, Select, Stack } from '@mantine/core';
+import { Stack } from '@mantine-8/core';
+import { Group, Select } from '@mantine/core';
 import { IconPercentage } from '@tabler/icons-react';
 import capitalize from 'lodash/capitalize';
 import { startTransition, useCallback, type FC } from 'react';
@@ -55,7 +56,7 @@ const ConditionalFormattingItemColorRange: FC<Props> = ({
     );
 
     return (
-        <Stack spacing="xs">
+        <Stack gap="xs">
             {groups.map(([rangeName, minMaxName]) => (
                 <Group key={rangeName} spacing="xs" noWrap align="end">
                     <Select

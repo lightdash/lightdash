@@ -13,18 +13,18 @@ import {
     type ResourceViewItem,
     type SpaceSummary,
 } from '@lightdash/common';
+import { Box } from '@mantine-8/core';
 import { useDebouncedCallback } from '@mantine-8/hooks';
 import {
     ActionIcon,
     Anchor,
-    Box,
     Button,
     Divider,
     Group,
-    Text,
     TextInput,
     Tooltip,
     useMantineTheme,
+    Text,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
@@ -279,7 +279,7 @@ const InfiniteResourceTable = ({
                 // Personal (space-less) data apps have no space to link to.
                 if (isResourceViewDataAppItem(item) && !item.data.spaceUuid) {
                     return (
-                        <Text fz={12} fw={500} color="dimmed">
+                        <Text fz={12} fw={500} c="dimmed">
                             -
                         </Text>
                     );
@@ -296,7 +296,7 @@ const InfiniteResourceTable = ({
             Cell: ({ row }) => {
                 if (isResourceViewSpaceItem(row.original))
                     return (
-                        <Text fz={12} fw={500} color="ldGray.7">
+                        <Text fz={12} fw={500} c="ldGray.7">
                             -
                         </Text>
                     );
@@ -312,12 +312,12 @@ const InfiniteResourceTable = ({
             Cell: ({ row }) => {
                 if (isResourceViewSpaceItem(row.original))
                     return (
-                        <Text fz={12} fw={500} color="ldGray.7">
+                        <Text fz={12} fw={500} c="ldGray.7">
                             -
                         </Text>
                     );
                 return (
-                    <Text fz={12} fw={500} color="ldGray.7">
+                    <Text fz={12} fw={500} c="ldGray.7">
                         {row.original.data.views}
                     </Text>
                 );
@@ -754,8 +754,8 @@ const InfiniteResourceTable = ({
                 p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
                 fz="xs"
                 fw={500}
-                color="ldGray.8"
-                sx={{
+                c="ldGray.8"
+                style={{
                     borderTop: `1px solid ${theme.colors.ldGray[3]}`,
                 }}
             >
@@ -768,7 +768,7 @@ const InfiniteResourceTable = ({
                                 ? 'Scroll for more results'
                                 : 'All results loaded'}
                         </Text>
-                        <Text fw={400} color="ldGray.6">
+                        <Text fw={400} c="ldGray.6">
                             {hasNextPage
                                 ? `(${flatData.length} of ${totalResults} loaded)`
                                 : `(${flatData.length})`}

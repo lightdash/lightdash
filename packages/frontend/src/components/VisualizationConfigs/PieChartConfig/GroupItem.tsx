@@ -5,15 +5,8 @@ import {
     type PieChartValueLabel,
     type PieChartValueOptions,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Box,
-    Collapse,
-    Group,
-    Stack,
-    Tooltip,
-    type StackProps,
-} from '@mantine/core';
+import { Box, Stack, type StackProps } from '@mantine-8/core';
+import { ActionIcon, Collapse, Group, Tooltip } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 import { forwardRef } from 'react';
@@ -85,7 +78,7 @@ export const GroupItem = forwardRef<
         const [opened, { toggle }] = useDisclosure();
 
         return (
-            <Stack ref={ref} spacing="xs" {...rest}>
+            <Stack ref={ref} gap="xs" {...rest}>
                 <Group spacing="xs">
                     {!isOnlyItem && (
                         <GrabIcon dragHandleProps={dragHandleProps} />
@@ -127,7 +120,7 @@ export const GroupItem = forwardRef<
                 </Group>
 
                 <Collapse in={opened}>
-                    <Stack ml="xl" spacing="xs" pb="xs">
+                    <Stack ml="xl" gap="xs" pb="xs">
                         <ValueOptions
                             valueLabel={valueLabel}
                             onValueLabelChange={(newValue) =>

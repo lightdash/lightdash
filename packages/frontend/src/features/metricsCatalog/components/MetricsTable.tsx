@@ -5,15 +5,15 @@ import {
     type CatalogField,
     type CatalogItem,
 } from '@lightdash/common';
+import { Box } from '@mantine-8/core';
 import {
     Anchor,
-    Box,
     Center,
     Divider,
     Group,
     Paper,
-    Text,
     useMantineTheme,
+    Text,
 } from '@mantine/core';
 import {
     IconArrowDown,
@@ -517,7 +517,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                 fz="xs"
                 fw={500}
                 color="ldGray.8"
-                sx={{
+                style={{
                     borderTop: `1px solid ${theme.colors.ldGray[3]}`,
                 }}
             >
@@ -530,7 +530,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                                 ? 'Scroll for more metrics'
                                 : 'All metrics loaded'}
                         </Text>
-                        <Text fw={400} color="ldGray.6">
+                        <Text fw={400} c="ldGray.6">
                             {hasNextPage
                                 ? `(${flatData.length} loaded)`
                                 : `(${flatData.length})`}
@@ -557,7 +557,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                 />
             ) : (
                 <Center>
-                    <Text fs="italic" color="gray">
+                    <Text fs="italic" c="gray">
                         No results found
                     </Text>
                 </Center>

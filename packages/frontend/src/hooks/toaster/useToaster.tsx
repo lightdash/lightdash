@@ -1,11 +1,6 @@
 import type { ApiErrorDetail } from '@lightdash/common';
-import {
-    Box,
-    Button,
-    Stack,
-    useMantineColorScheme,
-    useMantineTheme,
-} from '@mantine/core';
+import { Box, Stack } from '@mantine-8/core';
+import { Button, useMantineColorScheme, useMantineTheme } from '@mantine/core';
 import { notifications, type NotificationProps } from '@mantine/notifications';
 import {
     IconAlertCircleFilled,
@@ -92,7 +87,7 @@ const useToaster = () => {
                 },
                 message:
                     subtitle || action ? (
-                        <Stack spacing="xs" align="flex-start">
+                        <Stack gap="xs" align="flex-start">
                             {typeof subtitle == 'string' ? (
                                 <MarkdownPreview
                                     source={subtitle}

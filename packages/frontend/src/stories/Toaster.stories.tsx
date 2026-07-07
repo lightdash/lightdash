@@ -1,4 +1,5 @@
-import { Button, Group, Stack, Title } from '@mantine/core';
+import { Stack } from '@mantine-8/core';
+import { Button, Group, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { type Meta, type StoryObj } from '@storybook/react-vite';
 import MultipleToastBody from '../hooks/toaster/MultipleToastBody';
@@ -16,7 +17,7 @@ const ToasterDemo = () => {
     } = useToaster();
 
     return (
-        <Stack spacing="xl" p="xl" style={{ maxWidth: 800 }}>
+        <Stack gap="xl" p="xl" style={{ maxWidth: 800 }}>
             <section>
                 <Title order={4} mb="md">
                     Standard Toasts

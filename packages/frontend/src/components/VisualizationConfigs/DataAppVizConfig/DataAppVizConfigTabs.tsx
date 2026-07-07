@@ -7,12 +7,8 @@ import {
     type DataAppVizField,
     type Item,
 } from '@lightdash/common';
-import {
-    MantineProvider,
-    Stack,
-    Text,
-    useMantineColorScheme,
-} from '@mantine/core';
+import { Stack } from '@mantine-8/core';
+import { MantineProvider, useMantineColorScheme, Text } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
 import DataAppVizLibraryPicker from '../../../features/apps/components/DataAppVizLibraryPicker';

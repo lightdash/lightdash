@@ -1,7 +1,7 @@
 import { isEmojiIcon, type CatalogField } from '@lightdash/common';
+import { Box } from '@mantine-8/core';
 import {
     ActionIcon,
-    Box,
     Button,
     getDefaultZIndex,
     Group,
@@ -55,7 +55,7 @@ const SharedEmojiPicker = forwardRef(
                     pos="fixed"
                     top={position.top}
                     left={position.left}
-                    sx={{
+                    style={{
                         zIndex: getDefaultZIndex('overlay'),
                     }}
                 >

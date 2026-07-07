@@ -8,18 +8,17 @@ import {
     type VizTableHeaderSortConfig,
     formatSql,
 } from '@lightdash/common';
+import { Box, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
-    Box,
     Group,
     Indicator,
     LoadingOverlay,
     Paper,
     SegmentedControl,
-    Stack,
-    Text,
     Tooltip,
     Transition,
+    Text,
 } from '@mantine/core';
 import { useElementSize, useHotkeys } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
@@ -87,6 +86,7 @@ import {
 import { prepareAndFetchChartData, runSqlQuery } from '../store/thunks';
 import { ChartDownload } from './Download/ChartDownload';
 import ResultsDownloadButton from './Download/ResultsDownloadButton';
+import styles from './ResizeHandle.module.css';
 import { SqlEditor } from './SqlEditor';
 import { SqlEditorPreferencesPopover } from './SqlEditorPreferencesPopover';
 import { SqlQueryHistory } from './SqlQueryHistory';
@@ -440,7 +440,7 @@ export const ContentPanel: FC = () => {
     } = useParameters(projectUuid, Array.from(parameterReferences ?? []));
 
     return (
-        <Stack spacing="none" style={{ flex: 1, overflow: 'hidden' }}>
+        <Stack gap="none" style={{ flex: 1, overflow: 'hidden' }}>
             <Tooltip.Group>
                 <Paper
                     shadow="none"
@@ -644,13 +644,8 @@ export const ContentPanel: FC = () => {
                             })}
                         >
                             <Box
-                                style={{ flex: 1 }}
-                                pt={
-                                    activeEditorTab === EditorTabs.SQL
-                                        ? 'md'
-                                        : 0
-                                }
-                                sx={{
+                                style={{
+                                    flex: 1,
                                     position: 'absolute',
                                     overflowY: isVizTableConfig(
                                         currentVizConfig,
@@ -660,6 +655,11 @@ export const ContentPanel: FC = () => {
                                     height: inputSectionHeight,
                                     width: inputSectionWidth,
                                 }}
+                                pt={
+                                    activeEditorTab === EditorTabs.SQL
+                                        ? 'md'
+                                        : 0
+                                }
                             >
                                 <ConditionalVisibility
                                     isVisible={
@@ -809,21 +809,7 @@ export const ContentPanel: FC = () => {
                         hidden={hideResultsPanel}
                         component={PanelResizeHandle}
                         h={15}
-                        sx={(theme) => ({
-                            transition: 'background-color 0.2s ease-in-out',
-                            cursor: 'row-resize',
-                            display: hideResultsPanel ? 'none' : 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            '&:hover': {
-                                backgroundColor: theme.colors.ldGray[2],
-                            },
-                            '&[data-resize-handle-state="drag"]': {
-                                backgroundColor: theme.colors.ldGray[3],
-                            },
-                            borderLeft: `1px solid ${theme.colors.ldGray[3]}`,
-                            gap: 5,
-                        })}
+                        className={styles.resultsResizeHandle}
                     >
                         <MantineIcon
                             color="gray"
@@ -860,7 +846,7 @@ export const ContentPanel: FC = () => {
                         <Box
                             h="100%"
                             pos="relative"
-                            sx={{
+                            style={{
                                 overflow: 'auto',
                             }}
                         >

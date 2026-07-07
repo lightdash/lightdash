@@ -1,12 +1,12 @@
 import { subject } from '@casl/ability';
 import { DashboardTileTypes } from '@lightdash/common';
+import { Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Button,
     Group,
     Menu,
     Paper,
-    Stack,
     Title,
     Tooltip,
 } from '@mantine/core';
@@ -165,7 +165,7 @@ export const HeaderView: FC = () => {
                 })}
             >
                 <Group position="apart">
-                    <Stack spacing="none">
+                    <Stack gap="none">
                         <Group spacing="two">
                             {space && (
                                 <TitleBreadCrumbs

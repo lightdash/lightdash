@@ -8,16 +8,8 @@ import {
     type Metric,
     type TableCalculation,
 } from '@lightdash/common';
-import {
-    Box,
-    Grid,
-    Group,
-    NumberInput,
-    Stack,
-    Switch,
-    Text,
-    Tooltip,
-} from '@mantine/core';
+import { Box, Stack } from '@mantine-8/core';
+import { Grid, Group, NumberInput, Switch, Tooltip, Text } from '@mantine/core';
 import { IconHelpCircle } from '@tabler/icons-react';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
@@ -216,7 +208,7 @@ export const Layout: React.FC = () => {
                         />
                     </Group>
                     {useDynamicColors ? (
-                        <Stack spacing="xs">
+                        <Stack gap="xs">
                             <FieldSelect<Metric | TableCalculation>
                                 placeholder="Select metric"
                                 disabled={numericMetrics.length === 0}

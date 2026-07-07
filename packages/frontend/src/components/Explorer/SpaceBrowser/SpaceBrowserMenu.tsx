@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { ContentType } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
-import { ActionIcon, Box } from '@mantine/core';
+import { Box, Menu } from '@mantine-8/core';
+import { ActionIcon } from '@mantine/core';
 import {
     IconEdit,
     IconFolderSymlink,

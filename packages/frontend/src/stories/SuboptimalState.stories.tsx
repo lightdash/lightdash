@@ -1,5 +1,12 @@
-import { Box, Button, Paper, SimpleGrid, Stack, Text } from '@mantine-8/core';
-import type { StackProps } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Paper,
+    SimpleGrid,
+    Stack,
+    Text,
+    type StackProps,
+} from '@mantine-8/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import {
     IconAlertCircle,

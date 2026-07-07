@@ -1,4 +1,5 @@
 import { DbtProjectType } from '@lightdash/common';
+import { Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Alert,
@@ -6,7 +7,6 @@ import {
     CopyButton,
     MultiSelect,
     PasswordInput,
-    Stack,
     TextInput,
     Tooltip,
 } from '@mantine/core';

@@ -1,13 +1,13 @@
+import { Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Group,
     HoverCard,
     Popover,
-    Stack,
-    Text,
     Tooltip,
     UnstyledButton,
     useMantineTheme,
+    Text,
 } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { Editor } from '@monaco-editor/react';
@@ -66,7 +66,7 @@ const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
                                 fz="xs"
                                 fw={500}
                                 w={150}
-                                color={
+                                c={
                                     hovered
                                         ? openInQueryEditorLinkColor
                                         : 'ldGray.8'
@@ -85,9 +85,10 @@ const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
                             fz="xs"
                             fw={500}
                             mb="xs"
-                            sx={(theme) => ({
-                                borderBottom: `1px solid ${theme.colors.ldGray[3]}`,
-                            })}
+                            style={{
+                                borderBottom:
+                                    '1px solid var(--mantine-color-ldGray-3)',
+                            }}
                         >
                             {timeAgo}
                         </Text>
@@ -145,7 +146,7 @@ export const SqlQueryHistory: FC = () => {
                 </Tooltip>
             </Popover.Target>
             <Popover.Dropdown p={0}>
-                <Stack spacing="one">
+                <Stack gap="one">
                     {sqlPastHistory.map((item) => (
                         <SqlQueryHistoryItem
                             key={item.value}

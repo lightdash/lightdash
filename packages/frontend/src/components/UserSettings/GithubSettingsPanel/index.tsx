@@ -1,15 +1,14 @@
+import { Box, Stack } from '@mantine-8/core';
 import {
     Alert,
     Avatar,
-    Box,
     Button,
     Flex,
     Group,
     Loader,
-    Stack,
-    Text,
     Title,
     Tooltip,
+    Text,
 } from '@mantine/core';
 import {
     IconAlertCircle,
@@ -91,7 +90,7 @@ const GithubSettingsPanel: FC = () => {
                     </Alert>
                 )}
                 {isValidGithubInstallation && data && data.length > 0 && (
-                    <Stack spacing="xs">
+                    <Stack gap="xs">
                         <Text c="dimmed" fz="xs">
                             Your GitHub integration has access to the following
                             repositories ({data.length}):

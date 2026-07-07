@@ -1,4 +1,5 @@
-import { Box, Button, createStyles, keyframes, Stack } from '@mantine/core';
+import { Box, Stack } from '@mantine-8/core';
+import { Button, createStyles, keyframes } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import confetti from 'canvas-confetti';
 import { type FC } from 'react';
@@ -36,7 +37,7 @@ const ConnectSuccess: FC<ConnectSuccessProps> = ({ projectUuid }) => {
     return (
         <OnboardingWrapper>
             <ProjectCreationCard>
-                <Stack align="center" spacing="xl">
+                <Stack align="center" gap="xl">
                     <OnboardingTitle>
                         Your project's been created!
                     </OnboardingTitle>
@@ -46,7 +47,7 @@ const ConnectSuccess: FC<ConnectSuccessProps> = ({ projectUuid }) => {
                         className={classes.container}
                         p="sm"
                         bg="green.6"
-                        sx={{ borderRadius: 999 }}
+                        style={{ borderRadius: 999 }}
                         ref={(el) => {
                             if (!el) return;
 

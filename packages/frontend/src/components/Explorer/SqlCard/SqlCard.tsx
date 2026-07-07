@@ -4,9 +4,9 @@ import {
     isCustomSqlDimension,
     isSqlTableCalculation,
 } from '@lightdash/common';
+import { Box } from '@mantine-8/core';
 import {
     ActionIcon,
-    Box,
     CopyButton,
     Group,
     SegmentedControl,
