@@ -380,6 +380,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     featureFlagService: repository.getFeatureFlagService(),
                     aiOrganizationSettingsService:
                         repository.getAiOrganizationSettingsService(),
+                    mcpToolCallModel:
+                        models.getMcpToolCallModel<McpToolCallModel>(),
                     projectModel: models.getProjectModel(),
                     projectService: repository.getProjectService(),
                     projectContextService:

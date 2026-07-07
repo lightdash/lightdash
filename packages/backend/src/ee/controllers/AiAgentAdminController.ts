@@ -15,12 +15,16 @@ import {
     ApiAiOrganizationSettingsResponse,
     ApiAiReviewNotificationSettingsResponse,
     ApiErrorPayload,
+    ApiMcpActivityResponse,
     ApiSuccessEmpty,
     ApiUpdateAiOrganizationSettingsResponse,
     assertRegisteredAccount,
     CreateAiAgentReviewItem,
     CreateAiAgentReviewItemComment,
     KnexPaginateArgs,
+    McpActivityFilters,
+    McpActivitySort,
+    ParameterError,
     ReorderAiAgentReviewItems,
     UpdateAiAgentReviewItemAssignee,
     UpdateAiAgentReviewItemPriority,
@@ -55,6 +59,20 @@ import {
 import { BaseController } from '../../controllers/baseController';
 import { type AiAgentAdminService } from '../services/AiAgentAdminService';
 import { type AiOrganizationSettingsService } from '../services/AiOrganizationSettingsService';
+
+const MCP_ACTIVITY_MAX_PAGE_SIZE = 100;
+
+// Rejects malformed date filters at the boundary (422) instead of letting
+// Postgres fail the query with a 500
+const validateDateFilter = (
+    name: string,
+    value: string | undefined,
+): string | undefined => {
+    if (value !== undefined && Number.isNaN(new Date(value).getTime())) {
+        throw new ParameterError(`Invalid ${name}: expected an ISO date`);
+    }
+    return value;
+};
 
 @Route('/api/v1/aiAgents/admin')
 @Response<ApiErrorPayload>('default', 'Error')
@@ -126,6 +144,73 @@ export class AiAgentAdminController extends BaseController {
         return {
             status: 'ok',
             results: threads,
+        };
+    }
+
+    /**
+     * Get MCP tool call activity for admin
+     * @summary List MCP activity
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/mcp-activity')
+    @OperationId('getMcpActivity')
+    async getMcpActivity(
+        @Request() req: express.Request,
+        // Pagination
+        @Query() page?: KnexPaginateArgs['page'],
+        @Query() pageSize?: KnexPaginateArgs['pageSize'],
+        // Filtering
+        @Query() projectUuids?: McpActivityFilters['projectUuids'],
+        @Query() userUuids?: McpActivityFilters['userUuids'],
+        @Query() agentUuids?: McpActivityFilters['agentUuids'],
+        @Query() toolNames?: McpActivityFilters['toolNames'],
+        @Query() clientNames?: McpActivityFilters['clientNames'],
+        @Query() status?: McpActivityFilters['status'],
+        @Query() dateFrom?: McpActivityFilters['dateFrom'],
+        @Query() dateTo?: McpActivityFilters['dateTo'],
+        // Sorting
+        @Query() sortField?: McpActivitySort['field'],
+        @Query() sortDirection?: McpActivitySort['direction'],
+    ): Promise<ApiMcpActivityResponse> {
+        assertRegisteredAccount(req.account);
+        validateDateFilter('dateFrom', dateFrom);
+        validateDateFilter('dateTo', dateTo);
+        // Rows can carry up to 64KB of tool_args each, so cap the page size
+        const paginateArgs: KnexPaginateArgs = {
+            page: page ?? 1,
+            pageSize: Math.min(pageSize ?? 50, MCP_ACTIVITY_MAX_PAGE_SIZE),
+        };
+
+        const filters: McpActivityFilters = {
+            ...(projectUuids && { projectUuids }),
+            ...(userUuids && { userUuids }),
+            ...(agentUuids && { agentUuids }),
+            ...(toolNames && { toolNames }),
+            ...(clientNames && { clientNames }),
+            ...(status && { status }),
+            ...(dateFrom && { dateFrom }),
+            ...(dateTo && { dateTo }),
+        };
+
+        const sort: McpActivitySort | undefined = sortField
+            ? {
+                  field: sortField,
+                  direction: sortDirection ?? 'desc',
+              }
+            : undefined;
+
+        const results = await this.getAiAgentAdminService().getMcpActivity(
+            toSessionUser(req.account),
+            paginateArgs,
+            filters,
+            sort,
+        );
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results,
         };
     }
 

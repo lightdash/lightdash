@@ -71,6 +71,65 @@ export type ApiAiAgentAdminPromptActivityResponse = ApiSuccess<
     AiAgentAdminPromptActivityPoint[]
 >;
 
+export type McpActivityStatus = 'success' | 'error';
+
+export type McpActivityFilters = {
+    projectUuids?: string[];
+    userUuids?: string[];
+    agentUuids?: string[];
+    toolNames?: string[];
+    clientNames?: string[];
+    status?: McpActivityStatus;
+    dateFrom?: string; // ISO date string, inclusive
+    // ISO date string, inclusive but compared as a timestamp: a date-only
+    // value means midnight, excluding the rest of that day — send a full
+    // timestamp to include it
+    dateTo?: string;
+};
+
+export type McpActivitySortField = 'createdAt' | 'durationMs';
+
+export type McpActivitySort = {
+    field: McpActivitySortField;
+    direction: 'asc' | 'desc';
+};
+
+export type McpActivityItem = {
+    uuid: string;
+    createdAt: string;
+    user: {
+        uuid: string;
+        name: string;
+        email: string | null;
+    };
+    project: {
+        uuid: string;
+        name: string;
+    } | null;
+    agent: {
+        uuid: string;
+        name: string;
+    } | null;
+    toolName: string;
+    toolArgs: Record<string, unknown>;
+    status: McpActivityStatus;
+    errorMessage: string | null;
+    durationMs: number;
+    clientName: string | null;
+    clientVersion: string | null;
+    userAgent: string | null;
+    authType: string;
+    protocolVersion: string | null;
+};
+
+export type McpActivitySummary = {
+    toolCalls: McpActivityItem[];
+};
+
+export type ApiMcpActivityResponse = ApiSuccess<
+    KnexPaginatedData<McpActivitySummary>
+>;
+
 export type ComputedAiOrganizationSettings = {
     isCopilotEnabled: boolean;
     isTrial: boolean;
