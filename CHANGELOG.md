@@ -1,3 +1,12 @@
+# [0.3319.0](https://github.com/lightdash/lightdash/compare/0.3318.0...0.3319.0) (2026-07-07)
+
+
+### Features
+
+* **ai:** bridge AI artifact verification to content_verification ([#25210](https://github.com/lightdash/lightdash/issues/25210)) ([ff378be](https://github.com/lightdash/lightdash/commit/ff378be7e619cd9290a4f0dfc5d82abf1e657d1b))
+* **mcp:** enrich list_verified_content payload with discovery fields ([#25209](https://github.com/lightdash/lightdash/issues/25209)) ([1d5e54a](https://github.com/lightdash/lightdash/commit/1d5e54a2d095c167a742ad8542a24ad29f76760c))
+* **mcp:** include AI-verified saved artifacts in list_verified_content ([#25211](https://github.com/lightdash/lightdash/issues/25211)) ([7e822a9](https://github.com/lightdash/lightdash/commit/7e822a98ec18d4caa217f398ab3c022c91ca3e44)), closes [#25210](https://github.com/lightdash/lightdash/issues/25210) [#25209](https://github.com/lightdash/lightdash/issues/25209) [#25210](https://github.com/lightdash/lightdash/issues/25210)
+
 # [0.3318.0](https://github.com/lightdash/lightdash/compare/0.3317.1...0.3318.0) (2026-07-07)
 
 
