@@ -1,3 +1,10 @@
+## [0.3326.1](https://github.com/lightdash/lightdash/compare/0.3326.0...0.3326.1) (2026-07-07)
+
+
+### Bug Fixes
+
+* **cli:** resolve Redshift IAM credentials from the local AWS chain for preview ([#25032](https://github.com/lightdash/lightdash/issues/25032)) ([8da0f6c](https://github.com/lightdash/lightdash/commit/8da0f6ca697b3f454c642c479eb4730c4627a978)), closes [#25028](https://github.com/lightdash/lightdash/issues/25028) [#25028](https://github.com/lightdash/lightdash/issues/25028)
+
 # [0.3326.0](https://github.com/lightdash/lightdash/compare/0.3325.0...0.3326.0) (2026-07-07)
 
 
