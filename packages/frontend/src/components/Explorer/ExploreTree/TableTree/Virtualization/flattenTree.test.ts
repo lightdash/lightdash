@@ -457,11 +457,13 @@ describe('flattenTreeForVirtualization', () => {
         const { items: result, sectionContexts } =
             flattenTreeForVirtualization(options);
 
-        const dimensionItems = result.filter((item) => {
-            if (item.type !== 'tree-node') return false;
-            const context = sectionContexts.get(item.data.sectionKey);
-            return context?.sectionType === 'dimensions';
-        });
+        const dimensionItems = result.filter(
+            (item): item is Extract<typeof item, { type: 'tree-node' }> => {
+                if (item.type !== 'tree-node') return false;
+                const context = sectionContexts.get(item.data.sectionKey);
+                return context?.sectionType === 'dimensions';
+            },
+        );
 
         // Only the "Attributes" group remains; "Identifiers" is hidden because
         // its only child is selected
