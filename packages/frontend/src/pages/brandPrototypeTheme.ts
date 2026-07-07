@@ -103,7 +103,7 @@ const rgbToOklch = (rgb: [number, number, number]): Oklch => {
     return { L, C, H };
 };
 
-export const hexToOklch = (hex: string): Oklch => rgbToOklch(hexToRgb(hex));
+const hexToOklch = (hex: string): Oklch => rgbToOklch(hexToRgb(hex));
 
 const oklchToLinear = (L: number, C: number, H: number) => {
     const hr = (H * Math.PI) / 180;
@@ -139,7 +139,7 @@ const relativeLuminance = (rgb: [number, number, number]) => {
     return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 };
 
-export const contrastRatio = (a: string, b: string) => {
+const contrastRatio = (a: string, b: string) => {
     const la = relativeLuminance(hexToRgb(a));
     const lb = relativeLuminance(hexToRgb(b));
     const hi = Math.max(la, lb);
