@@ -1,3 +1,10 @@
+# [0.3325.0](https://github.com/lightdash/lightdash/compare/0.3324.0...0.3325.0) (2026-07-07)
+
+
+### Features
+
+* **ai-writeback:** add dbt/SQL best-practice skill for the writeback agent (PROD-8719) ([#25248](https://github.com/lightdash/lightdash/issues/25248)) ([c66cb67](https://github.com/lightdash/lightdash/commit/c66cb6717b5334e69e13cf9b9720486fa3ee5812))
+
 # [0.3324.0](https://github.com/lightdash/lightdash/compare/0.3323.0...0.3324.0) (2026-07-07)
 
 
