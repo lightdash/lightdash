@@ -2,7 +2,10 @@ import { mcpToolDefinitions } from '@lightdash/common';
 import type { ZodRawShape, ZodTypeAny } from 'zod';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import { MCP_ANALYST_PROMPT } from '../ai/prompts/mcpAnalyst';
+import {
+    getMcpAnalystPrompt,
+    MCP_ANALYST_PROMPT,
+} from '../ai/prompts/mcpAnalyst';
 import { McpService, McpToolName } from './McpService';
 
 type RegisteredMcpTool = {
@@ -123,6 +126,15 @@ describe('MCP tool contracts', () => {
 
     it('matches the shared MCP tool definition names snapshot', () => {
         expect(sharedMcpToolDefinitionNames).toMatchSnapshot();
+    });
+
+    it('uses the grep-fields MCP analyst prompt when ai-grep-fields is enabled', () => {
+        const prompt = getMcpAnalystPrompt({ enableGrepFields: true });
+
+        expect(prompt).toContain('grep_fields');
+        expect(prompt).toContain('get_metadata');
+        expect(prompt).not.toContain('find_explores');
+        expect(prompt).not.toContain('find_fields');
     });
 
     it('matches the current MCP tool and prompt contract snapshot', async () => {

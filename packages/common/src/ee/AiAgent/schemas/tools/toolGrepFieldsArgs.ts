@@ -41,6 +41,62 @@ export const grepFieldsPatternStatsSchema = z.array(
     }),
 );
 
+const grepFieldsPatternFieldSchema = z.object({
+    exploreName: z.string(),
+    exploreLabel: z.string(),
+    fieldId: z.string(),
+    path: z.string(),
+    kind: z.enum(['dimension', 'metric']),
+    fieldType: z.string(),
+    label: z.string(),
+    description: z.string().nullable(),
+    hint: z.string().nullable(),
+    usageInVerifiedCharts: z.number(),
+    matchLocality: z.enum(['name', 'description', 'hint']),
+});
+
+const grepFieldsPatternExploreSchema = z.object({
+    exploreName: z.string(),
+    exploreLabel: z.string(),
+    requiredFilters: z.string().nullable(),
+    fields: z.array(grepFieldsPatternFieldSchema),
+});
+
+const grepFieldsExploreNameMatchSchema = z.object({
+    exploreName: z.string(),
+    exploreLabel: z.string(),
+});
+
+const grepFieldsPatternResultSchema = z.object({
+    pattern: z.string(),
+    status: z.enum(['matches', 'no_matches', 'no_signal']),
+    matchCount: z.number(),
+    scopeSize: z.number(),
+    matchedAllFields: z.boolean(),
+    note: z.string(),
+    resultsByExplore: z.array(grepFieldsPatternExploreSchema),
+    metricAmbiguityNote: z.string().nullable(),
+    matchingExploresByName: z.array(grepFieldsExploreNameMatchSchema),
+});
+
+const grepFieldsFuzzyMatchSchema = z.object({
+    exploreName: z.string(),
+    fieldId: z.string(),
+    label: z.string(),
+    fieldType: z.string(),
+    description: z.string().nullable(),
+    searchRank: z.number().nullable(),
+    usageInCharts: z.number(),
+    usageInVerifiedCharts: z.number(),
+});
+
+export const grepFieldsResultSchema = z.object({
+    description: z.string(),
+    exploreName: z.string().nullable(),
+    patterns: z.array(grepFieldsPatternResultSchema),
+    fuzzyMatches: z.array(grepFieldsFuzzyMatchSchema),
+});
+
 export const toolGrepFieldsOutputSchema = z.object({
     result: z.string(),
     metadata: baseOutputMetadataSchema.extend({

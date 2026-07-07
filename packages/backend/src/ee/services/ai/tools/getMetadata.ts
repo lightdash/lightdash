@@ -15,6 +15,60 @@ type Dependencies = {
     availableExplores: Explore[];
 };
 
+type ExecuteGetMetadataResult = {
+    result: string;
+    metadata: { status: 'success' };
+    structuredContent: {
+        explores: Array<
+            | {
+                  exploreId: string;
+                  status: 'found';
+                  label: string;
+                  description: string | null;
+                  hint: string | null;
+                  baseTable: string;
+                  joinedTables: string[];
+                  requiredFilters: string | null;
+                  baseDimensions: {
+                      count: number;
+                      fieldIds: string[];
+                  };
+                  baseMetrics: {
+                      count: number;
+                      fieldIds: string[];
+                  };
+              }
+            | {
+                  exploreId: string;
+                  status: 'not_found';
+                  error: string;
+              }
+        >;
+        fields: Array<
+            | {
+                  exploreId: string;
+                  fieldId: string;
+                  status: 'found';
+                  kind: 'dimension' | 'metric';
+                  fieldType: string;
+                  label: string;
+                  filterType: string;
+                  isFromJoinedTable: boolean;
+                  joinedTableName: string | null;
+                  caseSensitiveFilters: boolean | null;
+                  description: string | null;
+                  hint: string | null;
+              }
+            | {
+                  exploreId: string;
+                  fieldId: string;
+                  status: 'not_found';
+                  error: string;
+              }
+        >;
+    };
+};
+
 const flatHint = (hint?: string | string[]): string =>
     Array.isArray(hint) ? hint.join(' ') : (hint ?? '');
 
@@ -35,13 +89,18 @@ const FIELD_LIST_MAX = 120;
 // is the agent's ground truth for "does field X exist here" — search tools
 // (grep/FTS) are lossy, so the summary must not defer back to them for the
 // full list, or a search miss becomes unfalsifiable.
+const getVisibleFieldIds = (
+    fields: { table: string; name: string; hidden?: boolean }[],
+): string[] =>
+    fields
+        .filter((field) => !field.hidden)
+        .map((field) => `${field.table}_${field.name}`);
+
 const renderFieldList = (
     kind: 'dimensions' | 'metrics',
     fields: { table: string; name: string; hidden?: boolean }[],
 ): string => {
-    const ids = fields
-        .filter((f) => !f.hidden)
-        .map((f) => `${f.table}_${f.name}`);
+    const ids = getVisibleFieldIds(fields);
     if (ids.length === 0) return `  base ${kind}: none`;
     const shown = ids.slice(0, FIELD_LIST_MAX);
     const overflow =
@@ -60,7 +119,7 @@ const renderExplore = (explore: Explore): string => {
     const hint = flatHint(explore.aiHint);
     if (hint) lines.push(`  hint: ${collapse(hint)}`);
     lines.push(`  base table: ${explore.baseTable}`);
-    const joined = explore.joinedTables.map((j) => j.table);
+    const joined = explore.joinedTables.map((join) => join.table);
     if (joined.length > 0) {
         lines.push(
             `  joined tables (usable in queries, grep with exploreName="${explore.name}" to list their fields): ${joined.join(
@@ -131,6 +190,155 @@ const renderField = (
     return lines.join('\n');
 };
 
+const buildExploreStructuredResult = (
+    explore: Explore,
+): ExecuteGetMetadataResult['structuredContent']['explores'][number] => {
+    const baseTable = explore.tables[explore.baseTable];
+    const hint = flatHint(explore.aiHint);
+    return {
+        exploreId: explore.name,
+        status: 'found',
+        label: explore.label,
+        description: baseTable?.description
+            ? collapse(baseTable.description)
+            : null,
+        hint: hint ? collapse(hint) : null,
+        baseTable: explore.baseTable,
+        joinedTables: explore.joinedTables.map((join) => join.table),
+        requiredFilters: summarizeRequiredFilters(explore),
+        baseDimensions: {
+            count: getVisibleFieldIds(
+                Object.values(baseTable?.dimensions ?? {}),
+            ).length,
+            fieldIds: getVisibleFieldIds(
+                Object.values(baseTable?.dimensions ?? {}),
+            ).slice(0, FIELD_LIST_MAX),
+        },
+        baseMetrics: {
+            count: getVisibleFieldIds(Object.values(baseTable?.metrics ?? {}))
+                .length,
+            fieldIds: getVisibleFieldIds(
+                Object.values(baseTable?.metrics ?? {}),
+            ).slice(0, FIELD_LIST_MAX),
+        },
+    };
+};
+
+const buildFieldStructuredResult = (
+    exploreId: string,
+    fieldId: string,
+    found: { field: CompiledField; isJoined: boolean },
+): ExecuteGetMetadataResult['structuredContent']['fields'][number] => {
+    const { field, isJoined } = found;
+    const hint = flatHint(field.aiHint);
+    return {
+        exploreId,
+        fieldId,
+        status: 'found',
+        kind: isDimension(field) ? 'dimension' : 'metric',
+        fieldType: String(field.type),
+        label: field.label,
+        filterType: getFilterTypeFromItemType(field.type),
+        isFromJoinedTable: isJoined,
+        joinedTableName: isJoined ? field.table : null,
+        caseSensitiveFilters:
+            isDimension(field) && field.type === 'string'
+                ? (field.caseSensitive ?? true)
+                : null,
+        description: field.description
+            ? collapse(field.description, FIELD_DESCRIPTION_MAX)
+            : null,
+        hint: hint ? collapse(hint, FIELD_DESCRIPTION_MAX) : null,
+    };
+};
+
+export const executeGetMetadata = (
+    {
+        requests,
+    }: {
+        requests: Array<
+            | { type: 'explore'; exploreIds: string[] }
+            | {
+                  type: 'field';
+                  fields: Array<{ exploreId: string; fieldId: string }>;
+              }
+        >;
+    },
+    { availableExplores }: Dependencies,
+): ExecuteGetMetadataResult => {
+    const byName = new Map(
+        availableExplores.map((explore) => [explore.name, explore]),
+    );
+    const textBlocks: string[] = [];
+    const explores: ExecuteGetMetadataResult['structuredContent']['explores'] =
+        [];
+    const fields: ExecuteGetMetadataResult['structuredContent']['fields'] = [];
+
+    for (const request of requests) {
+        if (request.type === 'explore') {
+            for (const exploreId of request.exploreIds) {
+                const explore = byName.get(exploreId);
+                if (!explore) {
+                    const error = `Explore "${exploreId}" not found or not available to this agent.`;
+                    textBlocks.push(error);
+                    explores.push({
+                        exploreId,
+                        status: 'not_found',
+                        error,
+                    });
+                } else {
+                    textBlocks.push(renderExplore(explore));
+                    explores.push(buildExploreStructuredResult(explore));
+                }
+            }
+        } else {
+            for (const { exploreId, fieldId } of request.fields) {
+                const explore = byName.get(exploreId);
+                if (!explore) {
+                    const error = `Explore "${exploreId}" not found, so field "${fieldId}" could not be resolved.`;
+                    textBlocks.push(error);
+                    fields.push({
+                        exploreId,
+                        fieldId,
+                        status: 'not_found',
+                        error,
+                    });
+                } else {
+                    const found = findField(explore, fieldId);
+                    if (!found) {
+                        const error = `Field "${fieldId}" not found in explore "${exploreId}".`;
+                        textBlocks.push(error);
+                        fields.push({
+                            exploreId,
+                            fieldId,
+                            status: 'not_found',
+                            error,
+                        });
+                    } else {
+                        textBlocks.push(renderField(exploreId, fieldId, found));
+                        fields.push(
+                            buildFieldStructuredResult(
+                                exploreId,
+                                fieldId,
+                                found,
+                            ),
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    return {
+        result: textBlocks.join('\n\n'),
+        metadata: { status: 'success' },
+        structuredContent: {
+            explores,
+            fields,
+        },
+    };
+};
+
 /**
  * Rich detail for explores/fields the agent already selected (typically from
  * grepFields). Reads only the cached explores passed in — no DB or warehouse —
@@ -138,45 +346,15 @@ const renderField = (
  * tables, required filters, filter types, case-sensitivity, hints) for exactly
  * the entities the agent asked about, in one batched call.
  */
-export const getGetMetadata = ({ availableExplores }: Dependencies) => {
-    const byName = new Map(availableExplores.map((e) => [e.name, e]));
-
-    return tool({
+export const getGetMetadata = (dependencies: Dependencies) =>
+    tool({
         ...toolDefinition,
-        execute: async ({ requests }) => {
+        execute: async (args) => {
             try {
-                const blocks: string[] = [];
-                for (const request of requests) {
-                    if (request.type === 'explore') {
-                        for (const exploreId of request.exploreIds) {
-                            const explore = byName.get(exploreId);
-                            blocks.push(
-                                explore
-                                    ? renderExplore(explore)
-                                    : `Explore "${exploreId}" not found or not available to this agent.`,
-                            );
-                        }
-                    } else {
-                        for (const { exploreId, fieldId } of request.fields) {
-                            const explore = byName.get(exploreId);
-                            if (!explore) {
-                                blocks.push(
-                                    `Explore "${exploreId}" not found, so field "${fieldId}" could not be resolved.`,
-                                );
-                            } else {
-                                const found = findField(explore, fieldId);
-                                blocks.push(
-                                    found
-                                        ? renderField(exploreId, fieldId, found)
-                                        : `Field "${fieldId}" not found in explore "${exploreId}".`,
-                                );
-                            }
-                        }
-                    }
-                }
+                const result = executeGetMetadata(args, dependencies);
                 return {
-                    result: blocks.join('\n\n'),
-                    metadata: { status: 'success' as const },
+                    result: result.result,
+                    metadata: result.metadata,
                 };
             } catch (error) {
                 return {
@@ -186,4 +364,3 @@ export const getGetMetadata = ({ availableExplores }: Dependencies) => {
             }
         },
     });
-};

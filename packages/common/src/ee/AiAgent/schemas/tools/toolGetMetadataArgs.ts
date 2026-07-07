@@ -57,6 +57,65 @@ export const getMetadataInputSchema = z.object({
 
 export type ToolGetMetadataArgs = z.infer<typeof getMetadataInputSchema>;
 
+const getMetadataExploreFoundSchema = z.object({
+    exploreId: z.string(),
+    status: z.literal('found'),
+    label: z.string(),
+    description: z.string().nullable(),
+    hint: z.string().nullable(),
+    baseTable: z.string(),
+    joinedTables: z.array(z.string()),
+    requiredFilters: z.string().nullable(),
+    baseDimensions: z.object({
+        count: z.number(),
+        fieldIds: z.array(z.string()),
+    }),
+    baseMetrics: z.object({
+        count: z.number(),
+        fieldIds: z.array(z.string()),
+    }),
+});
+
+const getMetadataExploreNotFoundSchema = z.object({
+    exploreId: z.string(),
+    status: z.literal('not_found'),
+    error: z.string(),
+});
+
+const getMetadataFieldFoundSchema = z.object({
+    exploreId: z.string(),
+    fieldId: z.string(),
+    status: z.literal('found'),
+    kind: z.enum(['dimension', 'metric']),
+    fieldType: z.string(),
+    label: z.string(),
+    filterType: z.string(),
+    isFromJoinedTable: z.boolean(),
+    joinedTableName: z.string().nullable(),
+    caseSensitiveFilters: z.boolean().nullable(),
+    description: z.string().nullable(),
+    hint: z.string().nullable(),
+});
+
+const getMetadataFieldNotFoundSchema = z.object({
+    exploreId: z.string(),
+    fieldId: z.string(),
+    status: z.literal('not_found'),
+    error: z.string(),
+});
+
+export const getMetadataResultSchema = z.object({
+    explores: z.array(
+        z.union([
+            getMetadataExploreFoundSchema,
+            getMetadataExploreNotFoundSchema,
+        ]),
+    ),
+    fields: z.array(
+        z.union([getMetadataFieldFoundSchema, getMetadataFieldNotFoundSchema]),
+    ),
+});
+
 export const toolGetMetadataOutputSchema = z.object({
     result: z.string(),
     metadata: baseOutputMetadataSchema,

@@ -234,6 +234,14 @@ mcpRouter.all(
                         userAgent,
                     });
                 }
+                // Dark launch: the grep-based discovery tools are only
+                // registered (and thus only listed/invocable) when the
+                // AiGrepFields flag is enabled for this caller. Resolved here
+                // because tool registration in setupHandlers is synchronous
+                // (createServer only awaits to register skill resources
+                // afterwards).
+                const grepFieldsEnabled =
+                    await mcpService.isAiGrepFieldsEnabled(req.user!);
                 // Content-write tools are only registered when the org-level
                 // setting allows it, so admins can lock down MCP edits.
                 const mcpContentWritesEnabled =
@@ -243,6 +251,7 @@ mcpRouter.all(
                     // The run_ai_writeback tool is always registered now that
                     // AI writeback has graduated from its dark-launch flag.
                     aiWritebackEnabled: true,
+                    grepFieldsEnabled,
                     mcpContentWritesEnabled,
                 });
                 const transport = new StreamableHTTPServerTransport({
