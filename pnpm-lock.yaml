@@ -278,7 +278,7 @@ importers:
         version: 2.8.0(@opentelemetry/api@1.9.0)
       '@rudderstack/rudder-sdk-node':
         specifier: 2.1.1
-        version: 2.1.1(tslib@2.8.1)
+        version: 2.1.1(tslib@2.6.2)
       '@sentry/core':
         specifier: 9.31.0
         version: 9.31.0
@@ -522,6 +522,9 @@ importers:
       pg-connection-string:
         specifier: 2.7.0
         version: 2.7.0
+      pgsql-ast-parser:
+        specifier: 12.0.2
+        version: 12.0.2
       playwright:
         specifier: 1.56.1
         version: 1.56.1
@@ -563,7 +566,7 @@ importers:
         version: 11.1.1
       vitest:
         specifier: 4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.0)(@types/node@22.13.1)(jsdom@24.0.0(canvas@3.2.1))(vite@7.3.5(@types/node@22.13.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3))
+        version: 4.1.6(@opentelemetry/api@1.9.0)(@types/node@24.3.1)(jsdom@24.0.0(canvas@3.2.1))(vite@7.3.5(@types/node@24.3.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3))
       winston:
         specifier: 3.13.0
         version: 3.13.0
@@ -678,7 +681,7 @@ importers:
         version: 3.1.9
       ts-node:
         specifier: 10.9.2
-        version: 10.9.2(@swc/core@1.13.5)(@types/node@22.13.1)(@typescript/typescript6@6.0.1)
+        version: 10.9.2(@swc/core@1.13.5)(@types/node@24.3.1)(@typescript/typescript6@6.0.1)
       typescript:
         specifier: npm:@typescript/typescript6@6.0.1
         version: '@typescript/typescript6@6.0.1'
@@ -763,7 +766,7 @@ importers:
         version: 9.15.1(encoding@0.1.13)
       inquirer:
         specifier: 8.2.7
-        version: 8.2.7(@types/node@22.13.1)
+        version: 8.2.7(@types/node@24.3.1)
       js-yaml:
         specifier: 4.2.0
         version: 4.2.0
@@ -830,7 +833,7 @@ importers:
         version: 2.4.1
       ts-node:
         specifier: 10.9.2
-        version: 10.9.2(@swc/core@1.13.5)(@types/node@22.13.1)(@typescript/typescript6@6.0.1)
+        version: 10.9.2(@swc/core@1.13.5)(@types/node@24.3.1)(@typescript/typescript6@6.0.1)
       typescript:
         specifier: npm:@typescript/typescript6@6.0.1
         version: '@typescript/typescript6@6.0.1'
@@ -839,7 +842,7 @@ importers:
         version: typescript@7.0.1-rc
       vitest:
         specifier: 4.1.6
-        version: 4.1.6(@opentelemetry/api@1.9.0)(@types/node@22.13.1)(jsdom@26.1.0(canvas@3.2.1))(vite@7.3.5(@types/node@22.13.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3))
+        version: 4.1.6(@opentelemetry/api@1.9.0)(@types/node@24.3.1)(jsdom@26.1.0(canvas@3.2.1))(vite@7.3.5(@types/node@24.3.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3))
 
   packages/common:
     dependencies:
@@ -14053,6 +14056,9 @@ packages:
   pgpass@1.0.5:
     resolution: {integrity: sha512-FdW9r/jQZhSeohs1Z3sI1yxFQNFvMcnmfuj4WBMUTxOrAyLMaTcE1aAMBiTlbMNaXvBCQuVi0R7hd8udDSP7ug==}
 
+  pgsql-ast-parser@12.0.2:
+    resolution: {integrity: sha512-1WWa96Sw6h4uv9GLw98EzH/+xoBTC8j2TwV/AMW3E+Ir/fHOu/jLLbj6kPiz3y2bGISTKNYvKWwHoqvQ5FLuAw==}
+
   picocolors@1.1.1:
     resolution: {integrity: sha512-xceH2snhtb5M9liqDsmEw56le376mTZkEX/jEb/RxNFyegNul7eNslCXP9FDj/Lcu0X8KEyMceP2ntpaHrDEVA==}
 
@@ -16329,6 +16335,9 @@ packages:
 
   tslib@2.3.0:
     resolution: {integrity: sha512-N82ooyxVNm6h1riLCoyS9e3fuJ3AMG2zIZs2Gd1ATcSFjSA23Q0fzjjZeh0jbJvWVDZ0cJT8yaNNaaXHzueNjg==}
+
+  tslib@2.6.2:
+    resolution: {integrity: sha512-AEYxH93jGFPn/a2iVAwW87VuUIkR1FVUKB77NwMF7nBTDkDrrT/Hpt/IrCJ0QXhW27jTBDcf5ZY7w6RiqTMw2Q==}
 
   tslib@2.8.1:
     resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
@@ -20751,12 +20760,12 @@ snapshots:
   '@img/sharp-win32-x64@0.35.2':
     optional: true
 
-  '@inquirer/external-editor@1.0.3(@types/node@22.13.1)':
+  '@inquirer/external-editor@1.0.3(@types/node@24.3.1)':
     dependencies:
       chardet: 2.1.1
       iconv-lite: 0.7.0
     optionalDependencies:
-      '@types/node': 22.13.1
+      '@types/node': 24.3.1
 
   '@ioredis/commands@1.2.0':
     optional: true
@@ -22857,7 +22866,7 @@ snapshots:
   '@rollup/rollup-win32-x64-msvc@4.60.2':
     optional: true
 
-  '@rudderstack/rudder-sdk-node@2.1.1(tslib@2.8.1)':
+  '@rudderstack/rudder-sdk-node@2.1.1(tslib@2.6.2)':
     dependencies:
       axios: 1.16.0
       axios-retry: 4.5.0(axios@1.16.0)
@@ -22869,7 +22878,7 @@ snapshots:
       ms: 2.1.3
       remove-trailing-slash: 0.1.1
       serialize-javascript: 6.0.2
-      tslib: 2.8.1
+      tslib: 2.6.2
       uuid: 11.0.2
     optionalDependencies:
       bull: 4.16.4
@@ -24828,7 +24837,6 @@ snapshots:
   '@types/node@24.3.1':
     dependencies:
       undici-types: 7.10.0
-    optional: true
 
   '@types/nodemailer@7.0.9':
     dependencies:
@@ -25494,14 +25502,6 @@ snapshots:
       '@vitest/utils': 4.1.6
       chai: 6.2.2
       tinyrainbow: 3.1.0
-
-  '@vitest/mocker@4.1.6(vite@7.3.5(@types/node@22.13.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3))':
-    dependencies:
-      '@vitest/spy': 4.1.6
-      estree-walker: 3.0.3
-      magic-string: 0.30.21
-    optionalDependencies:
-      vite: 7.3.5(@types/node@22.13.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3)
 
   '@vitest/mocker@4.1.6(vite@7.3.5(@types/node@24.3.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3))':
     dependencies:
@@ -29865,9 +29865,9 @@ snapshots:
     dependencies:
       css-in-js-utils: 3.1.0
 
-  inquirer@8.2.7(@types/node@22.13.1):
+  inquirer@8.2.7(@types/node@24.3.1):
     dependencies:
-      '@inquirer/external-editor': 1.0.3(@types/node@22.13.1)
+      '@inquirer/external-editor': 1.0.3(@types/node@24.3.1)
       ansi-escapes: 4.3.2
       chalk: 4.1.2
       cli-cursor: 3.1.0
@@ -32873,6 +32873,11 @@ snapshots:
     dependencies:
       split2: 4.1.0
 
+  pgsql-ast-parser@12.0.2:
+    dependencies:
+      moo: 0.5.2
+      nearley: 2.20.1
+
   picocolors@1.1.1: {}
 
   picomatch@2.3.1: {}
@@ -35645,26 +35650,6 @@ snapshots:
 
   ts-interface-checker@0.1.13: {}
 
-  ts-node@10.9.2(@swc/core@1.13.5)(@types/node@22.13.1)(@typescript/typescript6@6.0.1):
-    dependencies:
-      '@cspotcode/source-map-support': 0.8.1
-      '@tsconfig/node10': 1.0.9
-      '@tsconfig/node12': 1.0.11
-      '@tsconfig/node14': 1.0.3
-      '@tsconfig/node16': 1.0.3
-      '@types/node': 22.13.1
-      acorn: 8.16.0
-      acorn-walk: 8.2.0
-      arg: 4.1.3
-      create-require: 1.1.1
-      diff: 4.0.2
-      make-error: 1.3.6
-      typescript: '@typescript/typescript6@6.0.1'
-      v8-compile-cache-lib: 3.0.1
-      yn: 3.1.1
-    optionalDependencies:
-      '@swc/core': 1.13.5
-
   ts-node@10.9.2(@swc/core@1.13.5)(@types/node@24.3.1)(@typescript/typescript6@6.0.1):
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
@@ -35684,7 +35669,6 @@ snapshots:
       yn: 3.1.1
     optionalDependencies:
       '@swc/core': 1.13.5
-    optional: true
 
   ts-unused-exports@9.0.4(@typescript/typescript6@6.0.1):
     dependencies:
@@ -35708,6 +35692,8 @@ snapshots:
   tslib@1.14.1: {}
 
   tslib@2.3.0: {}
+
+  tslib@2.6.2: {}
 
   tslib@2.8.1: {}
 
@@ -35890,8 +35876,7 @@ snapshots:
 
   undici-types@6.20.0: {}
 
-  undici-types@7.10.0:
-    optional: true
+  undici-types@7.10.0: {}
 
   undici@6.27.0: {}
 
@@ -36511,24 +36496,6 @@ snapshots:
       - supports-color
       - typescript
 
-  vite@7.3.5(@types/node@22.13.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3):
-    dependencies:
-      esbuild: 0.27.7
-      fdir: 6.5.0(picomatch@4.0.4)
-      picomatch: 4.0.4
-      postcss: 8.5.10
-      rollup: 4.60.2
-      tinyglobby: 0.2.15
-    optionalDependencies:
-      '@types/node': 22.13.1
-      fsevents: 2.3.3
-      jiti: 2.6.1
-      lightningcss: 1.32.0
-      sugarss: 5.0.1(postcss@8.5.10)
-      terser: 5.46.1
-      tsx: 4.19.4
-      yaml: 2.8.3
-
   vite@7.3.5(@types/node@24.3.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3):
     dependencies:
       esbuild: 0.27.7
@@ -36567,10 +36534,10 @@ snapshots:
       - '@emnapi/core'
       - '@emnapi/runtime'
 
-  vitest@4.1.6(@opentelemetry/api@1.9.0)(@types/node@22.13.1)(jsdom@24.0.0(canvas@3.2.1))(vite@7.3.5(@types/node@22.13.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3)):
+  vitest@4.1.6(@opentelemetry/api@1.9.0)(@types/node@24.3.1)(jsdom@24.0.0(canvas@3.2.1))(vite@7.3.5(@types/node@24.3.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3)):
     dependencies:
       '@vitest/expect': 4.1.6
-      '@vitest/mocker': 4.1.6(vite@7.3.5(@types/node@22.13.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3))
+      '@vitest/mocker': 4.1.6(vite@7.3.5(@types/node@24.3.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3))
       '@vitest/pretty-format': 4.1.6
       '@vitest/runner': 4.1.6
       '@vitest/snapshot': 4.1.6
@@ -36587,41 +36554,12 @@ snapshots:
       tinyexec: 1.0.4
       tinyglobby: 0.2.15
       tinyrainbow: 3.1.0
-      vite: 7.3.5(@types/node@22.13.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3)
+      vite: 7.3.5(@types/node@24.3.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3)
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@opentelemetry/api': 1.9.0
-      '@types/node': 22.13.1
+      '@types/node': 24.3.1
       jsdom: 24.0.0(canvas@3.2.1)
-    transitivePeerDependencies:
-      - msw
-
-  vitest@4.1.6(@opentelemetry/api@1.9.0)(@types/node@22.13.1)(jsdom@26.1.0(canvas@3.2.1))(vite@7.3.5(@types/node@22.13.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3)):
-    dependencies:
-      '@vitest/expect': 4.1.6
-      '@vitest/mocker': 4.1.6(vite@7.3.5(@types/node@22.13.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3))
-      '@vitest/pretty-format': 4.1.6
-      '@vitest/runner': 4.1.6
-      '@vitest/snapshot': 4.1.6
-      '@vitest/spy': 4.1.6
-      '@vitest/utils': 4.1.6
-      es-module-lexer: 2.0.0
-      expect-type: 1.3.0
-      magic-string: 0.30.21
-      obug: 2.1.1
-      pathe: 2.0.3
-      picomatch: 4.0.4
-      std-env: 4.0.0
-      tinybench: 2.9.0
-      tinyexec: 1.0.4
-      tinyglobby: 0.2.15
-      tinyrainbow: 3.1.0
-      vite: 7.3.5(@types/node@22.13.1)(jiti@2.6.1)(lightningcss@1.32.0)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3)
-      why-is-node-running: 2.3.0
-    optionalDependencies:
-      '@opentelemetry/api': 1.9.0
-      '@types/node': 22.13.1
-      jsdom: 26.1.0(canvas@3.2.1)
     transitivePeerDependencies:
       - msw
 
