@@ -940,6 +940,10 @@ export const parsePreAggregateResultsS3Config = ():
     };
 };
 
+/**
+ * Prefer a dedicated USAGE_EVENTS_S3_BUCKET: the base bucket's object-expiry
+ * lifecycle rules would delete the long-lived event history.
+ */
 export const parseUsageEventsS3Config = (): Omit<
     S3Config,
     'expirationTime'

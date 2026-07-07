@@ -126,6 +126,57 @@ test('Should use explicit pre-aggregate S3 credentials when set', () => {
     });
 });
 
+test('Should default usage events S3 config to base S3 config', () => {
+    process.env.S3_ACCESS_KEY = 'base_access_key';
+    process.env.S3_SECRET_KEY = 'base_secret_key';
+
+    const config = parseConfig();
+    expect(config.usageEvents.s3).toEqual({
+        endpoint: 'mock_endpoint',
+        bucket: 'mock_bucket',
+        region: 'mock_region',
+        accessKey: 'base_access_key',
+        secretKey: 'base_secret_key',
+        forcePathStyle: false,
+    });
+});
+
+test('Should use dedicated usage events bucket with base S3 credential fallback', () => {
+    process.env.S3_ACCESS_KEY = 'base_access_key';
+    process.env.S3_SECRET_KEY = 'base_secret_key';
+    process.env.USAGE_EVENTS_S3_BUCKET = 'usage_events_bucket';
+    process.env.USAGE_EVENTS_S3_REGION = 'usage_events_region';
+
+    const config = parseConfig();
+    expect(config.usageEvents.s3).toEqual({
+        endpoint: 'mock_endpoint',
+        bucket: 'usage_events_bucket',
+        region: 'usage_events_region',
+        accessKey: 'base_access_key',
+        secretKey: 'base_secret_key',
+        forcePathStyle: false,
+    });
+});
+
+test('Should use explicit usage events S3 credentials when set', () => {
+    process.env.S3_ACCESS_KEY = 'base_access_key';
+    process.env.S3_SECRET_KEY = 'base_secret_key';
+    process.env.USAGE_EVENTS_S3_BUCKET = 'usage_events_bucket';
+    process.env.USAGE_EVENTS_S3_REGION = 'usage_events_region';
+    process.env.USAGE_EVENTS_S3_ACCESS_KEY = 'usage_events_access_key';
+    process.env.USAGE_EVENTS_S3_SECRET_KEY = 'usage_events_secret_key';
+
+    const config = parseConfig();
+    expect(config.usageEvents.s3).toEqual({
+        endpoint: 'mock_endpoint',
+        bucket: 'usage_events_bucket',
+        region: 'usage_events_region',
+        accessKey: 'usage_events_access_key',
+        secretKey: 'usage_events_secret_key',
+        forcePathStyle: false,
+    });
+});
+
 test('Should default apps S3 config to base S3 config', () => {
     process.env.S3_ACCESS_KEY = 'mock_access_key';
     process.env.S3_SECRET_KEY = 'mock_secret_key';
