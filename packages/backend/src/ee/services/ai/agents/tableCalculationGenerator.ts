@@ -12,6 +12,10 @@ import {
 } from '@lightdash/common';
 import { generateObject } from 'ai';
 import { z } from 'zod';
+import {
+    emitAiUsage,
+    languageModelUsageToTokens,
+} from '../../../../analytics/aiUsage';
 import { GeneratorModelOptions } from '../models/types';
 import { getGeneratorTelemetry } from '../utils/aiCallTelemetry';
 
@@ -261,15 +265,16 @@ export async function generateTableCalculation(
 ): Promise<GeneratedTableCalculation> {
     const fieldReferenceGuide = buildFieldReferenceGuide(context.fieldsContext);
 
+    const telemetry = getGeneratorTelemetry(
+        modelOptions,
+        'generateTableCalculation',
+        'table-calc',
+    );
     const result = await generateObject({
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
-        experimental_telemetry: getGeneratorTelemetry(
-            modelOptions,
-            'generateTableCalculation',
-            'table-calc',
-        ),
+        experimental_telemetry: telemetry,
         schema: TableCalculationSchema,
         messages: [
             {
@@ -411,6 +416,8 @@ export async function generateTableCalculation(
             },
         ],
     });
+
+    emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
 
     return result.object;
 }

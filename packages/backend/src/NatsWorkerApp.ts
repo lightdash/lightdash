@@ -3,6 +3,7 @@ import * as Sentry from '@sentry/node';
 import express from 'express';
 import http from 'http';
 import knex, { Knex } from 'knex';
+import { registerAiUsageTracker } from './analytics/aiUsage';
 import { BufferedEventStreamWriter } from './analytics/eventStream/BufferedEventStreamWriter';
 import { createEventStreamWriter } from './analytics/eventStream/createEventStreamWriter';
 import { EventStreamSink } from './analytics/eventStream/EventStreamSink';
@@ -131,6 +132,7 @@ export default class NatsWorkerApp {
                   )
                 : undefined,
         });
+        registerAiUsageTracker((event) => this.analytics.track(event));
 
         this.database = knex(
             this.environment === 'production'

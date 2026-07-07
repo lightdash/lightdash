@@ -15,6 +15,10 @@ import {
     type Output,
     type ToolSet,
 } from 'ai';
+import {
+    emitAiUsage,
+    languageModelUsageToTokens,
+} from '../../../../analytics/aiUsage';
 import Logger from '../../../../logging/logger';
 import { getSystemPromptV2 } from '../prompts/systemV2';
 import { getAnalyzeFieldImpact } from '../tools/analyzeFieldImpact';
@@ -834,6 +838,10 @@ export const generateAgentResponse = async ({
             tools,
             logger,
         });
+        const telemetry = getAgentTelemetryConfig(
+            'generateAgentResponse',
+            args,
+        );
         const result = await generateText({
             ...defaultAgentOptions,
             ...args.callOptions,
@@ -961,11 +969,10 @@ export const generateAgentResponse = async ({
                     promptUuid: args.promptUuid,
                 });
             },
-            experimental_telemetry: getAgentTelemetryConfig(
-                'generateAgentResponse',
-                args,
-            ),
+            experimental_telemetry: telemetry,
         });
+
+        emitAiUsage(telemetry, languageModelUsageToTokens(result.totalUsage));
 
         logger(
             'Generate Agent Response',
@@ -1094,6 +1101,7 @@ export const streamAgentResponse = async ({
             }
             return interrupted;
         };
+        const telemetry = getAgentTelemetryConfig('streamAgentResponse', args);
         const result = streamText({
             ...defaultAgentOptions,
             ...args.callOptions,
@@ -1303,7 +1311,14 @@ export const streamAgentResponse = async ({
                         });
                 }
             },
-            onFinish: async ({ usage, steps, reasoning, finishReason }) => {
+            onFinish: async ({
+                usage,
+                totalUsage,
+                steps,
+                reasoning,
+                finishReason,
+            }) => {
+                emitAiUsage(telemetry, languageModelUsageToTokens(totalUsage));
                 logger(
                     'On Finish',
                     `Stream finished. Updating prompt with response. finishReason: ${finishReason}, steps: ${steps.length}`,
@@ -1402,10 +1417,7 @@ export const streamAgentResponse = async ({
 
                 void cleanupMcpClients();
             },
-            experimental_telemetry: getAgentTelemetryConfig(
-                'streamAgentResponse',
-                args,
-            ),
+            experimental_telemetry: telemetry,
         });
 
         logger('Stream Agent Response', 'Returning stream result.');

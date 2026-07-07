@@ -1,5 +1,9 @@
 import { ParameterError } from '@lightdash/common';
 import { embed, EmbeddingModel } from 'ai';
+import {
+    embeddingModelUsageToTokens,
+    emitAiUsage,
+} from '../../../../analytics/aiUsage';
 import { LightdashConfig } from '../../../../config/parseConfig';
 import { getAzureProvider } from '../models/azure-openai-gpt-4.1';
 import { getBedrockEmbeddingModel } from '../models/bedrock';
@@ -74,16 +78,23 @@ export async function generateEmbedding(
     }
     const { model, provider, modelName } = embeddingModelConfig;
 
-    let { embedding } = await embed({
+    const telemetry = getAiCallTelemetry({
+        functionId: 'generateEmbedding',
+        feature: 'embedding',
+        model: modelName,
+        provider,
+        extra: metadata,
+    });
+    const result = await embed({
         model,
         value: trimmedText,
-        experimental_telemetry: getAiCallTelemetry({
-            functionId: 'generateEmbedding',
-            feature: 'embedding',
-            extra: metadata,
-        }),
+        experimental_telemetry: telemetry,
         // TODO :: provider options to set dimensions
     });
+
+    emitAiUsage(telemetry, embeddingModelUsageToTokens(result.usage));
+
+    let { embedding } = result;
 
     if (embedding.length !== EMBEDDING_DIMENSIONS) {
         console.warn(

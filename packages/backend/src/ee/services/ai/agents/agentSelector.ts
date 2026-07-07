@@ -1,7 +1,14 @@
 import { AiAgentWithContext } from '@lightdash/common';
 import { generateObject, LanguageModel } from 'ai';
 import { z } from 'zod';
-import { getAiCallTelemetry } from '../utils/aiCallTelemetry';
+import {
+    emitAiUsage,
+    languageModelUsageToTokens,
+} from '../../../../analytics/aiUsage';
+import {
+    getAiCallTelemetry,
+    getLanguageModelAttribution,
+} from '../utils/aiCallTelemetry';
 
 const AgentSelectionSchema = z.object({
     agentUuid: z
@@ -146,12 +153,14 @@ export async function selectAgent({
         buildAdminInstructionsSection(instructions),
     );
 
+    const telemetry = getAiCallTelemetry({
+        functionId: 'selectAgent',
+        feature: 'agent-selector',
+        ...getLanguageModelAttribution(model),
+    });
     const result = await generateObject({
         model,
-        experimental_telemetry: getAiCallTelemetry({
-            functionId: 'selectAgent',
-            feature: 'agent-selector',
-        }),
+        experimental_telemetry: telemetry,
         schema: AgentSelectionSchema,
         messages: [
             { role: 'system', content: systemPrompt },
@@ -161,6 +170,7 @@ export async function selectAgent({
             },
         ],
     });
+    emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
 
     const selection = result.object;
     const exists = candidates.some((c) => c.uuid === selection.agentUuid);
