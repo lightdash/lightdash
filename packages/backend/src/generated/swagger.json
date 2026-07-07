@@ -8846,7 +8846,7 @@
                 "type": "string"
             },
             "ExploreType": {
-                "enum": ["virtual", "default", "pre_aggregate"],
+                "enum": ["virtual", "default", "pre_aggregate", "system"],
                 "type": "string"
             },
             "Partial_Record_TimeFrames.string__": {

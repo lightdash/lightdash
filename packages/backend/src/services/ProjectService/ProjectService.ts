@@ -227,6 +227,7 @@ import {
     MetricQueryExecutionProperties,
     ProjectEvent,
 } from '../../analytics/LightdashAnalytics';
+import { getSystemExploresForProject } from '../../analytics/systemExplores/buildSystemExplores';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
@@ -1990,13 +1991,21 @@ export class ProjectService extends BaseService {
         const {
             userUuid,
             projectUuid,
-            explores,
             compilationSource,
             jobUuid,
             requestMethod,
             projectConfigDefaults,
             cliVersion,
         } = args;
+        const project = await this.projectModel.get(projectUuid);
+        // Inject code-generated usage-analytics explores so they are cached
+        // and regenerated on every compile (no-op unless enabled for the
+        // instance and the project)
+        const systemExplores = getSystemExploresForProject(
+            this.lightdashConfig,
+            project,
+        );
+        const explores = [...args.explores, ...systemExplores];
         // We delete the explores when saving to cache which cascades to the catalog
         // So we need to get the current tagged catalog items before deleting the explores (to do a best effort re-tag) and icons
         const prevCatalogItemsWithTags =
@@ -2082,7 +2091,6 @@ export class ProjectService extends BaseService {
         }
 
         const compilationReport = calculateCompilationReport({ explores });
-        const project = await this.projectModel.get(projectUuid);
 
         Logger.info('compile.case_sensitive_resolution', {
             projectUuid,
