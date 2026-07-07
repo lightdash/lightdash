@@ -73,6 +73,7 @@ import { AiGeneralSettingsPage } from '../ee/features/aiCopilot/components/Admin
 import { AiReviewsSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiReviewsSettingsPage';
 import { AiSettingsProviders } from '../ee/features/aiCopilot/components/Admin/settings/AiSettingsProviders';
 import { AiThreadsSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiThreadsSettingsPage';
+import { McpActivitySettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/McpActivitySettingsPage';
 import ScimAccessTokensPanel from '../ee/features/scim/components/ScimAccessTokensPanel';
 import { ServiceAccountsPage } from '../ee/features/serviceAccounts';
 import { CustomRoleCreate } from '../ee/pages/customRoles/CustomRoleCreate';
@@ -605,6 +606,14 @@ const Settings: FC = () => {
                     </AiSettingsProviders>
                 ),
             });
+            allowedRoutes.push({
+                path: '/ai/mcp',
+                element: (
+                    <AiSettingsProviders>
+                        <McpActivitySettingsPage />
+                    </AiSettingsProviders>
+                ),
+            });
             if (shouldShowAiAgentReviews) {
                 allowedRoutes.push({
                     path: '/ai/issues',
@@ -768,6 +777,10 @@ const Settings: FC = () => {
             ) &&
             !matchPath(
                 { path: '/generalSettings/ai/agents' },
+                location.pathname,
+            ) &&
+            !matchPath(
+                { path: '/generalSettings/ai/mcp' },
                 location.pathname,
             ) &&
             !matchPath(
