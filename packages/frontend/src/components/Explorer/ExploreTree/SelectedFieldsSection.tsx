@@ -7,8 +7,8 @@ import {
     isMetric,
     type FilterableField,
 } from '@lightdash/common';
-import { ActionIcon, Tooltip } from '@mantine/core';
 import { UnstyledButton } from '@mantine-8/core';
+import { ActionIcon, Tooltip } from '@mantine/core';
 import { IconFilter } from '@tabler/icons-react';
 import {
     memo,
@@ -139,9 +139,7 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
         <UnstyledButton
             component="div"
             className={
-                isExiting
-                    ? `${classes.row} ${classes.rowExiting}`
-                    : classes.row
+                isExiting ? `${classes.row} ${classes.rowExiting}` : classes.row
             }
             data-field-kind={getFieldKind(item)}
             onClick={handleClick}
@@ -194,18 +192,25 @@ type Props = {
     onDeselect: (fieldId: string, isDimension: boolean) => void;
 };
 
+type ExitingField = { field: SelectedField; index: number };
+
 /**
  * Pinned "Selected" section shown above the field tree. Deselected rows are
- * kept mounted briefly so they can animate out instead of snapping away.
+ * kept mounted briefly (in exitingFields) so they can animate out instead of
+ * snapping away; the rendered list is derived from props + exitingFields.
  */
 const SelectedFieldsSectionComponent: FC<Props> = ({ fields, onDeselect }) => {
-    const [rows, setRows] = useState<RenderedRow[]>(() =>
-        fields.map((field) => ({ ...field, isExiting: false })),
-    );
+    const [exitingFields, setExitingFields] = useState<
+        Map<string, ExitingField>
+    >(new Map());
+    const prevFieldsRef = useRef<SelectedField[]>(fields);
     const exitTimeouts = useRef(new Map<string, number>());
 
+    // Single external-system sync: manage exit timers when the selection changes
     useEffect(() => {
         const currentIds = new Set(fields.map((field) => field.fieldId));
+        const prevFields = prevFieldsRef.current;
+        prevFieldsRef.current = fields;
 
         // Cancel pending removals for fields that were re-selected mid-exit
         exitTimeouts.current.forEach((timeout, fieldId) => {
@@ -215,38 +220,44 @@ const SelectedFieldsSectionComponent: FC<Props> = ({ fields, onDeselect }) => {
             }
         });
 
-        setRows((prev) => {
-            const next: RenderedRow[] = fields.map((field) => ({
-                ...field,
-                isExiting: false,
-            }));
-            prev.forEach((row, index) => {
-                if (!currentIds.has(row.fieldId)) {
-                    next.splice(Math.min(index, next.length), 0, {
-                        ...row,
-                        isExiting: true,
-                    });
+        const removed = prevFields.filter(
+            (field) =>
+                !currentIds.has(field.fieldId) &&
+                !exitTimeouts.current.has(field.fieldId),
+        );
+
+        setExitingFields((prev) => {
+            let changed = false;
+            const next = new Map(prev);
+            prev.forEach((_, fieldId) => {
+                if (currentIds.has(fieldId)) {
+                    next.delete(fieldId);
+                    changed = true;
                 }
             });
-            return next;
+            removed.forEach((field) => {
+                next.set(field.fieldId, {
+                    field,
+                    index: prevFields.indexOf(field),
+                });
+                changed = true;
+            });
+            return changed ? next : prev;
+        });
+
+        removed.forEach((field) => {
+            const timeout = window.setTimeout(() => {
+                exitTimeouts.current.delete(field.fieldId);
+                setExitingFields((prev) => {
+                    if (!prev.has(field.fieldId)) return prev;
+                    const next = new Map(prev);
+                    next.delete(field.fieldId);
+                    return next;
+                });
+            }, EXIT_ANIMATION_MS);
+            exitTimeouts.current.set(field.fieldId, timeout);
         });
     }, [fields]);
-
-    useEffect(() => {
-        rows.forEach((row) => {
-            if (row.isExiting && !exitTimeouts.current.has(row.fieldId)) {
-                const timeout = window.setTimeout(() => {
-                    exitTimeouts.current.delete(row.fieldId);
-                    setRows((current) =>
-                        current.filter(
-                            (r) => !(r.fieldId === row.fieldId && r.isExiting),
-                        ),
-                    );
-                }, EXIT_ANIMATION_MS);
-                exitTimeouts.current.set(row.fieldId, timeout);
-            }
-        });
-    }, [rows]);
 
     useEffect(() => {
         const timeouts = exitTimeouts.current;
@@ -254,6 +265,25 @@ const SelectedFieldsSectionComponent: FC<Props> = ({ fields, onDeselect }) => {
             timeouts.forEach((timeout) => window.clearTimeout(timeout));
         };
     }, []);
+
+    const rows: RenderedRow[] = useMemo(() => {
+        const currentIds = new Set(fields.map((field) => field.fieldId));
+        const result: RenderedRow[] = fields.map((field) => ({
+            ...field,
+            isExiting: false,
+        }));
+        // Splice exiting rows back in at their previous position
+        [...exitingFields.values()]
+            .filter(({ field }) => !currentIds.has(field.fieldId))
+            .sort((a, b) => a.index - b.index)
+            .forEach(({ field, index }) => {
+                result.splice(Math.min(index, result.length), 0, {
+                    ...field,
+                    isExiting: true,
+                });
+            });
+        return result;
+    }, [fields, exitingFields]);
 
     if (rows.length === 0) return null;
 
