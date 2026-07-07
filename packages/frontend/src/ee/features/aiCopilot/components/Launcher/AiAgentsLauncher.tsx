@@ -121,16 +121,18 @@ const AiAgentsLauncherInner: FC = () => {
     const transitionSavedChartPreview =
         activeSavedChartPreview ?? lastSavedChartPreviewRef.current;
 
-    // The launcher has no persistent affordance: it appears only when the
-    // user opens a panel (via AskAiAgentMenuItem) or has active dock items.
     if (!isAllowed || !activeProjectUuid) return null;
-    if (!isPanelOpenSafe && dock.length === 0) return null;
+    if (!isPanelOpenSafe && dock.length === 0 && !selectedAgent) return null;
 
     const panelAgent = getLauncherPanelAgent(safeActiveAgentUuid, agents);
 
     return (
         <div className={styles.root}>
-            <LauncherDock projectUuid={activeProjectUuid} agents={agents} />
+            <LauncherDock
+                projectUuid={activeProjectUuid}
+                agents={agents}
+                selectedAgent={selectedAgent}
+            />
             {transitionSavedChartPreview && (
                 <Transition
                     mounted={
