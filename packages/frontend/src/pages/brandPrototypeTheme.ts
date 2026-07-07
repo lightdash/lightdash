@@ -232,7 +232,10 @@ export const deriveBrandTheme = (brandHexes: string[]): DerivedBrandTheme => {
     const neutralHue = isGreyscaleBrand ? 250 : primary.H;
     const neutralChroma = isGreyscaleBrand ? 0.004 : Math.min(primary.C, 0.012);
     const neutral = Object.fromEntries(
-        STOPS.map(([key, L]) => [key, oklchToHex(L, neutralChroma, neutralHue)]),
+        STOPS.map(([key, L]) => [
+            key,
+            oklchToHex(L, neutralChroma, neutralHue),
+        ]),
     );
 
     // Primary ramp: brand hue and chroma, bell-clamped so mids stay saturated
@@ -255,7 +258,9 @@ export const deriveBrandTheme = (brandHexes: string[]): DerivedBrandTheme => {
         let bestHue = 0;
         let bestGap = -1;
         for (let h = 0; h < 360; h += 3) {
-            const gap = Math.min(...hues.map((existing) => hueGap(existing, h)));
+            const gap = Math.min(
+                ...hues.map((existing) => hueGap(existing, h)),
+            );
             if (gap > bestGap) {
                 bestGap = gap;
                 bestHue = h;
@@ -263,25 +268,23 @@ export const deriveBrandTheme = (brandHexes: string[]): DerivedBrandTheme => {
         }
         hues.push(bestHue);
     }
-    const categoricalEntries = hues
-        .slice(0, CATEGORICAL_COUNT)
-        .map((H) => {
-            let hex = oklchToHex(CATEGORICAL_LIGHTNESS, CATEGORICAL_CHROMA, H);
-            // Enforce >=3:1 against the app surface
-            if (contrastRatio(hex, appBg) < 3) {
-                const solved = solveLightnessForContrast(
-                    CATEGORICAL_CHROMA,
-                    H,
-                    appBg,
-                    3,
-                    -1,
-                );
-                if (solved !== null) {
-                    hex = oklchToHex(solved, CATEGORICAL_CHROMA, H);
-                }
+    const categoricalEntries = hues.slice(0, CATEGORICAL_COUNT).map((H) => {
+        let hex = oklchToHex(CATEGORICAL_LIGHTNESS, CATEGORICAL_CHROMA, H);
+        // Enforce >=3:1 against the app surface
+        if (contrastRatio(hex, appBg) < 3) {
+            const solved = solveLightnessForContrast(
+                CATEGORICAL_CHROMA,
+                H,
+                appBg,
+                3,
+                -1,
+            );
+            if (solved !== null) {
+                hex = oklchToHex(solved, CATEGORICAL_CHROMA, H);
             }
-            return { H, hex };
-        });
+        }
+        return { H, hex };
+    });
     // CVD gate: rotate adjacent hues that collide under simulation
     Object.keys(CVD_MATRICES).forEach((type) => {
         for (let i = 1; i < categoricalEntries.length; i += 1) {
@@ -320,7 +323,7 @@ export const deriveBrandTheme = (brandHexes: string[]): DerivedBrandTheme => {
     const hueA = isGreyscaleBrand ? 250 : chromatic[0].H;
     const hueB = isGreyscaleBrand
         ? 25
-        : chromatic[1]?.H ?? (hueA + 180) % 360;
+        : (chromatic[1]?.H ?? (hueA + 180) % 360);
     const diverging = Array.from({ length: 9 }, (_, i) => {
         const t = i / 8;
         if (t < 0.5) {

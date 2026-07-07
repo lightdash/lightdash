@@ -351,10 +351,7 @@ const BrandPrototype: FC = () => {
                                             </Box>
                                             <Stack gap={0}>
                                                 <Text fw={600}>{orgName}</Text>
-                                                <Text
-                                                    size="sm"
-                                                    c="ldGray.6"
-                                                >
+                                                <Text size="sm" c="ldGray.6">
                                                     {brand.domain}
                                                 </Text>
                                             </Stack>
