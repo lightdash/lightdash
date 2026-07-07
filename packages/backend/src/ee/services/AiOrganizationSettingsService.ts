@@ -9,6 +9,7 @@ import {
     ParameterError,
     UpdateAiOrganizationSettings,
     UpdateAiProviderApiKeys,
+    type AiAgentModelConfig,
     type AiModelOption,
     type ByoAiProvider,
     type SessionUser,
@@ -167,6 +168,22 @@ export class AiOrganizationSettingsService extends BaseService {
         } catch (error) {
             return false;
         }
+    }
+
+    /**
+     * The org-level default model config, without the admin-gated key-hint
+     * masking that getSettings applies. Callers that only need to resolve a
+     * model (e.g. the Slack prompt flow) use this instead of getSettings so
+     * they don't require a SessionUser ability or `manage` permission.
+     */
+    async getDefaultModelConfig(
+        organizationUuid: string,
+    ): Promise<AiAgentModelConfig | null> {
+        const settings =
+            await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+                organizationUuid,
+            );
+        return settings?.defaultAiAgentModelConfig ?? null;
     }
 
     async getSettings(

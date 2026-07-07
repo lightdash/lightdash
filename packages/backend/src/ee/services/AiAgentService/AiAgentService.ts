@@ -8302,16 +8302,16 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                   agentUuid: data.agentUuid,
               })
             : undefined;
-        const aiOrganizationSettings =
+        const orgDefaultModelConfig =
             data.modelConfig || agent?.modelConfig
-                ? undefined
-                : await this.aiOrganizationSettingsService.getSettings(
-                      user as SessionUser,
+                ? null
+                : await this.aiOrganizationSettingsService.getDefaultModelConfig(
+                      user.organizationUuid,
                   );
         const modelConfig =
             data.modelConfig ??
             agent?.modelConfig ??
-            aiOrganizationSettings?.defaultAiAgentModelConfig ??
+            orgDefaultModelConfig ??
             undefined;
 
         if (!threadUuid) {
