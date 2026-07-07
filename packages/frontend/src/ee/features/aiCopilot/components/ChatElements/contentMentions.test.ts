@@ -30,7 +30,6 @@ describe('contentMentions', () => {
                         type: 'dashboard',
                         dashboardUuid: 'dashboard-1',
                         dashboardSlug: 'exec-dashboard',
-                        dashboardTabUuid: 'tab-1',
                     },
                     {
                         type: 'chart',
@@ -51,7 +50,6 @@ describe('contentMentions', () => {
                 type: 'dashboard',
                 dashboardUuid: 'dashboard-1',
                 dashboardSlug: 'exec-dashboard',
-                dashboardTabUuid: 'tab-1',
             },
             {
                 type: 'chart',
@@ -61,7 +59,7 @@ describe('contentMentions', () => {
         ]);
     });
 
-    it('fills missing dashboard tab when merging duplicate dashboard input', () => {
+    it('dedupes duplicate dashboard input without merging refs', () => {
         expect(
             mergeAiPromptContextInput(
                 [
@@ -75,7 +73,7 @@ describe('contentMentions', () => {
                     {
                         type: 'dashboard',
                         dashboardUuid: 'dashboard-1',
-                        dashboardTabUuid: 'tab-1',
+                        dashboardSlug: 'duplicate-dashboard',
                     },
                 ],
             ),
@@ -84,7 +82,6 @@ describe('contentMentions', () => {
                 type: 'dashboard',
                 dashboardUuid: 'dashboard-1',
                 dashboardSlug: 'exec-dashboard',
-                dashboardTabUuid: 'tab-1',
             },
         ]);
     });

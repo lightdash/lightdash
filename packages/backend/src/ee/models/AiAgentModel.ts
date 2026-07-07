@@ -5239,7 +5239,6 @@ export class AiAgentModel {
                         ai_prompt_uuid: promptUuid,
                         entity_type: 'dashboard' as AiPromptContextEntityType,
                         entity_uuid: ctx.dashboardUuid,
-                        entity_ref: ctx.dashboardTabUuid ?? null,
                         pinned_version_uuid:
                             dashboard?.dashboard_version_uuid ?? null,
                         display_name: dashboard?.name ?? null,
@@ -5559,7 +5558,6 @@ export class AiAgentModel {
                     type: 'dashboard',
                     dashboardUuid: entityUuid,
                     dashboardSlug: dashboardSlugByUuid.get(entityUuid) ?? null,
-                    dashboardTabUuid: row.entity_ref,
                     pinnedVersionUuid: row.pinned_version_uuid,
                     displayName: row.display_name,
                 };

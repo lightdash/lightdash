@@ -59,9 +59,6 @@ export const PanelHeader: FC<Props> = ({
     const pendingContext = useAiAgentStoreSelector(
         (state) => state.aiAgentLauncher.pendingContext,
     );
-    const currentDashboard = useAiAgentStoreSelector(
-        (state) => state.aiAgentLauncher.currentDashboard,
-    );
     const { data: aiRouterConfig } = useAiRouterConfig();
     const isAuto = isLauncherAutoAgent(agent);
     const showAutoOption =
@@ -87,42 +84,16 @@ export const PanelHeader: FC<Props> = ({
         if (!agent) return;
         launcherSession.markExpandedFromBubble();
         let target;
-        const currentDashboardParams = new URLSearchParams();
-        if (currentDashboard?.projectUuid === projectUuid) {
-            currentDashboardParams.set('dashboardUuid', currentDashboard.uuid);
-            if (currentDashboard.activeTabUuid) {
-                currentDashboardParams.set(
-                    'dashboardTabUuid',
-                    currentDashboard.activeTabUuid,
-                );
-            }
-        }
-        const currentDashboardSearch = currentDashboardParams.toString();
         if (threadId) {
             if (isAuto) return;
-            target = `/projects/${projectUuid}/ai-agents/${agent.uuid}/threads/${threadId}${
-                currentDashboardSearch ? `?${currentDashboardSearch}` : ''
-            }`;
+            target = `/projects/${projectUuid}/ai-agents/${agent.uuid}/threads/${threadId}`;
         } else {
             const params = new URLSearchParams();
             if (pendingContext?.chartUuid) {
                 params.set('chartUuid', pendingContext.chartUuid);
             }
-            const dashboardUuid =
-                pendingContext?.dashboardUuid ??
-                (currentDashboard?.projectUuid === projectUuid
-                    ? currentDashboard.uuid
-                    : null);
-            const dashboardTabUuid =
-                pendingContext?.dashboardTabUuid ??
-                (currentDashboard?.projectUuid === projectUuid
-                    ? currentDashboard.activeTabUuid
-                    : null);
-            if (dashboardUuid) {
-                params.set('dashboardUuid', dashboardUuid);
-            }
-            if (dashboardTabUuid) {
-                params.set('dashboardTabUuid', dashboardTabUuid);
+            if (pendingContext?.dashboardUuid) {
+                params.set('dashboardUuid', pendingContext.dashboardUuid);
             }
             if (isAuto) {
                 params.set(AI_ROUTING_SEARCH_PARAM, AI_ROUTING_AUTO_VALUE);

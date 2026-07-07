@@ -6208,10 +6208,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 }
                 case 'dashboard': {
                     const name = item.displayName ?? '(name unavailable)';
-                    const dashboardTab = item.dashboardTabUuid
-                        ? `, dashboardTabUuid: ${item.dashboardTabUuid}`
-                        : '';
-                    return `- Dashboard "${name}" (dashboardSlug: ${item.dashboardSlug ?? '(slug unavailable)'}${dashboardTab})`;
+                    return `- Dashboard "${name}" (dashboardSlug: ${item.dashboardSlug ?? '(slug unavailable)'})`;
                 }
                 case 'thread': {
                     const name = item.displayName ?? '(name unavailable)';

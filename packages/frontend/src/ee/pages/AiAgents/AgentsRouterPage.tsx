@@ -79,7 +79,6 @@ const AgentsRouterPage = () => {
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
     const chartUuid = searchParams.get('chartUuid');
     const dashboardUuid = searchParams.get('dashboardUuid');
-    const dashboardTabUuid = searchParams.get('dashboardTabUuid');
 
     const {
         contextInput,
@@ -90,7 +89,6 @@ const AgentsRouterPage = () => {
         projectUuid,
         chartUuidOrSlug: chartUuid,
         dashboardUuidOrSlug: dashboardUuid,
-        dashboardTabUuid,
     });
 
     const {

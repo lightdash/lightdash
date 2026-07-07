@@ -76,49 +76,65 @@ type Props = {
 
 const getCurrentDashboardPromptContext = ({
     currentDashboard,
+    previousDashboardUuid,
     projectUuid,
 }: {
     currentDashboard: {
         projectUuid: string;
         uuid: string;
-        activeTabUuid: string | null;
     } | null;
+    previousDashboardUuid?: string | null;
     projectUuid: string;
 }): AiPromptContextInput =>
-    currentDashboard?.projectUuid === projectUuid
+    currentDashboard?.projectUuid === projectUuid &&
+    currentDashboard.uuid !== previousDashboardUuid
         ? [
               {
                   type: 'dashboard',
                   dashboardUuid: currentDashboard.uuid,
-                  dashboardTabUuid: currentDashboard.activeTabUuid,
               },
           ]
         : [];
 
 const getCurrentDashboardOptimisticContext = ({
     currentDashboard,
+    previousDashboardUuid,
     projectUuid,
 }: {
     currentDashboard: {
         projectUuid: string;
         uuid: string;
         name: string;
-        activeTabUuid: string | null;
     } | null;
+    previousDashboardUuid?: string | null;
     projectUuid: string;
 }): AiPromptContext =>
-    currentDashboard?.projectUuid === projectUuid
+    currentDashboard?.projectUuid === projectUuid &&
+    currentDashboard.uuid !== previousDashboardUuid
         ? [
               {
                   type: 'dashboard',
                   dashboardUuid: currentDashboard.uuid,
                   dashboardSlug: null,
-                  dashboardTabUuid: currentDashboard.activeTabUuid,
                   displayName: currentDashboard.name,
                   pinnedVersionUuid: null,
               },
           ]
         : [];
+
+const getLastDashboardUuid = (
+    context: Array<AiPromptContextInput[number] | AiPromptContext[number]>,
+) => {
+    for (let index = context.length - 1; index >= 0; index -= 1) {
+        const item = context[index];
+        if (item.type === 'dashboard') return item.dashboardUuid;
+    }
+    return null;
+};
+
+const hasDashboardContext = (
+    context: Array<AiPromptContextInput[number] | AiPromptContext[number]>,
+) => context.some((item) => item.type === 'dashboard');
 
 export const LauncherPanel: FC<Props> = ({
     projectUuid,
@@ -179,11 +195,6 @@ const NewThreadPanel: FC<{
 
     const chartUuid = pendingContext?.chartUuid;
     const dashboardUuid = pendingContext?.dashboardUuid;
-    const dashboardTabUuid =
-        currentDashboard?.projectUuid === projectUuid &&
-        currentDashboard.uuid === dashboardUuid
-            ? currentDashboard.activeTabUuid
-            : (pendingContext?.dashboardTabUuid ?? null);
 
     const { addItem: addDockItem } = useLauncherDock(projectUuid);
     const isAuto = isLauncherAutoAgent(agent);
@@ -198,13 +209,13 @@ const NewThreadPanel: FC<{
         projectUuid,
         chartUuidOrSlug: chartUuid,
         dashboardUuidOrSlug: dashboardUuid,
-        dashboardTabUuid,
     });
     const contextInputWithPageContext = useMemo(
         () =>
             mergeAiPromptContextInput(
                 getCurrentDashboardPromptContext({
                     currentDashboard,
+                    previousDashboardUuid: getLastDashboardUuid(contextInput),
                     projectUuid,
                 }),
                 contextInput,
@@ -216,6 +227,7 @@ const NewThreadPanel: FC<{
             mergeAiPromptContextItems(
                 getCurrentDashboardOptimisticContext({
                     currentDashboard,
+                    previousDashboardUuid: getLastDashboardUuid(previewItems),
                     projectUuid,
                 }),
                 previewItems,
@@ -529,21 +541,32 @@ const ExistingThreadPanel: FC<{
             (m) => m.role === 'assistant',
         );
         const modelConfig = firstAssistantMessage?.modelConfig ?? undefined;
+        const previousDashboardUuid = getLastDashboardUuid(
+            thread?.messages.flatMap((m) =>
+                m.role === 'user' ? m.context : [],
+            ) ?? [],
+        );
         void createAgentThreadMessage({
             prompt: message,
             modelConfig,
             context: mergeAiPromptContextInput(
-                getCurrentDashboardPromptContext({
-                    currentDashboard,
-                    projectUuid,
-                }),
+                hasDashboardContext(context ?? [])
+                    ? []
+                    : getCurrentDashboardPromptContext({
+                          currentDashboard,
+                          previousDashboardUuid,
+                          projectUuid,
+                      }),
                 context,
             ),
             optimisticContext: mergeAiPromptContextItems(
-                getCurrentDashboardOptimisticContext({
-                    currentDashboard,
-                    projectUuid,
-                }),
+                hasDashboardContext(optimisticContext ?? [])
+                    ? []
+                    : getCurrentDashboardOptimisticContext({
+                          currentDashboard,
+                          previousDashboardUuid,
+                          projectUuid,
+                      }),
                 optimisticContext,
             ),
             enableSqlMode: sqlModeAvailable && sqlMode,

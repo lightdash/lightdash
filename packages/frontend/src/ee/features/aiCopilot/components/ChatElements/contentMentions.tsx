@@ -329,17 +329,6 @@ export const mergeAiPromptContextInput = (
         .forEach((item) => {
             const key = getContextKey(item);
             if (seen.has(key)) {
-                const existing = merged.find(
-                    (mergedItem) => getContextKey(mergedItem) === key,
-                );
-                if (
-                    item.type === 'dashboard' &&
-                    existing?.type === 'dashboard' &&
-                    !existing.dashboardTabUuid &&
-                    item.dashboardTabUuid
-                ) {
-                    existing.dashboardTabUuid = item.dashboardTabUuid;
-                }
                 return;
             }
             seen.add(key);
@@ -358,17 +347,6 @@ export const mergeAiPromptContextItems = (
         .forEach((item) => {
             const key = getPromptContextItemKey(item);
             if (seen.has(key)) {
-                const existing = merged.find(
-                    (mergedItem) => getPromptContextItemKey(mergedItem) === key,
-                );
-                if (
-                    item.type === 'dashboard' &&
-                    existing?.type === 'dashboard' &&
-                    !existing.dashboardTabUuid &&
-                    item.dashboardTabUuid
-                ) {
-                    existing.dashboardTabUuid = item.dashboardTabUuid;
-                }
                 return;
             }
             seen.add(key);
