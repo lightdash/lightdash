@@ -449,6 +449,7 @@ export const stripDucklakeNestedSensitive = (
 export enum RedshiftAuthenticationType {
     PASSWORD = 'password',
     IAM = 'iam',
+    IAM_BROWSER = 'iam_browser',
 }
 
 export type CreateRedshiftCredentials = SshTunnelConfiguration & {
@@ -486,6 +487,10 @@ export type CreateRedshiftCredentials = SshTunnelConfiguration & {
     sessionToken?: string;
     assumeRoleArn?: string;
     assumeRoleExternalId?: string;
+    awsSsoStartUrl?: string;
+    awsSsoRegion?: string;
+    awsSsoAccountId?: string;
+    awsSsoRoleName?: string;
 };
 export type RedshiftCredentials = Omit<
     CreateRedshiftCredentials,

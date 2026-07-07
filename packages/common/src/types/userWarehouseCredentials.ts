@@ -108,6 +108,48 @@ export type UpsertUserWarehouseCredentials = {
     credentials: UserWarehouseCredentialsWithSecrets['credentials'];
 };
 
+export type RedshiftAwsSsoStartRequest = {
+    projectUuid?: string;
+    startUrl?: string;
+    region?: string;
+};
+
+export type RedshiftAwsSsoStartResults = {
+    verificationUri: string;
+    verificationUriComplete: string;
+    userCode: string;
+    expiresIn: number;
+    interval: number;
+};
+
+export type RedshiftAwsSsoStartResponse = {
+    status: 'ok';
+    results: RedshiftAwsSsoStartResults;
+};
+
+export type RedshiftAwsSsoCompleteRequest = {
+    accountId?: string;
+    roleName?: string;
+    projectUuid?: string;
+    projectName?: string;
+    credentialsName?: string;
+    databaseUser?: string;
+};
+
+export type RedshiftAwsSsoCompleteResults =
+    | {
+          status: 'pending';
+      }
+    | {
+          status: 'authenticated';
+          credentials: UserWarehouseCredentials;
+      };
+
+export type RedshiftAwsSsoCompleteResponse = {
+    status: 'ok';
+    results: RedshiftAwsSsoCompleteResults;
+};
+
 // Zod schema for validating Snowflake SSO user warehouse credentials
 // Requires refreshToken and disallows token field
 export const snowflakeSsoUserCredentialsSchema = z
@@ -152,7 +194,10 @@ export const bigquerySsoUserCredentialsSchema = z
 export const redshiftIamUserCredentialsSchema = z
     .object({
         type: z.literal(WarehouseTypes.REDSHIFT),
-        authenticationType: z.literal(RedshiftAuthenticationType.IAM),
+        authenticationType: z.union([
+            z.literal(RedshiftAuthenticationType.IAM),
+            z.literal(RedshiftAuthenticationType.IAM_BROWSER),
+        ]),
         user: z.string().optional(),
         password: z.string().optional(),
         accessKeyId: z.string().optional(),

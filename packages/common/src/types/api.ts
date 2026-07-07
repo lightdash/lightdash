@@ -277,7 +277,11 @@ import {
     type UserAllowedOrganization,
 } from './user';
 import { type UserAvatarColorValue } from './userAvatars';
-import { type UserWarehouseCredentials } from './userWarehouseCredentials';
+import {
+    type RedshiftAwsSsoCompleteResults,
+    type RedshiftAwsSsoStartResults,
+    type UserWarehouseCredentials,
+} from './userWarehouseCredentials';
 import {
     type ApiChartValidationResponse,
     type ApiDashboardValidationResponse,
@@ -1050,6 +1054,8 @@ type ApiResults =
     | { sha: string; path: string }
     | { filePath: string }
     | UserWarehouseCredentials
+    | RedshiftAwsSsoStartResults
+    | RedshiftAwsSsoCompleteResults
     | ApiJobStatusResponse['results']
     | ApiJobScheduledResponse['results']
     | ApiSshKeyPairResponse['results']

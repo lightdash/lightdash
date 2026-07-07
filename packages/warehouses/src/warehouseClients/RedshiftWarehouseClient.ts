@@ -67,7 +67,9 @@ export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCreden
         const ssl = getSSLConfigFromMode(sslmode);
 
         const isIam =
-            credentials.authenticationType === RedshiftAuthenticationType.IAM;
+            credentials.authenticationType === RedshiftAuthenticationType.IAM ||
+            credentials.authenticationType ===
+                RedshiftAuthenticationType.IAM_BROWSER;
 
         // For password auth the connection string is fixed at construction.
         // For IAM auth credentials are minted lazily before each query (the
@@ -119,7 +121,9 @@ export class RedshiftWarehouseClient extends PostgresClient<CreateRedshiftCreden
     ): Promise<void> {
         if (
             this.credentials.authenticationType ===
-            RedshiftAuthenticationType.IAM
+                RedshiftAuthenticationType.IAM ||
+            this.credentials.authenticationType ===
+                RedshiftAuthenticationType.IAM_BROWSER
         ) {
             this.config = await this.resolveIamPoolConfig();
         }
