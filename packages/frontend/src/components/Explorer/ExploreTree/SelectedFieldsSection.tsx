@@ -3,12 +3,37 @@ import {
     isCustomDimension,
     isDimension,
     isField,
+    isFilterableField,
     isMetric,
+    type FilterableField,
 } from '@lightdash/common';
+import { ActionIcon, Tooltip } from '@mantine/core';
 import { UnstyledButton } from '@mantine-8/core';
-import { memo, useCallback, useEffect, useRef, useState, type FC } from 'react';
+import { IconFilter } from '@tabler/icons-react';
+import {
+    memo,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
+import { useToggle } from 'react-use';
+import {
+    explorerActions,
+    selectIsFieldFiltered,
+    useExplorerDispatch,
+    useExplorerSelector,
+    type ExplorerStoreState,
+} from '../../../features/explorer/store';
+import { useAddFilter } from '../../../hooks/useFilters';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
 import FieldIcon from '../../common/Filters/FieldIcon';
+import MantineIcon from '../../common/MantineIcon';
 import classes from './SelectedFieldsSection.module.css';
+import TreeSingleNodeActions from './TableTree/Tree/TreeSingleNodeActions';
 import { type NodeItem } from './TableTree/Tree/types';
 
 export type SelectedField = {
@@ -41,14 +66,78 @@ type RowProps = {
 const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
     const { fieldId, item, tableLabel, isDimension: isDim, isExiting } = row;
 
+    const dispatch = useExplorerDispatch();
+    const addFilter = useAddFilter();
+    const { track } = useTracking();
+
+    const [isHover, toggleHover] = useToggle(false);
+    const [isMenuOpen, toggleMenu] = useToggle(false);
+
+    const selectIsFiltered = useMemo(
+        () => (state: ExplorerStoreState) =>
+            selectIsFieldFiltered(state, fieldId),
+        [fieldId],
+    );
+    const isFieldFiltered = useExplorerSelector(
+        selectIsFiltered,
+        (a, b) => a === b,
+    );
+
+    const isFiltered = isField(item) && isFieldFiltered;
+    const showFilterAction =
+        (isFiltered || isHover) &&
+        !isAdditionalMetric(item) &&
+        isFilterableField(item);
+
+    const description =
+        isField(item) || isAdditionalMetric(item)
+            ? item.description
+            : undefined;
+
+    const label = getFieldLabel(item);
+
     const handleClick = useCallback(() => {
         if (!isExiting) onDeselect(fieldId, isDim);
     }, [isExiting, onDeselect, fieldId, isDim]);
 
-    const label = getFieldLabel(item);
+    const handleMouseEnter = useCallback(
+        () => toggleHover(true),
+        [toggleHover],
+    );
+    const handleMouseLeave = useCallback(
+        () => toggleHover(false),
+        [toggleHover],
+    );
+
+    const handleFilterClick = useCallback(
+        (e: React.MouseEvent<HTMLButtonElement>) => {
+            track({ name: EventName.ADD_FILTER_CLICKED });
+            if (!isFiltered) addFilter(item as FilterableField, undefined);
+            e.stopPropagation();
+        },
+        [isFiltered, addFilter, item, track],
+    );
+
+    const onOpenDescriptionView = useCallback(() => {
+        toggleHover(false);
+        dispatch(
+            explorerActions.openItemDetail({
+                itemType: 'field',
+                label,
+                description,
+                fieldItem: item,
+            }),
+        );
+    }, [toggleHover, dispatch, item, label, description]);
+
+    const onToggleMenu = useCallback(() => {
+        toggleHover(false);
+        toggleMenu();
+    }, [toggleHover, toggleMenu]);
 
     return (
         <UnstyledButton
+            component="div"
             className={
                 isExiting
                     ? `${classes.row} ${classes.rowExiting}`
@@ -56,6 +145,8 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
             }
             data-field-kind={getFieldKind(item)}
             onClick={handleClick}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
             data-testid={`selected-field-${fieldId}`}
         >
             <FieldIcon item={item} size="md" />
@@ -66,6 +157,31 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
                 {tableLabel && (
                     <span className={classes.tableLabel}>{tableLabel}</span>
                 )}
+            </span>
+            <span className={classes.actions}>
+                {showFilterAction && (
+                    <Tooltip
+                        withinPortal
+                        label={
+                            isFiltered
+                                ? 'This field is filtered'
+                                : 'Click here to add filter'
+                        }
+                    >
+                        <ActionIcon onClick={handleFilterClick}>
+                            <MantineIcon icon={IconFilter} />
+                        </ActionIcon>
+                    </Tooltip>
+                )}
+                <TreeSingleNodeActions
+                    item={item}
+                    isHovered={isHover}
+                    isSelected
+                    isOpened={isMenuOpen}
+                    hasDescription={!!description}
+                    onViewDescription={onOpenDescriptionView}
+                    onMenuChange={onToggleMenu}
+                />
             </span>
         </UnstyledButton>
     );

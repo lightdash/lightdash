@@ -87,6 +87,15 @@
     align-items: baseline;
     gap: 8px;
     min-width: 0;
+    flex: 1 1 auto;
+}
+
+.actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+    margin-left: auto;
 }
 
 .label {
