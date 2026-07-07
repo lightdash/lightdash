@@ -46,7 +46,11 @@ import { getDashboardNavigationUrlFromContentToolResult } from '../../utils/cont
 import { AiAgentNewThreadMcpConnections } from '../AiAgentNewThreadMcpConnections';
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../ChatElements/AgentChatInput';
-import { contextItemsToContentMentionSuggestions } from '../ChatElements/contentMentions';
+import {
+    contextItemsToContentMentionSuggestions,
+    mergeAiPromptContextInput,
+    mergeAiPromptContextItems,
+} from '../ChatElements/contentMentions';
 import { getPromptContextItemKey } from '../ChatElements/contentReferenceUtils';
 import { PinnedContextCard } from '../PinnedContextCard/PinnedContextCard';
 import styles from './AiAgentsLauncher.module.css';
@@ -69,6 +73,52 @@ type Props = {
     activeThreadId: string | null;
     style?: CSSProperties;
 };
+
+const getCurrentDashboardPromptContext = ({
+    currentDashboard,
+    projectUuid,
+}: {
+    currentDashboard: {
+        projectUuid: string;
+        uuid: string;
+        activeTabUuid: string | null;
+    } | null;
+    projectUuid: string;
+}): AiPromptContextInput =>
+    currentDashboard?.projectUuid === projectUuid
+        ? [
+              {
+                  type: 'dashboard',
+                  dashboardUuid: currentDashboard.uuid,
+                  dashboardTabUuid: currentDashboard.activeTabUuid,
+              },
+          ]
+        : [];
+
+const getCurrentDashboardOptimisticContext = ({
+    currentDashboard,
+    projectUuid,
+}: {
+    currentDashboard: {
+        projectUuid: string;
+        uuid: string;
+        name: string;
+        activeTabUuid: string | null;
+    } | null;
+    projectUuid: string;
+}): AiPromptContext =>
+    currentDashboard?.projectUuid === projectUuid
+        ? [
+              {
+                  type: 'dashboard',
+                  dashboardUuid: currentDashboard.uuid,
+                  dashboardSlug: null,
+                  dashboardTabUuid: currentDashboard.activeTabUuid,
+                  displayName: currentDashboard.name,
+                  pinnedVersionUuid: null,
+              },
+          ]
+        : [];
 
 export const LauncherPanel: FC<Props> = ({
     projectUuid,
@@ -123,9 +173,17 @@ const NewThreadPanel: FC<{
     const pendingContext = useAiAgentStoreSelector(
         (state) => state.aiAgentLauncher.pendingContext,
     );
+    const currentDashboard = useAiAgentStoreSelector(
+        (state) => state.aiAgentLauncher.currentDashboard,
+    );
 
     const chartUuid = pendingContext?.chartUuid;
     const dashboardUuid = pendingContext?.dashboardUuid;
+    const dashboardTabUuid =
+        currentDashboard?.projectUuid === projectUuid &&
+        currentDashboard.uuid === dashboardUuid
+            ? currentDashboard.activeTabUuid
+            : (pendingContext?.dashboardTabUuid ?? null);
 
     const { addItem: addDockItem } = useLauncherDock(projectUuid);
     const isAuto = isLauncherAutoAgent(agent);
@@ -140,7 +198,30 @@ const NewThreadPanel: FC<{
         projectUuid,
         chartUuidOrSlug: chartUuid,
         dashboardUuidOrSlug: dashboardUuid,
+        dashboardTabUuid,
     });
+    const contextInputWithPageContext = useMemo(
+        () =>
+            mergeAiPromptContextInput(
+                getCurrentDashboardPromptContext({
+                    currentDashboard,
+                    projectUuid,
+                }),
+                contextInput,
+            ) ?? [],
+        [contextInput, currentDashboard, projectUuid],
+    );
+    const previewItemsWithPageContext = useMemo(
+        () =>
+            mergeAiPromptContextItems(
+                getCurrentDashboardOptimisticContext({
+                    currentDashboard,
+                    projectUuid,
+                }),
+                previewItems,
+            ) ?? [],
+        [currentDashboard, previewItems, projectUuid],
+    );
 
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
     // New threads have no uuid yet — keep the toggle in local state and seed
@@ -225,11 +306,11 @@ const NewThreadPanel: FC<{
     } = useAiAgentLauncherRouter({
         agent,
         agents,
-        contextInput,
+        contextInput: contextInputWithPageContext,
         createThreadForAgent,
         isCreatingThread,
         isPinnedContextReady,
-        previewItems,
+        previewItems: previewItemsWithPageContext,
         projectUuid,
     });
     const displayName = isAuto ? 'Auto' : agent.name;
@@ -285,13 +366,13 @@ const NewThreadPanel: FC<{
                         />
                     </Stack>
                 )}
-                {previewItems.length > 0 && (
+                {previewItemsWithPageContext.length > 0 && (
                     <Stack gap="xxs" px="md" pb="xs">
                         <Text size="xs" fw={600} c="dimmed" tt="uppercase">
                             Pinned context
                         </Text>
                         <Group gap="xs" wrap="wrap">
-                            {previewItems.map((item) => (
+                            {previewItemsWithPageContext.map((item) => (
                                 <PinnedContextCard
                                     key={getPromptContextItemKey(item)}
                                     item={item}
@@ -414,6 +495,9 @@ const ExistingThreadPanel: FC<{
 
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
     const sqlMode = useAiAgentStoreSelector(selectThreadSqlMode(threadId));
+    const currentDashboard = useAiAgentStoreSelector(
+        (state) => state.aiAgentLauncher.currentDashboard,
+    );
     const dispatchToStore = useAiAgentStoreDispatch();
 
     const isThreadFromCurrentUser = thread?.user.uuid === user?.data?.userUuid;
@@ -448,8 +532,20 @@ const ExistingThreadPanel: FC<{
         void createAgentThreadMessage({
             prompt: message,
             modelConfig,
-            context,
-            optimisticContext,
+            context: mergeAiPromptContextInput(
+                getCurrentDashboardPromptContext({
+                    currentDashboard,
+                    projectUuid,
+                }),
+                context,
+            ),
+            optimisticContext: mergeAiPromptContextItems(
+                getCurrentDashboardOptimisticContext({
+                    currentDashboard,
+                    projectUuid,
+                }),
+                optimisticContext,
+            ),
             enableSqlMode: sqlModeAvailable && sqlMode,
             toolHints,
         });

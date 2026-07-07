@@ -17,6 +17,7 @@ type Args = {
     projectUuid: string | undefined;
     chartUuidOrSlug?: string | null;
     dashboardUuidOrSlug?: string | null;
+    dashboardTabUuid?: string | null;
 };
 
 const sortPinnedContext = <
@@ -40,6 +41,7 @@ export const usePinnedContext = ({
     projectUuid,
     chartUuidOrSlug,
     dashboardUuidOrSlug,
+    dashboardTabUuid,
 }: Args) => {
     const { data: chart } = useSavedQuery({
         uuidOrSlug: chartUuidOrSlug ?? undefined,
@@ -67,10 +69,17 @@ export const usePinnedContext = ({
                 type: 'dashboard',
                 dashboardUuid: dashboard.uuid,
                 dashboardSlug: dashboard?.slug ?? null,
+                dashboardTabUuid: dashboardTabUuid ?? null,
             });
         }
         return sortPinnedContext(items);
-    }, [chart?.uuid, dashboard?.uuid, chart?.slug, dashboard?.slug]);
+    }, [
+        chart?.uuid,
+        dashboard?.uuid,
+        chart?.slug,
+        dashboard?.slug,
+        dashboardTabUuid,
+    ]);
 
     const chartKind = useMemo(
         () =>
@@ -101,6 +110,7 @@ export const usePinnedContext = ({
                 type: 'dashboard',
                 dashboardUuid: dashboard.uuid,
                 dashboardSlug: dashboard?.slug ?? null,
+                dashboardTabUuid: dashboardTabUuid ?? null,
                 displayName: dashboard?.name ?? null,
                 pinnedVersionUuid: null,
             });
@@ -114,6 +124,7 @@ export const usePinnedContext = ({
         dashboard?.uuid,
         dashboard?.name,
         dashboard?.slug,
+        dashboardTabUuid,
     ]);
 
     const contentMentionItems = useMemo<ContentMentionSuggestionItem[]>(() => {

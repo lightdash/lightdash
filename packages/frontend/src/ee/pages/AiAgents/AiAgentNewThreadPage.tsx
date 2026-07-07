@@ -49,6 +49,7 @@ const AiAgentNewThreadPage: FC = () => {
     const [searchParams] = useSearchParams();
     const chartUuid = searchParams.get('chartUuid');
     const dashboardUuid = searchParams.get('dashboardUuid');
+    const dashboardTabUuid = searchParams.get('dashboardTabUuid');
 
     const {
         contextInput,
@@ -59,6 +60,7 @@ const AiAgentNewThreadPage: FC = () => {
         projectUuid,
         chartUuidOrSlug: chartUuid,
         dashboardUuidOrSlug: dashboardUuid,
+        dashboardTabUuid,
     });
 
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);

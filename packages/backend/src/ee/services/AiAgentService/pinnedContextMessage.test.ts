@@ -17,6 +17,22 @@ const buildMessage = (context: AiPromptContext): string => {
 };
 
 describe('AiAgentService.createPinnedContextMessage review pins', () => {
+    it('renders dashboard context with active dashboard tab when present', () => {
+        const content = buildMessage([
+            {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-1',
+                dashboardSlug: 'exec-dashboard',
+                dashboardTabUuid: 'tab-1',
+                displayName: 'Executive dashboard',
+                pinnedVersionUuid: null,
+            },
+        ]);
+        expect(content).toContain(
+            '- Dashboard "Executive dashboard" (dashboardSlug: exec-dashboard, dashboardTabUuid: tab-1)',
+        );
+    });
+
     it('renders a pull_request line with number, status and title', () => {
         const content = buildMessage([
             {

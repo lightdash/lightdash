@@ -738,6 +738,7 @@ const DashboardHeader = memo(
                                     <AskAiAgentMenuItem
                                         projectUuid={projectUuid}
                                         dashboardUuid={dashboard.uuid}
+                                        dashboardTabUuid={activeTabUuid}
                                         clickedFrom="dashboard_header"
                                     />
                                     {/* TODO: add a create-issue entry point once the issues flow is finalized */}

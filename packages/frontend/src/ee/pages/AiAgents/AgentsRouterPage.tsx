@@ -79,6 +79,7 @@ const AgentsRouterPage = () => {
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
     const chartUuid = searchParams.get('chartUuid');
     const dashboardUuid = searchParams.get('dashboardUuid');
+    const dashboardTabUuid = searchParams.get('dashboardTabUuid');
 
     const {
         contextInput,
@@ -89,6 +90,7 @@ const AgentsRouterPage = () => {
         projectUuid,
         chartUuidOrSlug: chartUuid,
         dashboardUuidOrSlug: dashboardUuid,
+        dashboardTabUuid,
     });
 
     const {
@@ -151,19 +153,29 @@ const AgentsRouterPage = () => {
     const handleRouteError = useCallback(
         ({
             fallbackAgent,
+            context,
             message,
+            optimisticContext,
+            toolHints,
         }: {
             fallbackAgent?: { uuid: string };
+            context?: AiPromptContextInput;
             message: string;
+            optimisticContext?: AiPromptContext;
+            toolHints: string[];
         }) => {
             setPendingPrompt(message);
             if (fallbackAgent && projectUuid) {
-                void navigate(
-                    `/projects/${projectUuid}/ai-agents/${fallbackAgent.uuid}/threads`,
-                );
+                void createThreadForAgent({
+                    agentUuid: fallbackAgent.uuid,
+                    context,
+                    message,
+                    optimisticContext,
+                    toolHints,
+                });
             }
         },
-        [navigate, projectUuid, setPendingPrompt],
+        [createThreadForAgent, projectUuid, setPendingPrompt],
     );
 
     const {

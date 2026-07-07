@@ -154,6 +154,7 @@ export type AiPromptContextItemInput =
           type: 'dashboard';
           dashboardUuid: string;
           dashboardSlug?: string | null;
+          dashboardTabUuid?: string | null;
       }
     | {
           type: 'thread';
@@ -217,6 +218,7 @@ export type AiPromptContextItem =
           type: 'dashboard';
           dashboardUuid: string;
           dashboardSlug: string | null;
+          dashboardTabUuid?: string | null;
           pinnedVersionUuid: string | null;
           displayName: string | null;
       }

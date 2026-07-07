@@ -8,6 +8,7 @@ type Props = {
     projectUuid: string | undefined;
     chartUuid?: string;
     dashboardUuid?: string;
+    dashboardTabUuid?: string | null;
     clickedFrom: AiAgentAskClickedSource;
     variant?: ActionIconProps['variant'];
     size?: ActionIconProps['size'];
@@ -24,6 +25,7 @@ export const AskAiAgentButton: FC<Props> = ({
     projectUuid,
     chartUuid,
     dashboardUuid,
+    dashboardTabUuid,
     clickedFrom,
     variant = 'subtle',
     size = 'sm',
@@ -34,6 +36,7 @@ export const AskAiAgentButton: FC<Props> = ({
         projectUuid,
         chartUuid,
         dashboardUuid,
+        dashboardTabUuid,
         clickedFrom,
     });
 

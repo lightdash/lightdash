@@ -1481,6 +1481,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                 projectUuid={projectUuid}
                                 chartUuid={savedChartUuid ?? undefined}
                                 dashboardUuid={dashboardUuid}
+                                dashboardTabUuid={props.tile.tabUuid}
                                 clickedFrom="dashboard_chart_tile"
                             />
                             {metricQuery?.metadata?.hasADateDimension &&

@@ -30,6 +30,7 @@ describe('contentMentions', () => {
                         type: 'dashboard',
                         dashboardUuid: 'dashboard-1',
                         dashboardSlug: 'exec-dashboard',
+                        dashboardTabUuid: 'tab-1',
                     },
                     {
                         type: 'chart',
@@ -50,11 +51,40 @@ describe('contentMentions', () => {
                 type: 'dashboard',
                 dashboardUuid: 'dashboard-1',
                 dashboardSlug: 'exec-dashboard',
+                dashboardTabUuid: 'tab-1',
             },
             {
                 type: 'chart',
                 chartUuid: 'chart-1',
                 chartSlug: 'revenue-chart',
+            },
+        ]);
+    });
+
+    it('fills missing dashboard tab when merging duplicate dashboard input', () => {
+        expect(
+            mergeAiPromptContextInput(
+                [
+                    {
+                        type: 'dashboard',
+                        dashboardUuid: 'dashboard-1',
+                        dashboardSlug: 'exec-dashboard',
+                    },
+                ],
+                [
+                    {
+                        type: 'dashboard',
+                        dashboardUuid: 'dashboard-1',
+                        dashboardTabUuid: 'tab-1',
+                    },
+                ],
+            ),
+        ).toEqual([
+            {
+                type: 'dashboard',
+                dashboardUuid: 'dashboard-1',
+                dashboardSlug: 'exec-dashboard',
+                dashboardTabUuid: 'tab-1',
             },
         ]);
     });

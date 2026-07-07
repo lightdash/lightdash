@@ -12,6 +12,7 @@ type Args = {
     projectUuid: string | undefined;
     chartUuid?: string;
     dashboardUuid?: string;
+    dashboardTabUuid?: string | null;
     clickedFrom: AiAgentAskClickedSource;
 };
 
@@ -25,6 +26,7 @@ export const useAskAiAgentAction = ({
     projectUuid,
     chartUuid,
     dashboardUuid,
+    dashboardTabUuid,
     clickedFrom,
 }: Args) => {
     const isVisible = useAiAgentButtonVisibility();
@@ -46,7 +48,9 @@ export const useAskAiAgentAction = ({
             },
         });
         const pendingContext =
-            chartUuid || dashboardUuid ? { chartUuid, dashboardUuid } : null;
+            chartUuid || dashboardUuid
+                ? { chartUuid, dashboardUuid, dashboardTabUuid }
+                : null;
         aiAgentStore.dispatch(
             openPanel({
                 threadId: null,

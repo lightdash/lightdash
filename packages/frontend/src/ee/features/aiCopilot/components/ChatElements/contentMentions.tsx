@@ -323,13 +323,27 @@ export const mergeAiPromptContextInput = (
     ...contextGroups: Array<AiPromptContextInput | undefined>
 ): AiPromptContextInput | undefined => {
     const seen = new Set<string>();
-    const merged = contextGroups
+    const merged: AiPromptContextInput = [];
+    contextGroups
         .flatMap((context) => context ?? [])
-        .filter((item) => {
+        .forEach((item) => {
             const key = getContextKey(item);
-            if (seen.has(key)) return false;
+            if (seen.has(key)) {
+                const existing = merged.find(
+                    (mergedItem) => getContextKey(mergedItem) === key,
+                );
+                if (
+                    item.type === 'dashboard' &&
+                    existing?.type === 'dashboard' &&
+                    !existing.dashboardTabUuid &&
+                    item.dashboardTabUuid
+                ) {
+                    existing.dashboardTabUuid = item.dashboardTabUuid;
+                }
+                return;
+            }
             seen.add(key);
-            return true;
+            merged.push(item);
         });
     return merged.length > 0 ? merged : undefined;
 };
@@ -338,13 +352,27 @@ export const mergeAiPromptContextItems = (
     ...contextGroups: Array<AiPromptContextItem[] | undefined>
 ): AiPromptContextItem[] | undefined => {
     const seen = new Set<string>();
-    const merged = contextGroups
+    const merged: AiPromptContextItem[] = [];
+    contextGroups
         .flatMap((context) => context ?? [])
-        .filter((item) => {
+        .forEach((item) => {
             const key = getPromptContextItemKey(item);
-            if (seen.has(key)) return false;
+            if (seen.has(key)) {
+                const existing = merged.find(
+                    (mergedItem) => getPromptContextItemKey(mergedItem) === key,
+                );
+                if (
+                    item.type === 'dashboard' &&
+                    existing?.type === 'dashboard' &&
+                    !existing.dashboardTabUuid &&
+                    item.dashboardTabUuid
+                ) {
+                    existing.dashboardTabUuid = item.dashboardTabUuid;
+                }
+                return;
+            }
             seen.add(key);
-            return true;
+            merged.push(item);
         });
     return merged.length > 0 ? merged : undefined;
 };

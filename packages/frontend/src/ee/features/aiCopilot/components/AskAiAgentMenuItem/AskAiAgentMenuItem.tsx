@@ -8,6 +8,7 @@ type Props = {
     projectUuid: string | undefined;
     chartUuid?: string;
     dashboardUuid?: string;
+    dashboardTabUuid?: string | null;
     clickedFrom: AiAgentAskClickedSource;
     /**
      * Render a `<Menu.Divider />` after the item. The divider is only rendered
@@ -25,6 +26,7 @@ export const AskAiAgentMenuItem: FC<Props> = ({
     projectUuid,
     chartUuid,
     dashboardUuid,
+    dashboardTabUuid,
     clickedFrom,
     withDivider = false,
 }) => {
@@ -32,6 +34,7 @@ export const AskAiAgentMenuItem: FC<Props> = ({
         projectUuid,
         chartUuid,
         dashboardUuid,
+        dashboardTabUuid,
         clickedFrom,
     });
 
