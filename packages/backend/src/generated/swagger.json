@@ -16688,10 +16688,10 @@
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "fieldType": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "fieldType": {
                                                                             "type": "string"
                                                                         },
                                                                         "label": {
@@ -16702,8 +16702,8 @@
                                                                         }
                                                                     },
                                                                     "required": [
-                                                                        "fieldType",
                                                                         "tableName",
+                                                                        "fieldType",
                                                                         "label",
                                                                         "name"
                                                                     ],
@@ -16725,13 +16725,13 @@
                                                                                     "required": {
                                                                                         "type": "boolean"
                                                                                     },
-                                                                                    "operator": {
-                                                                                        "type": "string"
-                                                                                    },
                                                                                     "tableName": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "fieldRef": {
+                                                                                        "type": "string"
+                                                                                    },
+                                                                                    "operator": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "fieldId": {
@@ -16740,9 +16740,9 @@
                                                                                 },
                                                                                 "required": [
                                                                                     "required",
-                                                                                    "operator",
                                                                                     "tableName",
                                                                                     "fieldRef",
+                                                                                    "operator",
                                                                                     "fieldId"
                                                                                 ],
                                                                                 "type": "object"
@@ -16858,10 +16858,10 @@
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "fieldType": {
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
+                                                                                    "fieldType": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "label": {
@@ -16872,8 +16872,8 @@
                                                                                     }
                                                                                 },
                                                                                 "required": [
-                                                                                    "fieldType",
                                                                                     "tableName",
+                                                                                    "fieldType",
                                                                                     "label",
                                                                                     "name"
                                                                                 ],
@@ -16982,13 +16982,13 @@
                                                                                         "required": {
                                                                                             "type": "boolean"
                                                                                         },
-                                                                                        "operator": {
-                                                                                            "type": "string"
-                                                                                        },
                                                                                         "tableName": {
                                                                                             "type": "string"
                                                                                         },
                                                                                         "fieldRef": {
+                                                                                            "type": "string"
+                                                                                        },
+                                                                                        "operator": {
                                                                                             "type": "string"
                                                                                         },
                                                                                         "fieldId": {
@@ -16997,9 +16997,9 @@
                                                                                     },
                                                                                     "required": [
                                                                                         "required",
-                                                                                        "operator",
                                                                                         "tableName",
                                                                                         "fieldRef",
+                                                                                        "operator",
                                                                                         "fieldId"
                                                                                     ],
                                                                                     "type": "object"
@@ -17050,25 +17050,25 @@
                                                                                 "fieldFilterType": {
                                                                                     "type": "string"
                                                                                 },
+                                                                                "fieldType": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                        "dimension",
+                                                                                        "metric"
+                                                                                    ]
+                                                                                },
                                                                                 "table": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "label": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "fieldId": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "description": {
                                                                                     "type": "string",
                                                                                     "nullable": true
-                                                                                },
-                                                                                "fieldType": {
-                                                                                    "type": "string",
-                                                                                    "enum": [
-                                                                                        "metric",
-                                                                                        "dimension"
-                                                                                    ]
-                                                                                },
-                                                                                "fieldId": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "label": {
-                                                                                    "type": "string"
                                                                                 },
                                                                                 "name": {
                                                                                     "type": "string"
@@ -17079,11 +17079,11 @@
                                                                                 "caseSensitiveFilters",
                                                                                 "isFromJoinedTable",
                                                                                 "fieldFilterType",
-                                                                                "table",
-                                                                                "description",
                                                                                 "fieldType",
-                                                                                "fieldId",
+                                                                                "table",
                                                                                 "label",
+                                                                                "fieldId",
+                                                                                "description",
                                                                                 "name"
                                                                             ],
                                                                             "type": "object"
@@ -17212,10 +17212,10 @@
                                                     "slug": {
                                                         "type": "string"
                                                     },
-                                                    "uuid": {
+                                                    "name": {
                                                         "type": "string"
                                                     },
-                                                    "name": {
+                                                    "uuid": {
                                                         "type": "string"
                                                     },
                                                     "status": {
@@ -17229,8 +17229,8 @@
                                                     "warnings",
                                                     "href",
                                                     "slug",
-                                                    "uuid",
                                                     "name",
+                                                    "uuid",
                                                     "status"
                                                 ],
                                                 "type": "object"
@@ -17240,6 +17240,9 @@
                                                     "steps": {
                                                         "items": {
                                                             "properties": {
+                                                                "label": {
+                                                                    "type": "string"
+                                                                },
                                                                 "kind": {
                                                                     "type": "string",
                                                                     "enum": [
@@ -17249,14 +17252,11 @@
                                                                         "compile",
                                                                         "stage"
                                                                     ]
-                                                                },
-                                                                "label": {
-                                                                    "type": "string"
                                                                 }
                                                             },
                                                             "required": [
-                                                                "kind",
-                                                                "label"
+                                                                "label",
+                                                                "kind"
                                                             ],
                                                             "type": "object"
                                                         },
@@ -17290,17 +17290,17 @@
                                                         ],
                                                         "nullable": true
                                                     },
-                                                    "prUrl": {
-                                                        "type": "string",
-                                                        "nullable": true
-                                                    },
                                                     "status": {
                                                         "type": "string",
                                                         "enum": ["success"],
                                                         "nullable": false
+                                                    },
+                                                    "prUrl": {
+                                                        "type": "string",
+                                                        "nullable": true
                                                     }
                                                 },
-                                                "required": ["prUrl", "status"],
+                                                "required": ["status", "prUrl"],
                                                 "type": "object"
                                             },
                                             {
@@ -17401,10 +17401,10 @@
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "fieldType": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "fieldType": {
                                                                             "type": "string"
                                                                         },
                                                                         "label": {
@@ -17415,8 +17415,8 @@
                                                                         }
                                                                     },
                                                                     "required": [
-                                                                        "fieldType",
                                                                         "tableName",
+                                                                        "fieldType",
                                                                         "label",
                                                                         "name"
                                                                     ],
@@ -17431,8 +17431,8 @@
                                                             "type": {
                                                                 "type": "string",
                                                                 "enum": [
-                                                                    "metric",
                                                                     "dimension",
+                                                                    "metric",
                                                                     null
                                                                 ],
                                                                 "nullable": true
@@ -29870,7 +29870,8 @@
                     "cleanDeploySessions",
                     "managedAgentHeartbeat",
                     "cleanExpiredPreviews",
-                    "ingestProjectContext"
+                    "ingestProjectContext",
+                    "compactUsageEvents"
                 ]
             },
             "BaseSchedulerLog": {
@@ -42704,7 +42705,7 @@
                 "type": "object"
             },
             "ContentSortByColumns": {
-                "enum": ["name", "space_name", "last_updated_at"],
+                "enum": ["name", "space_name", "last_updated_at", "views"],
                 "type": "string"
             },
             "ItemPayload": {
@@ -43386,7 +43387,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3317.0",
+        "version": "0.3318.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

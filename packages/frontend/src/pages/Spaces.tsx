@@ -99,6 +99,7 @@ const Spaces: FC = () => {
                         columnVisibility={{
                             [ColumnVisibility.SPACE]: false,
                             [ColumnVisibility.UPDATED_AT]: false,
+                            [ColumnVisibility.VIEWS]: false,
                             [ColumnVisibility.ACCESS]: true,
                             [ColumnVisibility.CONTENT]: true,
                         }}
