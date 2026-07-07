@@ -1,8 +1,7 @@
-import { Group, Stack } from '@mantine-8/core';
+import { Divider, Group, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Burger,
-    Divider,
     Drawer,
     getDefaultZIndex,
     Header,

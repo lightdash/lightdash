@@ -8,8 +8,8 @@ import {
     type ResultRow,
     type TableCalculation,
 } from '@lightdash/common';
-import { Box, Group, ScrollArea, Stack } from '@mantine-8/core';
-import { Divider, SegmentedControl, Text } from '@mantine/core';
+import { Box, Divider, Group, ScrollArea, Stack } from '@mantine-8/core';
+import { SegmentedControl, Text } from '@mantine/core';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import ColorSelector from '../../ColorSelector';
 import { ChartConditionalFormatting } from './ChartConditionalFormatting';

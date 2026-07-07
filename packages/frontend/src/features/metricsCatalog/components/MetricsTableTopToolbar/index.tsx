@@ -20,12 +20,18 @@ import {
     type CatalogCategoryFilterMode,
     type CatalogField,
 } from '@lightdash/common';
-import { Box, Button, Group, Stack, type GroupProps } from '@mantine-8/core';
+import {
+    Box,
+    Button,
+    Divider,
+    Group,
+    Stack,
+    type GroupProps,
+} from '@mantine-8/core';
 import {
     ActionIcon,
     Badge,
     Center,
-    Divider,
     Popover,
     SegmentedControl,
     TextInput,
@@ -382,9 +388,9 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                             orientation="vertical"
                             w={1}
                             h={20}
-                            sx={{
+                            style={{
                                 alignSelf: 'center',
-                                borderColor: 'ldGray.3',
+                                borderColor: 'var(--mantine-color-ldGray-3)',
                             }}
                         />
                     )}
@@ -563,7 +569,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                         orientation="vertical"
                         w={1}
                         h={20}
-                        sx={{
+                        style={{
                             alignSelf: 'center',
                             borderColor: '#DEE2E6',
                         }}

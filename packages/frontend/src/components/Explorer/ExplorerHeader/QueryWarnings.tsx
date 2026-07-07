@@ -1,6 +1,6 @@
 import { type QueryWarning } from '@lightdash/common';
-import { Box, Stack } from '@mantine-8/core';
-import { ActionIcon, Divider, Popover, Title, Tooltip } from '@mantine/core';
+import { Box, Divider, Stack } from '@mantine-8/core';
+import { ActionIcon, Popover, Title, Tooltip } from '@mantine/core';
 import { IconAlertCircle } from '@tabler/icons-react';
 import MarkdownPreview from '@uiw/react-markdown-preview';
 import { Fragment, useState, type FC } from 'react';
