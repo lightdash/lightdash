@@ -83,6 +83,7 @@ export const EE_SCHEDULER_TASKS = {
     APP_GENERATE_PIPELINE: 'appGeneratePipeline',
     APP_BUILD_FROM_SOURCE: 'appBuildFromSource',
     SWEEP_STALE_APP_LOCKS: 'sweepStaleAppLocks',
+    SWEEP_STALE_AI_REMEDIATIONS: 'sweepStaleAiRemediations',
 } as const;
 
 export const SCHEDULER_TASKS = {
@@ -179,6 +180,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.APP_GENERATE_PIPELINE]: AppGeneratePipelineJobPayload;
     [SCHEDULER_TASKS.APP_BUILD_FROM_SOURCE]: AppBuildFromSourceJobPayload;
     [SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: TraceTaskBase;
+    [SCHEDULER_TASKS.SWEEP_STALE_AI_REMEDIATIONS]: TraceTaskBase;
 }
 
 export interface EETaskPayloadMap {
@@ -195,6 +197,7 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.APP_GENERATE_PIPELINE]: AppGeneratePipelineJobPayload;
     [EE_SCHEDULER_TASKS.APP_BUILD_FROM_SOURCE]: AppBuildFromSourceJobPayload;
     [EE_SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: TraceTaskBase;
+    [EE_SCHEDULER_TASKS.SWEEP_STALE_AI_REMEDIATIONS]: TraceTaskBase;
 }
 
 export type SchedulerTaskName =

@@ -102,14 +102,17 @@ type ReviewItemRow = DbAiAgentReviewItem & {
     updated_at_age_ms: number;
 };
 
-// Longer than the worker's 30-min job timeout — past this, a queued/running
-// writeback has lost its worker and is reported as failed so the UI recovers
-// and retries. Ages are computed in SQL (now() - updated_at) so the check is
-// immune to the driver parsing tz-less timestamps in the process's local
-// timezone and to app/DB clock drift.
-export const WRITEBACK_STALE_MS = 35 * 60 * 1000;
+// A queued/running remediation heartbeats updated_at every tool step, so past
+// this window it has lost its worker (deploy roll, OOM, crash) and is reported
+// as failed so the UI recovers and retries. Ages are computed in SQL
+// (now() - updated_at) so the check is immune to the driver parsing tz-less
+// timestamps in the process's local timezone and to app/DB clock drift.
+export const WRITEBACK_STALE_MS = 5 * 60 * 1000;
 
 const WRITEBACK_TIMED_OUT_MESSAGE = 'Writeback timed out';
+
+export const REMEDIATION_INTERRUPTED_MESSAGE =
+    'Interrupted by a deploy or restart — retry to run again';
 
 const isStaleWritebackStatus = (
     status:
@@ -1962,6 +1965,64 @@ export class AiAgentReviewClassifierModel {
                 error_message: WRITEBACK_TIMED_OUT_MESSAGE,
                 updated_at: this.database.fn.now() as never,
             });
+    }
+
+    /**
+     * Progress heartbeat — bumps updated_at so the staleness sweep can tell a
+     * live run from an abandoned one. Guarded by status so a late fire-and-forget
+     * write can never resurrect a terminal row.
+     */
+    async touchReviewRemediation(args: {
+        remediationUuid: string;
+        organizationUuid: string;
+    }): Promise<void> {
+        await this.database<AiAgentReviewRemediationTable>(
+            AiAgentReviewRemediationTableName,
+        )
+            .where('ai_agent_review_remediation_uuid', args.remediationUuid)
+            .where('organization_uuid', args.organizationUuid)
+            .whereIn('status', ['queued', 'running'])
+            .update({ updated_at: this.database.fn.now() as never });
+    }
+
+    /**
+     * Org-agnostic sweep: fails every queued/running remediation whose heartbeat
+     * is older than olderThanMs and returns the affected rows so the caller can
+     * emit run_interrupted events and fail the linked review-item writebacks.
+     * Backstop for interruptions the SIGTERM fast path misses (SIGKILL/OOM/crash).
+     */
+    async failStaleReviewRemediations(args: {
+        olderThanMs: number;
+    }): Promise<
+        Array<{
+            remediationUuid: string;
+            organizationUuid: string;
+            fingerprint: string;
+        }>
+    > {
+        const rows = await this.database<AiAgentReviewRemediationTable>(
+            AiAgentReviewRemediationTableName,
+        )
+            .whereIn('status', ['queued', 'running'])
+            .whereRaw('updated_at < now() - make_interval(secs => ?)', [
+                args.olderThanMs / 1000,
+            ])
+            .update({
+                status: 'failed',
+                error_message: REMEDIATION_INTERRUPTED_MESSAGE,
+                updated_at: this.database.fn.now() as never,
+            })
+            .returning([
+                'ai_agent_review_remediation_uuid',
+                'organization_uuid',
+                'fingerprint',
+            ]);
+
+        return rows.map((row) => ({
+            remediationUuid: row.ai_agent_review_remediation_uuid,
+            organizationUuid: row.organization_uuid,
+            fingerprint: row.fingerprint,
+        }));
     }
 
     async setReviewRemediationPullRequest(

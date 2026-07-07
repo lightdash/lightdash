@@ -255,6 +255,7 @@ const getTagsForTask: {
         'project.uuid': payload.projectUuid,
     }),
     [SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: () => ({}),
+    [SCHEDULER_TASKS.SWEEP_STALE_AI_REMEDIATIONS]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_EXPIRED_PREVIEWS]: () => ({}),
     [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS]: () => ({}),
     [SCHEDULER_TASKS.INGEST_PROJECT_CONTEXT]: (payload) => ({

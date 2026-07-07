@@ -215,6 +215,14 @@ const eventRow = (
                 meta: event.payload.errorMessage,
                 tone: 'danger',
             };
+        case 'run_interrupted':
+            return {
+                label: 'Run interrupted by a deploy or restart',
+                meta: event.payload.willRetry
+                    ? 'Retrying automatically'
+                    : 'Retry to run again',
+                tone: 'danger',
+            };
         default:
             return { label: 'Updated', meta: null };
     }

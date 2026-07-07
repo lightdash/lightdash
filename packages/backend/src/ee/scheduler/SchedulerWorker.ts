@@ -104,6 +104,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     maxAttempts: 1,
                 },
             },
+            {
+                task: EE_SCHEDULER_TASKS.SWEEP_STALE_AI_REMEDIATIONS,
+                pattern: '*/2 * * * *', // Every 2 minutes
+                options: {
+                    backfillPeriod: 5 * 60 * 1000, // 5 min
+                    maxAttempts: 1,
+                },
+            },
         ];
     }
 
@@ -444,6 +452,9 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
             },
             [EE_SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: async () => {
                 await this.appGenerateService.sweepStaleLocks();
+            },
+            [EE_SCHEDULER_TASKS.SWEEP_STALE_AI_REMEDIATIONS]: async () => {
+                await this.aiAgentAdminService.sweepStaleReviewRemediations();
             },
             [EE_SCHEDULER_TASKS.SEND_REVIEW_NOTIFICATION]: async (payload) => {
                 await sendReviewNotification({

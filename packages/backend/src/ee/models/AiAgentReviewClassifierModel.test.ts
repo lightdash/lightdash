@@ -12,6 +12,7 @@ import {
 } from '../database/entities/aiAgentReviewClassifier';
 import {
     AiAgentReviewClassifierModel,
+    REMEDIATION_INTERRUPTED_MESSAGE,
     WRITEBACK_STALE_MS,
 } from './AiAgentReviewClassifierModel';
 
@@ -232,6 +233,69 @@ describe('AiAgentReviewClassifierModel', () => {
             const [query] = tracker.history.select;
             expect(query.sql).toContain(AiAgentReviewRemediationTableName);
             expect(query.sql).toContain('work_thread_uuid');
+        });
+    });
+
+    describe('deploy-resilience sweep', () => {
+        it('touchReviewRemediation bumps updated_at guarded by active status', async () => {
+            tracker.on
+                .update(AiAgentReviewRemediationTableName)
+                .responseOnce(1);
+
+            await model.touchReviewRemediation({
+                remediationUuid: REMEDIATION_UUID,
+                organizationUuid: ORGANIZATION_UUID,
+            });
+
+            const [update] = tracker.history.update;
+            expect(update.sql).toContain('updated_at');
+            expect(update.sql).toContain('status');
+            expect(update.bindings).toContain('queued');
+            expect(update.bindings).toContain('running');
+            // Guarded so a late heartbeat cannot resurrect a terminal row.
+            expect(update.bindings).not.toContain('failed');
+        });
+
+        it('failStaleReviewRemediations fails stale rows and returns them mapped', async () => {
+            tracker.on
+                .update(AiAgentReviewRemediationTableName)
+                .responseOnce([
+                    {
+                        ai_agent_review_remediation_uuid: REMEDIATION_UUID,
+                        organization_uuid: ORGANIZATION_UUID,
+                        fingerprint: FINGERPRINT,
+                    },
+                ]);
+
+            const result = await model.failStaleReviewRemediations({
+                olderThanMs: WRITEBACK_STALE_MS,
+            });
+
+            const [update] = tracker.history.update;
+            expect(update.bindings).toContain('failed');
+            expect(update.bindings).toContain(REMEDIATION_INTERRUPTED_MESSAGE);
+            expect(update.bindings).toContain(WRITEBACK_STALE_MS / 1000);
+            expect(update.bindings).toContain('queued');
+            expect(update.bindings).toContain('running');
+            expect(result).toEqual([
+                {
+                    remediationUuid: REMEDIATION_UUID,
+                    organizationUuid: ORGANIZATION_UUID,
+                    fingerprint: FINGERPRINT,
+                },
+            ]);
+        });
+
+        it('failStaleReviewRemediations returns empty when nothing is stale', async () => {
+            tracker.on
+                .update(AiAgentReviewRemediationTableName)
+                .responseOnce([]);
+
+            const result = await model.failStaleReviewRemediations({
+                olderThanMs: WRITEBACK_STALE_MS,
+            });
+
+            expect(result).toEqual([]);
         });
     });
 

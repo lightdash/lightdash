@@ -847,7 +847,11 @@ export type AiAgentReviewRemediationEventDetail =
     | { eventType: 'pr_merged'; payload: { prUrl: string } }
     | { eventType: 'pr_closed'; payload: { prUrl: string } }
     | { eventType: 'resolved'; payload: Record<string, never> }
-    | { eventType: 'failed'; payload: { errorMessage: string | null } };
+    | { eventType: 'failed'; payload: { errorMessage: string | null } }
+    | {
+          eventType: 'run_interrupted';
+          payload: { reason: 'shutdown' | 'stale'; willRetry: boolean };
+      };
 
 export type AiAgentReviewRemediationEventType =
     AiAgentReviewRemediationEventDetail['eventType'];

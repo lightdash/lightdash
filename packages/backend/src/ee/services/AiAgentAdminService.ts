@@ -71,7 +71,11 @@ import { BaseService } from '../../services/BaseService';
 import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { type ProjectService } from '../../services/ProjectService/ProjectService';
 import { AiAgentModel } from '../models/AiAgentModel';
-import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
+import {
+    REMEDIATION_INTERRUPTED_MESSAGE,
+    WRITEBACK_STALE_MS,
+    type AiAgentReviewClassifierModel,
+} from '../models/AiAgentReviewClassifierModel';
 import { type AiAgentReviewNotificationModel } from '../models/AiAgentReviewNotificationModel';
 import { type CommercialSchedulerClient } from '../scheduler/SchedulerClient';
 import {
@@ -1726,14 +1730,21 @@ export class AiAgentAdminService extends BaseService {
             remediationUuid,
         } = payload;
 
-        const setProgress = (message: string) =>
-            this.aiAgentReviewClassifierModel.updateReviewItemWritebackProgress(
+        const setProgress = async (message: string) => {
+            if (remediationUuid) {
+                await this.aiAgentReviewClassifierModel.touchReviewRemediation({
+                    remediationUuid,
+                    organizationUuid,
+                });
+            }
+            await this.aiAgentReviewClassifierModel.updateReviewItemWritebackProgress(
                 {
                     fingerprint,
                     organizationUuid,
                     message,
                 },
             );
+        };
 
         const scope =
             await this.aiAgentReviewClassifierModel.getReviewItemScope(
@@ -2637,6 +2648,42 @@ export class AiAgentAdminService extends BaseService {
         message: string;
     }): Promise<void> {
         await this.aiAgentReviewClassifierModel.failReviewItemWriteback(args);
+    }
+
+    /**
+     * Cron backstop for remediation runs killed without a chance to clean up
+     * (SIGKILL/OOM/crash). Fails every remediation whose heartbeat is older than
+     * WRITEBACK_STALE_MS, then records the interruption on the timeline and fails
+     * the linked review-item writeback so the board recovers and allows a retry.
+     */
+    async sweepStaleReviewRemediations(): Promise<void> {
+        const swept =
+            await this.aiAgentReviewClassifierModel.failStaleReviewRemediations({
+                olderThanMs: WRITEBACK_STALE_MS,
+            });
+        await Promise.all(
+            swept.map(
+                async ({ remediationUuid, organizationUuid, fingerprint }) => {
+                    await this.aiAgentReviewClassifierModel.createRemediationEvent(
+                        {
+                            remediationUuid,
+                            organizationUuid,
+                            event: {
+                                eventType: 'run_interrupted',
+                                payload: { reason: 'stale', willRetry: false },
+                            },
+                        },
+                    );
+                    await this.aiAgentReviewClassifierModel.failReviewItemWriteback(
+                        {
+                            fingerprint,
+                            organizationUuid,
+                            message: REMEDIATION_INTERRUPTED_MESSAGE,
+                        },
+                    );
+                },
+            ),
+        );
     }
 
     async getReviewItemPrDiff(
