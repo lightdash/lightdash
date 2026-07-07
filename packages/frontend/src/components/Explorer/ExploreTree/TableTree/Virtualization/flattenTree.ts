@@ -34,7 +34,9 @@ import {
 } from './types';
 
 /**
- * Recursively flatten a node and its children
+ * Recursively flatten a node and its children.
+ * Active (selected) fields are excluded — they render in the pinned
+ * "Selected" section instead of the tree.
  */
 function flattenNodeRecursive(
     node: TreeNode,
@@ -44,6 +46,7 @@ function flattenNodeRecursive(
     expandedGroups: Set<string>,
     searchResults: string[],
     isSearching: boolean,
+    activeFields: Set<string>,
     depth: number = 0,
     parentPath: string = '',
 ): TreeNodeItem[] {
@@ -54,21 +57,26 @@ function flattenNodeRecursive(
 
     const isGroup = isGroupNode(node);
 
-    if (!isVisible && !isGroup) return items;
+    if (!isGroup && (!isVisible || activeFields.has(node.key))) return items;
 
     // If it's a group, check if any children are visible
     if (isGroup) {
         const groupNode = node;
-        const hasMatchInDescendants = (treeNode: TreeNode): boolean =>
-            searchResults.includes(treeNode.key) ||
-            (isGroupNode(treeNode) &&
-                Object.values(treeNode.children).some(hasMatchInDescendants));
+        const hasVisibleDescendant = (treeNode: TreeNode): boolean => {
+            if (isGroupNode(treeNode)) {
+                return Object.values(treeNode.children).some(
+                    hasVisibleDescendant,
+                );
+            }
+            if (activeFields.has(treeNode.key)) return false;
+            return !isSearching || searchResults.includes(treeNode.key);
+        };
 
-        const hasVisibleChildren =
-            !isSearching ||
-            Object.values(groupNode.children).some(hasMatchInDescendants);
+        const isGroupVisible =
+            (isSearching && searchResults.includes(node.key)) ||
+            Object.values(groupNode.children).some(hasVisibleDescendant);
 
-        if (!hasVisibleChildren && isSearching) {
+        if (!isGroupVisible) {
             return items;
         }
 
@@ -111,6 +119,7 @@ function flattenNodeRecursive(
                         expandedGroups,
                         searchResults,
                         isSearching,
+                        activeFields,
                         depth + 1,
                         childParentPath,
                     ),
@@ -202,6 +211,7 @@ function flattenSection(
                 expandedGroups,
                 searchResults,
                 isSearching,
+                options.activeFields,
                 baseDepth,
             ),
         );
