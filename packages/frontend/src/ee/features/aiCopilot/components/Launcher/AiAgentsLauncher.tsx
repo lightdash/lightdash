@@ -57,6 +57,9 @@ const AiAgentsLauncherInner: FC = () => {
     const savedChartPreview = useAiAgentStoreSelector(
         (state) => state.aiArtifact.savedChart,
     );
+    const currentDashboard = useAiAgentStoreSelector(
+        (state) => state.aiAgentLauncher.currentDashboard,
+    );
     const { dock } = useLauncherDock(activeProjectUuid);
 
     const prevProjectUuidRef = useRef(activeProjectUuid);
@@ -120,9 +123,16 @@ const AiAgentsLauncherInner: FC = () => {
     }
     const transitionSavedChartPreview =
         activeSavedChartPreview ?? lastSavedChartPreviewRef.current;
+    const isDashboardPage = currentDashboard?.projectUuid === activeProjectUuid;
 
     if (!isAllowed || !activeProjectUuid) return null;
-    if (!isPanelOpenSafe && dock.length === 0 && !selectedAgent) return null;
+    if (
+        !isPanelOpenSafe &&
+        dock.length === 0 &&
+        (!selectedAgent || !isDashboardPage)
+    ) {
+        return null;
+    }
 
     const panelAgent = getLauncherPanelAgent(safeActiveAgentUuid, agents);
 

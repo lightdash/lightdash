@@ -8,5 +8,12 @@ export const useIsLauncherMounted = (
     const isPanelOpen = useAiAgentStoreSelector(
         (state) => state.aiAgentLauncher.mode === 'panel-open',
     );
-    return Boolean(projectUuid) || isPanelOpen || dock.length > 0;
+    const currentDashboard = useAiAgentStoreSelector(
+        (state) => state.aiAgentLauncher.currentDashboard,
+    );
+    return (
+        isPanelOpen ||
+        dock.length > 0 ||
+        currentDashboard?.projectUuid === projectUuid
+    );
 };

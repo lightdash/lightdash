@@ -1,5 +1,4 @@
 import { type AiAgentSummary } from '@lightdash/common';
-import { Group, Text } from '@mantine-8/core';
 import { useEffect, useMemo, type FC, type KeyboardEvent } from 'react';
 import {
     openPanel,
@@ -99,29 +98,6 @@ export const LauncherDock: FC<Props> = ({
         }
     };
 
-    if (visibleDock.length === 0) {
-        if (!selectedAgent) return null;
-        return (
-            <div className={styles.dock}>
-                <div
-                    role="button"
-                    tabIndex={0}
-                    title="Ask AI Agent"
-                    className={`${styles.dockTab} ${isPanelOpen && !activeThreadId ? styles.dockTabActive : ''}`}
-                    onClick={handleNewThread}
-                    onKeyDown={handleNewThreadKeyDown}
-                >
-                    <Group gap="xs" wrap="nowrap" w="100%">
-                        <AiAgentIcon size={14} />
-                        <Text size="sm" className={styles.dockTabTitle}>
-                            Ask AI Agent
-                        </Text>
-                    </Group>
-                </div>
-            </div>
-        );
-    }
-
     return (
         <div className={styles.dock}>
             {visibleDock.map((item) => (
@@ -134,6 +110,19 @@ export const LauncherDock: FC<Props> = ({
                     onClose={handleClose}
                 />
             ))}
+            {selectedAgent && (
+                <div
+                    role="button"
+                    tabIndex={0}
+                    title="Ask AI Agent"
+                    aria-label="Ask AI Agent"
+                    className={`${styles.dockTab} ${styles.dockIconTab} ${isPanelOpen && !activeThreadId ? styles.dockTabActive : ''}`}
+                    onClick={handleNewThread}
+                    onKeyDown={handleNewThreadKeyDown}
+                >
+                    <AiAgentIcon size={16} />
+                </div>
+            )}
         </div>
     );
 };
