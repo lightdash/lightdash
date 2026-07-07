@@ -915,7 +915,40 @@
                                             "type": "string"
                                         },
                                         "requiredFilters": {
-                                            "type": ["string", "null"]
+                                            "items": {
+                                                "additionalProperties": false,
+                                                "properties": {
+                                                    "fieldId": {
+                                                        "type": "string"
+                                                    },
+                                                    "fieldRef": {
+                                                        "type": "string"
+                                                    },
+                                                    "operator": {
+                                                        "type": "string"
+                                                    },
+                                                    "required": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "settings": {},
+                                                    "tableName": {
+                                                        "type": "string"
+                                                    },
+                                                    "values": {
+                                                        "items": {},
+                                                        "type": "array"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "fieldId",
+                                                    "fieldRef",
+                                                    "tableName",
+                                                    "operator",
+                                                    "required"
+                                                ],
+                                                "type": "object"
+                                            },
+                                            "type": "array"
                                         },
                                         "status": {
                                             "const": "found",
@@ -1427,7 +1460,40 @@
                                                 "type": "array"
                                             },
                                             "requiredFilters": {
-                                                "type": ["string", "null"]
+                                                "items": {
+                                                    "additionalProperties": false,
+                                                    "properties": {
+                                                        "fieldId": {
+                                                            "type": "string"
+                                                        },
+                                                        "fieldRef": {
+                                                            "type": "string"
+                                                        },
+                                                        "operator": {
+                                                            "type": "string"
+                                                        },
+                                                        "required": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "settings": {},
+                                                        "tableName": {
+                                                            "type": "string"
+                                                        },
+                                                        "values": {
+                                                            "items": {},
+                                                            "type": "array"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "fieldId",
+                                                        "fieldRef",
+                                                        "tableName",
+                                                        "operator",
+                                                        "required"
+                                                    ],
+                                                    "type": "object"
+                                                },
+                                                "type": "array"
                                             }
                                         },
                                         "required": [

@@ -1,7 +1,14 @@
-import { grepFieldsToolDefinition, type Explore } from '@lightdash/common';
+import {
+    grepFieldsInputSchema,
+    grepFieldsResultSchema,
+    grepFieldsToolDefinition,
+    type Explore,
+} from '@lightdash/common';
 import { tool } from 'ai';
+import { z } from 'zod';
 import Logger from '../../../../logging/logger';
 import type { FindExploresFn } from '../types/aiAgentDependencies';
+import { getExploreRequiredFilters } from '../utils/requiredFilters';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import {
     buildExploreIndex,
@@ -30,55 +37,10 @@ type FtsFieldMatch = NonNullable<
     Awaited<ReturnType<FindExploresFn>>['topMatchingFields']
 >[number];
 
-type GrepFieldsStructuredPatternResult = {
-    pattern: string;
-    status: 'matches' | 'no_matches' | 'no_signal';
-    matchCount: number;
-    scopeSize: number;
-    matchedAllFields: boolean;
-    note: string;
-    resultsByExplore: Array<{
-        exploreName: string;
-        exploreLabel: string;
-        requiredFilters: string | null;
-        fields: Array<{
-            exploreName: string;
-            exploreLabel: string;
-            fieldId: string;
-            path: string;
-            kind: 'dimension' | 'metric';
-            fieldType: string;
-            label: string;
-            description: string | null;
-            hint: string | null;
-            usageInVerifiedCharts: number;
-            matchLocality: 'name' | 'description' | 'hint';
-        }>;
-    }>;
-    metricAmbiguityNote: string | null;
-    matchingExploresByName: Array<{
-        exploreName: string;
-        exploreLabel: string;
-    }>;
-};
+type ToolGrepFieldsArgs = z.infer<typeof grepFieldsInputSchema>;
+type GrepFieldsResult = z.infer<typeof grepFieldsResultSchema>;
 
-type GrepFieldsStructuredContent = {
-    description: string;
-    exploreName: string | null;
-    patterns: GrepFieldsStructuredPatternResult[];
-    fuzzyMatches: Array<{
-        exploreName: string;
-        fieldId: string;
-        label: string;
-        fieldType: string;
-        description: string | null;
-        searchRank: number | null;
-        usageInCharts: number;
-        usageInVerifiedCharts: number;
-    }>;
-};
-
-type ExecuteGrepFieldsResult = {
+type ExecuteStructuredToolResult<TStructuredContent> = {
     result: string;
     metadata: {
         status: 'success';
@@ -89,7 +51,7 @@ type ExecuteGrepFieldsResult = {
             matchedAllFields: boolean;
         }[];
     };
-    structuredContent: GrepFieldsStructuredContent;
+    structuredContent: TStructuredContent;
 };
 
 // Turn the regex patterns into a plain-keyword query for the FTS fallback.
@@ -142,7 +104,7 @@ const localityScore = (entry: FieldEntry, matches: MatchFn): number => {
 const localityLabel = (
     entry: FieldEntry,
     matches: MatchFn,
-): 'name' | 'description' | 'hint' => {
+): GrepFieldsResult['patterns'][number]['resultsByExplore'][number]['fields'][number]['matchLocality'] => {
     const score = localityScore(entry, matches);
     switch (score) {
         case 3:
@@ -167,8 +129,11 @@ const getFieldIdFromEntry = (entry: FieldEntry): string =>
 const groupOrderedHitsByExplore = (
     orderedHits: FieldEntry[],
     matches: MatchFn,
-    requiredFiltersByExplore: Map<string, string>,
-) => {
+    requiredFiltersByExplore: Map<
+        string,
+        GrepFieldsResult['patterns'][number]['resultsByExplore'][number]['requiredFilters']
+    >,
+): GrepFieldsResult['patterns'][number]['resultsByExplore'] => {
     const byExplore = new Map<string, FieldEntry[]>();
     for (const hit of orderedHits.slice(0, MAX_PER_PATTERN)) {
         const list = byExplore.get(hit.exploreName) ?? [];
@@ -179,7 +144,7 @@ const groupOrderedHitsByExplore = (
     return [...byExplore.entries()].map(([exploreName, fields]) => ({
         exploreName,
         exploreLabel: fields[0]?.exploreLabel ?? exploreName,
-        requiredFilters: requiredFiltersByExplore.get(exploreName) ?? null,
+        requiredFilters: requiredFiltersByExplore.get(exploreName) ?? [],
         fields: fields.map((field) => ({
             exploreName: field.exploreName,
             exploreLabel: field.exploreLabel,
@@ -199,14 +164,18 @@ const groupOrderedHitsByExplore = (
 const renderHits = (
     hits: FieldEntry[],
     matches: MatchFn,
-    requiredFiltersByExplore: Map<string, string>,
+    requiredFiltersSummaryByExplore: Map<string, string>,
+    requiredFiltersByExplore: Map<
+        string,
+        GrepFieldsResult['patterns'][number]['resultsByExplore'][number]['requiredFilters']
+    >,
 ): string =>
     groupOrderedHitsByExplore(
         getOrderedHits(hits, matches),
         matches,
         requiredFiltersByExplore,
     )
-        .map(({ exploreName, exploreLabel, requiredFilters, fields }) => {
+        .map(({ exploreName, exploreLabel, fields }) => {
             const lines = fields
                 .map((field) => {
                     const verified =
@@ -225,8 +194,10 @@ const renderHits = (
                 })
                 .join('\n');
             const header = `  ${exploreName} (${exploreLabel})`;
-            return requiredFilters
-                ? `${header}\n  ${requiredFilters}\n${lines}`
+            const requiredFiltersSummary =
+                requiredFiltersSummaryByExplore.get(exploreName);
+            return requiredFiltersSummary
+                ? `${header}\n  ${requiredFiltersSummary}\n${lines}`
                 : `${header}\n${lines}`;
         })
         .join('\n');
@@ -262,11 +233,15 @@ const renderPattern = (
     exploreHits: ExploreEntry[],
     matches: MatchFn,
     scopeSize: number,
-    requiredFiltersByExplore: Map<string, string>,
+    requiredFiltersSummaryByExplore: Map<string, string>,
+    requiredFiltersByExplore: Map<
+        string,
+        GrepFieldsResult['patterns'][number]['resultsByExplore'][number]['requiredFilters']
+    >,
 ): {
     text: string;
     isSignal: boolean;
-    structuredContent: GrepFieldsStructuredPatternResult;
+    structuredContent: GrepFieldsResult['patterns'][number];
 } => {
     const matchedAllFields = scopeSize > 0 && hits.length === scopeSize;
     if (hits.length === scopeSize && scopeSize >= ALL_MATCH_NO_SIGNAL_MIN) {
@@ -319,7 +294,12 @@ const renderPattern = (
         hits.length > MAX_PER_PATTERN
             ? ` (showing ${MAX_PER_PATTERN} of ${hits.length})`
             : '';
-    const body = renderHits(hits, matches, requiredFiltersByExplore);
+    const body = renderHits(
+        hits,
+        matches,
+        requiredFiltersSummaryByExplore,
+        requiredFiltersByExplore,
+    );
     const ambiguityNote = buildMetricAmbiguityNote(hits);
     const extras = [ambiguityNote, explorePointersText]
         .filter(Boolean)
@@ -351,7 +331,7 @@ const renderPattern = (
 
 const buildStructuredFuzzyMatches = (
     fields: FtsFieldMatch[],
-): GrepFieldsStructuredContent['fuzzyMatches'] =>
+): GrepFieldsResult['fuzzyMatches'] =>
     rankFtsFields(fields).map((field) => ({
         exploreName: field.tableName,
         fieldId: `${field.tableName}_${field.name}`,
@@ -364,12 +344,9 @@ const buildStructuredFuzzyMatches = (
     }));
 
 export const executeGrepFields = async (
-    {
-        patterns,
-        exploreName,
-    }: { patterns: string[]; exploreName: string | null },
+    { patterns, exploreName }: ToolGrepFieldsArgs,
     { availableExplores, findExplores, verifiedFieldUsage }: Dependencies,
-): Promise<ExecuteGrepFieldsResult> => {
+): Promise<ExecuteStructuredToolResult<GrepFieldsResult>> => {
     const index = buildFieldIndex(availableExplores, verifiedFieldUsage);
     const scoped = exploreName
         ? index.filter((entry) => entry.exploreName === exploreName)
@@ -380,10 +357,20 @@ export const executeGrepFields = async (
         ? []
         : buildExploreIndex(availableExplores);
 
-    const requiredFiltersByExplore = new Map<string, string>();
+    const requiredFiltersSummaryByExplore = new Map<string, string>();
+    const requiredFiltersByExplore = new Map<
+        string,
+        GrepFieldsResult['patterns'][number]['resultsByExplore'][number]['requiredFilters']
+    >();
     for (const explore of availableExplores) {
         const summary = summarizeRequiredFilters(explore);
-        if (summary) requiredFiltersByExplore.set(explore.name, summary);
+        if (summary) {
+            requiredFiltersSummaryByExplore.set(explore.name, summary);
+        }
+        requiredFiltersByExplore.set(
+            explore.name,
+            getExploreRequiredFilters(explore),
+        );
     }
 
     // Each pattern is matched against the whole (pre-filtered) index in one
@@ -403,6 +390,7 @@ export const executeGrepFields = async (
                 exploreHits,
                 matches,
                 scoped.length,
+                requiredFiltersSummaryByExplore,
                 requiredFiltersByExplore,
             ),
         };

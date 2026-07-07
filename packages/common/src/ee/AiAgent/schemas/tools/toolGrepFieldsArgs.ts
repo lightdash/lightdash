@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { baseOutputMetadataSchema } from '../outputMetadata';
+import { findExploresRequiredFilterSchema } from './toolFindExploresArgs';
 
 export const GREP_FIELDS_DESCRIPTION = `Tool: grepFields
 
@@ -58,7 +59,7 @@ const grepFieldsPatternFieldSchema = z.object({
 const grepFieldsPatternExploreSchema = z.object({
     exploreName: z.string(),
     exploreLabel: z.string(),
-    requiredFilters: z.string().nullable(),
+    requiredFilters: z.array(findExploresRequiredFilterSchema),
     fields: z.array(grepFieldsPatternFieldSchema),
 });
 
@@ -104,4 +105,5 @@ export const toolGrepFieldsOutputSchema = z.object({
     }),
 });
 
+export type GrepFieldsResult = z.infer<typeof grepFieldsResultSchema>;
 export type ToolGrepFieldsOutput = z.infer<typeof toolGrepFieldsOutputSchema>;

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { baseOutputMetadataSchema } from '../outputMetadata';
+import { findExploresRequiredFilterSchema } from './toolFindExploresArgs';
 
 export const GET_METADATA_DESCRIPTION = `Tool: getMetadata
 
@@ -65,7 +66,7 @@ const getMetadataExploreFoundSchema = z.object({
     hint: z.string().nullable(),
     baseTable: z.string(),
     joinedTables: z.array(z.string()),
-    requiredFilters: z.string().nullable(),
+    requiredFilters: z.array(findExploresRequiredFilterSchema),
     baseDimensions: z.object({
         count: z.number(),
         fieldIds: z.array(z.string()),
@@ -121,4 +122,5 @@ export const toolGetMetadataOutputSchema = z.object({
     metadata: baseOutputMetadataSchema,
 });
 
+export type GetMetadataResult = z.infer<typeof getMetadataResultSchema>;
 export type ToolGetMetadataOutput = z.infer<typeof toolGetMetadataOutputSchema>;

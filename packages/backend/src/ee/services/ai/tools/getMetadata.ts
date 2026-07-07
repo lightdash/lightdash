@@ -1,11 +1,15 @@
 import {
     getFilterTypeFromItemType,
+    getMetadataInputSchema,
+    getMetadataResultSchema,
     getMetadataToolDefinition,
     isDimension,
     type CompiledField,
     type Explore,
 } from '@lightdash/common';
 import { tool } from 'ai';
+import { z } from 'zod';
+import { getExploreRequiredFilters } from '../utils/requiredFilters';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { summarizeRequiredFilters } from './grepFieldsIndex';
 
@@ -15,58 +19,13 @@ type Dependencies = {
     availableExplores: Explore[];
 };
 
-type ExecuteGetMetadataResult = {
+type ToolGetMetadataArgs = z.infer<typeof getMetadataInputSchema>;
+type GetMetadataResult = z.infer<typeof getMetadataResultSchema>;
+
+type ExecuteStructuredToolResult<TStructuredContent> = {
     result: string;
     metadata: { status: 'success' };
-    structuredContent: {
-        explores: Array<
-            | {
-                  exploreId: string;
-                  status: 'found';
-                  label: string;
-                  description: string | null;
-                  hint: string | null;
-                  baseTable: string;
-                  joinedTables: string[];
-                  requiredFilters: string | null;
-                  baseDimensions: {
-                      count: number;
-                      fieldIds: string[];
-                  };
-                  baseMetrics: {
-                      count: number;
-                      fieldIds: string[];
-                  };
-              }
-            | {
-                  exploreId: string;
-                  status: 'not_found';
-                  error: string;
-              }
-        >;
-        fields: Array<
-            | {
-                  exploreId: string;
-                  fieldId: string;
-                  status: 'found';
-                  kind: 'dimension' | 'metric';
-                  fieldType: string;
-                  label: string;
-                  filterType: string;
-                  isFromJoinedTable: boolean;
-                  joinedTableName: string | null;
-                  caseSensitiveFilters: boolean | null;
-                  description: string | null;
-                  hint: string | null;
-              }
-            | {
-                  exploreId: string;
-                  fieldId: string;
-                  status: 'not_found';
-                  error: string;
-              }
-        >;
-    };
+    structuredContent: TStructuredContent;
 };
 
 const flatHint = (hint?: string | string[]): string =>
@@ -192,7 +151,7 @@ const renderField = (
 
 const buildExploreStructuredResult = (
     explore: Explore,
-): ExecuteGetMetadataResult['structuredContent']['explores'][number] => {
+): GetMetadataResult['explores'][number] => {
     const baseTable = explore.tables[explore.baseTable];
     const hint = flatHint(explore.aiHint);
     return {
@@ -205,7 +164,7 @@ const buildExploreStructuredResult = (
         hint: hint ? collapse(hint) : null,
         baseTable: explore.baseTable,
         joinedTables: explore.joinedTables.map((join) => join.table),
-        requiredFilters: summarizeRequiredFilters(explore),
+        requiredFilters: getExploreRequiredFilters(explore),
         baseDimensions: {
             count: getVisibleFieldIds(
                 Object.values(baseTable?.dimensions ?? {}),
@@ -228,7 +187,7 @@ const buildFieldStructuredResult = (
     exploreId: string,
     fieldId: string,
     found: { field: CompiledField; isJoined: boolean },
-): ExecuteGetMetadataResult['structuredContent']['fields'][number] => {
+): GetMetadataResult['fields'][number] => {
     const { field, isJoined } = found;
     const hint = flatHint(field.aiHint);
     return {
@@ -253,26 +212,15 @@ const buildFieldStructuredResult = (
 };
 
 export const executeGetMetadata = (
-    {
-        requests,
-    }: {
-        requests: Array<
-            | { type: 'explore'; exploreIds: string[] }
-            | {
-                  type: 'field';
-                  fields: Array<{ exploreId: string; fieldId: string }>;
-              }
-        >;
-    },
+    { requests }: ToolGetMetadataArgs,
     { availableExplores }: Dependencies,
-): ExecuteGetMetadataResult => {
+): ExecuteStructuredToolResult<GetMetadataResult> => {
     const byName = new Map(
         availableExplores.map((explore) => [explore.name, explore]),
     );
     const textBlocks: string[] = [];
-    const explores: ExecuteGetMetadataResult['structuredContent']['explores'] =
-        [];
-    const fields: ExecuteGetMetadataResult['structuredContent']['fields'] = [];
+    const explores: GetMetadataResult['explores'] = [];
+    const fields: GetMetadataResult['fields'] = [];
 
     for (const request of requests) {
         if (request.type === 'explore') {
