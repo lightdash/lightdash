@@ -16673,17 +16673,17 @@
                                                             "topMatchingFields": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
                                                                         "verifiedChartUsage": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
                                                                         "chartUsage": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
-                                                                        "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
@@ -16714,9 +16714,11 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
+                                                                        "joinedTables": {
+                                                                            "items": {
+                                                                                "type": "string"
+                                                                            },
+                                                                            "type": "array",
                                                                             "nullable": true
                                                                         },
                                                                         "requiredFilters": {
@@ -16754,11 +16756,9 @@
                                                                             },
                                                                             "type": "array"
                                                                         },
-                                                                        "joinedTables": {
-                                                                            "items": {
-                                                                                "type": "string"
-                                                                            },
-                                                                            "type": "array",
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
                                                                             "nullable": true
                                                                         },
                                                                         "label": {
@@ -16843,17 +16843,17 @@
                                                                         "results": {
                                                                             "items": {
                                                                                 "properties": {
+                                                                                    "searchRank": {
+                                                                                        "type": "number",
+                                                                                        "format": "double",
+                                                                                        "nullable": true
+                                                                                    },
                                                                                     "verifiedChartUsage": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
                                                                                     "chartUsage": {
-                                                                                        "type": "number",
-                                                                                        "format": "double",
-                                                                                        "nullable": true
-                                                                                    },
-                                                                                    "searchRank": {
                                                                                         "type": "number",
                                                                                         "format": "double",
                                                                                         "nullable": true
@@ -16979,10 +16979,10 @@
                                                                                         "not_applicable"
                                                                                     ]
                                                                                 },
-                                                                                "fieldValueType": {
+                                                                                "fieldFilterType": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "fieldFilterType": {
+                                                                                "fieldValueType": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "fieldType": {
@@ -17012,8 +17012,8 @@
                                                                             "required": [
                                                                                 "isFromJoinedTable",
                                                                                 "caseSensitiveFilters",
-                                                                                "fieldValueType",
                                                                                 "fieldFilterType",
+                                                                                "fieldValueType",
                                                                                 "fieldType",
                                                                                 "description",
                                                                                 "label",
@@ -17066,14 +17066,14 @@
                                                                                 },
                                                                                 "type": "array"
                                                                             },
+                                                                            "baseTable": {
+                                                                                "type": "string"
+                                                                            },
                                                                             "joinedTables": {
                                                                                 "items": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "type": "array"
-                                                                            },
-                                                                            "baseTable": {
-                                                                                "type": "string"
                                                                             },
                                                                             "label": {
                                                                                 "type": "string"
@@ -17083,8 +17083,8 @@
                                                                             }
                                                                         },
                                                                         "required": [
-                                                                            "joinedTables",
                                                                             "baseTable",
+                                                                            "joinedTables",
                                                                             "label",
                                                                             "name"
                                                                         ],
@@ -17374,10 +17374,10 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
+                                                            "timeout",
                                                             "error",
                                                             "rejected",
-                                                            "success",
-                                                            "timeout"
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -17395,12 +17395,12 @@
                                                             "fields": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "chartUsage": {
+                                                                        "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "searchRank": {
+                                                                        "chartUsage": {
                                                                             "type": "number",
                                                                             "format": "double",
                                                                             "nullable": true
@@ -25311,8 +25311,40 @@
             "UpdateAiReviewNotificationSettings": {
                 "$ref": "#/components/schemas/Pick_AiReviewNotificationSettings.enabled-or-slackChannelId_"
             },
+            "AiProviderApiKeysSet": {
+                "properties": {
+                    "openai": {
+                        "type": "boolean"
+                    },
+                    "anthropic": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["openai", "anthropic"],
+                "type": "object"
+            },
+            "AiProviderApiKeyHints": {
+                "properties": {
+                    "openai": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "anthropic": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["openai", "anthropic"],
+                "type": "object"
+            },
             "AiOrganizationSettings": {
                 "properties": {
+                    "providerApiKeyHints": {
+                        "$ref": "#/components/schemas/AiProviderApiKeyHints"
+                    },
+                    "providerApiKeysSet": {
+                        "$ref": "#/components/schemas/AiProviderApiKeysSet"
+                    },
                     "defaultAiAgentModelConfig": {
                         "allOf": [
                             {
@@ -25335,6 +25367,8 @@
                     }
                 },
                 "required": [
+                    "providerApiKeyHints",
+                    "providerApiKeysSet",
                     "defaultAiAgentModelConfig",
                     "mcpContentWritesEnabled",
                     "aiAgentReviewsEnabled",
@@ -25406,16 +25440,23 @@
             "ApiUpdateAiOrganizationSettingsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiOrganizationSettings_"
             },
-            "Partial_Omit_AiOrganizationSettings.organizationUuid__": {
+            "UpdateAiProviderApiKeys": {
                 "properties": {
-                    "aiAgentsVisible": {
-                        "type": "boolean"
+                    "openai": {
+                        "type": "string",
+                        "nullable": true
                     },
-                    "aiAgentReviewsEnabled": {
-                        "type": "boolean"
-                    },
-                    "mcpContentWritesEnabled": {
-                        "type": "boolean"
+                    "anthropic": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "UpdateAiOrganizationSettings": {
+                "properties": {
+                    "providerApiKeys": {
+                        "$ref": "#/components/schemas/UpdateAiProviderApiKeys"
                     },
                     "defaultAiAgentModelConfig": {
                         "allOf": [
@@ -25424,13 +25465,18 @@
                             }
                         ],
                         "nullable": true
+                    },
+                    "mcpContentWritesEnabled": {
+                        "type": "boolean"
+                    },
+                    "aiAgentReviewsEnabled": {
+                        "type": "boolean"
+                    },
+                    "aiAgentsVisible": {
+                        "type": "boolean"
                     }
                 },
-                "type": "object",
-                "description": "Make all properties in T optional"
-            },
-            "UpdateAiOrganizationSettings": {
-                "$ref": "#/components/schemas/Partial_Omit_AiOrganizationSettings.organizationUuid__"
+                "type": "object"
             },
             "ApiJobScheduledResponse": {
                 "properties": {
@@ -43393,7 +43439,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3320.0",
+        "version": "0.3321.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
