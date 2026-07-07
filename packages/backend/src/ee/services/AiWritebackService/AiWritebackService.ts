@@ -3441,6 +3441,19 @@ export class AiWritebackService extends BaseService {
                     `${CWD}/${turn.gitConnection.projectSubPath}`,
                 )}`,
             );
+            // `dbt deps` rewrites `<projectSubPath>/package-lock.yml` — and the
+            // sandbox dbt version usually differs from the one that generated the
+            // committed lockfile, so it reformats it / bumps its sha1_hash even
+            // when nothing actually changed. That's pure noise in a
+            // metadata-writeback PR, so restore the committed lockfile — or drop
+            // it entirely when deps created one the repo didn't track. Either way
+            // `dbt_packages/` stays installed, so compile is unaffected.
+            const lockfile = `${turn.gitConnection.projectSubPath}/package-lock.yml`;
+            await sandbox.commands.run(
+                `git -C ${CWD} checkout -- ${JSON.stringify(
+                    lockfile,
+                )} 2>/dev/null || rm -f ${JSON.stringify(`${CWD}/${lockfile}`)}`,
+            );
         } catch (error) {
             this.logger.warn(
                 `AiWriteback: 'dbt deps' failed (continuing; compile will surface any unresolved packages): ${getErrorMessage(
