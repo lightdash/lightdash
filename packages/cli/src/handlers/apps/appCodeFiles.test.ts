@@ -4,6 +4,7 @@ import * as os from 'os';
 import * as path from 'path';
 import {
     appFolderName,
+    applySdkMirrorToTemplateDeps,
     attachDependenciesToCode,
     buildDepsWarningLines,
     buildImportBody,
@@ -392,5 +393,37 @@ describe('attachDependenciesToCode', () => {
         );
         expect(result.manifest).toBe(baseCode.manifest);
         expect(result.files).toBe(baseCode.files);
+    });
+});
+
+describe('applySdkMirrorToTemplateDeps', () => {
+    const template = {
+        '@lightdash/query-sdk': '0.3326.1',
+        react: '19.2.5',
+    };
+
+    it('mirrors the declared SDK spec so an older pin never counts as custom', () => {
+        const result = applySdkMirrorToTemplateDeps(
+            template,
+            JSON.stringify({
+                dependencies: { '@lightdash/query-sdk': '0.3315.3' },
+            }),
+        );
+        expect(result['@lightdash/query-sdk']).toBe('0.3315.3');
+        expect(result.react).toBe('19.2.5');
+    });
+
+    it('leaves the baseline untouched when the SDK is not declared', () => {
+        const result = applySdkMirrorToTemplateDeps(
+            template,
+            JSON.stringify({ dependencies: { react: '19.2.5' } }),
+        );
+        expect(result).toEqual(template);
+    });
+
+    it('leaves the baseline untouched for unparseable packageJson', () => {
+        expect(applySdkMirrorToTemplateDeps(template, 'not-json')).toEqual(
+            template,
+        );
     });
 });

@@ -41,6 +41,7 @@ import GlobalState from '../globalState';
 import * as styles from '../styles';
 import {
     appFolderName,
+    applySdkMirrorToTemplateDeps,
     attachDependenciesToCode,
     buildDepsWarningLines,
     buildImportBody,
@@ -2011,8 +2012,10 @@ export const uploadHandler = async (
                     let codeToUpload = code;
 
                     if (rawDeps !== null) {
-                        const templateDeps =
-                            loadTemplateDependencies(CLI_VERSION);
+                        const templateDeps = applySdkMirrorToTemplateDeps(
+                            loadTemplateDependencies(CLI_VERSION),
+                            rawDeps.packageJson,
+                        );
                         let customDeps: Record<string, string>;
                         try {
                             ({ customDeps } = validateDataAppDependencies(
