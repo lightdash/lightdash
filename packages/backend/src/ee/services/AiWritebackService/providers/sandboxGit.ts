@@ -1,3 +1,4 @@
+import * as yaml from 'js-yaml';
 import type { Logger } from 'winston';
 import type { GithubFileChanges } from '../../../../clients/github/Github';
 import type { SandboxHandle } from '../../SandboxRuntime';
@@ -6,31 +7,195 @@ import { DeniedPathError, findDeniedCommitPaths } from '../deniedPaths';
 import type { GitCommitAuthor } from '../types';
 import { parseGitNameStatus } from '../utils';
 
+// Default dbt package install directory, relative to the project dir. Overridable
+// in dbt_project.yml via `packages-install-path`; see resolveDbtProjectPaths.
+const DEFAULT_PACKAGES_INSTALL_PATH = 'dbt_packages';
+
+// dbt project/package names are `[A-Za-z0-9_]` (a leading letter/underscore then
+// word chars). We read them out of the repo's own manifest.json — untrusted
+// content — and interpolate them into a shell command below, so anything outside
+// this charset is dropped rather than escaped: it can't be a real dbt package and
+// keeps the command injection-free.
+const SAFE_DBT_NAME = /^[A-Za-z0-9_]+$/;
+// `packages-install-path` is likewise repo-controlled and interpolated into the
+// same command. Allow only a plain relative path (dir names, `.`/`..`, slashes) —
+// enough for real overrides, nothing that can break out of the single-quoted
+// shell word — and fall back to the default otherwise.
+const SAFE_INSTALL_PATH = /^[A-Za-z0-9_./-]+$/;
+
+/**
+ * Read the dbt `packages-install-path` from the project's dbt_project.yml,
+ * falling back to the default (`dbt_packages`) when unset, unreadable, or not a
+ * plain relative path. This is where `dbt deps` installs each package (and, for
+ * `local:` packages, where it symlinks the real source from).
+ */
+const readPackagesInstallPath = async (
+    sandbox: SandboxHandle,
+    projectSubPath: string,
+): Promise<string> => {
+    try {
+        const raw = await sandbox.files.read(
+            `${CWD}/${projectSubPath}/dbt_project.yml`,
+        );
+        const parsed = yaml.load(raw);
+        const value =
+            parsed !== null && typeof parsed === 'object'
+                ? (parsed as Record<string, unknown>)['packages-install-path']
+                : undefined;
+        if (typeof value === 'string') {
+            const trimmed = value.trim();
+            if (SAFE_INSTALL_PATH.test(trimmed)) {
+                return trimmed;
+            }
+        }
+    } catch {
+        // Missing/unparseable dbt_project.yml — fall through to the default.
+    }
+    return DEFAULT_PACKAGES_INSTALL_PATH;
+};
+
+/**
+ * Resolve the set of repo-root-relative paths that constitute the dbt project
+ * being written back to: the connected project subtree PLUS every `local:`
+ * package it actually compiled. This is what {@link stageChanges} must stage so
+ * that an edit to a model whose real source lives in an imported package tree
+ * (e.g. a monorepo `packages/...` dir, outside `projectSubPath`) is committed —
+ * without resorting to `git add --all`, which would also sweep in agent scratch.
+ *
+ * Source of truth is dbt's own package resolution, not a guess:
+ *  - `target/manifest.json` lists every compiled node's `package_name` (dbt
+ *    deletes the old `root_path` field from the manifest, so package_name +
+ *    install path is the canonical mapping).
+ *  - `dbt deps` installs each non-root package at
+ *    `<projectSubPath>/<packages-install-path>/<package_name>`. For a `local:`
+ *    package that install entry is a SYMLINK back to the real source in the repo;
+ *    for a dbt-hub package it's a vendored real dir (git-ignored). Resolving the
+ *    symlink yields the real repo path; the `-L` test excludes the vendored dirs.
+ *
+ * This generalises to arbitrarily nested local packages — `dbt deps` flattens the
+ * whole dependency tree into the install dir — and to a `packages-install-path`
+ * override. Best-effort: any failure to read/parse the manifest falls back to
+ * just `[projectSubPath]` (the pre-existing scope), so staging never regresses
+ * to worse than before. When the project IS the repo root (`projectSubPath` is
+ * `.`) there is nothing to narrow, so we return `['.']` and let stageChanges do
+ * its `--all` fallback.
+ */
+export const resolveDbtProjectPaths = async (
+    sandbox: SandboxHandle,
+    projectSubPath: string,
+    logger: Logger,
+): Promise<string[]> => {
+    if (projectSubPath === '.') {
+        return ['.'];
+    }
+    const paths = new Set<string>([projectSubPath]);
+
+    let manifest: unknown;
+    try {
+        manifest = JSON.parse(
+            await sandbox.files.read(
+                `${CWD}/${projectSubPath}/target/manifest.json`,
+            ),
+        );
+    } catch (error) {
+        logger.warn(
+            `AiWriteback: could not read target/manifest.json to resolve local package paths; staging only '${projectSubPath}' (sandboxId=${sandbox.sandboxId})`,
+        );
+        return [...paths];
+    }
+
+    const rootPackage = (manifest as { metadata?: { project_name?: string } })
+        .metadata?.project_name;
+    // Collect the package name of every compiled resource across all node-like
+    // collections. Anything with a `package_name` counts — models, sources,
+    // macros, exposures, metrics, semantic models, docs.
+    const packageNames = new Set<string>();
+    for (const collection of Object.values(
+        manifest as Record<string, unknown>,
+    )) {
+        if (collection !== null && typeof collection === 'object') {
+            for (const resource of Object.values(
+                collection as Record<string, unknown>,
+            )) {
+                const packageName = (resource as { package_name?: unknown })
+                    ?.package_name;
+                if (
+                    typeof packageName === 'string' &&
+                    packageName !== rootPackage &&
+                    SAFE_DBT_NAME.test(packageName)
+                ) {
+                    packageNames.add(packageName);
+                }
+            }
+        }
+    }
+    if (packageNames.size === 0) {
+        return [...paths];
+    }
+
+    const installPath = await readPackagesInstallPath(sandbox, projectSubPath);
+    // Resolve each candidate package's install entry inside the sandbox: emit a
+    // repo-relative path only for symlinks (local packages) whose target lands
+    // inside the repo. Vendored hub packages are real dirs (`-L` fails) and are
+    // skipped. All interpolated values are charset-validated above.
+    const packageList = [...packageNames].join(' ');
+    const script = [
+        `cwd_real=$(readlink -f ${JSON.stringify(CWD)})`,
+        `for p in ${packageList}; do`,
+        `  link="${CWD}/${projectSubPath}/${installPath}/$p"`,
+        `  [ -L "$link" ] || continue`,
+        `  real=$(readlink -f "$link" 2>/dev/null) || continue`,
+        `  [ -n "$real" ] || continue`,
+        `  case "$real/" in`,
+        `    "$cwd_real/"*) rel="\${real#"$cwd_real/"}"; [ -n "$rel" ] && printf '%s\\n' "$rel" ;;`,
+        `  esac`,
+        `done`,
+    ].join('\n');
+
+    try {
+        const { stdout } = await sandbox.commands.run(script);
+        stdout
+            .split('\n')
+            .map((line) => line.trim())
+            .filter((line) => line.length > 0 && line !== projectSubPath)
+            .forEach((line) => paths.add(line));
+    } catch (error) {
+        logger.warn(
+            `AiWriteback: failed to resolve local package paths; staging only '${projectSubPath}' (sandboxId=${sandbox.sandboxId})`,
+        );
+    }
+
+    return [...paths];
+};
+
 /**
  * Stage the agent's changes for commit. We deliberately avoid `git add --all`:
  * the agent can leave scratch files (e.g. PR metadata) in the working tree, and
  * staging everything is how those leaked into PRs. Instead we stage only the dbt
- * project subtree the writeback is scoped to, so anything outside it can never
- * be committed. When the dbt project IS the repo root we cannot narrow the path,
- * so we fall back to staging all and rely on the caller having scrubbed the
- * known scratch files before this runs.
+ * project paths the writeback is scoped to (the connected project subtree plus
+ * any imported `local:` package trees it compiled — see
+ * {@link resolveDbtProjectPaths}), so anything outside them can never be
+ * committed. When the dbt project IS the repo root we cannot narrow the path, so
+ * we fall back to staging all and rely on the caller having scrubbed the known
+ * scratch files before this runs — {@link resolveDbtProjectPaths} signals that
+ * case by returning exactly `['.']`.
  */
 export const stageChanges = async (
     sandbox: SandboxHandle,
-    projectSubPath: string,
+    paths: string[],
     logger: Logger,
 ): Promise<void> => {
-    const scopedToProject = projectSubPath !== '.';
+    const scopedToProject = !(paths.length === 1 && paths[0] === '.');
     logger.info(
         `AiWriteback: staging ${
             scopedToProject
-                ? `'${projectSubPath}'`
+                ? paths.map((path) => `'${path}'`).join(', ')
                 : 'all (dbt project is the repo root)'
         } (sandboxId=${sandbox.sandboxId})`,
     );
     await sandbox.git.add(
         CWD,
-        scopedToProject ? { files: [projectSubPath] } : { all: true },
+        scopedToProject ? { files: paths } : { all: true },
     );
     if (scopedToProject) {
         // Also stage Lightdash CI workflow files the agent may have added when

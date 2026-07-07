@@ -104,12 +104,20 @@ ${
         ? `
 ## Repo context (pre-computed)
 
-The block below is the full sorted listing of every \`.sql\`/\`.yml\`/\`.yaml\`
-file under the dbt project. Treat it as the authoritative inventory.
+The block below is the sorted listing of every \`.sql\`/\`.yml\`/\`.yaml\` file
+under the connected dbt project directory (\`${dbtProjectDir}\`) ONLY — it does
+not cover the rest of the repository.
 
-- Consult this block FIRST when you need to find a model or schema file.
+- Consult this block FIRST when you need to find a model or schema file, and
+  \`Read\` files directly when you need their contents.
 - Do NOT run \`find\`, \`ls\`, or \`Glob\` to re-discover paths that already
-  appear here. \`Read\` files directly when you need their contents.
+  appear here.
+- BUT this listing is NOT exhaustive for the whole repo. In a monorepo the
+  project can import models from \`local:\` packages (declared in
+  \`packages.yml\`) whose real source files live ELSEWHERE in the repository,
+  outside \`${dbtProjectDir}\`, and so do NOT appear above. If a model the
+  request refers to is missing here, use \`Glob\`/\`Grep\` from the repo root to
+  find its real file and edit THAT file — not any copy under \`dbt_packages/\`.
 
 <repo_context>
 ${context.repoContext}

@@ -1,5 +1,13 @@
+import type { Logger } from 'winston';
 import { DeniedPathError } from '../deniedPaths';
-import { assertStagedPathsAllowed, collectFileChanges } from './sandboxGit';
+import {
+    assertStagedPathsAllowed,
+    collectFileChanges,
+    resolveDbtProjectPaths,
+    stageChanges,
+} from './sandboxGit';
+
+const logger = { info: vi.fn(), warn: vi.fn() } as unknown as Logger;
 
 // Minimal sandbox stub exposing only what the denied-path gate touches:
 // `commands.run` returns the `git diff --cached --name-status -z` buffer, and
@@ -88,5 +96,177 @@ describe('assertStagedPathsAllowed — GitLab push gate', () => {
                 denyCiPaths: true,
             }),
         ).resolves.toBeUndefined();
+    });
+});
+
+// Sandbox stub for resolveDbtProjectPaths: `files.read` dispatches by suffix
+// (manifest.json vs dbt_project.yml), and `commands.run` returns the resolver
+// script's stdout (the newline-separated repo-relative paths the sandbox would
+// print after resolving each local package's dbt_packages symlink).
+const resolverSandbox = ({
+    manifest,
+    dbtProjectYml = '',
+    resolverStdout = '',
+}: {
+    manifest: object | null;
+    dbtProjectYml?: string | null;
+    resolverStdout?: string;
+}) => {
+    const run = vi.fn().mockResolvedValue({ stdout: resolverStdout });
+    return {
+        sandbox: {
+            sandboxId: 'sbx',
+            files: {
+                read: vi.fn(async (path: string) => {
+                    if (path.endsWith('/target/manifest.json')) {
+                        if (manifest === null) throw new Error('not found');
+                        return JSON.stringify(manifest);
+                    }
+                    if (path.endsWith('/dbt_project.yml')) {
+                        if (dbtProjectYml === null)
+                            throw new Error('not found');
+                        return dbtProjectYml;
+                    }
+                    throw new Error(`unexpected read: ${path}`);
+                }),
+            },
+            commands: { run },
+        } as never,
+        run,
+    };
+};
+
+describe('resolveDbtProjectPaths', () => {
+    it('returns ["."] for a repo-root project without touching the manifest', async () => {
+        const { sandbox, run } = resolverSandbox({ manifest: null });
+        await expect(
+            resolveDbtProjectPaths(sandbox, '.', logger),
+        ).resolves.toEqual(['.']);
+        expect(run).not.toHaveBeenCalled();
+    });
+
+    it('stages the connected project PLUS resolved local package trees, skipping root + vendored hub packages', async () => {
+        const sub = 'fabrics/acme-data-prod/projects/analytics/core';
+        const pkgPath =
+            'packages/domains/companies/acme/consumer-aligned/analytics';
+        const { sandbox, run } = resolverSandbox({
+            manifest: {
+                metadata: { project_name: 'acme_core' },
+                nodes: {
+                    'model.acme_core.fct': { package_name: 'acme_core' },
+                    'model.acme_consumer_aligned.dim_widget': {
+                        package_name: 'acme_consumer_aligned',
+                    },
+                },
+                // A hub package present only via macros; its dbt_packages entry
+                // is a real dir, so the sandbox resolver never emits it.
+                macros: { 'macro.dbt_utils.x': { package_name: 'dbt_utils' } },
+            },
+            resolverStdout: `${pkgPath}\n`,
+        });
+
+        await expect(
+            resolveDbtProjectPaths(sandbox, sub, logger),
+        ).resolves.toEqual([sub, pkgPath]);
+
+        // Both non-root packages are probed in the sandbox; the vendored one is
+        // filtered by the symlink test at runtime (stubbed out of stdout here).
+        const script = run.mock.calls[0][0] as string;
+        expect(script).toContain('acme_consumer_aligned');
+        expect(script).toContain('dbt_utils');
+        expect(script).not.toContain('acme_core');
+        expect(script).toContain(`${sub}/dbt_packages/`);
+    });
+
+    it('honors a packages-install-path override from dbt_project.yml', async () => {
+        const sub = 'core';
+        const { sandbox, run } = resolverSandbox({
+            manifest: {
+                metadata: { project_name: 'root' },
+                nodes: {
+                    'model.pkg.m': { package_name: 'pkg' },
+                },
+            },
+            dbtProjectYml: 'packages-install-path: dbt_modules\n',
+            resolverStdout: 'shared/pkg\n',
+        });
+        await expect(
+            resolveDbtProjectPaths(sandbox, sub, logger),
+        ).resolves.toEqual([sub, 'shared/pkg']);
+        expect(run.mock.calls[0][0]).toContain(`${sub}/dbt_modules/`);
+    });
+
+    it('drops package names outside the safe dbt charset (no shell injection via a crafted manifest)', async () => {
+        const sub = 'core';
+        const { sandbox, run } = resolverSandbox({
+            manifest: {
+                metadata: { project_name: 'root' },
+                nodes: {
+                    'model.evil.m': { package_name: 'evil; rm -rf /' },
+                    'model.good.m': { package_name: 'good_pkg' },
+                },
+            },
+            resolverStdout: '',
+        });
+        await resolveDbtProjectPaths(sandbox, sub, logger);
+        const script = run.mock.calls[0][0] as string;
+        expect(script).toContain('good_pkg');
+        expect(script).not.toContain('rm -rf');
+    });
+
+    it('falls back to [projectSubPath] when the manifest is unreadable', async () => {
+        const sub = 'core';
+        const { sandbox, run } = resolverSandbox({ manifest: null });
+        await expect(
+            resolveDbtProjectPaths(sandbox, sub, logger),
+        ).resolves.toEqual([sub]);
+        expect(run).not.toHaveBeenCalled();
+    });
+
+    it('falls back to [projectSubPath] when only the root package compiled (no packages to resolve)', async () => {
+        const sub = 'core';
+        const { sandbox, run } = resolverSandbox({
+            manifest: {
+                metadata: { project_name: 'root' },
+                nodes: { 'model.root.m': { package_name: 'root' } },
+            },
+        });
+        await expect(
+            resolveDbtProjectPaths(sandbox, sub, logger),
+        ).resolves.toEqual([sub]);
+        expect(run).not.toHaveBeenCalled();
+    });
+});
+
+describe('stageChanges', () => {
+    const stagingSandbox = () => {
+        const add = vi.fn().mockResolvedValue(undefined);
+        const run = vi.fn().mockResolvedValue({ stdout: '' });
+        return {
+            sandbox: {
+                sandboxId: 'sbx',
+                git: { add },
+                commands: { run },
+            } as never,
+            add,
+            run,
+        };
+    };
+
+    it('stages the given paths as files and also the repo-root workflows dir', async () => {
+        const { sandbox, add, run } = stagingSandbox();
+        const paths = ['fabrics/.../core', 'packages/.../analytics'];
+        await stageChanges(sandbox, paths, logger);
+        expect(add).toHaveBeenCalledWith(expect.any(String), { files: paths });
+        expect(run).toHaveBeenCalledWith(
+            expect.stringContaining('add .github/workflows'),
+        );
+    });
+
+    it('falls back to --all (and skips workflows) when the project is the repo root', async () => {
+        const { sandbox, add, run } = stagingSandbox();
+        await stageChanges(sandbox, ['.'], logger);
+        expect(add).toHaveBeenCalledWith(expect.any(String), { all: true });
+        expect(run).not.toHaveBeenCalled();
     });
 });
