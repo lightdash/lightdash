@@ -74,6 +74,26 @@ describe('Organization member permissions', () => {
                 ).toEqual(true);
             });
 
+            it('can view system analytics in their own organization', () => {
+                expect(
+                    ability.can(
+                        'view',
+                        subject('SystemAnalytics', {
+                            organizationUuid:
+                                ORGANIZATION_ADMIN.organizationUuid,
+                        }),
+                    ),
+                ).toEqual(true);
+                expect(
+                    ability.can(
+                        'view',
+                        subject('SystemAnalytics', {
+                            organizationUuid: 'another-org',
+                        }),
+                    ),
+                ).toEqual(false);
+            });
+
             it('can manage member profiles', () => {
                 expect(
                     ability.can('manage', 'OrganizationMemberProfile'),
@@ -591,6 +611,18 @@ describe('Organization member permissions', () => {
 
             it('cannot manage organizations', () => {
                 expect(ability.can('manage', 'Organization')).toEqual(false);
+            });
+
+            it('cannot view system analytics', () => {
+                expect(
+                    ability.can(
+                        'view',
+                        subject('SystemAnalytics', {
+                            organizationUuid:
+                                ORGANIZATION_EDITOR.organizationUuid,
+                        }),
+                    ),
+                ).toEqual(false);
             });
 
             it('can view and manage public & accessable dashboards', () => {

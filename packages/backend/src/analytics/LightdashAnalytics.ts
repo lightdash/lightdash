@@ -272,7 +272,10 @@ type QueryExecutionEvent = BaseTrack & {
     );
 };
 
-type QueryExecutionSource = 'warehouse' | 'pre_aggregate_duckdb';
+export type QueryExecutionSource =
+    | 'warehouse'
+    | 'pre_aggregate_duckdb'
+    | 'system_duckdb';
 
 type QueryReadyEvent = BaseTrack & {
     event: 'query.ready';

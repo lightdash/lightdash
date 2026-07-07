@@ -6914,6 +6914,25 @@ export class ProjectService extends BaseService {
         );
     }
 
+    private canViewSystemExplores(
+        account: Account,
+        organizationUuid: string,
+        projectUuid: string,
+    ): boolean {
+        if (!this.lightdashConfig.usageEvents.enabled) {
+            return false;
+        }
+
+        const auditedAbility = this.createAuditedAbility(account);
+        return auditedAbility.can(
+            'view',
+            subject('SystemAnalytics', {
+                organizationUuid,
+                projectUuid,
+            }),
+        );
+    }
+
     async getAllExploresSummary(
         account: Account,
         projectUuid: string,
@@ -6947,11 +6966,22 @@ export class ProjectService extends BaseService {
                 organizationUuid,
                 projectUuid,
             );
-        const visibleExploreSummaries = shouldIncludePreAggregateExplores
-            ? allExploreSummaries
-            : allExploreSummaries.filter(
-                  (explore) => explore.type !== ExploreType.PRE_AGGREGATE,
-              );
+        const canViewSystemExplores = this.canViewSystemExplores(
+            account,
+            organizationUuid,
+            projectUuid,
+        );
+        const visibleExploreSummaries = allExploreSummaries.filter(
+            (explore) => {
+                if (explore.type === ExploreType.PRE_AGGREGATE) {
+                    return shouldIncludePreAggregateExplores;
+                }
+                if (explore.type === ExploreType.SYSTEM) {
+                    return canViewSystemExplores;
+                }
+                return true;
+            },
+        );
 
         if (filtered) {
             const {
@@ -6962,6 +6992,7 @@ export class ProjectService extends BaseService {
                     (explore) =>
                         hasIntersection(explore.tags || [], value || []) ||
                         explore.type === ExploreType.VIRTUAL || // Custom explores/Virtual views are included by default
+                        explore.type === ExploreType.SYSTEM || // System explores are not selectable via dbt tables
                         (shouldIncludePreAggregateExplores &&
                             explore.type === ExploreType.PRE_AGGREGATE),
                 );
@@ -6971,6 +7002,7 @@ export class ProjectService extends BaseService {
                     (explore) =>
                         (value || []).includes(explore.name) ||
                         explore.type === ExploreType.VIRTUAL || // Custom explores/Virtual views are included by default
+                        explore.type === ExploreType.SYSTEM || // System explores are not selectable via dbt tables
                         (shouldIncludePreAggregateExplores &&
                             explore.type === ExploreType.PRE_AGGREGATE),
                 );
@@ -7126,6 +7158,11 @@ export class ProjectService extends BaseService {
                         project.organizationUuid,
                         projectUuid,
                     );
+                const canViewSystemExplores = this.canViewSystemExplores(
+                    account,
+                    project.organizationUuid,
+                    projectUuid,
+                );
 
                 const filteredExplores = Object.values(explores).reduce<
                     Record<string, Explore | ExploreError>
@@ -7133,6 +7170,12 @@ export class ProjectService extends BaseService {
                     if (
                         explore.type === ExploreType.PRE_AGGREGATE &&
                         !canViewPreAggregateExplores
+                    ) {
+                        return acc;
+                    }
+                    if (
+                        explore.type === ExploreType.SYSTEM &&
+                        !canViewSystemExplores
                     ) {
                         return acc;
                     }

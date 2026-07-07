@@ -63,6 +63,7 @@ export type CaslSubjectNames =
     | 'Space'
     | 'SpotlightTableConfig'
     | 'SqlRunner'
+    | 'SystemAnalytics'
     | 'Tags'
     | 'UnderlyingData'
     | 'User'

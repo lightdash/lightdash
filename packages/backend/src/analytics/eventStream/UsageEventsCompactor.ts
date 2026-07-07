@@ -11,7 +11,7 @@ import { getCompactedStreamColumns } from './registry';
 import { CompactedStreamColumn } from './types';
 
 const RAW_KEY_PREFIX = 'events/raw/';
-const COMPACTED_KEY_PREFIX = 'events/compacted';
+export const COMPACTED_KEY_PREFIX = 'events/compacted';
 export const MAX_PARTITIONS_PER_RUN = 500;
 const DELETE_BATCH_SIZE = 1000;
 export const DELETE_MAX_ATTEMPTS = 3;
