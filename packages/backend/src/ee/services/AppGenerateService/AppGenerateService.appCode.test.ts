@@ -107,6 +107,7 @@ function buildService() {
         promoteService: {} as never,
         externalConnectionModel: {} as never,
         sandboxRegistryModel: {} as never,
+        orgAiCopilotConfigResolver: {} as never,
     });
 
     // Stub ability checks to allow everything

@@ -78,6 +78,7 @@ function buildService(appModel: unknown) {
         promoteService: {} as never,
         externalConnectionModel: {} as never,
         sandboxRegistryModel: {} as never,
+        orgAiCopilotConfigResolver: {} as never,
     });
     // Bypass real CASL — the mapping/flow is what these tests cover.
     (

@@ -120,14 +120,25 @@ const makeService = ({
         getAvailableAgents: vi.fn().mockResolvedValue(candidates),
     };
 
+    const orgAiCopilotConfigResolver = {
+        getCopilotConfig: vi.fn().mockResolvedValue({}),
+    };
+
     const service = new AiRouterService({
         analytics: analytics as never,
         lightdashConfig: { ai: { copilot: {} } } as never,
         aiRouterModel: aiRouterModel as never,
         aiAgentService: aiAgentService as never,
+        orgAiCopilotConfigResolver: orgAiCopilotConfigResolver as never,
     });
 
-    return { service, analytics, aiRouterModel, aiAgentService };
+    return {
+        service,
+        analytics,
+        aiRouterModel,
+        aiAgentService,
+        orgAiCopilotConfigResolver,
+    };
 };
 
 describe('AiRouterService', () => {

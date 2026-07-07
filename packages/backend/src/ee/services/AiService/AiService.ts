@@ -57,6 +57,7 @@ import { generateTooltip as generateTooltipFromContext } from '../ai/agents/tool
 import { getModel } from '../ai/models';
 import { getAnthropicModel } from '../ai/models/anthropic-claude';
 import { getModelPreset } from '../ai/models/presets';
+import { OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
 import { AiCallAttribution } from '../ai/utils/aiCallTelemetry';
 import { convertQueryResultsToCsv } from '../ai/utils/convertQueryResultsToCsv';
 import { fieldDesc, formatSummaryArray } from './utils/prepareData';
@@ -85,6 +86,7 @@ type Dependencies = {
     openAi: OpenAi;
     lightdashConfig: LightdashConfig;
     featureFlagService: FeatureFlagService;
+    orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 };
 
 export class AiService {
@@ -106,6 +108,8 @@ export class AiService {
 
     private readonly featureFlagService: FeatureFlagService;
 
+    private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
+
     constructor(dependencies: Dependencies) {
         this.analytics = dependencies.analytics;
         this.dashboardModel = dependencies.dashboardModel;
@@ -116,6 +120,8 @@ export class AiService {
         this.openAi = dependencies.openAi;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.featureFlagService = dependencies.featureFlagService;
+        this.orgAiCopilotConfigResolver =
+            dependencies.orgAiCopilotConfigResolver;
     }
 
     /**
@@ -136,8 +142,12 @@ export class AiService {
             projectUuid: telemetry?.projectUuid ?? null,
         };
 
-        const anthropicConfig =
-            this.lightdashConfig.ai.copilot.providers.anthropic;
+        const copilotConfig =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                user.organizationUuid ?? null,
+            );
+
+        const anthropicConfig = copilotConfig.providers.anthropic;
 
         if (anthropicConfig?.apiKey) {
             const preset = getModelPreset('anthropic', 'claude-haiku-4-5');
@@ -164,7 +174,7 @@ export class AiService {
         }
 
         return {
-            ...getModel(this.lightdashConfig.ai.copilot, {
+            ...getModel(copilotConfig, {
                 enableReasoning: false,
                 useFastModel: true,
             }),
