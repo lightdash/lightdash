@@ -78,19 +78,48 @@ export type ComputedAiOrganizationSettings = {
 };
 
 // AI Organization Settings Types
+export const BYO_AI_PROVIDERS = ['anthropic', 'openai'] as const;
+export type ByoAiProvider = (typeof BYO_AI_PROVIDERS)[number];
+
+export type AiProviderApiKeysSet = {
+    anthropic: boolean;
+    openai: boolean;
+};
+
+export type AiProviderApiKeyHints = {
+    anthropic: string | null;
+    openai: string | null;
+};
+
+export type UpdateAiProviderApiKeys = {
+    anthropic?: string | null;
+    openai?: string | null;
+};
+
 export type AiOrganizationSettings = {
     organizationUuid: string;
     aiAgentsVisible: boolean;
     aiAgentReviewsEnabled: boolean;
     mcpContentWritesEnabled: boolean;
     defaultAiAgentModelConfig: AiAgentModelConfig | null;
+    providerApiKeysSet: AiProviderApiKeysSet;
+    providerApiKeyHints: AiProviderApiKeyHints;
 };
 
-export type CreateAiOrganizationSettings = AiOrganizationSettings;
+export type CreateAiOrganizationSettings = Omit<
+    AiOrganizationSettings,
+    'providerApiKeysSet' | 'providerApiKeyHints'
+> & {
+    providerApiKeys?: UpdateAiProviderApiKeys;
+};
 
-export type UpdateAiOrganizationSettings = Partial<
-    Omit<AiOrganizationSettings, 'organizationUuid'>
->;
+export type UpdateAiOrganizationSettings = {
+    aiAgentsVisible?: boolean;
+    aiAgentReviewsEnabled?: boolean;
+    mcpContentWritesEnabled?: boolean;
+    defaultAiAgentModelConfig?: AiAgentModelConfig | null;
+    providerApiKeys?: UpdateAiProviderApiKeys;
+};
 
 export type ApiAiOrganizationSettingsResponse = ApiSuccess<
     AiOrganizationSettings & ComputedAiOrganizationSettings
