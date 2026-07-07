@@ -1717,6 +1717,108 @@ export const getCategoryDateAxisConfig = (
     return {};
 };
 
+// Past this many ticks labels are thinned to illegibility anyway; fall back
+// to ECharts auto ticks instead of paying the per-tick label layout cost.
+const MAX_PINNED_TICKS = 400;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Pin time-axis ticks/labels to the actual data instants for daily bar
+ * charts whose day values are not UTC midnights. That happens when the
+ * warehouse truncates days in a non-UTC timezone (e.g. Snowflake session
+ * timezone), yielding instants like T04:00:00Z: bars render at those
+ * instants while ECharts draws its automatic tick labels at UTC midnights,
+ * so every label sits a constant few hours away from its bar group.
+ * Returning the distinct data instants lets the axis use `customValues` so
+ * every label sits exactly under its bar.
+ *
+ * Deliberately narrow: only explicit DAY granularity, only bar series, only
+ * when timezone shifting is inactive, and only when a non-midnight value
+ * proves the chart is misaligned today. Every other chart keeps ECharts'
+ * automatic ticks and renders exactly as before. The shift gate is required
+ * because the wall-clock shift rewrites plotted values after options are
+ * built, which would desync pinned values; under current code DAY truncs
+ * resolve to DATE and are never client-shifted, but the gate holds even if
+ * that classification changes.
+ */
+export const getTimeAxisPinnedTickValues = (
+    axisId?: string,
+    axisField?: Field | TableCalculation | CustomDimension,
+    rows?: ResultRow[],
+    axisType?: string,
+    series?: Series[],
+    isTimeAxisShifted?: boolean,
+): number[] | undefined => {
+    if (!axisId || !axisField || !rows || rows.length === 0) return undefined;
+    if (axisType !== 'time' || isTimeAxisShifted) return undefined;
+    if (
+        !('timeInterval' in axisField) ||
+        axisField.timeInterval !== TimeFrames.DAY
+    ) {
+        return undefined;
+    }
+    const hasBarSeries = series?.some(
+        (s) => s.type === CartesianSeriesType.BAR,
+    );
+    if (!hasBarSeries) return undefined;
+
+    const values = new Set<number>();
+    for (const row of rows) {
+        const raw = row[axisId]?.value.raw;
+        if (raw === null || raw === undefined) continue;
+        const parsed = dayjs.utc(String(raw));
+        if (parsed.isValid()) values.add(parsed.valueOf());
+    }
+    if (values.size === 0 || values.size > MAX_PINNED_TICKS) return undefined;
+
+    // UTC-midnight days already get ECharts ticks on bar days; only pin when
+    // a non-midnight value proves the labels are misaligned today.
+    const hasNonMidnightValue = Array.from(values).some(
+        (value) => value % DAY_MS !== 0,
+    );
+    if (!hasNonMidnightValue) return undefined;
+
+    return Array.from(values).sort((a, b) => a - b);
+};
+
+/**
+ * Label formatter for pinned daily ticks. Mirrors the leveled time-axis
+ * template (bold month at boundaries, plain day numbers), but since ticks
+ * only exist on data days a month may have no tick on the 1st — mark the
+ * first tick of each month with a bold "MMM D" so month context survives.
+ *
+ * Renders the tick's UTC calendar day, matching how the results table and
+ * tooltips format the same raw value. For positive-offset warehouse
+ * timezones a local midnight is the previous UTC day (Jul 1 at UTC+2 =
+ * Jun 30T22:00Z, labelled "30") — intentional: the chart must agree with
+ * the table for the same row rather than guess the warehouse-local day.
+ */
+export const getPinnedDayTickFormatter = (
+    tickValues: number[],
+): ((value: number) => string) => {
+    const firstTickOfMonth = new Set<number>();
+    let lastMonthKey: string | undefined;
+    for (const value of tickValues) {
+        const monthKey = dayjs.utc(value).format('YYYY-MM');
+        if (monthKey !== lastMonthKey) {
+            firstTickOfMonth.add(value);
+            lastMonthKey = monthKey;
+        }
+    }
+    return (value: number) => {
+        const date = dayjs.utc(value);
+        if (date.date() === 1) {
+            return date.month() === 0
+                ? `{bold|${date.format('YYYY')}}`
+                : `{bold|${date.format('MMM')}}`;
+        }
+        if (firstTickOfMonth.has(value)) {
+            return `{bold|${date.format('MMM')}} ${date.format('D')}`;
+        }
+        return date.format('D');
+    };
+};
+
 // Read from the axis holding the X field — bottom (normal) or left (flipped).
 // Top/right hold Y-field metrics; leaking them corrupts the X field column.
 export const selectContinuousDateRange = (
@@ -1743,6 +1845,7 @@ const getEchartAxes = ({
     parameters,
     resolvedTimezone,
     displayTimezone,
+    isTimeAxisShifted,
 }: {
     validCartesianConfig: CartesianChart;
     itemsMap: ItemsMap;
@@ -1753,6 +1856,7 @@ const getEchartAxes = ({
     parameters?: ParametersValuesMap;
     resolvedTimezone?: string;
     displayTimezone?: string;
+    isTimeAxisShifted?: boolean;
 }) => {
     const xAxisItemId = validCartesianConfig.layout.flipAxes
         ? validCartesianConfig.layout?.yField?.[0]
@@ -2037,6 +2141,14 @@ const getEchartAxes = ({
         leftAxisType,
         eChartsSeries,
         resolvedTimezone,
+    );
+    const bottomAxisPinnedTickValues = getTimeAxisPinnedTickValues(
+        bottomAxisXId,
+        bottomAxisXField,
+        axisRows,
+        bottomAxisType,
+        eChartsSeries,
+        isTimeAxisShifted,
     );
     const axisLabelFontSize =
         validCartesianConfig?.eChartsConfig?.axisLabelFontSize;
@@ -2362,6 +2474,15 @@ const getEchartAxes = ({
                         hideOverlap: true,
                     }
                   : {}),
+              ...(bottomAxisPinnedTickValues
+                  ? {
+                        customValues: bottomAxisPinnedTickValues,
+                        formatter: getPinnedDayTickFormatter(
+                            bottomAxisPinnedTickValues,
+                        ),
+                        rich: { bold: { fontWeight: 'bold' } },
+                    }
+                  : {}),
           }
         : undefined;
 
@@ -2448,6 +2569,9 @@ const getEchartAxes = ({
                     ...getAxisTickStyle(
                         validCartesianConfig?.eChartsConfig?.showAxisTicks,
                     ),
+                    ...(bottomAxisPinnedTickValues
+                        ? { customValues: bottomAxisPinnedTickValues }
+                        : {}),
                 },
                 // Spread last so a category-date axisTick keeps replacing the
                 // tick style (sub-day time axes never set extraConfig.axisTick).
@@ -3137,6 +3261,7 @@ const useEchartsCartesianConfig = (
             parameters,
             resolvedTimezone: axisTimezone,
             displayTimezone: axisDisplayTimezone,
+            isTimeAxisShifted: timeAxisField !== undefined,
         });
     }, [
         itemsMap,
@@ -3148,6 +3273,7 @@ const useEchartsCartesianConfig = (
         parameters,
         axisTimezone,
         axisDisplayTimezone,
+        timeAxisField,
     ]);
 
     // Shared by stackedSeriesWithColorAssignments (non-stacked bar styling) and
