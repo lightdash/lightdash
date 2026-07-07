@@ -343,10 +343,12 @@ export class OrganizationService extends BaseService {
             );
         }
 
-        const brand = await this.organizationModel.upsertBrand(
+        const brand = await this.organizationModel.updateBrand(
             organizationUuid,
-            normalizedDomain,
-            OrganizationService.mapBrandfetchResponse(data),
+            {
+                domain: normalizedDomain,
+                ...OrganizationService.mapBrandfetchResponse(data),
+            },
         );
 
         this.logger.info('Fetched and stored organization brand', {

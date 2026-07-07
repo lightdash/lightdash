@@ -126,10 +126,6 @@ import {
     OpenIdIdentitiesTableName,
 } from '../database/entities/openIdIdentities';
 import {
-    OrganizationBrandsTable,
-    OrganizationBrandsTableName,
-} from '../database/entities/organizationBrands';
-import {
     OrganizationColorPaletteTable,
     OrganizationColorPaletteTableName,
 } from '../database/entities/organizationColorPalettes';
@@ -629,7 +625,6 @@ declare module 'knex/types/tables' {
         [MetricsTreesTableName]: MetricsTreesTable;
         [MetricsTreeNodesTableName]: MetricsTreeNodesTable;
         [SpotlightTableConfigTableName]: SpotlightTableConfigTable;
-        [OrganizationBrandsTableName]: OrganizationBrandsTable;
         [OrganizationColorPaletteTableName]: OrganizationColorPaletteTable;
         [OrganizationDesignsTableName]: OrganizationDesignsTable;
         [OrganizationDesignFilesTableName]: OrganizationDesignFilesTable;

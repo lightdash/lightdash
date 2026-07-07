@@ -1,7 +1,7 @@
 .root {
     display: flex;
     min-height: 100vh;
-    background-color: #ffffff;
+    background-color: var(--mantine-color-body);
 }
 
 .leftPanel {
@@ -11,8 +11,8 @@
     flex-direction: column;
     justify-content: center;
     padding: 64px;
-    background-color: #f7f8fa;
-    border-right: 1px solid #eceef1;
+    background-color: var(--mantine-color-ldGray-0);
+    border-right: 1px solid var(--mantine-color-ldGray-2);
 }
 
 .rightPanel {
@@ -29,18 +29,18 @@
     align-items: center;
     gap: 10px;
     padding: 8px 20px 8px 8px;
-    border: 1px solid #eceef1;
+    border: 1px solid var(--mantine-color-ldGray-2);
     border-radius: 999px;
-    background-color: #ffffff;
-    box-shadow: 0 1px 3px rgba(16, 24, 40, 0.06);
+    background-color: var(--mantine-color-body);
+    box-shadow: var(--mantine-shadow-subtle);
 }
 
 .logoTile {
     width: 64px;
     height: 64px;
-    border-radius: 14px;
-    background-color: #ffffff;
-    border: 1px solid #eceef1;
+    border-radius: var(--mantine-radius-md);
+    background-color: var(--mantine-color-body);
+    border: 1px solid var(--mantine-color-ldGray-2);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -56,12 +56,12 @@
 .logoBadge {
     width: 36px;
     height: 36px;
-    border-radius: 10px;
+    border-radius: var(--mantine-radius-md);
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #ffffff;
-    font-weight: 700;
+    color: var(--mantine-color-white);
+    font-weight: 600;
     font-size: 16px;
     overflow: hidden;
 }
@@ -78,32 +78,18 @@
 }
 
 .swatchSelected {
-    outline: 2px solid #1a1b1e;
+    outline: 2px solid var(--mantine-color-foreground-0);
 }
 
 .chartGrid {
     display: grid;
     grid-template-columns: repeat(2, 320px);
-    gap: 24px;
+    gap: var(--mantine-spacing-xl);
 }
 
 .chartCard {
-    background-color: #ffffff;
-    border: 1px solid #eceef1;
-    border-radius: 16px;
-    padding: 24px;
-    box-shadow: 0 1px 3px rgba(16, 24, 40, 0.05);
     display: flex;
     flex-direction: column;
-    gap: 16px;
+    gap: var(--mantine-spacing-md);
     min-height: 180px;
-}
-
-.continueButton {
-    background-color: #1a1b1e;
-    color: #ffffff;
-}
-
-.continueButton:hover {
-    background-color: #2d2e30;
 }

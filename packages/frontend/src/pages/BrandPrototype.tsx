@@ -8,6 +8,7 @@ import {
     Divider,
     Group,
     Loader,
+    Paper,
     Stack,
     Text,
     TextInput,
@@ -132,7 +133,7 @@ const DonutChart: FC<{ color: string; percentage: number }> = ({
                 cy={44}
                 r={radius}
                 fill="none"
-                stroke="#e9ecef"
+                stroke="var(--mantine-color-ldGray-2)"
                 strokeWidth={14}
             />
             <circle
@@ -157,7 +158,7 @@ const LogoBadge: FC<{ logoUrl: string | null; name: string; color: string }> =
         <Box
             className={classes.logoBadge}
             bg={logoUrl ? '#ffffff' : color}
-            bd={logoUrl ? '1px solid #eceef1' : undefined}
+            bd={logoUrl ? '1px solid var(--mantine-color-ldGray-2)' : undefined}
         >
             {logoUrl ? (
                 <img
@@ -209,10 +210,8 @@ const BrandPrototype: FC = () => {
             <Box className={classes.leftPanel}>
                 <Stack gap="lg">
                     <Stack gap="xs">
-                        <Title order={1} fw={800} lh={1.1}>
-                            Name your organization
-                        </Title>
-                        <Text c="dimmed">
+                        <Title order={2}>Name your organization</Title>
+                        <Text c="ldGray.7">
                             This is how your team and your agent will refer to
                             your workspace.
                         </Text>
@@ -221,7 +220,6 @@ const BrandPrototype: FC = () => {
                     <TextInput
                         label="Organization name"
                         size="md"
-                        radius="md"
                         value={orgName}
                         onChange={(event) =>
                             setOrgNameInput(event.currentTarget.value)
@@ -232,14 +230,8 @@ const BrandPrototype: FC = () => {
 
                     <Stack gap="sm">
                         <Group gap="sm">
-                            <Text fw={700}>Brand</Text>
-                            <Badge
-                                variant="light"
-                                color="gray"
-                                radius="sm"
-                                tt="none"
-                                fw={500}
-                            >
+                            <Text fw={600}>Brand</Text>
+                            <Badge variant="light" color="ldGray">
                                 Optional · you can change this later
                             </Badge>
                         </Group>
@@ -250,7 +242,6 @@ const BrandPrototype: FC = () => {
                                     label="Company website"
                                     placeholder="acme.com"
                                     size="md"
-                                    radius="md"
                                     flex={1}
                                     value={domainInput}
                                     onChange={(event) =>
@@ -262,7 +253,6 @@ const BrandPrototype: FC = () => {
                                 <Button
                                     type="submit"
                                     size="md"
-                                    radius="md"
                                     variant="default"
                                     loading={brandUpdateMutation.isLoading}
                                     disabled={domainInput.trim().length === 0}
@@ -319,14 +309,7 @@ const BrandPrototype: FC = () => {
                         </Group>
                     </Stack>
 
-                    <Button
-                        size="md"
-                        radius="md"
-                        w="fit-content"
-                        px="xl"
-                        mt="md"
-                        className={classes.continueButton}
-                    >
+                    <Button size="md" w="fit-content" px="xl" mt="md">
                         Continue
                     </Button>
                 </Stack>
@@ -341,62 +324,65 @@ const BrandPrototype: FC = () => {
                                 name={brandDisplayName}
                                 color={themeColor}
                             />
-                            <ColorSwatch color="#2f9e44" size={8} />
+                            <ColorSwatch
+                                color="var(--mantine-color-green-6)"
+                                size={8}
+                            />
                             <Text size="sm">
                                 Theme detected from <b>{brand.domain}</b>
                             </Text>
                         </Box>
                     ) : (
-                        <Text c="dimmed" size="sm">
+                        <Text c="ldGray.6" size="sm">
                             Enter your company website to detect your brand
                         </Text>
                     )}
 
                     <Box className={classes.chartGrid}>
-                        <Box className={classes.chartCard}>
-                            <Text c="dimmed" size="sm" fw={500}>
+                        <Paper p="lg" className={classes.chartCard}>
+                            <Text c="ldGray.6" size="sm" fw={500}>
                                 Weekly active users
                             </Text>
                             <BarChart color={themeColor} />
-                        </Box>
-                        <Box className={classes.chartCard}>
+                        </Paper>
+                        <Paper p="lg" className={classes.chartCard}>
                             <Stack gap={4} justify="center" flex={1}>
-                                <Text c="dimmed" size="sm" fw={500}>
+                                <Text c="ldGray.6" size="sm" fw={500}>
                                     Revenue
                                 </Text>
-                                <Text fz={40} fw={800} lh={1.1}>
+                                <Text fz={40} fw={600} lh={1.1}>
                                     $248k
                                 </Text>
-                                <Text fw={700} size="sm" c={themeColor}>
+                                <Text fw={600} size="sm" c={themeColor}>
                                     ↑ 12.4% MoM
                                 </Text>
                             </Stack>
-                        </Box>
-                        <Box className={classes.chartCard}>
-                            <Text c="dimmed" size="sm" fw={500}>
+                        </Paper>
+                        <Paper p="lg" className={classes.chartCard}>
+                            <Text c="ldGray.6" size="sm" fw={500}>
                                 Signups
                             </Text>
                             <LineChart color={themeColor} />
-                        </Box>
-                        <Box className={classes.chartCard}>
+                        </Paper>
+                        <Paper p="lg" className={classes.chartCard}>
                             <Group gap="xl" justify="center" flex={1}>
                                 <DonutChart
                                     color={themeColor}
                                     percentage={64}
                                 />
                                 <Stack gap={4}>
-                                    <Text c="dimmed" size="sm" fw={500}>
+                                    <Text c="ldGray.6" size="sm" fw={500}>
                                         Conversion
                                     </Text>
-                                    <Text fz={32} fw={800} lh={1.1}>
+                                    <Text fz={32} fw={600} lh={1.1}>
                                         64%
                                     </Text>
                                 </Stack>
                             </Group>
-                        </Box>
+                        </Paper>
                     </Box>
 
-                    <Text c="dimmed" size="sm">
+                    <Text c="ldGray.6" size="sm">
                         Example charts — themed to your brand and saved to your
                         workspace.
                     </Text>
