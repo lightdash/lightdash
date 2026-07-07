@@ -757,10 +757,13 @@ export function formatValueWithExpression(
             }
             // Shift into the project tz then relabel wall-clock as UTC so
             // numfmt's `ignoreTimezone` renders it verbatim. Gated like
-            // formatTimestamp (`if (timezone)`).
+            // formatTimestamp (`if (timezone)`). The no-tz branch must also
+            // parse as UTC: `ignoreTimezone` reads the Date's UTC fields, so a
+            // local parse of an offset-less value (bare date / naive timestamp)
+            // shifts it by the viewer's offset across the month boundary.
             const dateForExpression = timezone
                 ? moment.utc(sanitizedValue).tz(timezone).utc(true).toDate()
-                : moment(sanitizedValue).toDate();
+                : moment.utc(sanitizedValue).toDate();
             return formatWithExpression(expression, dateForExpression, {
                 ignoreTimezone: true,
             });
