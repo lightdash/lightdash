@@ -13,8 +13,11 @@ if configure_kubectl 2>/dev/null && kubectl get nodes >/dev/null 2>&1; then
   helm -n "$K8S_NAMESPACE" uninstall "$HELM_RELEASE" 2>/dev/null || skip "$HELM_RELEASE not installed"
   # Drop the ingress-nginx Service (NLB) so terraform doesn't trip on a dangling ELB.
   helm -n ingress-nginx uninstall ingress-nginx 2>/dev/null || skip "ingress-nginx not installed"
+  # Remove leftover workloads first — a pod still mounting a PVC pins it via pvc-protection,
+  # and `kubectl delete pvc` blocks forever waiting for the finalizer.
+  kubectl -n "$K8S_NAMESPACE" delete statefulset,deployment,job --all --timeout=120s 2>/dev/null || true
   # Release postgres PVC so the EBS volume is deleted with the cluster.
-  kubectl -n "$K8S_NAMESPACE" delete pvc --all 2>/dev/null || true
+  kubectl -n "$K8S_NAMESPACE" delete pvc --all --timeout=180s 2>/dev/null || true
   ok "in-cluster resources removed"
   sleep 20  # let the cloud-controller delete the NLB before destroy
 else
