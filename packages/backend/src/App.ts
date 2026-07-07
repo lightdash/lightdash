@@ -30,6 +30,8 @@ import reDoc from 'redoc-express';
 import { URL } from 'url';
 import { BufferedEventStreamWriter } from './analytics/eventStream/BufferedEventStreamWriter';
 import { createEventStreamWriter } from './analytics/eventStream/createEventStreamWriter';
+import { EventStreamSink } from './analytics/eventStream/EventStreamSink';
+import { eventStreamRegistry } from './analytics/eventStream/registry';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
 import {
     ClientProviderMap,
@@ -101,6 +103,7 @@ const schedulerWorkerFactory = (context: {
     utils: UtilRepository;
     // Optional only so the EE factory override (which reads context.workerHealth) typechecks against this shape.
     workerHealth?: SchedulerWorkerHealth;
+    prometheusMetrics?: PrometheusMetrics;
 }) =>
     new SchedulerWorker({
         lightdashConfig: context.lightdashConfig,
@@ -136,6 +139,7 @@ const schedulerWorkerFactory = (context: {
         resolveOrganizationName: createOrganizationNameResolver(
             context.models.getOrganizationModel(),
         ),
+        prometheusMetrics: context.prometheusMetrics,
     });
 
 export type AppArguments = {
@@ -190,6 +194,13 @@ export default class App {
         this.port = args.port;
         this.environment = args.environment || 'production';
         this.analyticsEventEmitter = new EventEmitter();
+        this.prometheusMetrics = new PrometheusMetrics(
+            this.lightdashConfig.prometheus,
+        );
+        this.eventStreamWriter = createEventStreamWriter(
+            this.lightdashConfig,
+            this.prometheusMetrics,
+        );
         this.analytics = new LightdashAnalytics({
             lightdashConfig: this.lightdashConfig,
             writeKey: this.lightdashConfig.rudder.writeKey || 'notrack',
@@ -202,6 +213,12 @@ export default class App {
                     this.lightdashConfig.rudder.dataPlaneUrl,
             },
             eventEmitter: this.analyticsEventEmitter,
+            eventStreamSink: this.eventStreamWriter
+                ? new EventStreamSink(
+                      eventStreamRegistry,
+                      this.eventStreamWriter,
+                  )
+                : undefined,
         });
         this.database = knex(
             this.environment === 'production'
@@ -227,14 +244,6 @@ export default class App {
             }),
             models: this.models,
         });
-        this.prometheusMetrics = new PrometheusMetrics(
-            this.lightdashConfig.prometheus,
-        );
-        this.eventStreamWriter = createEventStreamWriter(
-            this.lightdashConfig,
-            this.prometheusMetrics,
-        );
-
         this.serviceRepository = new ServiceRepository({
             serviceProviders: args.serviceProviders,
             context: new OperationContext({
@@ -973,6 +982,7 @@ export default class App {
             models: this.models,
             clients: this.clients,
             utils: this.utils,
+            prometheusMetrics: this.prometheusMetrics,
         });
 
         this.schedulerWorker.run().catch((e) => {

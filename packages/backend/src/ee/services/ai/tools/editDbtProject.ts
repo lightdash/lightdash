@@ -64,7 +64,12 @@ export const getEditDbtProject = ({ editDbtProject }: Dependencies) =>
     tool({
         ...toolDefinition,
         execute: async (
-            { prompt, prUrl: pastedPrUrl, fromActiveChangeset },
+            {
+                prompt,
+                prUrl: pastedPrUrl,
+                fromActiveChangeset,
+                startNewPullRequest,
+            },
             { toolCallId },
         ) => {
             try {
@@ -84,6 +89,7 @@ export const getEditDbtProject = ({ editDbtProject }: Dependencies) =>
                     prompt,
                     prUrl: pastedPrUrl,
                     fromActiveChangeset,
+                    startNewPullRequest,
                     progressId: toolCallId,
                 });
 

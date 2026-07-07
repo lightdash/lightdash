@@ -12,6 +12,7 @@ import { AiAgentRequestingUser } from '../types/aiAgent';
 import { xmlBuilder } from '../xmlBuilder';
 import { renderAvailableExplores } from './availableExplores';
 import { getAiWritebackSection } from './systemV2AiWriteback';
+import { getCodingAgentSection } from './systemV2CodingAgent';
 import { CONTENT_TOOLS_SECTION } from './systemV2ContentTools';
 import { DATA_ACCESS_DISABLED_SECTION } from './systemV2DataAccessDisabled';
 import { DATA_ACCESS_ENABLED_SECTION } from './systemV2DataAccessEnabled';
@@ -39,6 +40,7 @@ export const getSystemPromptV2 = (args: {
     enableSearchSemanticLayer?: boolean;
     enableAiWriteback?: boolean;
     writebackAttribution?: AiWritebackAttribution | null;
+    enableCodingAgent?: boolean;
     siteUrl?: string;
     enableRepoDiscovery?: boolean;
     repoFsRoot?: string | null;
@@ -63,6 +65,7 @@ export const getSystemPromptV2 = (args: {
         enableSearchSemanticLayer = false,
         enableAiWriteback = false,
         writebackAttribution = null,
+        enableCodingAgent = false,
         siteUrl = '',
         enableRepoDiscovery = false,
         repoFsRoot = null,
@@ -157,6 +160,10 @@ export const getSystemPromptV2 = (args: {
                       enableContentTools,
                   )
                 : '',
+        )
+        .replace(
+            '{{coding_agent_section}}',
+            enableCodingAgent ? getCodingAgentSection() : '',
         )
         .replace(
             '{{repo_fs_section}}',

@@ -147,6 +147,7 @@ const FilterStringAutoComplete: FC<Props> = ({
     // The "(null)" option is only meaningful for multi-value filters.
     const showNull = !!showNullOption && !singleValue;
     const multiSelectRef = useRef<HTMLInputElement>(null);
+    const skipBlurCommitRef = useRef(false);
     const { projectUuid, getAutocompleteFilterGroup, parameterValues } =
         useFiltersContext();
     if (!projectUuid) {
@@ -233,7 +234,11 @@ const FilterStringAutoComplete: FC<Props> = ({
                 onChange(uniq(updatedValues));
             }
             if (singleValue) {
-                multiSelectRef.current?.blur();
+                const input = multiSelectRef.current;
+                if (input && document.activeElement === input) {
+                    skipBlurCommitRef.current = true;
+                    input.blur();
+                }
             }
         },
         [onChange, singleValue],
@@ -322,6 +327,19 @@ const FilterStringAutoComplete: FC<Props> = ({
             }
         },
         [handleAdd, handleResetSearch, search],
+    );
+
+    const handleBlur = useCallback(
+        (event: React.FocusEvent<HTMLInputElement>) => {
+            if (skipBlurCommitRef.current) {
+                skipBlurCommitRef.current = false;
+            } else if (search !== '' && !pastePopUpOpened) {
+                handleAdd(search);
+                handleResetSearch();
+            }
+            onInputBlur?.(event);
+        },
+        [handleAdd, handleResetSearch, onInputBlur, pastePopUpOpened, search],
     );
 
     const ValueComponent = useCallback(
@@ -651,6 +669,8 @@ const FilterStringAutoComplete: FC<Props> = ({
                         }}
                         onCreate={handleAdd}
                         onKeyDown={handleKeyDown}
+                        onFocus={onInputFocus}
+                        onBlur={handleBlur}
                     />
                 )}
             </MultiValuePastePopover>

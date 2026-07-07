@@ -18,11 +18,13 @@ import { useSchedulerFormContext } from './schedulerFormContext';
 
 type Props = {
     projectUuid: string | undefined;
+    /** Skip the panel chrome and leading icon when the host surface already provides them */
+    bare?: boolean;
 };
 
 // Renders nothing unless AI is available for this project. Turning it on makes
 // the delivery message AI-written; picking an agent is an optional upgrade.
-export const SchedulerFormAiInput: FC<Props> = ({ projectUuid }) => {
+export const SchedulerFormAiInput: FC<Props> = ({ projectUuid, bare }) => {
     const form = useSchedulerFormContext();
     const isAiVisible = useAiAgentButtonVisibility();
     const { data: agentsData } = useProjectAiAgents({
@@ -79,10 +81,10 @@ export const SchedulerFormAiInput: FC<Props> = ({ projectUuid }) => {
     };
 
     return (
-        <Box className={classes.panel}>
+        <Box className={bare ? undefined : classes.panel}>
             <Group justify="space-between" wrap="nowrap" align="center">
                 <Group gap="sm" wrap="nowrap" align="center">
-                    <AiAgentIcon size={18} animated calm />
+                    {!bare && <AiAgentIcon size={18} animated calm />}
                     <Text fw={600} fz="sm">
                         AI-enhanced message
                     </Text>
@@ -92,7 +94,12 @@ export const SchedulerFormAiInput: FC<Props> = ({ projectUuid }) => {
                     onChange={(event) => toggle(event.currentTarget.checked)}
                 />
             </Group>
-            <Text fz="xs" c="ldGray.6" mt={2} className={classes.subtitle}>
+            <Text
+                fz="xs"
+                c="ldGray.6"
+                mt={2}
+                className={bare ? undefined : classes.subtitle}
+            >
                 Writes the delivery message from your data on every send.
             </Text>
 
@@ -100,8 +107,8 @@ export const SchedulerFormAiInput: FC<Props> = ({ projectUuid }) => {
                 <Stack gap="sm" mt="md">
                     <Textarea
                         label="Instructions"
-                        autosize
-                        minRows={2}
+                        rows={3}
+                        resize="vertical"
                         value={augmentation.prompt}
                         onChange={(event) =>
                             setPrompt(event.currentTarget.value)

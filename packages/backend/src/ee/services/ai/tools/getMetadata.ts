@@ -90,7 +90,7 @@ const findField = (
             ...Object.values(table.metrics ?? {}),
         ];
         for (const field of fields) {
-            if (`${field.table}_${field.name}` === fieldId) {
+            if (!field.hidden && `${field.table}_${field.name}` === fieldId) {
                 return {
                     field,
                     isJoined: field.table !== explore.baseTable,

@@ -121,6 +121,7 @@ export const SCHEDULER_TASKS = {
     MANAGED_AGENT_HEARTBEAT: 'managedAgentHeartbeat',
     CLEAN_EXPIRED_PREVIEWS: 'cleanExpiredPreviews',
     INGEST_PROJECT_CONTEXT: 'ingestProjectContext',
+    COMPACT_USAGE_EVENTS: 'compactUsageEvents',
     ...EE_SCHEDULER_TASKS,
 } as const;
 
@@ -165,6 +166,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: ManagedAgentHeartbeatPayload;
     [SCHEDULER_TASKS.CLEAN_EXPIRED_PREVIEWS]: TraceTaskBase;
     [SCHEDULER_TASKS.INGEST_PROJECT_CONTEXT]: TraceTaskBase;
+    [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS]: TraceTaskBase;
     [SCHEDULER_TASKS.AI_AGENT_EVAL_RESULT]: AiAgentEvalRunJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_CLASSIFIER]: AiAgentReviewClassifierJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_WRITEBACK]: AiAgentReviewWritebackJobPayload;

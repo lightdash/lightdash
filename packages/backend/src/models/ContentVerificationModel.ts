@@ -9,7 +9,10 @@ import {
     ContentVerificationTableName,
     type CreateDbContentVerification,
 } from '../database/entities/contentVerification';
-import { DashboardsTableName } from '../database/entities/dashboards';
+import {
+    DashboardsTableName,
+    DashboardVersionsTableName,
+} from '../database/entities/dashboards';
 import {
     SavedChartsTableName,
     SavedChartVersionFieldsTableName,
@@ -165,6 +168,20 @@ export class ContentVerificationModel {
                 `${ContentVerificationTableName}.content_type`,
                 `${ContentVerificationTableName}.content_uuid`,
                 `${SavedChartsTableName}.name`,
+                `${SavedChartsTableName}.description`,
+                `${SavedChartsTableName}.views_count`,
+                `${SavedChartsTableName}.last_version_chart_kind`,
+                this.database
+                    .ref(`${SavedChartsTableName}.last_version_updated_at`)
+                    .as('last_updated_at'),
+                this.database(SavedChartVersionsTableName)
+                    .select('explore_name')
+                    .whereRaw(
+                        `${SavedChartVersionsTableName}.saved_query_id = ${SavedChartsTableName}.saved_query_id`,
+                    )
+                    .orderBy('created_at', 'desc')
+                    .limit(1)
+                    .as('explore_name'),
                 `${SpaceTableName}.space_uuid`,
                 this.database.ref(`${SpaceTableName}.name`).as('space_name'),
                 `${UserTableName}.user_uuid`,
@@ -201,6 +218,16 @@ export class ContentVerificationModel {
                 `${ContentVerificationTableName}.content_type`,
                 `${ContentVerificationTableName}.content_uuid`,
                 `${DashboardsTableName}.name`,
+                `${DashboardsTableName}.description`,
+                `${DashboardsTableName}.views_count`,
+                this.database(DashboardVersionsTableName)
+                    .select('created_at')
+                    .whereRaw(
+                        `${DashboardVersionsTableName}.dashboard_id = ${DashboardsTableName}.dashboard_id`,
+                    )
+                    .orderBy('created_at', 'desc')
+                    .limit(1)
+                    .as('last_updated_at'),
                 `${SpaceTableName}.space_uuid`,
                 this.database.ref(`${SpaceTableName}.name`).as('space_name'),
                 `${UserTableName}.user_uuid`,
@@ -209,20 +236,51 @@ export class ContentVerificationModel {
                 `${ContentVerificationTableName}.verified_at`,
             );
 
-        return [...chartRows, ...dashboardRows].map((row) => ({
+        const toBaseItem = (row: {
+            content_verification_uuid: string;
+            content_uuid: string;
+            name: string;
+            description: string | null;
+            views_count: number;
+            last_updated_at: Date | null;
+            space_uuid: string;
+            space_name: string;
+            user_uuid: string;
+            first_name: string;
+            last_name: string;
+            verified_at: Date;
+        }) => ({
             uuid: row.content_verification_uuid,
-            contentType: row.content_type as ContentType,
             contentUuid: row.content_uuid,
             name: row.name,
+            description: row.description ?? null,
             spaceUuid: row.space_uuid,
             spaceName: row.space_name,
+            views: row.views_count,
+            lastUpdatedAt: row.last_updated_at,
             verifiedBy: {
                 userUuid: row.user_uuid,
                 firstName: row.first_name,
                 lastName: row.last_name,
             },
             verifiedAt: row.verified_at,
+        });
+
+        const charts: VerifiedContentListItem[] = chartRows.map((row) => ({
+            ...toBaseItem(row),
+            contentType: ContentType.CHART,
+            chartKind: row.last_version_chart_kind,
+            exploreName: row.explore_name ?? null,
         }));
+
+        const dashboards: VerifiedContentListItem[] = dashboardRows.map(
+            (row) => ({
+                ...toBaseItem(row),
+                contentType: ContentType.DASHBOARD,
+            }),
+        );
+
+        return [...charts, ...dashboards];
     }
 
     async getVerifiedFieldUsage(

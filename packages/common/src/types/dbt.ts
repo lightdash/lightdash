@@ -222,6 +222,7 @@ type DbtColumnLightdashConfig = {
 export type DbtFilterAutocompleteConfig = {
     values?: FilterAutocompleteValue[];
     fetch_from_warehouse?: boolean;
+    label_dimension?: string;
 };
 
 export type DbtColumnLightdashDimension = {

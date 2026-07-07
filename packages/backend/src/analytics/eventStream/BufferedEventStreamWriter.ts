@@ -178,6 +178,7 @@ export class BufferedEventStreamWriter
                     this.prometheusMetrics.incrementUsageEventsFlushed(
                         group.rows.length,
                     );
+                    this.prometheusMetrics.incrementUsageEventsRawPuts();
                     return;
                 } catch (error) {
                     if (attempt === PUT_RETRIES) {

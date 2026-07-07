@@ -1,3 +1,8 @@
+import {
+    DashboardTileTypes,
+    PreAggregateMissReason,
+    type TilePreAggregateAuditMiss,
+} from '@lightdash/common';
 import { testHelpers } from './preAggregateAudit';
 
 vi.mock('./dbt/apiClient', () => ({
@@ -28,6 +33,44 @@ describe('renderSingle JSON mode', () => {
             .mockImplementation(() => true);
         renderSingle(audit, { json: true, verbose: false });
         expect(spy).toHaveBeenCalledWith(`${JSON.stringify(audit, null, 2)}\n`);
+        spy.mockRestore();
+    });
+});
+
+describe('renderSingle human output', () => {
+    const missTileWithoutChartName = {
+        status: 'miss',
+        tileUuid: 't-1',
+        tileName: 'Orders over time',
+        tileType: DashboardTileTypes.SAVED_CHART,
+        savedChartUuid: 'sc-1',
+        exploreName: 'orders',
+        miss: { reason: PreAggregateMissReason.NO_PRE_AGGREGATES_DEFINED },
+        missFieldLabel: null,
+    } as unknown as TilePreAggregateAuditMiss;
+
+    it('does not crash when tiles lack chartName/exploreLabel', () => {
+        const audit = makeAudit({
+            summary: { hitCount: 0, missCount: 1, ineligibleCount: 0 },
+            tabs: [
+                {
+                    tabUuid: null,
+                    tabName: null,
+                    tiles: [missTileWithoutChartName],
+                },
+            ],
+        });
+        const writes: string[] = [];
+        const spy = vi
+            .spyOn(process.stdout, 'write')
+            .mockImplementation((chunk: string | Uint8Array) => {
+                writes.push(String(chunk));
+                return true;
+            });
+        expect(() =>
+            renderSingle(audit, { json: false, verbose: false }),
+        ).not.toThrow();
+        expect(writes.join('')).toContain('Orders over time');
         spy.mockRestore();
     });
 });

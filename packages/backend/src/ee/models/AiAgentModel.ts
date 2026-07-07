@@ -51,6 +51,7 @@ import {
     ApiUpdateEvaluationRequest,
     assertUnreachable,
     ChartKind,
+    ContentType,
     CreateLlmAssessment,
     CreateSlackPrompt,
     CreateSlackThread,
@@ -77,6 +78,7 @@ import {
     UpdateWebAppResponse,
     type AiAgent,
     type AiAgentIntegration,
+    type VerifiedContentListItem,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import moment from 'moment';
@@ -92,6 +94,7 @@ import {
     SavedChartsTableName,
     SavedChartVersionsTableName,
 } from '../../database/entities/savedCharts';
+import { SpaceTableName } from '../../database/entities/spaces';
 import { DbUser, UserTableName } from '../../database/entities/users';
 import { isUniqueConstraintViolation } from '../../database/errors';
 import KnexPaginate from '../../database/pagination';
@@ -4602,6 +4605,14 @@ export class AiAgentModel {
             });
     }
 
+    async findPromptSavedQueryUuid(promptUuid: string): Promise<string | null> {
+        const row = await this.database(AiPromptTableName)
+            .select('saved_query_uuid')
+            .where({ ai_prompt_uuid: promptUuid })
+            .first<{ saved_query_uuid: string | null }>();
+        return row?.saved_query_uuid ?? null;
+    }
+
     async updateMessageSavedQuery(data: {
         messageUuid: string;
         savedQueryUuid: string | null;
@@ -4643,6 +4654,190 @@ export class AiAgentModel {
             .where({
                 ai_artifact_version_uuid: artifactVersionUuid,
             });
+    }
+
+    async getVerifiedSavedArtifactContent(
+        projectUuid: string,
+    ): Promise<VerifiedContentListItem[]> {
+        const chartRows = await this.database(AiArtifactVersionsTableName)
+            .leftJoin(
+                AiPromptTableName,
+                `${AiArtifactVersionsTableName}.ai_prompt_uuid`,
+                `${AiPromptTableName}.ai_prompt_uuid`,
+            )
+            // Charts saved from the web app link to the prompt, not the artifact version
+            .innerJoin(
+                SavedChartsTableName,
+                `${SavedChartsTableName}.saved_query_uuid`,
+                this.database.raw(
+                    `coalesce(${AiArtifactVersionsTableName}.saved_query_uuid, ${AiPromptTableName}.saved_query_uuid)`,
+                ),
+            )
+            .innerJoin(
+                SpaceTableName,
+                `${SavedChartsTableName}.space_id`,
+                `${SpaceTableName}.space_id`,
+            )
+            .innerJoin(
+                ProjectTableName,
+                `${SpaceTableName}.project_id`,
+                `${ProjectTableName}.project_id`,
+            )
+            .leftJoin(
+                UserTableName,
+                `${AiArtifactVersionsTableName}.verified_by_user_uuid`,
+                `${UserTableName}.user_uuid`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNotNull(`${AiArtifactVersionsTableName}.verified_at`)
+            .whereNull(`${SavedChartsTableName}.deleted_at`)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .distinctOn(`${SavedChartsTableName}.saved_query_uuid`)
+            .orderBy([
+                { column: `${SavedChartsTableName}.saved_query_uuid` },
+                {
+                    column: `${AiArtifactVersionsTableName}.verified_at`,
+                    order: 'desc',
+                },
+            ])
+            .select(
+                this.database
+                    .ref(
+                        `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
+                    )
+                    .as('verification_uuid'),
+                this.database
+                    .ref(`${SavedChartsTableName}.saved_query_uuid`)
+                    .as('content_uuid'),
+                `${SavedChartsTableName}.name`,
+                `${SavedChartsTableName}.description`,
+                `${SavedChartsTableName}.views_count`,
+                `${SavedChartsTableName}.last_version_chart_kind`,
+                this.database
+                    .ref(`${SavedChartsTableName}.last_version_updated_at`)
+                    .as('last_updated_at'),
+                this.database(SavedChartVersionsTableName)
+                    .select('explore_name')
+                    .whereRaw(
+                        `${SavedChartVersionsTableName}.saved_query_id = ${SavedChartsTableName}.saved_query_id`,
+                    )
+                    .orderBy('created_at', 'desc')
+                    .limit(1)
+                    .as('explore_name'),
+                `${SpaceTableName}.space_uuid`,
+                this.database.ref(`${SpaceTableName}.name`).as('space_name'),
+                `${UserTableName}.user_uuid`,
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
+                `${AiArtifactVersionsTableName}.verified_at`,
+            );
+
+        const dashboardRows = await this.database(AiArtifactVersionsTableName)
+            .innerJoin(
+                DashboardsTableName,
+                `${AiArtifactVersionsTableName}.saved_dashboard_uuid`,
+                `${DashboardsTableName}.dashboard_uuid`,
+            )
+            .innerJoin(
+                SpaceTableName,
+                `${DashboardsTableName}.space_id`,
+                `${SpaceTableName}.space_id`,
+            )
+            .innerJoin(
+                ProjectTableName,
+                `${SpaceTableName}.project_id`,
+                `${ProjectTableName}.project_id`,
+            )
+            .leftJoin(
+                UserTableName,
+                `${AiArtifactVersionsTableName}.verified_by_user_uuid`,
+                `${UserTableName}.user_uuid`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNotNull(`${AiArtifactVersionsTableName}.verified_at`)
+            .whereNull(`${DashboardsTableName}.deleted_at`)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .distinctOn(`${DashboardsTableName}.dashboard_uuid`)
+            .orderBy([
+                { column: `${DashboardsTableName}.dashboard_uuid` },
+                {
+                    column: `${AiArtifactVersionsTableName}.verified_at`,
+                    order: 'desc',
+                },
+            ])
+            .select(
+                this.database
+                    .ref(
+                        `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
+                    )
+                    .as('verification_uuid'),
+                this.database
+                    .ref(`${DashboardsTableName}.dashboard_uuid`)
+                    .as('content_uuid'),
+                `${DashboardsTableName}.name`,
+                `${DashboardsTableName}.description`,
+                `${DashboardsTableName}.views_count`,
+                this.database(DashboardVersionsTableName)
+                    .select('created_at')
+                    .whereRaw(
+                        `${DashboardVersionsTableName}.dashboard_id = ${DashboardsTableName}.dashboard_id`,
+                    )
+                    .orderBy('created_at', 'desc')
+                    .limit(1)
+                    .as('last_updated_at'),
+                `${SpaceTableName}.space_uuid`,
+                this.database.ref(`${SpaceTableName}.name`).as('space_name'),
+                `${UserTableName}.user_uuid`,
+                `${UserTableName}.first_name`,
+                `${UserTableName}.last_name`,
+                `${AiArtifactVersionsTableName}.verified_at`,
+            );
+
+        const toBaseItem = (row: {
+            verification_uuid: string;
+            content_uuid: string;
+            name: string;
+            description: string | null;
+            views_count: number;
+            last_updated_at: Date | null;
+            space_uuid: string;
+            space_name: string;
+            user_uuid: string;
+            first_name: string;
+            last_name: string;
+            verified_at: Date;
+        }) => ({
+            uuid: row.verification_uuid,
+            contentUuid: row.content_uuid,
+            name: row.name,
+            description: row.description ?? null,
+            spaceUuid: row.space_uuid,
+            spaceName: row.space_name,
+            views: row.views_count,
+            lastUpdatedAt: row.last_updated_at,
+            verifiedBy: {
+                userUuid: row.user_uuid,
+                firstName: row.first_name,
+                lastName: row.last_name,
+            },
+            verifiedAt: row.verified_at,
+        });
+
+        const charts: VerifiedContentListItem[] = chartRows.map((row) => ({
+            ...toBaseItem(row),
+            contentType: ContentType.CHART,
+            chartKind: row.last_version_chart_kind,
+            exploreName: row.explore_name ?? null,
+        }));
+
+        const dashboards: VerifiedContentListItem[] = dashboardRows.map(
+            (row) => ({
+                ...toBaseItem(row),
+                contentType: ContentType.DASHBOARD,
+            }),
+        );
+
+        return [...charts, ...dashboards];
     }
 
     async updateArtifactEmbedding(

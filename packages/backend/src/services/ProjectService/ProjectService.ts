@@ -71,6 +71,7 @@ import {
     ExploreType,
     FeatureFlags,
     FilterableDimension,
+    FilterAutocompleteValue,
     findReplaceableCustomMetrics,
     ForbiddenError,
     formatRows,
@@ -5970,7 +5971,7 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const { metricQuery, explore, field } =
+        const { metricQuery, explore, field, labelFieldId } =
             await this._getFieldValuesMetricQuery({
                 projectUuid,
                 table,
@@ -6080,18 +6081,38 @@ export class ProjectService extends BaseService {
         };
 
         const { rows } = await warehouseClient.runQuery(query, queryTags);
+        const valueFieldId = getItemId(field);
         const allResults: Set<string | number | boolean> = new Set();
+        const resultsWithLabels: FilterAutocompleteValue[] = [];
+        const seenLabeledValues = new Set<string>();
         for (const row of rows) {
-            const value = row[getItemId(field)];
+            const value = row[valueFieldId];
             if (value !== null && value !== undefined) {
                 allResults.add(value);
+                if (labelFieldId) {
+                    const valueKey = String(value);
+                    if (!seenLabeledValues.has(valueKey)) {
+                        seenLabeledValues.add(valueKey);
+                        const rawLabel = row[labelFieldId];
+                        resultsWithLabels.push({
+                            value: valueKey,
+                            label:
+                                rawLabel !== null && rawLabel !== undefined
+                                    ? String(rawLabel)
+                                    : valueKey,
+                        });
+                    }
+                }
             }
         }
+
+        const resultsArray = Array.from(allResults);
 
         if (isUserCacheEnabled) {
             const searchResults = {
                 search,
-                results: Array.from(allResults),
+                results: resultsArray,
+                ...(labelFieldId ? { resultsWithLabels } : {}),
                 refreshedAt: new Date(),
                 cached: true,
             };
@@ -6103,14 +6124,12 @@ export class ProjectService extends BaseService {
 
         await sshTunnel.disconnect();
 
-        const resultsArray = Array.from(allResults);
-
         this.analytics.track({
             event: 'field_value.search',
             userId: user.userUuid,
             properties: {
                 projectId: projectUuid,
-                fieldId: getItemId(field),
+                fieldId: valueFieldId,
                 searchCharCount: search.length,
                 resultsCount: resultsArray.length,
                 searchLimit: metricQuery.limit,
@@ -6120,6 +6139,7 @@ export class ProjectService extends BaseService {
         return {
             search,
             results: resultsArray,
+            ...(labelFieldId ? { resultsWithLabels } : {}),
             refreshedAt: new Date(),
             cached: false,
         };

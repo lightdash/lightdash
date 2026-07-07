@@ -16,6 +16,7 @@ import {
     AiAgentThreadFilters,
     AiAgentThreadPullRequest,
     AiAgentThreadSummary,
+    AiAgentThreadWorkstream,
     AiAgentUser,
     AiAgentUserPreferences,
     AiAgentVizConfig,
@@ -100,6 +101,7 @@ import {
     type AiWebAppThreadCreatedFrom,
     type SessionUser,
     type SuggestionValidationCatalog,
+    type VerifiedContentListItem,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
@@ -148,6 +150,7 @@ import {
     AiAgentSuggestionSubmitEvent,
     AiAgentToolCallEvent,
     AiAgentUpdatedEvent,
+    ContentVerificationEvent,
     LightdashAnalytics,
 } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
@@ -263,11 +266,15 @@ import {
     type AiAgentRequestingUserRole,
 } from '../ai/types/aiAgent';
 import {
+    ClosePullRequestFn,
     DiscoverReposFn,
     EditDbtProjectFn,
     EditProjectContextFn,
+    EditRepoFn,
     ExploreRepoFn,
     GetPromptFn,
+    GetPullRequestDiffFn,
+    ListWorkstreamsFn,
     SendFileFn,
     SendSlackBlocksFn,
     StoreReasoningFn,
@@ -1249,6 +1256,102 @@ export class AiAgentService extends BaseService {
         }
 
         return { ...result, summary: result.summary ?? result.title };
+    }
+
+    /**
+     * Every pull request a thread has opened with the coding agent (its
+     * workstreams), newest first, each enriched with live PR state where the git
+     * host allows it. Mirrors {@link getThreadPullRequest}'s access checks but
+     * returns the full list (a thread can now drive several PRs). State is
+     * resolved per-PR in parallel and degrades to null on any failure so the
+     * panel always renders.
+     */
+    async getThreadWorkstreams(
+        user: SessionUser,
+        agentUuid: string,
+        threadUuid: string,
+    ): Promise<AiAgentThreadWorkstream[]> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+        if (!thread) {
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+        const hasAccess = await this.checkAgentThreadAccess(
+            user,
+            agent,
+            thread.user.uuid,
+        );
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to view this thread',
+            );
+        }
+
+        const workstreams = await this.aiWritebackService.listWorkstreams({
+            aiThreadUuid: threadUuid,
+            repoTarget: null,
+        });
+        if (workstreams.length === 0) {
+            return [];
+        }
+
+        const installationId =
+            await this.githubAppInstallationsModel.findInstallationId(
+                organizationUuid,
+            );
+
+        return Promise.all(
+            workstreams.map(async (ws): Promise<AiAgentThreadWorkstream> => {
+                const base: AiAgentThreadWorkstream = {
+                    prUrl: ws.prUrl,
+                    repository: ws.repository,
+                    prNumber: ws.prNumber,
+                    title: null,
+                    summary: ws.summary,
+                    state: null,
+                };
+                if (
+                    ws.provider !== PullRequestProvider.GITHUB ||
+                    !installationId
+                ) {
+                    return base;
+                }
+                const [owner, repo] = ws.repository.split('/');
+                try {
+                    const pr = await getPullRequest({
+                        owner,
+                        repo,
+                        pullNumber: ws.prNumber,
+                        installationId,
+                    });
+                    return {
+                        ...base,
+                        title: pr.title,
+                        summary: ws.summary ?? pr.title,
+                        state: pr.merged ? 'merged' : pr.state,
+                    };
+                } catch (error) {
+                    this.logger.warn(
+                        `Failed to resolve live PR state for workstream ${ws.prUrl}: ${getErrorMessage(error)}`,
+                    );
+                    return base;
+                }
+            }),
+        );
     }
 
     private async checkAgentThreadAccess(
@@ -5218,6 +5321,90 @@ export class AiAgentService extends BaseService {
         });
     }
 
+    async getVerifiedSavedArtifactContent(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<VerifiedContentListItem[]> {
+        const project = await this.projectModel.getSummary(projectUuid);
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('ContentVerification', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to view verified content',
+            );
+        }
+
+        return this.aiAgentModel.getVerifiedSavedArtifactContent(projectUuid);
+    }
+
+    // Bridges AI artifact verification to the content_verification table
+    private async syncSavedContentVerification(
+        user: SessionUser,
+        organizationUuid: string,
+        projectUuid: string,
+        {
+            savedQueryUuid,
+            savedDashboardUuid,
+            verified,
+        }: {
+            savedQueryUuid: string | null;
+            savedDashboardUuid: string | null;
+            verified: boolean;
+        },
+    ): Promise<void> {
+        let savedContent: { contentType: ContentType; contentUuid: string };
+        if (savedQueryUuid) {
+            savedContent = {
+                contentType: ContentType.CHART,
+                contentUuid: savedQueryUuid,
+            };
+        } else if (savedDashboardUuid) {
+            savedContent = {
+                contentType: ContentType.DASHBOARD,
+                contentUuid: savedDashboardUuid,
+            };
+        } else {
+            return;
+        }
+
+        if (verified) {
+            await this.contentVerificationModel.verify(
+                savedContent.contentType,
+                savedContent.contentUuid,
+                projectUuid,
+                user.userUuid,
+            );
+        } else {
+            await this.contentVerificationModel.unverify(
+                savedContent.contentType,
+                savedContent.contentUuid,
+            );
+        }
+
+        this.analytics.track<ContentVerificationEvent>({
+            event: verified
+                ? 'content_verification.created'
+                : 'content_verification.deleted',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                contentType: savedContent.contentType,
+                contentId: savedContent.contentUuid,
+                source: 'ai_artifact',
+            },
+        });
+    }
+
     async setArtifactVersionVerified(
         user: SessionUser,
         {
@@ -5289,6 +5476,26 @@ export class AiAgentService extends BaseService {
             versionUuid,
             verified,
             user.userUuid,
+        );
+
+        // Charts saved from the web app link to the prompt, not the artifact version
+        const savedQueryUuid =
+            artifact.savedQueryUuid ??
+            (artifact.promptUuid
+                ? await this.aiAgentModel.findPromptSavedQueryUuid(
+                      artifact.promptUuid,
+                  )
+                : null);
+
+        await this.syncSavedContentVerification(
+            user,
+            organizationUuid,
+            agent.projectUuid,
+            {
+                savedQueryUuid,
+                savedDashboardUuid: artifact.savedDashboardUuid,
+                verified,
+            },
         );
 
         this.analytics.track<AiAgentArtifactVersionVerifiedEvent>({
@@ -6571,6 +6778,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         projectUuid,
                         prompt: writebackPrompt,
                         prUrl: args.prUrl,
+                        startNewPullRequest: args.startNewPullRequest ?? false,
                         aiThreadUuid: prompt.threadUuid,
                         source,
                         onProgress: writebackProgressCallback,
@@ -6677,6 +6885,69 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             }
 
             return { ...result, previewDeployConfigured, previewUrl };
+        };
+
+        // General-purpose coding agent: edit any writable repo and open a PR,
+        // with no dbt compile / preview step (verification lives in the PR's
+        // CI). Mirrors editDbtProject's progress streaming + Slack reaction but
+        // returns the base writeback result directly.
+        const editRepo: EditRepoFn = async (args) => {
+            const editRepoProgressCallback = (message: string) => {
+                void updateProgress(
+                    message,
+                    `editRepo:${message}`,
+                    args.progressId
+                        ? `${args.progressId}:${message}`
+                        : undefined,
+                    'complete',
+                ).catch((err) => {
+                    Logger.debug(
+                        `Failed to update progress for coding agent (${message}):`,
+                        err,
+                    );
+                });
+            };
+
+            if (!args.prompt) {
+                throw new ParameterError(
+                    'A prompt is required for the coding agent',
+                );
+            }
+
+            const result = await wrapSentryTransaction(
+                'AiAgent.editRepo',
+                {},
+                () =>
+                    this.aiWritebackService.runEditRepo({
+                        user,
+                        projectUuid,
+                        repoTarget: args.repoTarget,
+                        prompt: args.prompt!,
+                        prUrl: args.prUrl,
+                        startNewPullRequest: args.startNewPullRequest ?? false,
+                        aiThreadUuid: prompt.threadUuid,
+                        source: isSlackPrompt(prompt) ? 'slack' : 'web',
+                        onProgress: editRepoProgressCallback,
+                    }),
+            );
+
+            if (result.prUrl && isSlackPrompt(prompt)) {
+                void this.slackClient
+                    .addReaction({
+                        organizationUuid,
+                        channel: prompt.slackChannelId,
+                        timestamp: prompt.promptSlackTs,
+                        name: 'white_check_mark',
+                    })
+                    .catch((err) => {
+                        Logger.debug(
+                            'Failed to add :white_check_mark: reaction to coding-agent mention:',
+                            err,
+                        );
+                    });
+            }
+
+            return result;
         };
 
         // Read-only repo access for the exploreRepo tool, exposed as ONE virtual
@@ -6958,6 +7229,28 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             };
         };
 
+        const listWorkstreams: ListWorkstreamsFn = async ({ repoTarget }) =>
+            this.aiWritebackService.listWorkstreams({
+                aiThreadUuid: prompt.threadUuid,
+                repoTarget,
+            });
+
+        const closePullRequest: ClosePullRequestFn = async ({ prUrl }) => {
+            await this.aiWritebackService.closePullRequest({
+                user,
+                projectUuid,
+                aiThreadUuid: prompt.threadUuid,
+                prUrl,
+            });
+        };
+
+        const getPullRequestDiff: GetPullRequestDiffFn = async ({ prUrl }) =>
+            this.aiWritebackService.getPullRequestDiff({
+                user,
+                projectUuid,
+                prUrl,
+            });
+
         return {
             listExplores: toolsRuntime.listExplores,
             getProjectContextDocument,
@@ -7005,9 +7298,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             searchFieldValues: toolsRuntime.searchFieldValues,
             editDbtProject,
             editProjectContext,
+            editRepo,
             setupPreviewDeploy: toolsRuntime.setupPreviewDeploy,
             exploreRepo,
             discoverRepos,
+            listWorkstreams,
+            closePullRequest,
+            getPullRequestDiff,
             listProjects: toolsRuntime.listProjects,
             getProjectInfo: toolsRuntime.getProjectInfo,
             loadSkill: toolsRuntime.loadSkill,
@@ -7173,9 +7470,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             searchFieldValues,
             editDbtProject,
             editProjectContext,
+            editRepo,
             setupPreviewDeploy,
             exploreRepo,
             discoverRepos,
+            listWorkstreams,
+            closePullRequest,
+            getPullRequestDiff,
             listProjects,
             getProjectInfo,
         } = await this.getAiAgentDependencies(user, prompt, {
@@ -7322,6 +7623,28 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             promptProject.dbtConnection.type === DbtProjectType.GITLAB;
         if (aiWritebackEnabled && !writebackSupportedConnection) {
             aiWritebackEnabled = false;
+        }
+
+        // General coding agent (editRepo): gated by the CodingAgent flag,
+        // independent of AiWriteback, with the same Slack trusted-identity guard.
+        // It still requires a GitHub/GitLab connection on the project (the host
+        // follows the project's connection), but the agent can target ANY repo
+        // that installation can write — the per-repo write authz (manage:SourceCode
+        // + denylist + user∩installation) is enforced in AiWritebackService.
+        let { enabled: codingAgentEnabled } = await this.featureFlagService.get(
+            {
+                user,
+                featureFlagId: FeatureFlags.CodingAgent,
+            },
+        );
+        if (codingAgentEnabled && !hasTrustedPromptUserIdentity) {
+            this.logger.info(
+                `Disabling editRepo for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
+            );
+            codingAgentEnabled = false;
+        }
+        if (codingAgentEnabled && !writebackSupportedConnection) {
+            codingAgentEnabled = false;
         }
 
         // Advisory signal of which GitHub identity a writeback PR would be
@@ -7512,6 +7835,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableAiWriteback: aiWritebackEnabled,
             enableEditProjectContext: isReviewRemediationWorkThread,
             writebackAttribution,
+            enableCodingAgent: codingAgentEnabled,
             enablePreviewDeploySetup: aiPreviewDeploySetupEnabled,
             enableRepoDiscovery: repoDiscoveryEnabled,
             enableGrepFields: grepFieldsEnabled,
@@ -7621,9 +7945,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             searchFieldValues,
             editDbtProject,
             editProjectContext,
+            editRepo,
             setupPreviewDeploy,
             exploreRepo,
             discoverRepos,
+            listWorkstreams,
+            closePullRequest,
+            getPullRequestDiff,
             listProjects,
             getProjectInfo,
             updateProgress: (progress, toolName, progressId, progressStatus) =>

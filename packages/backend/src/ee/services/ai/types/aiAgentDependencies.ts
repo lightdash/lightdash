@@ -500,6 +500,8 @@ export type EditDbtProjectFn = (args: {
     prompt: string | null;
     prUrl: string | null;
     fromActiveChangeset: boolean;
+    /** Open a new PR instead of continuing the thread's existing one. */
+    startNewPullRequest: boolean | null;
     progressId?: string;
 }) => Promise<
     AiWritebackRunResult & {
@@ -514,6 +516,21 @@ export type EditDbtProjectFn = (args: {
 export type EditProjectContextFn = (
     entry: AiAgentJudgeProjectContextEntry,
 ) => Promise<{ prUrl: string; prAction: 'opened' | 'updated' }>;
+
+/**
+ * Make a code change to a writable repository and open/update a pull request,
+ * via the general coding agent. The counterpart to {@link EditDbtProjectFn} for
+ * non-dbt repos: no compile/preview step (verification lives in the PR's CI), so
+ * it returns the base writeback result without the preview fields.
+ */
+export type EditRepoFn = (args: {
+    repoTarget: string;
+    prompt: string | null;
+    prUrl: string | null;
+    /** Open a new PR instead of continuing the repo's existing one in-thread. */
+    startNewPullRequest: boolean | null;
+    progressId?: string;
+}) => Promise<AiWritebackRunResult>;
 
 export type SetupPreviewDeployFn = () => Promise<PreviewDeploySetupResult>;
 
@@ -540,6 +557,35 @@ export type DiscoverReposFn = () => Promise<
         private: boolean;
     }[]
 >;
+
+/**
+ * List the pull requests (workstreams) the current chat thread has opened with
+ * {@link EditRepoFn}, so the agent can route a follow-up to the right one or
+ * decide to open a new one. Optionally scoped to a single `owner/repo`.
+ */
+export type ListWorkstreamsFn = (args: {
+    repoTarget: string | null;
+}) => Promise<
+    {
+        repository: string;
+        provider: string;
+        prUrl: string;
+        prNumber: number;
+        summary: string | null;
+    }[]
+>;
+
+/**
+ * Close (without merging) a pull request the chat thread opened with
+ * {@link EditRepoFn}. Thin wrapper over the same write-back close path the chat
+ * PR card's "Close PR" button uses; the underlying service enforces
+ * `manage:SourceCode` and that the URL targets this project's own repo.
+ */
+export type ClosePullRequestFn = (args: { prUrl: string }) => Promise<void>;
+
+export type GetPullRequestDiffFn = (args: {
+    prUrl: string;
+}) => Promise<string | null>;
 
 export type ListProjectsFn = () => Promise<
     {

@@ -1,3 +1,161 @@
+# [0.3321.0](https://github.com/lightdash/lightdash/compare/0.3320.2...0.3321.0) (2026-07-07)
+
+
+### Features
+
+* **analytics:** raw object count metrics for usage events pipeline ([#25229](https://github.com/lightdash/lightdash/issues/25229)) ([548d7ec](https://github.com/lightdash/lightdash/commit/548d7ec0f3420993510788bd1187b592d46633b7)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+## [0.3320.2](https://github.com/lightdash/lightdash/compare/0.3320.1...0.3320.2) (2026-07-07)
+
+
+### Bug Fixes
+
+* **ai-writeback:** support monorepo dbt projects with local packages ([#25217](https://github.com/lightdash/lightdash/issues/25217)) ([d017223](https://github.com/lightdash/lightdash/commit/d017223dca0d462e70318a2dc02165483be33219))
+
+## [0.3320.1](https://github.com/lightdash/lightdash/compare/0.3320.0...0.3320.1) (2026-07-07)
+
+
+### Bug Fixes
+
+* **echarts:** normalize 100% stacking per value-axis (PROD-8697) ([#25220](https://github.com/lightdash/lightdash/issues/25220)) ([1438cf0](https://github.com/lightdash/lightdash/commit/1438cf017c151fed7043811300eff58f9b97cead))
+
+# [0.3320.0](https://github.com/lightdash/lightdash/compare/0.3319.0...0.3320.0) (2026-07-07)
+
+
+### Features
+
+* sort content lists by views ([#25218](https://github.com/lightdash/lightdash/issues/25218)) ([021d1cd](https://github.com/lightdash/lightdash/commit/021d1cdd559374d1292fb92ac3c1807a5b574b15))
+
+# [0.3319.0](https://github.com/lightdash/lightdash/compare/0.3318.0...0.3319.0) (2026-07-07)
+
+
+### Features
+
+* **ai:** bridge AI artifact verification to content_verification ([#25210](https://github.com/lightdash/lightdash/issues/25210)) ([ff378be](https://github.com/lightdash/lightdash/commit/ff378be7e619cd9290a4f0dfc5d82abf1e657d1b))
+* **mcp:** enrich list_verified_content payload with discovery fields ([#25209](https://github.com/lightdash/lightdash/issues/25209)) ([1d5e54a](https://github.com/lightdash/lightdash/commit/1d5e54a2d095c167a742ad8542a24ad29f76760c))
+* **mcp:** include AI-verified saved artifacts in list_verified_content ([#25211](https://github.com/lightdash/lightdash/issues/25211)) ([7e822a9](https://github.com/lightdash/lightdash/commit/7e822a98ec18d4caa217f398ab3c022c91ca3e44)), closes [#25210](https://github.com/lightdash/lightdash/issues/25210) [#25209](https://github.com/lightdash/lightdash/issues/25209) [#25210](https://github.com/lightdash/lightdash/issues/25210)
+
+# [0.3318.0](https://github.com/lightdash/lightdash/compare/0.3317.1...0.3318.0) (2026-07-07)
+
+
+### Features
+
+* **analytics:** nightly compaction of usage events raw zone to typed parquet ([#25047](https://github.com/lightdash/lightdash/issues/25047)) ([8300569](https://github.com/lightdash/lightdash/commit/830056902213ae49733794507c1df62eb0804b19)), closes [#25045](https://github.com/lightdash/lightdash/issues/25045)
+
+## [0.3317.1](https://github.com/lightdash/lightdash/compare/0.3317.0...0.3317.1) (2026-07-07)
+
+
+### Bug Fixes
+
+* keep bar value labels from overlapping axis labels ([#25188](https://github.com/lightdash/lightdash/issues/25188)) ([d192073](https://github.com/lightdash/lightdash/commit/d192073a2df97c99a83b39ef0883136c17536596))
+
+# [0.3317.0](https://github.com/lightdash/lightdash/compare/0.3316.1...0.3317.0) (2026-07-06)
+
+
+### Features
+
+* **common:** add scope graph helpers ([#25190](https://github.com/lightdash/lightdash/issues/25190)) ([6c67710](https://github.com/lightdash/lightdash/commit/6c67710a827870b656f3def291d99f7993b4a6b0))
+
+## [0.3316.1](https://github.com/lightdash/lightdash/compare/0.3316.0...0.3316.1) (2026-07-06)
+
+
+### Bug Fixes
+
+* **ai-copilot:** play merged-PR card shimmer once instead of looping forever ([#25189](https://github.com/lightdash/lightdash/issues/25189)) ([259ddc8](https://github.com/lightdash/lightdash/commit/259ddc8bce544b599e5f1a31555911cc5d656ce9))
+
+# [0.3316.0](https://github.com/lightdash/lightdash/compare/0.3315.5...0.3316.0) (2026-07-06)
+
+
+### Bug Fixes
+
+* **ai:** anchor relative time expressions to the current date in agent prompt ([#25185](https://github.com/lightdash/lightdash/issues/25185)) ([4383640](https://github.com/lightdash/lightdash/commit/4383640859c14f05b7ca2732b514e5246b36f8a5))
+
+
+### Features
+
+* **ai-writeback:** multiple pull requests per thread + getPullRequestDiff tool ([#25187](https://github.com/lightdash/lightdash/issues/25187)) ([b3facdc](https://github.com/lightdash/lightdash/commit/b3facdc8a9a8e2d5003c899750558955ae0bc534))
+* **common:** add dependencies to scope definitions ([#25186](https://github.com/lightdash/lightdash/issues/25186)) ([73ff2fe](https://github.com/lightdash/lightdash/commit/73ff2fe5ae31ce5c8ecffe406367b4c188742eb7))
+
+## [0.3315.5](https://github.com/lightdash/lightdash/compare/0.3315.4...0.3315.5) (2026-07-06)
+
+
+### Bug Fixes
+
+* **filters:** commit typed filter value on blur and when Apply is clicked ([#25168](https://github.com/lightdash/lightdash/issues/25168)) ([a5f2560](https://github.com/lightdash/lightdash/commit/a5f2560dbc2fd743f458e34a7e2a5a7c38255656))
+
+## [0.3315.4](https://github.com/lightdash/lightdash/compare/0.3315.3...0.3315.4) (2026-07-06)
+
+
+### Bug Fixes
+
+* keep joined fields in scoped FTS search ([#25173](https://github.com/lightdash/lightdash/issues/25173)) ([d5e5d32](https://github.com/lightdash/lightdash/commit/d5e5d321fc3bc83a14af8b62a4045d7d54761b66)), closes [#25181](https://github.com/lightdash/lightdash/issues/25181)
+
+## [0.3315.3](https://github.com/lightdash/lightdash/compare/0.3315.2...0.3315.3) (2026-07-06)
+
+
+### Bug Fixes
+
+* use token-aware pre-grep matching ([#25174](https://github.com/lightdash/lightdash/issues/25174)) ([6918846](https://github.com/lightdash/lightdash/commit/6918846b46f45e9084205d13fc451531134f1818))
+
+
+### Reverts
+
+* Revert "ci: speed up release job with Depot runner and Turbo cache (#25169)" (#25184) ([82f2498](https://github.com/lightdash/lightdash/commit/82f249886af5d64a3a9dfc22ab867171dcd057de)), closes [#25169](https://github.com/lightdash/lightdash/issues/25169) [#25184](https://github.com/lightdash/lightdash/issues/25184)
+
+## [0.3315.2](https://github.com/lightdash/lightdash/compare/0.3315.1...0.3315.2) (2026-07-06)
+
+
+### Bug Fixes
+
+* **cli:** tolerate audit tiles missing chartName/exploreLabel ([#25170](https://github.com/lightdash/lightdash/issues/25170)) ([64f7f1b](https://github.com/lightdash/lightdash/commit/64f7f1b34e8a4278d5aa7c05dd6a0a07aa744386))
+
+## [0.3315.1](https://github.com/lightdash/lightdash/compare/0.3315.0...0.3315.1) (2026-07-06)
+
+
+### Bug Fixes
+
+* hide fields from metadata lookup ([#25172](https://github.com/lightdash/lightdash/issues/25172)) ([0a1af2e](https://github.com/lightdash/lightdash/commit/0a1af2e0138243ee0d2e96cded7ed95bf663d370))
+
+# [0.3315.0](https://github.com/lightdash/lightdash/compare/0.3314.0...0.3315.0) (2026-07-06)
+
+
+### Features
+
+* **scheduler:** redesign the scheduled deliveries modal ([#25159](https://github.com/lightdash/lightdash/issues/25159)) ([0ac704d](https://github.com/lightdash/lightdash/commit/0ac704d43b7db7d809f0069edf8554abfaa4a4cc))
+
+# [0.3314.0](https://github.com/lightdash/lightdash/compare/0.3313.0...0.3314.0) (2026-07-06)
+
+
+### Bug Fixes
+
+* prune stale ai launcher dock items ([#25162](https://github.com/lightdash/lightdash/issues/25162)) ([7b66ab5](https://github.com/lightdash/lightdash/commit/7b66ab52801e828db871f61f38d329815bf0e0c7)), closes [#25161](https://github.com/lightdash/lightdash/issues/25161)
+
+
+### Features
+
+* trino headers - send query metadata to trino in header X-Trino-Client-Tags ([#25020](https://github.com/lightdash/lightdash/issues/25020)) ([ac68758](https://github.com/lightdash/lightdash/commit/ac68758de959285399cc2d141145db4e8fcf8e53))
+
+# [0.3313.0](https://github.com/lightdash/lightdash/compare/0.3312.0...0.3313.0) (2026-07-06)
+
+
+### Features
+
+* **filters:** source filter-autocomplete labels from a dimension ([#25022](https://github.com/lightdash/lightdash/issues/25022)) ([fb9591c](https://github.com/lightdash/lightdash/commit/fb9591c2c783dc0322201177f26ab77d5dcecfe3))
+
+# [0.3312.0](https://github.com/lightdash/lightdash/compare/0.3311.0...0.3312.0) (2026-07-06)
+
+
+### Features
+
+* **analytics:** usage event sink with query_events stream ([#25045](https://github.com/lightdash/lightdash/issues/25045)) ([01272ff](https://github.com/lightdash/lightdash/commit/01272ffbe924721dba883c5d83af56968dd0fcdf)), closes [#25036](https://github.com/lightdash/lightdash/issues/25036) [#25037](https://github.com/lightdash/lightdash/issues/25037) [#25037](https://github.com/lightdash/lightdash/issues/25037)
+
+# [0.3311.0](https://github.com/lightdash/lightdash/compare/0.3310.1...0.3311.0) (2026-07-06)
+
+
+### Features
+
+* **coding-agent:** general-purpose editRepo agent ([#24542](https://github.com/lightdash/lightdash/issues/24542)) ([87ddc1a](https://github.com/lightdash/lightdash/commit/87ddc1a8062d8ce3f6d42f92a1f3ee3de8ec5fd7)), closes [#24502](https://github.com/lightdash/lightdash/issues/24502) [#24967](https://github.com/lightdash/lightdash/issues/24967) [#24967](https://github.com/lightdash/lightdash/issues/24967)
+
 ## [0.3310.1](https://github.com/lightdash/lightdash/compare/0.3310.0...0.3310.1) (2026-07-06)
 
 

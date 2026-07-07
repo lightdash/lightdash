@@ -22,22 +22,37 @@ import {
     getInstallationToken,
     getOrRefreshToken,
     getRepoDefaultBranch,
+    getRepoMetadata,
+    getScopedRepoCloneToken,
     listReposAccessibleToInstallation,
     listReposAccessibleToUser,
+    revokeInstallationToken,
 } from '../../../clients/github/Github';
 import { createSandboxManager, SandboxManager } from '../SandboxRuntime';
 import {
     AiWritebackService,
+    auditReasonForError,
+    computeWritableRepoKeys,
     mergeSourceCodeRepoAccess,
+    parseOwnerRepo,
+    workstreamLockKey,
 } from './AiWritebackService';
 import {
     COMPILE_WRAPPER_PATH,
+    GENERAL_ALLOWED_TOOLS,
+    GENERAL_DISALLOWED_TOOLS,
+    MAX_CONCURRENT_WORKSTREAM_TURNS_PER_THREAD,
     PR_DESCRIPTION_CLOSE,
     PR_DESCRIPTION_OPEN,
     PR_TITLE_CLOSE,
     PR_TITLE_OPEN,
 } from './constants';
-import { WritebackGitNotConnectedError } from './errors';
+import { DeniedPathError } from './deniedPaths';
+import {
+    RepoTooLargeError,
+    WritebackGitNotConnectedError,
+    WritebackThreadPrClosedError,
+} from './errors';
 
 // Stub e2b and the GitHub/octokit client so the run() tests drive fakes and the
 // unit tests below never reach the real SDKs.
@@ -69,9 +84,14 @@ vi.mock('../../../clients/github/Github', () => ({
     getInstallationToken: vi.fn(),
     getOrRefreshToken: vi.fn(),
     getRepoDefaultBranch: vi.fn(),
+    getRepoMetadata: vi
+        .fn()
+        .mockResolvedValue({ defaultBranch: 'main', sizeKb: 1024 }),
     getRepoTree: vi.fn(),
+    getScopedRepoCloneToken: vi.fn().mockResolvedValue('scoped-clone-token'),
     listReposAccessibleToInstallation: vi.fn(),
     listReposAccessibleToUser: vi.fn(),
+    revokeInstallationToken: vi.fn().mockResolvedValue(undefined),
     updatePullRequest: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -488,6 +508,264 @@ describe('AiWritebackService.prepareTurn', () => {
                 hostDomain: 'gitlab.acme.com',
             },
         });
+    });
+
+    // Workstream routing: a thread can hold several PRs per repo, so the resume
+    // row is selected, not just looked up by repo. The row carries a live PR url
+    // so the resume path is taken (a null pr_url now means the PR was deleted and
+    // the turn restarts fresh — see the stale-PR recovery test, M4).
+    const workstreamRow = {
+        ai_writeback_thread_uuid: 'w1',
+        ai_thread_uuid: 't1',
+        sandbox_id: 's1',
+        target_repo: 'acme/analytics',
+        pr_url: PR_3,
+    };
+
+    it('continues the active workstream for the repo by default (unchanged path)', async () => {
+        const findActiveWorkstreamByRepo = vi
+            .fn()
+            .mockResolvedValue(workstreamRow);
+        const findByAiThreadUuidAndPrUrl = vi.fn();
+        const service = buildService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            } as AnyType,
+            projectModel: {
+                get: vi.fn().mockResolvedValue(githubProject()),
+            } as AnyType,
+            aiWritebackThreadModel: {
+                findByAiThreadUuid: vi.fn().mockResolvedValue(null),
+                findActiveWorkstreamByRepo,
+                findByAiThreadUuidAndPrUrl,
+            } as AnyType,
+        });
+        // A live PR triggers the edit-state guard, so stub the provider calls.
+        vi.spyOn(
+            (service as AnyType).githubProvider,
+            'resolveInstallation',
+        ).mockResolvedValue({
+            provider: PullRequestProvider.GITHUB,
+            installationId: 'inst-1',
+            token: 'install-token',
+            userToken: null,
+            commitAuthor: { name: 'n', email: 'e' },
+            coAuthorTrailer: '',
+        } as AnyType);
+        vi.spyOn(
+            (service as AnyType).githubProvider,
+            'getPullRequestEditState',
+        ).mockResolvedValue({ editable: true, reason: null });
+
+        const turn = await (service as AnyType).prepareTurn({
+            user: userWithOrg(true),
+            projectUuid: 'p1',
+            aiThreadUuid: 't1',
+        });
+
+        expect(findActiveWorkstreamByRepo).toHaveBeenCalledWith(
+            't1',
+            'acme/analytics',
+        );
+        expect(findByAiThreadUuidAndPrUrl).not.toHaveBeenCalled();
+        expect(turn).toMatchObject({
+            kind: 'run',
+            turn: {
+                existingRow: workstreamRow,
+                isResume: true,
+            },
+        });
+    });
+
+    it('forces a fresh workstream when startNewPullRequest is set', async () => {
+        const findActiveWorkstreamByRepo = vi.fn();
+        const findByAiThreadUuidAndPrUrl = vi.fn();
+        const service = buildService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            } as AnyType,
+            projectModel: {
+                get: vi.fn().mockResolvedValue(githubProject()),
+            } as AnyType,
+            aiWritebackThreadModel: {
+                findByAiThreadUuid: vi.fn().mockResolvedValue(null),
+                findActiveWorkstreamByRepo,
+                findByAiThreadUuidAndPrUrl,
+            } as AnyType,
+        });
+
+        const turn = await (service as AnyType).prepareTurn({
+            user: userWithOrg(true),
+            projectUuid: 'p1',
+            aiThreadUuid: 't1',
+            startNewPullRequest: true,
+        });
+
+        expect(findActiveWorkstreamByRepo).not.toHaveBeenCalled();
+        expect(findByAiThreadUuidAndPrUrl).not.toHaveBeenCalled();
+        expect(turn).toMatchObject({
+            kind: 'run',
+            turn: { existingRow: null, isResume: false },
+        });
+    });
+
+    // Change C: `prUrl` routing is no longer gated on `mode === 'general'`, so a
+    // dbt-writeback thread can resume a specific one of its own workstreams by
+    // URL. This asserts the by-URL lookup is taken (not the repo-level resume).
+    it('resumes a specific pull request by prUrl, regardless of mode (change C)', async () => {
+        const findActiveWorkstreamByRepo = vi.fn();
+        const findByAiThreadUuidAndPrUrl = vi
+            .fn()
+            .mockResolvedValue(workstreamRow);
+        const service = buildService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            } as AnyType,
+            projectModel: {
+                get: vi.fn().mockResolvedValue(githubProject()),
+            } as AnyType,
+            aiWritebackThreadModel: {
+                findByAiThreadUuid: vi.fn().mockResolvedValue(null),
+                findActiveWorkstreamByRepo,
+                findByAiThreadUuidAndPrUrl,
+            } as AnyType,
+        });
+        // The resumed row carries a live PR, so the edit-state guard runs.
+        vi.spyOn(
+            (service as AnyType).githubProvider,
+            'resolveInstallation',
+        ).mockResolvedValue({
+            provider: PullRequestProvider.GITHUB,
+            installationId: 'inst-1',
+            token: 'install-token',
+            userToken: null,
+            commitAuthor: { name: 'n', email: 'e' },
+            coAuthorTrailer: '',
+        } as AnyType);
+        vi.spyOn(
+            (service as AnyType).githubProvider,
+            'getPullRequestEditState',
+        ).mockResolvedValue({ editable: true, reason: null });
+
+        const turn = await (service as AnyType).prepareTurn({
+            user: userWithOrg(true),
+            projectUuid: 'p1',
+            aiThreadUuid: 't1',
+            prUrl: PR_3,
+        });
+
+        expect(findByAiThreadUuidAndPrUrl).toHaveBeenCalledWith('t1', PR_3);
+        expect(findActiveWorkstreamByRepo).not.toHaveBeenCalled();
+        expect(turn).toMatchObject({
+            kind: 'run',
+            turn: {
+                existingRow: workstreamRow,
+                isResume: true,
+            },
+        });
+    });
+
+    // Change C, adopt fallback: a prUrl that isn't one of this thread's own
+    // workstreams (an external paste) resolves to null, so the turn is fresh and
+    // the later adopt path validates + records the pasted PR.
+    it('looks up by prUrl then falls through to the adopt path for an external paste', async () => {
+        const findActiveWorkstreamByRepo = vi.fn();
+        const findByAiThreadUuidAndPrUrl = vi.fn().mockResolvedValue(null);
+        const service = buildService({
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            } as AnyType,
+            projectModel: {
+                get: vi.fn().mockResolvedValue(githubProject()),
+            } as AnyType,
+            aiWritebackThreadModel: {
+                findByAiThreadUuid: vi.fn().mockResolvedValue(null),
+                findActiveWorkstreamByRepo,
+                findByAiThreadUuidAndPrUrl,
+            } as AnyType,
+        });
+
+        const turn = await (service as AnyType).prepareTurn({
+            user: userWithOrg(true),
+            projectUuid: 'p1',
+            aiThreadUuid: 't1',
+            prUrl: PR_7,
+        });
+
+        expect(findByAiThreadUuidAndPrUrl).toHaveBeenCalledWith('t1', PR_7);
+        expect(findActiveWorkstreamByRepo).not.toHaveBeenCalled();
+        expect(turn).toMatchObject({
+            kind: 'run',
+            turn: { existingRow: null, isResume: false },
+        });
+    });
+});
+
+describe('AiWritebackService workstream concurrency', () => {
+    const turnWith = (existingRow: AnyType): AnyType => ({ existingRow });
+
+    it('keys the lock on the workstream when resuming, new::repo when fresh, null one-shot', () => {
+        const key = (aiThreadUuid: string | undefined, existingRow: AnyType) =>
+            workstreamLockKey(
+                aiThreadUuid,
+                turnWith(existingRow),
+                'acme/web-app',
+            );
+        expect(key('t1', { ai_writeback_thread_uuid: 'w1' })).toBe(
+            't1::ws::w1',
+        );
+        expect(key('t1', null)).toBe('t1::new::acme/web-app');
+        expect(key(undefined, null)).toBeNull();
+    });
+
+    it('rejects a second turn on the same workstream but allows a different PR', () => {
+        const service = buildService();
+        const assertAvailable = (lockKey: string, existingRow: AnyType) =>
+            (service as AnyType).assertTurnSlotAvailable(
+                't1',
+                lockKey,
+                existingRow,
+            );
+        (service as AnyType).acquireTurnSlot('t1', 't1::ws::w1');
+
+        expect(() => assertAvailable('t1::ws::w1', { x: 1 })).toThrow(
+            /already in progress for this pull request/,
+        );
+        // A different workstream on the same repo runs in parallel.
+        expect(() => assertAvailable('t1::ws::w2', { x: 1 })).not.toThrow();
+    });
+
+    it('caps concurrent turns per thread and frees a slot on release', () => {
+        const service = buildService();
+        const assertCap = () =>
+            (service as AnyType).assertTurnSlotAvailable('t1', null, null);
+        for (
+            let i = 0;
+            i < MAX_CONCURRENT_WORKSTREAM_TURNS_PER_THREAD;
+            i += 1
+        ) {
+            (service as AnyType).acquireTurnSlot('t1', `t1::ws::w${i}`);
+        }
+
+        expect(assertCap).toThrow(/Too many edits/);
+
+        (service as AnyType).releaseTurnSlot('t1', 't1::ws::w0');
+        expect(assertCap).not.toThrow();
+    });
+
+    it('isolates the per-thread cap between threads', () => {
+        const service = buildService();
+        for (
+            let i = 0;
+            i < MAX_CONCURRENT_WORKSTREAM_TURNS_PER_THREAD;
+            i += 1
+        ) {
+            (service as AnyType).acquireTurnSlot('t1', `t1::ws::w${i}`);
+        }
+        // A different thread is unaffected by t1 saturating its cap.
+        expect(() =>
+            (service as AnyType).assertTurnSlotAvailable('t2', null, null),
+        ).not.toThrow();
     });
 });
 
@@ -1000,6 +1278,36 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         expect(wrapperWrite[1]).toContain('-u ANTHROPIC_API_KEY');
     });
 
+    // R13: the sandbox network lockdown is a security invariant. The egress
+    // allowlist passed to the provider must stay [anthropic,github,gitlab] —
+    // never widened to `*`. Under the SandboxProvider abstraction the implicit
+    // denyOut=ALL is enforced inside the provider; this test fails loudly if the
+    // allowlist handed to the provider is ever loosened.
+    it('creates the sandbox with a fixed egress allowlist', async () => {
+        const sandbox = fakeSandbox(0, true);
+        fakeSandboxProvider.create.mockClear();
+        fakeSandboxProvider.create.mockResolvedValue(sandbox);
+
+        await runService(sandbox);
+
+        expect(fakeSandboxProvider.create).toHaveBeenCalledTimes(1);
+        const [spec] = fakeSandboxProvider.create.mock.calls[0];
+        // The INVARIANT (not just the current literal): the egress allowlist is a
+        // non-empty set of specific hosts — never a wildcard or a broad CIDR. The
+        // implicit deny-all default is enforced inside the provider. A provider or
+        // model change may extend the host list, but must keep this shape or the
+        // test fails loudly.
+        const { allow } = spec.egress;
+        expect(allow.length).toBeGreaterThan(0);
+        allow.forEach((host: string) => {
+            expect(host).not.toContain('*');
+            expect(host).not.toMatch(/\/\d+$/); // no CIDR
+            expect(host).not.toBe('0.0.0.0');
+            expect(host).toMatch(/^[a-z0-9.-]+\.[a-z]{2,}$/i); // a real hostname
+        });
+        expect(allow).toContain('api.anthropic.com');
+    });
+
     it('skips the PR when the agent exits non-zero', async () => {
         const sandbox = fakeSandbox(1, true);
         fakeSandboxProvider.create.mockResolvedValue(sandbox);
@@ -1301,6 +1609,58 @@ describe('AiWritebackService repo read access', () => {
     });
 });
 
+describe('AiWritebackService.listWorkstreams', () => {
+    it('returns [] without querying when the thread has no uuid', async () => {
+        const listByAiThreadUuid = vi.fn();
+        const service = buildService({
+            aiWritebackThreadModel: { listByAiThreadUuid } as AnyType,
+        });
+        await expect(
+            service.listWorkstreams({
+                aiThreadUuid: undefined,
+                repoTarget: null,
+            }),
+        ).resolves.toEqual([]);
+        expect(listByAiThreadUuid).not.toHaveBeenCalled();
+    });
+
+    it('maps rows to owner/repo workstreams, passing the repo filter through', async () => {
+        const listByAiThreadUuid = vi.fn().mockResolvedValue([
+            {
+                owner: 'acme',
+                repo: 'analytics',
+                provider: PullRequestProvider.GITHUB,
+                pr_url: PR_7,
+                pr_number: 7,
+                summary: 'Fix the typo',
+                created_at: new Date(),
+            },
+        ]);
+        const service = buildService({
+            aiWritebackThreadModel: { listByAiThreadUuid } as AnyType,
+        });
+
+        await expect(
+            service.listWorkstreams({
+                aiThreadUuid: 'thread-1',
+                repoTarget: 'acme/analytics',
+            }),
+        ).resolves.toEqual([
+            {
+                repository: 'acme/analytics',
+                provider: PullRequestProvider.GITHUB,
+                prUrl: PR_7,
+                prNumber: 7,
+                summary: 'Fix the typo',
+            },
+        ]);
+        expect(listByAiThreadUuid).toHaveBeenCalledWith(
+            'thread-1',
+            'acme/analytics',
+        );
+    });
+});
+
 describe('AiWritebackService.mergePullRequest', () => {
     const gitProject = (): AnyType => ({
         organizationUuid: ORG,
@@ -1509,5 +1869,753 @@ describe('mergeSourceCodeRepoAccess', () => {
         ]);
         expect(map.get('me/personal')?.token).toBe('user-token');
         expect(map.get('acme/shared')?.token).toBe('inst-token'); // org wins
+    });
+});
+
+describe('parseOwnerRepo', () => {
+    it('parses a valid owner/repo', () => {
+        expect(parseOwnerRepo('acme/web-app')).toEqual({
+            owner: 'acme',
+            repo: 'web-app',
+        });
+    });
+
+    it('trims whitespace and a trailing .git', () => {
+        expect(parseOwnerRepo('  acme/web-app.git ')).toEqual({
+            owner: 'acme',
+            repo: 'web-app',
+        });
+    });
+
+    it.each([undefined, '', 'noslash', 'a/b/c', 'owner/', '/repo'])(
+        'throws ParameterError on malformed input %p',
+        (input) => {
+            expect(() => parseOwnerRepo(input as string)).toThrow();
+        },
+    );
+});
+
+describe('computeWritableRepoKeys', () => {
+    const r = (owner: string, repo: string) => ({ owner, repo });
+
+    it('without user intersection, every installation repo is writable', () => {
+        const keys = computeWritableRepoKeys(
+            [r('acme', 'a'), r('acme', 'b')],
+            [],
+            false,
+        );
+        expect([...keys].sort()).toEqual(['acme/a', 'acme/b']);
+    });
+
+    it('with user intersection, only repos in BOTH sets are writable', () => {
+        const keys = computeWritableRepoKeys(
+            [r('acme', 'a'), r('acme', 'b'), r('acme', 'c')],
+            [r('acme', 'b'), r('acme', 'c'), r('me', 'x')],
+            true,
+        );
+        // acme/a is install-only (excluded); me/x is user-only (not installable)
+        expect([...keys].sort()).toEqual(['acme/b', 'acme/c']);
+    });
+
+    it('never marks the denylisted lightdash/lightdash writable', () => {
+        const keys = computeWritableRepoKeys(
+            [r('lightdash', 'lightdash'), r('acme', 'a')],
+            [],
+            false,
+        );
+        expect(keys.has('lightdash/lightdash')).toBe(false);
+        expect(keys.has('acme/a')).toBe(true);
+    });
+
+    it('denylist is case-insensitive', () => {
+        const keys = computeWritableRepoKeys(
+            [r('Lightdash', 'Lightdash')],
+            [],
+            false,
+        );
+        expect(keys.size).toBe(0);
+    });
+
+    it('intersects case-insensitively (installation vs user listings can differ in case)', () => {
+        const keys = computeWritableRepoKeys(
+            [r('Acme', 'Web-App')],
+            [r('acme', 'web-app')],
+            true,
+        );
+        // The slug differs only by case across the two listings — it must still
+        // intersect (L1), and the output keeps the installation's casing.
+        expect([...keys]).toEqual(['Acme/Web-App']);
+    });
+});
+
+describe('auditReasonForError', () => {
+    it('maps each terminal coding-agent error to a stable reason', () => {
+        expect(auditReasonForError(new DeniedPathError(['.env']))).toBe(
+            'denied_path',
+        );
+        expect(
+            auditReasonForError(new RepoTooLargeError('a/b', 900, 500)),
+        ).toBe('repo_too_large');
+        expect(
+            auditReasonForError(
+                new WritebackGitNotConnectedError(PullRequestProvider.GITHUB),
+            ),
+        ).toBe('not_installed');
+        expect(
+            auditReasonForError(new WritebackThreadPrClosedError('merged')),
+        ).toBe('pr_not_open');
+    });
+
+    it('distinguishes the ForbiddenError authz sub-conditions by message', () => {
+        expect(
+            auditReasonForError(
+                new ForbiddenError(
+                    'The repository lightdash/lightdash cannot be edited',
+                ),
+            ),
+        ).toBe('denied_repo');
+        expect(
+            auditReasonForError(
+                new ForbiddenError(
+                    'a/b is not accessible to your linked GitHub account',
+                ),
+            ),
+        ).toBe('user_intersection');
+        expect(
+            auditReasonForError(
+                new ForbiddenError(
+                    "a/b is not accessible to your organization's GitHub App installation",
+                ),
+            ),
+        ).toBe('installation');
+        // A bare ForbiddenError (the manage:SourceCode gate) -> permission.
+        expect(auditReasonForError(new ForbiddenError())).toBe('permission');
+    });
+
+    it('falls back to unknown for unrecognised errors', () => {
+        expect(auditReasonForError(new Error('boom'))).toBe('unknown');
+    });
+});
+
+describe('GENERAL_ALLOWED_TOOLS', () => {
+    const tools = GENERAL_ALLOWED_TOOLS.split(',');
+
+    // Inv#2: the general coding agent has NO shell. "No in-sandbox build" is
+    // enforceable (not convention) only while zero Bash entries are granted.
+    it('grants zero Bash entries (no shell for the general agent)', () => {
+        expect(tools.some((t) => t.startsWith('Bash('))).toBe(false);
+        expect(tools).not.toContain('Bash');
+    });
+
+    it('does not grant a blanket WebFetch/WebSearch escape hatch', () => {
+        expect(tools.some((t) => t.startsWith('WebFetch'))).toBe(false);
+        expect(tools.some((t) => t.startsWith('WebSearch'))).toBe(false);
+    });
+
+    // L2: path-scoped allows must use Claude Code absolute (`//`) paths too, so
+    // the allowlist matches the real /home/user/repo checkout rather than a
+    // project-relative path (which would silently grant nothing / the wrong dir).
+    it('scopes repo file tools to the absolute (//) repo path', () => {
+        const repoFileTools = tools.filter((t) =>
+            /^(Read|Glob|Grep|Edit|Write)\(.*home\/user\/repo/.test(t),
+        );
+        expect(repoFileTools.length).toBeGreaterThan(0);
+        repoFileTools.forEach((t) => {
+            expect(t).toMatch(
+                /^(Read|Glob|Grep|Edit|Write)\(\/\/home\/user\/repo\//,
+            );
+        });
+    });
+});
+
+describe('GENERAL_DISALLOWED_TOOLS', () => {
+    const rules = GENERAL_DISALLOWED_TOOLS.split(',');
+
+    it('denies Grep on every path it denies Read on (no read/grep parity gap)', () => {
+        const readGlobs = rules
+            .filter((r) => r.startsWith('Read('))
+            .map((r) => r.slice('Read('.length, -1));
+        const grepGlobs = new Set(
+            rules
+                .filter((r) => r.startsWith('Grep('))
+                .map((r) => r.slice('Grep('.length, -1)),
+        );
+
+        expect(readGlobs.length).toBeGreaterThan(0);
+        readGlobs.forEach((glob) => {
+            expect(grepGlobs.has(glob)).toBe(true);
+        });
+    });
+
+    it('denies Grep against .env and .git so secrets cannot be grepped out', () => {
+        expect(rules).toEqual(
+            expect.arrayContaining([
+                expect.stringMatching(/^Grep\(.*\.git\/\*\*\)$/),
+                expect.stringMatching(/^Grep\(.*\.env\)$/),
+            ]),
+        );
+    });
+
+    // L2: in Claude Code, `//path` is an ABSOLUTE filesystem path while `/path`
+    // is relative to the project root. The agent's repo is at the absolute path
+    // /home/user/repo, so every deny rule MUST keep the `//` prefix — dropping a
+    // slash would silently retarget the deny to a project-relative path and stop
+    // blocking the real secret files. This test fails loudly if that happens.
+    it('uses absolute (//) paths so the deny rules target the real repo', () => {
+        rules.forEach((rule) => {
+            expect(rule).toMatch(/^(Read|Grep)\(\/\/home\/user\/repo\//);
+        });
+    });
+});
+
+describe('AiWritebackService.resolveWritableRepoTarget (fail-closed authz)', () => {
+    const userWithManage = (): SessionUser => {
+        const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
+        can('manage', 'SourceCode', { organizationUuid: ORG });
+        return {
+            userUuid: 'u1',
+            organizationUuid: ORG,
+            organizationName: 'Acme',
+            organizationCreatedAt: new Date(),
+            role: 'admin',
+            ability: build(),
+        } as AnyType;
+    };
+
+    const githubProject = (): AnyType => ({
+        organizationUuid: ORG,
+        projectUuid: 'p1',
+        name: 'Analytics',
+        dbtConnection: {
+            type: DbtProjectType.GITHUB,
+            authorization_method: 'installation_id',
+            repository: 'acme/analytics',
+            branch: 'main',
+            project_sub_path: '/',
+        },
+        warehouseConnection: { type: WarehouseTypes.POSTGRES },
+    });
+
+    beforeEach(() => vi.clearAllMocks());
+
+    it('fails closed (does NOT widen to installation scope) when the user repo listing fails', async () => {
+        const { service } = (() => {
+            const svc = buildService({
+                githubAppService: {
+                    getValidUserToken: vi.fn().mockResolvedValue('user-token'),
+                } as AnyType,
+            });
+            vi.spyOn(
+                (svc as AnyType).githubProvider,
+                'resolveInstallation',
+            ).mockResolvedValue({
+                provider: PullRequestProvider.GITHUB,
+                installationId: 'inst-1',
+                token: 'install-token',
+                userToken: null,
+                commitAuthor: { name: 'n', email: 'e' },
+                coAuthorTrailer: '',
+            } as AnyType);
+            return { service: svc };
+        })();
+
+        // The installation can reach the target...
+        (
+            listReposAccessibleToInstallation as import('vitest').Mock
+        ).mockResolvedValue([{ owner: 'acme', repo: 'analytics' }]);
+        // ...but listing the user's own repos fails transiently.
+        (listReposAccessibleToUser as import('vitest').Mock).mockRejectedValue(
+            new Error('GitHub 503'),
+        );
+
+        await expect(
+            service.resolveWritableRepoTarget({
+                user: userWithManage(),
+                project: githubProject(),
+                repoTarget: 'acme/analytics',
+            }),
+        ).rejects.toThrow(/Could not verify your GitHub access/);
+    });
+
+    it('fails closed at the size guard (R9) before any clone when the repo is over the limit', async () => {
+        const svc = buildService({
+            lightdashConfig: {
+                gitlab: {},
+                aiWriteback: { codingAgentMaxRepoSizeMb: 100 },
+            } as AnyType,
+            githubAppService: {
+                getValidUserToken: vi.fn().mockResolvedValue(undefined),
+            } as AnyType,
+        });
+        vi.spyOn(
+            (svc as AnyType).githubProvider,
+            'resolveInstallation',
+        ).mockResolvedValue({
+            provider: PullRequestProvider.GITHUB,
+            installationId: 'inst-1',
+            token: 'install-token',
+            userToken: null,
+            commitAuthor: { name: 'n', email: 'e' },
+            coAuthorTrailer: '',
+        } as AnyType);
+        (
+            listReposAccessibleToInstallation as import('vitest').Mock
+        ).mockResolvedValue([{ owner: 'acme', repo: 'analytics' }]);
+        // 250 MB checkout against a 100 MB limit → reject before cloning.
+        (getRepoMetadata as import('vitest').Mock).mockResolvedValue({
+            defaultBranch: 'main',
+            sizeKb: 250 * 1024,
+        });
+
+        await expect(
+            svc.resolveWritableRepoTarget({
+                user: userWithManage(),
+                project: githubProject(),
+                repoTarget: 'acme/analytics',
+            }),
+        ).rejects.toThrow(RepoTooLargeError);
+    });
+});
+
+describe('AiWritebackService.generalCodingAgentConfig (general-agent invariants, H3)', () => {
+    const buildGeneralService = () =>
+        buildService({
+            lightdashConfig: {
+                gitlab: {},
+                appRuntime: {
+                    e2bCodingAgentTemplateName: 'coding-tpl',
+                    e2bCodingAgentTemplateTag: '',
+                },
+            } as AnyType,
+        });
+
+    const config = (): AnyType =>
+        (buildGeneralService() as AnyType).generalCodingAgentConfig();
+
+    beforeEach(() => vi.clearAllMocks());
+
+    it('runs in general mode behind the CodingAgent flag with no compile hooks', async () => {
+        const cfg = config();
+        expect(cfg.mode).toBe('general');
+        expect(cfg.featureFlag).toBe(FeatureFlags.CodingAgent);
+        // No in-sandbox build: prep/teardown are no-ops (Inv#2 relies on this).
+        await expect(cfg.beforeAgentRun()).resolves.toBeUndefined();
+        await expect(cfg.afterAgentRun()).resolves.toBeUndefined();
+    });
+
+    it('passes the no-Bash allowlist AND the secret/CI denylist to the agent', async () => {
+        const sandbox = {
+            commands: {
+                run: vi
+                    .fn()
+                    .mockResolvedValue({ stdout: 'models/a.sql\nREADME.md' }),
+            },
+        };
+        const setup = await config().buildAgentSetup({
+            sandbox,
+            repository: 'acme/web-app',
+        });
+        expect(setup.allowedTools).toBe(GENERAL_ALLOWED_TOOLS);
+        expect(setup.disallowedTools).toBe(GENERAL_DISALLOWED_TOOLS);
+    });
+
+    it('mints a scoped contents:read clone token and revokes it after clone (R2)', async () => {
+        const minted = await config().resolveCloneToken({
+            gitConnection: {
+                provider: PullRequestProvider.GITHUB,
+                owner: 'acme',
+                repo: 'web-app',
+            },
+            installation: {
+                provider: PullRequestProvider.GITHUB,
+                installationId: 'inst-1',
+            },
+        });
+
+        expect(getScopedRepoCloneToken).toHaveBeenCalledWith({
+            installationId: 'inst-1',
+            repo: 'web-app',
+        });
+        expect(minted.token).toBe('scoped-clone-token');
+        // The token is revoked once the checkout exists — not left live (R2).
+        expect(revokeInstallationToken).not.toHaveBeenCalled();
+        await minted.onAfterClone();
+        expect(revokeInstallationToken).toHaveBeenCalledWith(
+            'scoped-clone-token',
+        );
+    });
+
+    it('does not mint a scoped token for non-GitHub installs (GitLab falls back to scrub-only)', async () => {
+        const minted = await config().resolveCloneToken({
+            gitConnection: { provider: PullRequestProvider.GITLAB },
+            installation: { provider: PullRequestProvider.GITLAB },
+        });
+        expect(minted).toBeNull();
+        expect(getScopedRepoCloneToken).not.toHaveBeenCalled();
+    });
+});
+
+describe('AiWritebackService.runEditRepo (write audit, decision #2)', () => {
+    const args = (): AnyType => ({
+        user: { userUuid: 'u1', organizationUuid: ORG } as AnyType,
+        projectUuid: 'p1',
+        repoTarget: 'acme/web-app',
+        prompt: 'edit it',
+        source: 'web',
+    });
+
+    // runEditRepo builds the general config eagerly (reads appRuntime), so the
+    // service needs it even though runCodingAgent itself is stubbed.
+    const auditService = () =>
+        buildService({
+            lightdashConfig: {
+                gitlab: {},
+                appRuntime: {
+                    e2bCodingAgentTemplateName: 'coding-tpl',
+                    e2bCodingAgentTemplateTag: '',
+                },
+            } as AnyType,
+        });
+
+    beforeEach(() => vi.clearAllMocks());
+
+    it('emits an allowed audit line on success', async () => {
+        const service = auditService();
+        vi.spyOn(service as AnyType, 'runCodingAgent').mockResolvedValue({
+            repository: 'acme/web-app',
+        });
+        const info = vi.spyOn((service as AnyType).logger, 'info');
+
+        await service.runEditRepo(args());
+
+        expect(info).toHaveBeenCalledWith(
+            'coding_agent_write',
+            expect.objectContaining({
+                event: 'coding_agent_write',
+                projectUuid: 'p1',
+                targetRepo: 'acme/web-app',
+                allowed: true,
+                reason: null,
+            }),
+        );
+    });
+
+    it('emits a denied audit line with the classified reason on failure', async () => {
+        const service = auditService();
+        vi.spyOn(service as AnyType, 'runCodingAgent').mockRejectedValue(
+            new RepoTooLargeError('acme/web-app', 500, 100),
+        );
+        const info = vi.spyOn((service as AnyType).logger, 'info');
+
+        await expect(service.runEditRepo(args())).rejects.toThrow(
+            RepoTooLargeError,
+        );
+
+        expect(info).toHaveBeenCalledWith(
+            'coding_agent_write',
+            expect.objectContaining({
+                event: 'coding_agent_write',
+                allowed: false,
+                reason: 'repo_too_large',
+            }),
+        );
+    });
+});
+
+describe('AiWritebackService.prepareTurn (stale-PR recovery, M4)', () => {
+    const userWithManage = (): SessionUser => {
+        const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
+        can('manage', 'SourceCode', { organizationUuid: ORG });
+        return {
+            userUuid: 'u1',
+            organizationUuid: ORG,
+            organizationName: 'Acme',
+            organizationCreatedAt: new Date(),
+            role: 'admin',
+            ability: build(),
+        } as AnyType;
+    };
+
+    const githubProject = (): AnyType => ({
+        organizationUuid: ORG,
+        projectUuid: 'p1',
+        name: 'Analytics',
+        dbtConnection: {
+            type: DbtProjectType.GITHUB,
+            authorization_method: 'installation_id',
+            repository: 'acme/analytics',
+            branch: 'main',
+            project_sub_path: '/',
+        },
+        warehouseConnection: { type: WarehouseTypes.POSTGRES },
+        dbtVersion: SupportedDbtVersions.V1_9,
+    });
+
+    const prepare = (
+        service: AiWritebackService,
+        overrides: AnyType = {},
+    ): AnyType =>
+        (service as AnyType).prepareTurn({
+            user: userWithManage(),
+            projectUuid: 'p1',
+            aiThreadUuid: 'thread-1',
+            source: 'web',
+            featureFlag: FeatureFlags.AiWriteback,
+            mode: 'dbt',
+            repoTarget: undefined,
+            prUrl: undefined,
+            startNewPullRequest: false,
+            ...overrides,
+        });
+
+    it('treats a resumed workstream whose PR was deleted (null pr_url) as a fresh turn', async () => {
+        const findActiveWorkstreamByRepo = vi.fn().mockResolvedValue({
+            ai_writeback_thread_uuid: 'w-1',
+            ai_thread_uuid: 'thread-1',
+            target_repo: 'acme/analytics',
+            pr_url: null,
+        });
+        const service = buildService({
+            projectModel: {
+                get: vi.fn().mockResolvedValue(githubProject()),
+            } as AnyType,
+            featureFlagModel: {
+                get: vi.fn().mockResolvedValue({ enabled: true }),
+            } as AnyType,
+            aiWritebackThreadModel: {
+                findByAiThreadUuid: vi.fn().mockResolvedValue(null),
+                findActiveWorkstreamByRepo,
+                findByAiThreadUuidAndPrUrl: vi.fn(),
+            } as AnyType,
+        });
+
+        const prepared = await prepare(service);
+        const turn = prepared.kind === 'run' ? prepared.turn : prepared;
+
+        // The stale row is discarded so the turn opens a fresh PR rather than
+        // resuming onto a dead branch and throwing later (M4).
+        expect(findActiveWorkstreamByRepo).toHaveBeenCalledWith(
+            'thread-1',
+            'acme/analytics',
+        );
+        expect(turn.existingRow).toBeNull();
+        expect(turn.isResume).toBe(false);
+    });
+});
+
+describe('AiWritebackService.closePullRequest (workstream provider)', () => {
+    const PR_OTHER = 'https://github.com/acme/other-repo/pull/42';
+
+    const userWithManage = (canManage = true): SessionUser => {
+        const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
+        if (canManage) can('manage', 'SourceCode', { organizationUuid: ORG });
+        return {
+            userUuid: 'u1',
+            organizationUuid: ORG,
+            organizationName: 'Acme',
+            organizationCreatedAt: new Date(),
+            role: 'admin',
+            ability: build(),
+        } as AnyType;
+    };
+
+    const githubProject = (): AnyType => ({
+        organizationUuid: ORG,
+        projectUuid: 'p1',
+        name: 'Analytics',
+        dbtConnection: {
+            type: DbtProjectType.GITHUB,
+            authorization_method: 'installation_id',
+            repository: 'acme/analytics',
+            branch: 'main',
+            project_sub_path: '/',
+        },
+        warehouseConnection: { type: WarehouseTypes.POSTGRES },
+    });
+
+    const recordedPr = (overrides: AnyType = {}): AnyType => ({
+        pullRequestUuid: 'pr-uuid-1',
+        organizationUuid: ORG,
+        projectUuid: 'p1',
+        provider: PullRequestProvider.GITHUB,
+        owner: 'acme',
+        repo: 'other-repo',
+        prNumber: 42,
+        prUrl: PR_OTHER,
+        ...overrides,
+    });
+
+    beforeEach(() => vi.clearAllMocks());
+
+    it('closes a recorded PR in another repo via its provider, not CiService', async () => {
+        const findByAiThreadUuidAndUrl = vi
+            .fn()
+            .mockResolvedValue(recordedPr());
+        const ciClose = vi.fn();
+        const service = buildService({
+            projectModel: {
+                get: vi.fn().mockResolvedValue(githubProject()),
+            } as AnyType,
+            pullRequestsModel: { findByAiThreadUuidAndUrl } as AnyType,
+            ciService: { closePullRequest: ciClose } as AnyType,
+        });
+        vi.spyOn(
+            (service as AnyType).githubProvider,
+            'resolveInstallation',
+        ).mockResolvedValue({
+            provider: PullRequestProvider.GITHUB,
+            installationId: 'inst-1',
+            token: 'install-token',
+            userToken: null,
+            commitAuthor: { name: 'n', email: 'e' },
+            coAuthorTrailer: '',
+        } as AnyType);
+        const providerClose = vi
+            .spyOn((service as AnyType).githubProvider, 'closePullRequest')
+            .mockResolvedValue({ state: 'closed' });
+
+        const result = await service.closePullRequest({
+            user: userWithManage(),
+            projectUuid: 'p1',
+            aiThreadUuid: 'thread-1',
+            prUrl: PR_OTHER,
+        });
+
+        expect(result).toEqual({ state: 'closed' });
+        expect(findByAiThreadUuidAndUrl).toHaveBeenCalledWith(
+            'thread-1',
+            PR_OTHER,
+        );
+        expect(ciClose).not.toHaveBeenCalled();
+        expect(providerClose).toHaveBeenCalledWith(
+            expect.objectContaining({
+                prUrl: PR_OTHER,
+                owner: 'acme',
+                repo: 'other-repo',
+                pullNumber: 42,
+            }),
+        );
+    });
+
+    it('falls back to CiService when the PR URL is not a recorded workstream', async () => {
+        const findByAiThreadUuidAndUrl = vi.fn().mockResolvedValue(null);
+        const findByProjectAndUrl = vi.fn().mockResolvedValue(null);
+        const ciClose = vi.fn().mockResolvedValue({ state: 'closed' });
+        const service = buildService({
+            pullRequestsModel: {
+                findByAiThreadUuidAndUrl,
+                findByProjectAndUrl,
+            } as AnyType,
+            ciService: { closePullRequest: ciClose } as AnyType,
+        });
+        const args = {
+            user: userWithManage(),
+            projectUuid: 'p1',
+            aiThreadUuid: 'thread-1',
+            prUrl: PR_7,
+        };
+
+        const result = await service.closePullRequest(args);
+
+        expect(result).toEqual({ state: 'closed' });
+        expect(ciClose).toHaveBeenCalledWith({
+            user: args.user,
+            projectUuid: args.projectUuid,
+            prUrl: args.prUrl,
+        });
+    });
+
+    it('rejects a project PR that is not a workstream in the current thread', async () => {
+        const ciClose = vi.fn();
+        const service = buildService({
+            pullRequestsModel: {
+                findByAiThreadUuidAndUrl: vi.fn().mockResolvedValue(null),
+                findByProjectAndUrl: vi.fn().mockResolvedValue(recordedPr()),
+            } as AnyType,
+            ciService: { closePullRequest: ciClose } as AnyType,
+        });
+
+        await expect(
+            service.closePullRequest({
+                user: userWithManage(),
+                projectUuid: 'p1',
+                aiThreadUuid: 'thread-1',
+                prUrl: PR_OTHER,
+            }),
+        ).rejects.toThrow(/not a workstream in the current conversation/);
+        expect(ciClose).not.toHaveBeenCalled();
+    });
+
+    it('rejects a recorded-PR close when the user lacks manage:SourceCode', async () => {
+        const service = buildService({
+            projectModel: {
+                get: vi.fn().mockResolvedValue(githubProject()),
+            } as AnyType,
+            pullRequestsModel: {
+                findByAiThreadUuidAndUrl: vi
+                    .fn()
+                    .mockResolvedValue(recordedPr()),
+            } as AnyType,
+        });
+        const providerClose = vi.spyOn(
+            (service as AnyType).githubProvider,
+            'closePullRequest',
+        );
+
+        await expect(
+            service.closePullRequest({
+                user: userWithManage(false),
+                projectUuid: 'p1',
+                aiThreadUuid: 'thread-1',
+                prUrl: PR_OTHER,
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(providerClose).not.toHaveBeenCalled();
+    });
+
+    it('routes a recorded GitLab MR to the GitLab provider', async () => {
+        const service = buildService({
+            projectModel: {
+                get: vi.fn().mockResolvedValue(githubProject()),
+            } as AnyType,
+            pullRequestsModel: {
+                findByAiThreadUuidAndUrl: vi.fn().mockResolvedValue(
+                    recordedPr({
+                        provider: PullRequestProvider.GITLAB,
+                        owner: 'acme',
+                        repo: 'gl-repo',
+                        prNumber: 7,
+                        prUrl: 'https://gitlab.com/acme/gl-repo/-/merge_requests/7',
+                    }),
+                ),
+            } as AnyType,
+        });
+        vi.spyOn(
+            (service as AnyType).gitlabProvider,
+            'resolveInstallation',
+        ).mockResolvedValue({
+            provider: PullRequestProvider.GITLAB,
+            token: 'gitlab-token',
+            instanceUrl: 'https://gitlab.com',
+            commitAuthor: { name: 'n', email: 'e' },
+        } as AnyType);
+        const gitlabClose = vi
+            .spyOn((service as AnyType).gitlabProvider, 'closePullRequest')
+            .mockResolvedValue({ state: 'closed' });
+        const githubClose = vi.spyOn(
+            (service as AnyType).githubProvider,
+            'closePullRequest',
+        );
+
+        const result = await service.closePullRequest({
+            user: userWithManage(),
+            projectUuid: 'p1',
+            aiThreadUuid: 'thread-1',
+            prUrl: 'https://gitlab.com/acme/gl-repo/-/merge_requests/7',
+        });
+
+        expect(result).toEqual({ state: 'closed' });
+        expect(gitlabClose).toHaveBeenCalledTimes(1);
+        expect(githubClose).not.toHaveBeenCalled();
     });
 });

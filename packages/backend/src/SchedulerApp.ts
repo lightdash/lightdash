@@ -6,6 +6,8 @@ import http from 'http';
 import knex, { Knex } from 'knex';
 import { BufferedEventStreamWriter } from './analytics/eventStream/BufferedEventStreamWriter';
 import { createEventStreamWriter } from './analytics/eventStream/createEventStreamWriter';
+import { EventStreamSink } from './analytics/eventStream/EventStreamSink';
+import { eventStreamRegistry } from './analytics/eventStream/registry';
 import { LightdashAnalytics } from './analytics/LightdashAnalytics';
 import { registerOAuthRefreshStrategies } from './auth/registerOAuthRefreshStrategies';
 import {
@@ -67,6 +69,7 @@ const schedulerWorkerFactory = (context: {
     clients: ClientRepository;
     utils: UtilRepository;
     workerHealth: SchedulerWorkerHealth;
+    prometheusMetrics?: PrometheusMetrics;
 }) =>
     new SchedulerWorker({
         lightdashConfig: context.lightdashConfig,
@@ -103,6 +106,7 @@ const schedulerWorkerFactory = (context: {
         resolveOrganizationName: createOrganizationNameResolver(
             context.models.getOrganizationModel(),
         ),
+        prometheusMetrics: context.prometheusMetrics,
     });
 
 export default class SchedulerApp {
@@ -137,6 +141,13 @@ export default class SchedulerApp {
         this.port = args.port;
         this.environment = args.environment || 'production';
         this.analyticsEventEmitter = new EventEmitter();
+        this.prometheusMetrics = new PrometheusMetrics(
+            this.lightdashConfig.prometheus,
+        );
+        this.eventStreamWriter = createEventStreamWriter(
+            this.lightdashConfig,
+            this.prometheusMetrics,
+        );
         this.analytics = new LightdashAnalytics({
             lightdashConfig: this.lightdashConfig,
             writeKey: this.lightdashConfig.rudder.writeKey || 'notrack',
@@ -149,6 +160,12 @@ export default class SchedulerApp {
                     this.lightdashConfig.rudder.dataPlaneUrl,
             },
             eventEmitter: this.analyticsEventEmitter,
+            eventStreamSink: this.eventStreamWriter
+                ? new EventStreamSink(
+                      eventStreamRegistry,
+                      this.eventStreamWriter,
+                  )
+                : undefined,
         });
 
         this.database = knex(
@@ -177,13 +194,6 @@ export default class SchedulerApp {
             }),
             models: this.models,
         });
-        this.prometheusMetrics = new PrometheusMetrics(
-            this.lightdashConfig.prometheus,
-        );
-        this.eventStreamWriter = createEventStreamWriter(
-            this.lightdashConfig,
-            this.prometheusMetrics,
-        );
         this.serviceRepository = new ServiceRepository({
             serviceProviders: args.serviceProviders,
             context: new OperationContext({
@@ -255,6 +265,7 @@ export default class SchedulerApp {
             clients: this.clients,
             utils: this.utils,
             workerHealth,
+            prometheusMetrics: this.prometheusMetrics,
         });
         await worker.run();
         return { worker, workerHealth };

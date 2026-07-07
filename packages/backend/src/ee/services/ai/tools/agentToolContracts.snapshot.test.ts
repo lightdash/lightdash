@@ -1,12 +1,14 @@
 import { agentToolDefinitions } from '@lightdash/common';
 import { asSchema, type FlexibleSchema } from 'ai';
 import { getDiscoverFields } from '../agents/discoverFields/tool';
+import { getClosePullRequest } from './closePullRequest';
 import { getCreateContent } from './createContent';
 import { getDescribeWarehouseTable } from './describeWarehouseTable';
 import { getDiscoverRepos } from './discoverRepos';
 import { getEditContent } from './editContent';
 import { getEditDbtProject } from './editDbtProject';
 import { getEditProjectContext } from './editProjectContext';
+import { getEditRepo } from './editRepo';
 import { getExploreRepo } from './exploreRepo';
 import { getFindContent } from './findContent';
 import { getFindExplores } from './findExplores';
@@ -18,11 +20,13 @@ import { getGenerateVisualization } from './generateVisualization';
 import { getGetDashboardCharts } from './getDashboardCharts';
 import { getGetKnowledgeDocumentContent } from './getKnowledgeDocumentContent';
 import { getGetProjectInfo } from './getProjectInfo';
+import { getGetPullRequestDiff } from './getPullRequestDiff';
 import { getImproveContext } from './improveContext';
 import { getListContent } from './listContent';
 import { getListKnowledgeDocuments } from './listKnowledgeDocuments';
 import { getListProjects } from './listProjects';
 import { getListWarehouseTables } from './listWarehouseTables';
+import { getListWorkstreams } from './listWorkstreams';
 import { getLoadSkill } from './loadSkill';
 import { getReadContent } from './readContent';
 import { getRunContentQuery } from './runContentQuery';
@@ -148,11 +152,19 @@ const makeAgentTools = () => {
         editProjectContext: getEditProjectContext({
             editProjectContext: noop,
         }),
+        editRepo: getEditRepo({
+            editRepo: noop,
+        }),
         setupPreviewDeploy: getSetupPreviewDeploy({
             setupPreviewDeploy: noop,
         }),
         exploreRepo: getExploreRepo({ exploreRepo: noop }),
         discoverRepos: getDiscoverRepos({ discoverRepos: noop }),
+        listWorkstreams: getListWorkstreams({ listWorkstreams: noop }),
+        closePullRequest: getClosePullRequest({ closePullRequest: noopAsync }),
+        getPullRequestDiff: getGetPullRequestDiff({
+            getPullRequestDiff: noop,
+        }),
         readContent: getReadContent({ readContent: noop }),
         runContentQuery: getRunContentQuery({
             enableDataAccess: true,

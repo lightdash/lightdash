@@ -33,6 +33,11 @@ import {
     toolLoadSkillResourceOutputSchema,
 } from './toolBuiltInSkillArgs';
 import {
+    TOOL_CLOSE_PULL_REQUEST_DESCRIPTION,
+    toolClosePullRequestArgsSchema,
+    toolClosePullRequestOutputSchema,
+} from './toolClosePullRequestArgs';
+import {
     TOOL_CREATE_CONTENT_DESCRIPTION,
     toolCreateContentArgsSchema,
     toolCreateContentOutputSchema,
@@ -77,6 +82,11 @@ import {
     toolEditProjectContextArgsSchema,
     toolEditProjectContextOutputSchema,
 } from './toolEditProjectContextArgs';
+import {
+    TOOL_EDIT_REPO_DESCRIPTION,
+    toolEditRepoArgsSchema,
+    toolEditRepoOutputSchema,
+} from './toolEditRepoArgs';
 import {
     TOOL_EXPLORE_REPO_DESCRIPTION,
     toolExploreRepoArgsSchema,
@@ -140,6 +150,11 @@ import {
     toolGetProjectInfoOutputSchema,
 } from './toolGetProjectInfoArgs';
 import {
+    TOOL_GET_PULL_REQUEST_DIFF_DESCRIPTION,
+    toolGetPullRequestDiffArgsSchema,
+    toolGetPullRequestDiffOutputSchema,
+} from './toolGetPullRequestDiffArgs';
+import {
     TOOL_GET_QUERY_RESULT_DESCRIPTION,
     toolGetQueryResultArgsSchema,
 } from './toolGetQueryResultArgs';
@@ -173,6 +188,11 @@ import {
     toolListWarehouseTablesArgsSchema,
     toolListWarehouseTablesOutputSchema,
 } from './toolListWarehouseTablesArgs';
+import {
+    TOOL_LIST_WORKSTREAMS_DESCRIPTION,
+    toolListWorkstreamsArgsSchema,
+    toolListWorkstreamsOutputSchema,
+} from './toolListWorkstreamsArgs';
 import {
     TOOL_LOAD_PROJECT_CONTEXT_DESCRIPTION,
     toolLoadProjectContextArgsSchema,
@@ -839,6 +859,20 @@ export const editProjectContextToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolEditProjectContextOutputSchema },
 });
 
+export const editRepoToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'editRepo',
+    typeof toolEditRepoArgsSchema,
+    typeof toolEditRepoArgsSchema,
+    typeof toolEditRepoOutputSchema
+> = defineTool({
+    name: 'editRepo',
+    title: 'Edit repository',
+    description: TOOL_EDIT_REPO_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolEditRepoArgsSchema,
+    agent: { outputSchema: toolEditRepoOutputSchema },
+});
+
 export const syncDbtProjectToolDefinition: ToolDefinitionWithoutMcpOutput<
     'syncDbtProject',
     typeof toolSyncDbtProjectArgsSchema,
@@ -879,6 +913,48 @@ export const discoverReposToolDefinition: ToolDefinitionWithoutMcpOutput<
     availability: ['agent'],
     inputSchema: toolDiscoverReposArgsSchema,
     agent: { outputSchema: toolDiscoverReposOutputSchema },
+});
+
+export const listWorkstreamsToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'listWorkstreams',
+    typeof toolListWorkstreamsArgsSchema,
+    typeof toolListWorkstreamsArgsSchema,
+    typeof toolListWorkstreamsOutputSchema
+> = defineTool({
+    name: 'listWorkstreams',
+    title: 'List pull requests',
+    description: TOOL_LIST_WORKSTREAMS_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolListWorkstreamsArgsSchema,
+    agent: { outputSchema: toolListWorkstreamsOutputSchema },
+});
+
+export const closePullRequestToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'closePullRequest',
+    typeof toolClosePullRequestArgsSchema,
+    typeof toolClosePullRequestArgsSchema,
+    typeof toolClosePullRequestOutputSchema
+> = defineTool({
+    name: 'closePullRequest',
+    title: 'Close pull request',
+    description: TOOL_CLOSE_PULL_REQUEST_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolClosePullRequestArgsSchema,
+    agent: { outputSchema: toolClosePullRequestOutputSchema },
+});
+
+export const getPullRequestDiffToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'getPullRequestDiff',
+    typeof toolGetPullRequestDiffArgsSchema,
+    typeof toolGetPullRequestDiffArgsSchema,
+    typeof toolGetPullRequestDiffOutputSchema
+> = defineTool({
+    name: 'getPullRequestDiff',
+    title: 'Read pull request diff',
+    description: TOOL_GET_PULL_REQUEST_DIFF_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolGetPullRequestDiffArgsSchema,
+    agent: { outputSchema: toolGetPullRequestDiffOutputSchema },
 });
 
 export const setupPreviewDeployToolDefinition: ToolDefinitionWithoutMcpOutput<
@@ -1264,7 +1340,7 @@ export const listVerifiedContentToolDefinition: ToolDefinitionWithoutMcpOutput<
     name: 'listVerifiedContent',
     title: 'List verified content',
     description:
-        'List all verified charts and dashboards in the active project. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Requires an active project set via set_project. Each item includes contentType (chart or dashboard), contentUuid, name, space, and verification metadata (who verified it and when).',
+        'List all verified charts and dashboards in the active project. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Requires an active project set via set_project. Each item includes contentType (chart or dashboard), contentUuid, name, description, space, view count, last update time, and verification metadata (who verified it and when); charts also include chartKind and exploreName. To learn the full structure of a verified item (dimensions, metrics, filters), drill into it with find_content or find_fields on its explore.',
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
     mcp: { annotations: readOnlyAnnotations },
@@ -1316,9 +1392,13 @@ type AgentToolDefinitionsByName = {
     proposeChange: typeof proposeChangeToolDefinition;
     editDbtProject: typeof editDbtProjectToolDefinition;
     editProjectContext: typeof editProjectContextToolDefinition;
+    editRepo: typeof editRepoToolDefinition;
     syncDbtProject: typeof syncDbtProjectToolDefinition;
     exploreRepo: typeof exploreRepoToolDefinition;
     discoverRepos: typeof discoverReposToolDefinition;
+    listWorkstreams: typeof listWorkstreamsToolDefinition;
+    closePullRequest: typeof closePullRequestToolDefinition;
+    getPullRequestDiff: typeof getPullRequestDiffToolDefinition;
     setupPreviewDeploy: typeof setupPreviewDeployToolDefinition;
     runSavedChart: typeof runSavedChartToolDefinition;
     listWarehouseTables: typeof listWarehouseTablesToolDefinition;
@@ -1363,9 +1443,13 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     proposeChange: proposeChangeToolDefinition,
     editDbtProject: editDbtProjectToolDefinition,
     editProjectContext: editProjectContextToolDefinition,
+    editRepo: editRepoToolDefinition,
     syncDbtProject: syncDbtProjectToolDefinition,
     exploreRepo: exploreRepoToolDefinition,
     discoverRepos: discoverReposToolDefinition,
+    listWorkstreams: listWorkstreamsToolDefinition,
+    closePullRequest: closePullRequestToolDefinition,
+    getPullRequestDiff: getPullRequestDiffToolDefinition,
     setupPreviewDeploy: setupPreviewDeployToolDefinition,
     runSavedChart: runSavedChartToolDefinition,
     listWarehouseTables: listWarehouseTablesToolDefinition,
@@ -1412,9 +1496,13 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     proposeChangeToolDefinition,
     editDbtProjectToolDefinition,
     editProjectContextToolDefinition,
+    editRepoToolDefinition,
     syncDbtProjectToolDefinition,
     exploreRepoToolDefinition,
     discoverReposToolDefinition,
+    listWorkstreamsToolDefinition,
+    closePullRequestToolDefinition,
+    getPullRequestDiffToolDefinition,
     setupPreviewDeployToolDefinition,
     runSavedChartToolDefinition,
     listWarehouseTablesToolDefinition,

@@ -26,6 +26,7 @@ import {
     relocateMarkLinesToVisibleSeries,
     resolveCartesianGranularityLabels,
     selectContinuousDateRange,
+    transformStack100ByValueAxis,
 } from './useEchartsCartesianConfig';
 
 dayjs.extend(utcPlugin);
@@ -1434,6 +1435,110 @@ describe('getStackTotalSeries', () => {
             baseArgs.isStack100,
         );
         expect(result).toHaveLength(0);
+    });
+});
+
+describe('transformStack100ByValueAxis', () => {
+    const barOnAxis = (y: string, yAxisIndex: number): EChartsSeries => ({
+        type: CartesianSeriesType.BAR,
+        stack: 'stack',
+        yAxisIndex,
+        encode: { x: 'x', y, tooltip: [y], seriesName: y },
+    });
+
+    // Series on the secondary axis were previously skipped, leaving raw values
+    // the tooltip then rendered with a "%" suffix.
+    test('normalizes stacked series on the secondary axis', () => {
+        const rows = [
+            { x: 'A', chA: 30, chB: 10 },
+            { x: 'B', chA: 20, chB: 20 },
+        ];
+        const { transformedResults, originalValues } =
+            transformStack100ByValueAxis(
+                rows,
+                'x',
+                [barOnAxis('chA', 1), barOnAxis('chB', 1)],
+                false,
+            );
+
+        expect(transformedResults[0].chA).toBe(75);
+        expect(transformedResults[0].chB).toBe(25);
+        expect(transformedResults[1].chA).toBe(50);
+        expect(transformedResults[1].chB).toBe(50);
+        // Original absolute values are preserved for tooltip counts.
+        expect(originalValues.get('A')?.get('chA')).toBe(30);
+        expect(originalValues.get('B')?.get('chB')).toBe(20);
+    });
+
+    test('normalizes each value axis against its own total, not across axes', () => {
+        const rows = [{ x: 'A', p0: 25, p1: 75, s0: 10, s1: 90 }];
+        const { transformedResults } = transformStack100ByValueAxis(
+            rows,
+            'x',
+            [
+                barOnAxis('p0', 0),
+                barOnAxis('p1', 0),
+                barOnAxis('s0', 1),
+                barOnAxis('s1', 1),
+            ],
+            false,
+        );
+
+        // Primary axis normalizes against 100 (25 + 75); secondary against
+        // 100 (10 + 90). A single cross-axis total would give 12.5 / 37.5 / …
+        expect(transformedResults[0].p0).toBe(25);
+        expect(transformedResults[0].p1).toBe(75);
+        expect(transformedResults[0].s0).toBe(10);
+        expect(transformedResults[0].s1).toBe(90);
+    });
+
+    test('reads the X-encoded hash and xAxisIndex when axes are flipped', () => {
+        const rows = [{ y: 'A', chA: 30, chB: 10 }];
+        const flippedBar = (x: string): EChartsSeries => ({
+            type: CartesianSeriesType.BAR,
+            stack: 'stack',
+            xAxisIndex: 1,
+            encode: { x, y: 'y', tooltip: [x], seriesName: x },
+        });
+
+        const { transformedResults } = transformStack100ByValueAxis(
+            rows,
+            'y',
+            [flippedBar('chA'), flippedBar('chB')],
+            true,
+        );
+
+        expect(transformedResults[0].chA).toBe(75);
+        expect(transformedResults[0].chB).toBe(25);
+    });
+
+    test('ignores series without a stack (e.g. line/scatter) so their values stay raw', () => {
+        const rows = [{ x: 'A', bar: 30, line: 10 }];
+        const lineSeries: EChartsSeries = {
+            type: CartesianSeriesType.LINE,
+            stack: undefined,
+            yAxisIndex: 0,
+            encode: {
+                x: 'x',
+                y: 'line',
+                tooltip: ['line'],
+                seriesName: 'line',
+            },
+        };
+
+        const { transformedResults, originalValues } =
+            transformStack100ByValueAxis(
+                rows,
+                'x',
+                [barOnAxis('bar', 0), lineSeries],
+                false,
+            );
+
+        // The single stacked bar is 100% of its own stack.
+        expect(transformedResults[0].bar).toBe(100);
+        // The un-stacked line keeps its raw value and no percentage entry.
+        expect(transformedResults[0].line).toBe(10);
+        expect(originalValues.get('A')?.has('line')).toBe(false);
     });
 });
 

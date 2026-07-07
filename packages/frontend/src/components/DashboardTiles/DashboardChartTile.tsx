@@ -114,7 +114,6 @@ const getDashboardTileErrorMessage = (
 };
 
 import { AskAiAgentButton } from '../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentButton';
-import { CreateIssueMenuItem } from '../../ee/features/aiCopilot/components/CreateIssue/CreateIssueMenuItem';
 import { DashboardTileComments } from '../../features/comments';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
 import { DateZoomInfoOnTile } from '../../features/dateZoom';
@@ -1523,13 +1522,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                             userCanManageChart ||
                             userCanExportData) && (
                             <>
-                                <CreateIssueMenuItem
-                                    projectUuid={projectUuid}
-                                    chartUuid={savedChartUuid ?? undefined}
-                                    dashboardUuid={dashboardUuid}
-                                    tileUuid={tileUuid}
-                                    withDivider
-                                />
+                                {/* TODO: add a create-issue entry point once the issues flow is finalized */}
                                 <Tooltip
                                     disabled={!isEditMode}
                                     label="Finish editing dashboard to use these actions"

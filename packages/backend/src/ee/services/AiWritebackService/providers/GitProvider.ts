@@ -1,4 +1,5 @@
 import type {
+    ClosePullRequestResult,
     DbtProjectConfig,
     PullRequestProvider,
     SessionUser,
@@ -21,6 +22,13 @@ export type OpenPullRequestArgs = {
     /** The Lightdash user who triggered the run, credited as a commit co-author. */
     user: SessionUser;
     setStage: SetStage;
+    /**
+     * Reject the commit (no PR) if it touches CI/workflow files. Set for the
+     * general coding agent (R3); false for dbt writeback, which legitimately
+     * adds `.github/workflows` for preview-deploy setup. Secret files are denied
+     * regardless of this flag.
+     */
+    denyCiPaths: boolean;
 };
 
 export type UpdatePullRequestArgs = OpenPullRequestArgs & {
@@ -31,6 +39,21 @@ export type UpdatePullRequestArgs = OpenPullRequestArgs & {
 export type AdoptPullRequestArgs = {
     prUrl: string;
     connection: GitConnection;
+    installation: GitInstallation;
+};
+
+/**
+ * Close a recorded pull/merge request. The owner/repo/number come from the
+ * stored `pull_requests` row (the "workstream"), NOT the project's dbt
+ * connection — the general coding agent opens PRs in arbitrary writable repos,
+ * so the target is whatever repo that workstream actually lives in. `prUrl` is
+ * carried through for GitLab, which derives the host from it.
+ */
+export type ClosePullRequestArgs = {
+    prUrl: string;
+    owner: string;
+    repo: string;
+    pullNumber: number;
     installation: GitInstallation;
 };
 
@@ -86,6 +109,15 @@ export interface GitProvider {
     updatePullRequest(args: UpdatePullRequestArgs): Promise<LandedCommit>;
     /** Validate a pasted PR/MR link before editing it on top of its branch. */
     adoptPullRequest(args: AdoptPullRequestArgs): Promise<AdoptedPullRequest>;
+    /**
+     * Close (not merge) a recorded PR/MR through this host. Used by the coding
+     * agent's `closePullRequest` tool to retire a workstream it opened —
+     * including PRs in repos other than the project's dbt repo, which the
+     * CiService close path cannot reach (it ties the URL to the dbt connection).
+     */
+    closePullRequest(
+        args: ClosePullRequestArgs,
+    ): Promise<ClosePullRequestResult>;
     /**
      * Whether a thread's stored PR/MR can still be edited. A resume turn reuses
      * the PR recorded on the thread, which may have been merged or closed (here

@@ -29,7 +29,6 @@ import {
 import { type FC, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
-import { CreateIssueMenuItem } from '../../../ee/features/aiCopilot/components/CreateIssue/CreateIssueMenuItem';
 import { PromoteAppModal } from '../../../features/apps/components/PromoteAppModal';
 import { useDuplicateApp } from '../../../features/apps/hooks/useDuplicateApp';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
@@ -343,20 +342,7 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                 }
                                 clickedFrom="resource_action_menu"
                             />
-                            <CreateIssueMenuItem
-                                projectUuid={projectUuid}
-                                chartUuid={
-                                    isResourceViewItemChart(item)
-                                        ? item.data.uuid
-                                        : undefined
-                                }
-                                dashboardUuid={
-                                    isResourceViewItemDashboard(item)
-                                        ? item.data.uuid
-                                        : undefined
-                                }
-                                withDivider={userCanManage && !favoritesContext}
-                            />
+                            {/* TODO: add a create-issue entry point once the issues flow is finalized */}
                         </>
                     )}
 

@@ -9,9 +9,15 @@ import { SchedulerFormSlackError } from './SchedulerFormSlackError';
 type Props = {
     value: string[];
     onChange: (val: string[]) => void;
+    /** Omit the leading icon when the parent renders its own destination label */
+    hideIcon?: boolean;
 };
 
-export const SchedulerFormSlackInput: FC<Props> = ({ value, onChange }) => {
+export const SchedulerFormSlackInput: FC<Props> = ({
+    value,
+    onChange,
+    hideIcon,
+}) => {
     const { data: slackInstallation, isInitialLoading } = useGetSlack();
     const organizationHasSlack = !!slackInstallation?.organizationUuid;
 
@@ -27,15 +33,17 @@ export const SchedulerFormSlackInput: FC<Props> = ({ value, onChange }) => {
 
     return (
         <Group wrap="nowrap" align="flex-start">
-            <Box pt="xxs">
-                <SlackSvg
-                    style={{
-                        margin: '5px 2px',
-                        width: '20px',
-                        height: '20px',
-                    }}
-                />
-            </Box>
+            {!hideIcon && (
+                <Box pt="xxs">
+                    <SlackSvg
+                        style={{
+                            margin: '5px 2px',
+                            width: '20px',
+                            height: '20px',
+                        }}
+                    />
+                </Box>
+            )}
             <HoverCard
                 disabled={!isDisabled}
                 width={300}

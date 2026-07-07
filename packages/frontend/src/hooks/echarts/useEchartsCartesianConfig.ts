@@ -946,9 +946,11 @@ const getMetricFromParam = (
     return v;
 };
 
-const isPrimaryYAxis = (series: Series) => {
-    return (series.yAxisIndex ?? 0) === 0;
-};
+// Stacked bar/area series (on any axis) whose values become percentages under
+// 100% stacking. Line/scatter never stack, so they are excluded.
+const isStack100Normalized = (series: Series) =>
+    !!series.stack &&
+    (series.type === CartesianSeriesType.BAR || !!series.areaStyle);
 
 /**
  * Create a labelLayout configuration for stacked bar charts.
@@ -1097,10 +1099,10 @@ const getPivotSeries = ({
                                 !!flipAxes,
                             );
 
-                            // For 100% stacked bar charts on the primary axis, values are already percentages (0-100)
-                            // Only apply stack100 formatting if this series is on yAxisIndex 0
+                            // For 100% stacked bar/area series, values are already percentages (0-100).
+                            // Applies on whichever axis the stacked series renders on.
                             const formattedValue =
-                                isStack100 && isPrimaryYAxis(series)
+                                isStack100 && isStack100Normalized(series)
                                     ? formatStack100Value(raw)
                                     : String(
                                           seriesValueFormatter(
@@ -1287,10 +1289,10 @@ const getSimpleSeries = ({
                             !!flipAxes,
                         );
 
-                        // For 100% stacked charts on the primary axis, values are already percentages (0-100)
-                        // Only apply stack100 formatting if this series is on yAxisIndex 0
+                        // For 100% stacked bar/area series, values are already percentages (0-100).
+                        // Applies on whichever axis the stacked series renders on.
                         const formattedValue =
-                            isStack100 && (series.yAxisIndex ?? 0) === 0
+                            isStack100 && isStack100Normalized(series)
                                 ? formatStack100Value(rawValue)
                                 : String(
                                       seriesValueFormatter(
@@ -1694,6 +1696,13 @@ export const selectContinuousDateRange = (
 ): string[] | undefined =>
     flipAxes ? leftAxisExtraConfig.data : bottomAxisExtraConfig.data;
 
+// Spacing that keeps `bottom`/`left` bar value labels clear of the category-axis
+// tick labels they render next to. Bottom is height-based; left is width-based.
+const BOTTOM_VALUE_LABEL_AXIS_MARGIN = 24;
+const BOTTOM_VALUE_LABEL_NAME_GAP_EXTRA = 16;
+const DEFAULT_AXIS_LABEL_MARGIN = 8;
+const LEFT_VALUE_LABEL_GUTTER_PADDING = 12;
+
 const getEchartAxes = ({
     itemsMap,
     validCartesianConfig,
@@ -1931,14 +1940,47 @@ const getEchartAxes = ({
         timezone: resolvedTimezone,
         displayTimezone,
     });
+    // `bottom` (vertical) and `left` (horizontal) value labels render at the
+    // value=0 baseline, overlapping the category-axis tick labels there.
+    const barSeriesUsesLabelPosition = (position: 'bottom' | 'left') =>
+        (validCartesianConfig.eChartsConfig.series ?? []).some(
+            (serie) =>
+                serie.type === CartesianSeriesType.BAR &&
+                serie.label?.show === true &&
+                serie.label?.position === position,
+        );
+    const hasBottomBarValueLabels =
+        !validCartesianConfig.layout.flipAxes &&
+        barSeriesUsesLabelPosition('bottom');
+    const hasLeftBarValueLabels =
+        !!validCartesianConfig.layout.flipAxes &&
+        barSeriesUsesLabelPosition('left');
+    // Left labels need a gutter as wide as the widest value label
+    // (longestValueXAxisBottom is that value when flipped).
+    const leftValueLabelGutter = hasLeftBarValueLabels
+        ? calculateWidthText(longestValueXAxisBottom) +
+          LEFT_VALUE_LABEL_GUTTER_PADDING
+        : 0;
+
     const bottomAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
         bottomAxisFormatterConfig,
+        hasBottomBarValueLabels &&
+            typeof bottomAxisFormatterConfig.nameGap === 'number'
+            ? {
+                  nameGap:
+                      bottomAxisFormatterConfig.nameGap +
+                      BOTTOM_VALUE_LABEL_NAME_GAP_EXTRA,
+              }
+            : {},
         showXAxis && bottomAxisFormatterConfig.axisLabel
             ? {
                   axisLabel: {
                       ...getAxisLabelStyle(axisLabelFontSize),
                       ...bottomAxisFormatterConfig.axisLabel,
+                      ...(hasBottomBarValueLabels
+                          ? { margin: BOTTOM_VALUE_LABEL_AXIS_MARGIN }
+                          : {}),
                   },
               }
             : {},
@@ -1977,11 +2019,25 @@ const getEchartAxes = ({
     const leftAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
         leftAxisFormatterConfig,
+        hasLeftBarValueLabels &&
+            typeof leftAxisFormatterConfig.nameGap === 'number'
+            ? {
+                  nameGap:
+                      leftAxisFormatterConfig.nameGap + leftValueLabelGutter,
+              }
+            : {},
         showLeftYAxis && leftAxisFormatterConfig.axisLabel
             ? {
                   axisLabel: {
                       ...getAxisLabelStyle(axisLabelFontSize),
                       ...leftAxisFormatterConfig.axisLabel,
+                      ...(hasLeftBarValueLabels
+                          ? {
+                                margin:
+                                    DEFAULT_AXIS_LABEL_MARGIN +
+                                    leftValueLabelGutter,
+                            }
+                          : {}),
                   },
               }
             : {},
@@ -2119,23 +2175,45 @@ const getEchartAxes = ({
     const stackValue = validCartesianConfig.layout?.stack;
     const shouldStack100 = stackValue === StackType.PERCENT;
 
+    // Value-axis positions (0 = primary, 1 = secondary) carrying stacked series.
+    // yAxisIndex holds the value-axis position for both orientations.
+    const stack100ValueAxes = shouldStack100
+        ? (validCartesianConfig.eChartsConfig.series ?? []).reduce<Set<number>>(
+              (acc, serie) => {
+                  if (
+                      serie.stack &&
+                      (serie.type === CartesianSeriesType.BAR ||
+                          !!serie.areaStyle)
+                  ) {
+                      acc.add(serie.yAxisIndex ?? 0);
+                  }
+                  return acc;
+              },
+              new Set<number>(),
+          )
+        : new Set<number>();
+    const primaryValueAxisStack100 = stack100ValueAxes.has(0);
+    const secondaryValueAxisStack100 = stack100ValueAxes.has(1);
+
     const bottomAxisBounds = getMinAndMaxFromBottomAxisBounds(
         bottomAxisType,
         bottomAxisMinValue,
         bottomAxisMaxValue,
     );
 
+    // Clamp/format the primary value axis as % only when it carries stacked series.
+    const clampPrimaryAxisTo100 = shouldStack100 && primaryValueAxisStack100;
     // For 100% stacking with flipped axes, set X-axis max to 100
     const maxXAxisValue =
         bottomAxisType === 'value'
-            ? shouldStack100 && validCartesianConfig.layout.flipAxes
+            ? clampPrimaryAxisTo100 && validCartesianConfig.layout.flipAxes
                 ? 100 // For 100% stacking with flipped axes, max is always 100
                 : bottomAxisBounds.max
             : undefined;
 
     const maxYAxisValue =
         leftAxisType === 'value'
-            ? shouldStack100 && !validCartesianConfig.layout.flipAxes
+            ? clampPrimaryAxisTo100 && !validCartesianConfig.layout.flipAxes
                 ? 100 // For 100% stacking without flipped axes, max is always 100
                 : yAxisConfiguration?.[0]?.max ||
                   referenceLineMaxBound(referenceLineMaxLeftY) ||
@@ -2159,7 +2237,7 @@ const getEchartAxes = ({
     const bottomAxisLabelConfig = bottomAxisConfigWithStyle.axisLabel
         ? {
               ...bottomAxisConfigWithStyle.axisLabel,
-              ...(shouldStack100 && validCartesianConfig.layout.flipAxes
+              ...(clampPrimaryAxisTo100 && validCartesianConfig.layout.flipAxes
                   ? { formatter: '{value}%' }
                   : {}),
               ...(!validCartesianConfig.layout.flipAxes &&
@@ -2177,7 +2255,7 @@ const getEchartAxes = ({
     const leftAxisLabelConfig = leftAxisConfigWithStyle.axisLabel
         ? {
               ...leftAxisConfigWithStyle.axisLabel,
-              ...(shouldStack100 && !validCartesianConfig.layout.flipAxes
+              ...(clampPrimaryAxisTo100 && !validCartesianConfig.layout.flipAxes
                   ? { formatter: '{value}%' }
                   : {}),
               ...(validCartesianConfig.layout.flipAxes &&
@@ -2191,6 +2269,31 @@ const getEchartAxes = ({
                   : {}),
           }
         : undefined;
+
+    // Secondary value axis (right Y / top X) formats as % when it carries the
+    // stacked series. Built directly since it only has an axisLabel with a custom format.
+    const clampSecondaryAxisTo100 =
+        shouldStack100 && secondaryValueAxisStack100;
+    const rightAxisLabelConfig =
+        clampSecondaryAxisTo100 && !validCartesianConfig.layout.flipAxes
+            ? {
+                  ...getAxisLabelStyle(axisLabelFontSize),
+                  ...((rightAxisConfigWithStyle.axisLabel as
+                      | Record<string, unknown>
+                      | undefined) ?? {}),
+                  formatter: '{value}%',
+              }
+            : undefined;
+    const topAxisLabelConfig =
+        clampSecondaryAxisTo100 && validCartesianConfig.layout.flipAxes
+            ? {
+                  ...getAxisLabelStyle(axisLabelFontSize),
+                  ...((topAxisConfigWithStyle.axisLabel as
+                      | Record<string, unknown>
+                      | undefined) ?? {}),
+                  formatter: '{value}%',
+              }
+            : undefined;
 
     return {
         xAxis: [
@@ -2275,17 +2378,24 @@ const getEchartAxes = ({
                           )
                         : undefined,
                 max:
+                    // eslint-disable-next-line no-nested-ternary
                     topAxisType === 'value'
-                        ? xAxisConfiguration?.[1]?.max ||
-                          maybeGetAxisDefaultMaxValue(
-                              allowSecondAxisDefaultRange,
-                          )
+                        ? clampSecondaryAxisTo100 &&
+                          validCartesianConfig.layout.flipAxes
+                            ? 100 // secondary value axis normalized to 100%
+                            : xAxisConfiguration?.[1]?.max ||
+                              maybeGetAxisDefaultMaxValue(
+                                  allowSecondAxisDefaultRange,
+                              )
                         : undefined,
                 ...(topAxisType === 'value' &&
                 xAxisConfiguration?.[1]?.minInterval !== undefined
                     ? { minInterval: xAxisConfiguration[1].minInterval }
                     : {}),
                 ...topAxisConfigWithStyle,
+                ...(topAxisLabelConfig
+                    ? { axisLabel: topAxisLabelConfig }
+                    : {}),
                 splitLine: isAxisTheSameForAllSeries
                     ? gridStyle
                     : { show: false },
@@ -2387,18 +2497,25 @@ const getEchartAxes = ({
                           )
                         : undefined,
                 max:
+                    // eslint-disable-next-line no-nested-ternary
                     rightAxisType === 'value'
-                        ? yAxisConfiguration?.[1]?.max ||
-                          referenceLineMaxBound(referenceLineMaxRightY) ||
-                          maybeGetAxisDefaultMaxValue(
-                              allowSecondAxisDefaultRange,
-                          )
+                        ? clampSecondaryAxisTo100 &&
+                          !validCartesianConfig.layout.flipAxes
+                            ? 100 // secondary value axis normalized to 100%
+                            : yAxisConfiguration?.[1]?.max ||
+                              referenceLineMaxBound(referenceLineMaxRightY) ||
+                              maybeGetAxisDefaultMaxValue(
+                                  allowSecondAxisDefaultRange,
+                              )
                         : undefined,
                 ...(rightAxisType === 'value' &&
                 yAxisConfiguration?.[1]?.minInterval !== undefined
                     ? { minInterval: yAxisConfiguration[1].minInterval }
                     : {}),
                 ...rightAxisConfigWithStyle,
+                ...(rightAxisLabelConfig
+                    ? { axisLabel: rightAxisLabelConfig }
+                    : {}),
                 splitLine: isAxisTheSameForAllSeries
                     ? gridStyle
                     : { show: false },
@@ -2492,6 +2609,54 @@ const getStackTotalRows = (
         acc.push(flipAxis ? [0, row[hash], total] : [row[hash], 0, total]);
         return acc;
     }, []);
+};
+
+/**
+ * Convert stacked series values to per-x percentages for 100% stacking,
+ * normalizing each value-axis against its own per-x total so charts with
+ * stacked series on the secondary axis are normalized too.
+ */
+export const transformStack100ByValueAxis = <T extends Record<string, unknown>>(
+    rows: T[],
+    xFieldId: string,
+    stackedSeries: EChartsSeries[],
+    flipAxes: boolean | undefined,
+): {
+    transformedResults: T[];
+    originalValues: Map<string, Map<string, number>>;
+} => {
+    const refsByValueAxis = new Map<number, string[]>();
+    stackedSeries.forEach((serie) => {
+        if (!serie.stack || !serie.encode) return;
+        const hash = flipAxes ? serie.encode.x : serie.encode.y;
+        if (typeof hash !== 'string') return;
+        // When flipped, the value axis is the X axis, so the axis position lives
+        // on xAxisIndex; otherwise it's yAxisIndex.
+        const valueAxisIndex = flipAxes
+            ? (serie.xAxisIndex ?? 0)
+            : (serie.yAxisIndex ?? 0);
+        const refs = refsByValueAxis.get(valueAxisIndex) ?? [];
+        refs.push(hash);
+        refsByValueAxis.set(valueAxisIndex, refs);
+    });
+
+    let transformedResults = rows;
+    const originalValues = new Map<string, Map<string, number>>();
+    refsByValueAxis.forEach((yFieldRefs) => {
+        const result = transformToPercentageStacking(
+            transformedResults,
+            xFieldId,
+            yFieldRefs,
+        );
+        transformedResults = result.transformedResults;
+        result.originalValues.forEach((fieldMap, xValue) => {
+            const merged = originalValues.get(xValue) ?? new Map();
+            fieldMap.forEach((value, field) => merged.set(field, value));
+            originalValues.set(xValue, merged);
+        });
+    });
+
+    return { transformedResults, originalValues };
 };
 
 // To hack the stack totals in echarts we need to create a fake series with the value 0 and display the total in the label
@@ -3285,27 +3450,12 @@ const useEchartsCartesianConfig = (
             };
         }
 
-        // Collect all y-field hashes from stacked series ON THE PRIMARY AXIS ONLY
-        // 100% stacking should only affect series on yAxisIndex 0 (the left/primary Y-axis)
-        const yFieldRefs = stackedSeriesWithColorAssignments
-            .filter((serie) => {
-                return (
-                    serie.stack && serie.encode && (serie.yAxisIndex ?? 0) === 0 // Only primary axis
-                );
-            })
-            .map((serie) =>
-                validCartesianConfig?.layout.flipAxes
-                    ? serie.encode!.x
-                    : serie.encode!.y,
-            )
-            .filter((hash): hash is string => !!hash);
-
-        // Use shared transformation utility
         const { transformedResults, originalValues: originalValuesMap } =
-            transformToPercentageStacking(
+            transformStack100ByValueAxis(
                 paddedSortedResults,
                 xFieldId,
-                yFieldRefs,
+                stackedSeriesWithColorAssignments,
+                validCartesianConfig?.layout.flipAxes,
             );
 
         return {

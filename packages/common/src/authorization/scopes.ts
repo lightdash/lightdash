@@ -1,13 +1,17 @@
+import camelCase from 'lodash/camelCase';
 import flow from 'lodash/flow';
+import upperFirst from 'lodash/upperFirst';
 import { ProjectType } from '../types/projects';
 import type { RoleLevel } from '../types/roles';
 import {
     ScopeGroup,
     type Scope,
     type ScopeContext,
+    type ScopeModifer,
     type ScopeName,
 } from '../types/scopes';
 import { SpaceMemberRole } from '../types/space';
+import { type AbilityAction, type CaslSubjectNames } from './types';
 
 /** Context can have either/or organizationUuid or projectUuid. Applies the one we have. */
 const addUuidCondition = (
@@ -122,6 +126,13 @@ const scopes: Scope[] = [
         description: 'View dashboards',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
+        dependencies: [
+            { name: 'view:Project' },
+            {
+                name: 'view:SavedChart',
+                description: "Load the dashboard's chart tiles",
+            },
+        ],
         getConditions: (context) => [
             addUuidCondition(context, { inheritsFromOrgOrProject: true }),
             addAccessCondition(context),
@@ -132,6 +143,17 @@ const scopes: Scope[] = [
         description: 'Create, edit, and delete all dashboards',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
+        dependencies: [
+            { name: 'view:Project' },
+            {
+                name: 'view:SavedChart',
+                description: 'Load chart tiles while editing dashboards',
+            },
+            {
+                name: 'view:Space',
+                description: 'Create a dashboard without picking a space',
+            },
+        ],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -140,6 +162,17 @@ const scopes: Scope[] = [
             'Create, edit, and delete dashboards in spaces where you have editor or admin access',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
+        dependencies: [
+            { name: 'view:Project' },
+            {
+                name: 'view:SavedChart',
+                description: 'Load chart tiles while editing dashboards',
+            },
+            {
+                name: 'view:Space',
+                description: 'Create a dashboard without picking a space',
+            },
+        ],
         getConditions: (context) => [
             addAccessCondition(context, SpaceMemberRole.EDITOR),
             addAccessCondition(context, SpaceMemberRole.ADMIN),
@@ -151,6 +184,18 @@ const scopes: Scope[] = [
             'Create, edit, and delete dashboards in preview projects created by the user',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
+        dependencies: [
+            { name: 'view:Project' },
+            {
+                name: 'view:SavedChart',
+                description: 'Load chart tiles in your preview dashboards',
+            },
+            {
+                name: 'view:Space',
+                description: 'Create a dashboard without picking a space',
+            },
+            { name: 'create:Project@preview' },
+        ],
         getConditions: selfPreviewSpaceCondition,
     },
     {
@@ -158,6 +203,7 @@ const scopes: Scope[] = [
         description: 'View saved charts',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: (context) => [
             addUuidCondition(context, { inheritsFromOrgOrProject: true }),
             addAccessCondition(context),
@@ -168,6 +214,17 @@ const scopes: Scope[] = [
         description: 'Create, edit, and delete all saved charts',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
+        dependencies: [
+            { name: 'view:Project' },
+            {
+                name: 'view:Space',
+                description: 'Save a chart without picking a space',
+            },
+            {
+                name: 'manage:Explore',
+                description: 'Build and edit chart queries',
+            },
+        ],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -176,6 +233,17 @@ const scopes: Scope[] = [
             'Create, edit, and delete saved charts in spaces where you have editor or admin access',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
+        dependencies: [
+            { name: 'view:Project' },
+            {
+                name: 'view:Space',
+                description: 'Save a chart without picking a space',
+            },
+            {
+                name: 'manage:Explore',
+                description: 'Build and edit chart queries',
+            },
+        ],
         getConditions: (context) => [
             addAccessCondition(context, SpaceMemberRole.EDITOR),
             addAccessCondition(context, SpaceMemberRole.ADMIN),
@@ -187,6 +255,19 @@ const scopes: Scope[] = [
             'Create, edit, and delete saved charts in preview projects created by the user',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
+        dependencies: [
+            { name: 'view:Project' },
+            {
+                name: 'view:Space',
+                description:
+                    'Save a chart without picking a space in your preview',
+            },
+            { name: 'create:Project@preview' },
+            {
+                name: 'manage:Explore@self',
+                description: 'Build and edit chart queries in your preview',
+            },
+        ],
         getConditions: selfPreviewSpaceCondition,
     },
     {
@@ -194,6 +275,7 @@ const scopes: Scope[] = [
         description: 'View spaces',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: (context) => [
             addUuidCondition(context, { inheritsFromOrgOrProject: true }),
             addAccessCondition(context),
@@ -204,6 +286,13 @@ const scopes: Scope[] = [
         description: 'Create new spaces',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
+        dependencies: [
+            { name: 'view:Project' },
+            {
+                name: 'view:Space',
+                description: 'Open and list the spaces you create',
+            },
+        ],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -211,6 +300,7 @@ const scopes: Scope[] = [
         description: 'Create, edit, and delete all spaces',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -218,6 +308,7 @@ const scopes: Scope[] = [
         description: 'Create, edit, and delete public spaces',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: (context) => [
             addUuidCondition(context, { inheritsFromOrgOrProject: true }),
         ],
@@ -227,6 +318,7 @@ const scopes: Scope[] = [
         description: 'Create, edit, and delete spaces owned by the user',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: (context) => [
             addAccessCondition(context, SpaceMemberRole.ADMIN),
         ],
@@ -237,6 +329,10 @@ const scopes: Scope[] = [
             'Create, edit, and delete spaces in preview projects created by the user',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
+        dependencies: [
+            { name: 'view:Project' },
+            { name: 'create:Project@preview' },
+        ],
         getConditions: (context) => selfPreviewSpaceCondition(context, true),
     },
     {
@@ -244,6 +340,7 @@ const scopes: Scope[] = [
         description: 'View dashboard comments',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
+        dependencies: [{ name: 'view:Project' }, { name: 'view:Space' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -251,6 +348,7 @@ const scopes: Scope[] = [
         description: 'Create dashboard comments',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
+        dependencies: [{ name: 'view:Project' }, { name: 'view:Space' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -258,6 +356,7 @@ const scopes: Scope[] = [
         description: 'Edit and delete dashboard comments',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
+        dependencies: [{ name: 'view:Project' }, { name: 'view:Space' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -265,6 +364,7 @@ const scopes: Scope[] = [
         description: 'View tags',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -272,6 +372,7 @@ const scopes: Scope[] = [
         description: 'Create, edit, and delete tags',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -279,6 +380,7 @@ const scopes: Scope[] = [
         description: 'View pinned items',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
+        dependencies: [{ name: 'view:Project' }, { name: 'view:Space' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -286,6 +388,14 @@ const scopes: Scope[] = [
         description: 'Pin and unpin items',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
+        dependencies: [
+            { name: 'view:Project' },
+            { name: 'view:Dashboard', description: 'Pin and unpin dashboards' },
+            {
+                name: 'view:Space',
+                description: 'Pin charts and list pinned items',
+            },
+        ],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -294,6 +404,7 @@ const scopes: Scope[] = [
             'Manage soft-deleted content (restore, permanently delete)',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -301,6 +412,7 @@ const scopes: Scope[] = [
         description: 'Verify and unverify charts and dashboards',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -308,6 +420,22 @@ const scopes: Scope[] = [
         description: 'Promote saved charts to any space',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
+        dependencies: [
+            { name: 'view:Project' },
+            {
+                name: 'create:Space',
+                description:
+                    "Promote a chart whose space doesn't exist upstream yet",
+            },
+            {
+                name: 'manage:Space',
+                description: 'Rename an upstream space during promotion',
+            },
+            {
+                name: 'manage:SavedChart',
+                description: "Promote a chart that doesn't exist upstream yet",
+            },
+        ],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -316,6 +444,22 @@ const scopes: Scope[] = [
             'Promote saved charts to spaces where the member has editor or admin access',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
+        dependencies: [
+            { name: 'view:Project' },
+            {
+                name: 'create:Space',
+                description:
+                    "Promote a chart whose space doesn't exist upstream yet",
+            },
+            {
+                name: 'manage:Space',
+                description: 'Rename an upstream space during promotion',
+            },
+            {
+                name: 'manage:SavedChart',
+                description: "Promote a chart that doesn't exist upstream yet",
+            },
+        ],
         getConditions: (context) => [
             addAccessCondition(context, SpaceMemberRole.EDITOR),
             addAccessCondition(context, SpaceMemberRole.ADMIN),
@@ -326,6 +470,32 @@ const scopes: Scope[] = [
         description: 'Promote dashboards to any space',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
+        dependencies: [
+            { name: 'view:Project' },
+            {
+                name: 'manage:Dashboard',
+                description:
+                    "Promote a dashboard that doesn't exist upstream yet",
+            },
+            {
+                name: 'create:Space',
+                description:
+                    "Promote a dashboard whose space doesn't exist upstream yet",
+            },
+            {
+                name: 'manage:Space',
+                description: 'Rename an upstream space during promotion',
+            },
+            {
+                name: 'manage:SavedChart',
+                description:
+                    "Promote tiles whose charts don't exist upstream yet",
+            },
+            {
+                name: 'promote:SavedChart',
+                description: 'Promote dashboards that contain chart tiles',
+            },
+        ],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -334,6 +504,27 @@ const scopes: Scope[] = [
             'Promote dashboards to spaces where the member has editor or admin access',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
+        dependencies: [
+            { name: 'view:Project' },
+            {
+                name: 'manage:Dashboard@space',
+                description:
+                    "Promote a dashboard that doesn't exist upstream yet",
+            },
+            {
+                name: 'create:Space',
+                description:
+                    "Promote a dashboard whose space doesn't exist upstream yet",
+            },
+            {
+                name: 'manage:Space',
+                description: 'Rename an upstream space during promotion',
+            },
+            {
+                name: 'promote:SavedChart@space',
+                description: 'Promote dashboards that contain chart tiles',
+            },
+        ],
         getConditions: (context) => [
             addAccessCondition(context, SpaceMemberRole.EDITOR),
             addAccessCondition(context, SpaceMemberRole.ADMIN),
@@ -346,6 +537,7 @@ const scopes: Scope[] = [
         description: 'View project details',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
+        dependencies: [],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -353,6 +545,17 @@ const scopes: Scope[] = [
         description: 'Create new preview projects',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
+        dependencies: [
+            { name: 'view:Project' },
+            {
+                name: 'manage:CompileProject',
+                description: 'Compile the preview after creating it',
+            },
+            {
+                name: 'create:Job',
+                description: 'Compile the preview after creating it',
+            },
+        ],
         getConditions: (context) => [
             {
                 upstreamProjectUuid: context.projectUuid,
@@ -365,6 +568,7 @@ const scopes: Scope[] = [
         description: 'Update project settings',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -372,6 +576,10 @@ const scopes: Scope[] = [
         description: 'Update projects created by the user',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
+        dependencies: [
+            { name: 'view:Project' },
+            { name: 'create:Project@preview' },
+        ],
         getConditions: ownPreviewProjectConditions,
     },
     {
@@ -379,6 +587,7 @@ const scopes: Scope[] = [
         description: 'Delete projects',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -386,6 +595,10 @@ const scopes: Scope[] = [
         description: 'Delete projects created by the user',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
+        dependencies: [
+            { name: 'view:Project' },
+            { name: 'create:Project@preview' },
+        ],
         getConditions: ownPreviewProjectConditions,
     },
     {
@@ -393,6 +606,7 @@ const scopes: Scope[] = [
         description: 'Full project management permissions',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -400,6 +614,7 @@ const scopes: Scope[] = [
         description: 'Compile and refresh dbt projects',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
+        dependencies: [{ name: 'view:Project' }, { name: 'create:Job' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -407,6 +622,7 @@ const scopes: Scope[] = [
         description: 'Deploy dbt projects via CLI',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -414,6 +630,10 @@ const scopes: Scope[] = [
         description: 'Deploy to preview projects created by the user',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
+        dependencies: [
+            { name: 'view:Project' },
+            { name: 'create:Project@preview' },
+        ],
         getConditions: ownPreviewProjectConditions,
     },
     {
@@ -421,6 +641,7 @@ const scopes: Scope[] = [
         description: 'Manage data validation rules',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -428,6 +649,7 @@ const scopes: Scope[] = [
         description: 'Manage user own scheduled deliveries',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: (context) => [
             addUuidCondition(context, { userUuid: context.userUuid || false }),
         ],
@@ -437,6 +659,23 @@ const scopes: Scope[] = [
         description: 'Create scheduled deliveries',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
+        dependencies: [
+            { name: 'view:Project' },
+            {
+                name: 'view:SavedChart',
+                description:
+                    'Open and send chart deliveries after creating them',
+            },
+            {
+                name: 'view:Dashboard',
+                description:
+                    'Create and send deliveries that target a dashboard',
+            },
+            {
+                name: 'view:Space',
+                description: 'Create and send deliveries that target a chart',
+            },
+        ],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -444,6 +683,18 @@ const scopes: Scope[] = [
         description: 'Manage scheduled deliveries',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
+        dependencies: [
+            { name: 'view:Project' },
+            {
+                name: 'update:Project',
+                description:
+                    'View the project-level delivery overview and logs',
+            },
+            {
+                name: 'manage:GoogleSheets',
+                description: 'Manage deliveries that sync to Google Sheets',
+            },
+        ],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -451,6 +702,18 @@ const scopes: Scope[] = [
         description: 'Manage google sheets',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
+        dependencies: [
+            { name: 'view:Project' },
+            {
+                name: 'create:ScheduledDeliveries',
+                description:
+                    'Create and send Google Sheets scheduled deliveries',
+            },
+            {
+                name: 'manage:ExportCsv',
+                description: 'Run one-off exports to Google Sheets',
+            },
+        ],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -458,6 +721,7 @@ const scopes: Scope[] = [
         description: 'View usage analytics',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -465,6 +729,17 @@ const scopes: Scope[] = [
         description: 'Create background jobs',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
+        dependencies: [
+            { name: 'view:Project' },
+            {
+                name: 'manage:CompileProject',
+                description: 'Trigger dbt refreshes and compiles',
+            },
+            {
+                name: 'manage:SqlRunner',
+                description: 'Run legacy SQL runner jobs',
+            },
+        ],
         getConditions: () => [],
     },
     {
@@ -472,6 +747,7 @@ const scopes: Scope[] = [
         description: 'View all job details',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -479,6 +755,7 @@ const scopes: Scope[] = [
         description: 'View your own job details',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: (context) => [{ userUuid: context.userUuid || false }],
     },
     {
@@ -486,6 +763,13 @@ const scopes: Scope[] = [
         description: 'Manage background jobs',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
+        dependencies: [
+            { name: 'view:Project' },
+            {
+                name: 'manage:CompileProject',
+                description: 'Trigger dbt refreshes',
+            },
+        ],
         getConditions: () => [],
     },
     {
@@ -493,6 +777,13 @@ const scopes: Scope[] = [
         description: 'View all job status',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
+        dependencies: [
+            { name: 'view:Project' },
+            {
+                name: 'update:Project',
+                description: 'Read project compile logs',
+            },
+        ],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -500,6 +791,7 @@ const scopes: Scope[] = [
         description: 'View status of jobs you created',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: (context) => [
             {
                 createdByUserUuid: context.userUuid || false,
@@ -513,6 +805,7 @@ const scopes: Scope[] = [
         description: 'View organization details',
         isEnterprise: false,
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        dependencies: [],
         level: 'organization',
         getConditions: addDefaultUuidCondition,
     },
@@ -521,6 +814,7 @@ const scopes: Scope[] = [
         description: 'Manage organization settings',
         isEnterprise: false,
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        dependencies: [],
         level: 'organization',
         getConditions: addDefaultUuidCondition,
     },
@@ -529,6 +823,7 @@ const scopes: Scope[] = [
         description: 'View organization member profiles',
         isEnterprise: false,
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        dependencies: [],
         level: 'organization',
         getConditions: addDefaultUuidCondition,
     },
@@ -537,6 +832,7 @@ const scopes: Scope[] = [
         description: 'Manage organization member profiles and roles',
         isEnterprise: false,
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        dependencies: [],
         level: 'organization',
         getConditions: addDefaultUuidCondition,
     },
@@ -545,6 +841,12 @@ const scopes: Scope[] = [
         description: 'Create and manage invite links',
         isEnterprise: false,
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        dependencies: [
+            {
+                name: 'manage:OrganizationMemberProfile',
+                description: 'Invite users with a role other than member',
+            },
+        ],
         level: 'organization',
         getConditions: addDefaultUuidCondition,
     },
@@ -553,6 +855,17 @@ const scopes: Scope[] = [
         description: 'Manage user groups',
         isEnterprise: false,
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        dependencies: [
+            {
+                name: 'update:Project',
+                description: 'Give groups access to a project',
+            },
+            {
+                name: 'view:OrganizationMemberProfile',
+                description:
+                    'Browse organization members when managing group membership',
+            },
+        ],
         level: 'organization',
         getConditions: addDefaultUuidCondition,
     },
@@ -561,6 +874,13 @@ const scopes: Scope[] = [
         description: 'Manage Git integration settings and create repositories',
         isEnterprise: false,
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        dependencies: [
+            { name: 'view:Organization' },
+            {
+                name: 'manage:Organization',
+                description: 'Install the GitHub app',
+            },
+        ],
         level: 'organization',
         getConditions: addDefaultUuidCondition,
     },
@@ -569,6 +889,7 @@ const scopes: Scope[] = [
         description: 'View organization warehouse credentials',
         isEnterprise: true,
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        dependencies: [],
         level: 'organization',
         getConditions: addDefaultUuidCondition,
     },
@@ -577,6 +898,7 @@ const scopes: Scope[] = [
         description: 'Manage organization warehouse credentials',
         isEnterprise: true,
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        dependencies: [],
         level: 'organization',
         getConditions: addDefaultUuidCondition,
     },
@@ -585,6 +907,7 @@ const scopes: Scope[] = [
         description: 'Download content as code',
         isEnterprise: true,
         group: ScopeGroup.CONTENT,
+        dependencies: [{ name: 'view:Project' }, { name: 'view:Space' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -592,6 +915,15 @@ const scopes: Scope[] = [
         description: 'Download and upload content as code',
         isEnterprise: true,
         group: ScopeGroup.CONTENT,
+        dependencies: [
+            { name: 'view:Project' },
+            {
+                name: 'view:Space',
+                description: 'Upload into an existing space',
+            },
+            { name: 'manage:SavedChart', description: 'Upload SQL charts' },
+            { name: 'manage:CustomSql', description: 'Upload SQL charts' },
+        ],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -600,6 +932,20 @@ const scopes: Scope[] = [
             'Upload content as code to preview projects created by the user',
         isEnterprise: true,
         group: ScopeGroup.CONTENT,
+        dependencies: [
+            { name: 'view:Project' },
+            {
+                name: 'view:Space',
+                description: 'Upload into an existing space in your preview',
+            },
+            {
+                name: 'view:ContentAsCode',
+                description: 'Download content as code',
+            },
+            { name: 'manage:SavedChart', description: 'Upload SQL charts' },
+            { name: 'manage:CustomSql', description: 'Upload SQL charts' },
+            { name: 'create:Project@preview' },
+        ],
         getConditions: ownPreviewProjectConditions,
     },
     {
@@ -607,6 +953,7 @@ const scopes: Scope[] = [
         description: 'Create and manage personal access tokens',
         isEnterprise: true,
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        dependencies: [],
         level: 'organization',
         getConditions: addDefaultUuidCondition,
     },
@@ -615,6 +962,7 @@ const scopes: Scope[] = [
         description: 'Impersonate other users in the organization',
         isEnterprise: false,
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        dependencies: [],
         level: 'organization',
         getConditions: (context) => [
             { ...addUuidCondition(context), isActive: true },
@@ -627,6 +975,7 @@ const scopes: Scope[] = [
         description: 'View underlying data in charts',
         isEnterprise: false,
         group: ScopeGroup.DATA,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -634,6 +983,7 @@ const scopes: Scope[] = [
         description: 'View data in semantic viewer',
         isEnterprise: false,
         group: ScopeGroup.DATA,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -641,6 +991,7 @@ const scopes: Scope[] = [
         description: 'Create and edit semantic viewer queries anywhere',
         isEnterprise: false,
         group: ScopeGroup.DATA,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -649,6 +1000,7 @@ const scopes: Scope[] = [
             'Create and edit semantic viewer queries in spaces where the member has editor access',
         isEnterprise: false,
         group: ScopeGroup.DATA,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: (context) => [
             addAccessCondition(context, SpaceMemberRole.EDITOR),
         ],
@@ -658,6 +1010,7 @@ const scopes: Scope[] = [
         description: 'Explore and query data',
         isEnterprise: false,
         group: ScopeGroup.DATA,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -666,6 +1019,10 @@ const scopes: Scope[] = [
             'Explore and query data in preview projects created by the user',
         isEnterprise: false,
         group: ScopeGroup.DATA,
+        dependencies: [
+            { name: 'view:Project' },
+            { name: 'create:Project@preview' },
+        ],
         getConditions: selfPreviewProjectCondition,
     },
     {
@@ -674,6 +1031,10 @@ const scopes: Scope[] = [
             'Run SQL queries, execute SQL charts, and browse warehouse schema',
         isEnterprise: false,
         group: ScopeGroup.DATA,
+        dependencies: [
+            { name: 'view:Project' },
+            { name: 'create:Job', description: 'Run legacy SQL runner jobs' },
+        ],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -681,6 +1042,10 @@ const scopes: Scope[] = [
         description: 'Save SQL charts',
         isEnterprise: false,
         group: ScopeGroup.DATA,
+        dependencies: [
+            { name: 'view:Project' },
+            { name: 'manage:SavedChart@space' },
+        ],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -688,6 +1053,13 @@ const scopes: Scope[] = [
         description: 'Create and edit custom dimensions',
         isEnterprise: false,
         group: ScopeGroup.DATA,
+        dependencies: [
+            { name: 'view:Project' },
+            {
+                name: 'manage:SavedChart@space',
+                description: 'Save custom dimensions to a chart',
+            },
+        ],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -695,6 +1067,10 @@ const scopes: Scope[] = [
         description: 'Create and edit SQL table calculations',
         isEnterprise: false,
         group: ScopeGroup.DATA,
+        dependencies: [
+            { name: 'view:Project' },
+            { name: 'manage:SavedChart@space' },
+        ],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -702,6 +1078,7 @@ const scopes: Scope[] = [
         description: 'Create virtual views',
         isEnterprise: false,
         group: ScopeGroup.DATA,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -709,6 +1086,7 @@ const scopes: Scope[] = [
         description: 'Delete virtual views',
         isEnterprise: false,
         group: ScopeGroup.DATA,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -716,6 +1094,7 @@ const scopes: Scope[] = [
         description: 'Create and manage virtual views',
         isEnterprise: false,
         group: ScopeGroup.DATA,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -723,6 +1102,7 @@ const scopes: Scope[] = [
         description: 'View and query pre-aggregates in explore',
         isEnterprise: true,
         group: ScopeGroup.DATA,
+        dependencies: [{ name: 'view:Project' }, { name: 'manage:Explore' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -730,6 +1110,10 @@ const scopes: Scope[] = [
         description: 'Export data to CSV',
         isEnterprise: false,
         group: ScopeGroup.DATA,
+        dependencies: [
+            { name: 'view:Project' },
+            { name: 'view:SavedChart', description: 'Export dashboards' },
+        ],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -737,6 +1121,7 @@ const scopes: Scope[] = [
         description: 'Modify CSV export results',
         isEnterprise: false,
         group: ScopeGroup.DATA,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -744,6 +1129,7 @@ const scopes: Scope[] = [
         description: 'View source code for explores and models',
         isEnterprise: false,
         group: ScopeGroup.DATA,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -751,6 +1137,7 @@ const scopes: Scope[] = [
         description: 'Create pull requests to update source code',
         isEnterprise: false,
         group: ScopeGroup.DATA,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
 
@@ -760,6 +1147,7 @@ const scopes: Scope[] = [
         description: 'View AI agents in a project',
         isEnterprise: true,
         group: ScopeGroup.AI,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -767,6 +1155,7 @@ const scopes: Scope[] = [
         description: 'Create and manage AI agents in a project',
         isEnterprise: true,
         group: ScopeGroup.AI,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -775,6 +1164,7 @@ const scopes: Scope[] = [
         isEnterprise: true,
         level: 'organization',
         group: ScopeGroup.AI,
+        dependencies: [],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -783,6 +1173,7 @@ const scopes: Scope[] = [
         isEnterprise: true,
         level: 'organization',
         group: ScopeGroup.AI,
+        dependencies: [],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -790,6 +1181,7 @@ const scopes: Scope[] = [
         description: 'View AI agent documents',
         isEnterprise: true,
         group: ScopeGroup.AI,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -797,6 +1189,7 @@ const scopes: Scope[] = [
         description: 'Upload and manage AI agent documents',
         isEnterprise: true,
         group: ScopeGroup.AI,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -804,6 +1197,7 @@ const scopes: Scope[] = [
         description: 'View all AI agent conversation threads',
         isEnterprise: true,
         group: ScopeGroup.AI,
+        dependencies: [{ name: 'view:Project' }, { name: 'manage:AiAgent' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -811,6 +1205,7 @@ const scopes: Scope[] = [
         description: 'View owned AI agent conversation threads',
         isEnterprise: true,
         group: ScopeGroup.AI,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: (context) => [
             addUuidCondition(context, { userUuid: context.userUuid || false }),
         ],
@@ -820,6 +1215,7 @@ const scopes: Scope[] = [
         description: 'Start new AI agent conversations',
         isEnterprise: true,
         group: ScopeGroup.AI,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -827,6 +1223,7 @@ const scopes: Scope[] = [
         description: 'Manage all AI agent conversation threads',
         isEnterprise: true,
         group: ScopeGroup.AI,
+        dependencies: [{ name: 'view:Project' }, { name: 'manage:AiAgent' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -834,6 +1231,7 @@ const scopes: Scope[] = [
         description: 'Manage owned AI agent conversation threads',
         isEnterprise: true,
         group: ScopeGroup.AI,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: (context) => [
             addUuidCondition(context, { userUuid: context.userUuid || false }),
         ],
@@ -845,6 +1243,17 @@ const scopes: Scope[] = [
         description: 'View data apps',
         isEnterprise: false,
         group: ScopeGroup.AI,
+        dependencies: [
+            { name: 'view:Project' },
+            {
+                name: 'view:Space',
+                description: 'Discover apps shared in spaces',
+            },
+            {
+                name: 'manage:Explore',
+                description: 'Run apps that query data on the fly',
+            },
+        ],
         getConditions: (context) => [
             addUuidCondition(context, { inheritsFromOrgOrProject: true }),
             addAccessCondition(context),
@@ -855,6 +1264,7 @@ const scopes: Scope[] = [
         description: 'Create and manage data apps',
         isEnterprise: false,
         group: ScopeGroup.AI,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -863,6 +1273,13 @@ const scopes: Scope[] = [
             'Create, edit, and delete data apps in spaces where you have editor or admin access',
         isEnterprise: false,
         group: ScopeGroup.AI,
+        dependencies: [
+            { name: 'view:Project' },
+            {
+                name: 'create:DataApp',
+                description: 'Create new apps in the space',
+            },
+        ],
         getConditions: (context) => [
             addAccessCondition(context, SpaceMemberRole.EDITOR),
             addAccessCondition(context, SpaceMemberRole.ADMIN),
@@ -873,6 +1290,25 @@ const scopes: Scope[] = [
         description: 'Create new data apps',
         isEnterprise: false,
         group: ScopeGroup.AI,
+        dependencies: [
+            { name: 'view:Project' },
+            {
+                name: 'manage:Explore',
+                description: 'Preview and run apps that query data on the fly',
+            },
+            {
+                name: 'view:DataApp',
+                description: 'Duplicate apps created by others',
+            },
+            {
+                name: 'view:ExternalConnection',
+                description: 'Browse external connections while building',
+            },
+            {
+                name: 'manage:DataApp@self',
+                description: 'Open and iterate on the apps you generate',
+            },
+        ],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -880,6 +1316,13 @@ const scopes: Scope[] = [
         description: 'View own personal data apps',
         isEnterprise: false,
         group: ScopeGroup.AI,
+        dependencies: [
+            { name: 'view:Project' },
+            {
+                name: 'create:DataApp',
+                description: 'Create your own apps to view',
+            },
+        ],
         getConditions: (context) => [
             {
                 ...addUuidCondition(context),
@@ -892,6 +1335,13 @@ const scopes: Scope[] = [
         description: 'Edit and delete own personal data apps',
         isEnterprise: false,
         group: ScopeGroup.AI,
+        dependencies: [
+            { name: 'view:Project' },
+            {
+                name: 'create:DataApp',
+                description: 'Create your own apps to manage',
+            },
+        ],
         getConditions: (context) => [
             {
                 ...addUuidCondition(context),
@@ -909,6 +1359,7 @@ const scopes: Scope[] = [
         description: 'View external API connections to link them in data apps',
         isEnterprise: true,
         group: ScopeGroup.AI,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -917,6 +1368,7 @@ const scopes: Scope[] = [
             'Create, edit, and delete external API connections used by data apps',
         isEnterprise: true,
         group: ScopeGroup.AI,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
 
@@ -928,6 +1380,7 @@ const scopes: Scope[] = [
         description: 'View organization design assets',
         isEnterprise: false,
         group: ScopeGroup.AI,
+        dependencies: [],
         level: 'organization',
         getConditions: addDefaultUuidCondition,
     },
@@ -936,6 +1389,7 @@ const scopes: Scope[] = [
         description: 'Create, edit, and delete organization design assets',
         isEnterprise: false,
         group: ScopeGroup.AI,
+        dependencies: [],
         level: 'organization',
         getConditions: addDefaultUuidCondition,
     },
@@ -946,6 +1400,7 @@ const scopes: Scope[] = [
         description: 'Configure spotlight table settings',
         isEnterprise: true,
         group: ScopeGroup.SPOTLIGHT,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -953,6 +1408,7 @@ const scopes: Scope[] = [
         description: 'View spotlight table configuration',
         isEnterprise: true,
         group: ScopeGroup.SPOTLIGHT,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -960,6 +1416,7 @@ const scopes: Scope[] = [
         description: 'View metrics tree',
         isEnterprise: true,
         group: ScopeGroup.SPOTLIGHT,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
     {
@@ -967,6 +1424,7 @@ const scopes: Scope[] = [
         description: 'Manage metrics tree configuration',
         isEnterprise: true,
         group: ScopeGroup.SPOTLIGHT,
+        dependencies: [{ name: 'view:Project' }],
         getConditions: addDefaultUuidCondition,
     },
 ] as const;
@@ -1011,3 +1469,205 @@ export const getAllScopeMap = ({ isEnterprise = false } = {}): Record<
         },
         Object.create({}),
     );
+
+type ScopeGraphOptions = {
+    isEnterprise?: boolean;
+};
+
+type ScopeNameParts = {
+    action: AbilityAction;
+    subject: CaslSubjectNames;
+    modifier?: ScopeModifer;
+};
+
+const MANAGE_IMPLIED_ACTIONS = new Set<AbilityAction>([
+    'create',
+    'delete',
+    'export',
+    'update',
+    'view',
+]);
+
+const parseScopeNameParts = (scopeName: ScopeName): ScopeNameParts => {
+    const [action, subjectAndModifier] = scopeName.split(':');
+    const [subject, modifier] = subjectAndModifier.split('@');
+
+    return {
+        action: action as AbilityAction,
+        subject: subject as CaslSubjectNames,
+        modifier: modifier as ScopeModifer | undefined,
+    };
+};
+
+const normalizeScopeName = (scopeName: string): ScopeName | null => {
+    const [action, predicate] = scopeName.split(':');
+
+    if (!action || !predicate) return null;
+
+    const [subjectPart, modifier] = predicate.split('@');
+
+    return `${action}:${upperFirst(camelCase(subjectPart))}${
+        modifier ? `@${modifier}` : ''
+    }` as ScopeName;
+};
+
+const getValidScopeName = (
+    scopeName: string,
+    scopeMap: Record<ScopeName, Scope>,
+): ScopeName | null => {
+    const normalizedScopeName = normalizeScopeName(scopeName);
+
+    if (
+        normalizedScopeName &&
+        Object.prototype.hasOwnProperty.call(scopeMap, normalizedScopeName)
+    ) {
+        return normalizedScopeName;
+    }
+
+    return null;
+};
+
+const getValidScopeNames = (
+    scopeNames: string[],
+    scopeMap: Record<ScopeName, Scope>,
+): ScopeName[] =>
+    scopeNames
+        .map((scopeName) => getValidScopeName(scopeName, scopeMap))
+        .filter((scopeName): scopeName is ScopeName => scopeName !== null);
+
+const collectReachableScopes = (
+    rootScopeNames: ScopeName[],
+    getAdjacentScopeNames: (scopeName: ScopeName) => ScopeName[],
+): ScopeName[] => {
+    const visited = new Set<ScopeName>(rootScopeNames);
+    const reachableScopeNames: ScopeName[] = [];
+    const queue = [...rootScopeNames];
+    let queueIndex = 0;
+
+    while (queueIndex < queue.length) {
+        const scopeName = queue[queueIndex];
+        queueIndex += 1;
+
+        getAdjacentScopeNames(scopeName).forEach((adjacentScopeName) => {
+            if (visited.has(adjacentScopeName)) return;
+
+            visited.add(adjacentScopeName);
+            reachableScopeNames.push(adjacentScopeName);
+            queue.push(adjacentScopeName);
+        });
+    }
+
+    return reachableScopeNames;
+};
+
+export const getScopeAncestors = (
+    scopeName: string,
+    { isEnterprise = false }: ScopeGraphOptions = {},
+): ScopeName[] => {
+    const scopeMap = getAllScopeMap({ isEnterprise });
+    const rootScopeNames = getValidScopeNames([scopeName], scopeMap);
+
+    return collectReachableScopes(rootScopeNames, (dependencyRootScopeName) =>
+        scopeMap[dependencyRootScopeName].dependencies
+            .map(({ name }) => name)
+            .filter((dependencyName) => scopeMap[dependencyName]),
+    );
+};
+
+export const getScopeDescendants = (
+    scopeName: string,
+    { isEnterprise = false }: ScopeGraphOptions = {},
+): ScopeName[] => {
+    const scopeMap = getAllScopeMap({ isEnterprise });
+    const rootScopeNames = getValidScopeNames([scopeName], scopeMap);
+    const ancestorMap = getScopes({ isEnterprise }).reduce<
+        Record<ScopeName, ScopeName[]>
+    >((acc, scope) => {
+        scope.dependencies.forEach(({ name }) => {
+            if (!scopeMap[name]) return;
+
+            acc[name] = [...(acc[name] ?? []), scope.name];
+        });
+
+        return acc;
+    }, Object.create({}));
+
+    return collectReachableScopes(
+        rootScopeNames,
+        (ancestorRootScopeName) => ancestorMap[ancestorRootScopeName] ?? [],
+    );
+};
+
+const canSubstituteActionSatisfy = (
+    substituteAction: AbilityAction,
+    requiredAction: AbilityAction,
+): boolean =>
+    substituteAction === requiredAction ||
+    (substituteAction === 'manage' &&
+        MANAGE_IMPLIED_ACTIONS.has(requiredAction));
+
+const canSubstituteModifierSatisfy = (
+    substitute: ScopeNameParts,
+    required: ScopeNameParts,
+): boolean => {
+    if (substitute.modifier === required.modifier) return true;
+
+    if (!substitute.modifier) return true;
+
+    return !required.modifier && substitute.action !== required.action;
+};
+
+export const getScopeSubstitutes = (
+    scopeName: string,
+    { isEnterprise = false }: ScopeGraphOptions = {},
+): ScopeName[] => {
+    const scopeMap = getAllScopeMap({ isEnterprise });
+
+    const normalizedScopeName = getValidScopeName(scopeName, scopeMap);
+
+    if (!normalizedScopeName) return [];
+
+    const required = parseScopeNameParts(normalizedScopeName);
+
+    return getScopes({ isEnterprise })
+        .map(({ name }) => name)
+        .filter((substituteScopeName) => {
+            if (substituteScopeName === normalizedScopeName) return false;
+
+            const substitute = parseScopeNameParts(substituteScopeName);
+
+            return (
+                substitute.subject === required.subject &&
+                canSubstituteActionSatisfy(
+                    substitute.action,
+                    required.action,
+                ) &&
+                canSubstituteModifierSatisfy(substitute, required)
+            );
+        });
+};
+
+export const getUnsatisfiedScopeDependencies = (
+    existingScopeNames: string[],
+    scopeName: string,
+    { isEnterprise = false }: ScopeGraphOptions = {},
+): ScopeName[] => {
+    const scopeMap = getAllScopeMap({ isEnterprise });
+
+    const normalizedScopeName = getValidScopeName(scopeName, scopeMap);
+
+    if (!normalizedScopeName) return [];
+
+    const existingScopes = new Set(
+        getValidScopeNames(existingScopeNames, scopeMap),
+    );
+
+    return getScopeAncestors(normalizedScopeName, { isEnterprise }).filter(
+        (dependencyScopeName) =>
+            !existingScopes.has(dependencyScopeName) &&
+            !getScopeSubstitutes(dependencyScopeName, { isEnterprise }).some(
+                (substituteScopeName) =>
+                    existingScopes.has(substituteScopeName),
+            ),
+    );
+};

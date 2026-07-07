@@ -7,12 +7,14 @@ import {
     ParameterError,
     PullRequestProvider,
     UnexpectedServerError,
+    type ClosePullRequestResult,
     type DbtProjectConfig,
     type SessionUser,
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
 import type { Logger } from 'winston';
 import {
+    closeMergeRequest,
     createPullRequest,
     getGitlabUser,
     getMergeRequest,
@@ -44,12 +46,19 @@ import {
 } from '../utils';
 import type {
     AdoptPullRequestArgs,
+    ClosePullRequestArgs,
     GitProvider,
     LandedCommit,
     OpenPullRequestArgs,
     UpdatePullRequestArgs,
 } from './GitProvider';
-import { collectDiffStat, commitLocal, stageChanges } from './sandboxGit';
+import {
+    assertStagedPathsAllowed,
+    collectDiffStat,
+    commitLocal,
+    resolveDbtProjectPaths,
+    stageChanges,
+} from './sandboxGit';
 
 const asGitlabConnection = (connection: GitConnection): GitlabConnection => {
     if (connection.provider !== PullRequestProvider.GITLAB) {
@@ -234,6 +243,7 @@ export class GitlabProvider implements GitProvider {
             title,
             user,
             setStage,
+            denyCiPaths: args.denyCiPaths,
         });
 
         setStage('pull_request');
@@ -274,6 +284,7 @@ export class GitlabProvider implements GitProvider {
             title,
             user,
             setStage,
+            denyCiPaths: args.denyCiPaths,
         });
 
         setStage('pull_request');
@@ -374,6 +385,26 @@ export class GitlabProvider implements GitProvider {
         };
     }
 
+    async closePullRequest({
+        prUrl,
+        owner,
+        repo,
+        pullNumber,
+        installation,
+    }: ClosePullRequestArgs): Promise<ClosePullRequestResult> {
+        const gitlab = asGitlabInstallation(installation);
+        // The MR lives wherever the recorded workstream targeted; derive the
+        // host from its URL rather than the project's dbt connection.
+        const hostDomain = new URL(prUrl).hostname;
+        return closeMergeRequest({
+            owner,
+            repo,
+            iid: pullNumber,
+            token: gitlab.token,
+            hostDomain,
+        });
+    }
+
     /**
      * Stage the agent's edits, commit them locally as the GitLab user (crediting
      * the triggering Lightdash user as a co-author), and push the branch over
@@ -392,6 +423,7 @@ export class GitlabProvider implements GitProvider {
         title,
         user,
         setStage,
+        denyCiPaths,
     }: {
         sandbox: SandboxHandle;
         connection: GitlabConnection;
@@ -400,9 +432,19 @@ export class GitlabProvider implements GitProvider {
         title: string;
         user: SessionUser;
         setStage: SetStage;
+        denyCiPaths: boolean;
     }): Promise<LandedCommit> {
         setStage('commit');
-        await stageChanges(sandbox, connection.projectSubPath, this.logger);
+        const projectPaths = await resolveDbtProjectPaths(
+            sandbox,
+            connection.projectSubPath,
+            this.logger,
+        );
+        await stageChanges(sandbox, projectPaths, this.logger);
+        // Host-side denied-path gate (GitLab pushes via git, so check the staged
+        // paths here rather than in collectFileChanges). Reject the whole commit
+        // — secrets always, CI/workflow for the general agent.
+        await assertStagedPathsAllowed(sandbox, { denyCiPaths });
         // Read the line stat while still staged — the local commit clears it.
         const diffStat = await collectDiffStat(sandbox);
         const userTrailer = buildUserCoAuthorTrailer(user);

@@ -26,6 +26,7 @@ import type {
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadShareResponse,
     ApiAiAgentThreadSummaryListResponse,
+    ApiAiAgentThreadWorkstreamsResponse,
     ApiAiAgentVerifiedArtifactsResponse,
     ApiAiDashboardSummaryResponse,
     ApiAiGenerateChartMetadataResponse,
@@ -780,6 +781,8 @@ export type ApiExecuteAsyncDashboardSqlChartQueryResults =
 export type ApiExecuteAsyncFieldValueSearchResults = {
     queryUuid: string;
     cacheMetadata: CacheMetadata;
+    valueFieldId: string;
+    labelFieldId: string | null;
 };
 
 export type QueryResultsPerformance = {
@@ -1134,6 +1137,7 @@ type ApiResults =
     | ApiAiAgentReviewItemPrDiffResponse['results']
     | ApiAiAgentReviewItemActivityResponse['results']
     | ApiAiAgentThreadPullRequestResponse['results']
+    | ApiAiAgentThreadWorkstreamsResponse['results']
     | ApiAiAgentEvaluationSummaryListResponse['results']
     | ApiAiAgentEvaluationResponse['results']
     | ApiAiAgentEvaluationRunResponse['results']

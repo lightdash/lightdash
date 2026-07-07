@@ -53,9 +53,13 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     proposeChange: 'propose_change',
     editDbtProject: 'edit_dbt_project',
     editProjectContext: 'edit_project_context',
+    editRepo: 'edit_repo',
     syncDbtProject: 'sync_dbt_project',
     exploreRepo: 'explore_repo',
     discoverRepos: 'discover_repos',
+    listWorkstreams: 'list_workstreams',
+    closePullRequest: 'close_pull_request',
+    getPullRequestDiff: 'get_pull_request_diff',
     setupPreviewDeploy: 'setup_preview_deploy',
 } satisfies Record<ToolName, string>;
 

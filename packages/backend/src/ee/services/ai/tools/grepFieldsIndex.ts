@@ -266,11 +266,12 @@ export const selectCandidateFields = (
     limit = 25,
 ): FieldEntry[] => {
     if (keywords.length === 0) return [];
+    const matchers = keywords.map((keyword) => compileMatcher(keyword));
     const scored: { entry: FieldEntry; score: number }[] = [];
     for (const entry of index) {
         let score = 0;
-        for (const keyword of keywords) {
-            if (entry.haystack.includes(keyword)) score += 1;
+        for (const matches of matchers) {
+            if (matches(entry.haystack)) score += 1;
         }
         if (score > 0) scored.push({ entry, score });
     }

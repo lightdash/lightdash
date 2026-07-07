@@ -139,6 +139,28 @@ describe('getMetadata explore field listing', () => {
         expect(result.result).not.toContain('orders_secret');
     });
 
+    it('does not return hidden fields when requested directly', async () => {
+        const explore = makeExplore({});
+        explore.tables.orders.dimensions.secret = {
+            ...explore.tables.orders.dimensions.status,
+            name: 'secret',
+            label: 'Secret',
+            hidden: true,
+        };
+
+        const result = await execute(explore, [
+            {
+                type: 'field',
+                fields: [{ exploreId: 'sales', fieldId: 'orders_secret' }],
+            },
+        ]);
+
+        expect(result.metadata).toEqual({ status: 'success' });
+        expect(result.result).toBe(
+            'Field "orders_secret" not found in explore "sales".',
+        );
+    });
+
     it('truncates very wide base tables with a "+N more" marker', async () => {
         const explore = makeExplore({});
         for (let i = 0; i < 150; i += 1) {

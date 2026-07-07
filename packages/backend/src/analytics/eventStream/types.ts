@@ -13,3 +13,20 @@ export interface EventStreamWriter {
     flush(): Promise<void>;
     close(): Promise<void>;
 }
+
+/**
+ * DuckDB types allowed in compacted (parquet) stream schemas. Each stream
+ * declares its typed column list next to its projections so schema and cast
+ * stay together.
+ */
+export type CompactedColumnType =
+    | 'VARCHAR'
+    | 'TIMESTAMP'
+    | 'BOOLEAN'
+    | 'INTEGER'
+    | 'BIGINT';
+
+export type CompactedStreamColumn = {
+    name: string;
+    type: CompactedColumnType;
+};
