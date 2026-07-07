@@ -1,5 +1,6 @@
 import dayjs from 'dayjs';
 import moment from 'moment';
+import momentTz from 'moment-timezone';
 import {
     Compact,
     CustomFormatType,
@@ -334,6 +335,75 @@ describe('Formatting', () => {
                         tz,
                     ),
                 ).toEqual('5%');
+            });
+        });
+
+        // A custom date format on a month dimension double-counted a month for
+        // viewers in a summer-DST timezone. In tz-aware mode month values arrive
+        // as bare `YYYY-MM-DD` strings; the custom-format path parsed them in the
+        // viewer's local zone but read back UTC fields, rolling post-DST months
+        // back one (e.g. Apr -> Mar, giving two "Mar" bars). vitest runs in
+        // TZ=UTC where the two parses match, so override moment's default zone.
+        describe('custom date format across a DST boundary', () => {
+            afterEach(() => momentTz.tz.setDefault());
+
+            // Both are UTC+0 in winter, UTC+1 from ~Mar 29 (DST) — the boundary
+            // that split correct (Jan-Mar) from shifted (Apr+) months.
+            test.each(['Europe/London', 'Europe/Lisbon'])(
+                'month-truncated date-only values keep their own month in %s',
+                (viewerZone) => {
+                    momentTz.tz.setDefault(viewerZone);
+                    const months: [string, string][] = [
+                        ['2026-01-01', 'Jan'],
+                        ['2026-02-01', 'Feb'],
+                        ['2026-03-01', 'Mar'],
+                        ['2026-04-01', 'Apr'], // pre-fix rolled back to 'Mar'
+                        ['2026-05-01', 'May'],
+                        ['2026-06-01', 'Jun'],
+                    ];
+                    months.forEach(([value, expected]) => {
+                        expect(formatValueWithExpression('mmm', value)).toEqual(
+                            expected,
+                        );
+                    });
+                },
+            );
+
+            test('offset-less timestamp strings are not shifted across the boundary', () => {
+                momentTz.tz.setDefault('Europe/London');
+                expect(
+                    formatValueWithExpression('mmm', '2026-04-01T00:00:00'),
+                ).toEqual('Apr');
+            });
+
+            test('Z-suffixed values remain correct', () => {
+                momentTz.tz.setDefault('Europe/London');
+                expect(
+                    formatValueWithExpression('mmm', '2026-04-01T00:00:00Z'),
+                ).toEqual('Apr');
+            });
+
+            test('formatItemValue on a DATE month dimension does not duplicate a month', () => {
+                momentTz.tz.setDefault('Europe/London');
+                const monthDimension: Dimension = {
+                    ...dimension,
+                    type: DimensionType.DATE,
+                    timeInterval: TimeFrames.MONTH,
+                    format: 'mmm',
+                };
+                // Mirrors the axis formatter: convertToUTC=true, project tz='UTC'.
+                const labels = ['2026-03-01', '2026-04-01', '2026-05-01'].map(
+                    (value) =>
+                        formatItemValue(
+                            monthDimension,
+                            value,
+                            true,
+                            undefined,
+                            'UTC',
+                            'UTC',
+                        ),
+                );
+                expect(labels).toEqual(['Mar', 'Apr', 'May']);
             });
         });
 
