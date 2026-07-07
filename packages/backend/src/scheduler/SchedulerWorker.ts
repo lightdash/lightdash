@@ -133,10 +133,8 @@ export class SchedulerWorker extends SchedulerTask {
      * waits on them, so a rolling deploy doesn't blow past the grace period.
      * No-op in the base worker; the EE worker overrides it.
      */
-    // eslint-disable-next-line class-methods-use-this
-    async abortInFlightAiRuns(): Promise<void> {
-        // No interruptible AI runs in the base worker.
-    }
+    // eslint-disable-next-line class-methods-use-this, @typescript-eslint/no-empty-function
+    async abortInFlightAiRuns(): Promise<void> {}
 
     private startPgPing(health: SchedulerWorkerHealth) {
         if (this.pgPingInterval) return;

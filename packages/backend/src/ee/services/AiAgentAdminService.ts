@@ -2685,6 +2685,11 @@ export class AiAgentAdminService extends BaseService {
      * (SIGKILL/OOM/crash). Fails every remediation whose heartbeat is older than
      * WRITEBACK_STALE_MS, then records the interruption on the timeline and fails
      * the linked review-item writeback so the board recovers and allows a retry.
+     *
+     * System-only: invoked exclusively by the SWEEP_STALE_AI_REMEDIATIONS cron
+     * task with no user context, so there is no user permission check to apply —
+     * it deliberately operates org-agnostically across all organizations. Not
+     * reachable from any controller.
      */
     async sweepStaleReviewRemediations(): Promise<void> {
         const swept =
