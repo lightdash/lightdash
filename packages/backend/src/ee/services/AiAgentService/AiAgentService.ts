@@ -101,6 +101,7 @@ import {
     type AiWebAppThreadCreatedFrom,
     type SessionUser,
     type SuggestionValidationCatalog,
+    type VerifiedContentListItem,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
@@ -5318,6 +5319,31 @@ export class AiAgentService extends BaseService {
         await this.aiAgentModel.updateArtifactVersion(versionUuid, {
             savedDashboardUuid,
         });
+    }
+
+    async getVerifiedSavedArtifactContent(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<VerifiedContentListItem[]> {
+        const project = await this.projectModel.getSummary(projectUuid);
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('ContentVerification', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to view verified content',
+            );
+        }
+
+        return this.aiAgentModel.getVerifiedSavedArtifactContent(projectUuid);
     }
 
     // Bridges AI artifact verification to the content_verification table
