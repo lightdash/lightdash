@@ -173,6 +173,7 @@ export class UsageEventsCompactor extends S3BaseClient {
         };
         if (partitions.length === 0) {
             this.prometheusMetrics?.setUsageEventsCompactionBacklog(0);
+            this.prometheusMetrics?.setUsageEventsRawObjects(rawKeys.length);
             this.prometheusMetrics?.observeUsageEventsCompactionRunDuration(
                 Date.now() - runStart,
                 'success',
@@ -252,6 +253,12 @@ export class UsageEventsCompactor extends S3BaseClient {
             summary.partitionsDiscovered -
                 summary.partitionsCompacted -
                 summary.partitionsSkippedUnknownStream,
+        );
+        // Raw objects left behind: open (today) partitions, failed/deferred
+        // partitions, and unknown streams. Sustained growth here means the
+        // writer is producing files faster than compaction reclaims them.
+        this.prometheusMetrics?.setUsageEventsRawObjects(
+            rawKeys.length - summary.rawObjectsDeleted,
         );
         this.prometheusMetrics?.observeUsageEventsCompactionRunDuration(
             Date.now() - runStart,
