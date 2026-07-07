@@ -1,3 +1,10 @@
+# [0.3320.0](https://github.com/lightdash/lightdash/compare/0.3319.0...0.3320.0) (2026-07-07)
+
+
+### Features
+
+* sort content lists by views ([#25218](https://github.com/lightdash/lightdash/issues/25218)) ([021d1cd](https://github.com/lightdash/lightdash/commit/021d1cdd559374d1292fb92ac3c1807a5b574b15))
+
 # [0.3319.0](https://github.com/lightdash/lightdash/compare/0.3318.0...0.3319.0) (2026-07-07)
 
 
