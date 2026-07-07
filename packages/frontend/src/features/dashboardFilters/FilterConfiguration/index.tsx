@@ -19,15 +19,8 @@ import {
     type DashboardTile,
     type ResultColumn,
 } from '@lightdash/common';
-import { Box, Button, Group, Stack } from '@mantine-8/core';
-import {
-    Flex,
-    Select,
-    Tabs,
-    Tooltip,
-    type PopoverProps,
-    Text,
-} from '@mantine/core';
+import { Box, Button, Flex, Group, Stack } from '@mantine-8/core';
+import { Select, Tabs, Tooltip, type PopoverProps, Text } from '@mantine/core';
 import { IconRotate2, IconSql } from '@tabler/icons-react';
 import { produce } from 'immer';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';

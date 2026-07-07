@@ -1,5 +1,5 @@
 import { ERROR_BOUNDARY_ID } from '@lightdash/common';
-import { Flex, type FlexProps } from '@mantine/core';
+import { Flex, type FlexProps } from '@mantine-8/core';
 import * as Sentry from '@sentry/react';
 import { type FC, type PropsWithChildren } from 'react';
 import {

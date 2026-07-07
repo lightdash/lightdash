@@ -6,10 +6,9 @@ import {
     validateOrganizationEmailDomains,
     type AllowedEmailDomains,
 } from '@lightdash/common';
-import { Button, Stack } from '@mantine-8/core';
+import { Button, Flex, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
-    Flex,
     MultiSelect,
     Select,
     Title,

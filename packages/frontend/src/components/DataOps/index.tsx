@@ -1,6 +1,6 @@
 import { ProjectType } from '@lightdash/common';
-import { Button } from '@mantine-8/core';
-import { Flex, Select, Title, Text } from '@mantine/core';
+import { Button, Flex } from '@mantine-8/core';
+import { Select, Title, Text } from '@mantine/core';
 import { useState, type FC } from 'react';
 import { useProject } from '../../hooks/useProject';
 import { useProjects } from '../../hooks/useProjects';

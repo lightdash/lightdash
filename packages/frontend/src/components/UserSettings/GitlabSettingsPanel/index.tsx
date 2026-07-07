@@ -1,5 +1,5 @@
-import { Box, Button, Group, Stack } from '@mantine-8/core';
-import { Alert, Avatar, Flex, Loader, Title, Text } from '@mantine/core';
+import { Box, Button, Flex, Group, Stack } from '@mantine-8/core';
+import { Alert, Avatar, Loader, Title, Text } from '@mantine/core';
 import { IconAlertCircle, IconRefresh, IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
 import gitlabIcon from '../../../svgs/gitlab-icon.svg';

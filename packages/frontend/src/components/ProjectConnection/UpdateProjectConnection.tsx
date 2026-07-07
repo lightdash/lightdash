@@ -6,8 +6,8 @@ import {
     type CreateWarehouseCredentials,
     type Project,
 } from '@lightdash/common';
-import { Box, Button } from '@mantine-8/core';
-import { Alert, Anchor, Card, Flex } from '@mantine/core';
+import { Box, Button, Flex } from '@mantine-8/core';
+import { Alert, Anchor, Card } from '@mantine/core';
 import { IconExclamationCircle, IconExternalLink } from '@tabler/icons-react';
 import { type FC } from 'react';
 import {

@@ -1,5 +1,5 @@
-import { Box, Button } from '@mantine-8/core';
-import { Flex, Text } from '@mantine/core';
+import { Box, Button, Flex } from '@mantine-8/core';
+import { Text } from '@mantine/core';
 import { noop } from '@mantine/utils';
 import { IconAlertCircle, IconRefresh, IconTable } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
