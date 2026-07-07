@@ -32,6 +32,7 @@ import { OpenIdIdentityModel } from './OpenIdIdentitiesModel';
 import { OrganizationAllowedEmailDomainsModel } from './OrganizationAllowedEmailDomainsModel';
 import { OrganizationDesignModel } from './OrganizationDesignModel';
 import { OrganizationDomainVerificationModel } from './OrganizationDomainVerificationModel';
+import { OrganizationEmailDomainModel } from './OrganizationEmailDomainModel';
 import { OrganizationMemberProfileModel } from './OrganizationMemberProfileModel';
 import { OrganizationModel } from './OrganizationModel';
 import { OrganizationSettingsModel } from './OrganizationSettingsModel';
@@ -102,6 +103,7 @@ export type ModelManifest = {
     userAvatarModel: UserAvatarModel;
     organizationModel: OrganizationModel;
     organizationDomainVerificationModel: OrganizationDomainVerificationModel;
+    organizationEmailDomainModel: OrganizationEmailDomainModel;
     organizationSettingsModel: OrganizationSettingsModel;
     organizationSsoModel: OrganizationSsoModel;
     organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
@@ -475,6 +477,16 @@ export class ModelRepository
             'organizationDomainVerificationModel',
             () =>
                 new OrganizationDomainVerificationModel({
+                    database: this.database,
+                }),
+        );
+    }
+
+    public getOrganizationEmailDomainModel(): OrganizationEmailDomainModel {
+        return this.getModel(
+            'organizationEmailDomainModel',
+            () =>
+                new OrganizationEmailDomainModel({
                     database: this.database,
                 }),
         );

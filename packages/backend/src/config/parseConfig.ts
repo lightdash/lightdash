@@ -1268,6 +1268,7 @@ export type LightdashConfig = {
     trustProxy: boolean;
     databaseConnectionUri?: string;
     smtp: SmtpConfig | undefined;
+    postmark: PostmarkConfig;
     rudder: RudderConfig;
     mode: LightdashMode;
     license: {
@@ -1934,6 +1935,26 @@ export type SmtpConfig = {
     inlineImageCid: boolean;
 };
 
+/**
+ * Cloud-only email whitelabelling (see FeatureFlags.EmailWhitelabel).
+ *
+ * `accountToken` is the Postmark *account*-level API token used to drive the
+ * Domains API (create a sender domain, fetch its DKIM + return-path DNS
+ * records, trigger verification). Sending itself stays over SMTP; this token is
+ * only for provisioning. When it is undefined the feature is unavailable
+ * (self-hosted instances that don't own a Postmark account can't self-serve).
+ */
+export type PostmarkConfig = {
+    accountToken: string | undefined;
+    /**
+     * The default return-path subdomain label Postmark uses for custom
+     * return-paths (its CNAME points at `pm.mtasv.net`). Configurable so a
+     * customer with an existing `pm-bounces` record can be given a different
+     * label.
+     */
+    returnPathSubdomain: string;
+};
+
 const DEFAULT_JOB_TIMEOUT = 1000 * 60 * 10; // 10 minutes
 
 const parseSandboxProvider = (
@@ -2292,6 +2313,11 @@ export const parseConfig = (): LightdashConfig => {
                       process.env.EMAIL_SMTP_IMAGE_INLINE_CID === 'true',
               }
             : undefined,
+        postmark: {
+            accountToken: process.env.POSTMARK_ACCOUNT_TOKEN || undefined,
+            returnPathSubdomain:
+                process.env.POSTMARK_RETURN_PATH_SUBDOMAIN || 'pm-bounces',
+        },
         rudder: {
             writeKey:
                 process.env.RUDDERSTACK_ANALYTICS_DISABLED === 'true'

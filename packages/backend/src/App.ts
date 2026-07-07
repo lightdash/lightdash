@@ -138,6 +138,8 @@ const schedulerWorkerFactory = (context: {
             context.serviceRepository.getPreAggregateMaterializationService(),
         organizationSettingsModel:
             context.models.getOrganizationSettingsModel(),
+        emailWhitelabelService:
+            context.serviceRepository.getEmailWhitelabelService(),
         resolveOrganizationName: createOrganizationNameResolver(
             context.models.getOrganizationModel(),
         ),

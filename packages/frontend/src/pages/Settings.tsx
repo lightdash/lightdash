@@ -66,6 +66,7 @@ import SocialLoginsPanel from '../components/UserSettings/SocialLoginsPanel';
 import SupportImpersonationPanel from '../components/UserSettings/SupportImpersonationPanel';
 import UserAttributesPanel from '../components/UserSettings/UserAttributesPanel';
 import UsersAndGroupsPanel from '../components/UserSettings/UsersAndGroupsPanel';
+import EmailWhitelabelPanel from '../components/UserSettings/EmailWhitelabel/EmailWhitelabelPanel';
 import VerifiedDomainsPanel from '../components/UserSettings/VerifiedDomains/VerifiedDomainsPanel';
 import { ReviewRemediationWorkspace } from '../ee/features/aiCopilot/components/Admin/ReviewRemediationWorkspace';
 import { AiAgentsSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiAgentsSettingsPage';
@@ -155,6 +156,7 @@ const Settings: FC = () => {
         isCustomRolesEnabled,
         isProLimitsEnabled,
         isSsoOrganizationSettingsEnabled,
+        isEmailWhitelabelEnabled,
         isServiceAccountsEnabled,
         allowPasswordAuthentication,
         hasSocialLogin,
@@ -521,6 +523,16 @@ const Settings: FC = () => {
 
         if (
             user?.ability.can('manage', 'Organization') &&
+            isEmailWhitelabelEnabled
+        ) {
+            allowedRoutes.push({
+                path: '/emailWhitelabel',
+                element: <EmailWhitelabelPanel />,
+            });
+        }
+
+        if (
+            user?.ability.can('manage', 'Organization') &&
             isSsoOrganizationSettingsEnabled
         ) {
             allowedRoutes.push({
@@ -682,6 +694,7 @@ const Settings: FC = () => {
         dataAppsFlag?.enabled,
         isProLimitsEnabled,
         isSsoOrganizationSettingsEnabled,
+        isEmailWhitelabelEnabled,
         isLeaveOrganizationEnabled,
         isAiCopilotEnabledOrTrial,
         shouldShowAiAgentReviews,

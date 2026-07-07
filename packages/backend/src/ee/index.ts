@@ -939,6 +939,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     context.serviceRepository.getPreAggregateMaterializationService(),
                 organizationSettingsModel:
                     context.models.getOrganizationSettingsModel(),
+                emailWhitelabelService:
+                    context.serviceRepository.getEmailWhitelabelService(),
                 managedAgentService:
                     context.serviceRepository.getManagedAgentService<ManagedAgentService>(),
                 appGenerateService:

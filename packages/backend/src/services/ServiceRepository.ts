@@ -48,6 +48,7 @@ import { OAuthService } from './OAuthService/OAuthService';
 import { OrganizationAccessService } from './OrganizationAccessService/OrganizationAccessService';
 import { OrganizationDesignService } from './OrganizationDesignService/OrganizationDesignService';
 import { OrganizationDomainVerificationService } from './OrganizationDomainVerificationService/OrganizationDomainVerificationService';
+import { EmailWhitelabelService } from './EmailWhitelabelService/EmailWhitelabelService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
 import { OrganizationSettingsService } from './OrganizationSettingsService/OrganizationSettingsService';
 import { OrganizationSsoService } from './OrganizationSsoService/OrganizationSsoService';
@@ -109,6 +110,7 @@ interface ServiceManifest {
     organizationSettingsService: OrganizationSettingsService;
     organizationSsoService: OrganizationSsoService;
     organizationDomainVerificationService: OrganizationDomainVerificationService;
+    emailWhitelabelService: EmailWhitelabelService;
     organizationAccessService: OrganizationAccessService;
     preAggregateMaterializationService: PreAggregateMaterializationService;
     persistentDownloadFileService: PersistentDownloadFileService;
@@ -653,6 +655,22 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     organizationDomainVerificationModel:
                         this.models.getOrganizationDomainVerificationModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    emailClient: this.clients.getEmailClient(),
+                }),
+        );
+    }
+
+    public getEmailWhitelabelService(): EmailWhitelabelService {
+        return this.getService(
+            'emailWhitelabelService',
+            () =>
+                new EmailWhitelabelService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    organizationEmailDomainModel:
+                        this.models.getOrganizationEmailDomainModel(),
+                    organizationMemberProfileModel:
+                        this.models.getOrganizationMemberProfileModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     emailClient: this.clients.getEmailClient(),
                 }),

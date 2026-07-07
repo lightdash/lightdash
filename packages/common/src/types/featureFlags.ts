@@ -256,6 +256,16 @@ export enum FeatureFlags {
      * Let org admins set their own Anthropic/OpenAI API keys for AI agents.
      */
     OrgAiProviderApiKeys = 'org-ai-provider-api-keys',
+
+    /**
+     * Cloud-only: let an organization send report/notification emails from
+     * their own verified domain (email whitelabelling) instead of the
+     * Lightdash address. Gates both the setup UI and the admin API. Requires a
+     * Postmark account token to be configured on the instance — self-hosters
+     * without one can't self-serve, so the feature stays hidden. Off by
+     * default; enable per-org.
+     */
+    EmailWhitelabel = 'email-whitelabel',
 }
 
 export type FeatureFlag = {

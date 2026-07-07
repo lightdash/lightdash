@@ -22,6 +22,7 @@ import {
     IconKey,
     IconListCheck,
     IconLock,
+    IconMailForward,
     IconMessageCircle,
     IconPalette,
     IconPlug,
@@ -72,6 +73,7 @@ export const useSettingsNavigation = (
         isProLimitsEnabled,
         isCustomRolesEnabled,
         isSsoOrganizationSettingsEnabled,
+        isEmailWhitelabelEnabled,
         isWarehouseCredentialsEnabled,
         isScimTokenManagementEnabled,
         isServiceAccountsEnabled,
@@ -292,6 +294,27 @@ export const useSettingsNavigation = (
                 to: '/generalSettings/verifiedDomains',
                 icon: IconWorldCheck,
                 keywords: ['email', 'domains', 'sso'],
+                children: [],
+                exact: true,
+            });
+        }
+
+        if (
+            ability?.can('manage', 'Organization') &&
+            isEmailWhitelabelEnabled
+        ) {
+            organizationItems.push({
+                label: 'Email domain',
+                to: '/generalSettings/emailWhitelabel',
+                icon: IconMailForward,
+                keywords: [
+                    'email',
+                    'whitelabel',
+                    'sending',
+                    'domain',
+                    'dkim',
+                    'reports',
+                ],
                 children: [],
                 exact: true,
             });
@@ -797,6 +820,7 @@ export const useSettingsNavigation = (
         isProLimitsEnabled,
         isCustomRolesEnabled,
         isSsoOrganizationSettingsEnabled,
+        isEmailWhitelabelEnabled,
         isWarehouseCredentialsEnabled,
         isScimEnabled,
         isServiceAccountsEnabled,

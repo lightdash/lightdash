@@ -167,6 +167,7 @@ import {
 } from '../services/CsvService/CsvService';
 import { DashboardService } from '../services/DashboardService/DashboardService';
 import { DeployService } from '../services/DeployService';
+import { EmailWhitelabelService } from '../services/EmailWhitelabelService/EmailWhitelabelService';
 import { ExcelService } from '../services/ExcelService/ExcelService';
 import { WorkbookExportHelper } from '../services/ExcelService/WorkbookExportHelper';
 import type { FeatureFlagService } from '../services/FeatureFlag/FeatureFlagService';
@@ -224,6 +225,7 @@ export type SchedulerTaskArguments = {
     preAggregateModel: PreAggregateModel;
     preAggregateMaterializationService: PreAggregateMaterializationService;
     organizationSettingsModel: OrganizationSettingsModel;
+    emailWhitelabelService: EmailWhitelabelService;
 };
 
 /**
@@ -407,6 +409,8 @@ export default class SchedulerTask {
 
     protected readonly organizationSettingsModel: OrganizationSettingsModel;
 
+    protected readonly emailWhitelabelService: EmailWhitelabelService;
+
     constructor(args: SchedulerTaskArguments) {
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
@@ -436,6 +440,7 @@ export default class SchedulerTask {
         this.preAggregateMaterializationService =
             args.preAggregateMaterializationService;
         this.organizationSettingsModel = args.organizationSettingsModel;
+        this.emailWhitelabelService = args.emailWhitelabelService;
     }
 
     /**
@@ -2905,6 +2910,14 @@ export default class SchedulerTask {
                     schedulerUuid,
                 );
 
+            // Email whitelabelling: send from the org's verified domain when
+            // enabled, otherwise fall back to the Lightdash identity (with the
+            // customer address as reply-to while setup is in progress).
+            const senderIdentity =
+                await this.emailWhitelabelService.resolveSenderIdentity(
+                    notification.organizationUuid,
+                );
+
             if (thresholds !== undefined && thresholds.length > 0) {
                 // We assume the threshold is possitive , so we don't need to get results here
                 if (imageUrl === undefined) {
@@ -2947,6 +2960,7 @@ export default class SchedulerTask {
                     undefined, // expiration days
                     'This is a data alert sent by Lightdash',
                     imageBuffer,
+                    senderIdentity,
                 );
             } else if (
                 format === SchedulerFormat.IMAGE ||
@@ -2980,6 +2994,7 @@ export default class SchedulerTask {
                     Math.ceil(emailExpiration / 86400),
                     undefined, // deliveryType
                     format === SchedulerFormat.IMAGE ? imageBuffer : undefined,
+                    senderIdentity,
                 );
             } else if (savedChartUuid) {
                 if (csvUrl === undefined) {
@@ -3004,6 +3019,7 @@ export default class SchedulerTask {
                     Math.ceil(emailExpiration / 86400),
                     csvOptions?.asAttachment,
                     format,
+                    senderIdentity,
                 );
             } else if (dashboardUuid) {
                 if (csvUrls === undefined) {
@@ -3030,6 +3046,7 @@ export default class SchedulerTask {
                     csvOptions?.asAttachment,
                     format,
                     failures,
+                    senderIdentity,
                 );
             } else {
                 throw new Error('Not implemented');

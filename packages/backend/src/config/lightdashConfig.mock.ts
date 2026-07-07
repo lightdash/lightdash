@@ -213,6 +213,10 @@ export const lightdashConfigMock: LightdashConfig = {
         enabled: false,
     },
     smtp: undefined,
+    postmark: {
+        accountToken: undefined,
+        returnPathSubdomain: 'pm-bounces',
+    },
     siteUrl: 'https://test.lightdash.cloud',
     query: {
         maxPageSize: 2500,
