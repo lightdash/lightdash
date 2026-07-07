@@ -8,6 +8,7 @@ import {
     ApiImpersonationOrganizationSettingsResponse,
     ApiOrganization,
     ApiOrganizationAllowedEmailDomains,
+    ApiOrganizationBrandResponse,
     ApiOrganizationMemberProfile,
     ApiOrganizationMemberProfiles,
     ApiOrganizationProjects,
@@ -27,6 +28,7 @@ import {
     UpdateColorPalette,
     UpdateImpersonationOrganizationSettings,
     UpdateOrganization,
+    UpdateOrganizationBrandRequest,
     UUID,
     type ApiCreateProjectResults,
     type ApiSuccess,
@@ -140,6 +142,56 @@ export class OrganizationController extends BaseController {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * Get the organization's brand profile, previously fetched from Brandfetch.
+     * Returns null if no brand profile has been fetched yet.
+     * @summary Get organization brand
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Get('/brand')
+    @OperationId('GetOrganizationBrand')
+    async getOrganizationBrand(
+        @Request() req: express.Request,
+    ): Promise<ApiOrganizationBrandResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getOrganizationService()
+                .getBrand(req.account),
+        };
+    }
+
+    /**
+     * Fetch the brand profile for a domain from Brandfetch and store it on the
+     * organization. Requires the Brandfetch API key to be configured on the instance.
+     * @summary Update organization brand
+     * @param req express request
+     * @param body the domain to fetch the brand for
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @Post('/brand')
+    @OperationId('UpdateOrganizationBrand')
+    async updateOrganizationBrand(
+        @Request() req: express.Request,
+        @Body() body: UpdateOrganizationBrandRequest,
+    ): Promise<ApiOrganizationBrandResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getOrganizationService()
+                .updateBrand(req.account, body.domain),
         };
     }
 

@@ -181,6 +181,7 @@ import {
     type UpdateAllowedEmailDomains,
 } from './organization';
 import { type OrganizationAccess } from './organizationAccess';
+import { type ApiOrganizationBrandResponse } from './organizationBrand';
 import {
     type DomainVerificationStatus,
     type VerifiedDomain,
@@ -1189,6 +1190,7 @@ type ApiResults =
     | ApiOrganizationDesignsResponse['results']
     | ApiOrganizationDesignFileResponse['results']
     | ApiProjectColorPaletteResponse['results']
+    | ApiOrganizationBrandResponse['results']
     | ApiManagedAgentRunResponse['results']
     | ApiManagedAgentRunsListResponse['results']
     | ApiManagedAgentActionResponse['results']

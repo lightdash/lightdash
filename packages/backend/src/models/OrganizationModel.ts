@@ -3,6 +3,7 @@ import {
     CreateOrganization,
     NotFoundError,
     Organization,
+    OrganizationBrand,
     OrganizationColorPalette,
     OrganizationColorPaletteWithIsActive,
     ParameterError,
@@ -19,6 +20,7 @@ import {
 import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import {
     DbOrganization,
+    DbOrganizationBrand,
     OrganizationTableName,
 } from '../database/entities/organizations';
 import { OrganizationAllowedEmailDomainsTableName } from '../database/entities/organizationsAllowedEmailDomains';
@@ -520,6 +522,55 @@ export class OrganizationModel {
         await this.database(OrganizationTableName)
             .where('organization_uuid', organizationUuid)
             .update({ impersonation_enabled: enabled });
+    }
+
+    private static mapDBBrand(
+        organizationUuid: string,
+        brand: DbOrganizationBrand,
+    ): OrganizationBrand {
+        return {
+            organizationUuid,
+            domain: brand.domain,
+            name: brand.name,
+            description: brand.description,
+            logos: brand.logos,
+            colors: brand.colors,
+            fonts: brand.fonts,
+            updatedAt: new Date(brand.updatedAt),
+        };
+    }
+
+    async findBrand(
+        organizationUuid: string,
+    ): Promise<OrganizationBrand | undefined> {
+        const row = await this.database(OrganizationTableName)
+            .where('organization_uuid', organizationUuid)
+            .select('brand')
+            .first();
+
+        return row?.brand
+            ? OrganizationModel.mapDBBrand(organizationUuid, row.brand)
+            : undefined;
+    }
+
+    async updateBrand(
+        organizationUuid: string,
+        brand: Omit<DbOrganizationBrand, 'updatedAt'>,
+    ): Promise<OrganizationBrand> {
+        const dbBrand: DbOrganizationBrand = {
+            ...brand,
+            updatedAt: new Date().toISOString(),
+        };
+        const [row] = await this.database(OrganizationTableName)
+            .where('organization_uuid', organizationUuid)
+            .update({ brand: dbBrand })
+            .returning('*');
+
+        if (row === undefined) {
+            throw new NotFoundError(`No organization found`);
+        }
+
+        return OrganizationModel.mapDBBrand(organizationUuid, dbBrand);
     }
 
     private static mapDBColorPaletteWithIsActive(
