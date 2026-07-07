@@ -1454,11 +1454,22 @@ export class ProjectService extends BaseService {
             }
             case WarehouseTypes.POSTGRES:
             case WarehouseTypes.TRINO:
-            case WarehouseTypes.CLICKHOUSE:
-            case WarehouseTypes.REDSHIFT: {
+            case WarehouseTypes.CLICKHOUSE: {
                 return {
                     ...credentials,
                     password: '',
+                };
+            }
+            case WarehouseTypes.REDSHIFT: {
+                return {
+                    ...credentials,
+                    user: '',
+                    password: '',
+                    accessKeyId: '',
+                    secretAccessKey: '',
+                    sessionToken: '',
+                    assumeRoleArn: '',
+                    assumeRoleExternalId: '',
                 };
             }
             case WarehouseTypes.ATHENA: {

@@ -15,6 +15,7 @@ import {
     ParameterError,
     PreAggregateMissReason,
     ProjectType,
+    RedshiftAuthenticationType,
     RequestMethod,
     SessionUser,
     SupportedDbtAdapter,
@@ -589,6 +590,93 @@ describe('ProjectService', () => {
     });
 
     describe('user warehouse credentials override', () => {
+        test('should use user Redshift IAM identity when requireUserCredentials is true', async () => {
+            service.warehouseClients = {};
+
+            const projectRedshiftCredentials = {
+                type: WarehouseTypes.REDSHIFT,
+                host: 'cluster.redshift.amazonaws.com',
+                user: 'shared_project_user',
+                password: 'shared-project-password',
+                port: 5439,
+                dbname: 'dev',
+                schema: 'public',
+                authenticationType: RedshiftAuthenticationType.IAM,
+                region: 'us-east-1',
+                clusterIdentifier: 'analytics-cluster',
+                accessKeyId: 'PROJECT_KEY',
+                secretAccessKey: 'PROJECT_SECRET',
+                assumeRoleArn: 'arn:aws:iam::111:role/project-role',
+                requireUserCredentials: true,
+            };
+            (
+                projectModel.getWarehouseCredentialsForProject as import('vitest').Mock
+            ).mockImplementation(async () => projectRedshiftCredentials);
+
+            const userCredentials = {
+                uuid: 'user-redshift-creds-uuid',
+                credentials: {
+                    type: WarehouseTypes.REDSHIFT,
+                    authenticationType: RedshiftAuthenticationType.IAM,
+                    user: '',
+                    assumeRoleArn: 'arn:aws:iam::222:role/viewer-role',
+                    assumeRoleExternalId: 'viewer-external-id',
+                },
+            };
+
+            const findForProjectWithSecretsMock = vi.fn(
+                async () => userCredentials,
+            );
+            (
+                service as unknown as {
+                    userWarehouseCredentialsModel: {
+                        findForProjectWithSecrets: import('vitest').Mock;
+                    };
+                }
+            ).userWarehouseCredentialsModel.findForProjectWithSecrets =
+                findForProjectWithSecretsMock;
+
+            const mergedCredentials = await (
+                service as unknown as {
+                    getWarehouseCredentials: (args: {
+                        projectUuid: string;
+                        userId: string;
+                        isRegisteredUser: boolean;
+                    }) => Promise<Record<string, unknown>>;
+                }
+            ).getWarehouseCredentials({
+                projectUuid,
+                userId: sessionAccount.user.id,
+                isRegisteredUser: true,
+            });
+
+            expect(findForProjectWithSecretsMock).toHaveBeenCalledWith(
+                projectUuid,
+                sessionAccount.user.id,
+                WarehouseTypes.REDSHIFT,
+            );
+            expect(mergedCredentials).toEqual(
+                expect.objectContaining({
+                    type: WarehouseTypes.REDSHIFT,
+                    user: '',
+                    authenticationType: RedshiftAuthenticationType.IAM,
+                    region: 'us-east-1',
+                    clusterIdentifier: 'analytics-cluster',
+                    assumeRoleArn: 'arn:aws:iam::222:role/viewer-role',
+                    assumeRoleExternalId: 'viewer-external-id',
+                    userWarehouseCredentialsUuid: 'user-redshift-creds-uuid',
+                }),
+            );
+            expect(mergedCredentials).not.toEqual(
+                expect.objectContaining({
+                    password: 'shared-project-password',
+                    accessKeyId: 'PROJECT_KEY',
+                    secretAccessKey: 'PROJECT_SECRET',
+                    assumeRoleArn: 'arn:aws:iam::111:role/project-role',
+                }),
+            );
+        });
+
         test('should use user refreshToken instead of project refreshToken when requireUserCredentials is true', async () => {
             // clear in memory cache so new mock is applied
             service.warehouseClients = {};

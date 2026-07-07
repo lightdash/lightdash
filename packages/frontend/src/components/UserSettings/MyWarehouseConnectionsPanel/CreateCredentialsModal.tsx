@@ -1,4 +1,5 @@
 import {
+    RedshiftAuthenticationType,
     WarehouseTypes,
     type UpsertUserWarehouseCredentials,
     type UserWarehouseCredentials,
@@ -38,6 +39,7 @@ const defaultCredentials: Record<
         type: WarehouseTypes.REDSHIFT,
         user: '',
         password: '',
+        authenticationType: RedshiftAuthenticationType.PASSWORD,
     },
     [WarehouseTypes.SNOWFLAKE]: {
         type: WarehouseTypes.SNOWFLAKE,

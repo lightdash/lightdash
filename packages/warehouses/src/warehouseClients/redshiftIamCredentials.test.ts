@@ -2,6 +2,7 @@
 import {
     CreateRedshiftCredentials,
     RedshiftAuthenticationType,
+    RedshiftIamTokenError,
     WarehouseConnectionError,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -15,6 +16,9 @@ vi.mock('@aws-sdk/client-redshift', () => ({
     }),
     GetClusterCredentialsCommand: vi.fn(function (input: unknown) {
         return { __command: 'cluster', input };
+    }),
+    GetClusterCredentialsWithIAMCommand: vi.fn(function (input: unknown) {
+        return { __command: 'cluster-with-iam', input };
     }),
 }));
 
@@ -37,6 +41,7 @@ vi.mock('@aws-sdk/credential-providers', () => ({
 // eslint-disable-next-line import/first -- Must import after mocks are set up
 import {
     getRedshiftAwsCredentials,
+    isExpiredAwsTokenError,
     mintRedshiftIamCredentials,
 } from './redshiftIamCredentials';
 
@@ -152,6 +157,36 @@ describe('mintRedshiftIamCredentials', () => {
         expect(mockServerlessSend).not.toHaveBeenCalled();
     });
 
+    test('mints credentials from the IAM identity when no database user is provided', async () => {
+        const expiration = new Date('2026-01-01T00:00:00Z');
+        mockClusterSend.mockResolvedValue({
+            DbUser: 'IAMR:user-role',
+            DbPassword: 'temp-password',
+            Expiration: expiration,
+        });
+
+        const result = await mintRedshiftIamCredentials({
+            ...provisionedCredentials,
+            user: '',
+            assumeRoleArn: 'arn:aws:iam::123456789012:role/user-role',
+        });
+
+        expect(result).toEqual({
+            dbUser: 'IAMR:user-role',
+            dbPassword: 'temp-password',
+            expiration,
+        });
+        expect(mockClusterSend).toHaveBeenCalledWith({
+            __command: 'cluster-with-iam',
+            input: {
+                ClusterIdentifier: 'my-cluster',
+                DbName: 'dev',
+                DurationSeconds: 3600,
+            },
+        });
+        expect(mockServerlessSend).not.toHaveBeenCalled();
+    });
+
     test('mints credentials for a serverless workgroup', async () => {
         const expiration = new Date('2026-01-01T00:00:00Z');
         mockServerlessSend.mockResolvedValue({
@@ -196,5 +231,30 @@ describe('mintRedshiftIamCredentials', () => {
                 workgroupName: undefined,
             }),
         ).rejects.toThrow(WarehouseConnectionError);
+    });
+
+    test('throws RedshiftIamTokenError when the AWS session token has expired', async () => {
+        mockClusterSend.mockRejectedValue({
+            name: 'ExpiredTokenException',
+            message: 'The security token included in the request is expired',
+        });
+
+        await expect(
+            mintRedshiftIamCredentials(provisionedCredentials),
+        ).rejects.toThrow(RedshiftIamTokenError);
+    });
+});
+
+describe('isExpiredAwsTokenError', () => {
+    test('detects expired AWS tokens by name or message', () => {
+        expect(isExpiredAwsTokenError({ name: 'ExpiredToken' })).toBe(true);
+        expect(
+            isExpiredAwsTokenError(
+                new Error(
+                    'The security token included in the request is expired',
+                ),
+            ),
+        ).toBe(true);
+        expect(isExpiredAwsTokenError(new Error('Access denied'))).toBe(false);
     });
 });
