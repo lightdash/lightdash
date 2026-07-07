@@ -9,13 +9,13 @@ import {
     type SankeyNodeLayout,
     type TableCalculation,
 } from '@lightdash/common';
+import { Stack } from '@mantine-8/core';
 import {
     MantineProvider,
     SegmentedControl,
-    Stack,
     Tabs,
-    Text,
     useMantineColorScheme,
+    Text,
 } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';

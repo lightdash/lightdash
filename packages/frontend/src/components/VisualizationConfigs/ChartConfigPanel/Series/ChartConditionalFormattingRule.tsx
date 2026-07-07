@@ -6,15 +6,15 @@ import {
     type ConditionalFormattingWithFilterOperator,
     type FilterableItem,
 } from '@lightdash/common';
+import { Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Collapse,
     Group,
     Select,
-    Stack,
-    Text,
     TextInput,
     Tooltip,
+    Text,
 } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconChevronDown, IconChevronUp, IconTrash } from '@tabler/icons-react';
@@ -68,7 +68,7 @@ export const ChartConditionalFormattingRule: FC<Props> = ({
     }, [filterType]);
 
     return (
-        <Stack spacing="xs" ref={ref}>
+        <Stack gap="xs" ref={ref}>
             <Group noWrap position="apart">
                 <Group spacing="xs">
                     <Text fw={500} fz="xs">

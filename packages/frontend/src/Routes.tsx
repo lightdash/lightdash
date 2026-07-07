@@ -1,4 +1,4 @@
-import { Stack } from '@mantine/core';
+import { Stack } from '@mantine-8/core';
 import { type FC } from 'react';
 import { Navigate, Outlet, type RouteObject } from 'react-router';
 import AppRoute from './components/AppRoute';

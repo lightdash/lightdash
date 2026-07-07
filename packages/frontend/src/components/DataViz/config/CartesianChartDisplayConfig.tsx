@@ -1,5 +1,6 @@
 import { VizIndexType, type ChartKind } from '@lightdash/common';
-import { Group, Stack, TextInput } from '@mantine/core';
+import { Stack } from '@mantine-8/core';
+import { Group, TextInput } from '@mantine/core';
 import {
     useAppDispatch as useVizDispatch,
     useAppSelector as useVizSelector,
@@ -50,7 +51,7 @@ export const CartesianChartDisplayConfig = ({
     );
 
     return (
-        <Stack spacing="xl" mt="sm">
+        <Stack gap="xl" mt="sm">
             <Config>
                 <Config.Section>
                     <Config.Heading>{`X-axis`}</Config.Heading>

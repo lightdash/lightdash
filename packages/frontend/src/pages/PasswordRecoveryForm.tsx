@@ -1,13 +1,13 @@
 import { getEmailSchema } from '@lightdash/common';
+import { Stack } from '@mantine-8/core';
 import {
     Anchor,
     Button,
     Center,
     List,
-    Stack,
-    Text,
     TextInput,
     Title,
+    Text,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { type FC } from 'react';
@@ -41,7 +41,7 @@ export const PasswordRecoveryForm: FC = () => {
                     <Title order={3} ta="center" mb="sm">
                         Forgot your password?
                     </Title>
-                    <Text ta="center" mb="md" color="dimmed">
+                    <Text ta="center" mb="md" c="dimmed">
                         Enter your email address and we’ll send you a password
                         reset link
                     </Text>
@@ -49,7 +49,7 @@ export const PasswordRecoveryForm: FC = () => {
                         name="password-recovery"
                         onSubmit={form.onSubmit((values) => mutate(values))}
                     >
-                        <Stack spacing="lg">
+                        <Stack gap="lg">
                             <TextInput
                                 label="Email address"
                                 name="email"
@@ -77,7 +77,7 @@ export const PasswordRecoveryForm: FC = () => {
                     <Title order={3} ta="center" mb="sm">
                         Check your inbox!
                     </Title>
-                    <Text ta="center" mb="lg" color="dimmed">
+                    <Text ta="center" mb="lg" c="dimmed">
                         We have emailed you instructions about how to reset your
                         password. Haven’t received anything yet?
                     </Text>

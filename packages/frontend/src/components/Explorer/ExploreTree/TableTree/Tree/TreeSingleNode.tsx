@@ -23,8 +23,8 @@ import {
     Highlight,
     HoverCard,
     NavLink,
-    Text,
     Tooltip,
+    Text,
 } from '@mantine/core';
 import {
     IconAlertTriangle,

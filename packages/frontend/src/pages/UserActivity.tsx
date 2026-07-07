@@ -3,17 +3,16 @@ import {
     type UserActivity as UserActivityResponse,
     type UserWithCount,
 } from '@lightdash/common';
+import { Box, Stack } from '@mantine-8/core';
 import {
     Anchor,
-    Box,
     Button,
     Card,
     Group,
-    Stack,
     Table,
-    Text,
     Title,
     Tooltip,
+    Text,
 } from '@mantine/core';
 import { IconUsers } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -51,7 +50,7 @@ const VisualizationCard = ({
             }}
             withBorder
         >
-            <Text sx={{ float: 'left' }} fw={600} mb={10}>
+            <Text style={{ float: 'left' }} fw={600} mb={10}>
                 {description}
             </Text>
             {children}
@@ -64,7 +63,7 @@ const BigNumberVis: FC<{ value: number | string; label: string }> = ({
     label,
 }) => {
     return (
-        <Stack h="100%" justify="center" spacing={0}>
+        <Stack h="100%" justify="center" gap={0}>
             <Title order={1} size={56} fw={500}>
                 {value}
             </Title>
@@ -286,7 +285,7 @@ const UserActivity: FC = () => {
                 </Tooltip>
             </Group>
             <Box
-                sx={{
+                style={{
                     display: 'grid',
                     gridTemplateColumns: '300px 300px 300px 300px',
                     gridTemplateRows: '200px 200px 400px 400px 400px 400px',

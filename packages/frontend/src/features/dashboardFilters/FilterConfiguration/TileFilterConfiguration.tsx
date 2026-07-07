@@ -14,19 +14,17 @@ import {
     type DashboardTile,
     type Field,
 } from '@lightdash/common';
-import { Group } from '@mantine-8/core';
+import { Box, Group, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
-    Box,
     Checkbox,
     Collapse,
     Flex,
     Select,
-    Stack,
-    Text,
     Tooltip,
     useMantineTheme,
     type PopoverProps,
+    Text,
 } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
@@ -425,7 +423,7 @@ const TileFilterConfiguration: FC<Props> = ({
             return (
                 <Text
                     size="xs"
-                    color="dimmed"
+                    c="dimmed"
                     mt={isNested ? 'lg' : undefined}
                     ml={isNested ? 22 : undefined}
                 >
@@ -436,7 +434,7 @@ const TileFilterConfiguration: FC<Props> = ({
 
         return (
             <Stack
-                spacing="md"
+                gap="md"
                 mt={isNested ? 'lg' : undefined}
                 ml={isNested ? 22 : undefined}
             >
@@ -475,7 +473,7 @@ const TileFilterConfiguration: FC<Props> = ({
                                                     )}
                                                 />
                                                 <Text
-                                                    color={
+                                                    c={
                                                         value.invalidField
                                                             ? 'red'
                                                             : undefined
@@ -630,7 +628,7 @@ const TileFilterConfiguration: FC<Props> = ({
         );
 
     return (
-        <Stack spacing="xl" className={classes.tileScrollArea}>
+        <Stack gap="xl" className={classes.tileScrollArea}>
             <Checkbox
                 size="xs"
                 checked={isAllChecked}

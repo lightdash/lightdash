@@ -10,16 +10,15 @@ import {
     type ConditionalFormattingWithFilterOperator,
     type FilterableItem,
 } from '@lightdash/common';
-import { Accordion } from '@mantine-8/core';
+import { Accordion, Stack } from '@mantine-8/core';
 import {
     Center,
     Group,
     SegmentedControl,
     Select,
-    Stack,
-    Text,
     TextInput,
     Tooltip,
+    Text,
 } from '@mantine/core';
 import differenceBy from 'lodash/differenceBy';
 import { useCallback, useMemo, type FC } from 'react';
@@ -218,7 +217,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
             />
 
             <Accordion.Panel>
-                <Stack spacing="xs">
+                <Stack gap="xs">
                     <Group noWrap spacing="xs">
                         <Text fw={500} fz="xs" c="dimmed">
                             Compare:

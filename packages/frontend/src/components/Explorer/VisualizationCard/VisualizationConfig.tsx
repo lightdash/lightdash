@@ -5,8 +5,8 @@ import {
     Group,
     Loader,
     ScrollArea,
-    Text,
     Tooltip,
+    Text,
 } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 import { lazy, Suspense, useMemo, type FC } from 'react';

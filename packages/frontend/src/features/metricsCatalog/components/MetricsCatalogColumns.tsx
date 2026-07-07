@@ -1,5 +1,6 @@
 import { SpotlightTableColumns, type CatalogField } from '@lightdash/common';
-import { Box, Button, Flex, Group, Text } from '@mantine/core';
+import { Box } from '@mantine-8/core';
+import { Button, Flex, Group, Text } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconPlus, IconUser } from '@tabler/icons-react';
 import { useMemo } from 'react';
@@ -294,7 +295,7 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
                                 icon={IconPlus}
                                 size={12}
                             />
-                            <Text span fz="sm" color="ldGray.4">
+                            <Text span fz="sm" c="ldGray.4">
                                 Click to add
                             </Text>
                         </Group>

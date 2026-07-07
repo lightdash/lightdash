@@ -1,5 +1,6 @@
 import { ChartKind } from '@lightdash/common';
-import { Box, Group, SegmentedControl, Stack } from '@mantine/core';
+import { Box, Stack } from '@mantine-8/core';
+import { Group, SegmentedControl } from '@mantine/core';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import { getChartIcon } from '../../common/ResourceIcon/utils';
@@ -22,7 +23,7 @@ const SingleChartPreview: FC<SingleChartPreviewProps> = ({
 }) => {
     return (
         <Box
-            sx={{
+            style={{
                 height: '100%',
                 width: '100%',
                 position: 'absolute',
@@ -235,12 +236,7 @@ export const ChartPreviewComponent: FC<ChartPreviewComponentProps> = ({
     );
 
     return (
-        <Stack
-            spacing="sm"
-            h="100%"
-            style={{ flex: 1, backgroundColor }}
-            pt="xs"
-        >
+        <Stack gap="sm" h="100%" style={{ flex: 1, backgroundColor }} pt="xs">
             <Group position="center">
                 <SegmentedControl
                     value={chartType}

@@ -1,4 +1,5 @@
 import { isDimension, type FilterableItem } from '@lightdash/common';
+import { Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Group,
@@ -6,12 +7,11 @@ import {
     Loader,
     MultiSelect,
     ScrollArea,
-    Stack,
-    Text,
     TextInput,
     Tooltip,
     type MultiSelectProps,
     type MultiSelectValueProps,
+    Text,
 } from '@mantine/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
 import {
@@ -374,10 +374,10 @@ const FilterStringAutoComplete: FC<Props> = ({
     // memo override component so list doesn't scroll to the top on each click
     const DropdownComponentOverride = useCallback(
         ({ children, ...props }: { children: ReactNode }) => (
-            <Stack w="100%" spacing={0}>
+            <Stack w="100%" gap={0}>
                 <ScrollArea {...props}>
                     {searchedMaxResults ? (
-                        <Text color="dimmed" size="xs" px="sm" pt="xs" pb="xxs">
+                        <Text c="dimmed" size="xs" px="sm" pt="xs" pb="xxs">
                             Showing first {MAX_AUTOCOMPLETE_RESULTS} results.{' '}
                             {search ? 'Continue' : 'Start'} typing...
                         </Text>
@@ -590,7 +590,7 @@ const FilterStringAutoComplete: FC<Props> = ({
 
                             return others.disabled ? (
                                 <Text
-                                    color="dimmed"
+                                    c="dimmed"
                                     className={itemClassName}
                                     {...others}
                                 >

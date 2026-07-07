@@ -1,13 +1,12 @@
 import { type CatalogField, type Tag } from '@lightdash/common';
+import { Box, Stack } from '@mantine-8/core';
 import {
-    Box,
     Button,
     Group,
     Popover,
-    Stack,
-    Text,
     UnstyledButton,
     useMantineTheme,
+    Text,
 } from '@mantine/core';
 import differenceBy from 'lodash/differenceBy';
 import filter from 'lodash/filter';
@@ -264,7 +263,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                     <UnstyledButton w="100%" pos="absolute" />
                 </Popover.Target>
                 <Popover.Dropdown p={0}>
-                    <Stack px="sm" pt="sm" spacing="xs">
+                    <Stack px="sm" pt="sm" gap="xs">
                         <TagInput
                             value={categoryNames}
                             allowDuplicates={false}
@@ -308,16 +307,16 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                                 },
                             })}
                         />
-                        <Text size="xs" fw={500} color="dimmed">
+                        <Text size="xs" fw={500} c="dimmed">
                             Select a category or create a new one
                         </Text>
                     </Stack>
-                    <Stack spacing="xs" align="flex-start" px="xs" pb="sm">
+                    <Stack gap="xs" align="flex-start" px="xs" pb="sm">
                         <Stack
-                            spacing={2}
+                            gap={2}
                             w="100%"
                             mah={140}
-                            sx={{
+                            style={{
                                 overflowY: 'auto',
                             }}
                         >

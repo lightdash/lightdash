@@ -4,7 +4,8 @@ import {
     type ResourceViewItemType,
     type SpaceSummary,
 } from '@lightdash/common';
-import { Paper, Stack, TextInput } from '@mantine/core';
+import { Stack } from '@mantine-8/core';
+import { Paper, TextInput } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { useMemo, useState } from 'react';
 import useApp from '../../../providers/App/useApp';

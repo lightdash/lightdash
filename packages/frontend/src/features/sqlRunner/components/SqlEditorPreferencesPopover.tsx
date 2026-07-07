@@ -1,10 +1,10 @@
 import { WarehouseTypes } from '@lightdash/common';
+import { Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Group,
     Popover,
     SegmentedControl,
-    Stack,
     Text,
 } from '@mantine/core';
 import { IconCodeCircle } from '@tabler/icons-react';
@@ -72,7 +72,7 @@ export const SqlEditorPreferencesPopover: FC = () => {
             </Popover.Target>
             <Popover.Dropdown>
                 {settings && (
-                    <Stack spacing="sm">
+                    <Stack gap="sm">
                         <Text size="xs" fw={500}>
                             Autocomplete preferences
                         </Text>

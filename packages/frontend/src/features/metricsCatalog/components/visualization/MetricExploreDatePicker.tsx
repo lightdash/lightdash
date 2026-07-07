@@ -4,18 +4,17 @@ import {
     type MetricExplorerDateRange,
     type TimeDimensionConfig,
 } from '@lightdash/common';
+import { Box, Stack } from '@mantine-8/core';
 import {
-    Box,
     Button,
     Divider,
     Group,
     Popover,
     SegmentedControl,
-    Stack,
-    Text,
     TextInput,
     Tooltip,
     UnstyledButton,
+    Text,
 } from '@mantine/core';
 import { DatePicker, MonthPicker, YearPicker } from '@mantine/dates';
 import { useCallback, useEffect, useRef, type FC } from 'react';
@@ -249,7 +248,7 @@ export const MetricExploreDatePicker: FC<Props> = ({
 
             <Popover.Dropdown p={0}>
                 <Group spacing={0} align="flex-start">
-                    <Stack spacing={2} py="xs" px="sm">
+                    <Stack gap={2} py="xs" px="sm">
                         {presets.map((preset) => (
                             <UnstyledButton
                                 key={preset.label}
@@ -277,7 +276,7 @@ export const MetricExploreDatePicker: FC<Props> = ({
                     </Stack>
 
                     <Divider orientation="vertical" color="ldGray.2" />
-                    <Stack spacing={0}>
+                    <Stack gap={0}>
                         <Box px="xs">
                             {calendarConfig?.type === TimeFrames.YEAR ? (
                                 <YearPicker

@@ -1,11 +1,11 @@
 import { formatDate, TimeFrames } from '@lightdash/common';
+import { Stack } from '@mantine-8/core';
 import {
     Popover,
-    Stack,
-    Text,
     TextInput,
     type MantineTheme,
     type Sx,
+    Text,
 } from '@mantine/core';
 import { MonthPicker, type MonthPickerProps } from '@mantine/dates';
 import { useDisclosure } from '@mantine/hooks';
@@ -171,7 +171,7 @@ const FilterQuarterPicker: FC<Props> = ({
                 />
             </Popover.Target>
             <Popover.Dropdown>
-                <Stack spacing="xs">
+                <Stack gap="xs">
                     <MonthPicker
                         defaultDate={new Date(selectedYear, 0)}
                         value={null}
@@ -180,7 +180,7 @@ const FilterQuarterPicker: FC<Props> = ({
                         onMouseLeave={() => setHoveredMonth(null)}
                     />
                     {hoveredMonth !== null && (
-                        <Text size="xs" align="center">
+                        <Text size="xs" ta="center">
                             {selectedYear}-Q{getQuarterFromMonth(hoveredMonth)}
                         </Text>
                     )}

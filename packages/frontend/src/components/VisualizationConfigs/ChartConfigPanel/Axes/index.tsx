@@ -9,6 +9,7 @@ import {
     XAxisSort,
     type ItemsMap,
 } from '@lightdash/common';
+import { Stack } from '@mantine-8/core';
 import {
     Button,
     Checkbox,
@@ -16,7 +17,6 @@ import {
     NumberInput,
     SegmentedControl,
     Select,
-    Stack,
     Switch,
     Text,
 } from '@mantine/core';
@@ -290,7 +290,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                     </Group>
 
                     {getAxisTypeFromField(xAxisField) === 'category' && (
-                        <Stack spacing="xs">
+                        <Stack gap="xs">
                             <Checkbox
                                 label="Enable scrollable chart"
                                 checked={
@@ -453,7 +453,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                 <Config.Section>
                     <Config.Heading>Show grid</Config.Heading>
 
-                    <Stack spacing="xs">
+                    <Stack gap="xs">
                         <Checkbox
                             label={`${dirtyLayout?.flipAxes ? 'Y' : 'X'}-axis`}
                             checked={!!dirtyLayout?.showGridX}
@@ -484,7 +484,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                 <Config.Section>
                     <Config.Heading>Show axis</Config.Heading>
 
-                    <Stack spacing="xs">
+                    <Stack gap="xs">
                         <Checkbox
                             label={`${dirtyLayout?.flipAxes ? 'Y' : 'X'}-axis`}
                             checked={

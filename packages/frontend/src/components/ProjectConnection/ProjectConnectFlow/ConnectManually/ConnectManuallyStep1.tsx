@@ -1,4 +1,5 @@
-import { Button, Stack, Text, Tooltip } from '@mantine/core';
+import { Stack } from '@mantine-8/core';
+import { Button, Tooltip, Text } from '@mantine/core';
 import { Prism } from '@mantine/prism';
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -49,7 +50,7 @@ const ConnectManuallyStep1: FC<ConnectManuallyStep1Props> = ({
                         isCreatingFirstProject={isCreatingFirstProject}
                     />
 
-                    <Text color="dimmed">
+                    <Text c="dimmed">
                         We strongly recommend that you define columns in your
                         .yml to see a table in Lightdash. eg:
                     </Text>
@@ -58,7 +59,7 @@ const ConnectManuallyStep1: FC<ConnectManuallyStep1Props> = ({
                         {codeBlock}
                     </Prism>
 
-                    <Stack spacing="xs">
+                    <Stack gap="xs">
                         <Tooltip
                             position="top"
                             label={

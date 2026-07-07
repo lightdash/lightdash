@@ -5,15 +5,8 @@ import {
     type CartesianChartDisplay,
     type ChartKind,
 } from '@lightdash/common';
-import {
-    Box,
-    Flex,
-    Group,
-    SegmentedControl,
-    Stack,
-    Text,
-    TextInput,
-} from '@mantine/core';
+import { Box, Stack } from '@mantine-8/core';
+import { Flex, Group, SegmentedControl, TextInput, Text } from '@mantine/core';
 import { IconAlignLeft, IconAlignRight } from '@tabler/icons-react';
 import MantineIcon from '../../common/MantineIcon';
 import ColorSelector from '../../VisualizationConfigs/ColorSelector';
@@ -61,15 +54,15 @@ export const SingleSeriesConfiguration = ({
     onValueLabelPositionChange,
 }: SingleSeriesConfigurationProps) => {
     return (
-        <Stack key={reference} spacing="xs">
+        <Stack key={reference} gap="xs">
             <Stack
                 pl="sm"
-                spacing="xs"
-                sx={(theme) => ({
-                    backgroundColor: theme.colors.ldGray[0],
-                    borderRadius: theme.radius.md,
-                    padding: theme.spacing.xs,
-                })}
+                gap="xs"
+                style={{
+                    backgroundColor: 'var(--mantine-color-ldGray-0)',
+                    borderRadius: 'var(--mantine-radius-md)',
+                    padding: 'var(--mantine-spacing-xs)',
+                }}
             >
                 <Config.Subheading>{reference}</Config.Subheading>
                 <Flex justify="flex-start" align="center" wrap="nowrap">
@@ -82,7 +75,7 @@ export const SingleSeriesConfiguration = ({
                         style={{ flex: 3 }}
                     >
                         <Box
-                            sx={{
+                            style={{
                                 flex: 1,
                                 display: 'flex',
                                 flexDirection: 'row',

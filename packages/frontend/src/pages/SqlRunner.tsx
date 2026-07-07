@@ -1,5 +1,6 @@
 import { getFieldQuoteChar } from '@lightdash/common';
-import { ActionIcon, Group, Paper, Stack, Tooltip } from '@mantine/core';
+import { Stack } from '@mantine-8/core';
+import { ActionIcon, Group, Paper, Tooltip } from '@mantine/core';
 import { IconLayoutSidebarLeftExpand } from '@tabler/icons-react';
 import { useEffect } from 'react';
 import { Provider } from 'react-redux';
@@ -201,7 +202,7 @@ const SqlRunner = ({
                         py="lg"
                         style={{ flexGrow: 0 }}
                     >
-                        <Stack spacing="xs">
+                        <Stack gap="xs">
                             <Tooltip
                                 variant="xs"
                                 label={'Open sidebar'}

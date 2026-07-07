@@ -1,19 +1,17 @@
 import { PartitionType, type PartitionColumn } from '@lightdash/common';
+import { Box, Stack, type BoxProps } from '@mantine-8/core';
 import {
     ActionIcon,
-    Box,
     Center,
     CopyButton,
     Group,
     Highlight,
     Loader,
     ScrollArea,
-    Stack,
-    Text,
     TextInput,
     Tooltip,
     UnstyledButton,
-    type BoxProps,
+    Text,
 } from '@mantine/core';
 import { useDebouncedValue, useHover } from '@mantine/hooks';
 import {
@@ -213,7 +211,7 @@ const Table: FC<{
         }
     }, [activeTable, tables, hasMatchingTable, activeSchema, schema]);
     return (
-        <Stack spacing={0}>
+        <Stack gap={0}>
             <UnstyledButton
                 onClick={() => setIsExpanded(!isExpanded)}
                 sx={(theme) => ({

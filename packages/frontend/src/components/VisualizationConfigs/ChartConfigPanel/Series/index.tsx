@@ -15,7 +15,8 @@ import {
     type Series as SeriesType,
     type TableCalculation,
 } from '@lightdash/common';
-import { Checkbox, Divider, Stack, Switch } from '@mantine/core';
+import { Stack } from '@mantine-8/core';
+import { Checkbox, Divider, Switch } from '@mantine/core';
 import { produce } from 'immer';
 import React, { Fragment, useCallback, useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
@@ -178,7 +179,7 @@ export const Series: FC<Props> = ({ items }) => {
         colorByCategory || conditionalFormattings.length > 0;
 
     return (
-        <Stack spacing="md">
+        <Stack gap="md">
             <ColorPaletteSection />
             <Divider />
             <DragDropContext onDragEnd={onDragEnd}>
@@ -315,7 +316,7 @@ export const Series: FC<Props> = ({ items }) => {
             {isSingleSeriesBar && (
                 <Config>
                     <Config.Section>
-                        <Stack spacing="xs">
+                        <Stack gap="xs">
                             <Switch
                                 label="Apply custom colors"
                                 checked={customColorsEnabled}

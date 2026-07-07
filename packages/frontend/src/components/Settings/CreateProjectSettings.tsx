@@ -1,4 +1,5 @@
-import { Stack, Text, Title } from '@mantine/core';
+import { Stack } from '@mantine-8/core';
+import { Title, Text } from '@mantine/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';
@@ -25,12 +26,12 @@ const CreateProjectSettings: FC = () => {
     return (
         <Page withFixedContent withPaddedContent>
             <Stack pt={60}>
-                <Stack spacing="xxs">
+                <Stack gap="xxs">
                     <Title order={3} fw={500}>
                         Your project has connected successfully! 🎉{' '}
                     </Title>
 
-                    <Text color="dimmed">
+                    <Text c="dimmed">
                         Before you start exploring your data, pick the dbt
                         models you want to appear as tables in Lightdash. You
                         can always adjust this in your project settings later.

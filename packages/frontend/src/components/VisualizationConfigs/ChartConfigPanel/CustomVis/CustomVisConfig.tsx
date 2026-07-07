@@ -4,8 +4,8 @@ import {
     Flex,
     Group,
     Loader,
-    Text,
     useMantineTheme,
+    Text,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import Editor, { type EditorProps, type Monaco } from '@monaco-editor/react';
@@ -276,8 +276,8 @@ export const ConfigTabs: React.FC = memo(() => {
                     <Text
                         pos="absolute"
                         w="330px"
-                        color="ldGray.5"
-                        sx={{
+                        c="ldGray.5"
+                        style={{
                             pointerEvents: 'none',
                             zIndex: 100,
                             fontFamily: 'monospace',

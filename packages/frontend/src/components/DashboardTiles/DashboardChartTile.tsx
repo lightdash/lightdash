@@ -34,17 +34,15 @@ import {
     type SavedChart,
     type Series,
 } from '@lightdash/common';
-import { ActionIcon, Menu } from '@mantine-8/core';
+import { ActionIcon, Box, Menu, Stack } from '@mantine-8/core';
 import {
     Badge,
-    Box,
     Group,
     HoverCard,
     Portal,
-    Stack,
-    Text,
     Tooltip,
     useMantineColorScheme,
+    Text,
 } from '@mantine/core';
 import { useClipboard, useElementSize } from '@mantine/hooks';
 import {
@@ -1135,13 +1133,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                     arrowOffset={10}
                                 >
                                     <HoverCard.Dropdown>
-                                        <Stack spacing="xs" align="flex-start">
+                                        <Stack gap="xs" align="flex-start">
                                             {appliedFilterRules.length > 0 && (
                                                 <>
-                                                    <Text
-                                                        color="ldGray.7"
-                                                        fw={500}
-                                                    >
+                                                    <Text c="ldGray.7" fw={500}>
                                                         Dashboard filter
                                                         {appliedFilterRules.length >
                                                         1
@@ -1204,7 +1199,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                     <Text
                                                                         fw={600}
                                                                         span
-                                                                        color="foreground"
+                                                                        c="foreground"
                                                                     >
                                                                         {
                                                                             filterRuleLabels.field
@@ -1213,7 +1208,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                     </Text>{' '}
                                                                     {filterRule.disabled ? (
                                                                         <Text
-                                                                            color="foreground"
+                                                                            c="foreground"
                                                                             span
                                                                         >
                                                                             is
@@ -1224,7 +1219,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                         <>
                                                                             <Text
                                                                                 span
-                                                                                color="foreground"
+                                                                                c="foreground"
                                                                             >
                                                                                 {
                                                                                     filterRuleLabels.operator
@@ -1235,7 +1230,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                                     600
                                                                                 }
                                                                                 span
-                                                                                color="foreground"
+                                                                                c="foreground"
                                                                             >
                                                                                 {
                                                                                     filterRuleLabels.value
@@ -1251,10 +1246,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                             )}
                                             {chartFilterRules.length > 0 && (
                                                 <>
-                                                    <Text
-                                                        color="ldGray.7"
-                                                        fw={500}
-                                                    >
+                                                    <Text c="ldGray.7" fw={500}>
                                                         Chart filter
                                                         {chartFilterRules.length >
                                                         1
@@ -1331,7 +1323,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                     <Text
                                                                         fw={600}
                                                                         span
-                                                                        color="foreground"
+                                                                        c="foreground"
                                                                         style={
                                                                             ruleStrikeStyle
                                                                         }
@@ -1343,7 +1335,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                     </Text>{' '}
                                                                     {filterRule.disabled ? (
                                                                         <Text
-                                                                            color="foreground"
+                                                                            c="foreground"
                                                                             span
                                                                             style={
                                                                                 ruleStrikeStyle
@@ -1357,7 +1349,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                         <>
                                                                             <Text
                                                                                 span
-                                                                                color="foreground"
+                                                                                c="foreground"
                                                                                 style={
                                                                                     ruleStrikeStyle
                                                                                 }
@@ -1371,7 +1363,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                                     600
                                                                                 }
                                                                                 span
-                                                                                color="foreground"
+                                                                                c="foreground"
                                                                                 style={
                                                                                     ruleStrikeStyle
                                                                                 }
@@ -1385,7 +1377,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                                     {isOverridden && (
                                                                         <Text
                                                                             span
-                                                                            color="foreground"
+                                                                            c="foreground"
                                                                             fs="italic"
                                                                         >
                                                                             {' '}
@@ -1426,15 +1418,11 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                         arrowOffset={10}
                                     >
                                         <HoverCard.Dropdown>
-                                            <Text
-                                                color="ldGray.7"
-                                                fw={500}
-                                                mb="xs"
-                                            >
+                                            <Text c="ldGray.7" fw={500} mb="xs">
                                                 Parameters
                                             </Text>
                                             <Stack
-                                                spacing="xs"
+                                                gap="xs"
                                                 align="flex-start"
                                                 ml="xs"
                                             >
@@ -1444,7 +1432,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                                     <Text
                                                         key={key}
                                                         size="xs"
-                                                        color="ldGray.6"
+                                                        c="ldGray.6"
                                                     >
                                                         <Text span fw={600}>
                                                             {parameterDefinitions[

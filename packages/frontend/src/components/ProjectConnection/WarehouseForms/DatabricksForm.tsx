@@ -2,6 +2,7 @@ import {
     DatabricksAuthenticationType,
     WarehouseTypes,
 } from '@lightdash/common';
+import { Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Anchor,
@@ -9,10 +10,9 @@ import {
     Group,
     PasswordInput,
     Select,
-    Stack,
-    Text,
     TextInput,
     Tooltip,
+    Text,
 } from '@mantine/core';
 import { IconCheck, IconPlus, IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -259,7 +259,7 @@ const DatabricksForm: FC<{
                         description={
                             isSsoEnabled &&
                             isLoadingAuth ? null : isAuthenticated ? (
-                                <Text mt="0" color="gray" fs="xs">
+                                <Text mt="0" c="gray" fs="xs">
                                     You are connected to Databricks,{' '}
                                     <Anchor
                                         href="#"
@@ -317,7 +317,7 @@ const DatabricksForm: FC<{
                     />
                 ) : authenticationType ===
                   DatabricksAuthenticationType.OAUTH_M2M ? (
-                    <Stack spacing="sm">
+                    <Stack gap="sm">
                         <PasswordInput
                             name="warehouse.oauthClientId"
                             {...form.getInputProps('warehouse.oauthClientId')}
@@ -384,8 +384,8 @@ const DatabricksForm: FC<{
                         />
                         <DataTimezoneField disabled={disabled} />
                         <StartOfWeekSelect disabled={disabled} />
-                        <Stack spacing="xs">
-                            <Stack spacing={0}>
+                        <Stack gap="xs">
+                            <Stack gap={0}>
                                 <Text fw={500}>Compute Resources</Text>
                                 <Text c="dimmed" size="xs">
                                     Configure compute resources to use in your

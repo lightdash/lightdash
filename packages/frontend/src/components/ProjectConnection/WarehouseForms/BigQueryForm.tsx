@@ -1,4 +1,5 @@
 import { BigqueryAuthenticationType, WarehouseTypes } from '@lightdash/common';
+import { Stack } from '@mantine-8/core';
 import type { SelectItem } from '@mantine/core';
 import {
     Anchor,
@@ -10,11 +11,10 @@ import {
     Loader,
     NumberInput,
     Select,
-    Stack,
     Switch,
-    Text,
     TextInput,
     Tooltip,
+    Text,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconCheck, IconExclamationCircle } from '@tabler/icons-react';
@@ -200,7 +200,7 @@ const BigQueryForm: FC<{
                             label="Authentication Type"
                             description={
                                 isAuthenticated ? (
-                                    <Text mt="0" color="gray" fs="xs">
+                                    <Text mt="0" c="gray" fs="xs">
                                         You are connected to BigQuery,{' '}
                                         <Anchor
                                             href="#"

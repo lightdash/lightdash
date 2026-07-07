@@ -1,4 +1,5 @@
-import { Avatar, Button, Stack, Text } from '@mantine/core';
+import { Stack } from '@mantine-8/core';
+import { Avatar, Button, Text } from '@mantine/core';
 import {
     IconChecklist,
     IconChevronLeft,
@@ -47,7 +48,7 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
                         isCreatingFirstProject={isCreatingFirstProject}
                     />
 
-                    <Text color="dimmed">
+                    <Text c="dimmed">
                         To get started, choose how you want to upload your dbt
                         project:
                     </Text>

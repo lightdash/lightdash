@@ -1,9 +1,9 @@
+import { Stack } from '@mantine-8/core';
 import {
     Button,
     Card,
     SegmentedControl,
     Select,
-    Stack,
     Switch,
     TextInput,
     Title,

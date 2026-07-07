@@ -1,4 +1,5 @@
 import { SnowflakeAuthenticationType, WarehouseTypes } from '@lightdash/common';
+import { Stack } from '@mantine-8/core';
 import {
     Anchor,
     Button,
@@ -8,10 +9,9 @@ import {
     PasswordInput,
     Radio,
     Select,
-    Stack,
-    Text,
     TextInput,
     Tooltip,
+    Text,
 } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
@@ -288,7 +288,7 @@ const SnowflakeForm: FC<{
                                 description={
                                     isSsoEnabled &&
                                     isLoadingAuth ? null : isAuthenticated ? (
-                                        <Text mt="0" color="gray" fs="xs">
+                                        <Text mt="0" c="gray" fs="xs">
                                             You are connected to Snowflake,{' '}
                                             <Anchor
                                                 href="#"

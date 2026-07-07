@@ -1,12 +1,6 @@
 import { ChartKind } from '@lightdash/common';
-import {
-    ActionIcon,
-    Group,
-    ScrollArea,
-    Stack,
-    Title,
-    Tooltip,
-} from '@mantine/core';
+import { Stack } from '@mantine-8/core';
+import { ActionIcon, Group, ScrollArea, Title, Tooltip } from '@mantine/core';
 import { IconLayoutSidebarLeftCollapse, IconReload } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -39,7 +33,7 @@ export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
     const sqlColumns = useAppSelector((state) => state.sqlRunner.sqlColumns);
 
     return (
-        <Stack spacing="xs" sx={{ flex: 1, overflow: 'hidden' }}>
+        <Stack gap="xs" style={{ flex: 1, overflow: 'hidden' }}>
             <Group position="apart" p="sm">
                 <Group noWrap spacing="xs">
                     <Title order={5} fz="sm" c="ldGray.6">
@@ -76,7 +70,7 @@ export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
                 display={
                     activeSidebarTab === SidebarTabs.TABLES ? 'inherit' : 'none'
                 }
-                sx={{ flex: 1, overflow: 'hidden' }}
+                style={{ flex: 1, overflow: 'hidden' }}
             >
                 <TablesPanel
                     isLoading={isLoading}
@@ -97,7 +91,7 @@ export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
                             : 'none',
                 }}
             >
-                <Stack sx={{ flex: 1, overflow: 'hidden' }}>
+                <Stack style={{ flex: 1, overflow: 'hidden' }}>
                     <VisualizationConfigPanel
                         selectedChartType={selectedChartType || ChartKind.TABLE}
                         setSelectedChartType={(value) =>

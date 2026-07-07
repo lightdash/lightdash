@@ -3,7 +3,8 @@ import {
     ResourceViewItemType,
     wrapResource,
 } from '@lightdash/common';
-import { Stack, Title } from '@mantine/core';
+import { Stack } from '@mantine-8/core';
+import { Title } from '@mantine/core';
 import { IconLayoutDashboard } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
@@ -80,8 +81,8 @@ const MobileHome: FC = () => {
     }
 
     return (
-        <Stack spacing="md" m="lg">
-            <Stack justify="flex-start" spacing="xs">
+        <Stack gap="md" m="lg">
+            <Stack justify="flex-start" gap="xs">
                 <Title order={3}>
                     {`Welcome${
                         user.data?.firstName

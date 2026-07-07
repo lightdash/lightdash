@@ -27,15 +27,8 @@ import {
     type ResultValue,
     type SortField,
 } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
-import {
-    Box,
-    Button,
-    Group,
-    Text,
-    useMantineColorScheme,
-    type BoxProps,
-} from '@mantine/core';
+import { Box, Menu, type BoxProps } from '@mantine-8/core';
+import { Button, Group, useMantineColorScheme, Text } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import {
     flexRender,

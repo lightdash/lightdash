@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { FeatureFlags, isCustomSqlDimension } from '@lightdash/common';
-import { ActionIcon, Button, Group, Text, Tooltip } from '@mantine/core';
+import { ActionIcon, Button, Group, Tooltip, Text } from '@mantine/core';
 import { IconCode, IconPlus } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import {

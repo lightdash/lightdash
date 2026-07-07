@@ -1,4 +1,5 @@
 import { type SqlChart } from '@lightdash/common';
+import { Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Button,
@@ -6,7 +7,6 @@ import {
     HoverCard,
     Menu,
     Paper,
-    Stack,
     Title,
     Tooltip,
 } from '@mantine/core';
@@ -173,7 +173,7 @@ export const HeaderEdit: FC = () => {
                 })}
             >
                 <Group position="apart">
-                    <Stack spacing="none">
+                    <Stack gap="none">
                         <Group spacing="two">
                             <TitleBreadCrumbs
                                 projectUuid={savedSqlChart.project.projectUuid}

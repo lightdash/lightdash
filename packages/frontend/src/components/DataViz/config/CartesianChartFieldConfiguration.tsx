@@ -7,7 +7,8 @@ import {
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
 } from '@lightdash/common';
-import { ActionIcon, Box, Group, Stack, Tooltip } from '@mantine/core';
+import { Box, Stack } from '@mantine-8/core';
+import { ActionIcon, Group, Tooltip } from '@mantine/core';
 import { IconMinus, IconPlus, IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
 import {
@@ -41,12 +42,12 @@ const YFieldsAxisConfig: FC<{
     return (
         <>
             <Box
-                sx={(theme) => ({
-                    paddingLeft: !isSingle ? theme.spacing.xs : 0,
+                style={{
+                    paddingLeft: !isSingle ? 'var(--mantine-spacing-xs)' : 0,
                     borderLeft: !isSingle
-                        ? `1px solid ${theme.colors.ldGray[3]}`
+                        ? '1px solid var(--mantine-color-ldGray-3)'
                         : 0,
-                })}
+                }}
             >
                 <Config>
                     <Config.Section>
@@ -296,7 +297,7 @@ export const CartesianChartFieldConfiguration = ({
     );
 
     return (
-        <Stack spacing="xl" mt="sm">
+        <Stack gap="xl" mt="sm">
             <Config>
                 <Config.Section>
                     <Config.Heading>{`X-axis`}</Config.Heading>

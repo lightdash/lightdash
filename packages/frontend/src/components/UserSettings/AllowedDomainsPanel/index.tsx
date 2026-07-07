@@ -6,16 +6,16 @@ import {
     validateOrganizationEmailDomains,
     type AllowedEmailDomains,
 } from '@lightdash/common';
+import { Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Button,
     Flex,
     MultiSelect,
     Select,
-    Stack,
-    Text,
     Title,
     Tooltip,
+    Text,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconHelpCircle, IconPlus, IconTrash } from '@tabler/icons-react';
@@ -245,7 +245,7 @@ const AllowedDomainsPanel: FC = () => {
                                 ) => (
                                     <Stack
                                         ref={ref}
-                                        spacing="xs"
+                                        gap="xs"
                                         p="xs"
                                         {...others}
                                     >
@@ -280,7 +280,7 @@ const AllowedDomainsPanel: FC = () => {
                                     Project access
                                 </Title>
 
-                                <Stack spacing="sm" align="flex-start">
+                                <Stack gap="sm" align="flex-start">
                                     {form.values.projects.map(
                                         ({ projectUuid }, index) => (
                                             <Flex

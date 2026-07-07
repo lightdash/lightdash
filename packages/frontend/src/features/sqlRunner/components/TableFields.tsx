@@ -1,16 +1,15 @@
+import { Box, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
-    Box,
     Center,
     CopyButton,
     Group,
     Highlight,
     Loader,
     ScrollArea,
-    Stack,
-    Text,
     TextInput,
     Tooltip,
+    Text,
 } from '@mantine/core';
 import { useDebouncedValue, useHover } from '@mantine/hooks';
 import { IconCopy, IconSearch, IconX } from '@tabler/icons-react';
@@ -117,7 +116,7 @@ export const TableFields: FC = () => {
     });
 
     return (
-        <Stack spacing="xs" h="100%" pt="sm">
+        <Stack gap="xs" h="100%" pt="sm">
             {activeTable ? (
                 <Box px="sm">
                     <Text fz="sm" fw={600} c="ldGray.7">
@@ -169,7 +168,7 @@ export const TableFields: FC = () => {
                     scrollbarSize={8}
                     pl="sm"
                 >
-                    <Stack spacing={0}>
+                    <Stack gap={0}>
                         {tableFields.map((field) => (
                             <TableField
                                 key={field.name}

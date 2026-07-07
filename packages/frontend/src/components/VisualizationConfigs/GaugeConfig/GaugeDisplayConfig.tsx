@@ -3,13 +3,13 @@ import {
     getItemId,
     getItemLabelWithoutTableName,
 } from '@lightdash/common';
+import { Stack } from '@mantine-8/core';
 import {
     Center,
     Checkbox,
     Group,
     NumberInput,
     SegmentedControl,
-    Stack,
     Tooltip,
 } from '@mantine/core';
 import { memo, type FC } from 'react';

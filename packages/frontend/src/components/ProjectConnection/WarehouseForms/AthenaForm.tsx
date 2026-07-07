@@ -1,10 +1,10 @@
 import { AthenaAuthenticationType, WarehouseTypes } from '@lightdash/common';
+import { Stack } from '@mantine-8/core';
 import {
     Anchor,
     NumberInput,
     PasswordInput,
     Select,
-    Stack,
     TextInput,
 } from '@mantine/core';
 import { useEffect, type FC } from 'react';

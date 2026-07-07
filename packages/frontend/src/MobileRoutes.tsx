@@ -1,3 +1,4 @@
+import { Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Burger,
@@ -7,7 +8,6 @@ import {
     Group,
     Header,
     MantineProvider,
-    Stack,
     Title,
 } from '@mantine/core';
 import {

@@ -1,14 +1,14 @@
 import { subject } from '@casl/ability';
 import { DbtProjectType } from '@lightdash/common';
+import { Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Button,
     Group,
     Menu,
     Paper,
-    Stack,
-    Text,
     Tooltip,
+    Text,
 } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import {
@@ -352,7 +352,7 @@ export const HeaderCreate: FC = () => {
                                                         );
                                                     }}
                                                 >
-                                                    <Stack spacing="two">
+                                                    <Stack gap="two">
                                                         <Text
                                                             fz="xs"
                                                             fw={600}
@@ -409,7 +409,7 @@ export const HeaderCreate: FC = () => {
                                                         );
                                                     }}
                                                 >
-                                                    <Stack spacing="two">
+                                                    <Stack gap="two">
                                                         <Text
                                                             fw={600}
                                                             fz="xs"
@@ -477,7 +477,7 @@ export const HeaderCreate: FC = () => {
                                                         );
                                                     }}
                                                 >
-                                                    <Stack spacing="two">
+                                                    <Stack gap="two">
                                                         <Text
                                                             fw={600}
                                                             fz="xs"

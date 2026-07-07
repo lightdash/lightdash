@@ -3,7 +3,8 @@ import {
     wrapResourceView,
     type ResourceViewItem,
 } from '@lightdash/common';
-import { ActionIcon, Group, Stack, TextInput } from '@mantine/core';
+import { Stack } from '@mantine-8/core';
+import { ActionIcon, Group, TextInput } from '@mantine/core';
 import { IconLayoutDashboard, IconSearch, IconX } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
 import { useMemo, useState } from 'react';
@@ -44,7 +45,7 @@ const MobileDashboards = () => {
     }
 
     return (
-        <Stack spacing="md" m="lg">
+        <Stack gap="md" m="lg">
             <Group position="apart">
                 <PageBreadcrumbs
                     items={[

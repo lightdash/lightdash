@@ -5,15 +5,14 @@ import {
     type CartesianChartLayout,
     type Series,
 } from '@lightdash/common';
+import { Box, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
-    Box,
     Checkbox,
     Collapse,
     Group,
     Popover,
     Select,
-    Stack,
 } from '@mantine/core';
 import { useDebouncedState, useHover } from '@mantine/hooks';
 import {
@@ -173,7 +172,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                 </Group>
             </Group>
             <Collapse in={!isCollapsable || isOpen || false}>
-                <Stack ml="lg" spacing="xs">
+                <Stack ml="lg" gap="xs">
                     <Group spacing="xs" noWrap>
                         <ChartTypeSelect
                             showLabel={!isGrouped}
@@ -245,7 +244,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                             </ActionIcon>
                                         </Popover.Target>
                                         <Popover.Dropdown>
-                                            <Stack spacing="xs">
+                                            <Stack gap="xs">
                                                 <Checkbox
                                                     size="xs"
                                                     checked={

@@ -1,15 +1,14 @@
 import { subject } from '@casl/ability';
 import { CatalogCategoryFilterMode, isCompileJob } from '@lightdash/common';
+import { Box, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
-    Box,
     Button,
     Group,
     Popover,
-    Stack,
-    Text,
     useMantineTheme,
     type ButtonProps,
+    Text,
 } from '@mantine/core';
 import { useClickOutside, useDisclosure } from '@mantine/hooks';
 import { IconRefresh, IconSparkles, IconX } from '@tabler/icons-react';
@@ -104,9 +103,9 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                     alignItems: 'flex-start',
                 }}
             >
-                <Stack spacing="sm" w="100%" ref={ref}>
+                <Stack gap="sm" w="100%" ref={ref}>
                     <Group position="apart">
-                        <Text fw={600} size={14}>
+                        <Text fw={600} fz={14}>
                             ✨ Lightdash Spotlight is here!
                         </Text>
                         <ActionIcon
@@ -118,7 +117,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                         </ActionIcon>
                     </Group>
                     <LearnMoreContent width="100%" height="100%" />
-                    <Text size={13} c="ldGray.3">
+                    <Text fz={13} c="ldGray.3">
                         Explore and curate your key Metrics in the{' '}
                         <Text span fw={600} inherit>
                             Catalog
@@ -451,13 +450,13 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
     };
 
     return (
-        <Stack w="100%" spacing="xxl">
+        <Stack w="100%" gap="xxl">
             <Group position="apart">
                 <Box>
-                    <Text color="ldGray.8" weight={600} size="xl">
+                    <Text c="ldGray.8" fw={600} size="xl">
                         Metrics Catalog
                     </Text>
-                    <Text color="ldGray.6" size="sm" weight={400}>
+                    <Text c="ldGray.6" size="sm" fw={400}>
                         Browse all Metrics & KPIs across this project
                     </Text>
                 </Box>

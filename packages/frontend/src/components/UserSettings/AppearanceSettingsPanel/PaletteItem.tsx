@@ -8,8 +8,8 @@ import {
     Group,
     Menu,
     Paper,
-    Text,
     Tooltip,
+    Text,
 } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import {

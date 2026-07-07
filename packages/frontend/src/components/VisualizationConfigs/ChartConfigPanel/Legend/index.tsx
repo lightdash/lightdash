@@ -10,13 +10,13 @@ import {
     type Series,
     type TableCalculation,
 } from '@lightdash/common';
+import { Stack } from '@mantine-8/core';
 import { useDebouncedCallback } from '@mantine-8/hooks';
 import {
     Collapse,
     Group,
     Loader,
     SegmentedControl,
-    Stack,
     Switch,
 } from '@mantine/core';
 import { lazy, Suspense, useMemo, useState, type FC } from 'react';
@@ -217,7 +217,7 @@ export const Legend: FC<Props> = ({ items }) => {
                     </Group>
 
                     <Collapse in={legendConfig.show ?? showDefault}>
-                        <Stack spacing="xs">
+                        <Stack gap="xs">
                             <Group spacing="xs">
                                 <Config.Label>Placement</Config.Label>
                                 <SegmentedControl

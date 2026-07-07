@@ -10,13 +10,12 @@ import {
     type Field,
     type TableCalculation,
 } from '@lightdash/common';
-import { NumberInput } from '@mantine-8/core';
+import { NumberInput, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     CloseButton,
     Group,
     SegmentedControl,
-    Stack,
     TextInput,
     Tooltip,
 } from '@mantine/core';
@@ -324,7 +323,7 @@ export const Layout: FC<Props> = ({ items }) => {
 
             <Config>
                 <Config.Section>
-                    <Stack spacing="xs">
+                    <Stack gap="xs">
                         <Config.Group>
                             <Group spacing="one">
                                 <Config.Heading>Group</Config.Heading>
@@ -353,7 +352,7 @@ export const Layout: FC<Props> = ({ items }) => {
                             )}
                     </Stack>
 
-                    <Stack spacing="xs">
+                    <Stack gap="xs">
                         {pivotDimensions &&
                             pivotDimensions.map((pivotKey) => {
                                 // Group series logic

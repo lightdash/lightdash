@@ -8,18 +8,17 @@ import {
     SEED_ORG_1_ADMIN_PASSWORD,
     type OpenIdIdentityIssuerType,
 } from '@lightdash/common';
+import { Box, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Anchor,
-    Box,
     Button,
     Card,
     Divider,
     PasswordInput,
-    Stack,
-    Text,
     TextInput,
     Title,
+    Text,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { useTimeout } from '@mantine/hooks';
@@ -253,7 +252,7 @@ const Login: FC<{}> = () => {
                     name="login"
                     onSubmit={form.onSubmit(() => handleFormSubmit())}
                 >
-                    <Stack spacing="lg">
+                    <Stack gap="lg">
                         <TextInput
                             label="Email address"
                             name="email"
@@ -320,7 +319,7 @@ const Login: FC<{}> = () => {
                                         labelPosition="center"
                                         label={
                                             <Text
-                                                color="ldGray.5"
+                                                c="ldGray.5"
                                                 size="sm"
                                                 fw={500}
                                             >

@@ -67,8 +67,8 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                         return (
                             <Flex align="center" gap="xs" w="100%">
                                 <Text
-                                    color="dimmed"
-                                    sx={{ whiteSpace: 'nowrap' }}
+                                    c="dimmed"
+                                    style={{ whiteSpace: 'nowrap' }}
                                     size="xs"
                                 >
                                     week commencing
