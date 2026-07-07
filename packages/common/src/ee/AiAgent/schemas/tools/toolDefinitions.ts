@@ -1340,7 +1340,7 @@ export const listVerifiedContentToolDefinition: ToolDefinitionWithoutMcpOutput<
     name: 'listVerifiedContent',
     title: 'List verified content',
     description:
-        'List all verified charts and dashboards in the active project. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Requires an active project set via set_project. Each item includes contentType (chart or dashboard), contentUuid, name, space, and verification metadata (who verified it and when).',
+        'List all verified charts and dashboards in the active project. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Requires an active project set via set_project. Each item includes contentType (chart or dashboard), contentUuid, name, description, space, view count, last update time, and verification metadata (who verified it and when); charts also include chartKind and exploreName. To learn the full structure of a verified item (dimensions, metrics, filters), drill into it with find_content or find_fields on its explore.',
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
     mcp: { annotations: readOnlyAnnotations },
