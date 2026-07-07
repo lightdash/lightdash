@@ -1,4 +1,4 @@
-import { Button } from '@mantine/core';
+import { Button } from '@mantine-8/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 const meta: Meta<typeof Button> = {

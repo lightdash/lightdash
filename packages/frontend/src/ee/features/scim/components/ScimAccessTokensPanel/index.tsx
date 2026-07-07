@@ -1,5 +1,5 @@
-import { Stack } from '@mantine-8/core';
-import { Anchor, Button, Group, TextInput, Title, Text } from '@mantine/core';
+import { Button, Stack } from '@mantine-8/core';
+import { Anchor, Group, TextInput, Title, Text } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
@@ -58,7 +58,7 @@ const ScimAccessTokensPanel: FC = () => {
                         <Button
                             variant="subtle"
                             onClick={handleCopyToClipboard}
-                            compact
+                            size="compact-sm"
                         >
                             <IconCopy size={16} />
                         </Button>

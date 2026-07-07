@@ -1,5 +1,5 @@
-import { Stack } from '@mantine-8/core';
-import { Button, Group, Title } from '@mantine/core';
+import { Button, Stack } from '@mantine-8/core';
+import { Group, Title } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
 import { type Meta, type StoryObj } from '@storybook/react-vite';
 import MultipleToastBody from '../hooks/toaster/MultipleToastBody';

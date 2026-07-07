@@ -1,6 +1,6 @@
 import { SpotlightTableColumns, type CatalogField } from '@lightdash/common';
-import { Box } from '@mantine-8/core';
-import { Button, Flex, Group, Text } from '@mantine/core';
+import { Box, Button } from '@mantine-8/core';
+import { Flex, Group, Text } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconPlus, IconUser } from '@tabler/icons-react';
 import { useMemo } from 'react';
@@ -28,6 +28,7 @@ import { MetricsCatalogCategoryForm } from './MetricsCatalogCategoryForm';
 import { MetricsCatalogColumnDescription } from './MetricsCatalogColumnDescription';
 import { MetricsCatalogColumnName } from './MetricsCatalogColumnName';
 import { MetricsCatalogColumnOwner } from './MetricsCatalogColumnOwner';
+import styles from './MetricsCatalogColumns.module.css';
 
 export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
     {
@@ -107,31 +108,19 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
                     component="a"
                     href={url.toString()}
                     target="_blank"
-                    size="xs"
-                    compact
+                    size="compact-xs"
                     color="ldGray.6"
                     variant="subtle"
-                    leftIcon={<TableFilled />}
+                    leftSection={<TableFilled />}
                     fz="sm"
                     c="ldDark.7"
                     fw={500}
-                    sx={{
-                        '&[data-disabled]': {
-                            backgroundColor: 'transparent',
-                            fontWeight: 400,
-                        },
-                    }}
+                    className={styles.tableButton}
                     styles={(theme) => ({
-                        leftIcon: {
+                        section: {
                             marginRight: theme.spacing.xxs,
-                            color:
-                                theme.colorScheme === 'dark'
-                                    ? theme.colors.ldDark[7]
-                                    : theme.colors.ldGray[4],
-                            '--table-icon-stroke':
-                                theme.colorScheme === 'dark'
-                                    ? theme.colors.ldDark[4]
-                                    : 'white',
+                            color: `light-dark(var(--mantine-color-ldGray-4), var(--mantine-color-ldDark-7))`,
+                            '--table-icon-stroke': `light-dark(white, var(--mantine-color-ldDark-4))`,
                         },
                     })}
                 >

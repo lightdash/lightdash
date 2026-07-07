@@ -14,8 +14,8 @@ import {
     type ConditionalFormattingRowFields,
     type ResultRow,
 } from '@lightdash/common';
+import { Button } from '@mantine-8/core';
 import {
-    Button,
     Center,
     Group,
     Loader,
@@ -287,8 +287,7 @@ const TableRow: FC<TableRowProps> = ({
                         {cell.getIsGrouped() ? (
                             <Group spacing="xxs">
                                 <Button
-                                    compact
-                                    size="xs"
+                                    size="compact-xs"
                                     variant="subtle"
                                     styles={(theme) => ({
                                         root: {
@@ -296,7 +295,7 @@ const TableRow: FC<TableRowProps> = ({
                                             paddingLeft: theme.spacing.two,
                                             paddingRight: theme.spacing.xxs,
                                         },
-                                        leftIcon: {
+                                        section: {
                                             marginRight: 0,
                                         },
                                     })}
@@ -307,7 +306,7 @@ const TableRow: FC<TableRowProps> = ({
                                         e.preventDefault();
                                         toggleExpander();
                                     }}
-                                    leftIcon={
+                                    leftSection={
                                         <MantineIcon
                                             size={14}
                                             icon={

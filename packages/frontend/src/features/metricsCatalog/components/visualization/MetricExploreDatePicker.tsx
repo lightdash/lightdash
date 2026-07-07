@@ -4,9 +4,8 @@ import {
     type MetricExplorerDateRange,
     type TimeDimensionConfig,
 } from '@lightdash/common';
-import { Box, Stack } from '@mantine-8/core';
+import { Box, Button, Stack } from '@mantine-8/core';
 import {
-    Button,
     Divider,
     Group,
     Popover,
@@ -346,10 +345,11 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                         radius="md"
                                         variant="default"
                                         onClick={() => handleOpen(false)}
-                                        sx={(theme) => ({
-                                            boxShadow: theme.shadows.subtle,
-                                            border: `1px solid ${theme.colors.ldGray[2]}`,
-                                        })}
+                                        style={{
+                                            boxShadow:
+                                                'var(--mantine-shadow-subtle)',
+                                            border: '1px solid var(--mantine-color-ldGray-2)',
+                                        }}
                                     >
                                         Cancel
                                     </Button>
@@ -362,9 +362,10 @@ export const MetricExploreDatePicker: FC<Props> = ({
 
                                             handleTrackDateFilterApplied();
                                         }}
-                                        sx={(theme) => ({
-                                            boxShadow: theme.shadows.subtle,
-                                        })}
+                                        style={{
+                                            boxShadow:
+                                                'var(--mantine-shadow-subtle)',
+                                        }}
                                     >
                                         Apply
                                     </Button>

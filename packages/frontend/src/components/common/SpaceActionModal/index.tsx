@@ -3,8 +3,8 @@ import {
     getErrorMessage,
     type Space,
 } from '@lightdash/common';
+import { Button } from '@mantine-8/core';
 import {
-    Button,
     Group,
     MantineProvider,
     useMantineColorScheme,

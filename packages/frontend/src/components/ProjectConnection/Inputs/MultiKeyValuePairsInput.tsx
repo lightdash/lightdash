@@ -1,5 +1,5 @@
-import { Stack } from '@mantine-8/core';
-import { ActionIcon, Button, Flex, Input, TextInput } from '@mantine/core';
+import { Button, Stack } from '@mantine-8/core';
+import { ActionIcon, Flex, Input, TextInput } from '@mantine/core';
 import { IconHelpCircle, IconPlus, IconTrash } from '@tabler/icons-react';
 import get from 'lodash/get';
 import { useState, type ReactNode } from 'react';
@@ -103,7 +103,7 @@ export const MultiKeyValuePairsInput = ({
                 <Button
                     size="sm"
                     onClick={addValue}
-                    leftIcon={<MantineIcon icon={IconPlus} />}
+                    leftSection={<MantineIcon icon={IconPlus} />}
                     disabled={disabled}
                 >
                     Add variable

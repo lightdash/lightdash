@@ -1,9 +1,8 @@
 import { LightdashMode, type ApiErrorDetail } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
+import { Button, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Anchor,
-    Button,
     CopyButton,
     Group,
     Modal,
@@ -173,11 +172,10 @@ const ApiErrorDisplayWithHealth = ({
                     </Text>
                     <Group spacing="xs">
                         <Button
-                            size="xs"
-                            compact
+                            size="compact-xs"
                             variant="outline"
                             color="red.6"
-                            leftIcon={
+                            leftSection={
                                 <MantineIcon
                                     color="red.6"
                                     icon={IconSpeakerphone}

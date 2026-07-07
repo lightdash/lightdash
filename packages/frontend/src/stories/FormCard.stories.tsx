@@ -1,6 +1,5 @@
-import { Stack } from '@mantine-8/core';
+import { Button, Stack } from '@mantine-8/core';
 import {
-    Button,
     Card,
     SegmentedControl,
     Select,
@@ -59,7 +58,7 @@ export function FormCard({ hasError = false }: FormCardProps) {
                         type="submit"
                         radius="md"
                         variant="darkPrimary"
-                        sx={{
+                        style={{
                             alignSelf: 'flex-end',
                         }}
                     >

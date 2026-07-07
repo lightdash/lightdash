@@ -1,6 +1,6 @@
 import type { ApiErrorDetail } from '@lightdash/common';
-import { Box, Stack } from '@mantine-8/core';
-import { Button, useMantineColorScheme, useMantineTheme } from '@mantine/core';
+import { Box, Button, Stack } from '@mantine-8/core';
+import { useMantineColorScheme, useMantineTheme } from '@mantine/core';
 import { notifications, type NotificationProps } from '@mantine/notifications';
 import {
     IconAlertCircleFilled,
@@ -126,7 +126,7 @@ const useToaster = () => {
                                     radius="md"
                                     variant="light"
                                     color={color}
-                                    leftIcon={
+                                    leftSection={
                                         action.icon ? (
                                             <MantineIcon icon={action.icon} />
                                         ) : undefined

@@ -7,10 +7,9 @@ import {
     type DashboardFilterRule,
     type FilterRule,
 } from '@lightdash/common';
-import { Box, Stack } from '@mantine-8/core';
+import { Box, Button, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
-    Button,
     Checkbox,
     Group,
     Select,
@@ -162,10 +161,9 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                         supportsSingleValue(filterType, filterRule.operator) &&
                         isEditMode && (
                             <Button
-                                compact
-                                size="xs"
+                                size="compact-xs"
                                 variant={'light'}
-                                rightIcon={
+                                rightSection={
                                     <Tooltip
                                         variant="xs"
                                         label={

@@ -1,7 +1,6 @@
-import { Box, Stack } from '@mantine-8/core';
+import { Box, Button, Stack } from '@mantine-8/core';
 import {
     Anchor,
-    Button,
     Card,
     Center,
     PasswordInput,

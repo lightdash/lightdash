@@ -1,15 +1,7 @@
 import { subject } from '@casl/ability';
 import { DbtProjectType } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
-import {
-    ActionIcon,
-    Button,
-    Group,
-    Menu,
-    Paper,
-    Tooltip,
-    Text,
-} from '@mantine/core';
+import { Button, Stack } from '@mantine-8/core';
+import { ActionIcon, Group, Menu, Paper, Tooltip, Text } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import {
     IconBrandGithub,
@@ -298,7 +290,7 @@ export const HeaderCreate: FC = () => {
                                 <Button
                                     variant="default"
                                     size="xs"
-                                    leftIcon={getCtaIcon(ctaAction)}
+                                    leftSection={getCtaIcon(ctaAction)}
                                     disabled={isCtaDisabled}
                                     onClick={handleCtaClick}
                                 >

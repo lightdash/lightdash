@@ -1,5 +1,5 @@
-import { Box, Stack } from '@mantine-8/core';
-import { Button, Text } from '@mantine/core';
+import { Box, Button, Stack } from '@mantine-8/core';
+import { Text } from '@mantine/core';
 import { Prism } from '@mantine/prism';
 import { IconAlertCircle, IconRefresh } from '@tabler/icons-react';
 import { type FC } from 'react';

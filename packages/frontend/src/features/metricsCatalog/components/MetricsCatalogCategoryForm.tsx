@@ -1,7 +1,6 @@
 import { type CatalogField, type Tag } from '@lightdash/common';
-import { Box, Stack } from '@mantine-8/core';
+import { Box, Button, Stack } from '@mantine-8/core';
 import {
-    Button,
     Group,
     Popover,
     UnstyledButton,

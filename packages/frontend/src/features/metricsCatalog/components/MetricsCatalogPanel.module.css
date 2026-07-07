@@ -1,0 +1,9 @@
+.viewDemoButton {
+    display: none;
+    border: none;
+    flex-grow: 1;
+}
+
+.viewDemoButton:hover {
+    background-color: var(--mantine-color-ldDark-5);
+}

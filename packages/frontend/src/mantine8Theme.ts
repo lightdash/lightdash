@@ -40,7 +40,7 @@ declare module '@mantine-8/core' {
 
 declare module '@mantine-8/core' {
     export interface ButtonProps {
-        variant?: ButtonVariant | 'compact-outline' | 'dark';
+        variant?: ButtonVariant | 'compact-outline' | 'dark' | 'darkPrimary';
     }
 
     export interface PaperProps {
@@ -203,12 +203,33 @@ export const getMantine8ThemeOverride = (
                             },
                         };
                     }
+                    if (props.variant === 'darkPrimary') {
+                        return {
+                            root: {
+                                '--button-bg': `var(--mantine-color-foreground-0)`,
+                                '--button-hover': `color-mix(in srgb, var(--mantine-color-foreground-0) 80%, transparent)`,
+                                '--button-color': `var(--mantine-color-ldGray-0)`,
+                                '--button-bd': `none`,
+                            },
+                        };
+                    }
                     return { root: {} };
                 },
-                styles: (theme) => ({
+                styles: (theme, props) => ({
                     root: {
                         fontFamily: theme.fontFamily,
                         fontWeight: 500,
+                        ...(props.variant === 'darkPrimary'
+                            ? {
+                                  '&[data-loading]': {
+                                      boxShadow: theme.shadows.subtle,
+                                  },
+                                  '&[data-disabled]': {
+                                      boxShadow: theme.shadows.subtle,
+                                      color: `color-mix(in srgb, var(--mantine-color-foreground-0) 50%, transparent)`,
+                                  },
+                              }
+                            : {}),
                     },
                 }),
                 defaultProps: {

@@ -1,5 +1,5 @@
-import { Stack } from '@mantine-8/core';
-import { Button, Tooltip, Text } from '@mantine/core';
+import { Button, Stack } from '@mantine-8/core';
+import { Tooltip, Text } from '@mantine/core';
 import { Prism } from '@mantine/prism';
 import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -38,7 +38,7 @@ const ConnectManuallyStep1: FC<ConnectManuallyStep1Props> = ({
                 variant="subtle"
                 size="sm"
                 top={-50}
-                leftIcon={<MantineIcon icon={IconChevronLeft} />}
+                leftSection={<MantineIcon icon={IconChevronLeft} />}
                 onClick={onBack}
             >
                 Back
@@ -72,7 +72,7 @@ const ConnectManuallyStep1: FC<ConnectManuallyStep1Props> = ({
                                 href="https://docs.lightdash.com/guides/how-to-create-dimensions"
                                 target="_blank"
                                 rel="noreferrer noopener"
-                                rightIcon={
+                                rightSection={
                                     <MantineIcon icon={IconChevronRight} />
                                 }
                                 onClick={() => {

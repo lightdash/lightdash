@@ -1,8 +1,8 @@
 import { type OrganizationColorPalette } from '@lightdash/common';
+import { Button } from '@mantine-8/core';
 import {
     ActionIcon,
     Badge,
-    Button,
     ColorSwatch,
     Flex,
     Group,
@@ -152,12 +152,12 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                                     onSetActive(palette.colorPaletteUuid)
                                 }
                                 h={32}
-                                sx={() => ({
+                                style={{
                                     visibility:
                                         isHovered && !isActive
                                             ? 'visible'
                                             : 'hidden',
-                                })}
+                                }}
                             >
                                 Use This Theme
                             </Button>

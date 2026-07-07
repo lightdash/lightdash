@@ -1,9 +1,8 @@
 import { WarehouseTypes } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
+import { Button, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Anchor,
-    Button,
     CopyButton,
     NumberInput,
     PasswordInput,

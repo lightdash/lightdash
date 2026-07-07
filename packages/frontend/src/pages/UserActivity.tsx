@@ -3,10 +3,9 @@ import {
     type UserActivity as UserActivityResponse,
     type UserWithCount,
 } from '@lightdash/common';
-import { Box, Stack } from '@mantine-8/core';
+import { Box, Button, Stack } from '@mantine-8/core';
 import {
     Anchor,
-    Button,
     Card,
     Group,
     Table,

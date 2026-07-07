@@ -1,8 +1,7 @@
 import { SnowflakeAuthenticationType, WarehouseTypes } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
+import { Button, Stack } from '@mantine-8/core';
 import {
     Anchor,
-    Button,
     FileInput,
     Group,
     NumberInput,
@@ -33,6 +32,7 @@ import { getWarehouseIcon } from '../ProjectConnectFlow/utils';
 import { useProjectFormContext } from '../useProjectFormContext';
 import DataTimezoneField from './DataTimezoneField';
 import { SnowflakeDefaultValues } from './defaultValues';
+import classes from './SnowflakeForm.module.css';
 import {
     EXTERNAL_BROWSER_LABEL,
     getSsoLabel,
@@ -72,8 +72,8 @@ export const SnowflakeSSOInput: FC<{
             variant="default"
             color="gray"
             disabled={disabled}
-            leftIcon={getWarehouseIcon(WarehouseTypes.SNOWFLAKE, 'sm')}
-            sx={{ ':hover': { textDecoration: 'underline' } }}
+            leftSection={getWarehouseIcon(WarehouseTypes.SNOWFLAKE, 'sm')}
+            className={classes.signInButton}
         >
             Sign in with Snowflake
         </Button>

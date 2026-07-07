@@ -1,8 +1,7 @@
-import { Box, Stack } from '@mantine-8/core';
+import { Box, Button, Stack } from '@mantine-8/core';
 import {
     Alert,
     Avatar,
-    Button,
     Flex,
     Group,
     Loader,
@@ -120,7 +119,7 @@ const GithubSettingsPanel: FC = () => {
                                 target="_blank"
                                 variant="default"
                                 href={GITHUB_INSTALL_URL}
-                                leftIcon={<MantineIcon icon={IconRefresh} />}
+                                leftSection={<MantineIcon icon={IconRefresh} />}
                                 onClick={() => {
                                     deleteGithubInstallationMutation.mutate(
                                         undefined,
@@ -145,7 +144,7 @@ const GithubSettingsPanel: FC = () => {
                                 onClick={() =>
                                     deleteGithubInstallationMutation.mutate()
                                 }
-                                leftIcon={<MantineIcon icon={IconTrash} />}
+                                leftSection={<MantineIcon icon={IconTrash} />}
                             >
                                 Delete
                             </Button>
@@ -168,7 +167,9 @@ const GithubSettingsPanel: FC = () => {
                                     color="yellow"
                                     variant="outline"
                                     href={GITHUB_INSTALL_URL}
-                                    leftIcon={<MantineIcon icon={IconClock} />}
+                                    leftSection={
+                                        <MantineIcon icon={IconClock} />
+                                    }
                                 >
                                     Pending approval
                                 </Button>

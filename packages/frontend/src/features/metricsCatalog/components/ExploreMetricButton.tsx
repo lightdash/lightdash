@@ -1,5 +1,6 @@
 import { type CatalogField } from '@lightdash/common';
-import { Button, Tooltip } from '@mantine/core';
+import { Button } from '@mantine-8/core';
+import { Tooltip } from '@mantine/core';
 import { useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { type ContentTableRow } from '../../../components/common/ContentTable';
@@ -48,7 +49,7 @@ export const ExploreMetricButton = ({ row }: Props) => {
             fz="xs"
         >
             <Button
-                compact
+                size="compact-sm"
                 variant="darkPrimary"
                 onClick={handleExploreClick}
                 py="xxs"

@@ -1,13 +1,11 @@
 import { subject } from '@casl/ability';
 import { CatalogCategoryFilterMode, isCompileJob } from '@lightdash/common';
-import { Box, Stack } from '@mantine-8/core';
+import { Box, Button, Stack, type ButtonProps } from '@mantine-8/core';
 import {
     ActionIcon,
-    Button,
     Group,
     Popover,
     useMantineTheme,
-    type ButtonProps,
     Text,
 } from '@mantine/core';
 import { useClickOutside, useDisclosure } from '@mantine/hooks';
@@ -40,6 +38,7 @@ import {
 } from '../store/metricsCatalogSlice';
 import { type MetricCatalogView } from '../types';
 import { MetricChartUsageModal } from './MetricChartUsageModal';
+import classes from './MetricsCatalogPanel.module.css';
 import { MetricsTable } from './MetricsTable';
 
 const LOCAL_STORAGE_KEY = 'metrics-catalog-learn-more-popover-closed';
@@ -87,7 +86,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                     ref={buttonRef}
                     size="xs"
                     variant="default"
-                    leftIcon={<MantineIcon icon={IconSparkles} />}
+                    leftSection={<MantineIcon icon={IconSparkles} />}
                     style={buttonStyles}
                     onClick={opened ? handleClose : open}
                 >
@@ -136,14 +135,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                             c="ldGray.0"
                             hidden={true}
                             disabled={true}
-                            sx={(theme) => ({
-                                display: 'none', // ! Disabled for now
-                                border: 'none',
-                                flexGrow: 1,
-                                '&:hover': {
-                                    backgroundColor: theme.colors.ldDark[5],
-                                },
-                            })}
+                            className={classes.viewDemoButton}
                         >
                             View Demo
                         </Button>
@@ -152,7 +144,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                             href="https://docs.lightdash.com/guides/metrics-catalog/"
                             target="_blank"
                             radius="md"
-                            sx={{ border: 'none', flexGrow: 1 }}
+                            style={{ border: 'none', flexGrow: 1 }}
                         >
                             Learn more
                         </Button>
@@ -465,7 +457,7 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
                         <Button
                             size="xs"
                             variant="default"
-                            leftIcon={
+                            leftSection={
                                 <MantineIcon
                                     size="sm"
                                     color="ldGray.7"

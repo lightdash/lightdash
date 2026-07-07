@@ -1,6 +1,6 @@
 import type { CatalogMetricsTreeEdge } from '@lightdash/common';
-import { Box } from '@mantine-8/core';
-import { Button, Group, useMantineTheme, Text } from '@mantine/core';
+import { Box, Button } from '@mantine-8/core';
+import { Group, useMantineTheme, Text } from '@mantine/core';
 import { IconLayoutGridRemove } from '@tabler/icons-react';
 import {
     Background,
@@ -165,10 +165,10 @@ const SavedTreeCanvasFlow: FC<Props> = ({
                                             })
                                         }
                                         size="xs"
-                                        sx={{
+                                        style={{
                                             boxShadow: theme.shadows.subtle,
                                         }}
-                                        leftIcon={
+                                        leftSection={
                                             <MantineIcon
                                                 color="ldGray.5"
                                                 icon={IconLayoutGridRemove}

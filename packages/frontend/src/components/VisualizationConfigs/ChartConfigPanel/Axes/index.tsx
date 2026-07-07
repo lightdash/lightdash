@@ -9,9 +9,8 @@ import {
     XAxisSort,
     type ItemsMap,
 } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
+import { Button, Stack } from '@mantine-8/core';
 import {
-    Button,
     Checkbox,
     Group,
     NumberInput,

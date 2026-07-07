@@ -6,8 +6,8 @@ import {
     ResourceViewItemType,
     type ResourceViewSpaceItem,
 } from '@lightdash/common';
-import { Box, Menu, Stack } from '@mantine-8/core';
-import { ActionIcon, Button, Group } from '@mantine/core';
+import { Box, Button, Menu, Stack } from '@mantine-8/core';
+import { ActionIcon, Group } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconDots,
@@ -262,7 +262,7 @@ const Space: FC = () => {
                                             <Box>
                                                 <Button
                                                     data-testid="Space/AddButton"
-                                                    leftIcon={
+                                                    leftSection={
                                                         <MantineIcon
                                                             icon={IconPlus}
                                                         />

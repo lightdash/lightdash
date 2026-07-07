@@ -2,11 +2,10 @@ import {
     DatabricksAuthenticationType,
     WarehouseTypes,
 } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
+import { Button, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Anchor,
-    Button,
     Group,
     PasswordInput,
     Select,
@@ -30,6 +29,7 @@ import FormSection from '../Inputs/FormSection';
 import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
 import { getWarehouseIcon } from '../ProjectConnectFlow/utils';
 import { useProjectFormContext } from '../useProjectFormContext';
+import classes from './DatabricksForm.module.css';
 import DataTimezoneField from './DataTimezoneField';
 import { DatabricksDefaultValues } from './defaultValues';
 import { getSsoLabel, PERSONAL_ACCESS_TOKEN_LABEL } from './util';
@@ -80,8 +80,8 @@ export const DatabricksSSOInput: FC<{
             variant="default"
             color="gray"
             disabled={disabled}
-            leftIcon={getWarehouseIcon(WarehouseTypes.DATABRICKS, 'sm')}
-            sx={{ ':hover': { textDecoration: 'underline' } }}
+            leftSection={getWarehouseIcon(WarehouseTypes.DATABRICKS, 'sm')}
+            className={classes.signInButton}
             fullWidth
         >
             Sign in with Databricks
@@ -443,11 +443,12 @@ const DatabricksForm: FC<{
                                     <Button
                                         variant="default"
                                         size="xs"
-                                        sx={(theme) => ({
+                                        style={{
                                             alignSelf: 'flex-end',
-                                            boxShadow: theme.shadows.subtle,
-                                        })}
-                                        leftIcon={
+                                            boxShadow:
+                                                'var(--mantine-shadow-subtle)',
+                                        }}
+                                        leftSection={
                                             <MantineIcon icon={IconPlus} />
                                         }
                                         onClick={addCompute}

@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { ContentType, LightdashMode } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
-import { Button, Group } from '@mantine/core';
+import { Button, Stack } from '@mantine-8/core';
+import { Group } from '@mantine/core';
 import { IconFolderPlus, IconPlus } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useParams } from 'react-router';
@@ -79,7 +79,7 @@ const Spaces: FC = () => {
                         <Group spacing="xs">
                             {!isDemo && userCanManageSpace && (
                                 <Button
-                                    leftIcon={<IconPlus size={18} />}
+                                    leftSection={<IconPlus size={18} />}
                                     onClick={handleCreateSpace}
                                 >
                                     Add

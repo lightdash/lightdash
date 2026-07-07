@@ -27,8 +27,8 @@ import {
     type ResultValue,
     type SortField,
 } from '@lightdash/common';
-import { Box, Menu, type BoxProps } from '@mantine-8/core';
-import { Button, Group, useMantineColorScheme, Text } from '@mantine/core';
+import { Box, Button, Menu, type BoxProps } from '@mantine-8/core';
+import { Group, useMantineColorScheme, Text } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import {
     flexRender,
@@ -1967,8 +1967,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                             ) : (
                                                 <Group spacing="two" noWrap>
                                                     <Button
-                                                        compact
-                                                        size="xs"
+                                                        size="compact-xs"
                                                         variant="subtle"
                                                         styles={(theme) => ({
                                                             root: {
@@ -1984,7 +1983,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                                                 fontFeatureSettings:
                                                                     "'tnum'",
                                                             },
-                                                            leftIcon: {
+                                                            section: {
                                                                 marginRight: 0,
                                                             },
                                                         })}
@@ -1995,7 +1994,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                                             e.preventDefault();
                                                             toggleExpander();
                                                         }}
-                                                        leftIcon={
+                                                        leftSection={
                                                             <MantineIcon
                                                                 size={14}
                                                                 icon={

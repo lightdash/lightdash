@@ -5,16 +5,8 @@ import {
     type CompiledDimension,
     type MetricExplorerQuery,
 } from '@lightdash/common';
-import { Box, Stack } from '@mantine-8/core';
-import {
-    Alert,
-    Button,
-    Group,
-    Loader,
-    Select,
-    Tooltip,
-    Text,
-} from '@mantine/core';
+import { Box, Button, Stack } from '@mantine-8/core';
+import { Alert, Group, Loader, Select, Tooltip, Text } from '@mantine/core';
 import { IconInfoCircle, IconX } from '@tabler/icons-react';
 import { type UseQueryResult } from '@tanstack/react-query';
 import { useMemo, type FC } from 'react';
@@ -22,6 +14,7 @@ import MantineIcon from '../../../../components/common/MantineIcon';
 import { Blocks } from '../../../../svgs/metricsCatalog';
 import { useSelectStyles } from '../../styles/useSelectStyles';
 import SelectItem from '../SelectItem';
+import buttonClasses from './MetricExploreSegmentationPicker.module.css';
 
 type Props = {
     query: MetricExplorerQuery;
@@ -59,25 +52,22 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
 
                 <Button
                     variant="subtle"
-                    compact
                     color="dark"
-                    size="xs"
+                    size="compact-xs"
                     radius="md"
-                    rightIcon={
+                    rightSection={
                         <MantineIcon icon={IconX} color="ldGray.5" size={12} />
                     }
-                    sx={(theme) => ({
+                    className={buttonClasses.clearButton}
+                    style={{
                         visibility:
                             !('segmentDimension' in query) ||
                             !query.segmentDimension
                                 ? 'hidden'
                                 : 'visible',
-                        '&:hover': {
-                            backgroundColor: theme.colors.ldGray[1],
-                        },
-                    })}
+                    }}
                     styles={{
-                        rightIcon: {
+                        section: {
                             marginLeft: 4,
                         },
                     }}

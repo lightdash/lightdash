@@ -20,11 +20,10 @@ import {
     type CatalogCategoryFilterMode,
     type CatalogField,
 } from '@lightdash/common';
-import { Box, Stack } from '@mantine-8/core';
+import { Box, Button, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Badge,
-    Button,
     Center,
     Divider,
     Group,
@@ -68,6 +67,7 @@ import {
 } from '../../store/metricsCatalogSlice';
 import { MetricCatalogView } from '../../types';
 import CategoriesFilter from './CategoriesFilter';
+import styles from './MetricsTableTopToolbar.module.css';
 import OwnersFilter from './OwnersFilter';
 import TableFilter from './TableFilter';
 type MetricsTableTopToolbarProps = GroupProps & {
@@ -510,12 +510,9 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                                     radius="md"
                                                     h={28}
                                                     onClick={handleReset}
-                                                    sx={(theme) => ({
-                                                        border: `1px solid ${theme.colors.ldGray[2]}`,
-                                                        boxShadow:
-                                                            theme.shadows
-                                                                .subtle,
-                                                    })}
+                                                    className={
+                                                        styles.toolbarButton
+                                                    }
                                                     disabled={
                                                         isDefaultConfig &&
                                                         !hasConfigChanges
@@ -554,11 +551,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                                 variant="default"
                                                 onClick={handleReset}
                                                 disabled={!hasConfigChanges}
-                                                sx={(theme) => ({
-                                                    border: `1px solid ${theme.colors.ldGray[2]}`,
-                                                    boxShadow:
-                                                        theme.shadows.subtle,
-                                                })}
+                                                className={styles.toolbarButton}
                                             >
                                                 Discard
                                             </Button>
