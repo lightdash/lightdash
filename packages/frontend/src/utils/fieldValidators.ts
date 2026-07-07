@@ -25,7 +25,7 @@ export const isUppercase: FieldValidator<string> = (fieldName) => (value) =>
 
 export const hasNoWhiteSpaces: FieldValidator<string> =
     (fieldName) => (value) =>
-        !value || value.indexOf(' ') <= 0
+        !value || value.indexOf(' ') < 0
             ? undefined
             : `${fieldName} should not have white spaces`;
 
