@@ -1,5 +1,5 @@
 import { type AiAgentSummary } from '@lightdash/common';
-import { Text } from '@mantine-8/core';
+import { Group, Text } from '@mantine-8/core';
 import { useEffect, useMemo, type FC, type KeyboardEvent } from 'react';
 import {
     openPanel,
@@ -10,6 +10,7 @@ import {
     useAiAgentStoreSelector,
 } from '../../store/hooks';
 import { useAiAgentThreadStreamAbortController } from '../../streaming/AiAgentThreadStreamAbortControllerContext';
+import { AiAgentIcon } from '../AiAgentIcon';
 import styles from './AiAgentsLauncher.module.css';
 import { DockTab } from './DockTab';
 import {
@@ -110,9 +111,12 @@ export const LauncherDock: FC<Props> = ({
                     onClick={handleNewThread}
                     onKeyDown={handleNewThreadKeyDown}
                 >
-                    <Text size="sm" className={styles.dockTabTitle}>
-                        • Ask AI Agent
-                    </Text>
+                    <Group gap="xs" wrap="nowrap" w="100%">
+                        <AiAgentIcon size={14} />
+                        <Text size="sm" className={styles.dockTabTitle}>
+                            Ask AI Agent
+                        </Text>
+                    </Group>
                 </div>
             </div>
         );
