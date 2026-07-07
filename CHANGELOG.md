@@ -1,3 +1,10 @@
+## [0.3317.1](https://github.com/lightdash/lightdash/compare/0.3317.0...0.3317.1) (2026-07-07)
+
+
+### Bug Fixes
+
+* keep bar value labels from overlapping axis labels ([#25188](https://github.com/lightdash/lightdash/issues/25188)) ([d192073](https://github.com/lightdash/lightdash/commit/d192073a2df97c99a83b39ef0883136c17536596))
+
 # [0.3317.0](https://github.com/lightdash/lightdash/compare/0.3316.1...0.3317.0) (2026-07-06)
 
 
