@@ -1,3 +1,15 @@
+# [0.3324.0](https://github.com/lightdash/lightdash/compare/0.3323.0...0.3324.0) (2026-07-07)
+
+
+### Bug Fixes
+
+* y-axis title overlapping tick labels on multi-series charts ([#25232](https://github.com/lightdash/lightdash/issues/25232)) ([a406bd4](https://github.com/lightdash/lightdash/commit/a406bd41d1c88d705fc0e3940ad418c69b79f0c3))
+
+
+### Features
+
+* add Redshift IAM authentication support for user warehouse credentials ([#25165](https://github.com/lightdash/lightdash/issues/25165)) ([68188e1](https://github.com/lightdash/lightdash/commit/68188e19e8f57ab03b04bc4ad46f96f878ae6380))
+
 # [0.3323.0](https://github.com/lightdash/lightdash/compare/0.3322.0...0.3323.0) (2026-07-07)
 
 
