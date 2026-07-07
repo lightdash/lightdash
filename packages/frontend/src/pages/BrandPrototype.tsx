@@ -1,3 +1,4 @@
+import { subject } from '@casl/ability';
 import { type OrganizationBrand } from '@lightdash/common';
 import {
     Badge,
@@ -14,11 +15,13 @@ import {
     Title,
 } from '@mantine-8/core';
 import { useState, type FC, type FormEvent } from 'react';
+import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import {
     useOrganizationBrand,
     useOrganizationBrandUpdateMutation,
 } from '../hooks/organization/useOrganizationBrand';
+import useApp from '../providers/App/useApp';
 import classes from './BrandPrototype.module.css';
 import {
     deriveBrandTheme,
@@ -248,6 +251,7 @@ const AppPreview: FC<{
 };
 
 const BrandPrototype: FC = () => {
+    const { user } = useApp();
     const { data: organization } = useOrganization();
     const { data: brand, isInitialLoading: isLoadingBrand } =
         useOrganizationBrand();
@@ -278,12 +282,24 @@ const BrandPrototype: FC = () => {
         brandUpdateMutation.mutate({ domain: domainInput });
     };
 
-    if (isLoadingBrand) {
+    if (isLoadingBrand || !user.data) {
         return (
             <Center h="100vh">
                 <Loader />
             </Center>
         );
+    }
+
+    // Same permission as managing organization color palettes (org admins)
+    if (
+        user.data.ability.cannot(
+            'update',
+            subject('Organization', {
+                organizationUuid: user.data.organizationUuid,
+            }),
+        )
+    ) {
+        return <ForbiddenPanel />;
     }
 
     return (

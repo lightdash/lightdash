@@ -206,9 +206,17 @@ export class OrganizationService extends BaseService {
 
     async getBrand(account: Account): Promise<OrganizationBrand | null> {
         assertIsAccountWithOrg(account);
-        const brand = await this.organizationModel.findBrand(
-            account.organization.organizationUuid,
-        );
+        const { organizationUuid } = account.organization;
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Organization', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const brand = await this.organizationModel.findBrand(organizationUuid);
         return brand ?? null;
     }
 
