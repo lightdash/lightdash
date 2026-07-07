@@ -19,7 +19,9 @@ import {
     getAxisDefaultMaxValue,
     getAxisDefaultMinValue,
     getCategoryDateAxisConfig,
+    getLongestLabelsForAxis,
     getMinAndMaxValues,
+    getNiceTickBound,
     getStackTotalSeries,
     mergeLegendSettings,
     padDatasetForContinuousAxis,
@@ -353,6 +355,101 @@ describe('getMinAndMaxValues', () => {
         expect(
             getMinAndMaxValues(axes, [...resultRow, ...resultRow2]),
         ).toStrictEqual([0, 0]);
+    });
+});
+
+describe('getNiceTickBound', () => {
+    test('rounds data max up to the nice tick boundary ECharts picks', () => {
+        expect(getNiceTickBound(314)).toBe(350);
+        expect(getNiceTickBound(96)).toBe(100);
+        expect(getNiceTickBound(222)).toBe(250);
+        expect(getNiceTickBound(1135)).toBe(1200);
+        expect(getNiceTickBound(50)).toBe(50);
+    });
+
+    test('rounds negative bounds away from zero', () => {
+        expect(getNiceTickBound(-222)).toBe(-250);
+        expect(getNiceTickBound(-96)).toBe(-100);
+    });
+
+    test('handles zero and non-finite values', () => {
+        expect(getNiceTickBound(0)).toBe(0);
+        expect(getNiceTickBound(Infinity)).toBe(0);
+        expect(getNiceTickBound(NaN)).toBe(0);
+    });
+
+    test('handles fractional values', () => {
+        // 0.8 is already on a nice boundary (4 × 0.2)
+        expect(getNiceTickBound(0.8)).toBeCloseTo(0.8);
+        expect(getNiceTickBound(0.83)).toBeCloseTo(1);
+    });
+});
+
+describe('getLongestLabelsForAxis', () => {
+    const rows: ResultRow[] = [
+        {
+            metric_small: { value: { raw: 9, formatted: '9' } },
+            metric_large: { value: { raw: 314, formatted: '314' } },
+        },
+        {
+            metric_small: { value: { raw: 5, formatted: '5' } },
+            metric_large: { value: { raw: 46, formatted: '46' } },
+        },
+    ];
+
+    test('returns the longest label for every field on the axis', () => {
+        expect(
+            getLongestLabelsForAxis({
+                rows,
+                axisIds: ['metric_small', 'metric_large'],
+            }),
+        ).toStrictEqual(['9', '314']);
+    });
+
+    test('ignores undefined and duplicate axis ids', () => {
+        expect(
+            getLongestLabelsForAxis({
+                rows,
+                axisIds: ['metric_small', undefined, 'metric_small'],
+            }),
+        ).toStrictEqual(['9']);
+    });
+
+    test('skips fields with no values in the rows', () => {
+        expect(
+            getLongestLabelsForAxis({
+                rows,
+                axisIds: ['metric_missing', 'metric_large'],
+            }),
+        ).toStrictEqual(['314']);
+    });
+
+    test('falls back to pivot column variants of the field', () => {
+        const pivotedRows: ResultRow[] = [
+            {
+                metric_large_any_channel_a: {
+                    value: { raw: 9, formatted: '9' },
+                },
+                metric_large_any_channel_b: {
+                    value: { raw: 1135, formatted: '1,135' },
+                },
+            },
+        ];
+        expect(
+            getLongestLabelsForAxis({
+                rows: pivotedRows,
+                axisIds: ['metric_large'],
+            }),
+        ).toStrictEqual(['1,135']);
+    });
+
+    test('returns an empty array for empty rows or axis ids', () => {
+        expect(
+            getLongestLabelsForAxis({ rows: [], axisIds: ['metric_small'] }),
+        ).toStrictEqual([]);
+        expect(getLongestLabelsForAxis({ rows, axisIds: [] })).toStrictEqual(
+            [],
+        );
     });
 });
 

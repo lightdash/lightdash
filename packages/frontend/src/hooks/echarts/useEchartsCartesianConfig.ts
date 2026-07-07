@@ -38,6 +38,7 @@ import {
     getResultValueArray,
     getTooltipStyle,
     getValueLabelStyle,
+    hasFormatting,
     hashFieldReference,
     hasValidFormatExpression,
     isCalendarValueItem,
@@ -88,6 +89,7 @@ import {
 import groupBy from 'lodash/groupBy';
 import maxBy from 'lodash/maxBy';
 import toNumber from 'lodash/toNumber';
+import uniq from 'lodash/uniq';
 import { useMemo } from 'react';
 import { isCartesianVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
@@ -1488,6 +1490,34 @@ const getLongestLabel = ({
     return findLongest(allValues);
 };
 
+// Heckbert "nice number": the tick interval ECharts would choose for a range
+const getNiceInterval = (range: number): number => {
+    const exponent = Math.floor(Math.log10(range));
+    const fraction = range / 10 ** exponent;
+    const niceFraction =
+        fraction < 1.5 ? 1 : fraction < 3 ? 2 : fraction < 7 ? 5 : 10;
+    return niceFraction * 10 ** exponent;
+};
+
+// Outermost tick ECharts will render for a data bound (e.g. 314 -> 350, -222 -> -250)
+export const getNiceTickBound = (value: number, splitNumber = 5): number => {
+    if (value === 0 || !Number.isFinite(value)) return 0;
+    const interval = getNiceInterval(Math.abs(value) / splitNumber);
+    return Math.sign(value) * Math.ceil(Math.abs(value) / interval) * interval;
+};
+
+// Longest formatted value for each field plotted on an axis
+export const getLongestLabelsForAxis = ({
+    rows = [],
+    axisIds = [],
+}: {
+    rows?: ResultRow[];
+    axisIds?: (string | undefined)[];
+}): string[] =>
+    uniq(axisIds.filter((id): id is string => id !== undefined))
+        .map((axisId) => getLongestLabel({ rows, axisId }))
+        .filter((label): label is string => label !== undefined);
+
 /**
  * Filter out series whose data column has all null/undefined values in the
  * displayed results. This prevents phantom legend entries and empty stacked
@@ -1842,18 +1872,6 @@ const getEchartAxes = ({
     const rightAxisYId =
         rightAxisYFieldIds?.[0] || validCartesianConfig.layout?.yField?.[1];
 
-    const longestValueYAxisLeft: string | undefined = getLongestLabel({
-        rows: resultsData?.rows,
-        axisId: leftAxisYId,
-    });
-    const leftYaxisGap = calculateWidthText(longestValueYAxisLeft);
-
-    const longestValueYAxisRight: string | undefined = getLongestLabel({
-        rows: resultsData?.rows,
-        axisId: rightAxisYId,
-    });
-    const rightYaxisGap = calculateWidthText(longestValueYAxisRight);
-
     const rightAxisYField = rightAxisYId ? itemsMap[rightAxisYId] : undefined;
     const leftAxisYField = leftAxisYId ? itemsMap[leftAxisYId] : undefined;
     const topAxisXField = topAxisXId ? itemsMap[topAxisXId] : undefined;
@@ -1870,6 +1888,101 @@ const getEchartAxes = ({
             leftAxisYId,
             rightAxisYId,
         });
+
+    // Width of the widest tick label a value axis will render: the axis bounds
+    // formatted like the ticks, not raw row values of the first series
+    const getValueAxisTickLabelWidth = (
+        axisFieldIds: string[],
+        axisItem: ItemsMap[string] | undefined,
+        axisBounds: { min?: string; max?: string } | undefined,
+    ): number | undefined => {
+        const [dataMin, dataMax] = getMinAndMaxValues(
+            axisFieldIds,
+            resultsData?.rows ?? [],
+            resultsData?.pivotDetails,
+        );
+        if (typeof dataMin !== 'number' || typeof dataMax !== 'number')
+            return undefined;
+
+        // Explicit bounds render as-is; otherwise ECharts rounds to a nice tick
+        const parseBound = (bound: string | undefined, fallback: number) => {
+            const parsed = bound ? toNumber(bound) : NaN;
+            return Number.isFinite(parsed) ? parsed : fallback;
+        };
+        const tickMax = parseBound(axisBounds?.max, getNiceTickBound(dataMax));
+        const tickMin = parseBound(
+            axisBounds?.min,
+            Math.min(0, getNiceTickBound(dataMin)),
+        );
+
+        const isDateItem =
+            isField(axisItem) &&
+            (axisItem.type === DimensionType.DATE ||
+                axisItem.type === DimensionType.TIMESTAMP);
+        // Mirror when getCartesianAxisFormatterConfig installs a tick formatter
+        const ticksAreFormatted =
+            axisItem !== undefined &&
+            !isDateItem &&
+            (hasFormatting(axisItem) ||
+                (isTableCalculation(axisItem) && axisItem.type === undefined));
+        const formatTick = (value: number): string =>
+            axisItem && ticksAreFormatted
+                ? formatItemValue(
+                      axisItem,
+                      value,
+                      true,
+                      parameters,
+                      resolvedTimezone,
+                      displayTimezone,
+                  )
+                : value.toLocaleString('en-US');
+
+        return Math.max(
+            calculateWidthText(formatTick(tickMax)),
+            calculateWidthText(formatTick(tickMin)),
+        );
+    };
+
+    // Category/time axes render row values as tick labels, so measure those
+    const getCategoryAxisTickLabelWidth = (axisIds: (string | undefined)[]) =>
+        Math.max(
+            0,
+            ...getLongestLabelsForAxis({
+                rows: resultsData?.rows,
+                axisIds,
+            }).map(calculateWidthText),
+        );
+
+    // 100% stacking forces the left axis to 0-100
+    const leftAxisIsStack100 =
+        validCartesianConfig.layout?.stack === StackType.PERCENT &&
+        !validCartesianConfig.layout.flipAxes;
+
+    const leftAxisYIds = leftAxisYFieldIds?.length
+        ? leftAxisYFieldIds
+        : [leftAxisYId];
+    const leftYaxisGap =
+        (leftAxisType === 'value'
+            ? getValueAxisTickLabelWidth(
+                  leftAxisYIds.filter((id): id is string => id !== undefined),
+                  leftAxisYField,
+                  leftAxisIsStack100
+                      ? { min: '0', max: '100' }
+                      : yAxisConfiguration?.[0],
+              )
+            : undefined) ?? getCategoryAxisTickLabelWidth(leftAxisYIds);
+
+    const rightAxisYIds = rightAxisYFieldIds?.length
+        ? rightAxisYFieldIds
+        : [rightAxisYId];
+    const rightYaxisGap =
+        (rightAxisType === 'value'
+            ? getValueAxisTickLabelWidth(
+                  rightAxisYIds.filter((id): id is string => id !== undefined),
+                  rightAxisYField,
+                  yAxisConfiguration?.[1],
+              )
+            : undefined) ?? getCategoryAxisTickLabelWidth(rightAxisYIds);
 
     const {
         referenceLineMinX,
