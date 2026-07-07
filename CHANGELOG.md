@@ -1,3 +1,10 @@
+# [0.3328.0](https://github.com/lightdash/lightdash/compare/0.3327.0...0.3328.0) (2026-07-07)
+
+
+### Features
+
+* **custom-roles:** show scope dependencies ([#25263](https://github.com/lightdash/lightdash/issues/25263)) ([60768e0](https://github.com/lightdash/lightdash/commit/60768e058cc1d9379a0975f749fcdf669d08cd93))
+
 # [0.3327.0](https://github.com/lightdash/lightdash/compare/0.3326.1...0.3327.0) (2026-07-07)
 
 
