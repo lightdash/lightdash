@@ -214,8 +214,13 @@ const STOPS: Array<[string, number]> = [
 ];
 
 const CATEGORICAL_COUNT = 8;
-const CATEGORICAL_CHROMA = 0.14;
+// Chroma ceilings: high enough to feel vibrant, low enough that most hues can
+// reach them in sRGB (out-of-gamut hues get chroma-mapped down per colour)
+const CATEGORICAL_CHROMA = 0.17;
 const CATEGORICAL_LIGHTNESS = 0.62;
+const SEQUENTIAL_CHROMA_MIN = 0.04;
+const SEQUENTIAL_CHROMA_RANGE = 0.16;
+const DIVERGING_CHROMA = 0.18;
 
 const hueGap = (a: number, b: number) => {
     const d = Math.abs(a - b) % 360;
@@ -316,7 +321,11 @@ export const deriveBrandTheme = (brandHexes: string[]): DerivedBrandTheme => {
     const sequentialHue = isGreyscaleBrand ? 250 : primary.H;
     const sequential = Array.from({ length: 9 }, (_, i) => {
         const t = i / 8;
-        return oklchToHex(0.95 - t * 0.6, 0.03 + t * 0.13, sequentialHue);
+        return oklchToHex(
+            0.95 - t * 0.6,
+            SEQUENTIAL_CHROMA_MIN + t * SEQUENTIAL_CHROMA_RANGE,
+            sequentialHue,
+        );
     });
 
     // Diverging: two brand hues (or primary + complement) through a light mid
@@ -328,10 +337,14 @@ export const deriveBrandTheme = (brandHexes: string[]): DerivedBrandTheme => {
         const t = i / 8;
         if (t < 0.5) {
             const k = t / 0.5;
-            return oklchToHex(0.55 + k * 0.38, 0.15 * (1 - k), hueA);
+            return oklchToHex(
+                0.55 + k * 0.38,
+                DIVERGING_CHROMA * (1 - k),
+                hueA,
+            );
         }
         const k = (t - 0.5) / 0.5;
-        return oklchToHex(0.93 - k * 0.38, 0.15 * k, hueB);
+        return oklchToHex(0.93 - k * 0.38, DIVERGING_CHROMA * k, hueB);
     });
 
     const headerBg = primaryRamp['600'];
