@@ -1,3 +1,17 @@
+# [0.3326.0](https://github.com/lightdash/lightdash/compare/0.3325.0...0.3326.0) (2026-07-07)
+
+
+### Bug Fixes
+
+* **formatting:** parse offset-less dates as UTC in custom-format expressions ([#25246](https://github.com/lightdash/lightdash/issues/25246)) ([1c32618](https://github.com/lightdash/lightdash/commit/1c326184209389c9f852c07d1fbda3ff02660170)), closes [#19759](https://github.com/lightdash/lightdash/issues/19759) [#24200](https://github.com/lightdash/lightdash/issues/24200)
+
+
+### Features
+
+* add organization brand profile fetching ([#25208](https://github.com/lightdash/lightdash/issues/25208)) ([21f16a5](https://github.com/lightdash/lightdash/commit/21f16a557229d6c81e203b88c978a1d1c5689f9c))
+* default ai chat sql mode on ([#25216](https://github.com/lightdash/lightdash/issues/25216)) ([d806e6c](https://github.com/lightdash/lightdash/commit/d806e6c06a206fa2a892be6c1cb828644f15ec58))
+* **tracing:** OTLP/GCP as sole trace exporter, quieter traces, always-sample AI ([#25250](https://github.com/lightdash/lightdash/issues/25250)) ([84342b2](https://github.com/lightdash/lightdash/commit/84342b20e6fb871cc97c9a7b4ebcf27ce35062ce))
+
 # [0.3325.0](https://github.com/lightdash/lightdash/compare/0.3324.0...0.3325.0) (2026-07-07)
 
 
