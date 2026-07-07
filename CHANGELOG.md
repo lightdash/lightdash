@@ -1,3 +1,15 @@
+# [0.3327.0](https://github.com/lightdash/lightdash/compare/0.3326.1...0.3327.0) (2026-07-07)
+
+
+### Bug Fixes
+
+* **charts:** render stack total labels for bars cut off by the y-axis max ([#25251](https://github.com/lightdash/lightdash/issues/25251)) ([b5c984d](https://github.com/lightdash/lightdash/commit/b5c984d21a3a6d0e2e6ed923d74ffb98c8f53ceb))
+
+
+### Features
+
+* **cli:** carry and gate declared app dependencies on upload [GLITCH-600] ([#25176](https://github.com/lightdash/lightdash/issues/25176)) ([ba0b013](https://github.com/lightdash/lightdash/commit/ba0b013430ed1e91ef2abae63619b5152442a1f5))
+
 ## [0.3326.1](https://github.com/lightdash/lightdash/compare/0.3326.0...0.3326.1) (2026-07-07)
 
 
