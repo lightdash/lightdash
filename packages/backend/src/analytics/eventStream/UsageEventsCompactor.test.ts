@@ -71,6 +71,7 @@ const createMetricsMock = () => ({
     observeUsageEventsCompactionRunDuration: vi.fn(),
     observeUsageEventsCompactionPartition: vi.fn(),
     setUsageEventsCompactionBacklog: vi.fn(),
+    setUsageEventsRawObjects: vi.fn(),
 });
 
 type MetricsMock = ReturnType<typeof createMetricsMock>;
@@ -262,6 +263,7 @@ describe('UsageEventsCompactor.run', () => {
         );
         // Failed partition stays in the backlog for the next run
         expect(metrics.setUsageEventsCompactionBacklog).toHaveBeenCalledWith(1);
+        expect(metrics.setUsageEventsRawObjects).toHaveBeenCalledWith(1);
         expect(
             metrics.observeUsageEventsCompactionRunDuration,
         ).toHaveBeenCalledWith(expect.any(Number), 'partial');
@@ -336,5 +338,7 @@ describe('UsageEventsCompactor.run', () => {
         expect(summary.partitionsCompacted).toEqual(1);
         expect(summary.partitionsSkippedUnknownStream).toEqual(1);
         expect(metrics.setUsageEventsCompactionBacklog).toHaveBeenCalledWith(0);
+        // Unknown-stream raw object stays in the raw zone
+        expect(metrics.setUsageEventsRawObjects).toHaveBeenCalledWith(1);
     });
 });

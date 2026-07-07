@@ -40,6 +40,7 @@ const s3Config = {
 const createMetricsMock = () => ({
     incrementUsageEventsPushed: vi.fn(),
     incrementUsageEventsFlushed: vi.fn(),
+    incrementUsageEventsRawPuts: vi.fn(),
     incrementUsageEventsDropped: vi.fn(),
     incrementUsageEventsPutFailure: vi.fn(),
 });
@@ -111,6 +112,7 @@ describe('BufferedEventStreamWriter', () => {
         await writer.flush();
 
         expect(s3Mocks.putObject).toHaveBeenCalledTimes(4);
+        expect(metrics.incrementUsageEventsRawPuts).toHaveBeenCalledTimes(4);
         const keys = s3Mocks.putObject.mock.calls.map(
             (call) => call[0].Key as string,
         );

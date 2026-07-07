@@ -178,6 +178,8 @@ export default class PrometheusMetrics {
 
     public usageEventsPutFailuresCounter: prometheus.Counter | null = null;
 
+    public usageEventsRawPutsCounter: prometheus.Counter | null = null;
+
     public usageEventsCompactedPartitionsCounter: prometheus.Counter | null =
         null;
 
@@ -194,6 +196,8 @@ export default class PrometheusMetrics {
         null;
 
     public usageEventsCompactionBacklogGauge: prometheus.Gauge | null = null;
+
+    public usageEventsRawObjectsGauge: prometheus.Gauge | null = null;
 
     public preAggregateMaterializationFileSizeHistogram: prometheus.Histogram<string> | null =
         null;
@@ -810,6 +814,12 @@ export default class PrometheusMetrics {
                     ...rest,
                 });
 
+                this.usageEventsRawPutsCounter = new prometheus.Counter({
+                    name: 'lightdash_usage_events_raw_puts_total',
+                    help: 'Total raw usage event objects written to object storage',
+                    ...rest,
+                });
+
                 this.usageEventsCompactedPartitionsCounter =
                     new prometheus.Counter({
                         name: 'lightdash_usage_events_compacted_partitions_total',
@@ -861,6 +871,12 @@ export default class PrometheusMetrics {
                 this.usageEventsCompactionBacklogGauge = new prometheus.Gauge({
                     name: 'lightdash_usage_events_compaction_backlog_partitions',
                     help: 'Closed raw partitions still awaiting compaction after the last run (cap deferrals + failures)',
+                    ...rest,
+                });
+
+                this.usageEventsRawObjectsGauge = new prometheus.Gauge({
+                    name: 'lightdash_usage_events_raw_objects',
+                    help: 'Raw usage event objects left in the raw zone after the last compaction run (open partitions + failed/deferred)',
                     ...rest,
                 });
 
@@ -1462,6 +1478,10 @@ export default class PrometheusMetrics {
         this.usageEventsPutFailuresCounter?.inc();
     }
 
+    public incrementUsageEventsRawPuts() {
+        this.usageEventsRawPutsCounter?.inc();
+    }
+
     public incrementUsageEventsCompactedPartitions() {
         this.usageEventsCompactedPartitionsCounter?.inc();
     }
@@ -1494,6 +1514,10 @@ export default class PrometheusMetrics {
 
     public setUsageEventsCompactionBacklog(partitions: number) {
         this.usageEventsCompactionBacklogGauge?.set(partitions);
+    }
+
+    public setUsageEventsRawObjects(count: number) {
+        this.usageEventsRawObjectsGauge?.set(count);
     }
 
     public monitorEventMetrics(eventEmitter: EventEmitter) {
