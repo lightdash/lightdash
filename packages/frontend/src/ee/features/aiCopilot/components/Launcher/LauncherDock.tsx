@@ -80,7 +80,6 @@ export const LauncherDock: FC<Props> = ({
             currentDashboard?.projectUuid === projectUuid
                 ? {
                       dashboardUuid: currentDashboard.uuid,
-                      dashboardTabUuid: currentDashboard.activeTabUuid,
                   }
                 : null;
         dispatch(

@@ -23,14 +23,17 @@ export const resolveLauncherDefaultAgent = ({
     agents,
     defaultAgentUuid,
     isRouterEnabled,
+    isRouterLoading,
 }: {
     agents: AiAgentSummary[] | undefined;
     defaultAgentUuid: string | undefined;
     isRouterEnabled: boolean;
+    isRouterLoading: boolean;
 }): LauncherSelectedAgent => {
     if (!agents || agents.length === 0) return null;
     const defaultAgent = agents.find((a) => a.uuid === defaultAgentUuid);
     if (defaultAgent) return defaultAgent;
+    if (agents.length > 1 && isRouterLoading) return null;
     if (agents.length > 1 && isRouterEnabled) return LAUNCHER_AUTO_AGENT;
     return agents[0];
 };
