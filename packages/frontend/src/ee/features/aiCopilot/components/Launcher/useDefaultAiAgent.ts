@@ -30,12 +30,10 @@ export const useDefaultAiAgent = (projectUuid: string | undefined) => {
                 agents,
                 defaultAgentUuid: preferences?.defaultAgentUuid,
                 isRouterEnabled: aiRouterConfigQuery.data?.enabled === true,
-                isRouterLoading: aiRouterConfigQuery.isLoading,
             }),
         [
             agents,
             aiRouterConfigQuery.data?.enabled,
-            aiRouterConfigQuery.isLoading,
             preferences?.defaultAgentUuid,
         ],
     );
