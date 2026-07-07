@@ -1011,6 +1011,9 @@ export default class App {
         await shutdownOtelTracing();
         if (this.schedulerWorker && this.schedulerWorker.runner) {
             try {
+                // Interrupt long-running AI runs first so they stop burning
+                // tokens and runner.stop() resolves inside the grace period.
+                await this.schedulerWorker.abortInFlightAiRuns();
                 await this.schedulerWorker.runner.stop();
                 Logger.info('Stopped scheduler worker');
             } catch (e) {

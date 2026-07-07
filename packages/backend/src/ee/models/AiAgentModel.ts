@@ -4441,6 +4441,12 @@ export class AiAgentModel {
         return row !== undefined;
     }
 
+    async deleteAiPromptInterrupt(promptUuid: string): Promise<void> {
+        await this.database(AiPromptInterruptTableName)
+            .where('ai_prompt_uuid', promptUuid)
+            .delete();
+    }
+
     async createAiPromptSteer(data: {
         promptUuid: string;
         createdByUserUuid: string;

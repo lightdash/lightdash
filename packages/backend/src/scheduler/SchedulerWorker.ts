@@ -128,6 +128,16 @@ export class SchedulerWorker extends SchedulerTask {
         });
     }
 
+    /**
+     * Signals in-flight, interruptible AI runs to stop before `runner.stop()`
+     * waits on them, so a rolling deploy doesn't blow past the grace period.
+     * No-op in the base worker; the EE worker overrides it.
+     */
+    // eslint-disable-next-line class-methods-use-this
+    async abortInFlightAiRuns(): Promise<void> {
+        // No interruptible AI runs in the base worker.
+    }
+
     private startPgPing(health: SchedulerWorkerHealth) {
         if (this.pgPingInterval) return;
         void this.pingPgOnce(health);

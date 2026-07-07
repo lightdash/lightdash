@@ -3,6 +3,7 @@ import {
     getErrorMessage,
     getManagedAgentScheduleCron,
     isSchedulerTaskName,
+    RemediationInterruptedError,
     SCHEDULER_TASKS,
     SchedulerJobStatus,
 } from '@lightdash/common';
@@ -93,6 +94,10 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         this.openIdIdentityModel = args.openIdIdentityModel;
     }
 
+    override async abortInFlightAiRuns(): Promise<void> {
+        await this.aiAgentService.abortInFlightAiRuns();
+    }
+
     protected getCronItems() {
         return [
             ...super.getCronItems(),
@@ -153,44 +158,108 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 payload,
                 helpers,
             ) => {
-                await tryJobOrTimeout(
-                    SchedulerClient.processJob(
-                        EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_RUN,
-                        helpers.job.id,
-                        helpers.job.run_at,
-                        payload,
-                        async () => {
-                            await this.aiAgentService.executeReviewRemediationRun(
-                                payload,
-                            );
-                            await this.aiAgentAdminService.recordReviewRemediationVerified(
-                                payload,
-                            );
+                // Idempotency guard: a 4h-late graphile unlock, or a retry of a
+                // run the sweep/admin already finalized, must not re-run a
+                // terminal remediation.
+                const remediation =
+                    await this.aiAgentReviewClassifierModel.getReviewRemediation(
+                        {
+                            organizationUuid: payload.organizationUuid,
+                            remediationUuid: payload.remediationUuid,
                         },
-                    ),
-                    helpers.job,
-                    AI_AGENT_REVIEW_REMEDIATION_RUN_TIMEOUT_MS,
-                    async (job, e) => {
-                        // The preview stays usable on failure — the admin can
-                        // still retry the question manually from the thread.
-                        await this.schedulerService.logSchedulerJob({
-                            task: EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_RUN,
-                            jobId: job.id,
-                            scheduledTime: job.run_at,
-                            status: SchedulerJobStatus.ERROR,
-                            details: {
-                                error: getErrorMessage(e),
-                                projectUuid: payload.projectUuid,
-                                organizationUuid: payload.organizationUuid,
-                                createdByUserUuid: payload.userUuid,
-                                agentUuid: payload.agentUuid,
-                                threadUuid: payload.threadUuid,
-                                remediationUuid: payload.remediationUuid,
-                                fingerprint: payload.fingerprint,
+                    );
+                if (
+                    !remediation ||
+                    remediation.status === 'resolved' ||
+                    remediation.status === 'failed'
+                ) {
+                    return;
+                }
+                try {
+                    await tryJobOrTimeout(
+                        SchedulerClient.processJob(
+                            EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_RUN,
+                            helpers.job.id,
+                            helpers.job.run_at,
+                            payload,
+                            async () => {
+                                await this.aiAgentService.executeReviewRemediationRun(
+                                    payload,
+                                );
+                                await this.aiAgentAdminService.recordReviewRemediationVerified(
+                                    payload,
+                                );
                             },
-                        });
-                    },
-                );
+                        ),
+                        helpers.job,
+                        AI_AGENT_REVIEW_REMEDIATION_RUN_TIMEOUT_MS,
+                        async (job, e) => {
+                            // The preview stays usable on failure — the admin can
+                            // still retry the question manually from the thread.
+                            await this.schedulerService.logSchedulerJob({
+                                task: EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_RUN,
+                                jobId: job.id,
+                                scheduledTime: job.run_at,
+                                status: SchedulerJobStatus.ERROR,
+                                details: {
+                                    error: getErrorMessage(e),
+                                    projectUuid: payload.projectUuid,
+                                    organizationUuid: payload.organizationUuid,
+                                    createdByUserUuid: payload.userUuid,
+                                    agentUuid: payload.agentUuid,
+                                    threadUuid: payload.threadUuid,
+                                    remediationUuid: payload.remediationUuid,
+                                    fingerprint: payload.fingerprint,
+                                },
+                            });
+                        },
+                    );
+                } catch (e) {
+                    if (e instanceof RemediationInterruptedError) {
+                        const willRetry =
+                            helpers.job.attempts < helpers.job.max_attempts;
+                        await this.aiAgentAdminService.recordReviewRemediationInterrupted(
+                            {
+                                remediationUuid: payload.remediationUuid,
+                                organizationUuid: payload.organizationUuid,
+                                willRetry,
+                            },
+                        );
+                        // Rethrow only to consume an attempt and requeue onto
+                        // the replacement pod; on the last attempt the event
+                        // above already marked it failed.
+                        if (willRetry) {
+                            throw e;
+                        }
+                        return;
+                    }
+                    // Genuine failure: persist and swallow so the retries
+                    // reserved for interruptions don't re-run a poison job.
+                    await this.aiAgentReviewClassifierModel.updateReviewRemediationStatus(
+                        {
+                            remediationUuid: payload.remediationUuid,
+                            organizationUuid: payload.organizationUuid,
+                            status: 'failed',
+                            errorMessage: getErrorMessage(e),
+                        },
+                    );
+                    await this.schedulerService.logSchedulerJob({
+                        task: EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_RUN,
+                        jobId: helpers.job.id,
+                        scheduledTime: helpers.job.run_at,
+                        status: SchedulerJobStatus.ERROR,
+                        details: {
+                            error: getErrorMessage(e),
+                            projectUuid: payload.projectUuid,
+                            organizationUuid: payload.organizationUuid,
+                            createdByUserUuid: payload.userUuid,
+                            agentUuid: payload.agentUuid,
+                            threadUuid: payload.threadUuid,
+                            remediationUuid: payload.remediationUuid,
+                            fingerprint: payload.fingerprint,
+                        },
+                    });
+                }
             },
             [EE_SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: async (
                 payload,

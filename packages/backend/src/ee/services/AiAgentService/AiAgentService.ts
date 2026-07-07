@@ -83,6 +83,7 @@ import {
     PullRequestProvider,
     QueryExecutionContext,
     ReadinessScore,
+    RemediationInterruptedError,
     ShareUrl,
     SlackPrompt,
     ToolDashboardArgs,
@@ -579,6 +580,17 @@ function validateGeneratedSuggestion(
 
 export class AiAgentService extends BaseService {
     private readonly aiAgentModel: AiAgentModel;
+
+    // Interruptible remediation runs currently streaming on this worker,
+    // mapped promptUuid -> the run owner's userUuid (a valid actor for the
+    // interrupt row). Populated when a run resolves its prompt, cleared when it
+    // settles. On shutdown, abortInFlightAiRuns() trips the interrupt seam for
+    // each, so the AI SDK's stopWhen halts them gracefully.
+    private readonly inFlightRemediationRuns = new Map<string, string>();
+
+    // promptUuids flagged by a shutdown abort, so the run can tell a deploy
+    // interruption from a normal stop and requeue itself.
+    private readonly shutdownInterruptedPromptUuids = new Set<string>();
 
     private readonly aiAgentDocumentModel: AiAgentDocumentModel;
 
@@ -4716,6 +4728,7 @@ export class AiAgentService extends BaseService {
             onStepProgress,
             suppressWritebackPreview,
             isReviewRemediationWorkThread,
+            onPromptResolved,
         }: {
             agentUuid: string;
             threadUuid: string;
@@ -4732,6 +4745,10 @@ export class AiAgentService extends BaseService {
             // Enables the work-thread-only editProjectContext tool so the agent
             // can open/change the project_context PR from this thread.
             isReviewRemediationWorkThread?: boolean;
+            // Invoked with the resolved promptUuid before streaming starts, so a
+            // caller can register the run as interruptible on shutdown. Awaited,
+            // so it can clear a stale interrupt flag first.
+            onPromptResolved?: (promptUuid: string) => Promise<void>;
         },
     ): Promise<string> {
         try {
@@ -4743,6 +4760,9 @@ export class AiAgentService extends BaseService {
                 agentUuid,
                 threadUuid,
             });
+            if (onPromptResolved) {
+                await onPromptResolved(prompt.promptUuid);
+            }
             if (!user.organizationUuid) {
                 throw new ForbiddenError();
             }
@@ -13034,11 +13054,63 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             organizationUuid,
         );
 
-        await this.generateAgentThreadResponse(sessionUser, {
-            agentUuid,
-            threadUuid,
-            autoApproveSql: true,
-        });
+        let runPromptUuid: string | null = null;
+        try {
+            await this.generateAgentThreadResponse(sessionUser, {
+                agentUuid,
+                threadUuid,
+                autoApproveSql: true,
+                onPromptResolved: async (promptUuid) => {
+                    runPromptUuid = promptUuid;
+                    // A requeue re-runs this same prompt, so clear any interrupt
+                    // left by a prior aborted attempt or the run would halt at
+                    // the first step.
+                    await this.aiAgentModel.deleteAiPromptInterrupt(promptUuid);
+                    this.inFlightRemediationRuns.set(promptUuid, userUuid);
+                },
+            });
+        } finally {
+            if (runPromptUuid) {
+                this.inFlightRemediationRuns.delete(runPromptUuid);
+            }
+        }
+
+        // A shutdown abort stops the stream gracefully (no throw), so detect it
+        // here and signal the worker to requeue onto the replacement pod.
+        if (
+            runPromptUuid &&
+            this.shutdownInterruptedPromptUuids.has(runPromptUuid)
+        ) {
+            this.shutdownInterruptedPromptUuids.delete(runPromptUuid);
+            throw new RemediationInterruptedError();
+        }
+    }
+
+    /**
+     * Trips the cooperative interrupt seam for every in-flight remediation run
+     * so the AI SDK's stopWhen halts them gracefully before the worker's
+     * runner.stop() waits on them. Called by the EE worker on shutdown.
+     */
+    async abortInFlightAiRuns(): Promise<void> {
+        const entries = [...this.inFlightRemediationRuns.entries()];
+        entries.forEach(([promptUuid]) =>
+            this.shutdownInterruptedPromptUuids.add(promptUuid),
+        );
+        await Promise.all(
+            entries.map(([promptUuid, ownerUserUuid]) =>
+                this.aiAgentModel
+                    .createAiPromptInterrupt({
+                        promptUuid,
+                        createdByUserUuid: ownerUserUuid,
+                    })
+                    .catch((e) => {
+                        Logger.error(
+                            `Failed to interrupt prompt ${promptUuid} on shutdown`,
+                            e,
+                        );
+                    }),
+            ),
+        );
     }
 
     async executeEvalResult({

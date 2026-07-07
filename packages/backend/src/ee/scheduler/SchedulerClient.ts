@@ -135,7 +135,11 @@ export class CommercialSchedulerClient extends SchedulerClient {
             payload,
             {
                 runAt: new Date(),
-                maxAttempts: 1,
+                // Retries are reserved for deploy/restart interruptions: genuine
+                // errors are caught and persisted (not rethrown), so only a
+                // RemediationInterruptedError consumes an attempt and requeues
+                // onto the replacement pod.
+                maxAttempts: 3,
                 jobKey: `ai-agent-review-remediation-run:${payload.remediationUuid}`,
             },
         );

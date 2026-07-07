@@ -2651,6 +2651,36 @@ export class AiAgentAdminService extends BaseService {
     }
 
     /**
+     * SIGTERM fast path: a remediation run was interrupted by a graceful
+     * shutdown. Records it on the timeline; when retries are exhausted, also
+     * marks the remediation failed so it doesn't linger until the sweep.
+     */
+    async recordReviewRemediationInterrupted(args: {
+        remediationUuid: string;
+        organizationUuid: string;
+        willRetry: boolean;
+    }): Promise<void> {
+        await this.aiAgentReviewClassifierModel.createRemediationEvent({
+            remediationUuid: args.remediationUuid,
+            organizationUuid: args.organizationUuid,
+            event: {
+                eventType: 'run_interrupted',
+                payload: { reason: 'shutdown', willRetry: args.willRetry },
+            },
+        });
+        if (!args.willRetry) {
+            await this.aiAgentReviewClassifierModel.updateReviewRemediationStatus(
+                {
+                    remediationUuid: args.remediationUuid,
+                    organizationUuid: args.organizationUuid,
+                    status: 'failed',
+                    errorMessage: REMEDIATION_INTERRUPTED_MESSAGE,
+                },
+            );
+        }
+    }
+
+    /**
      * Cron backstop for remediation runs killed without a chance to clean up
      * (SIGKILL/OOM/crash). Fails every remediation whose heartbeat is older than
      * WRITEBACK_STALE_MS, then records the interruption on the timeline and fails

@@ -1,6 +1,7 @@
 import {
     GoogleSheetsTransientError,
     QueueTraceProperties,
+    RemediationInterruptedError,
     ResultsExpiredError,
     SCHEDULER_TASKS,
     SchedulerTaskName,
@@ -428,10 +429,12 @@ export const traceTask = <T extends SchedulerTaskName>(
 
                             // Only capture to Sentry if this is the final attempt or it's not a retryable error
                             // ResultsExpiredError is expected (expired S3 cache) and should not go to Sentry
+                            // RemediationInterruptedError is expected (deploy/restart) and requeues itself
                             const isRetryableError =
                                 e instanceof GoogleSheetsTransientError;
                             const isExpectedError =
-                                e instanceof ResultsExpiredError;
+                                e instanceof ResultsExpiredError ||
+                                e instanceof RemediationInterruptedError;
                             const hasRetriesRemaining =
                                 job.attempts < job.max_attempts;
 

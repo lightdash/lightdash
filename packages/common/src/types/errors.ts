@@ -45,6 +45,20 @@ export class ForbiddenError extends LightdashError {
     }
 }
 
+export class RemediationInterruptedError extends LightdashError {
+    constructor(
+        message = 'Remediation run interrupted by a deploy or restart',
+        data: { [key: string]: AnyType } = {},
+    ) {
+        super({
+            message,
+            name: 'RemediationInterruptedError',
+            statusCode: 503,
+            data,
+        });
+    }
+}
+
 export class GoogleNotConnectedError extends LightdashError {
     constructor(message = 'Google account not connected') {
         super({
