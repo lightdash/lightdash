@@ -39,6 +39,7 @@ import { DashboardSummaryModel } from './models/DashboardSummaryModel';
 import { EmbedModel } from './models/EmbedModel';
 import { ExternalConnectionModel } from './models/ExternalConnectionModel';
 import { ManagedAgentModel } from './models/ManagedAgentModel';
+import { McpToolCallModel } from './models/McpToolCallModel';
 import { ProjectCiStatusModel } from './models/ProjectCiStatusModel';
 import { ProjectContextModel } from './models/ProjectContextModel';
 import { SandboxRegistryModel } from './models/SandboxRegistryModel';
@@ -763,6 +764,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     searchModel: models.getSearchModel(),
                     spaceService: repository.getSpaceService(),
                     mcpContextModel: models.getMcpContextModel(),
+                    mcpToolCallModel:
+                        models.getMcpToolCallModel<McpToolCallModel>(),
                     projectModel: models.getProjectModel(),
                     featureFlagService: repository.getFeatureFlagService(),
                     aiOrganizationSettingsService:
@@ -841,6 +844,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
             schedulerAiAugmentationModel: ({ database }) =>
                 new SchedulerAiAugmentationModel({ database }),
             aiRouterModel: ({ database }) => new AiRouterModel({ database }),
+            mcpToolCallModel: ({ database }) =>
+                new McpToolCallModel({ database }),
             aiOrganizationSettingsModel: ({ database, utils }) =>
                 new AiOrganizationSettingsModel({
                     database,
@@ -936,6 +941,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     context.serviceRepository.getProjectContextService<ProjectContextService>(),
                 projectModel: context.models.getProjectModel(),
                 openIdIdentityModel: context.models.getOpenIdIdentityModel(),
+                mcpToolCallModel:
+                    context.models.getMcpToolCallModel<McpToolCallModel>(),
                 prometheusMetrics: context.prometheusMetrics,
             }),
         clientProviders: {

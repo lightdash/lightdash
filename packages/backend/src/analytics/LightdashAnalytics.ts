@@ -2126,7 +2126,15 @@ export type McpToolCallEvent = BaseTrack & {
     properties: {
         organizationId: string;
         projectId?: string;
+        agentId?: string;
         toolName: string;
+        status: 'success' | 'error';
+        durationMs: number;
+        authType: string;
+        clientName?: string;
+        clientVersion?: string;
+        userAgent?: string;
+        protocolVersion?: string;
     };
 };
 

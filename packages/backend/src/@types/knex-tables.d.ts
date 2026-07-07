@@ -460,6 +460,12 @@ import {
     ManagedAgentSettingsTableName,
 } from '../ee/database/entities/managedAgent';
 import {
+    McpClientInfoTable,
+    McpClientInfoTableName,
+    McpToolCallTable,
+    McpToolCallTableName,
+} from '../ee/database/entities/mcpToolCall';
+import {
     PreAggregateDailyStatsTable,
     PreAggregateDailyStatsTableName,
 } from '../ee/database/entities/preAggregateDailyStats';
@@ -608,6 +614,8 @@ declare module 'knex/types/tables' {
         [AiAgentReasoningTableName]: AiAgentReasoningTable;
         [AiAgentToolCallTableName]: AiAgentToolCallTable;
         [AiAgentToolResultTableName]: AiAgentToolResultTable;
+        [McpToolCallTableName]: McpToolCallTable;
+        [McpClientInfoTableName]: McpClientInfoTable;
         [AiSqlApprovalTableName]: AiSqlApprovalTable;
         [DashboardTabsTableName]: DashboardTabsTable;
         [NotificationsTableName]: NotificationsTable;
