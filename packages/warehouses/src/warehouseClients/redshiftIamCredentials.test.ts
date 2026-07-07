@@ -2,6 +2,7 @@
 import {
     CreateRedshiftCredentials,
     RedshiftAuthenticationType,
+    RedshiftIamTokenError,
     WarehouseConnectionError,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -40,6 +41,7 @@ vi.mock('@aws-sdk/credential-providers', () => ({
 // eslint-disable-next-line import/first -- Must import after mocks are set up
 import {
     getRedshiftAwsCredentials,
+    isExpiredAwsTokenError,
     mintRedshiftIamCredentials,
 } from './redshiftIamCredentials';
 
@@ -229,5 +231,30 @@ describe('mintRedshiftIamCredentials', () => {
                 workgroupName: undefined,
             }),
         ).rejects.toThrow(WarehouseConnectionError);
+    });
+
+    test('throws RedshiftIamTokenError when the AWS session token has expired', async () => {
+        mockClusterSend.mockRejectedValue({
+            name: 'ExpiredTokenException',
+            message: 'The security token included in the request is expired',
+        });
+
+        await expect(
+            mintRedshiftIamCredentials(provisionedCredentials),
+        ).rejects.toThrow(RedshiftIamTokenError);
+    });
+});
+
+describe('isExpiredAwsTokenError', () => {
+    test('detects expired AWS tokens by name or message', () => {
+        expect(isExpiredAwsTokenError({ name: 'ExpiredToken' })).toBe(true);
+        expect(
+            isExpiredAwsTokenError(
+                new Error(
+                    'The security token included in the request is expired',
+                ),
+            ),
+        ).toBe(true);
+        expect(isExpiredAwsTokenError(new Error('Access denied'))).toBe(false);
     });
 });

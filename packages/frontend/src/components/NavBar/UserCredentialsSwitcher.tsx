@@ -113,6 +113,17 @@ const UserCredentialsSwitcher = () => {
                         setShowCreateModalOnPageLoad(true);
                         setIsCreatingCredentials(true);
                     }
+                    if (
+                        error?.error?.name === 'RedshiftIamTokenError' &&
+                        activeProject?.warehouseConnection?.type ===
+                            'redshift' &&
+                        activeProject?.warehouseConnection
+                            ?.requireUserCredentials
+                    ) {
+                        console.info('Triggering reauth modal for Redshift');
+                        setShowCreateModalOnPageLoad(true);
+                        setIsCreatingCredentials(true);
+                    }
                 }
             }
         });

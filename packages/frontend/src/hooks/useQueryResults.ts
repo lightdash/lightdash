@@ -54,6 +54,30 @@ export type ReadyQueryResultsPageWithClientFetchTimeMs =
         clientFetchTimeMs: number;
     };
 
+const isRedshiftIamTokenErrorMessage = (message: string): boolean => {
+    const normalizedMessage = message.toLowerCase();
+    return (
+        normalizedMessage.includes('redshift iam') &&
+        normalizedMessage.includes('expired')
+    );
+};
+
+const getAsyncQueryError = (message: string | null): ApiError => {
+    const errorMessage = message || 'Query failed';
+    const isRedshiftIamTokenError =
+        isRedshiftIamTokenErrorMessage(errorMessage);
+
+    return {
+        status: 'error',
+        error: {
+            name: isRedshiftIamTokenError ? 'RedshiftIamTokenError' : 'Error',
+            statusCode: isRedshiftIamTokenError ? 401 : 500,
+            message: errorMessage,
+            data: {},
+        },
+    };
+};
+
 const executeAsyncMetricQuery = async (
     projectUuid: string,
     data: ExecuteAsyncMetricQueryRequestParams,
@@ -402,15 +426,7 @@ export const useInfiniteQueryResults = (
                 case QueryHistoryStatus.ERROR:
                 case QueryHistoryStatus.EXPIRED: {
                     backoffRef.current = 250;
-                    throw <ApiError>{
-                        status: 'error',
-                        error: {
-                            name: 'Error',
-                            statusCode: 500,
-                            message: results.error || 'Query failed',
-                            data: {},
-                        },
-                    };
+                    throw getAsyncQueryError(results.error);
                 }
                 case QueryHistoryStatus.CANCELLED: {
                     backoffRef.current = 250;
