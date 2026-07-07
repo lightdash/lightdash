@@ -35,6 +35,12 @@ export const SHARED_SKILL_PATH = `${SKILLS_DIR}/shared.md`;
 // it must be both allowlisted (ALLOWED_TOOLS) and passed via --add-dir.
 export const CLAUDE_SKILLS_DIR = '/home/user/.claude/skills';
 
+// Name of the baked dbt/SQL best-practice skill (repo-root `skills/<name>/`,
+// installed into CLAUDE_SKILLS_DIR). The system prompt names it so the agent
+// loads it via the `Skill` tool — auto-discovery alone doesn't pull in a
+// skill's body, so the reference is what triggers the load.
+export const EFFECTIVE_DBT_SQL_SKILL = 'effective-dbt-sql';
+
 // Files the agent writes for the host to open a PR from. Kept as a fallback
 // — the primary channel is now structured output blocks in the agent's stdout
 // (see PR_TITLE_OPEN/CLOSE etc.).

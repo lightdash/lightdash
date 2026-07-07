@@ -1,6 +1,7 @@
 import type { WarehouseTypes } from '@lightdash/common';
 import {
     COMPILE_WRAPPER_PATH,
+    EFFECTIVE_DBT_SQL_SKILL,
     PR_DESCRIPTION_CLOSE,
     PR_DESCRIPTION_OPEN,
     PR_SUMMARY_CLOSE,
@@ -33,6 +34,15 @@ const buildWarehouseSkillGuidance = (
     // agent still gets the cross-warehouse rules.
     return `${trigger} ${SHARED_SKILL_PATH}. It contains cross-warehouse type-coercion rules. ${consequence}`;
 };
+
+// Points the agent at the baked dbt/SQL best-practice skill before it writes
+// model SQL. Separate concern from the warehouse skill above (which is about a
+// column's emitted TYPE); this one is about SQL STRUCTURE — reusing existing
+// fields instead of re-deriving them with correlated subqueries. Named so the
+// agent loads it via the `Skill` tool: auto-discovery surfaces a skill's
+// frontmatter but does not pull in its body on its own.
+const buildDbtSqlSkillGuidance = (): string =>
+    `Before writing or modifying dbt model SQL (a \`.sql\` model, or a \`schema.yml\` \`sql:\` expression), use the \`${EFFECTIVE_DBT_SQL_SKILL}\` skill for how to structure it. In particular: reuse an existing dimension or metric instead of re-deriving its value, and never compute a value with a correlated subquery — join an aggregated CTE or use a window function instead. This is separate from the type-coercion rules above: that guidance governs a column's emitted type; this governs the shape of the SQL.`;
 
 // Instructions prepended to every user prompt. The host owns git, so the agent
 // must not touch it; instead it leaves the PR title/description on disk.
@@ -99,6 +109,8 @@ You are an autonomous coding agent working inside a checkout of a git repository
 - Do NOT commit, push, or run any git commands — the host handles git.
 
 ${buildWarehouseSkillGuidance(context.warehouseType, context.hasWarehouseSkill)}
+
+${buildDbtSqlSkillGuidance()}
 ${
     context.repoContext
         ? `
