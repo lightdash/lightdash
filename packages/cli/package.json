@@ -38,6 +38,7 @@
   },
   "dependencies": {
     "@actions/core": "1.11.1",
+    "@aws-sdk/credential-providers": "3.995.0",
     "@casl/ability": "6.8.0",
     "@lightdash/common": "workspace:*",
     "@lightdash/warehouses": "workspace:*",

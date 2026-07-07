@@ -719,6 +719,9 @@ importers:
       '@actions/core':
         specifier: 1.11.1
         version: 1.11.1
+      '@aws-sdk/credential-providers':
+        specifier: 3.995.0
+        version: 3.995.0
       '@casl/ability':
         specifier: 6.8.0
         version: 6.8.0
