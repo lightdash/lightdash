@@ -31,7 +31,7 @@ import {
     derivePoolIdFromEnv,
     SchedulerWorkerHealth,
 } from './scheduler/SchedulerWorkerHealth';
-import { IGNORE_ERRORS } from './sentry';
+import { errorsOnlyIntegrations, IGNORE_ERRORS } from './sentry';
 import { createOrganizationNameResolver } from './sentry/organizationNameResolver';
 import {
     OperationContext,
@@ -248,7 +248,9 @@ export default class SchedulerApp {
                     : this.lightdashConfig.mode,
             skipOpenTelemetrySetup: otelTracingEnabled(),
             registerEsmLoaderHooks: !otelTracingEnabled(),
-            integrations: [],
+            // OTel mode owns traces; strip Sentry's span-emitting default
+            // integrations (postgres etc.) so the worker is errors-only.
+            integrations: otelTracingEnabled() ? errorsOnlyIntegrations : [],
             ignoreErrors: IGNORE_ERRORS,
         });
         initOtelTracing();

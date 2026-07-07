@@ -332,6 +332,16 @@ export const traceTask = <T extends SchedulerTaskName>(
                               ).catch(() => undefined)
                             : undefined;
 
+                        // Sentry tags below are error-scope only; stamp the
+                        // attribution on the task span so it's queryable in
+                        // the trace backend.
+                        span.setAttributes({
+                            ...payloadTags,
+                            ...(organizationName && {
+                                'organization.name': organizationName,
+                            }),
+                        });
+
                         if ('user.uuid' in payloadTags) {
                             Sentry.setUser({
                                 id: payloadTags['user.uuid'],
