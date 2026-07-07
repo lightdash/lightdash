@@ -1,3 +1,10 @@
+# [0.3321.0](https://github.com/lightdash/lightdash/compare/0.3320.2...0.3321.0) (2026-07-07)
+
+
+### Features
+
+* **analytics:** raw object count metrics for usage events pipeline ([#25229](https://github.com/lightdash/lightdash/issues/25229)) ([548d7ec](https://github.com/lightdash/lightdash/commit/548d7ec0f3420993510788bd1187b592d46633b7)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.3320.2](https://github.com/lightdash/lightdash/compare/0.3320.1...0.3320.2) (2026-07-07)
 
 
