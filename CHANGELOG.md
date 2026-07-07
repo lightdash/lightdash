@@ -1,3 +1,10 @@
+## [0.3320.1](https://github.com/lightdash/lightdash/compare/0.3320.0...0.3320.1) (2026-07-07)
+
+
+### Bug Fixes
+
+* **echarts:** normalize 100% stacking per value-axis (PROD-8697) ([#25220](https://github.com/lightdash/lightdash/issues/25220)) ([1438cf0](https://github.com/lightdash/lightdash/commit/1438cf017c151fed7043811300eff58f9b97cead))
+
 # [0.3320.0](https://github.com/lightdash/lightdash/compare/0.3319.0...0.3320.0) (2026-07-07)
 
 
