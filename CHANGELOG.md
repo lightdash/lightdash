@@ -1,3 +1,10 @@
+## [0.3337.1](https://github.com/lightdash/lightdash/compare/0.3337.0...0.3337.1) (2026-07-08)
+
+
+### Bug Fixes
+
+* **e2e:** apply intended 30s timeout to /home redirect assertion ([#25299](https://github.com/lightdash/lightdash/issues/25299)) ([e1cba69](https://github.com/lightdash/lightdash/commit/e1cba69403ef97e8b8e67a631703948f37c0319e))
+
 # [0.3337.0](https://github.com/lightdash/lightdash/compare/0.3336.0...0.3337.0) (2026-07-08)
 
 
