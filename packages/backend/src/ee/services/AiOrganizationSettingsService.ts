@@ -270,6 +270,20 @@ export class AiOrganizationSettingsService extends BaseService {
 
         this.checkManageAiAgentAccess(user);
 
+        // The model-visibility validation below reads the CURRENT key's model
+        // access, which would be stale if the key changed in the same request
+        // (e.g. restrict to only a key-unlocked model while swapping to a key
+        // that can't reach it → zero models). Require separate requests so the
+        // two never race.
+        if (
+            data.providerApiKeys !== undefined &&
+            data.modelVisibility !== undefined
+        ) {
+            throw new ParameterError(
+                'Update provider API keys and model visibility in separate requests',
+            );
+        }
+
         if (
             data.providerApiKeys !== undefined ||
             data.modelVisibility !== undefined
