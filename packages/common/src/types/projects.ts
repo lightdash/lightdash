@@ -748,6 +748,7 @@ export enum SupportedDbtVersions {
     V1_9 = 'v1.9',
     V1_10 = 'v1.10',
     V1_11 = 'v1.11',
+    V1_12 = 'v1.12',
 }
 
 // Make it an enum to avoid TSOA errors
