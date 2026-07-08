@@ -377,6 +377,7 @@ export const createLightdashPgWireHandlers = (
                 throw new PgWireServerError(
                     'password authentication failed: provide a Lightdash service account token (ldsvc_) or personal access token (ldpat_) as the password',
                     '28P01',
+                    'Set up a service account under Settings > Service accounts (recommended), or a personal access token under Settings > Personal access tokens, and use it as the password',
                 );
             }
             const isServiceAccount = password.startsWith(
