@@ -24,7 +24,10 @@ const CellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({ cell }) => {
     }, [value, clipboard, showToastSuccess]);
 
     const urls: FieldUrl[] | undefined = useMemo(
-        () => (value.raw && isField(item) ? item.urls : undefined),
+        () =>
+            value.raw !== undefined && value.raw !== null && isField(item)
+                ? item.urls
+                : undefined,
         [value, item],
     );
 

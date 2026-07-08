@@ -51,7 +51,10 @@ const MinimalCellContextMenu: FC<Pick<CellContextMenuProps, 'cell'>> = ({
 
     return (
         <>
-            {item && value.raw && isField(item) ? (
+            {item &&
+            value.raw !== undefined &&
+            value.raw !== null &&
+            isField(item) ? (
                 <UrlMenuItems urls={item.urls} cell={cell} showErrors={false} />
             ) : null}
 

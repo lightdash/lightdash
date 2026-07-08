@@ -117,7 +117,7 @@ const CellContextMenu: FC<
 
     return (
         <>
-            {!!value.raw && isField(item) && (
+            {value.raw !== undefined && value.raw !== null && isField(item) && (
                 <UrlMenuItems
                     urls={item.urls}
                     cell={cell}
