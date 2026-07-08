@@ -55,6 +55,14 @@ export const AiGeneralSettingsPage = () => {
         useUpsertAiRouterConfig();
     const defaultModelConfig = settings?.defaultAiAgentModelConfig ?? null;
     const defaultModelOptions = settings?.defaultAiAgentModelOptions;
+    // Review turns run through the instance provider, so they're paused while an
+    // org uses its own key (mirrors areReviewsEnabledForSettings on the backend).
+    const reviewsPausedByByok = Boolean(
+        settings?.providerApiKeysSet.anthropic ||
+        settings?.providerApiKeysSet.openai,
+    );
+    const reviewsEffectivelyOn =
+        Boolean(settings?.aiAgentReviewsEnabled) && !reviewsPausedByByok;
     const {
         fallbackModelLabel: systemDefaultModelLabel,
         selectedModel: selectedDefaultModel,
@@ -296,7 +304,7 @@ export const AiGeneralSettingsPage = () => {
                                         For connected projects, Lightdash can
                                         suggest pull requests that improve
                                         context and dbt definitions.
-                                        {settings.aiAgentReviewsEnabled && (
+                                        {reviewsEffectivelyOn && (
                                             <>
                                                 {' '}
                                                 See issues in{' '}
@@ -311,11 +319,21 @@ export const AiGeneralSettingsPage = () => {
                                             </>
                                         )}
                                     </Text>
+                                    {reviewsPausedByByok && (
+                                        <Text c="dimmed" fz="xs" mt={4}>
+                                            Paused while your organization uses
+                                            its own AI provider key — turn data
+                                            isn&apos;t sent through Lightdash.
+                                        </Text>
+                                    )}
                                 </Box>
                                 <Switch
                                     size="md"
-                                    checked={settings.aiAgentReviewsEnabled}
-                                    disabled={isUpdatingSettings}
+                                    checked={reviewsEffectivelyOn}
+                                    disabled={
+                                        isUpdatingSettings ||
+                                        reviewsPausedByByok
+                                    }
                                     onChange={(event) =>
                                         updateSettings({
                                             aiAgentReviewsEnabled:
@@ -325,7 +343,7 @@ export const AiGeneralSettingsPage = () => {
                                 />
                             </Group>
 
-                            {settings.aiAgentReviewsEnabled && (
+                            {reviewsEffectivelyOn && (
                                 <ReviewNotificationsSettings />
                             )}
                         </Stack>
