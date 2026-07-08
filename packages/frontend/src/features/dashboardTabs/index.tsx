@@ -1,7 +1,9 @@
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import {
+    assertUnreachable,
     copyDateZoomTileTargets,
     FeatureFlags,
+    type DashboardFilterRule,
     type DashboardTab,
     type DashboardTile,
     type Dashboard as IDashboard,
@@ -332,8 +334,8 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     );
     const dateZoomConfig = useDashboardContext((c) => c.dateZoomConfig);
     const setDateZoomConfig = useDashboardContext((c) => c.setDateZoomConfig);
-    const requiredDashboardFilters = useDashboardContext(
-        (c) => c.requiredDashboardFilters,
+    const unmetFilterRequirements = useDashboardContext(
+        (c) => c.unmetFilterRequirements,
     );
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
@@ -501,32 +503,22 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         [visibleTiles, isEditMode, gridProps],
     );
 
-    // Compute whether there are required filters that apply to the current tab
+    // Compute whether there are unmet filter requirements that apply to the current tab
     // Note: We use doesFilterApplyToTile because getTabUuidsForFilterRules from common
     // skips disabled filters, but required filters ARE disabled until a value is set
-    const hasRequiredFiltersForCurrentTab = useMemo(() => {
-        // If no required filters, no locking needed
-        if (requiredDashboardFilters.length === 0) {
+    const hasUnmetFilterRequirementsForCurrentTab = useMemo(() => {
+        if (unmetFilterRequirements.length === 0) {
             return false;
         }
 
-        // If no tabs or single tab, use original behavior (check all required filters)
+        // If no tabs or single tab, any unmet requirement locks the dashboard
         if (!tabsEnabled) {
-            return requiredDashboardFilters.length > 0;
+            return true;
         }
 
-        // For each required filter, check if it applies to any tile on the current tab
-        return requiredDashboardFilters.some((requiredFilter) => {
-            // Find the full filter rule to get tileTargets
-            const filterRule =
-                dashboardFilters.dimensions.find(
-                    (f) => f.id === requiredFilter.id,
-                ) ??
-                dashboardFilters.metrics.find(
-                    (f) => f.id === requiredFilter.id,
-                );
-            if (!filterRule) return false;
-
+        const doesFilterApplyToCurrentTab = (
+            filterRule: DashboardFilterRule,
+        ) => {
             // If no tileTargets configuration, filter applies to all tiles
             // So it applies to the current tab
             if (!filterRule.tileTargets) {
@@ -536,10 +528,8 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             // Check if any tile on the current tab is targeted by this filter
             return (
                 dashboardTiles?.some((tile) => {
-                    // Check if tile is on current tab
                     if (tile.tabUuid !== activeTab?.uuid) return false;
 
-                    // Use shared utility to check if filter applies to this tile
                     return doesFilterApplyToTile(
                         filterRule,
                         tile,
@@ -547,13 +537,28 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                     );
                 }) ?? false
             );
+        };
+
+        return unmetFilterRequirements.some((requirement) => {
+            switch (requirement.type) {
+                case 'single':
+                    return doesFilterApplyToCurrentTab(requirement.filter);
+                case 'group':
+                    // A group applies to a tab if any member applies to it
+                    return requirement.filters.some(
+                        doesFilterApplyToCurrentTab,
+                    );
+                default:
+                    return assertUnreachable(
+                        requirement,
+                        'Unknown filter requirement type',
+                    );
+            }
         });
     }, [
-        requiredDashboardFilters,
+        unmetFilterRequirements,
         tabsEnabled,
         dashboardTiles,
-        dashboardFilters.dimensions,
-        dashboardFilters.metrics,
         activeTab?.uuid,
         filterableFieldsByTileUuid,
     ]);
@@ -1172,7 +1177,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                                   isEditMode
                                                               }
                                                               locked={
-                                                                  hasRequiredFiltersForCurrentTab
+                                                                  hasUnmetFilterRequirementsForCurrentTab
                                                               }
                                                               gridProps={
                                                                   gridProps
@@ -1216,7 +1221,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                       <ResponsiveGridLayout
                                                           {...gridProps}
                                                           className={`${
-                                                              hasRequiredFiltersForCurrentTab
+                                                              hasUnmetFilterRequirementsForCurrentTab
                                                                   ? 'locked'
                                                                   : ''
                                                           }`}
@@ -1262,7 +1267,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                                       >
                                                                           <GridTile
                                                                               locked={
-                                                                                  hasRequiredFiltersForCurrentTab
+                                                                                  hasUnmetFilterRequirementsForCurrentTab
                                                                               }
                                                                               index={
                                                                                   idx
@@ -1297,7 +1302,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                 </Group>
                                 <LockedDashboardModal
                                     opened={
-                                        hasRequiredFiltersForCurrentTab &&
+                                        hasUnmetFilterRequirementsForCurrentTab &&
                                         !!hasDashboardTiles
                                     }
                                 />

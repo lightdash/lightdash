@@ -9,6 +9,7 @@ import {
     getFilterInteractivityValue,
     getItemId,
     getMissingRequiredParameters,
+    getUnmetFilterRequirements,
     isDashboardChartTileType,
     isFilterLockedOnTab,
     isStandardDateGranularity,
@@ -44,7 +45,6 @@ import React, {
 } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useDeepCompareEffect, useMount } from 'react-use';
-import { getConditionalRuleLabelFromItem } from '../../components/common/Filters/FilterInputs/utils';
 import { type SdkFilter } from '../../ee/features/embed/EmbedDashboard/types';
 import {
     convertSdkFilterToDashboardFilter,
@@ -1643,45 +1643,11 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         setSavedParameters,
     ]);
 
-    // Filters that are required to have a value set
-    const requiredDashboardFilters = useMemo(
-        () =>
-            [...dashboardFilters.dimensions, ...dashboardFilters.metrics]
-                // Get filters that are required to have a value set (required) and that have no default value set (disabled)
-                .filter((f) => f.required && f.disabled)
-                .reduce<Pick<DashboardFilterRule, 'id' | 'label'>[]>(
-                    (acc, f) => {
-                        const field =
-                            allFilterableFieldsMap[f.target.fieldId] ??
-                            allFilterableMetricsMap[f.target.fieldId];
-
-                        let label = '';
-
-                        if (f.label) {
-                            label = f.label;
-                        } else if (field) {
-                            label = getConditionalRuleLabelFromItem(
-                                f,
-                                field,
-                            ).field;
-                        }
-
-                        return [
-                            ...acc,
-                            {
-                                id: f.id,
-                                label,
-                            },
-                        ];
-                    },
-                    [],
-                ),
-        [
-            dashboardFilters.dimensions,
-            dashboardFilters.metrics,
-            allFilterableFieldsMap,
-            allFilterableMetricsMap,
-        ],
+    // Filter requirements (single required filters and "any-one required"
+    // groups) that don't have a value set yet
+    const unmetFilterRequirements = useMemo(
+        () => getUnmetFilterRequirements(dashboardFilters),
+        [dashboardFilters],
     );
 
     const value = {
@@ -1741,7 +1707,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         dashboardCommentsCheck,
         dashboardComments,
         hasTileComments,
-        requiredDashboardFilters,
+        unmetFilterRequirements,
         isDateZoomDisabled,
         setIsDateZoomDisabled,
         isAddFilterDisabled,

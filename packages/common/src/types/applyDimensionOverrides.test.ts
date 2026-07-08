@@ -327,6 +327,8 @@ describe('applyDimensionOverrides', () => {
             expect(result[0]).toEqual({
                 ...overrides[0],
                 tileTargets: baseDashboardFilters.dimensions[0].tileTargets,
+                // Requirement flags are owned by the saved dashboard
+                required: undefined,
             });
         });
 
@@ -687,6 +689,87 @@ describe('applyDimensionOverrides', () => {
             expect(result).toHaveLength(1);
             expect(result[0].disabled).toBe(true);
             expect(result[0].values).toEqual(['new']);
+        });
+    });
+
+    // required / requiredGroupId are set by the dashboard editor; an override
+    // (shared link, embed JWT, scheduler) must not be able to strip or inject
+    // them.
+    describe('requirement flags are saved-dashboard-owned', () => {
+        it('keeps the saved requirement flags when an override omits them', () => {
+            const savedFilters: DashboardFilters = {
+                dimensions: [
+                    {
+                        ...createBaseDashboardFilter(
+                            'filter-1',
+                            'customers_customer_id',
+                            'customers',
+                        ),
+                        required: true,
+                    },
+                    {
+                        ...createBaseDashboardFilter(
+                            'filter-2',
+                            'orders_status',
+                            'orders',
+                        ),
+                        requiredGroupId: 'group-1',
+                    },
+                ],
+                metrics: [],
+                tableCalculations: [],
+            };
+            const overrides: DashboardFilterRule[] = [
+                createOverrideFilter(
+                    'filter-1',
+                    'customers_customer_id',
+                    'customers',
+                    ['789'],
+                ),
+                // Field-matched override with a stale id
+                createOverrideFilter('stale', 'orders_status', 'orders', [
+                    'completed',
+                ]),
+            ];
+
+            const result = applyDimensionOverrides(savedFilters, overrides);
+
+            expect(result).toHaveLength(2);
+            expect(result[0].required).toBe(true);
+            expect(result[0].values).toEqual(['789']);
+            expect(result[1].requiredGroupId).toBe('group-1');
+            expect(result[1].values).toEqual(['completed']);
+        });
+
+        it('ignores requirement flags supplied by the override', () => {
+            const savedFilters: DashboardFilters = {
+                dimensions: [
+                    createBaseDashboardFilter(
+                        'filter-1',
+                        'customers_customer_id',
+                        'customers',
+                    ),
+                ],
+                metrics: [],
+                tableCalculations: [],
+            };
+            const overrides: DashboardFilterRule[] = [
+                {
+                    ...createOverrideFilter(
+                        'filter-1',
+                        'customers_customer_id',
+                        'customers',
+                    ),
+                    required: true,
+                    requiredGroupId: 'injected-group',
+                },
+            ];
+
+            const result = applyDimensionOverrides(savedFilters, overrides);
+
+            expect(result).toHaveLength(1);
+            expect(result[0].required).toBeUndefined();
+            expect(result[0].requiredGroupId).toBeUndefined();
         });
     });
 });

@@ -55,7 +55,7 @@ const EmbedDashboardGrid: FC<{
     projectUuid: string;
     paletteColors?: string[];
     paletteDarkColors?: string[] | null;
-    hasRequiredDashboardFiltersToSet: boolean;
+    hasUnmetFilterRequirements: boolean;
     isTabEmpty?: boolean;
     gridProps: ResponsiveGridLayoutProps;
     isEditMode: boolean;
@@ -71,7 +71,7 @@ const EmbedDashboardGrid: FC<{
     projectUuid,
     paletteColors,
     paletteDarkColors,
-    hasRequiredDashboardFiltersToSet,
+    hasUnmetFilterRequirements,
     isTabEmpty,
     gridProps,
     isEditMode,
@@ -104,7 +104,7 @@ const EmbedDashboardGrid: FC<{
                     onResizeStop={onLayoutChange}
                     onBreakpointChange={(_, cols) => onBreakpointChange(cols)}
                     className={`react-grid-layout-dashboard ${
-                        hasRequiredDashboardFiltersToSet ? 'locked' : ''
+                        hasUnmetFilterRequirements ? 'locked' : ''
                     }`}
                 >
                     {filteredTiles.map((tile, index) => (
@@ -148,9 +148,7 @@ const EmbedDashboardGrid: FC<{
                                             dashboard.canExportImages
                                         }
                                         canViewExplore={dashboard.canExplore}
-                                        locked={
-                                            hasRequiredDashboardFiltersToSet
-                                        }
+                                        locked={hasUnmetFilterRequirements}
                                         tileIndex={index}
                                     />
                                 )
@@ -339,12 +337,11 @@ const EmbedDashboard: FC<{
             setEmbedDashboard(dashboard);
         }
     }, [dashboard, setEmbedDashboard]);
-    const requiredDashboardFilters = useDashboardContext(
-        (c) => c.requiredDashboardFilters,
+    const unmetFilterRequirements = useDashboardContext(
+        (c) => c.unmetFilterRequirements,
     );
 
-    const hasRequiredDashboardFiltersToSet =
-        requiredDashboardFilters.length > 0;
+    const hasUnmetFilterRequirements = unmetFilterRequirements.length > 0;
     const currentDashboardTiles = useMemo(
         () => dashboardTiles ?? dashboard?.tiles ?? [],
         [dashboard?.tiles, dashboardTiles],
@@ -733,7 +730,7 @@ const EmbedDashboard: FC<{
             }
         >
             <LockedDashboardModal
-                opened={hasRequiredDashboardFiltersToSet && !!hasChartTiles}
+                opened={hasUnmetFilterRequirements && !!hasChartTiles}
             />
 
             {currentDashboardTiles.length === 0 ? (
@@ -788,9 +785,7 @@ const EmbedDashboard: FC<{
                         paletteDarkColors={
                             dashboard.selectedPalette?.darkColors
                         }
-                        hasRequiredDashboardFiltersToSet={
-                            hasRequiredDashboardFiltersToSet
-                        }
+                        hasUnmetFilterRequirements={hasUnmetFilterRequirements}
                         isTabEmpty={isTabEmpty}
                         gridProps={gridProps}
                         isEditMode={isEditMode}
@@ -817,9 +812,7 @@ const EmbedDashboard: FC<{
                         paletteDarkColors={
                             dashboard.selectedPalette?.darkColors
                         }
-                        hasRequiredDashboardFiltersToSet={
-                            hasRequiredDashboardFiltersToSet
-                        }
+                        hasUnmetFilterRequirements={hasUnmetFilterRequirements}
                         gridProps={gridProps}
                         isEditMode={isEditMode}
                         onLayoutChange={handleLayoutChange}

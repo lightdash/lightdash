@@ -444,12 +444,15 @@ export const applyDimensionOverrides = (
                 appliedOverrideIds.add(override.id);
                 return {
                     ...override,
-                    // The saved dashboard owns identity, tile targeting and lock
-                    // state; the override only carries value/operator. Forcing the
-                    // id re-homes a field-matched override onto the saved filter.
+                    // The saved dashboard owns identity, tile targeting, lock
+                    // state and requirement flags; the override only carries
+                    // value/operator. Forcing the id re-homes a field-matched
+                    // override onto the saved filter.
                     id: dimension.id,
                     tileTargets: dimension.tileTargets,
                     lockedTabUuids: dimension.lockedTabUuids,
+                    required: dimension.required,
+                    requiredGroupId: dimension.requiredGroupId,
                 };
             }
             return dimension;

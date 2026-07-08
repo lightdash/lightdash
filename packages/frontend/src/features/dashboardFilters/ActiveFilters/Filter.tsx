@@ -7,6 +7,7 @@ import {
     isFilterLockedOnTab,
     type DashboardFilterableField,
     type DashboardFilterRule,
+    type UnmetFilterRequirement,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -248,8 +249,35 @@ const Filter: FC<Props> = ({
         };
     }, [filterRule.values, isDateFilter]);
 
+    const unmetFilterRequirements = useDashboardContext(
+        (c) => c.unmetFilterRequirements,
+    );
+    const unmetGroupRequirement = useMemo(
+        () =>
+            unmetFilterRequirements.find(
+                (
+                    requirement,
+                ): requirement is Extract<
+                    UnmetFilterRequirement,
+                    { type: 'group' }
+                > =>
+                    requirement.type === 'group' &&
+                    requirement.filters.some((f) => f.id === filterRule.id),
+            ),
+        [unmetFilterRequirements, filterRule.id],
+    );
+
     const hasUnsetRequiredFilter =
         filterRule.required && !hasFilterValueSet(filterRule);
+
+    const showRequiredIndicator =
+        hasUnsetRequiredFilter || unmetGroupRequirement !== undefined;
+    const requiredIndicatorLabel = hasUnsetRequiredFilter
+        ? 'Required'
+        : `Required (any of ${unmetGroupRequirement?.filters.length})`;
+    const requiredIndicatorTooltip = hasUnsetRequiredFilter
+        ? 'Set a value to run this dashboard'
+        : 'Set a value on any filter in this group to run this dashboard';
 
     const isReadOnlyLocked = isLocked && !isEditMode && !isTemporary;
 
@@ -292,14 +320,11 @@ const Filter: FC<Props> = ({
                             indicator: classes.indicator,
                         }}
                         position="top-start"
-                        disabled={!hasUnsetRequiredFilter}
+                        disabled={!showRequiredIndicator}
                         label={
-                            <Tooltip
-                                fz="xs"
-                                label="Set a value to run this dashboard"
-                            >
+                            <Tooltip fz="xs" label={requiredIndicatorTooltip}>
                                 <Text fz="10px" fw={500}>
-                                    Required
+                                    {requiredIndicatorLabel}
                                 </Text>
                             </Tooltip>
                         }
@@ -320,7 +345,7 @@ const Filter: FC<Props> = ({
                                 pos="relative"
                                 size="xs"
                                 variant={
-                                    isTemporary || hasUnsetRequiredFilter
+                                    isTemporary || showRequiredIndicator
                                         ? 'outline'
                                         : 'default'
                                 }
@@ -329,7 +354,7 @@ const Filter: FC<Props> = ({
                                     root: triggerClassName,
                                 }}
                                 className={`${classes.button} ${
-                                    hasUnsetRequiredFilter
+                                    showRequiredIndicator
                                         ? classes.unsetRequiredFilter
                                         : ''
                                 } ${isOrphaned ? classes.inactiveFilter : ''}`}
