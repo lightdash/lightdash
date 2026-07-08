@@ -1,3 +1,11 @@
+# [0.3338.0](https://github.com/lightdash/lightdash/compare/0.3337.1...0.3338.0) (2026-07-08)
+
+
+### Features
+
+* **backend:** install declared app dependencies in the build sandbox [GLITCH-602] ([#25178](https://github.com/lightdash/lightdash/issues/25178)) ([7c0084b](https://github.com/lightdash/lightdash/commit/7c0084b78494fe300800a782ddf1cca44d4ab870))
+* move postgres wire endpoint to EE and support service accounts ([#25282](https://github.com/lightdash/lightdash/issues/25282)) ([056155c](https://github.com/lightdash/lightdash/commit/056155cb6a6eb34a282eaa7dd7bf99ca8c2fa6d4))
+
 ## [0.3337.1](https://github.com/lightdash/lightdash/compare/0.3337.0...0.3337.1) (2026-07-08)
 
 
