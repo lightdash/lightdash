@@ -1329,34 +1329,29 @@ const useCartesianChartConfig = ({
 
     useEffect(() => {
         if (isConditionalFormattingEligible) return;
-        if (conditionalFormattings.length === 0) return;
 
-        setConditionalFormattings([]);
-    }, [isConditionalFormattingEligible, conditionalFormattings]);
+        setConditionalFormattings((prev) => (prev.length === 0 ? prev : []));
+    }, [isConditionalFormattingEligible]);
 
     // Repair configs whose target no longer exists on the chart (e.g. the
     // metric was swapped or removed) by pointing them at the first metric
     useEffect(() => {
+        if (!isConditionalFormattingEligible) return;
+
         const yFields = dirtyLayout?.yField ?? [];
         const firstYField = yFields[0];
-        if (
-            !isConditionalFormattingEligible ||
-            !firstYField ||
-            conditionalFormattings.length === 0
-        ) {
-            return;
-        }
+        if (!firstYField) return;
 
-        const hasOutdatedTargets = conditionalFormattings.some(
-            (config) =>
-                !config.target?.fieldId ||
-                !yFields.includes(config.target.fieldId),
-        );
+        setConditionalFormattings((prev) => {
+            const hasOutdatedTargets = prev.some(
+                (config) =>
+                    !config.target?.fieldId ||
+                    !yFields.includes(config.target.fieldId),
+            );
 
-        if (!hasOutdatedTargets) return;
+            if (!hasOutdatedTargets) return prev;
 
-        setConditionalFormattings((prev) =>
-            prev.map((config) =>
+            return prev.map((config) =>
                 config.target?.fieldId &&
                 yFields.includes(config.target.fieldId)
                     ? config
@@ -1364,13 +1359,9 @@ const useCartesianChartConfig = ({
                           ...config,
                           target: { fieldId: firstYField },
                       },
-            ),
-        );
-    }, [
-        isConditionalFormattingEligible,
-        dirtyLayout?.yField,
-        conditionalFormattings,
-    ]);
+            );
+        });
+    }, [isConditionalFormattingEligible, dirtyLayout?.yField]);
 
     const validConfig: CartesianChart = useMemo(() => {
         // Always use the dirtyLayout and dirtyEchartsConfig when possible, fallback to the empty config if not complete.
