@@ -927,7 +927,7 @@ export const downloadHandler = async (
         // Download regular charts and SQL charts
         if (!options.skipCharts) {
             if (hasFilters && options.charts.length === 0) {
-                console.info(
+                GlobalState.log(
                     styles.warning(`No charts filters provided, skipping`),
                 );
             } else {
@@ -979,7 +979,7 @@ export const downloadHandler = async (
         // Download dashboards
         if (!options.skipDashboards) {
             if (hasFilters && options.dashboards.length === 0) {
-                console.info(
+                GlobalState.log(
                     styles.warning(`No dashboards filters provided, skipping`),
                 );
             } else {
