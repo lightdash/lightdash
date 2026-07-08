@@ -126,8 +126,8 @@ describe('Dashboard filter required groups', () => {
         cy.findByText('To load data, set these filters:').should('be.visible');
         cy.findByText('at least one of').should('be.visible');
 
-        // Tiles show the locked placeholder: no chart rendered or loading
-        cy.get('.react-grid-layout .tabler-icon-lock').should('exist');
+        // Tiles show the locked skeleton placeholder: no chart rendered or loading
+        cy.findAllByTestId('locked-tile-placeholder').should('exist');
         cy.findAllByText('Loading chart').should('have.length', 0);
         cy.get('.echarts-for-react').should('not.exist');
 
@@ -145,7 +145,7 @@ describe('Dashboard filter required groups', () => {
         // Unlocked: banner gone, tile runs its query and renders
         cy.contains('To load data').should('not.exist');
         cy.wait('@chartQuery');
-        cy.get('.react-grid-layout .tabler-icon-lock').should('not.exist');
+        cy.findAllByTestId('locked-tile-placeholder').should('have.length', 0);
         cy.findAllByText('Loading chart').should('have.length', 0);
         cy.get('.echarts-for-react').should('exist');
     });
@@ -167,7 +167,7 @@ describe('Dashboard filter required groups', () => {
         cy.findByText('To load data, set this filter:').should('be.visible');
         cy.contains('at least one of').should('not.exist');
 
-        cy.get('.react-grid-layout .tabler-icon-lock').should('exist');
+        cy.findAllByTestId('locked-tile-placeholder').should('exist');
         cy.get('@chartQuery.all').should('have.length', 0);
 
         // Setting a value on the required filter unlocks the dashboard
@@ -180,7 +180,7 @@ describe('Dashboard filter required groups', () => {
 
         cy.contains('To load data').should('not.exist');
         cy.wait('@chartQuery');
-        cy.get('.react-grid-layout .tabler-icon-lock').should('not.exist');
+        cy.findAllByTestId('locked-tile-placeholder').should('have.length', 0);
         cy.findAllByText('Loading chart').should('have.length', 0);
         cy.get('.echarts-for-react').should('exist');
     });

@@ -4,7 +4,7 @@ import {
     type UnmetFilterRequirement,
 } from '@lightdash/common';
 import { Badge, Group, Text, UnstyledButton } from '@mantine-8/core';
-import { IconAlertTriangle } from '@tabler/icons-react';
+import { IconAlertTriangle, IconLock } from '@tabler/icons-react';
 import { Fragment, useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
@@ -21,11 +21,12 @@ type FilterNameTagProps = {
 const FilterNameTag: FC<FilterNameTagProps> = ({ label, onClick }) => (
     <UnstyledButton onClick={onClick}>
         <Badge
-            variant="outline"
+            variant="light"
             color="yellow"
             radius="xl"
             tt="none"
-            fw={500}
+            fw={600}
+            leftSection={<MantineIcon icon={IconLock} size={11} />}
             className={classes.filterNameTag}
         >
             {label}

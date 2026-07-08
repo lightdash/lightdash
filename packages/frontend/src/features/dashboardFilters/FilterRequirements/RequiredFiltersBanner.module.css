@@ -1,7 +1,8 @@
 .banner {
     padding: var(--mantine-spacing-xs) var(--mantine-spacing-lg);
     margin-bottom: var(--mantine-spacing-md);
-    border-bottom: 1px solid var(--mantine-color-yellow-6);
+    border-top: 1px solid alpha(var(--mantine-color-yellow-6), 0.3);
+    border-bottom: 1px solid alpha(var(--mantine-color-yellow-6), 0.3);
 
     @mixin light {
         background-color: var(--mantine-color-yellow-0);
@@ -13,13 +14,13 @@
 
 .filterNameTag {
     cursor: pointer;
+
+    /* Mantine's yellow light-variant text is too pale on the banner in light mode */
+    @mixin light {
+        color: var(--mantine-color-yellow-9);
+    }
 }
 
 .filterNameTag:hover {
-    @mixin light {
-        background-color: var(--mantine-color-yellow-1);
-    }
-    @mixin dark {
-        background-color: alpha(var(--mantine-color-yellow-6), 0.15);
-    }
+    background-color: var(--mantine-color-yellow-light-hover);
 }

@@ -13,6 +13,13 @@
     }
 }
 
+.requirementUnmet .label {
+    color: light-dark(
+        var(--mantine-color-ldGray-9),
+        var(--mantine-color-gray-0)
+    );
+}
+
 .inactiveFilter {
     border-style: dashed;
     border-width: 1px;
