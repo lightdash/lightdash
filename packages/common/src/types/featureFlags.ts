@@ -220,22 +220,6 @@ export enum FeatureFlags {
     GithubUserCredentials = 'github-user-credentials',
 
     /**
-     * Let the AI agent discover and read any repository the org's GitHub App
-     * installation can see, through a read-only shell (ls/cat/find/grep/head)
-     * backed by the GitHub API — no E2B sandbox/clone. `discoverRepos` lists
-     * accessible repos and `exploreRepo` reads them through a single virtual
-     * filesystem: the dbt project is mounted (subPath-scoped) at `/dbt` and every
-     * accessible repo whole at `/<owner>/<repo>`, with per-repo trees fetched
-     * lazily and a per-run materialization budget bounding recursive walks. Lets
-     * the agent inspect source before diagnosing, instead of guessing or spinning
-     * up a writeback sandbox.
-     *
-     * Value kept as `repo-fs` for backwards compatibility with existing flag
-     * configuration; the symbol was renamed from `RepoFs`.
-     */
-    RepoDiscovery = 'repo-fs',
-
-    /**
      * Gate the org-level export Limits settings panel (per-org query max rows
      * and CSV cells limit). Backend enforcement of any stored overrides is
      * always on; this flag only controls who can see/configure the panel.
