@@ -548,16 +548,15 @@ export async function getModernArtifactCardBlocks(
                     .chartImageUrl,
         )
         .filter((url): url is string => Boolean(url));
-    // Two chart versions are the "same chart" when their query and viz type
-    // match. A retried generateVisualization re-runs the same query, so those
-    // versions share this identity; genuinely different charts (e.g. a
-    // per-status filter) do not.
-    const getArtifactChartIdentity = (artifact: AiArtifact): string => {
+    // A retried generateVisualization adds another version to the turn's
+    // artifact — sometimes re-running the same query, sometimes tweaking it
+    // (e.g. day -> month grain) to work around an error while keeping the same
+    // title. Its query identity: viz type + query, ignoring the random ids
+    // parseVizConfig stamps on filter rules.
+    const getArtifactQueryIdentity = (artifact: AiArtifact): string => {
         if (artifact.chartConfig) {
             const viz = parseVizConfig(artifact.chartConfig, maxQueryLimit);
             if (viz) {
-                // parseVizConfig assigns a random id to each filter rule, so
-                // drop id fields to keep the identity stable across retries.
                 return JSON.stringify(
                     { type: viz.type, metricQuery: viz.metricQuery },
                     (key, value) => (key === 'id' ? undefined : value),
@@ -570,23 +569,51 @@ export async function getModernArtifactCardBlocks(
         return `version:${artifact.versionUuid}`;
     };
 
-    // Collapse retries to the latest version so they render as one card, while
-    // keeping distinct charts as separate cards (Slack allows up to 10).
-    const dedupedArtifacts = Array.from(
-        artifacts
-            .reduce((byIdentity, artifact) => {
-                const identity = getArtifactChartIdentity(artifact);
-                const existing = byIdentity.get(identity);
-                if (
-                    !existing ||
-                    artifact.versionNumber > existing.versionNumber
-                ) {
-                    byIdentity.set(identity, artifact);
-                }
-                return byIdentity;
-            }, new Map<string, AiArtifact>())
-            .values(),
-    ).slice(0, 10);
+    // Treat two versions as the same chart when they share a query OR a title,
+    // so retries collapse whether or not the query changed. Union them and keep
+    // the latest version of each group (Slack allows up to 10 cards).
+    const parent = artifacts.map((_, index) => index);
+    const find = (index: number): number => {
+        let root = index;
+        while (parent[root] !== root) root = parent[root];
+        return root;
+    };
+    const union = (a: number, b: number) => {
+        parent[find(a)] = find(b);
+    };
+    const firstByKey = new Map<string, number>();
+    artifacts.forEach((artifact, index) => {
+        const title = artifact.title?.trim();
+        const keys = [
+            `query:${getArtifactQueryIdentity(artifact)}`,
+            ...(title ? [`title:${title}`] : []),
+        ];
+        keys.forEach((key) => {
+            const seen = firstByKey.get(key);
+            if (seen === undefined) firstByKey.set(key, index);
+            else union(index, seen);
+        });
+    });
+    const latestByGroup = new Map<
+        number,
+        { artifact: AiArtifact; firstIndex: number }
+    >();
+    artifacts.forEach((artifact, index) => {
+        const group = find(index);
+        const existing = latestByGroup.get(group);
+        if (
+            !existing ||
+            artifact.versionNumber > existing.artifact.versionNumber
+        )
+            latestByGroup.set(group, {
+                artifact,
+                firstIndex: existing?.firstIndex ?? index,
+            });
+    });
+    const dedupedArtifacts = Array.from(latestByGroup.values())
+        .sort((a, b) => a.firstIndex - b.firstIndex)
+        .map((entry) => entry.artifact)
+        .slice(0, 10);
 
     const chartArtifacts = dedupedArtifacts.filter((artifact) =>
         Boolean(artifact.chartConfig),

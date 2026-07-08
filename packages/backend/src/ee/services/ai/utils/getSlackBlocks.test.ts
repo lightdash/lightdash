@@ -577,8 +577,8 @@ describe('Slack AI agent blocks', () => {
         expect(blocks).toHaveLength(1);
     });
 
-    it('keeps charts with the same title but different queries as separate cards', async () => {
-        const chartVersion = (versionUuid: string, status: string) => ({
+    it('collapses a retry that changed the query but kept the title', async () => {
+        const retryVersion = (versionUuid: string, grain: string) => ({
             artifactUuid: 'artifact-1',
             threadUuid: 'thread-1',
             promptUuid: 'prompt-1',
@@ -588,15 +588,75 @@ describe('Slack AI agent blocks', () => {
             createdAt: new Date(),
             versionNumber: Number(versionUuid.split('-')[1]),
             versionUuid,
-            title: 'Orders by month',
+            title: 'Unique order count over time by status',
             description: null,
             dashboardConfig: null,
             versionCreatedAt: new Date(),
             verifiedByUserUuid: null,
             verifiedAt: null,
             chartConfig: {
-                title: 'Orders by month',
-                description: 'Orders by month',
+                title: 'Unique order count over time by status',
+                description: 'Unique order count over time by status',
+                queryConfig: {
+                    exploreName: 'orders',
+                    dimensions: [`orders_order_date_${grain}`],
+                    metrics: ['orders_unique_order_count'],
+                    sorts: [],
+                    limit: 500,
+                    customMetrics: [],
+                    tableCalculations: [],
+                    filters: statusFilter('completed'),
+                },
+                chartConfig: null,
+            },
+        });
+
+        const blocks = await getModernArtifactCardBlocks(
+            {
+                promptUuid: 'prompt-1',
+                projectUuid: 'project-1',
+                threadUuid: 'thread-1',
+            } as never,
+            'https://lightdash.example.com',
+            500,
+            async () => 'https://lightdash.example.com/share/chart',
+            async () => ({}) as never,
+            'agent-1',
+            [
+                retryVersion('version-1', 'day'),
+                retryVersion('version-2', 'month'),
+            ],
+            [],
+        );
+
+        expect(blocks).toHaveLength(1);
+        expect(blocks).toMatchObject([{ type: 'card' }]);
+    });
+
+    it('keeps distinct charts with different titles as separate cards', async () => {
+        const chartVersion = (
+            versionUuid: string,
+            title: string,
+            status: string,
+        ) => ({
+            artifactUuid: 'artifact-1',
+            threadUuid: 'thread-1',
+            promptUuid: 'prompt-1',
+            artifactType: 'chart' as const,
+            savedQueryUuid: null,
+            savedDashboardUuid: null,
+            createdAt: new Date(),
+            versionNumber: Number(versionUuid.split('-')[1]),
+            versionUuid,
+            title,
+            description: null,
+            dashboardConfig: null,
+            versionCreatedAt: new Date(),
+            verifiedByUserUuid: null,
+            verifiedAt: null,
+            chartConfig: {
+                title,
+                description: title,
                 queryConfig: {
                     exploreName: 'orders',
                     dimensions: ['orders_order_date_month'],
@@ -623,8 +683,8 @@ describe('Slack AI agent blocks', () => {
             async () => ({}) as never,
             'agent-1',
             [
-                chartVersion('version-1', 'placed'),
-                chartVersion('version-2', 'completed'),
+                chartVersion('version-1', 'Placed orders', 'placed'),
+                chartVersion('version-2', 'Completed orders', 'completed'),
             ],
             [],
         );
