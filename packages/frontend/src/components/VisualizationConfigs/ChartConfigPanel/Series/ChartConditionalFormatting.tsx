@@ -1,12 +1,13 @@
 import {
     createConditionalFormattingConfigWithSingleColor,
+    FilterOperator,
     getItemId,
+    isConditionalFormattingWithCompareTarget,
     isConditionalFormattingWithValues,
     type ConditionalFormattingConfig,
     type ConditionalFormattingConfigWithSingleColor,
     type ConditionalFormattingWithFilterOperator,
     type FilterableItem,
-    type FilterOperator,
 } from '@lightdash/common';
 import { Accordion, Divider, Group } from '@mantine-8/core';
 import { produce } from 'immer';
@@ -32,6 +33,15 @@ import {
     getSupportedChartConditionalFormattingConfigs,
     mergeChartConditionalFormattingConfigs,
 } from './chartConditionalFormattingUtils';
+
+// A values-based rule with nothing filled in yet (fresh configs are created
+// with an empty `equals` rule)
+const isIncompleteRule = (rule: ConditionalFormattingWithFilterOperator) =>
+    isConditionalFormattingWithValues(rule) &&
+    !isConditionalFormattingWithCompareTarget(rule) &&
+    (rule.values ?? []).length === 0 &&
+    rule.operator !== FilterOperator.NULL &&
+    rule.operator !== FilterOperator.NOT_NULL;
 
 type ItemProps = {
     colorPalette: string[];
@@ -126,8 +136,9 @@ const ChartConditionalFormattingItem: FC<ItemProps> = ({
     );
 
     const description = useMemo(() => {
-        if (config.rules.length === 0) return undefined;
+        if (config.rules.length === 0) return 'No condition set';
         const firstRule = config.rules[0];
+        if (isIncompleteRule(firstRule)) return 'No condition set';
         const operator =
             filterOperatorLabel[firstRule.operator] ?? firstRule.operator;
         const values = isConditionalFormattingWithValues(firstRule)
@@ -236,9 +247,6 @@ export const ChartConditionalFormatting: FC<Props> = ({
     conditionalFormattings,
     onSetConditionalFormattings,
 }) => {
-    const { openItems, handleAccordionChange, addNewItem, removeItem } =
-        useControlledAccordion();
-
     const supportedConfigs = useMemo(
         () =>
             getSupportedChartConditionalFormattingConfigs(
@@ -246,6 +254,16 @@ export const ChartConditionalFormatting: FC<Props> = ({
             ),
         [conditionalFormattings],
     );
+
+    // Expand the rule right away when the panel opens with a single
+    // not-yet-configured rule (fresh from the "Apply custom colors" toggle)
+    const { openItems, handleAccordionChange, addNewItem, removeItem } =
+        useControlledAccordion(
+            supportedConfigs.length === 1 &&
+                supportedConfigs[0].rules.every(isIncompleteRule)
+                ? ['0']
+                : [],
+        );
 
     const configIdsRef = useRef<string[]>([]);
 
