@@ -8,6 +8,7 @@ import {
     type EChartsSeries,
     type Field,
     type ResultRow,
+    type Series,
 } from '@lightdash/common';
 import dayjs from 'dayjs';
 import timezonePlugin from 'dayjs/plugin/timezone';
@@ -22,7 +23,9 @@ import {
     getLongestLabelsForAxis,
     getMinAndMaxValues,
     getNiceTickBound,
+    getPinnedDayTickFormatter,
     getStackTotalSeries,
+    getTimeAxisPinnedTickValues,
     mergeLegendSettings,
     padDatasetForContinuousAxis,
     relocateMarkLinesToVisibleSeries,
@@ -450,6 +453,265 @@ describe('getLongestLabelsForAxis', () => {
         expect(getLongestLabelsForAxis({ rows, axisIds: [] })).toStrictEqual(
             [],
         );
+    });
+});
+
+describe('getTimeAxisPinnedTickValues', () => {
+    const axisId = 'date_axis';
+    const createRows = (dates: (string | null)[]): ResultRow[] =>
+        dates.map((d) => ({
+            [axisId]: { value: { raw: d, formatted: String(d) } },
+        }));
+    const dayField = {
+        timeInterval: TimeFrames.DAY,
+        name: 'test_date',
+        table: 'test_table',
+    } as unknown as Field;
+    const barSeries = [
+        { type: CartesianSeriesType.BAR },
+    ] as unknown as Series[];
+    const lineSeries = [
+        { type: CartesianSeriesType.LINE },
+    ] as unknown as Series[];
+
+    test('pins sorted unique instants when day values are not UTC midnights', () => {
+        const result = getTimeAxisPinnedTickValues(
+            axisId,
+            dayField,
+            createRows([
+                '2026-03-01T04:00:00Z',
+                '2026-02-18T04:00:00Z',
+                '2026-03-01T04:00:00Z',
+            ]),
+            'time',
+            barSeries,
+        );
+        expect(result).toEqual([
+            Date.UTC(2026, 1, 18, 4),
+            Date.UTC(2026, 2, 1, 4),
+        ]);
+    });
+
+    test('parses naive timestamp strings as UTC', () => {
+        const result = getTimeAxisPinnedTickValues(
+            axisId,
+            dayField,
+            createRows(['2020-07-27T04:00:00Z', '2020-07-29T04:00:00']),
+            'time',
+            barSeries,
+        );
+        expect(result).toEqual([
+            Date.UTC(2020, 6, 27, 4),
+            Date.UTC(2020, 6, 29, 4),
+        ]);
+    });
+
+    test('keeps auto ticks for UTC-midnight days, consecutive or sparse', () => {
+        expect(
+            getTimeAxisPinnedTickValues(
+                axisId,
+                dayField,
+                createRows(['2026-02-18', '2026-02-19', '2026-02-20']),
+                'time',
+                barSeries,
+            ),
+        ).toBeUndefined();
+        expect(
+            getTimeAxisPinnedTickValues(
+                axisId,
+                dayField,
+                createRows(['2026-02-18', '2026-02-25', '2026-03-03']),
+                'time',
+                barSeries,
+            ),
+        ).toBeUndefined();
+    });
+
+    test('skips null raw values', () => {
+        const result = getTimeAxisPinnedTickValues(
+            axisId,
+            dayField,
+            createRows(['2026-02-18T04:00:00Z', null]),
+            'time',
+            barSeries,
+        );
+        expect(result).toEqual([Date.UTC(2026, 1, 18, 4)]);
+    });
+
+    test('returns undefined when the time axis is timezone-shifted', () => {
+        expect(
+            getTimeAxisPinnedTickValues(
+                axisId,
+                dayField,
+                createRows(['2026-02-18T04:00:00Z']),
+                'time',
+                barSeries,
+                true,
+            ),
+        ).toBeUndefined();
+    });
+
+    test('returns undefined without a bar series', () => {
+        expect(
+            getTimeAxisPinnedTickValues(
+                axisId,
+                dayField,
+                createRows(['2026-02-18']),
+                'time',
+                lineSeries,
+            ),
+        ).toBeUndefined();
+    });
+
+    test('returns undefined for non-day intervals', () => {
+        const monthField = {
+            ...(dayField as object),
+            timeInterval: TimeFrames.MONTH,
+        } as unknown as Field;
+        expect(
+            getTimeAxisPinnedTickValues(
+                axisId,
+                monthField,
+                createRows(['2026-02-01']),
+                'time',
+                barSeries,
+            ),
+        ).toBeUndefined();
+    });
+
+    test('returns undefined for non-time axis types', () => {
+        expect(
+            getTimeAxisPinnedTickValues(
+                axisId,
+                dayField,
+                createRows(['2026-02-18']),
+                'category',
+                barSeries,
+            ),
+        ).toBeUndefined();
+    });
+
+    test('returns undefined when rows are empty', () => {
+        expect(
+            getTimeAxisPinnedTickValues(
+                axisId,
+                dayField,
+                [],
+                'time',
+                barSeries,
+            ),
+        ).toBeUndefined();
+    });
+
+    test('pins non-midnight day values (days truncated in a non-UTC timezone)', () => {
+        const result = getTimeAxisPinnedTickValues(
+            axisId,
+            dayField,
+            createRows(['2025-07-01T04:00:00Z', '2025-07-02T04:00:00Z']),
+            'time',
+            barSeries,
+        );
+        expect(result).toEqual([
+            Date.UTC(2025, 6, 1, 4),
+            Date.UTC(2025, 6, 2, 4),
+        ]);
+    });
+
+    test('returns undefined for interval-less dimensions', () => {
+        const noIntervalField = {
+            name: 'test_date',
+            table: 'test_table',
+        } as unknown as Field;
+        expect(
+            getTimeAxisPinnedTickValues(
+                axisId,
+                noIntervalField,
+                createRows(['2025-07-01T04:00:00Z', '2025-07-02T04:00:00Z']),
+                'time',
+                barSeries,
+            ),
+        ).toBeUndefined();
+    });
+
+    test('returns undefined above the pinned tick cap', () => {
+        // Non-midnight values so only the cap rule applies
+        const manyDays = Array.from({ length: 401 }, (_, i) => {
+            const d = new Date(Date.UTC(2024, 0, 1, 4) + i * 24 * 3600 * 1000);
+            return d.toISOString();
+        });
+        expect(
+            getTimeAxisPinnedTickValues(
+                axisId,
+                dayField,
+                createRows(manyDays),
+                'time',
+                barSeries,
+            ),
+        ).toBeUndefined();
+    });
+});
+
+describe('getPinnedDayTickFormatter', () => {
+    const ticks = [
+        Date.UTC(2025, 11, 1), // Dec 1
+        Date.UTC(2025, 11, 29), // Dec 29
+        Date.UTC(2026, 0, 5), // Jan 5 — first tick of Jan, not the 1st
+        Date.UTC(2026, 0, 8), // Jan 8
+        Date.UTC(2026, 1, 1), // Feb 1
+        Date.UTC(2026, 1, 3), // Feb 3
+    ];
+    const formatter = getPinnedDayTickFormatter(ticks);
+
+    test('renders month starts as bold month', () => {
+        expect(formatter(Date.UTC(2025, 11, 1))).toBe('{bold|Dec}');
+        expect(formatter(Date.UTC(2026, 1, 1))).toBe('{bold|Feb}');
+    });
+
+    test('renders Jan 1 as bold year', () => {
+        expect(
+            getPinnedDayTickFormatter([Date.UTC(2026, 0, 1)])(
+                Date.UTC(2026, 0, 1),
+            ),
+        ).toBe('{bold|2026}');
+    });
+
+    test('keeps month context when a month has no tick on the 1st', () => {
+        expect(formatter(Date.UTC(2026, 0, 5))).toBe('{bold|Jan} 5');
+    });
+
+    test('renders remaining ticks as plain day numbers', () => {
+        expect(formatter(Date.UTC(2025, 11, 29))).toBe('29');
+        expect(formatter(Date.UTC(2026, 0, 8))).toBe('8');
+        expect(formatter(Date.UTC(2026, 1, 3))).toBe('3');
+    });
+
+    test('renders non-midnight instants by their UTC day (negative-offset warehouse tz)', () => {
+        // Local Jul 2 midnight in America/New_York = Jul 2 T04:00Z — UTC and
+        // local calendar days agree
+        const tz = [Date.UTC(2025, 6, 1, 4), Date.UTC(2025, 6, 2, 4)];
+        const f = getPinnedDayTickFormatter(tz);
+        expect(f(Date.UTC(2025, 6, 1, 4))).toBe('{bold|Jul}');
+        expect(f(Date.UTC(2025, 6, 2, 4))).toBe('2');
+    });
+
+    test('renders non-midnight instants by their UTC day (positive-offset warehouse tz)', () => {
+        // Local Jul 1 midnight at UTC+2 = Jun 30 T22:00Z. Intentionally
+        // labelled "30" — the UTC calendar day — because the results table
+        // and tooltips format the same raw value in UTC and must agree with
+        // the chart. The bold month marker lands on the first tick whose UTC
+        // month changes (local Jul 2 = Jul 1 T22:00Z → "Jul").
+        const tz = [
+            Date.UTC(2025, 5, 29, 22), // local Jun 30
+            Date.UTC(2025, 5, 30, 22), // local Jul 1
+            Date.UTC(2025, 6, 1, 22), // local Jul 2
+            Date.UTC(2025, 6, 2, 22), // local Jul 3
+        ];
+        const f = getPinnedDayTickFormatter(tz);
+        // First tick of the sequence doubles as first tick of its month
+        expect(f(Date.UTC(2025, 5, 29, 22))).toBe('{bold|Jun} 29');
+        expect(f(Date.UTC(2025, 5, 30, 22))).toBe('30');
+        expect(f(Date.UTC(2025, 6, 1, 22))).toBe('{bold|Jul}');
+        expect(f(Date.UTC(2025, 6, 2, 22))).toBe('2');
     });
 });
 
