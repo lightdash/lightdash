@@ -79,43 +79,41 @@ describe('findUnconfiguredProviderKeyWrites', () => {
 });
 
 describe('areReviewsEnabledForSettings', () => {
-    const base = {
-        aiAgentReviewsEnabled: true,
-        providerApiKeysSet: { anthropic: false, openai: false },
-    };
+    const on = { aiAgentReviewsEnabled: true };
+    const noByo = { hasActiveByoKey: false, canJudgeOnByoKey: false };
 
     it('returns false when there are no settings', () => {
-        expect(areReviewsEnabledForSettings(null)).toBe(false);
-    });
-
-    it('returns true when reviews are on and no BYO key is set', () => {
-        expect(areReviewsEnabledForSettings(base)).toBe(true);
+        expect(areReviewsEnabledForSettings(null, noByo)).toBe(false);
     });
 
     it('returns false when reviews are off', () => {
         expect(
-            areReviewsEnabledForSettings({
-                ...base,
-                aiAgentReviewsEnabled: false,
+            areReviewsEnabledForSettings(
+                { aiAgentReviewsEnabled: false },
+                noByo,
+            ),
+        ).toBe(false);
+    });
+
+    it('returns true when reviews are on and no BYO key is active', () => {
+        expect(areReviewsEnabledForSettings(on, noByo)).toBe(true);
+    });
+
+    it('pauses reviews when a BYO key cannot serve the review model', () => {
+        expect(
+            areReviewsEnabledForSettings(on, {
+                hasActiveByoKey: true,
+                canJudgeOnByoKey: false,
             }),
         ).toBe(false);
     });
 
-    it('disables reviews while a BYO anthropic key is set', () => {
+    it('keeps reviews on when the BYO key can serve the review model', () => {
         expect(
-            areReviewsEnabledForSettings({
-                ...base,
-                providerApiKeysSet: { anthropic: true, openai: false },
+            areReviewsEnabledForSettings(on, {
+                hasActiveByoKey: true,
+                canJudgeOnByoKey: true,
             }),
-        ).toBe(false);
-    });
-
-    it('disables reviews while a BYO openai key is set', () => {
-        expect(
-            areReviewsEnabledForSettings({
-                ...base,
-                providerApiKeysSet: { anthropic: false, openai: true },
-            }),
-        ).toBe(false);
+        ).toBe(true);
     });
 });

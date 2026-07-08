@@ -260,4 +260,75 @@ describe('OrgAiCopilotConfigResolver', () => {
             });
         });
     });
+
+    describe('getReviewJudgeAvailability', () => {
+        const none = { hasActiveByoKey: false, canJudgeOnByoKey: false };
+
+        it('returns no BYO without an organization uuid', async () => {
+            const resolver = makeResolver({ flagEnabled: true });
+            expect(await resolver.getReviewJudgeAvailability(null)).toEqual(
+                none,
+            );
+        });
+
+        it('returns no BYO when the flag is off', async () => {
+            const resolver = makeResolver({
+                flagEnabled: false,
+                orgKeys: { anthropic: 'sk-ant-x' },
+            });
+            expect(
+                await resolver.getReviewJudgeAvailability('org-uuid'),
+            ).toEqual(none);
+        });
+
+        it('returns no BYO when there are no keys', async () => {
+            const resolver = makeResolver({ flagEnabled: true, orgKeys: null });
+            expect(
+                await resolver.getReviewJudgeAvailability('org-uuid'),
+            ).toEqual(none);
+        });
+
+        it('can judge when the anthropic key serves haiku', async () => {
+            const resolver = makeResolver({
+                flagEnabled: true,
+                orgKeys: { anthropic: 'sk-ant-x' },
+                accessibleModelIds: ['claude-haiku-4-5-20251001'],
+            });
+            expect(
+                await resolver.getReviewJudgeAvailability('org-uuid'),
+            ).toEqual({ hasActiveByoKey: true, canJudgeOnByoKey: true });
+        });
+
+        it('cannot judge when the anthropic key lacks haiku', async () => {
+            const resolver = makeResolver({
+                flagEnabled: true,
+                orgKeys: { anthropic: 'sk-ant-x' },
+                accessibleModelIds: ['claude-opus-4-8'],
+            });
+            expect(
+                await resolver.getReviewJudgeAvailability('org-uuid'),
+            ).toEqual({ hasActiveByoKey: true, canJudgeOnByoKey: false });
+        });
+
+        it('fails closed when the catalog returns null', async () => {
+            const resolver = makeResolver({
+                flagEnabled: true,
+                orgKeys: { anthropic: 'sk-ant-x' },
+                accessibleModelIds: null,
+            });
+            expect(
+                await resolver.getReviewJudgeAvailability('org-uuid'),
+            ).toEqual({ hasActiveByoKey: true, canJudgeOnByoKey: false });
+        });
+
+        it('has an active key but cannot judge with only an openai key', async () => {
+            const resolver = makeResolver({
+                flagEnabled: true,
+                orgKeys: { openai: 'sk-x' },
+            });
+            expect(
+                await resolver.getReviewJudgeAvailability('org-uuid'),
+            ).toEqual({ hasActiveByoKey: true, canJudgeOnByoKey: false });
+        });
+    });
 });

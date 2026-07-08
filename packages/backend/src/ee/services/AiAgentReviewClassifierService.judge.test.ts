@@ -135,6 +135,12 @@ const makeService = () =>
         aiAgentModel: {} as never,
         aiAgentDocumentModel: { findAllForAgent: vi.fn() },
         aiOrganizationSettingsModel: {} as never,
+        orgAiCopilotConfigResolver: {
+            getReviewJudgeAvailability: vi.fn().mockResolvedValue({
+                hasActiveByoKey: false,
+                canJudgeOnByoKey: false,
+            }),
+        } as never,
         catalogModel: { getCatalogItemsSummary: vi.fn() },
         projectModel: {
             getSummary: vi.fn(),

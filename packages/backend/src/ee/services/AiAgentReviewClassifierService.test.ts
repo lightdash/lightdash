@@ -261,6 +261,9 @@ describe('AiAgentReviewClassifierService', () => {
     const aiOrganizationSettingsModel = {
         findByOrganizationUuid: vi.fn(),
     } as unknown as import('vitest').Mocked<AiOrganizationSettingsModel>;
+    const orgAiCopilotConfigResolver = {
+        getReviewJudgeAvailability: vi.fn(),
+    };
     const catalogModel = {
         getCatalogItemsSummary: vi.fn(),
     };
@@ -278,6 +281,7 @@ describe('AiAgentReviewClassifierService', () => {
         aiAgentModel: aiAgentModel as never,
         aiAgentDocumentModel,
         aiOrganizationSettingsModel,
+        orgAiCopilotConfigResolver: orgAiCopilotConfigResolver as never,
         catalogModel: catalogModel as never,
         projectModel: projectModel as never,
         lightdashConfig: {} as never,
@@ -288,6 +292,12 @@ describe('AiAgentReviewClassifierService', () => {
 
     beforeEach(() => {
         vi.resetAllMocks();
+        orgAiCopilotConfigResolver.getReviewJudgeAvailability.mockResolvedValue(
+            {
+                hasActiveByoKey: false,
+                canJudgeOnByoKey: false,
+            },
+        );
         aiOrganizationSettingsModel.findByOrganizationUuid.mockResolvedValue({
             organizationUuid: ORGANIZATION_UUID,
             aiAgentsVisible: true,
