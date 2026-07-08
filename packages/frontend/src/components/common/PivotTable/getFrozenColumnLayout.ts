@@ -29,10 +29,13 @@ type Args = {
 };
 
 const getFreezeKey = (col: PivotColumn): string | undefined => {
+    // Only row-index and label columns are freezable. Data-value columns all
+    // share one underlying field, so honoring its frozen flag would pin the
+    // entire data area and break horizontal scrolling.
     if (col.columnType === 'indexValue' || col.columnType === 'label') {
         return col.fieldId;
     }
-    return col.underlyingId ?? col.baseId;
+    return undefined;
 };
 
 const getColumnWidth = (
