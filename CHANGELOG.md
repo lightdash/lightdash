@@ -1,3 +1,10 @@
+## [0.3328.4](https://github.com/lightdash/lightdash/compare/0.3328.3...0.3328.4) (2026-07-08)
+
+
+### Bug Fixes
+
+* **sdk:** resolve fetch at request time instead of capturing it at import ([#25257](https://github.com/lightdash/lightdash/issues/25257)) ([7d23e6c](https://github.com/lightdash/lightdash/commit/7d23e6c09a8e6cb87d32689f36d1931d47f2f9aa))
+
 ## [0.3328.3](https://github.com/lightdash/lightdash/compare/0.3328.2...0.3328.3) (2026-07-08)
 
 
