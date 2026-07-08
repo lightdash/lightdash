@@ -8,7 +8,10 @@ import { LightdashConfig } from '../../../../config/parseConfig';
 import { getAzureProvider } from '../models/azure-openai-gpt-4.1';
 import { getBedrockEmbeddingModel } from '../models/bedrock';
 import { getOpenAIEmbeddingModel } from '../models/openai-embedding';
-import { getAiCallTelemetry } from '../utils/aiCallTelemetry';
+import {
+    AiCallAttribution,
+    getAiCallTelemetry,
+} from '../utils/aiCallTelemetry';
 
 const EMBEDDING_DIMENSIONS = 1536;
 
@@ -61,7 +64,7 @@ function getEmbeddingModelConfig(config: LightdashConfig):
 export async function generateEmbedding(
     text: string,
     config: LightdashConfig,
-    metadata: Record<string, string> = {},
+    telemetry: AiCallAttribution & { extra?: Record<string, string> } = {},
 ): Promise<{
     embedding: number[];
     provider: string;
@@ -78,21 +81,23 @@ export async function generateEmbedding(
     }
     const { model, provider, modelName } = embeddingModelConfig;
 
-    const telemetry = getAiCallTelemetry({
+    const { extra, ...attribution } = telemetry;
+    const telemetryConfig = getAiCallTelemetry({
         functionId: 'generateEmbedding',
         feature: 'embedding',
+        ...attribution,
         model: modelName,
         provider,
-        extra: metadata,
+        extra,
     });
     const result = await embed({
         model,
         value: trimmedText,
-        experimental_telemetry: telemetry,
+        experimental_telemetry: telemetryConfig,
         // TODO :: provider options to set dimensions
     });
 
-    emitAiUsage(telemetry, embeddingModelUsageToTokens(result.usage));
+    emitAiUsage(telemetryConfig, embeddingModelUsageToTokens(result.usage));
 
     let { embedding } = result;
 

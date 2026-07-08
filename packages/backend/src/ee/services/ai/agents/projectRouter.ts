@@ -5,6 +5,7 @@ import {
     languageModelUsageToTokens,
 } from '../../../../analytics/aiUsage';
 import {
+    AiCallAttribution,
     getAiCallTelemetry,
     getLanguageModelAttribution,
 } from '../utils/aiCallTelemetry';
@@ -35,6 +36,7 @@ export async function routeProjectForSlack(
     model: LanguageModel,
     projects: { projectUuid: string; name: string }[],
     userQuery: string,
+    telemetry?: AiCallAttribution,
 ): Promise<string | null> {
     if (projects.length === 0) {
         return null;
@@ -47,14 +49,15 @@ export async function routeProjectForSlack(
         )
         .join('\n');
 
-    const telemetry = getAiCallTelemetry({
+    const telemetryConfig = getAiCallTelemetry({
         functionId: 'routeProjectForSlack',
         feature: 'project-router',
         ...getLanguageModelAttribution(model),
+        ...telemetry,
     });
     const result = await generateObject({
         model,
-        experimental_telemetry: telemetry,
+        experimental_telemetry: telemetryConfig,
         schema: ProjectRoutingSchema,
         messages: [
             {
@@ -77,7 +80,7 @@ Rules:
             },
         ],
     });
-    emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
+    emitAiUsage(telemetryConfig, languageModelUsageToTokens(result.usage));
 
     const { projectUuid } = result.object;
     if (

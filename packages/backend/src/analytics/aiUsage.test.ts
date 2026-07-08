@@ -134,11 +134,20 @@ describe('emitAiUsage', () => {
             ...tokens,
         };
 
-        expect(Logger.info).toHaveBeenCalledWith('AI usage', {
-            event: 'ai.usage',
-            userId: 'user-1',
-            ...expectedProperties,
-        });
+        expect(Logger.info).toHaveBeenCalledWith(
+            expect.stringContaining('AI usage:'),
+            {
+                event: 'ai.usage',
+                userId: 'user-1',
+                ...expectedProperties,
+            },
+        );
+        // Token data must be in the message string itself so the default
+        // pretty/plain log formats (which drop metadata) still surface it.
+        expect(Logger.info).toHaveBeenCalledWith(
+            expect.stringContaining('totalTokens=1200'),
+            expect.anything(),
+        );
         expect(track).toHaveBeenCalledWith({
             event: 'ai.usage',
             userId: 'user-1',

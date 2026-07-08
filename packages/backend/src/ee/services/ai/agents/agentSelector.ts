@@ -6,6 +6,7 @@ import {
     languageModelUsageToTokens,
 } from '../../../../analytics/aiUsage';
 import {
+    AiCallAttribution,
     getAiCallTelemetry,
     getLanguageModelAttribution,
 } from '../utils/aiCallTelemetry';
@@ -126,11 +127,13 @@ export async function selectAgent({
     candidates,
     prompt,
     instructions = null,
+    telemetry,
 }: {
     model: LanguageModel;
     candidates: AiAgentWithContext[];
     prompt: string;
     instructions?: string | null;
+    telemetry?: AiCallAttribution;
 }): Promise<RouterDecision> {
     if (candidates.length === 0) {
         throw new Error('No agents available for selection');
@@ -153,14 +156,15 @@ export async function selectAgent({
         buildAdminInstructionsSection(instructions),
     );
 
-    const telemetry = getAiCallTelemetry({
+    const telemetryConfig = getAiCallTelemetry({
         functionId: 'selectAgent',
         feature: 'agent-selector',
         ...getLanguageModelAttribution(model),
+        ...telemetry,
     });
     const result = await generateObject({
         model,
-        experimental_telemetry: telemetry,
+        experimental_telemetry: telemetryConfig,
         schema: AgentSelectionSchema,
         messages: [
             { role: 'system', content: systemPrompt },
@@ -170,7 +174,7 @@ export async function selectAgent({
             },
         ],
     });
-    emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
+    emitAiUsage(telemetryConfig, languageModelUsageToTokens(result.usage));
 
     const selection = result.object;
     const exists = candidates.some((c) => c.uuid === selection.agentUuid);

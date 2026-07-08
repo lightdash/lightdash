@@ -9,6 +9,7 @@ import {
 import { defaultAgentOptions } from '../agents/agentV2';
 import { getOpenaiGptmodel } from '../models/openai-gpt';
 import {
+    AiCallAttribution,
     getAiCallTelemetry,
     getLanguageModelAttribution,
 } from './aiCallTelemetry';
@@ -89,6 +90,7 @@ type BaseLlmAsJudgeParams = {
     contextRelevancyThreshold?: number; // Threshold for context relevancy (default 0.7)
     factualityThreshold?: 'A' | 'B' | 'C' | 'D' | 'E'; // Minimum acceptable factuality score (default 'A' = subset or better)
     jsonDiffThreshold?: number; // Threshold for JSON diff score (default 0.9)
+    telemetry?: AiCallAttribution; // org/project/user attribution for the ai.usage stream
 };
 
 // Function overloads for type safety
@@ -134,6 +136,7 @@ export async function llmAsAJudge({
     contextRelevancyThreshold = 0.7,
     factualityThreshold = 'A',
     jsonDiffThreshold = 0.9,
+    telemetry,
 }: BaseLlmAsJudgeParams & {
     scorerType: 'factuality' | 'jsonDiff' | 'contextRelevancy';
 }): Promise<{
@@ -186,16 +189,17 @@ export async function llmAsAJudge({
       ************`
                     : '';
 
-            const telemetry = getAiCallTelemetry({
+            const telemetryConfig = getAiCallTelemetry({
                 functionId: 'llmAsAJudge',
                 feature: 'llm-judge',
                 ...getLanguageModelAttribution(judge),
+                ...telemetry,
             });
             const result = await generateObject({
                 model: judge,
                 ...defaultAgentOptions,
                 ...callOptions,
-                experimental_telemetry: telemetry,
+                experimental_telemetry: telemetryConfig,
                 schema: z.object({
                     answer: z
                         .enum(['A', 'B', 'C', 'D', 'E'])
@@ -240,7 +244,10 @@ ${
       (E) The answers differ, but these differences don't matter from the perspective of factuality.
       `,
             });
-            emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
+            emitAiUsage(
+                telemetryConfig,
+                languageModelUsageToTokens(result.usage),
+            );
             const { object } = result;
 
             const factualityResult = {
@@ -272,16 +279,17 @@ ${
                 throw new Error('context is required for contextRelevancy');
             }
 
-            const telemetry = getAiCallTelemetry({
+            const telemetryConfig = getAiCallTelemetry({
                 functionId: 'llmAsAJudge',
                 feature: 'llm-judge',
                 ...getLanguageModelAttribution(judge),
+                ...telemetry,
             });
             const result = await generateObject({
                 model: judge,
                 ...defaultAgentOptions,
                 ...callOptions,
-                experimental_telemetry: telemetry,
+                experimental_telemetry: telemetryConfig,
                 schema: z.object({
                     score: z
                         .number()
@@ -314,7 +322,10 @@ Evaluate how relevant the provided context is to answering the query. Consider:
 Provide a relevancy score between 0 (not relevant at all) and 1 (highly relevant), and explain your reasoning.
                 `,
             });
-            emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
+            emitAiUsage(
+                telemetryConfig,
+                languageModelUsageToTokens(result.usage),
+            );
             const { object } = result;
 
             const contextResult = {

@@ -21,22 +21,36 @@ export type AiCallAttribution = {
 };
 
 /**
+ * The AI SDK provider id (e.g. `amazon-bedrock`) doesn't always match our
+ * configured provider vocabulary (`openai/azure/anthropic/bedrock/openrouter`)
+ * that cost accounting joins on. Normalize the mismatches here so the same
+ * provider gets one label across LLM and embedding rows.
+ */
+const normalizeProvider = (provider: string): string =>
+    provider === 'amazon-bedrock' ? 'bedrock' : provider;
+
+/**
  * Model name + provider attribution derived from an AI SDK model object.
  * The SDK provider id is dot-namespaced (e.g. `azure.chat`,
- * `bedrock.anthropic.messages`); the first segment matches our configured
- * provider names (openai/azure/anthropic/bedrock/openrouter), which is what
- * cost accounting joins on — the same model name bills differently per
+ * `amazon-bedrock`); the first segment (after normalization) matches our
+ * configured provider names (openai/azure/anthropic/bedrock/openrouter), which
+ * is what cost accounting joins on — the same model name bills differently per
  * provider. Bare string models carry no provider information.
  */
 export const getLanguageModelAttribution = (
     model: LanguageModel,
-): Pick<AiCallAttribution, 'model' | 'provider'> =>
-    typeof model === 'string'
-        ? { model, provider: null }
-        : {
-              model: model.modelId,
-              provider: model.provider?.split('.')[0] ?? null,
-          };
+): Pick<AiCallAttribution, 'model' | 'provider'> => {
+    if (typeof model === 'string') {
+        return { model, provider: null };
+    }
+    // `|| null` (not `??`) so an empty provider id collapses to null rather
+    // than a phantom `''` provider that would pass the metadata filter.
+    const provider = model.provider?.split('.')[0] || null;
+    return {
+        model: model.modelId,
+        provider: provider === null ? null : normalizeProvider(provider),
+    };
+};
 
 export type AiCallTelemetryOptions = AiCallAttribution & {
     functionId: string;

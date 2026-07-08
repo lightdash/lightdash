@@ -3346,8 +3346,10 @@ export class AppGenerateService extends BaseService {
                 )}, numTurns=${generationUsage.numTurns}, inputTokens=${generationUsage.inputTokens}, outputTokens=${generationUsage.outputTokens}, cacheReadTokens=${generationUsage.cacheReadInputTokens}, cacheCreationTokens=${generationUsage.cacheCreationInputTokens}, costUsd=${generationUsage.costUsd})`,
         );
 
-        // Aggregated across every `claude` CLI invocation in the pipeline;
-        // the CLI reports inputTokens excluding cache reads/writes.
+        // Aggregated across every `claude` CLI invocation in the pipeline. The
+        // CLI reports inputTokens excluding cache reads/writes, but AI-SDK rows
+        // store cache-inclusive inputTokens — normalize to SDK semantics here so
+        // `SUM(input_tokens)` (and cost) is comparable across every feature.
         emitAiUsage(
             getAiCallTelemetry({
                 functionId: 'appClaudeGeneration',
@@ -3360,7 +3362,10 @@ export class AppGenerateService extends BaseService {
                 extra: { appUuid },
             }),
             {
-                inputTokens: generationUsage.inputTokens,
+                inputTokens:
+                    generationUsage.inputTokens +
+                    generationUsage.cacheReadInputTokens +
+                    generationUsage.cacheCreationInputTokens,
                 outputTokens: generationUsage.outputTokens,
                 cacheReadTokens: generationUsage.cacheReadInputTokens,
                 cacheWriteTokens: generationUsage.cacheCreationInputTokens,

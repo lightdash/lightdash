@@ -55,10 +55,12 @@ import {
     DbtProjectType,
     derivePivotConfigurationFromChart,
     DownloadFileType,
+    EmbedArtifactVersionJobPayload,
     Explore,
     FeatureFlags,
     followUpToolsText,
     ForbiddenError,
+    GenerateArtifactQuestionJobPayload,
     getErrorMessage,
     getGroupByDimensions,
     getItemId,
@@ -285,6 +287,7 @@ import {
     UpdateSlackMessageFn,
 } from '../ai/types/aiAgentDependencies';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
+import { AiCallAttribution } from '../ai/utils/aiCallTelemetry';
 import { getUserFacingErrorMessage } from '../ai/utils/errorMessages';
 import {
     buildFeedbackContextActions,
@@ -5583,11 +5586,9 @@ export class AiAgentService extends BaseService {
         }
     }
 
-    async embedArtifactVersion(payload: {
-        artifactVersionUuid: string;
-        title: string | null;
-        description: string | null;
-    }): Promise<void> {
+    async embedArtifactVersion(
+        payload: EmbedArtifactVersionJobPayload,
+    ): Promise<void> {
         try {
             const text = [payload.title, payload.description]
                 .filter(Boolean)
@@ -5600,7 +5601,12 @@ export class AiAgentService extends BaseService {
             const embeddingResult = await generateEmbedding(
                 text,
                 this.lightdashConfig,
-                { artifactVersionUuid: payload.artifactVersionUuid },
+                {
+                    organizationUuid: payload.organizationUuid,
+                    projectUuid: payload.projectUuid,
+                    userUuid: payload.userUuid,
+                    extra: { artifactVersionUuid: payload.artifactVersionUuid },
+                },
             );
 
             if (!embeddingResult) {
@@ -5623,11 +5629,9 @@ export class AiAgentService extends BaseService {
         }
     }
 
-    async generateArtifactQuestion(payload: {
-        artifactVersionUuid: string;
-        title: string | null;
-        description: string | null;
-    }): Promise<void> {
+    async generateArtifactQuestion(
+        payload: GenerateArtifactQuestionJobPayload,
+    ): Promise<void> {
         try {
             if (!payload.title && !payload.description) {
                 return;
@@ -5638,7 +5642,14 @@ export class AiAgentService extends BaseService {
             });
 
             const question = await generateArtifactQuestion(
-                modelOptions,
+                {
+                    ...modelOptions,
+                    telemetry: {
+                        organizationUuid: payload.organizationUuid,
+                        projectUuid: payload.projectUuid,
+                        userUuid: payload.userUuid,
+                    },
+                },
                 payload.title,
                 payload.description,
                 { artifactVersionUuid: payload.artifactVersionUuid },
@@ -6117,6 +6128,7 @@ export class AiAgentService extends BaseService {
         const embeddingResult = await generateEmbedding(
             searchQuery,
             this.lightdashConfig,
+            { organizationUuid, projectUuid, agentUuid },
         );
         if (!embeddingResult) {
             return { relevantVerifiedAnswers: [] };
@@ -10621,6 +10633,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         name: project.name,
                     })),
                     promptText,
+                    { organizationUuid, userUuid },
                 );
                 if (routedProjectUuid) {
                     return await resolveAgentForProject(routedProjectUuid);
@@ -10736,6 +10749,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             model,
             candidates: availableAgents,
             prompt: messageText,
+            telemetry: { organizationUuid, userUuid },
         });
 
         const selectedAgent =
@@ -13081,7 +13095,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             });
             const agent = await this.getAgent(sessionUser, agentUuid);
             const canAccessData = agent.enableDataAccess;
-            await this.assessResult(result.resultUuid, canAccessData);
+            await this.assessResult(result.resultUuid, canAccessData, {
+                organizationUuid,
+                projectUuid: agent.projectUuid,
+                userUuid,
+                agentUuid,
+                threadUuid,
+            });
 
             // Mark as completed with assessment status
             await this.aiAgentModel.updateEvalRunResult(result.resultUuid, {
@@ -13120,6 +13140,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     async assessResult(
         resultUuid: string,
         canAccessData: boolean,
+        telemetry?: AiCallAttribution,
     ): Promise<boolean | null> {
         Logger.info(`Assessing result ${resultUuid}`);
         const { query, response, expectedAnswer, artifact, toolResults } =
@@ -13171,6 +13192,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                   judge,
                   callOptions,
                   scorerType: 'factuality',
+                  telemetry,
               })
             : null;
 
@@ -13183,6 +13205,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                       judge,
                       callOptions,
                       scorerType: 'contextRelevancy',
+                      telemetry,
                   })
                 : null;
 

@@ -58,14 +58,20 @@ export const languageModelUsageToTokens = (
 
 export const embeddingModelUsageToTokens = (
     usage: EmbeddingModelUsage,
-): AiUsageTokens => ({
-    inputTokens: usage.tokens,
-    outputTokens: null,
-    cacheReadTokens: null,
-    cacheWriteTokens: null,
-    reasoningTokens: null,
-    totalTokens: usage.tokens,
-});
+): AiUsageTokens => {
+    // The AI SDK substitutes `{ tokens: NaN }` when the provider omits usage,
+    // and NaN is not nullish — coerce non-finite (or absent) values to null so
+    // "the provider did not report" stays honest.
+    const tokens = Number.isFinite(usage?.tokens) ? usage.tokens : null;
+    return {
+        inputTokens: tokens,
+        outputTokens: null,
+        cacheReadTokens: null,
+        cacheWriteTokens: null,
+        reasoningTokens: null,
+        totalTokens: tokens,
+    };
+};
 
 /**
  * One event per AI model call, emitted 100% unsampled (unlike traces) so
@@ -147,11 +153,22 @@ export const emitAiUsage = (
             ...tokens,
         };
 
-        Logger.info('AI usage', {
-            event: 'ai.usage',
-            userId: userUuid,
-            ...properties,
-        });
+        // Interpolate the key fields into the message itself: the default
+        // `pretty`/`plain` log formats render only the message string and drop
+        // all metadata, so log-based consumers would otherwise see a bare
+        // `AI usage` line with no token data.
+        Logger.info(
+            `AI usage: feature=${properties.feature} provider=${properties.provider} model=${properties.model} ` +
+                `inputTokens=${properties.inputTokens} outputTokens=${properties.outputTokens} ` +
+                `cacheReadTokens=${properties.cacheReadTokens} cacheWriteTokens=${properties.cacheWriteTokens} ` +
+                `reasoningTokens=${properties.reasoningTokens} totalTokens=${properties.totalTokens} ` +
+                `organizationId=${properties.organizationId} projectId=${properties.projectId} userId=${userUuid}`,
+            {
+                event: 'ai.usage',
+                userId: userUuid,
+                ...properties,
+            },
+        );
 
         aiUsageTrackFn?.({
             event: 'ai.usage',
