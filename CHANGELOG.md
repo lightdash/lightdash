@@ -1,3 +1,15 @@
+# [0.3331.0](https://github.com/lightdash/lightdash/compare/0.3330.0...0.3331.0) (2026-07-08)
+
+
+### Bug Fixes
+
+* clarify agent table filters ([#25258](https://github.com/lightdash/lightdash/issues/25258)) ([fc41758](https://github.com/lightdash/lightdash/commit/fc417582c9318167ec99c24726c6af432c07dce7))
+
+
+### Features
+
+* add ask ai launcher start pill ([#25240](https://github.com/lightdash/lightdash/issues/25240)) ([cc17bb1](https://github.com/lightdash/lightdash/commit/cc17bb18adf4983a074e76720825354adabb42cf)), closes [#25223](https://github.com/lightdash/lightdash/issues/25223)
+
 # [0.3330.0](https://github.com/lightdash/lightdash/compare/0.3329.0...0.3330.0) (2026-07-08)
 
 
