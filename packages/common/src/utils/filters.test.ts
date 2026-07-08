@@ -1,8 +1,10 @@
 import { DimensionType, FieldType } from '../types/field';
 import {
     FilterOperator,
+    UnitOfTime,
     type AndFilterGroup,
     type DashboardFilterRule,
+    type DashboardFilters,
     type FilterGroup,
     type FilterRule,
     type Filters,
@@ -18,8 +20,8 @@ import {
     createFilterRuleFromField,
     createFilterRuleFromModelRequiredFilterRule,
     getDashboardFilterRulesForTileAndReferences,
+    isEmptyDashboardFilterRule,
     isFilterRuleInQuery,
-    isMalformedEmptyDashboardFilter,
     overrideChartFilter,
     reduceRequiredDimensionFiltersToFilterRules,
     resetRequiredFilterRules,
@@ -128,6 +130,74 @@ describe('addDashboardFiltersToMetricQuery', () => {
                 target: { fieldId: 'a_dim1' },
                 operator: FilterOperator.EQUALS,
                 values: ['1', '2', '3'],
+            }),
+        );
+    });
+
+    test('should NOT override a chart filter with an empty dashboard filter on the same field', () => {
+        const emptyDashboardFilter: DashboardFilters = {
+            dimensions: [
+                {
+                    id: 'empty-filter',
+                    label: undefined,
+                    target: { fieldId: 'a_dim1', tableName: 'test' },
+                    operator: FilterOperator.EQUALS,
+                    values: [],
+                    disabled: false,
+                },
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const result = addDashboardFiltersToMetricQuery(
+            metricQueryWithAndFilters,
+            emptyDashboardFilter,
+        );
+        const dimensionRules = (result.filters.dimensions as AndFilterGroup)
+            .and;
+        // The chart's own a_dim1 filter survives untouched — the empty
+        // dashboard filter must not clobber its values with [].
+        expect(dimensionRules).toContainEqual(
+            expect.objectContaining({
+                id: '1',
+                target: { fieldId: 'a_dim1' },
+                operator: FilterOperator.EQUALS,
+                values: [0],
+            }),
+        );
+        // ...and the empty filter adds no clause of its own.
+        expect(dimensionRules).toHaveLength(1);
+    });
+
+    test('keeps a value-less IN_THE_CURRENT dashboard filter — it compiles from settings, not values', () => {
+        const relativeDateFilter: DashboardFilters = {
+            dimensions: [
+                {
+                    id: 'in-the-current',
+                    label: undefined,
+                    target: { fieldId: 'a_date_dim', tableName: 'test' },
+                    operator: FilterOperator.IN_THE_CURRENT,
+                    values: [],
+                    settings: { unitOfTime: UnitOfTime.months },
+                    disabled: false,
+                },
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const result = addDashboardFiltersToMetricQuery(
+            metricQueryWithAndFilters,
+            relativeDateFilter,
+        );
+        const dimensionRules = (result.filters.dimensions as AndFilterGroup)
+            .and;
+        // The active relative-date filter survives the empty-filter guard and is
+        // applied to the query.
+        expect(dimensionRules).toContainEqual(
+            expect.objectContaining({
+                operator: FilterOperator.IN_THE_CURRENT,
+                target: { fieldId: 'a_date_dim' },
+                settings: { unitOfTime: UnitOfTime.months },
             }),
         );
     });
@@ -1534,10 +1604,10 @@ describe('stripOverridesForLockedFiltersOnTab', () => {
     });
 });
 
-describe('isMalformedEmptyDashboardFilter', () => {
+describe('isEmptyDashboardFilterRule', () => {
     test('flags disabled:false + empty values + value-requiring operator', () => {
         expect(
-            isMalformedEmptyDashboardFilter({
+            isEmptyDashboardFilterRule({
                 operator: FilterOperator.EQUALS,
                 disabled: false,
                 values: [],
@@ -1547,7 +1617,7 @@ describe('isMalformedEmptyDashboardFilter', () => {
 
     test('flags missing values (treated as empty)', () => {
         expect(
-            isMalformedEmptyDashboardFilter({
+            isEmptyDashboardFilterRule({
                 operator: FilterOperator.EQUALS,
                 disabled: false,
             }),
@@ -1556,7 +1626,7 @@ describe('isMalformedEmptyDashboardFilter', () => {
 
     test('flags omitted disabled (defaults to active)', () => {
         expect(
-            isMalformedEmptyDashboardFilter({
+            isEmptyDashboardFilterRule({
                 operator: FilterOperator.EQUALS,
                 values: [],
             }),
@@ -1565,7 +1635,7 @@ describe('isMalformedEmptyDashboardFilter', () => {
 
     test('treats null values (YAML `values: ~`) as empty', () => {
         expect(
-            isMalformedEmptyDashboardFilter({
+            isEmptyDashboardFilterRule({
                 operator: FilterOperator.EQUALS,
                 disabled: false,
                 values: null,
@@ -1575,7 +1645,7 @@ describe('isMalformedEmptyDashboardFilter', () => {
 
     test('does NOT flag disabled filters', () => {
         expect(
-            isMalformedEmptyDashboardFilter({
+            isEmptyDashboardFilterRule({
                 operator: FilterOperator.EQUALS,
                 disabled: true,
                 values: [],
@@ -1585,29 +1655,46 @@ describe('isMalformedEmptyDashboardFilter', () => {
 
     test('does NOT flag operators that legitimately take no values', () => {
         expect(
-            isMalformedEmptyDashboardFilter({
+            isEmptyDashboardFilterRule({
                 operator: FilterOperator.NULL,
                 disabled: false,
                 values: [],
             }),
         ).toBe(false);
         expect(
-            isMalformedEmptyDashboardFilter({
+            isEmptyDashboardFilterRule({
                 operator: FilterOperator.NOT_NULL,
                 disabled: false,
             }),
         ).toBe(false);
         expect(
-            isMalformedEmptyDashboardFilter({
+            isEmptyDashboardFilterRule({
                 operator: FilterOperator.IN_PERIOD_TO_DATE,
                 disabled: false,
             }),
         ).toBe(false);
     });
 
+    test('does NOT flag value-less relative-date operators (compile from settings, not values)', () => {
+        expect(
+            isEmptyDashboardFilterRule({
+                operator: FilterOperator.IN_THE_CURRENT,
+                disabled: false,
+                values: [],
+            }),
+        ).toBe(false);
+        expect(
+            isEmptyDashboardFilterRule({
+                operator: FilterOperator.NOT_IN_THE_CURRENT,
+                disabled: false,
+                values: [],
+            }),
+        ).toBe(false);
+    });
+
     test('does NOT flag filters with values', () => {
         expect(
-            isMalformedEmptyDashboardFilter({
+            isEmptyDashboardFilterRule({
                 operator: FilterOperator.EQUALS,
                 disabled: false,
                 values: ['some-value'],

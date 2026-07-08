@@ -3,6 +3,7 @@ import {
     DimensionType,
     FeatureFlags,
     getFilterTypeFromItemType,
+    isEmptyDashboardFilterRule,
     isFilterLockedOnTab,
     type DashboardFilterableField,
     type DashboardFilterRule,
@@ -491,7 +492,11 @@ const Filter: FC<Props> = ({
                                                     filterRuleLabels?.field}{' '}
                                             </Text>
                                         </Tooltip>
-                                        {filterRule?.disabled ? (
+                                        {filterRule?.disabled ||
+                                        (!filterRule?.required &&
+                                            isEmptyDashboardFilterRule(
+                                                filterRule,
+                                            )) ? (
                                             <Text
                                                 span
                                                 fz="inherit"

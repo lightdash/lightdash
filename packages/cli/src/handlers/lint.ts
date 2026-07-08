@@ -1,9 +1,7 @@
 import {
     chartAsCodeSchema,
     dashboardAsCodeSchema,
-    FilterOperator,
     getErrorMessage,
-    isMalformedEmptyDashboardFilter,
     modelAsCodeSchema,
 } from '@lightdash/common';
 import type { ErrorObject } from 'ajv';
@@ -29,78 +27,10 @@ type FileValidationResult = {
     filePath: string;
     valid: boolean;
     errors?: ErrorObject[];
-    warnings?: ErrorObject[];
     fileContent?: string;
     locationMap?: LocationMap;
     type?: 'chart' | 'dashboard' | 'model';
 };
-
-/**
- * Detect dashboard filters that look empty but still override chart-level
- * filters at runtime — `disabled: false, values: []` with an operator that
- * requires values. Returns ErrorObject-shaped entries so they flow through
- * the existing SARIF pipeline as warnings.
- *
- * Walks all three filter buckets (dimensions, metrics, tableCalculations).
- * See PROD-7445.
- */
-export function findMalformedDashboardFilters(data: unknown): ErrorObject[] {
-    if (!data || typeof data !== 'object') return [];
-    const { filters } = data as {
-        filters?: {
-            dimensions?: unknown[];
-            metrics?: unknown[];
-            tableCalculations?: unknown[];
-        };
-    };
-    if (!filters) return [];
-
-    const warnings: ErrorObject[] = [];
-    const buckets: Array<'dimensions' | 'metrics' | 'tableCalculations'> = [
-        'dimensions',
-        'metrics',
-        'tableCalculations',
-    ];
-    for (const bucket of buckets) {
-        const rules = filters[bucket];
-        if (!Array.isArray(rules)) {
-            // eslint-disable-next-line no-continue
-            continue;
-        }
-        rules.forEach((filter, index) => {
-            if (!filter || typeof filter !== 'object') return;
-            const f = filter as {
-                operator?: FilterOperator;
-                values?: unknown[] | null;
-                disabled?: boolean;
-                includeNull?: boolean;
-                label?: string;
-                target?: { fieldId?: string };
-            };
-            if (!f.operator) return;
-            if (
-                !isMalformedEmptyDashboardFilter({
-                    operator: f.operator,
-                    values: f.values,
-                    disabled: f.disabled,
-                    includeNull: f.includeNull,
-                })
-            ) {
-                return;
-            }
-            const fieldId = f.target?.fieldId ?? 'unknown';
-            const label = f.label ? `"${f.label}" ` : '';
-            warnings.push({
-                keyword: 'malformedEmptyDashboardFilter',
-                instancePath: `/filters/${bucket}/${index}`,
-                schemaPath: `#/properties/filters/properties/${bucket}`,
-                params: { fieldId, operator: f.operator, bucket },
-                message: `Dashboard filter ${label}on \`${fieldId}\` is empty (\`disabled: false, values: []\`) but uses an operator that requires values. This filter looks unset in the UI but still overrides chart-level filters. Set \`disabled: true\` or remove the filter.`,
-            });
-        });
-    }
-    return warnings;
-}
 
 const validateChartSchema = ajv.compile(chartAsCodeSchema);
 const validateDashboardSchema = ajv.compile(dashboardAsCodeSchema);
@@ -292,26 +222,17 @@ function validateFile(filePath: string): FileValidationResult {
         // Check if this is a dashboard (has version and tiles)
         if (dataObj.version === 1 && dataObj.tiles) {
             const valid = validateDashboardSchema(data);
-            const warnings = findMalformedDashboardFilters(data);
             if (!valid && validateDashboardSchema.errors) {
                 return {
                     filePath,
                     valid: false,
                     errors: validateDashboardSchema.errors,
-                    warnings: warnings.length > 0 ? warnings : undefined,
                     fileContent,
                     locationMap,
                     type: 'dashboard',
                 };
             }
-            return {
-                filePath,
-                valid: true,
-                warnings: warnings.length > 0 ? warnings : undefined,
-                fileContent,
-                locationMap,
-                type: 'dashboard',
-            };
+            return { filePath, valid: true, type: 'dashboard' };
         }
 
         // Not a lightdash code file
@@ -388,20 +309,18 @@ export async function lintHandler(options: LintOptions): Promise<void> {
                     );
                 }
             } else {
-                // Build SARIF report from all results that produced findings
-                // (schema errors OR custom-check warnings).
+                // Build SARIF report from all results that produced schema errors.
                 const sarifResults = results
                     .filter(
                         (r) =>
                             r.fileContent &&
                             r.type &&
-                            ((r.errors && r.errors.length > 0) ||
-                                (r.warnings && r.warnings.length > 0)),
+                            r.errors &&
+                            r.errors.length > 0,
                     )
                     .map((r) => ({
                         filePath: r.filePath,
                         errors: r.errors ?? [],
-                        warnings: r.warnings,
                         fileContent: r.fileContent!,
                         locationMap: r.locationMap,
                         schemaType: r.type as 'chart' | 'dashboard',
@@ -418,7 +337,7 @@ export async function lintHandler(options: LintOptions): Promise<void> {
                     const invalidCount = results.filter((r) => !r.valid).length;
                     const validCount = results.length - invalidCount;
 
-                    if (!summary.hasErrors && !summary.hasWarnings) {
+                    if (!summary.hasErrors) {
                         console.log(
                             chalk.green(
                                 '\n✓ All Lightdash Code files are valid!\n',
@@ -432,27 +351,17 @@ export async function lintHandler(options: LintOptions): Promise<void> {
                             ),
                         );
                         console.log(chalk.green(`  ✓ ${validCount} valid`));
-                        if (summary.hasErrors) {
-                            console.log(
-                                chalk.red(
-                                    `  ✗ ${invalidCount} invalid (${summary.totalErrors} error${summary.totalErrors === 1 ? '' : 's'})`,
-                                ),
-                            );
-                        }
-                        if (summary.hasWarnings) {
-                            console.log(
-                                chalk.yellow(
-                                    `  ⚠ ${summary.totalWarnings} warning${summary.totalWarnings === 1 ? '' : 's'}`,
-                                ),
-                            );
-                        }
+                        console.log(
+                            chalk.red(
+                                `  ✗ ${invalidCount} invalid (${summary.totalErrors} error${summary.totalErrors === 1 ? '' : 's'})`,
+                            ),
+                        );
 
-                        // Show formatted errors and warnings
+                        // Show formatted errors
                         console.log(formatSarifForCli(sarifLog, searchPath));
                     }
                 }
 
-                // Warnings alone do not fail the lint — only schema errors do.
                 if (results.some((r) => !r.valid)) {
                     shouldExitWithError = true;
                 }
