@@ -91,7 +91,11 @@ export const useSettingsContext = (): SettingsContext => {
     const { data: emailWhitelabelFlag } = useServerFeatureFlag(
         FeatureFlags.EmailWhitelabel,
     );
-    const isEmailWhitelabelEnabled = emailWhitelabelFlag?.enabled ?? false;
+    // Instance must be configured for whitelabelling (health) AND the org must
+    // have the feature flag.
+    const isEmailWhitelabelEnabled =
+        (health?.hasEmailWhitelabel ?? false) &&
+        (emailWhitelabelFlag?.enabled ?? false);
 
     const {
         data: organization,

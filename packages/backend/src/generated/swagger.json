@@ -65473,7 +65473,7 @@
                 ]
             }
         },
-        "/api/v1/org/email-whitelabel": {
+        "/api/v1/org/{organizationUuid}/email-whitelabel": {
             "get": {
                 "operationId": "GetEmailWhitelabel",
                 "responses": {
@@ -65502,7 +65502,16 @@
                 "summary": "Get email whitelabel configuration",
                 "tags": ["Organizations"],
                 "security": [],
-                "parameters": []
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "organizationUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             },
             "put": {
                 "operationId": "SetupEmailWhitelabel",
@@ -65532,7 +65541,16 @@
                 "summary": "Set up email sending domain",
                 "tags": ["Organizations"],
                 "security": [],
-                "parameters": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "organizationUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -65572,7 +65590,16 @@
                 "summary": "Enable or disable email sending domain",
                 "tags": ["Organizations"],
                 "security": [],
-                "parameters": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "organizationUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -65612,10 +65639,19 @@
                 "summary": "Delete email sending domain",
                 "tags": ["Organizations"],
                 "security": [],
-                "parameters": []
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "organizationUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             }
         },
-        "/api/v1/org/email-whitelabel/verify": {
+        "/api/v1/org/{organizationUuid}/email-whitelabel/verify": {
             "post": {
                 "operationId": "VerifyEmailWhitelabel",
                 "responses": {
@@ -65644,7 +65680,16 @@
                 "summary": "Verify email sending domain",
                 "tags": ["Organizations"],
                 "security": [],
-                "parameters": []
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "organizationUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/dashboards/{dashboardUuidOrSlug}/promote": {

@@ -441,6 +441,11 @@ export type HealthState = {
     isAuthenticated: boolean;
     requiresOrgRegistration: boolean;
     hasEmailClient: boolean;
+    /**
+     * Instance has a Postmark account token, so email whitelabelling can be
+     * offered (the org still needs the EmailWhitelabel feature flag).
+     */
+    hasEmailWhitelabel: boolean;
     hasMicrosoftTeams: boolean;
     isServiceAccountEnabled: boolean;
     isOrganizationWarehouseCredentialsEnabled: boolean;

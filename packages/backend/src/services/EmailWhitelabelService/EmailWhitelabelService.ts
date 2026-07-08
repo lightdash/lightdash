@@ -73,9 +73,19 @@ export class EmailWhitelabelService extends BaseService {
         this.emailClient = emailClient;
     }
 
-    private async assertFeatureEnabled(
-        account: RegisteredAccount,
-    ): Promise<void> {
+    /**
+     * Single definition of "email whitelabelling is available": the instance
+     * must have a Postmark account token AND the org must have the feature
+     * flag. Everything (API endpoints, health's `hasEmailWhitelabel`, the
+     * frontend tab) derives from these two facts — don't re-check them
+     * piecemeal elsewhere.
+     */
+    private async assertAvailable(account: RegisteredAccount): Promise<void> {
+        if (!this.lightdashConfig.postmark.accountToken) {
+            throw new MissingConfigError(
+                'Email whitelabelling is not configured on this instance',
+            );
+        }
         const flag = await this.featureFlagModel.get({
             user: {
                 userUuid: account.user.userUuid,
@@ -90,10 +100,18 @@ export class EmailWhitelabelService extends BaseService {
         }
     }
 
-    private assertCanManageOrganization(account: RegisteredAccount): string {
-        const organizationUuid = account.organization?.organizationUuid;
-        if (!organizationUuid) {
-            throw new ForbiddenError('User is not part of an organization');
+    private assertCanManageOrganization(
+        account: RegisteredAccount,
+        organizationUuid: string,
+    ): string {
+        const accountOrganizationUuid = account.organization?.organizationUuid;
+        if (
+            !accountOrganizationUuid ||
+            accountOrganizationUuid !== organizationUuid
+        ) {
+            throw new ForbiddenError(
+                'User is not a member of this organization',
+            );
         }
         const ability = this.createAuditedAbility(account);
         if (
@@ -206,9 +224,10 @@ export class EmailWhitelabelService extends BaseService {
 
     async getStatus(
         account: RegisteredAccount,
+        organizationUuid: string,
     ): Promise<OrganizationEmailWhitelabel | null> {
-        await this.assertFeatureEnabled(account);
-        const organizationUuid = this.assertCanManageOrganization(account);
+        await this.assertAvailable(account);
+        this.assertCanManageOrganization(account, organizationUuid);
         const row =
             await this.organizationEmailDomainModel.findByOrganization(
                 organizationUuid,
@@ -223,10 +242,11 @@ export class EmailWhitelabelService extends BaseService {
      */
     async setupDomain(
         account: RegisteredAccount,
+        organizationUuid: string,
         body: CreateEmailWhitelabel,
     ): Promise<OrganizationEmailWhitelabel> {
-        await this.assertFeatureEnabled(account);
-        const organizationUuid = this.assertCanManageOrganization(account);
+        await this.assertAvailable(account);
+        this.assertCanManageOrganization(account, organizationUuid);
         const postmark = this.getPostmarkClient();
 
         const domain = EmailWhitelabelService.normalizeDomain(body.domain);
@@ -292,9 +312,10 @@ export class EmailWhitelabelService extends BaseService {
      */
     async verify(
         account: RegisteredAccount,
+        organizationUuid: string,
     ): Promise<OrganizationEmailWhitelabel> {
-        await this.assertFeatureEnabled(account);
-        const organizationUuid = this.assertCanManageOrganization(account);
+        await this.assertAvailable(account);
+        this.assertCanManageOrganization(account, organizationUuid);
         const row =
             await this.organizationEmailDomainModel.findByOrganization(
                 organizationUuid,
@@ -342,10 +363,11 @@ export class EmailWhitelabelService extends BaseService {
     /** Enable or disable sending from the verified domain. */
     async updateEnabled(
         account: RegisteredAccount,
+        organizationUuid: string,
         body: UpdateEmailWhitelabel,
     ): Promise<OrganizationEmailWhitelabel> {
-        await this.assertFeatureEnabled(account);
-        const organizationUuid = this.assertCanManageOrganization(account);
+        await this.assertAvailable(account);
+        this.assertCanManageOrganization(account, organizationUuid);
         const row =
             await this.organizationEmailDomainModel.findByOrganization(
                 organizationUuid,
@@ -371,9 +393,12 @@ export class EmailWhitelabelService extends BaseService {
     }
 
     /** Removes the sending domain from the provider and the database. */
-    async deleteDomain(account: RegisteredAccount): Promise<void> {
-        await this.assertFeatureEnabled(account);
-        const organizationUuid = this.assertCanManageOrganization(account);
+    async deleteDomain(
+        account: RegisteredAccount,
+        organizationUuid: string,
+    ): Promise<void> {
+        await this.assertAvailable(account);
+        this.assertCanManageOrganization(account, organizationUuid);
         const row =
             await this.organizationEmailDomainModel.findByOrganization(
                 organizationUuid,

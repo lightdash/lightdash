@@ -77108,9 +77108,15 @@ export function RegisterRoutes(app: Router) {
         TsoaRoute.ParameterSchema
     > = {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        organizationUuid: {
+            in: 'path',
+            name: 'organizationUuid',
+            required: true,
+            ref: 'UUID',
+        },
     };
     app.get(
-        '/api/v1/org/email-whitelabel',
+        '/api/v1/org/:organizationUuid/email-whitelabel',
         ...fetchMiddlewares<RequestHandler>(EmailWhitelabelController),
         ...fetchMiddlewares<RequestHandler>(
             EmailWhitelabelController.prototype.getEmailWhitelabel,
@@ -77163,6 +77169,12 @@ export function RegisterRoutes(app: Router) {
         TsoaRoute.ParameterSchema
     > = {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        organizationUuid: {
+            in: 'path',
+            name: 'organizationUuid',
+            required: true,
+            ref: 'UUID',
+        },
         body: {
             in: 'body',
             name: 'body',
@@ -77171,7 +77183,7 @@ export function RegisterRoutes(app: Router) {
         },
     };
     app.put(
-        '/api/v1/org/email-whitelabel',
+        '/api/v1/org/:organizationUuid/email-whitelabel',
         ...fetchMiddlewares<RequestHandler>(EmailWhitelabelController),
         ...fetchMiddlewares<RequestHandler>(
             EmailWhitelabelController.prototype.setupEmailWhitelabel,
@@ -77224,9 +77236,15 @@ export function RegisterRoutes(app: Router) {
         TsoaRoute.ParameterSchema
     > = {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        organizationUuid: {
+            in: 'path',
+            name: 'organizationUuid',
+            required: true,
+            ref: 'UUID',
+        },
     };
     app.post(
-        '/api/v1/org/email-whitelabel/verify',
+        '/api/v1/org/:organizationUuid/email-whitelabel/verify',
         ...fetchMiddlewares<RequestHandler>(EmailWhitelabelController),
         ...fetchMiddlewares<RequestHandler>(
             EmailWhitelabelController.prototype.verifyEmailWhitelabel,
@@ -77279,6 +77297,12 @@ export function RegisterRoutes(app: Router) {
         TsoaRoute.ParameterSchema
     > = {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        organizationUuid: {
+            in: 'path',
+            name: 'organizationUuid',
+            required: true,
+            ref: 'UUID',
+        },
         body: {
             in: 'body',
             name: 'body',
@@ -77287,7 +77311,7 @@ export function RegisterRoutes(app: Router) {
         },
     };
     app.patch(
-        '/api/v1/org/email-whitelabel',
+        '/api/v1/org/:organizationUuid/email-whitelabel',
         ...fetchMiddlewares<RequestHandler>(EmailWhitelabelController),
         ...fetchMiddlewares<RequestHandler>(
             EmailWhitelabelController.prototype.updateEmailWhitelabel,
@@ -77340,9 +77364,15 @@ export function RegisterRoutes(app: Router) {
         TsoaRoute.ParameterSchema
     > = {
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        organizationUuid: {
+            in: 'path',
+            name: 'organizationUuid',
+            required: true,
+            ref: 'UUID',
+        },
     };
     app.delete(
-        '/api/v1/org/email-whitelabel',
+        '/api/v1/org/:organizationUuid/email-whitelabel',
         ...fetchMiddlewares<RequestHandler>(EmailWhitelabelController),
         ...fetchMiddlewares<RequestHandler>(
             EmailWhitelabelController.prototype.deleteEmailWhitelabel,

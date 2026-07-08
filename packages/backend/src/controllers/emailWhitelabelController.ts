@@ -5,6 +5,7 @@ import {
     assertRegisteredAccount,
     CreateEmailWhitelabel,
     UpdateEmailWhitelabel,
+    UUID,
 } from '@lightdash/common';
 import {
     Body,
@@ -13,6 +14,7 @@ import {
     Middlewares,
     OperationId,
     Patch,
+    Path,
     Post,
     Put,
     Request,
@@ -34,7 +36,7 @@ import { BaseController } from './baseController';
  * from their own verified domain. Gated by the EmailWhitelabel feature flag and
  * a configured Postmark account token.
  */
-@Route('/api/v1/org/email-whitelabel')
+@Route('/api/v1/org/{organizationUuid}/email-whitelabel')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Organizations')
 export class EmailWhitelabelController extends BaseController {
@@ -48,11 +50,12 @@ export class EmailWhitelabelController extends BaseController {
     @OperationId('GetEmailWhitelabel')
     async getEmailWhitelabel(
         @Request() req: express.Request,
+        @Path() organizationUuid: UUID,
     ): Promise<ApiEmailWhitelabelResponse> {
         assertRegisteredAccount(req.account);
         const results = await this.services
             .getEmailWhitelabelService()
-            .getStatus(req.account);
+            .getStatus(req.account, organizationUuid);
         this.setStatus(200);
         return { status: 'ok', results };
     }
@@ -72,12 +75,13 @@ export class EmailWhitelabelController extends BaseController {
     @OperationId('SetupEmailWhitelabel')
     async setupEmailWhitelabel(
         @Request() req: express.Request,
+        @Path() organizationUuid: UUID,
         @Body() body: CreateEmailWhitelabel,
     ): Promise<ApiEmailWhitelabelResponse> {
         assertRegisteredAccount(req.account);
         const results = await this.services
             .getEmailWhitelabelService()
-            .setupDomain(req.account, body);
+            .setupDomain(req.account, organizationUuid, body);
         this.setStatus(200);
         return { status: 'ok', results };
     }
@@ -97,11 +101,12 @@ export class EmailWhitelabelController extends BaseController {
     @OperationId('VerifyEmailWhitelabel')
     async verifyEmailWhitelabel(
         @Request() req: express.Request,
+        @Path() organizationUuid: UUID,
     ): Promise<ApiEmailWhitelabelResponse> {
         assertRegisteredAccount(req.account);
         const results = await this.services
             .getEmailWhitelabelService()
-            .verify(req.account);
+            .verify(req.account, organizationUuid);
         this.setStatus(200);
         return { status: 'ok', results };
     }
@@ -120,12 +125,13 @@ export class EmailWhitelabelController extends BaseController {
     @OperationId('UpdateEmailWhitelabel')
     async updateEmailWhitelabel(
         @Request() req: express.Request,
+        @Path() organizationUuid: UUID,
         @Body() body: UpdateEmailWhitelabel,
     ): Promise<ApiEmailWhitelabelResponse> {
         assertRegisteredAccount(req.account);
         const results = await this.services
             .getEmailWhitelabelService()
-            .updateEnabled(req.account, body);
+            .updateEnabled(req.account, organizationUuid, body);
         this.setStatus(200);
         return { status: 'ok', results };
     }
@@ -144,11 +150,12 @@ export class EmailWhitelabelController extends BaseController {
     @OperationId('DeleteEmailWhitelabel')
     async deleteEmailWhitelabel(
         @Request() req: express.Request,
+        @Path() organizationUuid: UUID,
     ): Promise<ApiSuccessEmpty> {
         assertRegisteredAccount(req.account);
         await this.services
             .getEmailWhitelabelService()
-            .deleteDomain(req.account);
+            .deleteDomain(req.account, organizationUuid);
         this.setStatus(200);
         return { status: 'ok', results: undefined };
     }

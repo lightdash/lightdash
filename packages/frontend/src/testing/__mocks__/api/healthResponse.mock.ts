@@ -94,6 +94,7 @@ export default function mockHealthResponse(
             },
         },
         hasEmailClient: false,
+        hasEmailWhitelabel: false,
         hasHeadlessBrowser: false,
         hasExtendedUsageAnalytics: false,
         hasGithub: false,
