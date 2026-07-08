@@ -1,3 +1,10 @@
+## [0.3335.2](https://github.com/lightdash/lightdash/compare/0.3335.1...0.3335.2) (2026-07-08)
+
+
+### Bug Fixes
+
+* **tables:** show URL menu items for zero-valued cells ([#25291](https://github.com/lightdash/lightdash/issues/25291)) ([a7d8193](https://github.com/lightdash/lightdash/commit/a7d819333520b2aaa1cad1d137bb02596fcd9624))
+
 ## [0.3335.1](https://github.com/lightdash/lightdash/compare/0.3335.0...0.3335.1) (2026-07-08)
 
 
