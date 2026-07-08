@@ -1,3 +1,15 @@
+# [0.3333.0](https://github.com/lightdash/lightdash/compare/0.3332.0...0.3333.0) (2026-07-08)
+
+
+### Bug Fixes
+
+* **roles:** return 409 instead of 500 when a role name already exists ([#25278](https://github.com/lightdash/lightdash/issues/25278)) ([1e70caf](https://github.com/lightdash/lightdash/commit/1e70caf14b504ae5133b76ed5ad94509da20e114))
+
+
+### Features
+
+* **roles:** allow project scopes in org custom roles ([#25277](https://github.com/lightdash/lightdash/issues/25277)) ([700bd4f](https://github.com/lightdash/lightdash/commit/700bd4f29648e78f1a652120273883d576fc7e8c))
+
 # [0.3332.0](https://github.com/lightdash/lightdash/compare/0.3331.0...0.3332.0) (2026-07-08)
 
 
