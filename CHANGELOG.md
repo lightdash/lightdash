@@ -1,3 +1,16 @@
+# [0.3329.0](https://github.com/lightdash/lightdash/compare/0.3328.5...0.3329.0) (2026-07-08)
+
+
+### Bug Fixes
+
+* restore Google SSO button icon ([#25272](https://github.com/lightdash/lightdash/issues/25272)) ([9d57ab0](https://github.com/lightdash/lightdash/commit/9d57ab010cd088912fe86ec957b9a5d03c87bc97))
+* support hyphenated model names in field references ([#25247](https://github.com/lightdash/lightdash/issues/25247)) ([9150bab](https://github.com/lightdash/lightdash/commit/9150babe4c97d85b51adcf09fe7ecd949e77bd60))
+
+
+### Features
+
+* add browser AWS SSO for Redshift IAM credentials ([#25228](https://github.com/lightdash/lightdash/issues/25228)) ([4ed13ce](https://github.com/lightdash/lightdash/commit/4ed13ceacb6fbd690ec133b168b9e78521a95823)), closes [#24848](https://github.com/lightdash/lightdash/issues/24848)
+
 ## [0.3328.5](https://github.com/lightdash/lightdash/compare/0.3328.4...0.3328.5) (2026-07-08)
 
 
