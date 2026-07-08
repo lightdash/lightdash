@@ -6883,9 +6883,19 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const target = `Lightdash project "${result.projectName}" (repository ${result.repository})`;
         const prVerb = result.prAction === 'updated' ? 'Updated' : 'Opened';
-        const base = result.prUrl
-            ? `${prVerb} a pull request against ${target}. A "View pull request" button is shown to the user, so do NOT include the pull request URL or number in your reply — just summarise the change and which project/repository it targeted.\n\nAgent summary:\n${result.output}`
-            : `Ran against ${target} but made no file changes, so no pull request was opened.\n\nAgent summary:\n${result.output}`;
+        // The project has more than one dbt source and the prompt didn't pin
+        // one down — result.output already lists the choices (see
+        // AiWritebackService.buildDbtSourceSelectionResult). Relay it
+        // verbatim rather than the generic "no file changes" text below,
+        // which would otherwise mislabel this as a deliberate no-op.
+        let base: string;
+        if (result.needsDbtSourceSelection) {
+            base = `${result.output}\n\nTell the user which dbt sources they can choose from and ask them to re-run naming one.`;
+        } else if (result.prUrl) {
+            base = `${prVerb} a pull request against ${target}. A "View pull request" button is shown to the user, so do NOT include the pull request URL or number in your reply — just summarise the change and which project/repository it targeted.\n\nAgent summary:\n${result.output}`;
+        } else {
+            base = `Ran against ${target} but made no file changes, so no pull request was opened.\n\nAgent summary:\n${result.output}`;
+        }
 
         let toolResult = base;
         if (result.prUrl && previewUrl) {
@@ -6905,6 +6915,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 deletions: result.deletions ?? null,
                 previewUrl: previewUrl ?? null,
                 steps: result.steps,
+                needsDbtSourceSelection: result.needsDbtSourceSelection ?? null,
+                dbtSourceOptions: result.dbtSourceOptions ?? null,
             },
         });
     }

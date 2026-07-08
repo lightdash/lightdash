@@ -84,6 +84,24 @@ export const toolEditDbtProjectOutputSchema = z.object({
                     }),
                 )
                 .nullish(),
+            // Set when the project has several dbt sources and this run
+            // couldn't tell which one the prompt targets — no sandbox ran and
+            // no PR was opened. dbtSourceOptions lists the choices so the
+            // client can prompt the user to name one and retry. Nullish for
+            // back-compat with rows persisted before this existed.
+            needsDbtSourceSelection: z.boolean().nullish(),
+            dbtSourceOptions: z
+                .array(
+                    z.object({
+                        projectDbtSourceUuid: z.string(),
+                        name: z.string(),
+                        isPrimary: z.boolean(),
+                        repository: z.string().nullable(),
+                        branch: z.string().nullable(),
+                        projectSubPath: z.string().nullable(),
+                    }),
+                )
+                .nullish(),
         }),
         z.object({
             status: z.literal('error'),

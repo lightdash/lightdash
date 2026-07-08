@@ -492,6 +492,41 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
         );
     }
 
+    if (metadata.needsDbtSourceSelection) {
+        // The project has more than one dbt source and the run couldn't tell
+        // which one the prompt targets — no sandbox ran, no PR was opened.
+        // Distinct from the plain "no changes needed" card below: this needs
+        // the user to pick a source and ask again, not just a reassurance.
+        return (
+            <Paper withBorder p="sm" radius="md">
+                <Group gap="xs" align="flex-start" wrap="nowrap">
+                    <ThemeIcon
+                        variant="light"
+                        color="ldGray"
+                        radius="md"
+                        size="md"
+                    >
+                        <MantineIcon icon={IconGitPullRequest} size={16} />
+                    </ThemeIcon>
+                    <Stack gap={2}>
+                        <Text size="sm" fw={500}>
+                            Which dbt source did you mean?
+                        </Text>
+                        <Text size="xs" c="ldGray.6">
+                            {metadata.dbtSourceOptions?.length
+                                ? `This project has more than one dbt source: ${metadata.dbtSourceOptions
+                                      .map((option) => option.name)
+                                      .join(
+                                          ', ',
+                                      )}. Reply naming one to try again.`
+                                : 'This project has more than one dbt source. Reply naming one to try again.'}
+                        </Text>
+                    </Stack>
+                </Group>
+            </Paper>
+        );
+    }
+
     if (!metadata.prUrl) {
         // Success but no PR opened (writeback agent decided no file changes
         // were needed). Reassure rather than surface as a failure.

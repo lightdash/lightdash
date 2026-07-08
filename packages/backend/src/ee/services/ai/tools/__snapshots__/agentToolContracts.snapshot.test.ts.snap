@@ -3719,9 +3719,66 @@ Parameters:
                     "null",
                   ],
                 },
+                "dbtSourceOptions": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "branch": {
+                            "type": [
+                              "string",
+                              "null",
+                            ],
+                          },
+                          "isPrimary": {
+                            "type": "boolean",
+                          },
+                          "name": {
+                            "type": "string",
+                          },
+                          "projectDbtSourceUuid": {
+                            "type": "string",
+                          },
+                          "projectSubPath": {
+                            "type": [
+                              "string",
+                              "null",
+                            ],
+                          },
+                          "repository": {
+                            "type": [
+                              "string",
+                              "null",
+                            ],
+                          },
+                        },
+                        "required": [
+                          "projectDbtSourceUuid",
+                          "name",
+                          "isPrimary",
+                          "repository",
+                          "branch",
+                          "projectSubPath",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
                 "deletions": {
                   "type": [
                     "number",
+                    "null",
+                  ],
+                },
+                "needsDbtSourceSelection": {
+                  "type": [
+                    "boolean",
                     "null",
                   ],
                 },
