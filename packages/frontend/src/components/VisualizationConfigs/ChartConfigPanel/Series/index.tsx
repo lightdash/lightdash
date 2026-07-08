@@ -7,6 +7,7 @@ import {
 } from '@hello-pangea/dnd';
 import {
     CartesianSeriesType,
+    createConditionalFormattingConfigWithSingleColor,
     getItemId,
     getSeriesId,
     StackType,
@@ -162,17 +163,20 @@ export const Series: FC<Props> = ({ items }) => {
         updateSeries(updatedSeries);
     };
 
-    // Color by category: available for single-series bar charts without pivots
     const hasCustomColorsStacking =
         allSeries.some((series) => Boolean(series.stack)) ||
         (dirtyLayout?.stack !== undefined &&
             dirtyLayout.stack !== StackType.NONE);
 
-    const isSingleSeriesBar =
+    // Conditional formatting: available for non-stacked bar charts without
+    // pivots, regardless of how many metrics are charted
+    const supportsCustomColors =
         dirtyChartType === CartesianSeriesType.BAR &&
         !pivotDimensions?.length &&
-        allSeries.length <= 1 &&
         !hasCustomColorsStacking;
+
+    // Color by category: only for single-series bar charts
+    const isSingleSeriesBar = supportsCustomColors && allSeries.length <= 1;
 
     const colorByCategory = dirtyLayout?.colorByCategory ?? false;
     const customColorsEnabled =
@@ -313,7 +317,7 @@ export const Series: FC<Props> = ({ items }) => {
                     )}
                 </Droppable>
             </DragDropContext>
-            {isSingleSeriesBar && (
+            {supportsCustomColors && (
                 <Config>
                     <Config.Section>
                         <Stack gap="xs">
@@ -325,7 +329,20 @@ export const Series: FC<Props> = ({ items }) => {
                                         if (conditionalFormattings.length > 0) {
                                             return;
                                         }
-                                        setColorByCategory(true);
+                                        if (isSingleSeriesBar) {
+                                            setColorByCategory(true);
+                                            return;
+                                        }
+                                        const firstYField =
+                                            dirtyLayout?.yField?.[0];
+                                        onSetConditionalFormattings([
+                                            createConditionalFormattingConfigWithSingleColor(
+                                                colorPalette[0],
+                                                firstYField
+                                                    ? { fieldId: firstYField }
+                                                    : null,
+                                            ),
+                                        ]);
                                         return;
                                     }
 
@@ -338,7 +355,8 @@ export const Series: FC<Props> = ({ items }) => {
                                     items={items}
                                     rows={resultsData?.rows}
                                     xField={dirtyLayout?.xField}
-                                    yField={dirtyLayout?.yField?.[0]}
+                                    yFields={dirtyLayout?.yField ?? []}
+                                    canColorByCategory={isSingleSeriesBar}
                                     colorPalette={colorPalette}
                                     colorByCategory={colorByCategory}
                                     categoryColorOverrides={

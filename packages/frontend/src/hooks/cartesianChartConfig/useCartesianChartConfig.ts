@@ -1279,27 +1279,30 @@ const useCartesianChartConfig = ({
         [dirtyEchartsConfig?.series, dirtyLayout?.stack],
     );
 
-    const isCustomColorsEligible = useMemo(
+    // Conditional formatting: non-stacked bar charts without pivots,
+    // regardless of metric count
+    const isConditionalFormattingEligible = useMemo(
         () =>
             dirtyChartType === CartesianSeriesType.BAR &&
             !pivotKeys?.length &&
-            (dirtyLayout?.yField?.length ?? 0) <= 1 &&
             !hasCustomColorsStacking,
-        [
-            dirtyChartType,
-            pivotKeys,
-            dirtyLayout?.yField,
-            hasCustomColorsStacking,
-        ],
+        [dirtyChartType, pivotKeys, hasCustomColorsStacking],
+    );
+
+    // Color by category: only single-metric bar charts
+    const isColorByCategoryEligible = useMemo(
+        () =>
+            isConditionalFormattingEligible &&
+            (dirtyLayout?.yField?.length ?? 0) <= 1,
+        [isConditionalFormattingEligible, dirtyLayout?.yField],
     );
 
     useEffect(() => {
-        if (isCustomColorsEligible) return;
+        if (isColorByCategoryEligible) return;
 
         if (
             !dirtyLayout?.colorByCategory &&
-            !dirtyLayout?.categoryColorOverrides &&
-            conditionalFormattings.length === 0
+            !dirtyLayout?.categoryColorOverrides
         ) {
             return;
         }
@@ -1309,37 +1312,56 @@ const useCartesianChartConfig = ({
             colorByCategory: undefined,
             categoryColorOverrides: undefined,
         }));
-        setConditionalFormattings([]);
     }, [
-        isCustomColorsEligible,
+        isColorByCategoryEligible,
         dirtyLayout?.colorByCategory,
         dirtyLayout?.categoryColorOverrides,
-        conditionalFormattings,
     ]);
 
     useEffect(() => {
-        const targetFieldId = dirtyLayout?.yField?.[0];
+        if (isConditionalFormattingEligible) return;
+        if (conditionalFormattings.length === 0) return;
+
+        setConditionalFormattings([]);
+    }, [isConditionalFormattingEligible, conditionalFormattings]);
+
+    // Repair configs whose target no longer exists on the chart (e.g. the
+    // metric was swapped or removed) by pointing them at the first metric
+    useEffect(() => {
+        const yFields = dirtyLayout?.yField ?? [];
+        const firstYField = yFields[0];
         if (
-            !isCustomColorsEligible ||
-            !targetFieldId ||
+            !isConditionalFormattingEligible ||
+            !firstYField ||
             conditionalFormattings.length === 0
         ) {
             return;
         }
 
         const hasOutdatedTargets = conditionalFormattings.some(
-            (config) => config.target?.fieldId !== targetFieldId,
+            (config) =>
+                !config.target?.fieldId ||
+                !yFields.includes(config.target.fieldId),
         );
 
         if (!hasOutdatedTargets) return;
 
         setConditionalFormattings((prev) =>
-            prev.map((config) => ({
-                ...config,
-                target: { fieldId: targetFieldId },
-            })),
+            prev.map((config) =>
+                config.target?.fieldId &&
+                yFields.includes(config.target.fieldId)
+                    ? config
+                    : {
+                          ...config,
+                          target: { fieldId: firstYField },
+                      },
+            ),
         );
-    }, [isCustomColorsEligible, dirtyLayout?.yField, conditionalFormattings]);
+    }, [
+        isConditionalFormattingEligible,
+        dirtyLayout?.yField,
+        conditionalFormattings,
+    ]);
 
     const validConfig: CartesianChart = useMemo(() => {
         // Always use the dirtyLayout and dirtyEchartsConfig when possible, fallback to the empty config if not complete.
