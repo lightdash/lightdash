@@ -47,6 +47,10 @@ export * from './validators';
 
 export type AiMcpServerAuthType = 'none' | 'bearer' | 'oauth';
 export type AiMcpCredentialScope = 'shared' | 'user';
+export type AiMcpOAuthTokenEndpointAuthMethod =
+    | 'none'
+    | 'client_secret_basic'
+    | 'client_secret_post';
 export type AiMcpServerConnectionStatus =
     | 'not_connected'
     | 'connecting'
@@ -395,7 +399,15 @@ export type ApiCreateAiMcpServer = {
     allowOAuthCredentialSharing?: boolean;
     credentialScope?: AiMcpCredentialScope;
     credentials?: {
-        bearerToken: string;
+        bearerToken?: string;
+        oauthClientInformation?: {
+            clientId: string;
+            clientSecret?: string;
+            tokenEndpointAuthMethod?: AiMcpOAuthTokenEndpointAuthMethod;
+        } | null;
+        oauthClientRegistration?: {
+            initialAccessToken?: string;
+        } | null;
     } | null;
 };
 

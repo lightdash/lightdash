@@ -222,6 +222,9 @@ export type AiMcpOAuthCredentialPayload = {
     };
     clientInformation?: Record<string, unknown>;
     clientMetadata?: Record<string, unknown>;
+    clientRegistration?: {
+        initialAccessToken?: string;
+    };
     codeVerifier?: string;
     state?: string;
     authorizationServerUrl?: string;
@@ -938,6 +941,7 @@ export class AiAgentModel {
     private static serializeMcpCredentialPayload(
         authType: ApiCreateAiMcpServer['authType'],
         credentials: ApiCreateAiMcpServer['credentials'],
+        credentialScope: AiMcpCredentialScope,
     ): AiMcpCredentialPayload | null {
         switch (authType) {
             case 'none':
@@ -954,7 +958,38 @@ export class AiAgentModel {
                     bearerToken: credentials.bearerToken,
                 };
             case 'oauth':
-                return null;
+                if (
+                    !credentials?.oauthClientInformation &&
+                    !credentials?.oauthClientRegistration?.initialAccessToken
+                ) {
+                    return null;
+                }
+
+                return {
+                    type: 'oauth',
+                    credentialScope,
+                    connectionStatus: 'not_connected',
+                    clientInformation: credentials.oauthClientInformation
+                        ? {
+                              client_id:
+                                  credentials.oauthClientInformation.clientId,
+                              client_secret:
+                                  credentials.oauthClientInformation
+                                      .clientSecret,
+                              token_endpoint_auth_method:
+                                  credentials.oauthClientInformation
+                                      .tokenEndpointAuthMethod,
+                          }
+                        : undefined,
+                    clientRegistration: credentials.oauthClientRegistration
+                        ?.initialAccessToken
+                        ? {
+                              initialAccessToken:
+                                  credentials.oauthClientRegistration
+                                      .initialAccessToken,
+                          }
+                        : undefined,
+                };
             default:
                 return assertUnreachable(
                     authType,
@@ -1633,6 +1668,7 @@ export class AiAgentModel {
                 AiAgentModel.serializeMcpCredentialPayload(
                     args.authType,
                     args.credentials,
+                    credentialScope,
                 );
 
             const credential =

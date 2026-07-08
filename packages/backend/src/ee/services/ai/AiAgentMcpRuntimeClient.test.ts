@@ -1,7 +1,11 @@
 import * as mcpSdk from '@ai-sdk/mcp';
 import type { MCPClient } from '@ai-sdk/mcp';
 import type { LightdashConfig } from '../../../config/parseConfig';
-import type { AiAgentModel } from '../../models/AiAgentModel';
+import type {
+    AiAgentModel,
+    AiMcpCredential,
+    AiMcpOAuthCredentialPayload,
+} from '../../models/AiAgentModel';
 import {
     AiAgentMcpRuntimeClient,
     createHttpMcpClient,
@@ -13,6 +17,13 @@ import type { AiAgentMcpServer } from './types/aiAgent';
 vi.mock('@ai-sdk/mcp', async () => ({
     ...(await vi.importActual<typeof import('@ai-sdk/mcp')>('@ai-sdk/mcp')),
     createMCPClient: vi.fn(),
+}));
+
+const authMock = vi.hoisted(() => vi.fn());
+
+vi.mock('@modelcontextprotocol/sdk/client/auth.js', () => ({
+    auth: authMock,
+    UnauthorizedError: class UnauthorizedError extends Error {},
 }));
 
 const getMcpServer = (
@@ -435,5 +446,327 @@ describe('createHttpMcpClient', () => {
         } finally {
             fetchSpy.mockRestore();
         }
+    });
+});
+
+const getOAuthCredential = (
+    payload: AiMcpOAuthCredentialPayload,
+    overrides: Partial<AiMcpCredential> = {},
+): AiMcpCredential => ({
+    uuid: 'credential-uuid',
+    mcpServerUuid: 'mcp-server-uuid',
+    credentialScope: payload.credentialScope,
+    userUuid: payload.credentialScope === 'user' ? 'user-uuid' : null,
+    createdByUserUuid: 'user-uuid',
+    updatedByUserUuid: 'user-uuid',
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    credentials: payload,
+    ...overrides,
+});
+
+const getOAuthRuntimeClient = (payload: AiMcpOAuthCredentialPayload) => {
+    let storedPayload = payload;
+    const aiAgentModel = {
+        getCredential: vi.fn(async () => getOAuthCredential(storedPayload)),
+        upsertCredential: vi.fn(async (args) => {
+            storedPayload = args.credentials;
+            return getOAuthCredential(storedPayload, {
+                mcpServerUuid: args.serverUuid,
+                credentialScope: args.scope,
+                userUuid: args.userUuid ?? null,
+                createdByUserUuid: args.actorUserUuid ?? null,
+                updatedByUserUuid: args.actorUserUuid ?? null,
+            });
+        }),
+    };
+
+    return new AiAgentMcpRuntimeClient({
+        aiAgentModel: aiAgentModel as unknown as AiAgentModel,
+        lightdashConfig: {
+            siteUrl: 'https://lightdash.example.com',
+        } as LightdashConfig,
+    });
+};
+
+describe('startOAuthConnection', () => {
+    beforeEach(() => {
+        authMock.mockReset();
+        vi.unstubAllGlobals();
+    });
+
+    it('adds the initial access token to dynamic client registration requests', async () => {
+        let registrationAuthorizationHeader: string | null = null;
+        const fetchMock = vi.fn(async (input, init) => {
+            const url = input instanceof Request ? input.url : input.toString();
+
+            if (url === 'https://auth.example.com/.well-known/oauth') {
+                return new Response(
+                    JSON.stringify({
+                        registration_endpoint:
+                            'https://auth.example.com/dcr/register',
+                    }),
+                    {
+                        headers: {
+                            'content-type': 'application/json',
+                        },
+                    },
+                );
+            }
+
+            if (url === 'https://auth.example.com/dcr/register') {
+                registrationAuthorizationHeader = new Headers(
+                    init?.headers,
+                ).get('Authorization');
+                return new Response(
+                    JSON.stringify({
+                        client_id: 'registered-client-id',
+                    }),
+                    {
+                        headers: {
+                            'content-type': 'application/json',
+                        },
+                    },
+                );
+            }
+
+            return new Response('{}');
+        });
+        vi.stubGlobal('fetch', fetchMock);
+
+        authMock.mockImplementation(async (provider, options) => {
+            expect(options.fetchFn).toEqual(expect.any(Function));
+            await options.fetchFn('https://auth.example.com/.well-known/oauth');
+            await options.fetchFn('https://auth.example.com/dcr/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: '{}',
+            });
+            await provider.redirectToAuthorization(
+                new URL('https://auth.example.com/authorize'),
+            );
+        });
+
+        const runtimeClient = getOAuthRuntimeClient({
+            type: 'oauth',
+            credentialScope: 'shared',
+            connectionStatus: 'not_connected',
+            clientRegistration: {
+                initialAccessToken: 'dcr-token',
+            },
+        });
+
+        await expect(
+            runtimeClient.startOAuthConnection({
+                projectUuid: 'project-uuid',
+                mcpServerUuid: 'mcp-server-uuid',
+                credentialScope: 'shared',
+                serverUrl: 'https://mcp.example.com',
+                actorUserUuid: 'user-uuid',
+            }),
+        ).resolves.toBe('https://auth.example.com/authorize');
+
+        expect(registrationAuthorizationHeader).toBe('Bearer dcr-token');
+    });
+
+    it('persists user dynamic client registrations back to shared setup', async () => {
+        const credentials = new Map<string, AiMcpOAuthCredentialPayload>([
+            [
+                'shared:',
+                {
+                    type: 'oauth',
+                    credentialScope: 'shared',
+                    connectionStatus: 'not_connected',
+                    clientRegistration: {
+                        initialAccessToken: 'dcr-token',
+                    },
+                },
+            ],
+            [
+                'user:user-uuid',
+                {
+                    type: 'oauth',
+                    credentialScope: 'user',
+                    connectionStatus: 'not_connected',
+                    clientRegistration: {
+                        initialAccessToken: 'dcr-token',
+                    },
+                },
+            ],
+        ]);
+        const getKey = (scope: string, userUuid?: string | null) =>
+            `${scope}:${scope === 'user' ? (userUuid ?? '') : ''}`;
+        const aiAgentModel = {
+            getCredential: vi.fn(async (_serverUuid, scope, options) => {
+                const storedPayload = credentials.get(
+                    getKey(scope, options?.userUuid),
+                );
+
+                return storedPayload
+                    ? getOAuthCredential(storedPayload, {
+                          credentialScope: scope,
+                          userUuid:
+                              scope === 'user'
+                                  ? (options?.userUuid ?? null)
+                                  : null,
+                      })
+                    : undefined;
+            }),
+            upsertCredential: vi.fn(async (args) => {
+                credentials.set(
+                    getKey(args.scope, args.userUuid),
+                    args.credentials,
+                );
+                return getOAuthCredential(args.credentials, {
+                    mcpServerUuid: args.serverUuid,
+                    credentialScope: args.scope,
+                    userUuid: args.userUuid ?? null,
+                    createdByUserUuid: args.actorUserUuid ?? null,
+                    updatedByUserUuid: args.actorUserUuid ?? null,
+                });
+            }),
+        };
+        const runtimeClient = new AiAgentMcpRuntimeClient({
+            aiAgentModel: aiAgentModel as unknown as AiAgentModel,
+            lightdashConfig: {
+                siteUrl: 'https://lightdash.example.com',
+            } as LightdashConfig,
+        });
+
+        authMock.mockImplementation(async (provider) => {
+            await provider.saveClientInformation({
+                client_id: 'registered-client-id',
+                client_secret: 'registered-client-secret',
+            });
+            await provider.redirectToAuthorization(
+                new URL('https://auth.example.com/authorize'),
+            );
+        });
+
+        await expect(
+            runtimeClient.startOAuthConnection({
+                projectUuid: 'project-uuid',
+                mcpServerUuid: 'mcp-server-uuid',
+                credentialScope: 'user',
+                userUuid: 'user-uuid',
+                serverUrl: 'https://mcp.example.com',
+                actorUserUuid: 'user-uuid',
+            }),
+        ).resolves.toBe('https://auth.example.com/authorize');
+
+        expect(credentials.get('shared:')).toMatchObject({
+            credentialScope: 'shared',
+            connectionStatus: 'not_connected',
+            clientInformation: {
+                client_id: 'registered-client-id',
+                client_secret: 'registered-client-secret',
+            },
+            clientRegistration: {
+                initialAccessToken: 'dcr-token',
+            },
+        });
+    });
+
+    it('uses seeded client information without installing a DCR fetch hook', async () => {
+        authMock.mockImplementation(async (provider, options) => {
+            await expect(provider.clientInformation()).resolves.toMatchObject({
+                client_id: 'client-id',
+                client_secret: 'client-secret',
+            });
+            expect(options.fetchFn).toBeUndefined();
+            await provider.redirectToAuthorization(
+                new URL('https://auth.example.com/authorize'),
+            );
+        });
+
+        const runtimeClient = getOAuthRuntimeClient({
+            type: 'oauth',
+            credentialScope: 'shared',
+            connectionStatus: 'not_connected',
+            clientInformation: {
+                client_id: 'client-id',
+                client_secret: 'client-secret',
+            },
+        });
+
+        await expect(
+            runtimeClient.startOAuthConnection({
+                projectUuid: 'project-uuid',
+                mcpServerUuid: 'mcp-server-uuid',
+                credentialScope: 'shared',
+                serverUrl: 'https://mcp.example.com',
+                actorUserUuid: 'user-uuid',
+            }),
+        ).resolves.toBe('https://auth.example.com/authorize');
+    });
+});
+
+describe('disconnectOAuthConnection', () => {
+    it('preserves OAuth client setup while clearing connection state', async () => {
+        const existingPayload: AiMcpOAuthCredentialPayload = {
+            type: 'oauth',
+            credentialScope: 'shared',
+            connectionStatus: 'connected',
+            tokens: {
+                accessToken: 'access-token',
+                refreshToken: 'refresh-token',
+                tokenType: 'Bearer',
+            },
+            clientInformation: {
+                client_id: 'static-client-id',
+                client_secret: 'static-client-secret',
+                token_endpoint_auth_method: 'client_secret_post',
+            },
+            clientMetadata: {
+                redirect_uris: ['https://lightdash.example.com/callback'],
+            },
+            clientRegistration: {
+                initialAccessToken: 'dcr-token',
+            },
+            codeVerifier: 'code-verifier',
+            state: 'oauth-state',
+        };
+        const aiAgentModel = {
+            getCredential: vi.fn(async () =>
+                getOAuthCredential(existingPayload),
+            ),
+            upsertCredential: vi.fn(async (args) =>
+                getOAuthCredential(args.credentials, {
+                    mcpServerUuid: args.serverUuid,
+                    credentialScope: args.scope,
+                    userUuid: args.userUuid ?? null,
+                    updatedByUserUuid: args.actorUserUuid ?? null,
+                }),
+            ),
+        };
+        const runtimeClient = new AiAgentMcpRuntimeClient({
+            aiAgentModel: aiAgentModel as unknown as AiAgentModel,
+            lightdashConfig: {
+                siteUrl: 'https://lightdash.example.com',
+            } as LightdashConfig,
+        });
+
+        await runtimeClient.disconnectOAuthConnection({
+            mcpServerUuid: 'mcp-server-uuid',
+            credentialScope: 'shared',
+            actorUserUuid: 'user-uuid',
+        });
+
+        expect(aiAgentModel.upsertCredential).toHaveBeenCalledWith({
+            serverUuid: 'mcp-server-uuid',
+            scope: 'shared',
+            credentials: {
+                type: 'oauth',
+                credentialScope: 'shared',
+                connectionStatus: 'not_connected',
+                clientInformation: existingPayload.clientInformation,
+                clientMetadata: existingPayload.clientMetadata,
+                clientRegistration: existingPayload.clientRegistration,
+            },
+            userUuid: undefined,
+            actorUserUuid: 'user-uuid',
+        });
     });
 });
