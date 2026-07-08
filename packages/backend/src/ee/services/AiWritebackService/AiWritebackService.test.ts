@@ -384,22 +384,8 @@ describe('AiWritebackService.prepareTurn', () => {
         return prepared.kind === 'run' ? prepared.turn : prepared;
     };
 
-    it('rejects when the AI writeback feature flag is disabled', async () => {
-        const service = buildService({
-            featureFlagModel: {
-                get: vi.fn().mockResolvedValue({ enabled: false }),
-            } as AnyType,
-        });
-        await expect(prepareTurn(service, userWithOrg(true))).rejects.toThrow(
-            ForbiddenError,
-        );
-    });
-
     it('rejects when the user cannot manage source code', async () => {
         const service = buildService({
-            featureFlagModel: {
-                get: vi.fn().mockResolvedValue({ enabled: true }),
-            } as AnyType,
             projectModel: {
                 get: vi.fn().mockResolvedValue(githubProject()),
             } as AnyType,
@@ -1167,11 +1153,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                 aiWriteback: { anthropicApiKey: 'anthropic-key' },
             } as AnyType,
             featureFlagModel: {
-                get: vi.fn(({ featureFlagId }: AnyType) =>
-                    Promise.resolve({
-                        enabled: featureFlagId === FeatureFlags.AiWriteback,
-                    }),
-                ),
+                get: vi.fn().mockResolvedValue({ enabled: true }),
             } as AnyType,
             projectModel: {
                 get: vi.fn().mockResolvedValue({
@@ -2360,7 +2342,7 @@ describe('AiWritebackService.prepareTurn (stale-PR recovery, M4)', () => {
             projectUuid: 'p1',
             aiThreadUuid: 'thread-1',
             source: 'web',
-            featureFlag: FeatureFlags.AiWriteback,
+            featureFlag: undefined,
             mode: 'dbt',
             repoTarget: undefined,
             prUrl: undefined,

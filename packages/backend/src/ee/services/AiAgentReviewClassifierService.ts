@@ -3,7 +3,6 @@ import {
     aiAgentReviewClassifierJudgeOutputSchema,
     assertUnreachable,
     CatalogType,
-    FeatureFlags,
     filterExploreByTags,
     ForbiddenError,
     getAiAgentConfigSnapshotHash,
@@ -42,7 +41,6 @@ import Logger from '../../logging/logger';
 import { type CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../services/BaseService';
-import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { type AiAgentDocumentModel } from '../models/AiAgentDocumentModel';
 import { type AiAgentModel } from '../models/AiAgentModel';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
@@ -95,7 +93,6 @@ type AiAgentReviewClassifierServiceDependencies = {
     aiOrganizationSettingsModel: AiOrganizationSettingsModel;
     catalogModel: Pick<CatalogModel, 'getCatalogItemsSummary'>;
     projectModel: Pick<ProjectModel, 'getSummary' | 'findExploresFromCache'>;
-    featureFlagService: FeatureFlagService;
     lightdashConfig: LightdashConfig;
     aiAgentReviewNotificationService: AiAgentReviewNotificationService;
     judgeTurn?: AiAgentReviewClassifierJudge;
@@ -286,8 +283,6 @@ export class AiAgentReviewClassifierService extends BaseService {
 
     private readonly aiOrganizationSettingsModel: AiOrganizationSettingsModel;
 
-    private readonly featureFlagService: FeatureFlagService;
-
     private readonly aiAgentReviewNotificationService: AiAgentReviewNotificationService;
 
     private readonly lightdashConfig: LightdashConfig;
@@ -304,7 +299,6 @@ export class AiAgentReviewClassifierService extends BaseService {
         this.projectModel = dependencies.projectModel;
         this.aiOrganizationSettingsModel =
             dependencies.aiOrganizationSettingsModel;
-        this.featureFlagService = dependencies.featureFlagService;
         this.aiAgentReviewNotificationService =
             dependencies.aiAgentReviewNotificationService;
         this.lightdashConfig = dependencies.lightdashConfig;
@@ -548,13 +542,6 @@ export class AiAgentReviewClassifierService extends BaseService {
         const runAgentConfig = args.candidates[0]
             ? getAgentConfig(args.candidates[0].subject.agentUuid)
             : AiAgentReviewClassifierService.emptyAgentConfigEvidence();
-        const aiWritebackFlag = await this.featureFlagService.get({
-            featureFlagId: FeatureFlags.AiWriteback,
-            user: {
-                userUuid: args.requestedByUserUuid ?? 'system',
-                organizationUuid: args.organizationUuid,
-            },
-        });
 
         const run = await this.aiAgentReviewClassifierModel.createRun({
             organizationUuid: args.organizationUuid,
@@ -609,10 +596,7 @@ export class AiAgentReviewClassifierService extends BaseService {
                                         getAgentConfig(
                                             candidate.subject.agentUuid,
                                         ),
-                                        {
-                                            projectContextEnabled:
-                                                aiWritebackFlag.enabled,
-                                        },
+                                        { projectContextEnabled: true },
                                     ),
                             };
                         } catch (error) {

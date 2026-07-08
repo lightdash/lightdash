@@ -885,19 +885,9 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid) {
             return false;
         }
-        const [reviewsEnabled, aiWritebackFlag] = await Promise.all([
-            this.aiOrganizationSettingsService.isAiAgentReviewsEnabled({
-                organizationUuid,
-            }),
-            this.featureFlagService.get({
-                featureFlagId: FeatureFlags.AiWriteback,
-                user: {
-                    userUuid: user.userUuid,
-                    organizationUuid,
-                },
-            }),
-        ]);
-        return reviewsEnabled && aiWritebackFlag.enabled;
+        return this.aiOrganizationSettingsService.isAiAgentReviewsEnabled({
+            organizationUuid,
+        });
     }
 
     private hasSemanticWritebackConfig(): boolean {

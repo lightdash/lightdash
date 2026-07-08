@@ -234,20 +234,15 @@ mcpRouter.all(
                         userAgent,
                     });
                 }
-                // Dark launch: the run_ai_writeback tool is only registered
-                // (and thus only listed/invocable) when the AiWriteback flag is
-                // enabled for this caller. Resolved here because tool
-                // registration in setupHandlers is synchronous (createServer
-                // only awaits to register skill resources afterwards).
-                const aiWritebackEnabled =
-                    await mcpService.isAiWritebackEnabled(req.user!);
                 // Content-write tools are only registered when the org-level
                 // setting allows it, so admins can lock down MCP edits.
                 const mcpContentWritesEnabled =
                     await mcpService.isMcpContentWritesEnabled(req.user!);
                 const mcpServer = await mcpService.createServer({
                     projectPinned: headerProjectUuid !== undefined,
-                    aiWritebackEnabled,
+                    // The run_ai_writeback tool is always registered now that
+                    // AI writeback has graduated from its dark-launch flag.
+                    aiWritebackEnabled: true,
                     mcpContentWritesEnabled,
                 });
                 const transport = new StreamableHTTPServerTransport({

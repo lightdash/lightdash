@@ -1247,9 +1247,9 @@ export class AiWritebackService extends BaseService {
     private async assertEnabled(
         user: SessionUser,
         source: AiWritebackSource,
-        featureFlag: FeatureFlags,
+        featureFlag: FeatureFlags | undefined,
     ): Promise<void> {
-        if (source === 'admin_review') {
+        if (source === 'admin_review' || featureFlag === undefined) {
             return;
         }
         const { enabled } = await this.featureFlagModel.get({
@@ -1257,11 +1257,7 @@ export class AiWritebackService extends BaseService {
             featureFlagId: featureFlag,
         });
         if (!enabled) {
-            throw new ForbiddenError(
-                featureFlag === FeatureFlags.CodingAgent
-                    ? 'AI coding agent is not enabled'
-                    : 'AI writeback is not enabled',
-            );
+            throw new ForbiddenError('AI coding agent is not enabled');
         }
     }
 
@@ -2060,7 +2056,7 @@ export class AiWritebackService extends BaseService {
          * re-call after a `select` outcome. Ignored by the general agent.
          */
         dbtSourceUuid: string | undefined;
-        featureFlag: FeatureFlags;
+        featureFlag: FeatureFlags | undefined;
         mode: CodingAgentConfig['mode'];
         /** The general agent's `owner/repo` target; ignored for dbt writeback. */
         repoTarget: string | undefined;
@@ -3483,7 +3479,6 @@ export class AiWritebackService extends BaseService {
     private dbtWritebackConfig(): CodingAgentConfig {
         return {
             mode: 'dbt-writeback',
-            featureFlag: FeatureFlags.AiWriteback,
             // Provider-aware writeback template (E2B template ref on e2b, the
             // Docker image on docker) — the same resolution the rest of the
             // sandbox lifecycle uses.
