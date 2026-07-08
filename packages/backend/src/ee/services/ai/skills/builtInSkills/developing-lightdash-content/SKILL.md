@@ -1,11 +1,11 @@
 ---
-name: developing-in-lightdash
-description: Use when reading, creating, and editing Lightdash dashboards and charts as JSON, including dashboard layout and chart-type-specific configuration.
+name: developing-lightdash-content
+description: Use when creating, reading, or editing saved Lightdash charts and dashboards, including dashboard layout and chart-type-specific JSON.
 ---
 
-# Developing in Lightdash
+# Developing Lightdash Content
 
-Use this skill when working with Lightdash dashboards and charts.
+Use this skill when working with saved Lightdash dashboards and charts.
 
 ## What You Can Do
 

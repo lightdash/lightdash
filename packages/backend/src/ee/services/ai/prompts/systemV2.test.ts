@@ -188,18 +188,19 @@ describe('getSystemPromptV2 writeback attribution', () => {
             writebackAttribution: { mode: 'org', canLink: true },
             siteUrl: 'https://app.lightdash.cloud',
         });
-        expect(content).not.toContain('## Repository writeback');
+        expect(content).not.toContain('## Semantic-layer writeback');
         expect(content).not.toContain('Pull request attribution');
     });
 
-    test('includes the base section but no attribution block when attribution is null', () => {
+    test('includes writeback routing but no attribution block when attribution is null', () => {
         const content = promptText({
             availableExplores: [],
             enableAiWriteback: true,
             writebackAttribution: null,
             siteUrl: 'https://app.lightdash.cloud',
         });
-        expect(content).toContain('## Repository writeback');
+        expect(content).toContain('## Semantic-layer writeback');
+        expect(content).toContain('semantic-layer-writeback');
         expect(content).not.toContain('Pull request attribution');
     });
 
@@ -270,51 +271,18 @@ describe('getSystemPromptV2 change-validation policy', () => {
         siteUrl: 'https://app.lightdash.cloud',
     };
 
-    test('requires validating a value-affecting change before calling it safe', () => {
+    test('routes value-affecting writebacks to the semantic-layer-writeback skill', () => {
         const content = promptText(writebackArgs);
-        expect(content).toContain(
-            'Validate that a value-affecting change is correct before calling it safe',
-        );
+        expect(content).toContain('semantic-layer-writeback');
+        expect(content).toContain('value-correctness checks');
     });
 
-    test('frames the policy beyond consolidation (split / replace / refactor)', () => {
-        const content = promptText(writebackArgs);
-        // the trigger is any value claim, not just merging duplicates
-        expect(content).toContain('splitting');
-        expect(content).toContain('refactoring');
-    });
-
-    test('spells out both halves of "safe": reference impact AND value correctness', () => {
-        const content = promptText(writebackArgs);
-        expect(content).toContain('Reference impact');
-        expect(content).toContain('Value correctness');
-        // both proof methods the policy offers
-        expect(content).toContain('By construction');
-        expect(content).toContain('By data');
-    });
-
-    test('names the real tools the agent uses to prove value correctness', () => {
-        const content = promptText(writebackArgs);
-        expect(content).toContain('runQuery');
-        expect(content).toContain('generateVisualization');
-        expect(content).toContain('total grain');
-        expect(content).toContain('time dimension');
-    });
-
-    test('requires surfacing divergence rather than asserting safety', () => {
-        const content = promptText(writebackArgs);
-        expect(content).toContain('diverge');
-        expect(content).toContain('do **not** call it safe');
-    });
-
-    test('omits the change-validation policy when writeback is disabled', () => {
+    test('omits writeback routing details when writeback is disabled', () => {
         const content = promptText({
             ...writebackArgs,
             enableAiWriteback: false,
         });
-        expect(content).not.toContain(
-            'Validate that a value-affecting change is correct before calling it safe',
-        );
+        expect(content).not.toContain('## Semantic-layer writeback');
     });
 });
 

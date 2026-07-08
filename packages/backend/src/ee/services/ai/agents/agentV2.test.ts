@@ -62,12 +62,13 @@ describe('getAgentTools workstream tool gate', () => {
     const buildArgs = (flags: {
         enableCodingAgent: boolean;
         enableAiWriteback: boolean;
+        availableSkills?: AiAgentArgs['availableSkills'];
     }): AiAgentArgs =>
         ({
             agentSettings: { name: 'test-agent' },
             autoApproveSql: false,
             autoApproveSqlUserUuid: null,
-            availableSkills: [],
+            availableSkills: flags.availableSkills ?? [],
             callOptions: {},
             canManageAgent: false,
             canRunSql: true,
@@ -101,6 +102,7 @@ describe('getAgentTools workstream tool gate', () => {
     const toolNames = (flags: {
         enableCodingAgent: boolean;
         enableAiWriteback: boolean;
+        availableSkills?: AiAgentArgs['availableSkills'];
     }) =>
         Object.keys(
             getAgentTools(buildArgs(flags), depsStub(), [], mcpStub, new Map()),
@@ -137,5 +139,75 @@ describe('getAgentTools workstream tool gate', () => {
         expect(names).not.toContain('listWorkstreams');
         expect(names).not.toContain('closePullRequest');
         expect(names).not.toContain('getPullRequestDiff');
+    });
+
+    it('exposes loadSkill when focused skills are available and content tools are off', () => {
+        const names = toolNames({
+            enableCodingAgent: false,
+            enableAiWriteback: false,
+            availableSkills: [
+                {
+                    name: 'answering-data-questions',
+                    description: 'Data answering workflow',
+                    resources: [],
+                },
+            ],
+        });
+
+        expect(names).toContain('loadSkill');
+    });
+
+    it('only loads skills included in availableSkills', async () => {
+        const loadSkill = vi.fn(async (name: string) => ({
+            name,
+            description: 'Allowed skill',
+            body: 'Allowed body',
+            resources: [],
+        }));
+        const deps = new Proxy(
+            {},
+            {
+                get: (_, prop) => (prop === 'loadSkill' ? loadSkill : vi.fn()),
+            },
+        ) as unknown as AiAgentDependencies;
+        const tools = getAgentTools(
+            buildArgs({
+                enableCodingAgent: false,
+                enableAiWriteback: false,
+                availableSkills: [
+                    {
+                        name: 'answering-data-questions',
+                        description: 'Data answering workflow',
+                        resources: [],
+                    },
+                ],
+            }),
+            deps,
+            [],
+            mcpStub,
+            new Map(),
+        );
+
+        if (!tools.loadSkill.execute) {
+            throw new Error('loadSkill execute is missing');
+        }
+        const executeOptions = {} as Parameters<
+            typeof tools.loadSkill.execute
+        >[1];
+        const allowed = await tools.loadSkill.execute(
+            { name: 'answering-data-questions' },
+            executeOptions,
+        );
+        const unavailable = await tools.loadSkill.execute(
+            { name: 'developing-lightdash-content' },
+            executeOptions,
+        );
+
+        expect(allowed.result).toContain('Allowed body');
+        expect(unavailable.result).toContain(
+            'Skill "developing-lightdash-content" was not found.',
+        );
+        expect(loadSkill).toHaveBeenCalledTimes(1);
+        expect(loadSkill).toHaveBeenCalledWith('answering-data-questions');
     });
 });

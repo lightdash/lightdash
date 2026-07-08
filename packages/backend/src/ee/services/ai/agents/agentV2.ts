@@ -556,10 +556,16 @@ export const getAgentTools = (
         readPinnedThread: dependencies.readPinnedThread,
     });
 
+    const availableSkillNames = new Set(
+        args.availableSkills.map((skill) => skill.name.toLowerCase()),
+    );
     const loadSkill =
-        args.availableSkills.length > 0
+        availableSkillNames.size > 0
             ? getLoadSkill({
-                  loadSkill: dependencies.loadSkill,
+                  loadSkill: async (name) =>
+                      availableSkillNames.has(name.trim().toLowerCase())
+                          ? dependencies.loadSkill(name)
+                          : undefined,
               })
             : null;
     const generateHashes = getGenerateHashes();

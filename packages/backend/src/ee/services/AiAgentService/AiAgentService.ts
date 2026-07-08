@@ -7777,9 +7777,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     },
                 }),
             );
+        const allAvailableSkills =
+            await this.aiAgentToolsService.listAgentSkills();
         const availableSkills = canUseContentTools
-            ? await this.aiAgentToolsService.listAgentSkills()
-            : [];
+            ? allAvailableSkills
+            : allAvailableSkills.filter(
+                  (skill) => skill.name !== 'developing-lightdash-content',
+              );
         const copilotConfig =
             await this.orgAiCopilotConfigResolver.getCopilotConfig(
                 promptProject.organizationUuid,

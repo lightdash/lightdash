@@ -22,7 +22,6 @@ import {
     repoFsSearchCaveat,
 } from './systemV2RepoFs';
 import { getRequestingUserSection } from './systemV2RequestingUser';
-import { getRunSqlSection } from './systemV2RunSql';
 import { SEARCH_SEMANTIC_LAYER_SECTION } from './systemV2SearchSemanticLayer';
 import { renderAvailableSkills } from './systemV2Skills';
 import { SYSTEM_PROMPT_TEMPLATE } from './systemV2Template';
@@ -78,13 +77,18 @@ export const getSystemPromptV2 = (args: {
         unauthenticatedMcpServerNames = [],
     } = args;
 
-    const crossExploreJoinRule = canRunSql
-        ? '  - You cannot mix fields from different explores in a single generateVisualization call. When the user needs data combined across explores that are not joined in the semantic layer, use the runSql tool to write raw SQL across those tables.'
-        : '  - You can not mix fields from different explores.';
-
-    const customSqlLimitation = canRunSql
-        ? ''
-        : '\n- You cannot execute raw SQL or add custom SQL expressions to a query.';
+    const rawSqlRuntimeSection = canRunSql
+        ? [
+              '',
+              '- Raw SQL is available in this run. Load `answering-data-questions` before using it.',
+              warehouseType ? `- Warehouse dialect: ${warehouseType}.` : '',
+              warehouseSchema
+                  ? `- Default warehouse schema: \`${warehouseSchema}\`. Qualify raw SQL tables with this schema.`
+                  : '- Warehouse schema is unknown. Discover table metadata before writing raw SQL.',
+          ]
+              .filter(Boolean)
+              .join('\n')
+        : '\n- Raw SQL is not available in this run.';
 
     const renderKnowledgeDocument = (doc: AiAgentDocumentSummary): string => {
         const { summary } = doc;
@@ -183,16 +187,11 @@ export const getSystemPromptV2 = (args: {
                 ? DATA_ACCESS_ENABLED_SECTION
                 : DATA_ACCESS_DISABLED_SECTION,
         )
-        .replace(
-            '{{run_sql_section}}',
-            canRunSql ? getRunSqlSection(warehouseType, warehouseSchema) : '',
-        )
+        .replace('{{raw_sql_runtime_section}}', rawSqlRuntimeSection)
         .replace(
             '{{content_tools_section}}',
             enableContentTools ? CONTENT_TOOLS_SECTION : '',
         )
-        .replace('{{cross_explore_join_rule}}', crossExploreJoinRule)
-        .replace('{{custom_sql_limitation}}', customSqlLimitation)
         .replace('{{agent_name}}', agentName)
         .replace(
             '{{instructions}}',
