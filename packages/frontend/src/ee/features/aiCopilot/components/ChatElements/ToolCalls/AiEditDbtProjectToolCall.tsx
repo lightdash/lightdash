@@ -404,6 +404,59 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                 </Paper>
             );
         }
+        // The Git connection can't create a branch/PR (a 403 from the host).
+        // This is a one-time setup problem, not a transient failure — the
+        // agent's reply can't relay the fix (SPK-548: the reply is written
+        // before this outcome is known), so "ask again" would just keep
+        // failing until an admin fixes the connection's write permissions.
+        if (metadata.errorCode === 'git_write_permission') {
+            return (
+                <Paper withBorder p="sm" radius="md">
+                    <Group gap="xs" align="flex-start" wrap="nowrap">
+                        <ThemeIcon
+                            variant="light"
+                            color="red"
+                            radius="md"
+                            size="md"
+                        >
+                            <MantineIcon icon={IconAlertTriangle} size={16} />
+                        </ThemeIcon>
+                        <Stack gap="xs">
+                            <Stack gap={2}>
+                                <Text size="sm" fw={500}>
+                                    No write access to this repository
+                                </Text>
+                                <Text size="xs" c="ldGray.6">
+                                    The change was prepared, but no pull request
+                                    could be opened — this project's Git
+                                    connection doesn't have permission to create
+                                    a branch. An admin needs to reconnect via
+                                    the GitHub/GitLab App, or grant the personal
+                                    access token write access to contents and
+                                    pull requests, before retrying.
+                                </Text>
+                            </Stack>
+                            <Group gap={0}>
+                                <Button
+                                    component={Link}
+                                    to={`/generalSettings/projectManagement/${projectUuid}/settings`}
+                                    variant="default"
+                                    size="compact-sm"
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconSettings}
+                                            size={14}
+                                        />
+                                    }
+                                >
+                                    Edit project connection
+                                </Button>
+                            </Group>
+                        </Stack>
+                    </Group>
+                </Paper>
+            );
+        }
         // The thread's pull request was already merged or closed, so further
         // edits can't be added here. Not a failure — guide the user to a new
         // thread rather than show a red error.
