@@ -2,6 +2,19 @@
     border-style: dashed;
 }
 
+/* Yellow signals the requirement system, but only on border/background —
+   yellow text fails contrast on light backgrounds */
+.requirementsButtonActive {
+    border-color: var(--mantine-color-yellow-6);
+
+    @mixin light {
+        background-color: var(--mantine-color-yellow-0);
+    }
+    @mixin dark {
+        background-color: alpha(var(--mantine-color-yellow-9), 0.25);
+    }
+}
+
 .ruleRow {
     padding: var(--mantine-spacing-xs);
     border: 1px solid var(--mantine-color-default-border);
@@ -18,8 +31,4 @@
 .addFilterInput {
     border-style: dashed;
     border-radius: 100px;
-}
-
-.addRuleButton {
-    border-style: dashed;
 }

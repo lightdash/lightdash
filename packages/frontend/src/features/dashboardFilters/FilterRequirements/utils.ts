@@ -42,20 +42,6 @@ export const getFilterRequirementRules = (
 };
 
 /**
- * Letter label for a requirement rule (A, B, ... Z, AA, AB, ...),
- * derived from the rule's index in first-appearance order.
- */
-export const getRuleLetter = (index: number): string => {
-    let letter = '';
-    let i = index;
-    do {
-        letter = String.fromCharCode(65 + (i % 26)) + letter;
-        i = Math.floor(i / 26) - 1;
-    } while (i >= 0);
-    return letter;
-};
-
-/**
  * Filters the viewer must always set individually (`required: true`),
  * in filter order (dimensions before metrics).
  */

@@ -20,7 +20,6 @@ import classes from './RequiredFilterCard.module.css';
 import {
     getDashboardFilterRuleLabel,
     getFilterRequirementRules,
-    getRuleLetter,
 } from './utils';
 
 type Props = {
@@ -46,34 +45,30 @@ const RequiredFilterCard: FC<Props> = ({
     const isRuleMember = !filterRule.required && !!filterRule.requiredGroupId;
     const isActive = !!filterRule.required || isRuleMember;
 
-    const { ruleLetter, otherMemberLabels } = useMemo(() => {
-        if (!isRuleMember) {
-            return { ruleLetter: 'A', otherMemberLabels: [] };
-        }
+    // All members of this filter's rule, with the current filter last
+    const ruleMemberBadges = useMemo(() => {
+        if (!isRuleMember) return [];
         const fieldsMap: Record<string, FilterableItem> = {
             ...allFilterableFieldsMap,
             ...allFilterableMetricsMap,
         };
-        const rules = getFilterRequirementRules(dashboardFilters);
-        const ruleIndex = rules.findIndex(
-            (rule) => rule.groupId === filterRule.requiredGroupId,
+        const rule = getFilterRequirementRules(dashboardFilters).find(
+            (requirementRule) =>
+                requirementRule.groupId === filterRule.requiredGroupId,
         );
-        const members = ruleIndex >= 0 ? rules[ruleIndex].members : [];
-        return {
-            ruleLetter: getRuleLetter(Math.max(ruleIndex, 0)),
-            otherMemberLabels: members
-                .filter((member) => member.id !== filterRule.id)
-                .map((member) =>
-                    getDashboardFilterRuleLabel(member, fieldsMap),
-                ),
-        };
+        const otherMembers = (rule?.members ?? []).filter(
+            (member) => member.id !== filterRule.id,
+        );
+        return [...otherMembers, filterRule].map((member) => ({
+            id: member.id,
+            label: getDashboardFilterRuleLabel(member, fieldsMap),
+        }));
     }, [
         isRuleMember,
         dashboardFilters,
         allFilterableFieldsMap,
         allFilterableMetricsMap,
-        filterRule.requiredGroupId,
-        filterRule.id,
+        filterRule,
     ]);
 
     return (
@@ -123,28 +118,20 @@ const RequiredFilterCard: FC<Props> = ({
                     <Text className={classes.groupLabel}>
                         Requirement group
                     </Text>
-                    <Group gap={6} wrap="nowrap">
-                        <Badge variant="light" color="yellow" radius="sm">
-                            {ruleLetter}
-                        </Badge>
-                        <Text size="xs">
-                            At least one of group {ruleLetter} must be set
-                        </Text>
-                    </Group>
-                    <Group gap={6}>
-                        <Text size="xs" c="ldGray.6">
-                            With:
-                        </Text>
-                        {otherMemberLabels.map((label) => (
+                    <Text size="xs" c="ldGray.6">
+                        Setting any one of these satisfies this rule:
+                    </Text>
+                    <Group gap={4}>
+                        {ruleMemberBadges.map((member) => (
                             <Badge
-                                key={label}
+                                key={member.id}
                                 variant="outline"
-                                color="yellow.7"
-                                radius="sm"
+                                color="yellow"
+                                radius="xl"
                                 tt="none"
                                 fw={500}
                             >
-                                {label}
+                                {member.label}
                             </Badge>
                         ))}
                         {onEditRules && (

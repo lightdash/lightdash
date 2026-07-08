@@ -4,6 +4,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Anchor,
     Badge,
     Button,
     CloseButton,
@@ -19,6 +20,7 @@ import { useDisclosure } from '@mantine-8/hooks';
 import { IconInfoCircle, IconPlus, IconTrash } from '@tabler/icons-react';
 import { Fragment, useCallback, useMemo, useState, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import Callout from '../../../components/common/Callout';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
@@ -30,7 +32,6 @@ import {
     getDashboardFilterRuleLabel,
     getFilterRequirementRules,
     getRequirementIneligibilityReason,
-    getRuleLetter,
     type FilterRequirementRule,
 } from './utils';
 
@@ -82,7 +83,7 @@ const FilterSelect: FC<FilterSelectProps> = ({
 type MemberChipProps = {
     item: FilterableItem | undefined;
     label: string;
-    onRemove: () => void;
+    onRemove: (() => void) | undefined;
 };
 
 const MemberChip: FC<MemberChipProps> = ({ item, label, onRemove }) => (
@@ -91,11 +92,13 @@ const MemberChip: FC<MemberChipProps> = ({ item, label, onRemove }) => (
         <Text size="xs" truncate>
             {label}
         </Text>
-        <CloseButton
-            size="xs"
-            aria-label={`Remove ${label}`}
-            onClick={onRemove}
-        />
+        {onRemove && (
+            <CloseButton
+                size="xs"
+                aria-label={`Remove ${label}`}
+                onClick={onRemove}
+            />
+        )}
     </Group>
 );
 
@@ -151,7 +154,6 @@ const AlwaysRequiredSection: FC<AlwaysRequiredSectionProps> = ({
 );
 
 type RequirementRuleRowProps = {
-    letter: string;
     members: DashboardFilterRule[];
     selectableFilters: SelectableFilter[];
     getFilterLabel: (filterRule: DashboardFilterRule) => string;
@@ -164,7 +166,6 @@ type RequirementRuleRowProps = {
 };
 
 const RequirementRuleRow: FC<RequirementRuleRowProps> = ({
-    letter,
     members,
     selectableFilters,
     getFilterLabel,
@@ -172,49 +173,68 @@ const RequirementRuleRow: FC<RequirementRuleRowProps> = ({
     onAddMember,
     onRemoveMember,
     onDeleteRule,
-}) => (
-    <Stack gap="xs" className={classes.ruleRow}>
-        <Group gap="xs" justify="space-between" wrap="nowrap">
-            <Group gap={6} wrap="nowrap">
-                <Badge variant="light" color="yellow" radius="sm">
-                    {letter}
-                </Badge>
+}) => {
+    const isLastMember = members.length === 1;
+
+    return (
+        <Stack gap="xs" className={classes.ruleRow}>
+            <Group gap="xs" justify="space-between" wrap="nowrap">
                 <Text size="xs" fw={500}>
-                    At least{' '}
-                    <Text span size="xs" fw={700}>
-                        one
-                    </Text>{' '}
-                    of these must be set:
+                    Viewers must set at least one of:
                 </Text>
+                <Tooltip label="Remove rule" withinPortal>
+                    <ActionIcon
+                        aria-label="Remove rule"
+                        variant="subtle"
+                        color="gray"
+                        size="sm"
+                        onClick={onDeleteRule}
+                    >
+                        <MantineIcon icon={IconTrash} />
+                    </ActionIcon>
+                </Tooltip>
             </Group>
-            <Tooltip label="Remove rule" withinPortal>
-                <ActionIcon
-                    aria-label="Remove rule"
-                    variant="subtle"
-                    color="gray"
-                    size="sm"
-                    onClick={onDeleteRule}
-                >
-                    <MantineIcon icon={IconTrash} />
-                </ActionIcon>
-            </Tooltip>
-        </Group>
-        <Group gap="xs">
-            {members.map((member) => (
-                <MemberChip
-                    key={member.id}
-                    item={getFilterItem(member)}
-                    label={getFilterLabel(member)}
-                    onRemove={() => onRemoveMember(member.id)}
+            <Group gap="xs">
+                {members.map((member) => (
+                    <MemberChip
+                        key={member.id}
+                        item={getFilterItem(member)}
+                        label={getFilterLabel(member)}
+                        onRemove={
+                            isLastMember
+                                ? undefined
+                                : () => onRemoveMember(member.id)
+                        }
+                    />
+                ))}
+                <FilterSelect
+                    selectableFilters={selectableFilters}
+                    onSelect={onAddMember}
                 />
-            ))}
-            <FilterSelect
-                selectableFilters={selectableFilters}
-                onSelect={onAddMember}
-            />
-        </Group>
-    </Stack>
-);
+            </Group>
+            {isLastMember && (
+                <Callout
+                    variant="info"
+                    p="xs"
+                    icon={<MantineIcon icon={IconInfoCircle} />}
+                >
+                    <Text size="xs">
+                        A rule needs at least 2 filters. Add another filter or{' '}
+                        <Anchor
+                            component="button"
+                            type="button"
+                            size="xs"
+                            onClick={onDeleteRule}
+                        >
+                            delete this rule
+                        </Anchor>
+                        .
+                    </Text>
+                </Callout>
+            )}
+        </Stack>
+    );
+};
 
 const FilterRequirementsButton: FC = () => {
     const [isLocalPopoverOpen, { open: openLocal, close: closeLocal }] =
@@ -428,10 +448,14 @@ const FilterRequirementsButton: FC = () => {
                     size="xs"
                     variant="default"
                     radius={100}
-                    className={classes.requirementsButton}
+                    className={
+                        requirementCount > 0
+                            ? `${classes.requirementsButton} ${classes.requirementsButtonActive}`
+                            : classes.requirementsButton
+                    }
                     rightSection={
                         requirementCount > 0 ? (
-                            <Badge size="xs" variant="light" circle>
+                            <Badge size="xs" color="yellow" autoContrast circle>
                                 {requirementCount}
                             </Badge>
                         ) : undefined
@@ -473,7 +497,6 @@ const FilterRequirementsButton: FC = () => {
                                 <AndSeparator />
                             )}
                             <RequirementRuleRow
-                                letter={getRuleLetter(index)}
                                 members={rule.members}
                                 selectableFilters={getSelectableFilters(
                                     rule.groupId,
@@ -494,9 +517,6 @@ const FilterRequirementsButton: FC = () => {
                                 requirementRules.length > 0 ||
                                 index > 0) && <AndSeparator />}
                             <RequirementRuleRow
-                                letter={getRuleLetter(
-                                    requirementRules.length + index,
-                                )}
                                 members={[]}
                                 selectableFilters={getSelectableFilters(
                                     draftId,
@@ -517,9 +537,9 @@ const FilterRequirementsButton: FC = () => {
                     ))}
                     <Button
                         size="xs"
-                        variant="default"
+                        variant="subtle"
+                        color="blue"
                         fullWidth
-                        className={classes.addRuleButton}
                         leftSection={<MantineIcon icon={IconPlus} />}
                         onClick={handleAddRule}
                     >
