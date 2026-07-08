@@ -456,6 +456,21 @@ export const useRefreshAiMcpServerToolsMutation = (projectUuid: string) => {
                     ],
                 });
             }
+
+            // Refreshing tools re-tests the connection and updates the
+            // server's connection status, so refresh the server lists too.
+            await queryClient.invalidateQueries({
+                queryKey: [PROJECT_AI_MCP_SERVERS_KEY, projectUuid],
+            });
+            if (variables.agentUuid) {
+                await queryClient.invalidateQueries({
+                    queryKey: [
+                        AGENT_AI_MCP_SERVERS_KEY,
+                        projectUuid,
+                        variables.agentUuid,
+                    ],
+                });
+            }
         },
         onError: ({ error }) => {
             showToastApiError({

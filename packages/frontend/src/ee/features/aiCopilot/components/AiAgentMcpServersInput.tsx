@@ -46,6 +46,7 @@ import { z } from 'zod';
 import { BetaBadge } from '../../../../components/common/BetaBadge';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
+import useToaster from '../../../../hooks/toaster/useToaster';
 import { useProjectUpdateAiAgentMutation } from '../hooks/useProjectAiAgents';
 import {
     useConnectGithubMcpServerMutation,
@@ -54,6 +55,7 @@ import {
     useProjectAiMcpServers,
     useAgentAiMcpServerTools,
     useProjectCreateAiMcpServerMutation,
+    useRefreshAiMcpServerToolsMutation,
     useStartMcpOAuthConnectionMutation,
 } from '../hooks/useProjectAiMcpServers';
 import { AiAgentMcpServerToolsPanel } from './AiAgentMcpServerToolsPanel';
@@ -179,9 +181,9 @@ const getMcpOAuthPrimaryActionLabel = (
 ) => {
     switch (mcpServer.connectionStatus) {
         case 'connected':
-            return `Sign in to ${mcpServer.name}`;
+            return 'Reauthenticate';
         case 'error':
-            return `Sign in to ${mcpServer.name}`;
+            return 'Reauthenticate';
         case 'connecting':
             return 'Connecting...';
         case 'not_connected':
@@ -195,6 +197,17 @@ const shouldShowMcpOAuthPrimaryAction = (
 ) =>
     mcpServer.connectionStatus === 'not_connected' ||
     mcpServer.credentialScope === 'shared';
+
+// Re-testing reconnects to the server and rediscovers tools, so it only makes
+// sense once credentials exist. Non-oauth servers always have what they need;
+// oauth servers must already be connected (or in an error state worth retrying).
+const shouldShowMcpRetestConnection = (
+    mcpServer: Pick<AiMcpServer, 'authType'>,
+    connectionStatus: AiMcpServerConnectionStatus | null,
+) =>
+    mcpServer.authType !== 'oauth' ||
+    connectionStatus === 'connected' ||
+    connectionStatus === 'error';
 
 const getMcpServerIconColor = (
     connectionStatus: AiMcpServerConnectionStatus | null,
@@ -557,6 +570,7 @@ export const AiAgentMcpServersInput = ({
     const [expandedMcpServers, setExpandedMcpServers] = useState<string[]>([]);
     const [isPersistingSelection, setIsPersistingSelection] = useState(false);
     const isPersistingSelectionRef = useRef(false);
+    const { showToastSuccess } = useToaster();
     const { data: mcpServers, isLoading: isLoadingMcpServers } =
         useProjectAiMcpServers(projectUuid);
     const { mutateAsync: createMcpServer, isLoading: isCreatingMcpServer } =
@@ -575,6 +589,11 @@ export const AiAgentMcpServersInput = ({
         isLoading: isDisconnectingMcpOAuthConnection,
         variables: disconnectingMcpOAuthConnection,
     } = useDisconnectMcpOAuthConnectionMutation(projectUuid);
+    const {
+        mutateAsync: refreshMcpServerTools,
+        isLoading: isRetestingMcpServerConnection,
+        variables: retestingMcpServerConnection,
+    } = useRefreshAiMcpServerToolsMutation(projectUuid);
     const { data: githubMcpAvailability } =
         useGithubMcpAvailability(projectUuid);
     const { mutateAsync: connectGithubMcp, isLoading: isConnectingGithubMcp } =
@@ -825,6 +844,23 @@ export const AiAgentMcpServersInput = ({
         [startMcpOAuthConnection],
     );
 
+    const handleRetestMcpServerConnection = useCallback(
+        async (mcpServerUuid: string) => {
+            try {
+                await refreshMcpServerTools({
+                    mcpServerUuid,
+                    agentUuid,
+                    showSuccessToast: false,
+                });
+                showToastSuccess({ title: 'Connection re-tested successfully' });
+            } catch {
+                // The mutation surfaces the failure via an error toast, and the
+                // server's connection status/error is refreshed in the list.
+            }
+        },
+        [agentUuid, refreshMcpServerTools, showToastSuccess],
+    );
+
     const handleDisconnectMcpOAuthConnection = useCallback(
         async (mcpServerUuid: string) => {
             await disconnectMcpOAuthConnection({ mcpServerUuid });
@@ -890,6 +926,7 @@ export const AiAgentMcpServersInput = ({
             connectionStatus: AiMcpServerConnectionStatus | null,
             isConnecting: boolean,
             isDisconnecting: boolean,
+            isRetesting: boolean,
             isExpanded: boolean,
         ) => {
             return (
@@ -930,7 +967,8 @@ export const AiAgentMcpServersInput = ({
                                 leftSection={
                                     <MantineIcon
                                         icon={
-                                            connectionStatus === 'connected'
+                                            connectionStatus === 'connected' ||
+                                            connectionStatus === 'error'
                                                 ? IconRefresh
                                                 : IconPlugConnected
                                         }
@@ -952,6 +990,32 @@ export const AiAgentMcpServersInput = ({
                                           credentialScope:
                                               mcpServer.credentialScope,
                                       })}
+                            </Menu.Item>
+                        )}
+                        {shouldShowMcpRetestConnection(
+                            mcpServer,
+                            connectionStatus,
+                        ) && (
+                            <Menu.Item
+                                type="button"
+                                leftSection={
+                                    <MantineIcon icon={IconPlugConnected} />
+                                }
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    void handleRetestMcpServerConnection(
+                                        mcpServer.uuid,
+                                    );
+                                }}
+                                disabled={
+                                    isRetesting ||
+                                    isConnecting ||
+                                    isPersistingSelection
+                                }
+                            >
+                                {isRetesting
+                                    ? 'Re-testing...'
+                                    : 'Re-test connection'}
                             </Menu.Item>
                         )}
                         {mcpServer.hasCredentials &&
@@ -999,6 +1063,7 @@ export const AiAgentMcpServersInput = ({
         [
             handleDisconnectMcpOAuthConnection,
             handleRemoveMcpServer,
+            handleRetestMcpServerConnection,
             handleSetExpandedMcpServer,
             handleStartMcpOAuthConnection,
             isPersistingSelection,
@@ -1113,6 +1178,10 @@ export const AiAgentMcpServersInput = ({
                                     mcpServer.authType === 'oauth' &&
                                     isDisconnectingMcpOAuthConnection &&
                                     disconnectingMcpOAuthConnection?.mcpServerUuid ===
+                                        mcpServer.uuid;
+                                const isRetesting =
+                                    isRetestingMcpServerConnection &&
+                                    retestingMcpServerConnection?.mcpServerUuid ===
                                         mcpServer.uuid;
                                 const connectionStatus = isConnecting
                                     ? 'connecting'
@@ -1274,6 +1343,7 @@ export const AiAgentMcpServersInput = ({
                                                     connectionStatus,
                                                     isConnecting,
                                                     isDisconnecting,
+                                                    isRetesting,
                                                     isExpanded,
                                                 )}
                                             </Group>
