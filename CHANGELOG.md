@@ -1,3 +1,10 @@
+# [0.3340.0](https://github.com/lightdash/lightdash/compare/0.3339.0...0.3340.0) (2026-07-08)
+
+
+### Features
+
+* **dbt:** support dbt Core v1.12 ([#25313](https://github.com/lightdash/lightdash/issues/25313)) ([55d3790](https://github.com/lightdash/lightdash/commit/55d3790d4650440f1d2bc892068f0d1cbe196177))
+
 # [0.3339.0](https://github.com/lightdash/lightdash/compare/0.3338.0...0.3339.0) (2026-07-08)
 
 
