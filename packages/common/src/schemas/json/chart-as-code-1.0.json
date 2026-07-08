@@ -1994,6 +1994,10 @@
                     "description": "Whether this filter is required",
                     "type": "boolean"
                 },
+                "requiredGroupId": {
+                    "description": "Filters sharing a requiredGroupId form an \"any-one required\" group:\nthe dashboard is locked until at least one member has a value.",
+                    "type": "string"
+                },
                 "settings": {
                     "$ref": "#/$defs/AnyType",
                     "description": "Additional settings for date/time filters"
@@ -2288,6 +2292,10 @@
                 "required": {
                     "description": "Whether this filter is required",
                     "type": "boolean"
+                },
+                "requiredGroupId": {
+                    "description": "Filters sharing a requiredGroupId form an \"any-one required\" group:\nthe dashboard is locked until at least one member has a value.",
+                    "type": "string"
                 },
                 "settings": {
                     "description": "Additional settings for date/time filters"
