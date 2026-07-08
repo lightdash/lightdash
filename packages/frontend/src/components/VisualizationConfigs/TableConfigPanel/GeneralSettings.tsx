@@ -238,6 +238,12 @@ const GeneralSettings: FC = () => {
                         // metricsAsRows: there's one shared label column for
                         // all metrics, so freeze lock icons should sync.
                         syncFreezeWith={metricsAsRows ? metrics : undefined}
+                        // Pivoted with metrics as columns: the pivoted data
+                        // columns can't be frozen, so the toggle would do
+                        // nothing.
+                        hideFreezeToggle={
+                            !!isPivotTableEnabled && !metricsAsRows
+                        }
                     />
                 ))}
             </Config.Section>
