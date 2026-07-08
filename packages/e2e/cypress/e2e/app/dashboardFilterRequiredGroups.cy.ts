@@ -122,10 +122,9 @@ describe('Dashboard filter required groups', () => {
             );
         });
 
-        // Locked: the banner lists the group members as action chips
-        cy.findByText(
-            'Pick a value for at least one of these required filters to load data:',
-        ).should('be.visible');
+        // Locked: the banner lists the rule members as clickable name tags
+        cy.findByText('To load data, set these filters:').should('be.visible');
+        cy.findByText('at least one of').should('be.visible');
 
         // Tiles show the locked placeholder: no chart rendered or loading
         cy.get('.react-grid-layout .tabler-icon-lock').should('exist');
@@ -144,9 +143,7 @@ describe('Dashboard filter required groups', () => {
         cy.contains('button', 'Apply').click({ force: true });
 
         // Unlocked: banner gone, tile runs its query and renders
-        cy.findByText(
-            'Pick a value for at least one of these required filters to load data:',
-        ).should('not.exist');
+        cy.contains('To load data').should('not.exist');
         cy.wait('@chartQuery');
         cy.get('.react-grid-layout .tabler-icon-lock').should('not.exist');
         cy.findAllByText('Loading chart').should('have.length', 0);
@@ -166,10 +163,8 @@ describe('Dashboard filter required groups', () => {
             );
         });
 
-        // Locked with the single-required copy, not the group copy
-        cy.findByText(
-            'Pick a value for this required filter to load data:',
-        ).should('be.visible');
+        // Locked with a plain name tag, no "at least one of" prefix
+        cy.findByText('To load data, set this filter:').should('be.visible');
         cy.contains('at least one of').should('not.exist');
 
         cy.get('.react-grid-layout .tabler-icon-lock').should('exist');
@@ -183,9 +178,7 @@ describe('Dashboard filter required groups', () => {
         cy.findByRole('option', { name: 'credit_card' }).click();
         cy.contains('button', 'Apply').click({ force: true });
 
-        cy.findByText(
-            'Pick a value for this required filter to load data:',
-        ).should('not.exist');
+        cy.contains('To load data').should('not.exist');
         cy.wait('@chartQuery');
         cy.get('.react-grid-layout .tabler-icon-lock').should('not.exist');
         cy.findAllByText('Loading chart').should('have.length', 0);

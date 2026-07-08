@@ -13,6 +13,7 @@ import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
 import ActiveFilters from './ActiveFilters';
 import AddFilterButton from './AddFilterButton';
+import { useFilterBarPopovers } from './FilterRequirements/useFilterBarPopovers';
 
 interface Props {
     isEditMode: boolean;
@@ -22,7 +23,10 @@ interface Props {
 const DashboardFilters: FC<Props> = ({ isEditMode, activeTabUuid }) => {
     const { track } = useTracking();
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const [openPopoverId, setPopoverId] = useState<string>();
+    const filterBarPopovers = useFilterBarPopovers();
+    const [localOpenPopoverId, setLocalPopoverId] = useState<string>();
+    const openPopoverId =
+        filterBarPopovers?.openFilterPopoverId ?? localOpenPopoverId;
 
     const project = useProject(projectUuid);
 
@@ -81,13 +85,24 @@ const DashboardFilters: FC<Props> = ({ isEditMode, activeTabUuid }) => {
         ],
     );
 
-    const handlePopoverOpen = useCallback((id: string) => {
-        setPopoverId(id);
-    }, []);
+    const handlePopoverOpen = useCallback(
+        (id: string) => {
+            if (filterBarPopovers) {
+                filterBarPopovers.openFilterPopover(id);
+            } else {
+                setLocalPopoverId(id);
+            }
+        },
+        [filterBarPopovers],
+    );
 
     const handlePopoverClose = useCallback(() => {
-        setPopoverId(undefined);
-    }, []);
+        if (filterBarPopovers) {
+            filterBarPopovers.closeFilterPopover();
+        } else {
+            setLocalPopoverId(undefined);
+        }
+    }, [filterBarPopovers]);
 
     return (
         <FiltersProvider

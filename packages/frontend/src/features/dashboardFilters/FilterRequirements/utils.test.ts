@@ -7,8 +7,6 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
-    getAlwaysRequiredFilters,
-    getAlwaysRequiredIneligibilityReason,
     getDashboardFilterRuleLabel,
     getFilterRequirementRules,
     getRequirementIneligibilityReason,
@@ -29,7 +27,7 @@ const createRule = (
 });
 
 describe('getFilterRequirementRules', () => {
-    it('returns no rules when no filter has a requiredGroupId', () => {
+    it('returns no rules when no filter is required or grouped', () => {
         expect(
             getFilterRequirementRules({
                 dimensions: [createRule({ id: 'a' })],
@@ -45,80 +43,49 @@ describe('getFilterRequirementRules', () => {
 
         expect(
             getFilterRequirementRules({ dimensions: [a, b], metrics: [c] }),
-        ).toEqual([{ groupId: 'g1', members: [a, c] }]);
+        ).toEqual([{ id: 'g1', members: [a, c] }]);
     });
 
-    it('returns multiple rules in first-appearance order', () => {
+    it('returns a required filter as a one-member rule', () => {
+        const a = createRule({ id: 'a', required: true });
+
+        expect(
+            getFilterRequirementRules({ dimensions: [a], metrics: [] }),
+        ).toEqual([{ id: 'a', members: [a] }]);
+    });
+
+    it('returns rules in first-appearance order, interleaving required filters and groups', () => {
         const a = createRule({ id: 'a', requiredGroupId: 'g2' });
-        const b = createRule({ id: 'b', requiredGroupId: 'g1' });
+        const b = createRule({ id: 'b', required: true });
         const c = createRule({ id: 'c', requiredGroupId: 'g2' });
 
         expect(
             getFilterRequirementRules({ dimensions: [a, b, c], metrics: [] }),
         ).toEqual([
-            { groupId: 'g2', members: [a, c] },
-            { groupId: 'g1', members: [b] },
+            { id: 'g2', members: [a, c] },
+            { id: 'b', members: [b] },
+        ]);
+    });
+
+    it('treats a filter with both flags as required, not a group member', () => {
+        const a = createRule({
+            id: 'a',
+            required: true,
+            requiredGroupId: 'g1',
+        });
+        const b = createRule({ id: 'b', requiredGroupId: 'g1' });
+
+        expect(
+            getFilterRequirementRules({ dimensions: [a, b], metrics: [] }),
+        ).toEqual([
+            { id: 'a', members: [a] },
+            { id: 'g1', members: [b] },
         ]);
     });
 });
 
-describe('getAlwaysRequiredFilters', () => {
-    it('returns no filters when none are required', () => {
-        expect(
-            getAlwaysRequiredFilters({
-                dimensions: [createRule({ id: 'a' })],
-                metrics: [createRule({ id: 'b' })],
-            }),
-        ).toEqual([]);
-    });
-
-    it('returns required dimension and metric filters in filter order', () => {
-        const a = createRule({ id: 'a', required: true });
-        const b = createRule({ id: 'b' });
-        const c = createRule({ id: 'c', required: true });
-
-        expect(
-            getAlwaysRequiredFilters({ dimensions: [a, b], metrics: [c] }),
-        ).toEqual([a, c]);
-    });
-
-    it('does not include rule members that are not required', () => {
-        const member = createRule({ id: 'a', requiredGroupId: 'g1' });
-
-        expect(
-            getAlwaysRequiredFilters({ dimensions: [member], metrics: [] }),
-        ).toEqual([]);
-    });
-});
-
-describe('getAlwaysRequiredIneligibilityReason', () => {
-    it('is eligible when valueless and not a rule member', () => {
-        expect(
-            getAlwaysRequiredIneligibilityReason(createRule({ id: 'a' })),
-        ).toBeNull();
-    });
-
-    it('is ineligible when already a member of a rule', () => {
-        expect(
-            getAlwaysRequiredIneligibilityReason(
-                createRule({ id: 'a', requiredGroupId: 'g1' }),
-            ),
-        ).toBe('Already part of a requirement rule');
-    });
-
-    it('is ineligible when it has a default value', () => {
-        expect(
-            getAlwaysRequiredIneligibilityReason(
-                createRule({ id: 'a', disabled: false, values: ['adam'] }),
-            ),
-        ).toBe(
-            'Has a default value, so the requirement would always be satisfied',
-        );
-    });
-});
-
 describe('getRequirementIneligibilityReason', () => {
-    it('is eligible when valueless and not required', () => {
+    it('is eligible when valueless and not in a rule', () => {
         expect(
             getRequirementIneligibilityReason(createRule({ id: 'a' })),
         ).toBeNull();
@@ -129,7 +96,7 @@ describe('getRequirementIneligibilityReason', () => {
             getRequirementIneligibilityReason(
                 createRule({ id: 'a', requiredGroupId: 'g1' }),
             ),
-        ).toBe('Already part of a requirement rule');
+        ).toBe('Already part of a filter rule');
     });
 
     it('is ineligible when individually required', () => {
@@ -137,7 +104,7 @@ describe('getRequirementIneligibilityReason', () => {
             getRequirementIneligibilityReason(
                 createRule({ id: 'a', required: true }),
             ),
-        ).toBe('Individually required');
+        ).toBe('Already part of a filter rule');
     });
 
     it('is ineligible when it has a default value', () => {

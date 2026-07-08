@@ -27,11 +27,3 @@
         background-color: alpha(var(--mantine-color-white), 0.04);
     }
 }
-
-.groupLabel {
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: var(--mantine-color-ldGray-6);
-}

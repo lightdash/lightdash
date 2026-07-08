@@ -219,9 +219,13 @@ const AddFilterButton: FC<Props> = ({
                                 filterableFieldsByTileUuid ?? {}
                             }
                             onSave={handleSaveChanges}
+                            // withinPortal keeps value dropdowns from growing
+                            // the popover; sub-popover tracking keeps outside
+                            // clicks in the portal from closing it
                             popoverProps={{
                                 onOpen: openSubPopover,
                                 onClose: closeSubPopover,
+                                withinPortal: true,
                             }}
                         />
                     )}

@@ -21,7 +21,7 @@ import {
     Text,
     Tooltip,
 } from '@mantine-8/core';
-import { useDisclosure, useId } from '@mantine-8/hooks';
+import { useDisclosure } from '@mantine-8/hooks';
 import {
     IconGripVertical,
     IconLock,
@@ -43,7 +43,7 @@ import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import FilterConfiguration from '../FilterConfiguration';
 import { hasFilterValueSet } from '../FilterConfiguration/utils';
-import { useFilterRulesPopover } from '../FilterRequirements/useFilterRulesPopover';
+import { useFilterBarPopovers } from '../FilterRequirements/useFilterBarPopovers';
 import classes from './Filter.module.css';
 
 type Props = {
@@ -77,7 +77,9 @@ const Filter: FC<Props> = ({
     onUpdate,
     onRemove,
 }) => {
-    const popoverId = useId();
+    // Keyed by the filter rule id so the required-filters banner can open
+    // this chip's popover
+    const popoverId = filterRule.id;
 
     const dashboard = useDashboardContext((c) => c.dashboard);
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
@@ -275,8 +277,8 @@ const Filter: FC<Props> = ({
     const isRequirementUnmet =
         hasUnsetRequiredFilter || unmetGroupRequirement !== undefined;
     const requirementTooltip = hasUnsetRequiredFilter
-        ? 'Required — set a value to run this dashboard'
-        : 'Required — set a value on any filter in this group to run this dashboard';
+        ? 'Required: set a value to run this dashboard'
+        : 'Required: set a value on this or an alternative filter to run this dashboard';
 
     const isReadOnlyLocked = isLocked && !isEditMode && !isTemporary;
 
@@ -293,14 +295,14 @@ const Filter: FC<Props> = ({
         [onUpdate, handleClose],
     );
 
-    const filterRulesPopover = useFilterRulesPopover();
+    const filterBarPopovers = useFilterBarPopovers();
     const handleEditRequirementRules = useMemo(() => {
-        if (!filterRulesPopover) return undefined;
+        if (!filterBarPopovers) return undefined;
         return () => {
             handleClose();
-            filterRulesPopover.open();
+            filterBarPopovers.openRulesPopover();
         };
-    }, [filterRulesPopover, handleClose]);
+    }, [filterBarPopovers, handleClose]);
 
     return (
         <>
@@ -644,9 +646,13 @@ const Filter: FC<Props> = ({
                             defaultFilterRule={defaultFilterRule}
                             onSave={handleSaveChanges}
                             onEditRequirementRules={handleEditRequirementRules}
+                            // withinPortal keeps value dropdowns from growing
+                            // the popover; sub-popover tracking keeps outside
+                            // clicks in the portal from closing it
                             popoverProps={{
                                 onOpen: openSubPopover,
                                 onClose: closeSubPopover,
+                                withinPortal: true,
                             }}
                         />
                     )}

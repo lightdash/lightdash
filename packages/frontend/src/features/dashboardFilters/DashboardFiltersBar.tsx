@@ -27,7 +27,6 @@ import { DateZoom } from '../dateZoom';
 import { Parameters } from '../parameters';
 import FilterGroupSeparator from './FilterGroupSeparator';
 import FilterRequirementsButton from './FilterRequirements/FilterRequirementsButton';
-import { FilterRulesPopoverProvider } from './FilterRequirements/FilterRulesPopoverProvider';
 import DashboardFilters from './index';
 
 type Props = {
@@ -102,148 +101,145 @@ export const DashboardFiltersBar: FC<Props> = ({
     const renderFilters = !isAddFilterDisabled || isEditMode || hasFilters;
 
     return (
-        <FilterRulesPopoverProvider>
-            <Group
-                justify="apart"
-                align="flex-start"
-                wrap="nowrap"
-                px="lg"
-                py="xxs"
-            >
-                {/* Left section - filters and parameters */}
-                <Group justify="apart" align="flex-start" wrap="nowrap" grow>
-                    {hasTilesThatSupportFilters && (
-                        <Group align="flex-start" gap="xs" wrap="wrap">
-                            {renderFilters && (
-                                <FilterGroupSeparator
-                                    icon={IconFilter}
-                                    tooltipLabel={
-                                        <div>
-                                            <Text fw={500} fz="xs">
-                                                Filters
-                                            </Text>
-                                            <Text fz="xs">
-                                                Refine your dashboard by
-                                                choosing which data to see.
-                                            </Text>
-                                        </div>
-                                    }
-                                />
-                            )}
-                            <DashboardFilters
-                                isEditMode={isEditMode}
-                                activeTabUuid={activeTabUuid}
+        <Group
+            justify="apart"
+            align="flex-start"
+            wrap="nowrap"
+            px="lg"
+            py="xxs"
+        >
+            {/* Left section - filters and parameters */}
+            <Group justify="apart" align="flex-start" wrap="nowrap" grow>
+                {hasTilesThatSupportFilters && (
+                    <Group align="flex-start" gap="xs" wrap="wrap">
+                        {renderFilters && (
+                            <FilterGroupSeparator
+                                icon={IconFilter}
+                                tooltipLabel={
+                                    <div>
+                                        <Text fw={500} fz="xs">
+                                            Filters
+                                        </Text>
+                                        <Text fz="xs">
+                                            Refine your dashboard by choosing
+                                            which data to see.
+                                        </Text>
+                                    </div>
+                                }
                             />
+                        )}
+                        <DashboardFilters
+                            isEditMode={isEditMode}
+                            activeTabUuid={activeTabUuid}
+                        />
 
-                            {isEditMode && <FilterRequirementsButton />}
+                        {isEditMode && <FilterRequirementsButton />}
 
-                            {hasDashboardTiles && hasParameters && (
-                                <>
-                                    {renderFilters && (
-                                        <Divider orientation="vertical" />
-                                    )}
-
-                                    <Parameters
-                                        isEditMode={isEditMode}
-                                        parameterValues={parameterValues}
-                                        onParameterChange={onParameterChange}
-                                        onClearAll={onParameterClearAll}
-                                        parameters={parameters}
-                                        shadowedReservedNames={
-                                            shadowedReservedNames
-                                        }
-                                        isLoading={isParameterLoading}
-                                        missingRequiredParameters={
-                                            missingRequiredParameters
-                                        }
-                                        pinnedParameters={pinnedParameters}
-                                        onParameterPin={onParameterPin}
-                                        parameterOrder={parameterOrder}
-                                        onParameterReorder={onParameterReorder}
-                                        separator={parametersSeparator}
-                                    />
-                                    <PinnedParameters isEditMode={isEditMode} />
-                                </>
-                            )}
-                        </Group>
-                    )}
-                </Group>
-
-                {/* Right section - date zoom and hide button */}
-                <Group gap="xs" style={{ marginLeft: 'auto' }} wrap="nowrap">
-                    {hasDashboardTiles &&
-                        (!isDateZoomDisabled || isEditMode) && (
+                        {hasDashboardTiles && hasParameters && (
                             <>
-                                <Divider orientation="vertical" />
-
-                                <FilterGroupSeparator
-                                    icon={IconCalendar}
-                                    tooltipLabel={
-                                        <div>
-                                            <Text fw={500} fz="xs">
-                                                Date Zoom
-                                            </Text>
-                                            <Text fz="xs">
-                                                Quickly change the date
-                                                granularity of charts.
-                                            </Text>
-                                        </div>
-                                    }
-                                />
-                                {isEditMode && (
-                                    <Tooltip
-                                        withinPortal
-                                        label={
-                                            isDateZoomDisabled
-                                                ? 'Date zoom is hidden from viewers. Click to show.'
-                                                : 'Hide date zoom from viewers'
-                                        }
-                                    >
-                                        <ActionIcon
-                                            aria-label="Toggle date zoom visibility for viewers"
-                                            variant="subtle"
-                                            onClick={() =>
-                                                setIsDateZoomDisabled(
-                                                    !isDateZoomDisabled,
-                                                )
-                                            }
-                                        >
-                                            <MantineIcon
-                                                color="ldGray.6"
-                                                icon={
-                                                    isDateZoomDisabled
-                                                        ? IconEyeOff
-                                                        : IconEye
-                                                }
-                                            />
-                                        </ActionIcon>
-                                    </Tooltip>
+                                {renderFilters && (
+                                    <Divider orientation="vertical" />
                                 )}
-                                <DateZoom isEditMode={isEditMode} />
+
+                                <Parameters
+                                    isEditMode={isEditMode}
+                                    parameterValues={parameterValues}
+                                    onParameterChange={onParameterChange}
+                                    onClearAll={onParameterClearAll}
+                                    parameters={parameters}
+                                    shadowedReservedNames={
+                                        shadowedReservedNames
+                                    }
+                                    isLoading={isParameterLoading}
+                                    missingRequiredParameters={
+                                        missingRequiredParameters
+                                    }
+                                    pinnedParameters={pinnedParameters}
+                                    onParameterPin={onParameterPin}
+                                    parameterOrder={parameterOrder}
+                                    onParameterReorder={onParameterReorder}
+                                    separator={parametersSeparator}
+                                />
+                                <PinnedParameters isEditMode={isEditMode} />
                             </>
                         )}
-
-                    {/* Hide button - only in view mode */}
-                    {!isEditMode && (
-                        <>
-                            <Divider orientation="vertical" />
-                            <Tooltip label="Hide filters">
-                                <Button
-                                    size="xs"
-                                    variant="subtle"
-                                    color="gray"
-                                    rightSection={
-                                        <MantineIcon icon={IconChevronUp} />
-                                    }
-                                    onClick={onCollapse}
-                                >
-                                    Hide
-                                </Button>
-                            </Tooltip>
-                        </>
-                    )}
-                </Group>
+                    </Group>
+                )}
             </Group>
-        </FilterRulesPopoverProvider>
+
+            {/* Right section - date zoom and hide button */}
+            <Group gap="xs" style={{ marginLeft: 'auto' }} wrap="nowrap">
+                {hasDashboardTiles && (!isDateZoomDisabled || isEditMode) && (
+                    <>
+                        <Divider orientation="vertical" />
+
+                        <FilterGroupSeparator
+                            icon={IconCalendar}
+                            tooltipLabel={
+                                <div>
+                                    <Text fw={500} fz="xs">
+                                        Date Zoom
+                                    </Text>
+                                    <Text fz="xs">
+                                        Quickly change the date granularity of
+                                        charts.
+                                    </Text>
+                                </div>
+                            }
+                        />
+                        {isEditMode && (
+                            <Tooltip
+                                withinPortal
+                                label={
+                                    isDateZoomDisabled
+                                        ? 'Date zoom is hidden from viewers. Click to show.'
+                                        : 'Hide date zoom from viewers'
+                                }
+                            >
+                                <ActionIcon
+                                    aria-label="Toggle date zoom visibility for viewers"
+                                    variant="subtle"
+                                    onClick={() =>
+                                        setIsDateZoomDisabled(
+                                            !isDateZoomDisabled,
+                                        )
+                                    }
+                                >
+                                    <MantineIcon
+                                        color="ldGray.6"
+                                        icon={
+                                            isDateZoomDisabled
+                                                ? IconEyeOff
+                                                : IconEye
+                                        }
+                                    />
+                                </ActionIcon>
+                            </Tooltip>
+                        )}
+                        <DateZoom isEditMode={isEditMode} />
+                    </>
+                )}
+
+                {/* Hide button - only in view mode */}
+                {!isEditMode && (
+                    <>
+                        <Divider orientation="vertical" />
+                        <Tooltip label="Hide filters">
+                            <Button
+                                size="xs"
+                                variant="subtle"
+                                color="gray"
+                                rightSection={
+                                    <MantineIcon icon={IconChevronUp} />
+                                }
+                                onClick={onCollapse}
+                            >
+                                Hide
+                            </Button>
+                        </Tooltip>
+                    </>
+                )}
+            </Group>
+        </Group>
     );
 };

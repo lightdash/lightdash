@@ -6,31 +6,36 @@ import {
     Anchor,
     Badge,
     Box,
+    Button,
     Group,
     Stack,
     Switch,
     Text,
-    Tooltip,
 } from '@mantine-8/core';
-import { IconLock } from '@tabler/icons-react';
-import { useMemo, type FC } from 'react';
+import { IconLock, IconPlus } from '@tabler/icons-react';
+import { useMemo, useState, type FC } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import FilterSelect, { type SelectableFilter } from './FilterSelect';
 import classes from './RequiredFilterCard.module.css';
+import { useUpdateDashboardFilterRule } from './useUpdateDashboardFilterRule';
 import {
     getDashboardFilterRuleLabel,
-    getFilterRequirementRules,
+    getRequirementIneligibilityReason,
 } from './utils';
 
 type Props = {
     filterRule: DashboardFilterRule;
     onToggleRequired: (checked: boolean) => void;
+    onChangeFilterRule: (filterRule: DashboardFilterRule) => void;
     onEditRules?: () => void;
 };
 
 const RequiredFilterCard: FC<Props> = ({
     filterRule,
     onToggleRequired,
+    onChangeFilterRule,
     onEditRules,
 }) => {
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
@@ -40,36 +45,83 @@ const RequiredFilterCard: FC<Props> = ({
     const allFilterableMetricsMap = useDashboardContext(
         (c) => c.allFilterableMetricsMap,
     );
+    const updateFilterRule = useUpdateDashboardFilterRule();
+    const [isAddingAlternative, setIsAddingAlternative] = useState(false);
 
-    // `required` wins when hand-authored JSON sets both flags
-    const isRuleMember = !filterRule.required && !!filterRule.requiredGroupId;
-    const isActive = !!filterRule.required || isRuleMember;
+    const isActive = !!filterRule.required || !!filterRule.requiredGroupId;
 
-    // All members of this filter's rule, with the current filter last
-    const ruleMemberBadges = useMemo(() => {
-        if (!isRuleMember) return [];
-        const fieldsMap: Record<string, FilterableItem> = {
-            ...allFilterableFieldsMap,
-            ...allFilterableMetricsMap,
-        };
-        const rule = getFilterRequirementRules(dashboardFilters).find(
-            (requirementRule) =>
-                requirementRule.groupId === filterRule.requiredGroupId,
-        );
-        const otherMembers = (rule?.members ?? []).filter(
-            (member) => member.id !== filterRule.id,
-        );
-        return [...otherMembers, filterRule].map((member) => ({
-            id: member.id,
-            label: getDashboardFilterRuleLabel(member, fieldsMap),
-        }));
-    }, [
-        isRuleMember,
-        dashboardFilters,
-        allFilterableFieldsMap,
-        allFilterableMetricsMap,
-        filterRule,
-    ]);
+    const fieldsMap = useMemo<Record<string, FilterableItem>>(
+        () => ({ ...allFilterableFieldsMap, ...allFilterableMetricsMap }),
+        [allFilterableFieldsMap, allFilterableMetricsMap],
+    );
+
+    const allFilterRules = useMemo(
+        () => [...dashboardFilters.dimensions, ...dashboardFilters.metrics],
+        [dashboardFilters],
+    );
+
+    // Siblings come from the saved dashboard filters; this filter's own flags
+    // come from the draft being edited in this popover
+    const siblings = useMemo(
+        () =>
+            filterRule.requiredGroupId
+                ? allFilterRules.filter(
+                      (rule) =>
+                          rule.id !== filterRule.id &&
+                          rule.requiredGroupId === filterRule.requiredGroupId,
+                  )
+                : [],
+        [allFilterRules, filterRule.id, filterRule.requiredGroupId],
+    );
+
+    const sharesRule = isActive && siblings.length > 0;
+    const isOnlyMember = isActive && siblings.length === 0;
+
+    // Adding an alternative writes to the sibling filter immediately, so it
+    // is only offered once this filter itself is saved on the dashboard
+    const isSavedFilter = useMemo(
+        () => allFilterRules.some((rule) => rule.id === filterRule.id),
+        [allFilterRules, filterRule.id],
+    );
+
+    const selectableFilters = useMemo<SelectableFilter[]>(
+        () =>
+            allFilterRules
+                .filter((rule) => rule.id !== filterRule.id)
+                .map((rule) => {
+                    const reason = getRequirementIneligibilityReason(rule);
+                    return {
+                        value: rule.id,
+                        label: getDashboardFilterRuleLabel(rule, fieldsMap),
+                        disabled: reason !== null,
+                        reason,
+                    };
+                }),
+        [allFilterRules, filterRule.id, fieldsMap],
+    );
+
+    const handleAddAlternative = (siblingId: string) => {
+        const groupId = filterRule.requiredGroupId ?? uuidv4();
+        // Rule members are valueless by definition
+        updateFilterRule(siblingId, {
+            requiredGroupId: groupId,
+            required: false,
+            disabled: true,
+            values: [],
+        });
+        updateFilterRule(filterRule.id, {
+            required: false,
+            requiredGroupId: groupId,
+        });
+        onChangeFilterRule({
+            ...filterRule,
+            required: false,
+            requiredGroupId: groupId,
+            disabled: true,
+            values: [],
+        });
+        setIsAddingAlternative(false);
+    };
 
     return (
         <Box
@@ -83,46 +135,52 @@ const RequiredFilterCard: FC<Props> = ({
                         color={isActive ? 'yellow.7' : 'ldGray.6'}
                     />
                     <Text size="xs" fw={600}>
-                        Required filter
+                        Required
                     </Text>
                 </Group>
-                <Tooltip
-                    withinPortal
-                    position="left"
-                    multiline
-                    maw={250}
-                    label="This filter is part of a filter rule — manage it from Filter rules in the filter bar"
-                    disabled={!isRuleMember}
-                >
-                    <Box>
-                        <Switch
-                            size="xs"
-                            color="yellow.6"
-                            aria-label="Required filter"
-                            checked={isActive}
-                            disabled={isRuleMember}
-                            onChange={(e) =>
-                                onToggleRequired(e.currentTarget.checked)
-                            }
-                        />
-                    </Box>
-                </Tooltip>
+                <Switch
+                    size="xs"
+                    color="yellow.6"
+                    aria-label="Required"
+                    checked={isActive}
+                    onChange={(e) => onToggleRequired(e.currentTarget.checked)}
+                />
             </Group>
-            {filterRule.required && (
-                <Text size="xs" c="ldGray.7" mt="xs">
-                    Viewers must pick a value to load this dashboard.
-                </Text>
-            )}
-            {isRuleMember && (
-                <Stack gap={6} className={classes.groupSection}>
-                    <Text className={classes.groupLabel}>
-                        Requirement group
+            {isOnlyMember && (
+                <Stack gap={6} mt="xs">
+                    <Text size="xs" c="ldGray.7">
+                        Viewers must set this filter to load the dashboard.
                     </Text>
+                    {isSavedFilter &&
+                        (isAddingAlternative ? (
+                            <FilterSelect
+                                selectableFilters={selectableFilters}
+                                placeholder="+ Add a filter"
+                                onSelect={handleAddAlternative}
+                            />
+                        ) : (
+                            <Button
+                                size="compact-xs"
+                                variant="light"
+                                color="blue"
+                                radius="xl"
+                                w="max-content"
+                                leftSection={<MantineIcon icon={IconPlus} />}
+                                onClick={() => setIsAddingAlternative(true)}
+                            >
+                                Add an alternative filter
+                            </Button>
+                        ))}
+                </Stack>
+            )}
+            {sharesRule && (
+                <Stack gap={6} className={classes.groupSection}>
                     <Text size="xs" c="ldGray.6">
-                        Setting any one of these satisfies this rule:
+                        Shares a rule. Viewers can satisfy it by setting this or
+                        an alternative:
                     </Text>
                     <Group gap={4}>
-                        {ruleMemberBadges.map((member) => (
+                        {siblings.map((member) => (
                             <Badge
                                 key={member.id}
                                 variant="outline"
@@ -131,7 +189,7 @@ const RequiredFilterCard: FC<Props> = ({
                                 tt="none"
                                 fw={500}
                             >
-                                {member.label}
+                                {getDashboardFilterRuleLabel(member, fieldsMap)}
                             </Badge>
                         ))}
                         {onEditRules && (
@@ -141,7 +199,7 @@ const RequiredFilterCard: FC<Props> = ({
                                 size="xs"
                                 onClick={onEditRules}
                             >
-                                Edit rules →
+                                Edit rule →
                             </Anchor>
                         )}
                     </Group>

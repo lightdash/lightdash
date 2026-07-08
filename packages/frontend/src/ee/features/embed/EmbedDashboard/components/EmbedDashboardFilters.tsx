@@ -4,11 +4,15 @@ import { useCallback, useState, type FC } from 'react';
 import FiltersProvider from '../../../../../components/common/Filters/FiltersProvider';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import ActiveFilters from '../../../../../features/dashboardFilters/ActiveFilters';
+import { useFilterBarPopovers } from '../../../../../features/dashboardFilters/FilterRequirements/useFilterBarPopovers';
 import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
 import { embedContractClass } from '../../styles/embedClassContract';
 
 const EmbedDashboardFilters: FC = () => {
-    const [openPopoverId, setPopoverId] = useState<string>();
+    const filterBarPopovers = useFilterBarPopovers();
+    const [localOpenPopoverId, setLocalPopoverId] = useState<string>();
+    const openPopoverId =
+        filterBarPopovers?.openFilterPopoverId ?? localOpenPopoverId;
 
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const activeTab = useDashboardContext((c) => c.activeTab);
@@ -27,13 +31,24 @@ const EmbedDashboardFilters: FC = () => {
         (c) => c.resetDashboardFilters,
     );
 
-    const handlePopoverOpen = useCallback((id: string) => {
-        setPopoverId(id);
-    }, []);
+    const handlePopoverOpen = useCallback(
+        (id: string) => {
+            if (filterBarPopovers) {
+                filterBarPopovers.openFilterPopover(id);
+            } else {
+                setLocalPopoverId(id);
+            }
+        },
+        [filterBarPopovers],
+    );
 
     const handlePopoverClose = useCallback(() => {
-        setPopoverId(undefined);
-    }, []);
+        if (filterBarPopovers) {
+            filterBarPopovers.closeFilterPopover();
+        } else {
+            setLocalPopoverId(undefined);
+        }
+    }, [filterBarPopovers]);
 
     const showResetFiltersButton = haveFiltersChanged;
 

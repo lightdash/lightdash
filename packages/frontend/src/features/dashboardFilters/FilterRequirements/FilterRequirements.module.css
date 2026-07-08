@@ -2,15 +2,17 @@
     border-style: dashed;
 }
 
-/* Yellow signals the requirement system, but only on border/background —
-   yellow text fails contrast on light backgrounds */
+/* Yellow signals the requirement system; dark theme matches the design's
+   yellow-6 text, light theme uses yellow-9 for readable contrast */
 .requirementsButtonActive {
     border-color: var(--mantine-color-yellow-6);
 
     @mixin light {
+        color: var(--mantine-color-yellow-9);
         background-color: var(--mantine-color-yellow-0);
     }
     @mixin dark {
+        color: var(--mantine-color-yellow-6);
         background-color: alpha(var(--mantine-color-yellow-9), 0.25);
     }
 }
@@ -23,9 +25,16 @@
 
 .memberChip {
     padding: 2px 4px 2px 8px;
-    border: 1px solid var(--mantine-color-default-border);
+    border: 1px solid alpha(var(--mantine-color-yellow-6), 0.35);
     border-radius: 100px;
     max-width: 100%;
+
+    @mixin light {
+        background-color: var(--mantine-color-yellow-0);
+    }
+    @mixin dark {
+        background-color: alpha(var(--mantine-color-yellow-6), 0.1);
+    }
 }
 
 .addFilterInput {

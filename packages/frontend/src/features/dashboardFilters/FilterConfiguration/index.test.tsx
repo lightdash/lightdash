@@ -128,7 +128,7 @@ describe('FilterConfiguration', () => {
         );
     });
 
-    it('disables the required switch and lists other members for a requirement rule member', () => {
+    it('keeps the required toggle on and lists rule siblings for a rule member', () => {
         const memberRule: DashboardFilterRule = {
             ...anyValueRule,
             requiredGroupId: 'group-1',
@@ -163,12 +163,10 @@ describe('FilterConfiguration', () => {
             />,
         );
 
-        const requiredSwitch = screen.getByLabelText('Required filter');
-        expect(requiredSwitch).toBeDisabled();
+        const requiredSwitch = screen.getByLabelText('Required');
+        expect(requiredSwitch).toBeEnabled();
         expect(requiredSwitch).toBeChecked();
-        expect(
-            screen.getByText('At least one of group A must be set'),
-        ).toBeInTheDocument();
+        expect(screen.getByText(/Shares a rule/)).toBeInTheDocument();
         expect(screen.getByText('Last name')).toBeInTheDocument();
     });
 
@@ -186,9 +184,9 @@ describe('FilterConfiguration', () => {
             />,
         );
 
-        const requiredSwitch = screen.getByLabelText('Required filter');
+        const requiredSwitch = screen.getByLabelText('Required');
         expect(requiredSwitch).toBeEnabled();
         expect(requiredSwitch).not.toBeChecked();
-        expect(screen.getByText('Required filter')).toBeInTheDocument();
+        expect(screen.getByText('Required')).toBeInTheDocument();
     });
 });

@@ -18,6 +18,7 @@ import LoomTile from '../../../../../components/DashboardTiles/DashboardLoomTile
 import SqlChartTile from '../../../../../components/DashboardTiles/DashboardSqlChartTile';
 import LockedTilePlaceholder from '../../../../../components/DashboardTiles/LockedTilePlaceholder';
 import TileBase from '../../../../../components/DashboardTiles/TileBase';
+import { FilterBarPopoversProvider } from '../../../../../features/dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
 import RequiredFiltersBanner from '../../../../../features/dashboardFilters/FilterRequirements/RequiredFiltersBanner';
 import {
     convertLayoutToBaseCoordinates,
@@ -751,113 +752,119 @@ const EmbedDashboard: FC<{
     };
 
     return (
-        <div
-            // Used by EmbedDashboardExportPdf to temporarily set height:auto for multipage PDF printing
-            id="embed-scroll-container"
-            style={
-                containerStyles ?? {
-                    height: '100vh',
-                    overflowY: 'auto',
+        <FilterBarPopoversProvider>
+            <div
+                // Used by EmbedDashboardExportPdf to temporarily set height:auto for multipage PDF printing
+                id="embed-scroll-container"
+                style={
+                    containerStyles ?? {
+                        height: '100vh',
+                        overflowY: 'auto',
+                    }
                 }
-            }
-        >
-            {currentDashboardTiles.length === 0 ? (
-                <>
-                    <EmbedDashboardHeader
-                        dashboard={dashboard}
-                        projectUuid={projectUuid}
-                    />
-                    {renderDashboardEditToolbar()}
-                    <div style={{ marginTop: '20px' }}>
-                        <SuboptimalState
-                            title="Empty dashboard"
-                            description="This dashboard has no tiles"
+            >
+                {currentDashboardTiles.length === 0 ? (
+                    <>
+                        <EmbedDashboardHeader
+                            dashboard={dashboard}
+                            projectUuid={projectUuid}
                         />
-                    </div>
-                </>
-            ) : tabsEnabled ? (
-                <Tabs
-                    value={activeTab?.uuid}
-                    onChange={handleTabChange}
-                    classNames={{
-                        list: tabStyles.list,
-                        tab: tabStyles.tab,
-                    }}
-                >
-                    <EmbedDashboardHeader
-                        dashboard={dashboard}
-                        projectUuid={projectUuid}
-                        tabs={
-                            <Tabs.List px="lg">
-                                {visibleTabs.map((tab) => (
-                                    <Tabs.Tab
-                                        key={tab.uuid}
-                                        value={tab.uuid}
-                                        maw={`${
-                                            100 / (visibleTabs.length || 1)
-                                        }vw`}
-                                    >
-                                        {tab.name}
-                                    </Tabs.Tab>
-                                ))}
-                            </Tabs.List>
-                        }
-                    />
-                    {renderDashboardEditToolbar()}
-                    {hasUnmetFilterRequirements && !!hasChartTiles && (
-                        <RequiredFiltersBanner isEditMode={false} />
-                    )}
-                    <EmbedDashboardGrid
-                        filteredTiles={filteredTiles}
-                        layouts={layouts}
-                        dashboard={dashboard}
-                        projectUuid={projectUuid}
-                        paletteColors={dashboard.selectedPalette?.colors}
-                        paletteDarkColors={
-                            dashboard.selectedPalette?.darkColors
-                        }
-                        hasUnmetFilterRequirements={hasUnmetFilterRequirements}
-                        isTabEmpty={isTabEmpty}
-                        gridProps={gridProps}
-                        isEditMode={isEditMode}
-                        onLayoutChange={handleLayoutChange}
-                        onBreakpointChange={setCurrentCols}
-                        onDeleteTile={handleDeleteTile}
-                        onEditTile={handleEditTile}
-                        useDashboardEditorTileQueries={canWriteDashboard}
-                    />
-                </Tabs>
-            ) : (
-                <>
-                    <EmbedDashboardHeader
-                        dashboard={dashboard}
-                        projectUuid={projectUuid}
-                    />
-                    {renderDashboardEditToolbar()}
-                    {hasUnmetFilterRequirements && !!hasChartTiles && (
-                        <RequiredFiltersBanner isEditMode={false} />
-                    )}
-                    <EmbedDashboardGrid
-                        filteredTiles={filteredTiles}
-                        layouts={layouts}
-                        dashboard={dashboard}
-                        projectUuid={projectUuid}
-                        paletteColors={dashboard.selectedPalette?.colors}
-                        paletteDarkColors={
-                            dashboard.selectedPalette?.darkColors
-                        }
-                        hasUnmetFilterRequirements={hasUnmetFilterRequirements}
-                        gridProps={gridProps}
-                        isEditMode={isEditMode}
-                        onLayoutChange={handleLayoutChange}
-                        onBreakpointChange={setCurrentCols}
-                        onDeleteTile={handleDeleteTile}
-                        onEditTile={handleEditTile}
-                        useDashboardEditorTileQueries={canWriteDashboard}
-                    />
-                </>
-            )}
-        </div>
+                        {renderDashboardEditToolbar()}
+                        <div style={{ marginTop: '20px' }}>
+                            <SuboptimalState
+                                title="Empty dashboard"
+                                description="This dashboard has no tiles"
+                            />
+                        </div>
+                    </>
+                ) : tabsEnabled ? (
+                    <Tabs
+                        value={activeTab?.uuid}
+                        onChange={handleTabChange}
+                        classNames={{
+                            list: tabStyles.list,
+                            tab: tabStyles.tab,
+                        }}
+                    >
+                        <EmbedDashboardHeader
+                            dashboard={dashboard}
+                            projectUuid={projectUuid}
+                            tabs={
+                                <Tabs.List px="lg">
+                                    {visibleTabs.map((tab) => (
+                                        <Tabs.Tab
+                                            key={tab.uuid}
+                                            value={tab.uuid}
+                                            maw={`${
+                                                100 / (visibleTabs.length || 1)
+                                            }vw`}
+                                        >
+                                            {tab.name}
+                                        </Tabs.Tab>
+                                    ))}
+                                </Tabs.List>
+                            }
+                        />
+                        {renderDashboardEditToolbar()}
+                        {hasUnmetFilterRequirements && !!hasChartTiles && (
+                            <RequiredFiltersBanner />
+                        )}
+                        <EmbedDashboardGrid
+                            filteredTiles={filteredTiles}
+                            layouts={layouts}
+                            dashboard={dashboard}
+                            projectUuid={projectUuid}
+                            paletteColors={dashboard.selectedPalette?.colors}
+                            paletteDarkColors={
+                                dashboard.selectedPalette?.darkColors
+                            }
+                            hasUnmetFilterRequirements={
+                                hasUnmetFilterRequirements
+                            }
+                            isTabEmpty={isTabEmpty}
+                            gridProps={gridProps}
+                            isEditMode={isEditMode}
+                            onLayoutChange={handleLayoutChange}
+                            onBreakpointChange={setCurrentCols}
+                            onDeleteTile={handleDeleteTile}
+                            onEditTile={handleEditTile}
+                            useDashboardEditorTileQueries={canWriteDashboard}
+                        />
+                    </Tabs>
+                ) : (
+                    <>
+                        <EmbedDashboardHeader
+                            dashboard={dashboard}
+                            projectUuid={projectUuid}
+                        />
+                        {renderDashboardEditToolbar()}
+                        {hasUnmetFilterRequirements && !!hasChartTiles && (
+                            <RequiredFiltersBanner />
+                        )}
+                        <EmbedDashboardGrid
+                            filteredTiles={filteredTiles}
+                            layouts={layouts}
+                            dashboard={dashboard}
+                            projectUuid={projectUuid}
+                            paletteColors={dashboard.selectedPalette?.colors}
+                            paletteDarkColors={
+                                dashboard.selectedPalette?.darkColors
+                            }
+                            hasUnmetFilterRequirements={
+                                hasUnmetFilterRequirements
+                            }
+                            gridProps={gridProps}
+                            isEditMode={isEditMode}
+                            onLayoutChange={handleLayoutChange}
+                            onBreakpointChange={setCurrentCols}
+                            onDeleteTile={handleDeleteTile}
+                            onEditTile={handleEditTile}
+                            useDashboardEditorTileQueries={canWriteDashboard}
+                        />
+                    </>
+                )}
+            </div>
+        </FilterBarPopoversProvider>
     );
 };
 

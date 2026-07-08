@@ -78,10 +78,17 @@ const FilterSettings: FC<FilterSettingsProps> = ({
 
     const isFilterDisabled = !!filterRule.disabled;
 
+    // A filter is required when it belongs to any rule: individually
+    // (`required`) or as a member of a shared rule (`requiredGroupId`)
+    const hasRequirement =
+        !!filterRule.required || !!filterRule.requiredGroupId;
+
     const handleToggleRequired = (checked: boolean) => {
+        // Toggling on creates a one-member rule; off removes it from its rule
         const newFilter: DashboardFilterRule = {
             ...filterRule,
             required: checked,
+            requiredGroupId: undefined,
         };
 
         onChangeFilterRule(
@@ -214,7 +221,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                         )
                     }
                 />
-                {showAnyValueDisabledInput && !filterRule.required && (
+                {showAnyValueDisabledInput && !hasRequirement && (
                     <TextInput
                         disabled
                         size="xs"
@@ -226,7 +233,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                     />
                 )}
 
-                {(showValueInput || filterRule.required) && (
+                {(showValueInput || hasRequirement) && (
                     <Group spacing="xs" noWrap align="flex-start">
                         <Box style={{ flex: 1 }}>
                             <FilterInputComponent
@@ -243,7 +250,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                         </Box>
                         {canManageExplore &&
                             !isEditMode &&
-                            !filterRule.required &&
+                            !hasRequirement &&
                             ![
                                 FilterOperator.NULL,
                                 FilterOperator.NOT_NULL,
@@ -288,14 +295,14 @@ const FilterSettings: FC<FilterSettingsProps> = ({
 
                 {isEditMode && (
                     <>
-                        {filterRule.required &&
+                        {hasRequirement &&
                             (filterRule?.values || []).length > 0 && (
                                 <Text size="xs" c={'ldGray.7'}>
                                     Temporary filter values for required filters
                                     will be removed on dashboard save
                                 </Text>
                             )}
-                        {!filterRule.required && (
+                        {!hasRequirement && (
                             <Tooltip
                                 withinPortal
                                 position="right"
@@ -351,6 +358,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                         <RequiredFilterCard
                             filterRule={filterRule}
                             onToggleRequired={handleToggleRequired}
+                            onChangeFilterRule={onChangeFilterRule}
                             onEditRules={onEditRequirementRules}
                         />
                     </>

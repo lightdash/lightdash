@@ -6,14 +6,20 @@ import {
 import { getConditionalRuleLabelFromItem } from '../../../components/common/Filters/FilterInputs/utils';
 
 export type FilterRequirementRule = {
-    groupId: string;
+    /**
+     * `requiredGroupId` for shared rules; the filter's own id for one-member
+     * rules expressed via `required: true`.
+     */
+    id: string;
     members: DashboardFilterRule[];
 };
 
 /**
- * A requirement "rule" is the set of dashboard filter rules sharing one
- * requiredGroupId. Rules are returned in first-appearance order
- * (dimensions before metrics).
+ * Unified view of filter requirements: every requirement is a rule, a set of
+ * filters where at least one must be set. `required: true` is a one-member
+ * rule; filters sharing a `requiredGroupId` form one rule. Rules are returned
+ * in first-appearance order (dimensions before metrics). `required` wins when
+ * hand-authored JSON sets both flags on the same filter.
  */
 export const getFilterRequirementRules = (
     dashboardFilters: Pick<DashboardFilters, 'dimensions' | 'metrics'>,
@@ -24,10 +30,13 @@ export const getFilterRequirementRules = (
     ];
 
     return filterRules.reduce<FilterRequirementRule[]>((acc, filterRule) => {
+        if (filterRule.required) {
+            return [...acc, { id: filterRule.id, members: [filterRule] }];
+        }
         if (!filterRule.requiredGroupId) return acc;
 
         const existingRule = acc.find(
-            (rule) => rule.groupId === filterRule.requiredGroupId,
+            (rule) => rule.id === filterRule.requiredGroupId,
         );
         if (existingRule) {
             existingRule.members.push(filterRule);
@@ -36,53 +45,21 @@ export const getFilterRequirementRules = (
 
         return [
             ...acc,
-            { groupId: filterRule.requiredGroupId, members: [filterRule] },
+            { id: filterRule.requiredGroupId, members: [filterRule] },
         ];
     }, []);
 };
 
 /**
- * Filters the viewer must always set individually (`required: true`),
- * in filter order (dimensions before metrics).
- */
-export const getAlwaysRequiredFilters = (
-    dashboardFilters: Pick<DashboardFilters, 'dimensions' | 'metrics'>,
-): DashboardFilterRule[] =>
-    [...dashboardFilters.dimensions, ...dashboardFilters.metrics].filter(
-        (filterRule) => !!filterRule.required,
-    );
-
-/**
- * Why a dashboard filter can't be made individually required from the
- * requirements popover; null when it is eligible. Same semantics as rule
- * membership: the filter must be valueless (disabled with no default).
- */
-export const getAlwaysRequiredIneligibilityReason = (
-    filterRule: DashboardFilterRule,
-): string | null => {
-    if (filterRule.requiredGroupId) {
-        return 'Already part of a requirement rule';
-    }
-    if (!filterRule.disabled) {
-        return 'Has a default value, so the requirement would always be satisfied';
-    }
-    return null;
-};
-
-/**
- * Why a dashboard filter can't be added to a requirement rule;
- * null when it is eligible. Rule members must be valueless
- * (disabled with no default), matching the value stripping applied
- * to required filters on dashboard save.
+ * Why a dashboard filter can't be added to a filter rule; null when it is
+ * eligible. Rule members must be valueless (disabled with no default),
+ * matching the value stripping applied to required filters on dashboard save.
  */
 export const getRequirementIneligibilityReason = (
     filterRule: DashboardFilterRule,
 ): string | null => {
-    if (filterRule.requiredGroupId) {
-        return 'Already part of a requirement rule';
-    }
-    if (filterRule.required) {
-        return 'Individually required';
+    if (filterRule.required || filterRule.requiredGroupId) {
+        return 'Already part of a filter rule';
     }
     if (!filterRule.disabled) {
         return 'Has a default value, so the rule would always be satisfied';
