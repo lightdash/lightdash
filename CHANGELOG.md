@@ -1,3 +1,11 @@
+## [0.3334.1](https://github.com/lightdash/lightdash/compare/0.3334.0...0.3334.1) (2026-07-08)
+
+
+### Bug Fixes
+
+* add hrefs to list content output ([#25276](https://github.com/lightdash/lightdash/issues/25276)) ([745061c](https://github.com/lightdash/lightdash/commit/745061c64174f09744232fb457ccde31a8221ae5)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* **ai-agents:** guard null launcher agent uuid when opening panel from dock ([#25285](https://github.com/lightdash/lightdash/issues/25285)) ([87d0039](https://github.com/lightdash/lightdash/commit/87d0039d9d71eebd8457f19830d03cd079874058))
+
 # [0.3334.0](https://github.com/lightdash/lightdash/compare/0.3333.0...0.3334.0) (2026-07-08)
 
 
