@@ -6602,6 +6602,38 @@ export class AiAgentModel {
         });
     }
 
+    async findArtifactVersionsByPromptUuid(
+        promptUuid: string,
+        { db }: { db: Knex } = { db: this.database },
+    ): Promise<AiArtifact[]> {
+        return db(AiArtifactVersionsTableName)
+            .select({
+                artifactUuid: `${AiArtifactsTableName}.ai_artifact_uuid`,
+                threadUuid: `${AiArtifactsTableName}.ai_thread_uuid`,
+                artifactType: `${AiArtifactsTableName}.artifact_type`,
+                savedQueryUuid: `${AiArtifactVersionsTableName}.saved_query_uuid`,
+                savedDashboardUuid: `${AiArtifactVersionsTableName}.saved_dashboard_uuid`,
+                createdAt: `${AiArtifactsTableName}.created_at`,
+                versionNumber: `${AiArtifactVersionsTableName}.version_number`,
+                versionUuid: `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
+                title: `${AiArtifactVersionsTableName}.title`,
+                description: `${AiArtifactVersionsTableName}.description`,
+                chartConfig: `${AiArtifactVersionsTableName}.chart_config`,
+                dashboardConfig: `${AiArtifactVersionsTableName}.dashboard_config`,
+                promptUuid: `${AiArtifactVersionsTableName}.ai_prompt_uuid`,
+                versionCreatedAt: `${AiArtifactVersionsTableName}.created_at`,
+                verifiedByUserUuid: `${AiArtifactVersionsTableName}.verified_by_user_uuid`,
+                verifiedAt: `${AiArtifactVersionsTableName}.verified_at`,
+            } satisfies Record<keyof AiArtifact, string>)
+            .join(
+                AiArtifactsTableName,
+                `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
+                `${AiArtifactsTableName}.ai_artifact_uuid`,
+            )
+            .where(`${AiArtifactVersionsTableName}.ai_prompt_uuid`, promptUuid)
+            .orderBy(`${AiArtifactVersionsTableName}.created_at`, 'asc');
+    }
+
     async updateThreadTitle({
         threadUuid,
         title,
