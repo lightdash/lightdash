@@ -1,8 +1,10 @@
 import {
     DimensionType,
     FieldType,
+    FilterOperator,
     SupportedDbtAdapter,
     type Explore,
+    type ModelRequiredFilterRule,
 } from '@lightdash/common';
 import { getGetMetadata } from './getMetadata';
 
@@ -17,6 +19,7 @@ const longDescription = `Allowed values: ${Array.from(
 const makeExplore = (overrides: {
     baseTableDescription?: string;
     fieldDescription?: string;
+    requiredFilters?: ModelRequiredFilterRule[];
 }): Explore => ({
     targetDatabase: SupportedDbtAdapter.POSTGRES,
     name: 'sales',
@@ -35,6 +38,7 @@ const makeExplore = (overrides: {
             sqlWhere: undefined,
             uncompiledSqlWhere: undefined,
             description: overrides.baseTableDescription,
+            requiredFilters: overrides.requiredFilters,
             dimensions: {
                 status: {
                     fieldType: FieldType.DIMENSION,
@@ -174,5 +178,38 @@ describe('getMetadata explore field listing', () => {
             { type: 'explore', exploreIds: ['sales'] },
         ]);
         expect(result.result).toMatch(/\+\d+ more \(grepFields lists them\)/);
+    });
+
+    it('shows required and suggested filters distinctly', async () => {
+        const explore = makeExplore({
+            requiredFilters: [
+                {
+                    id: 'required-filter',
+                    target: { fieldRef: 'created_at' },
+                    operator: FilterOperator.IN_THE_PAST,
+                    values: [90],
+                    required: true,
+                },
+                {
+                    id: 'default-filter',
+                    target: { fieldRef: 'status' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['active'],
+                    required: false,
+                },
+            ],
+        });
+        const result = await execute(explore, [
+            { type: 'explore', exploreIds: ['sales'] },
+        ]);
+
+        expect(result.result).toContain('⚠ table filters:');
+        expect(result.result).toContain(
+            'required orders_created_at inThePast [90]',
+        );
+        expect(result.result).toContain(
+            'suggested orders_status equals ["active"]',
+        );
+        expect(result.result).not.toContain('must be applied');
     });
 });

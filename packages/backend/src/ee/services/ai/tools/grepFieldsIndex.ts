@@ -9,9 +9,7 @@ const flatHint = (hint?: string | string[]): string =>
     Array.isArray(hint) ? hint.join(' ') : (hint ?? '');
 
 /**
- * One-line summary of an explore's required filters, or null if none. Any query
- * against the explore must apply these — surfacing it keeps grepFields from
- * losing the signal findExplores used to carry.
+ * One-line summary of an explore's table filters, or null if none.
  */
 export const summarizeRequiredFilters = (explore: Explore): string | null => {
     const filters = explore.tables[explore.baseTable]?.requiredFilters ?? [];
@@ -28,9 +26,10 @@ export const summarizeRequiredFilters = (explore: Explore): string | null => {
             filter.values && filter.values.length > 0
                 ? ` ${JSON.stringify(filter.values)}`
                 : '';
-        return `${fieldId} ${filter.operator}${values}`;
+        const kind = filter.required === false ? 'suggested' : 'required';
+        return `${kind} ${fieldId} ${filter.operator}${values}`;
     });
-    return `⚠ required filters (must be applied): ${parts.join('; ')}`;
+    return `⚠ table filters: ${parts.join('; ')}`;
 };
 
 /** One greppable "file": a field flattened with its searchable annotations. */
