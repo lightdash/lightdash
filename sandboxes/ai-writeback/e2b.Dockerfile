@@ -66,7 +66,19 @@ RUN python3 -m venv /usr/local/dbt1.8 \
         "dbt-clickhouse~=1.9.0" \
         "dbt-athena~=1.10.0" \
         "dbt-duckdb~=1.10.0" \
-    && ln -s /usr/local/dbt1.11/bin/dbt /usr/local/bin/dbt
+    && python3 -m venv /usr/local/dbt1.12 \
+    && /usr/local/dbt1.12/bin/pip install --no-cache-dir \
+        "dbt-core~=1.12.0" \
+        "dbt-postgres~=1.10.0" \
+        "dbt-redshift~=1.10.0" \
+        "dbt-snowflake~=1.12.0" \
+        "dbt-bigquery~=1.12.0" \
+        "dbt-databricks~=1.12.0" \
+        "dbt-trino~=1.10.0" \
+        "dbt-clickhouse~=1.9.0" \
+        "dbt-athena~=1.10.0" \
+        "dbt-duckdb~=1.10.0" \
+    && ln -s /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt
 
 # Socket Firewall (sfw) blocks known-malicious packages at install time.
 # Install it first, then route every npm/pnpm install through it.

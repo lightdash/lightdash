@@ -31726,6 +31726,7 @@ const models: TsoaRoute.Models = {
             'v1.9',
             'v1.10',
             'v1.11',
+            'v1.12',
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
