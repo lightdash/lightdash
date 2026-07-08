@@ -187,6 +187,9 @@ const applyServiceAccountStaticAbilities: Record<
         can('view', 'OrganizationDesign', {
             organizationUuid,
         });
+        can('view', 'ContentVerification', {
+            organizationUuid,
+        });
     },
     [ServiceAccountScope.ORG_EDIT]: ({
         organizationUuid,

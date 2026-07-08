@@ -408,6 +408,14 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'view:ContentVerification',
+        description: 'View verified charts and dashboards',
+        isEnterprise: false,
+        group: ScopeGroup.CONTENT,
+        dependencies: [{ name: 'view:Project' }],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'manage:ContentVerification',
         description: 'Verify and unverify charts and dashboards',
         isEnterprise: false,

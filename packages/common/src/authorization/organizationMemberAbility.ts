@@ -248,6 +248,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('create', 'AiAgentThread', {
             organizationUuid: member.organizationUuid,
         });
+        can('view', 'ContentVerification', {
+            organizationUuid: member.organizationUuid,
+        });
     },
     editor(member, { can }) {
         applyOrganizationMemberStaticAbilities.interactive_viewer(member, {
