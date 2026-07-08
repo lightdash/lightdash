@@ -1750,6 +1750,14 @@ export type AppRuntimeConfig = {
      */
     e2bCodingAgentTemplateName: string;
     e2bCodingAgentTemplateTag: string;
+    /**
+     * When false, uploads that declare a non-empty custom dependency set are
+     * rejected at the API boundary with a clear error. Template-only uploads
+     * (no declared dependencies) are always accepted. Env var
+     * `LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED`; defaults to `false` while
+     * the feature rolls out — set to `true` to enable on an instance.
+     */
+    customDependenciesEnabled: boolean;
 };
 
 export type IntercomConfig = {
@@ -2053,6 +2061,8 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             'lightdash-ai-coding-agent',
         e2bCodingAgentTemplateTag:
             process.env.E2B_CODING_AGENT_TEMPLATE_TAG ?? (VERSION as string),
+        customDependenciesEnabled:
+            process.env.LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED === 'true',
     };
 };
 

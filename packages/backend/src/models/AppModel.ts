@@ -2,6 +2,7 @@ import {
     DATA_APP_VIZ_TEMPLATE,
     NotFoundError,
     ProjectType,
+    type AppVersionDependencies,
     type AppVersionResources,
     type DataAppVizSchema,
     type KnexPaginateArgs,
@@ -57,6 +58,7 @@ export class AppModel {
         version: Pick<DbAppVersion, 'version' | 'prompt'>,
         status: AppVersionStatus,
         resources?: AppVersionResources,
+        dependencies?: AppVersionDependencies,
     ): Promise<{ app: DbApp; version: DbAppVersion }> {
         return this.database.transaction(async (trx) => {
             const [appRow] = await trx(AppsTableName)
@@ -73,6 +75,13 @@ export class AppModel {
                               resources: JSON.stringify(
                                   resources,
                               ) as unknown as AppVersionResources,
+                          }
+                        : {}),
+                    ...(dependencies
+                        ? {
+                              dependencies: JSON.stringify(
+                                  dependencies,
+                              ) as unknown as AppVersionDependencies,
                           }
                         : {}),
                 })
@@ -306,6 +315,7 @@ export class AppModel {
         status: AppVersionStatus,
         createdByUserUuid: string,
         resources?: AppVersionResources,
+        dependencies?: AppVersionDependencies,
     ): Promise<DbAppVersion> {
         const [row] = await this.database(AppVersionsTableName)
             .insert({
@@ -318,6 +328,13 @@ export class AppModel {
                           resources: JSON.stringify(
                               resources,
                           ) as unknown as AppVersionResources,
+                      }
+                    : {}),
+                ...(dependencies
+                    ? {
+                          dependencies: JSON.stringify(
+                              dependencies,
+                          ) as unknown as AppVersionDependencies,
                       }
                     : {}),
             })

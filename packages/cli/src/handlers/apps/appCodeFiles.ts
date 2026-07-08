@@ -166,6 +166,19 @@ export const retargetManifest = async (
 };
 
 /**
+ * Writes server-provided dependency files as the app folder's package.json +
+ * pnpm-lock.yaml. Called after the scaffold write so they override the
+ * scaffold's template package.json and the folder round-trips on re-upload.
+ */
+export const writeDependenciesToDir = async (
+    dir: string,
+    deps: DataAppDependencies,
+): Promise<void> => {
+    await fs.writeFile(path.join(dir, 'package.json'), deps.packageJson);
+    await fs.writeFile(path.join(dir, 'pnpm-lock.yaml'), deps.lockfile);
+};
+
+/**
  * Reads package.json + pnpm-lock.yaml from the app folder root when both are
  * present. Returns null when neither file exists (no declared deps).
  * Throws when exactly one of the two files is present (incomplete pair).

@@ -284,6 +284,11 @@ describe('AppGenerateService.getAppCode', () => {
         const appModel = {
             getApp: vi.fn().mockResolvedValue(fakeApp),
             getLatestReadyVersion: vi.fn(),
+            getVersion: vi.fn().mockResolvedValue({
+                ...fakeAppVersion,
+                version: EXPLICIT_VERSION,
+                dependencies: null,
+            }),
         };
 
         const svc = buildService({ appModel, s3ClientOverride: fakeS3 });
