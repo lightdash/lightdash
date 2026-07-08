@@ -1279,14 +1279,23 @@ const useCartesianChartConfig = ({
         [dirtyEchartsConfig?.series, dirtyLayout?.stack],
     );
 
-    // Conditional formatting: non-stacked bar charts without pivots,
-    // regardless of metric count
+    // Conditional formatting: non-stacked all-bar charts without pivots,
+    // regardless of metric count. Mixed bar/line charts are excluded since
+    // formatting only renders on bars.
     const isConditionalFormattingEligible = useMemo(
         () =>
             dirtyChartType === CartesianSeriesType.BAR &&
+            (dirtyEchartsConfig?.series ?? []).every(
+                (series) => series.type === CartesianSeriesType.BAR,
+            ) &&
             !pivotKeys?.length &&
             !hasCustomColorsStacking,
-        [dirtyChartType, pivotKeys, hasCustomColorsStacking],
+        [
+            dirtyChartType,
+            dirtyEchartsConfig?.series,
+            pivotKeys,
+            hasCustomColorsStacking,
+        ],
     );
 
     // Color by category: only single-metric bar charts

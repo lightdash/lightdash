@@ -3335,10 +3335,12 @@ const useEchartsCartesianConfig = (
             Boolean(validCartesianConfig?.layout?.colorByCategory) &&
             !pivotDimensions?.length &&
             !hasCustomColorsStacking;
-        // Applies per bar series: each config routes to its target field, so
-        // multi-metric charts color each metric's bars independently
+        // Applies per bar series on all-bar charts: each config routes to its
+        // target field, so multi-metric charts color each metric's bars
+        // independently
         const shouldApplyConditionalFormatting =
-            barSeries.length >= 1 &&
+            series.length > 0 &&
+            barSeries.length === series.length &&
             !pivotDimensions?.length &&
             !isColorByCategory &&
             !hasCustomColorsStacking &&

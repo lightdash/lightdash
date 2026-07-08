@@ -168,10 +168,12 @@ export const Series: FC<Props> = ({ items }) => {
         (dirtyLayout?.stack !== undefined &&
             dirtyLayout.stack !== StackType.NONE);
 
-    // Conditional formatting: available for non-stacked bar charts without
-    // pivots, regardless of how many metrics are charted
+    // Conditional formatting: available for non-stacked all-bar charts
+    // without pivots, regardless of how many metrics are charted. Mixed
+    // bar/line charts are excluded since formatting only renders on bars.
     const supportsCustomColors =
         dirtyChartType === CartesianSeriesType.BAR &&
+        allSeries.every((series) => series.type === CartesianSeriesType.BAR) &&
         !pivotDimensions?.length &&
         !hasCustomColorsStacking;
 
