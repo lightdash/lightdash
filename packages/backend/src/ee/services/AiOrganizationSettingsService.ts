@@ -11,6 +11,7 @@ import {
     UpdateAiProviderApiKeys,
     type AiAgentModelConfig,
     type AiModelOption,
+    type AiOrgModelVisibility,
     type ByoAiProvider,
     type SessionUser,
 } from '@lightdash/common';
@@ -124,6 +125,7 @@ export class AiOrganizationSettingsService extends BaseService {
     private async getModelOptionLists(organizationUuid: string): Promise<{
         effectiveOptions: AiModelOption[];
         configurableOptions: AiModelOption[];
+        effectiveModelVisibility: AiOrgModelVisibility | null;
     }> {
         const [copilotConfig, overrides] = await Promise.all([
             this.orgAiCopilotConfigResolver.getCopilotConfig(organizationUuid),
@@ -144,6 +146,7 @@ export class AiOrganizationSettingsService extends BaseService {
                 modelVisibility: null,
                 keyAccessibleModelIds: overrides.keyAccessibleModelIds,
             }).map(toOption),
+            effectiveModelVisibility: overrides.modelVisibility,
         };
     }
 
@@ -219,8 +222,11 @@ export class AiOrganizationSettingsService extends BaseService {
         // chat surfaces) but must not see another org member's key hints.
         const canManage = this.canManageAiAgent(user);
 
-        const { effectiveOptions, configurableOptions } =
-            await this.getModelOptionLists(user.organizationUuid);
+        const {
+            effectiveOptions,
+            configurableOptions,
+            effectiveModelVisibility,
+        } = await this.getModelOptionLists(user.organizationUuid);
 
         // Return default settings if none exist
         if (!settings) {
@@ -231,7 +237,7 @@ export class AiOrganizationSettingsService extends BaseService {
                 aiAgentReviewsEnabled: false,
                 mcpContentWritesEnabled: true,
                 defaultAiAgentModelConfig: null,
-                modelVisibility: null,
+                modelVisibility: effectiveModelVisibility,
                 providerApiKeysSet: { anthropic: false, openai: false },
                 providerApiKeyHints: { anthropic: null, openai: null },
                 defaultAiAgentModelOptions: effectiveOptions,
@@ -244,6 +250,9 @@ export class AiOrganizationSettingsService extends BaseService {
 
         return {
             ...maskProviderKeyExposure(settings, canManage),
+            // Surface the effective visibility (implicit BYOK defaults merged in)
+            // so the admin card reflects what users actually see.
+            modelVisibility: effectiveModelVisibility,
             isTrial: isTrialEligible,
             isCopilotEnabled,
             defaultAiAgentModelOptions: effectiveOptions,

@@ -14,6 +14,7 @@ import {
 import {
     OrgAiCopilotConfigResolver,
     overlayOrgProviderApiKeys,
+    resolveEffectiveModelVisibility,
     type CopilotConfig,
 } from './OrgAiCopilotConfigResolver';
 
@@ -67,6 +68,55 @@ describe('overlayOrgProviderApiKeys', () => {
         const result = overlayOrgProviderApiKeys(baseConfig, {});
         expect(result.providers.openai?.apiKey).toBe('instance-openai-key');
         expect(result.defaultProvider).toBe('openai');
+    });
+});
+
+describe('resolveEffectiveModelVisibility', () => {
+    it('hides openai when a BYO anthropic key exists but no openai key', () => {
+        expect(
+            resolveEffectiveModelVisibility({ anthropic: 'sk-ant-x' }, null),
+        ).toEqual({ openai: { enabled: false } });
+    });
+
+    it('does not hide openai when both keys are present', () => {
+        expect(
+            resolveEffectiveModelVisibility(
+                { anthropic: 'sk-ant-x', openai: 'sk-x' },
+                null,
+            ),
+        ).toBeNull();
+    });
+
+    it('does not hide anything with only an openai key', () => {
+        expect(
+            resolveEffectiveModelVisibility({ openai: 'sk-x' }, null),
+        ).toBeNull();
+    });
+
+    it('lets explicit stored visibility override the implicit hide', () => {
+        expect(
+            resolveEffectiveModelVisibility(
+                { anthropic: 'sk-ant-x' },
+                { openai: { enabled: true } },
+            ),
+        ).toEqual({ openai: { enabled: true } });
+    });
+
+    it('keeps stored visibility for other providers alongside the implicit hide', () => {
+        expect(
+            resolveEffectiveModelVisibility(
+                { anthropic: 'sk-ant-x' },
+                {
+                    anthropic: {
+                        enabled: true,
+                        allowedModels: ['claude-opus-4-8'],
+                    },
+                },
+            ),
+        ).toEqual({
+            openai: { enabled: false },
+            anthropic: { enabled: true, allowedModels: ['claude-opus-4-8'] },
+        });
     });
 });
 
@@ -163,6 +213,19 @@ describe('OrgAiCopilotConfigResolver', () => {
                 flagEnabled: true,
                 orgKeys: { anthropic: 'sk-ant-x' },
                 modelVisibility: { openai: { enabled: false } },
+                accessibleModelIds: ['claude-opus-4-8'],
+            });
+            expect(await resolver.getOrgModelOverrides('org-uuid')).toEqual({
+                modelVisibility: { openai: { enabled: false } },
+                keyAccessibleModelIds: { anthropic: ['claude-opus-4-8'] },
+            });
+        });
+
+        it('auto-hides openai when only an anthropic key is set', async () => {
+            const resolver = makeResolver({
+                flagEnabled: true,
+                orgKeys: { anthropic: 'sk-ant-x' },
+                modelVisibility: null,
                 accessibleModelIds: ['claude-opus-4-8'],
             });
             expect(await resolver.getOrgModelOverrides('org-uuid')).toEqual({
