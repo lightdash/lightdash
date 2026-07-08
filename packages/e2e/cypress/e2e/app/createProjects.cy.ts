@@ -172,7 +172,7 @@ const testCompile = (): Cypress.Chainable<string> => {
     cy.contains(/selected \d+ models/);
     // Configure
     cy.contains('button', 'Save changes').click();
-    cy.url().should('include', '/home', { timeout: 30000 });
+    cy.url({ timeout: 30000 }).should('include', '/home');
     cy.contains('Welcome, David');
     cy.findByText('Charts and Dashboards');
     cy.findByText('get started by creating some charts');
