@@ -153,6 +153,7 @@ function buildService(overrides: {
     projectModel?: Record<string, unknown>;
     projectParametersModel?: Record<string, unknown>;
     organizationDesignModel?: Record<string, unknown>;
+    customDependenciesEnabled?: boolean;
 }): AppGenerateService {
     const {
         appModel = {},
@@ -160,6 +161,7 @@ function buildService(overrides: {
         projectModel = {},
         projectParametersModel = {},
         organizationDesignModel = {},
+        customDependenciesEnabled = true,
     } = overrides;
 
     // Default mocks for context-assembly methods so existing tests don't break
@@ -193,7 +195,9 @@ function buildService(overrides: {
     };
 
     const svc = new AppGenerateService({
-        lightdashConfig: {} as never,
+        lightdashConfig: {
+            appRuntime: { customDependenciesEnabled },
+        } as never,
         analytics: {} as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
@@ -302,6 +306,32 @@ describe('AppGenerateService.getAppCode', () => {
         expect(result.manifest.version).toBe(EXPLICIT_VERSION);
         expect(appModel.getLatestReadyVersion).not.toHaveBeenCalled();
         expect(result.files).toHaveLength(2);
+    });
+
+    it('refuses to download an app with custom deps when the kill-switch is off', async () => {
+        const fakeS3 = makeFakeS3(sourceTarBuffer, 3);
+        const appModel = {
+            getApp: vi.fn().mockResolvedValue(fakeApp),
+            getLatestReadyVersion: vi.fn(),
+            getVersion: vi.fn().mockResolvedValue({
+                ...fakeAppVersion,
+                version: 3,
+                dependencies: {
+                    custom: [{ name: 'deck.gl', version: '9.3.5' }],
+                    lockfileHash: 'abc',
+                },
+            }),
+        };
+
+        const svc = buildService({
+            appModel,
+            s3ClientOverride: fakeS3,
+            customDependenciesEnabled: false,
+        });
+
+        await expect(
+            svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID, 3),
+        ).rejects.toThrow('LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED');
     });
 
     it('throws NotFoundError when no ready version exists and version is omitted', async () => {

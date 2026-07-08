@@ -1419,7 +1419,7 @@ export class AppGenerateService extends BaseService {
         // flipping it off also stops installs of previously-approved dep sets
         // (iterations and rebuilds), not just new uploads.
         if (!this.lightdashConfig.appRuntime.customDependenciesEnabled) {
-            throw new Error(
+            throw new ParameterError(
                 'Custom app dependencies are disabled on this instance (LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED); this app version declares custom packages so it cannot be built.',
             );
         }
@@ -7143,6 +7143,13 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         // dropping the files would make a re-upload build with template deps.
         let dependencies: DataAppDependencies | undefined;
         if (versionRow?.dependencies) {
+            // Kill-switch: stripping deps instead would hand out a folder
+            // whose src imports packages the lockfile no longer declares.
+            if (!this.lightdashConfig.appRuntime.customDependenciesEnabled) {
+                throw new ParameterError(
+                    'This app declares custom dependencies, and custom app dependencies are disabled on this instance (LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED), so it cannot be downloaded.',
+                );
+            }
             const depsPrefix = `${versionPrefix(appUuid, resolvedVersion)}deps/`;
             const [packageJsonBuffer, lockfileBuffer] = await Promise.all([
                 readS3ObjectAsBuffer(

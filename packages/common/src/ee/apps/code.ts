@@ -1,3 +1,4 @@
+import { parse as parseYaml } from 'yaml';
 import { type ApiSuccess } from '../../types/api/success';
 import { type DataAppTemplate } from './types';
 
@@ -114,6 +115,35 @@ function isRegistrySemverSpec(spec: string): boolean {
 // explicitly allowed.
 const LOCKFILE_TARBALL_RE = /\btarball:\s*['"]?(https?:\/\/[^\s'",}]+)/g;
 
+/**
+ * Structural sanity check: the lockfile must parse as YAML into an object
+ * carrying `lockfileVersion` — every pnpm lockfile does. Deliberately NOT an
+ * allowlist of top-level keys (pnpm adds keys across versions and that would
+ * break uploads on toolchain upgrades); resolution safety comes from
+ * `--frozen-lockfile` integrity checks, the tarball-host validation below,
+ * and the sandbox egress allowlist.
+ */
+function validateLockfileShape(lockfile: string): void {
+    let parsed: unknown;
+    try {
+        parsed = parseYaml(lockfile);
+    } catch {
+        throw new Error(
+            'Invalid dependencies: lockfile is not valid YAML — regenerate it with pnpm',
+        );
+    }
+    if (
+        !parsed ||
+        typeof parsed !== 'object' ||
+        Array.isArray(parsed) ||
+        !('lockfileVersion' in parsed)
+    ) {
+        throw new Error(
+            'Invalid dependencies: lockfile does not look like a pnpm lockfile (missing lockfileVersion) — regenerate it with pnpm',
+        );
+    }
+}
+
 function validateLockfileTarballHosts(
     lockfile: string,
     allowedHosts: string[],
@@ -199,6 +229,7 @@ export function validateDataAppDependencies(
         throw new Error(
             `Invalid dependencies: lockfile exceeds ${MAX_LOCKFILE_BYTES / 1024 / 1024} MB limit`,
         );
+    validateLockfileShape(d.lockfile);
     if (opts.allowedTarballHosts !== undefined) {
         validateLockfileTarballHosts(d.lockfile, opts.allowedTarballHosts);
     }

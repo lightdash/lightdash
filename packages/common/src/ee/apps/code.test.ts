@@ -110,7 +110,7 @@ const makeDeps = (
     packageJson: JSON.stringify({
         dependencies: { react: '19.2.5', 'react-dom': '19.2.5' },
     }),
-    lockfile: 'react@19.2.5:\n  react-dom@19.2.5:\n',
+    lockfile: 'lockfileVersion: 9.0\nreact@19.2.5:\n  react-dom@19.2.5:\n',
     ...overrides,
 });
 
@@ -127,7 +127,7 @@ describe('validateDataAppDependencies', () => {
             packageJson: JSON.stringify({
                 dependencies: { 'my-chart-lib': '^3.0.0' },
             }),
-            lockfile: 'my-chart-lib@3.2.0:\n',
+            lockfile: 'lockfileVersion: 9.0\nmy-chart-lib@3.2.0:\n',
         });
         const result = validateDataAppDependencies(deps, {
             templateDependencies: TEMPLATE_DEPS,
@@ -140,7 +140,7 @@ describe('validateDataAppDependencies', () => {
             packageJson: JSON.stringify({
                 dependencies: { react: '18.3.1' }, // template has 19.2.5
             }),
-            lockfile: 'react@18.3.1:\n',
+            lockfile: 'lockfileVersion: 9.0\nreact@18.3.1:\n',
         });
         const result = validateDataAppDependencies(deps, {
             templateDependencies: TEMPLATE_DEPS,
@@ -154,7 +154,7 @@ describe('validateDataAppDependencies', () => {
                 dependencies: { react: '19.2.5' },
                 devDependencies: { typescript: '6.0.0' },
             }),
-            lockfile: 'react@19.2.5:\n',
+            lockfile: 'lockfileVersion: 9.0\nreact@19.2.5:\n',
         });
         const result = validateDataAppDependencies(deps, {
             templateDependencies: TEMPLATE_DEPS,
@@ -188,7 +188,7 @@ describe('validateDataAppDependencies', () => {
                             foo: 'git+https://github.com/foo/foo.git',
                         },
                     }),
-                    lockfile: 'foo:\n',
+                    lockfile: 'lockfileVersion: 9.0\nfoo:\n',
                 }),
                 { templateDependencies: {} },
             ),
@@ -202,7 +202,7 @@ describe('validateDataAppDependencies', () => {
                     packageJson: JSON.stringify({
                         dependencies: { bar: 'file:../bar' },
                     }),
-                    lockfile: 'bar:\n',
+                    lockfile: 'lockfileVersion: 9.0\nbar:\n',
                 }),
                 { templateDependencies: {} },
             ),
@@ -216,7 +216,7 @@ describe('validateDataAppDependencies', () => {
                     packageJson: JSON.stringify({
                         dependencies: { sdk: 'workspace:*' },
                     }),
-                    lockfile: 'sdk:\n',
+                    lockfile: 'lockfileVersion: 9.0\nsdk:\n',
                 }),
                 { templateDependencies: {} },
             ),
@@ -230,7 +230,7 @@ describe('validateDataAppDependencies', () => {
                     packageJson: JSON.stringify({
                         dependencies: { baz: 'https://example.com/baz.tgz' },
                     }),
-                    lockfile: 'baz:\n',
+                    lockfile: 'lockfileVersion: 9.0\nbaz:\n',
                 }),
                 { templateDependencies: {} },
             ),
@@ -244,7 +244,7 @@ describe('validateDataAppDependencies', () => {
                     packageJson: JSON.stringify({
                         dependencies: { foo: 'github:user/repo' },
                     }),
-                    lockfile: 'foo:\n',
+                    lockfile: 'lockfileVersion: 9.0\nfoo:\n',
                 }),
                 { templateDependencies: {} },
             ),
@@ -256,7 +256,7 @@ describe('validateDataAppDependencies', () => {
             packageJson: JSON.stringify({
                 dependencies: { preact: 'npm:preact@^10.0.0' },
             }),
-            lockfile: 'preact@10.0.0:\n',
+            lockfile: 'lockfileVersion: 9.0\npreact@10.0.0:\n',
         });
         const result = validateDataAppDependencies(deps, {
             templateDependencies: {},
@@ -273,7 +273,7 @@ describe('validateDataAppDependencies', () => {
                             foo: 'npm:bar@git+https://github.com/bar/bar.git',
                         },
                     }),
-                    lockfile: 'foo:\n',
+                    lockfile: 'lockfileVersion: 9.0\nfoo:\n',
                 }),
                 { templateDependencies: {} },
             ),
@@ -295,7 +295,7 @@ describe('validateDataAppDependencies', () => {
                     packageJson: JSON.stringify({
                         dependencies: { foo: spec },
                     }),
-                    lockfile: 'foo:\n',
+                    lockfile: 'lockfileVersion: 9.0\nfoo:\n',
                 }),
                 { templateDependencies: {} },
             ),
@@ -316,7 +316,7 @@ describe('validateDataAppDependencies', () => {
         const result = validateDataAppDependencies(
             makeDeps({
                 packageJson: JSON.stringify({ dependencies: { foo: spec } }),
-                lockfile: 'foo:\n',
+                lockfile: 'lockfileVersion: 9.0\nfoo:\n',
             }),
             { templateDependencies: {} },
         );
@@ -328,7 +328,7 @@ describe('validateDataAppDependencies', () => {
             validateDataAppDependencies(
                 makeDeps({
                     lockfile:
-                        'react@19.2.5:\n    resolution: {tarball: https://evil.example.com/react.tgz}\n',
+                        'lockfileVersion: 9.0\nreact@19.2.5:\n  resolution:\n    tarball: https://evil.example.com/react.tgz\n',
                 }),
                 {
                     templateDependencies: TEMPLATE_DEPS,
@@ -342,7 +342,7 @@ describe('validateDataAppDependencies', () => {
         const result = validateDataAppDependencies(
             makeDeps({
                 lockfile:
-                    'react@19.2.5:\n    resolution: {tarball: https://registry.npmjs.org/react/-/react-19.2.5.tgz}\n  react-dom@19.2.5:\n',
+                    'lockfileVersion: 9.0\nreact@19.2.5:\n  resolution:\n    tarball: https://registry.npmjs.org/react/-/react-19.2.5.tgz\nreact-dom@19.2.5:\n',
             }),
             {
                 templateDependencies: TEMPLATE_DEPS,
@@ -356,7 +356,7 @@ describe('validateDataAppDependencies', () => {
         const result = validateDataAppDependencies(
             makeDeps({
                 lockfile:
-                    'react@19.2.5:\n    resolution: {tarball: https://evil.example.com/react.tgz}\n  react-dom@19.2.5:\n',
+                    'lockfileVersion: 9.0\nreact@19.2.5:\n  resolution:\n    tarball: https://evil.example.com/react.tgz\nreact-dom@19.2.5:\n',
             }),
             { templateDependencies: TEMPLATE_DEPS },
         );
@@ -369,9 +369,9 @@ describe('validateDataAppDependencies', () => {
                 `^${i}.0.0`,
             ]),
         );
-        const lockfileContent = Object.keys(tooMany)
+        const lockfileContent = `lockfileVersion: 9.0\n${Object.keys(tooMany)
             .map((n) => `${n}:\n`)
-            .join('');
+            .join('')}`;
         expect(() =>
             validateDataAppDependencies(
                 makeDeps({
@@ -392,12 +392,30 @@ describe('validateDataAppDependencies', () => {
         ).toThrow(/lockfile exceeds/i);
     });
 
+    it('throws when the lockfile is not valid YAML', () => {
+        expect(() =>
+            validateDataAppDependencies(
+                makeDeps({ lockfile: '{{{{not yaml: [' }),
+                { templateDependencies: TEMPLATE_DEPS },
+            ),
+        ).toThrow(/not valid YAML/i);
+    });
+
+    it('throws when the lockfile lacks lockfileVersion', () => {
+        expect(() =>
+            validateDataAppDependencies(
+                makeDeps({ lockfile: 'react@19.2.5:\n  react-dom@19.2.5:\n' }),
+                { templateDependencies: TEMPLATE_DEPS },
+            ),
+        ).toThrow(/missing lockfileVersion/i);
+    });
+
     it('throws when a custom package is missing from the lockfile', () => {
         const deps = makeDeps({
             packageJson: JSON.stringify({
                 dependencies: { 'missing-pkg': '^1.0.0' },
             }),
-            lockfile: 'some-other-pkg@1.0.0:\n', // missing-pkg not mentioned
+            lockfile: 'lockfileVersion: 9.0\nsome-other-pkg@1.0.0:\n', // missing-pkg not mentioned
         });
         expect(() =>
             validateDataAppDependencies(deps, { templateDependencies: {} }),
@@ -477,7 +495,10 @@ describe('validateDataAppCode with dependencies', () => {
         expect(() =>
             validateDataAppCode({
                 ...valid,
-                dependencies: { packageJson: 42, lockfile: 'ok' },
+                dependencies: {
+                    packageJson: 42,
+                    lockfile: 'lockfileVersion: 9.0\nok',
+                },
             }),
         ).toThrow(/dependencies\.packageJson/);
     });
@@ -500,7 +521,7 @@ describe('validateDataAppCode with dependencies', () => {
                         packageJson: JSON.stringify({
                             dependencies: { foo: 'file:../foo' },
                         }),
-                        lockfile: 'foo:\n',
+                        lockfile: 'lockfileVersion: 9.0\nfoo:\n',
                     }),
                 },
                 { templateDependencies: {} },
