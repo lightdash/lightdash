@@ -2726,12 +2726,10 @@ describe('AiWritebackService.runPipeline', () => {
 
     it('skips the run when the row already reached a terminal status', async () => {
         const aiWritebackRunModel = {
-            findByUuid: vi
-                .fn()
-                .mockResolvedValue({
-                    ai_writeback_run_uuid: 'run-1',
-                    status: 'ready',
-                }),
+            findByUuid: vi.fn().mockResolvedValue({
+                ai_writeback_run_uuid: 'run-1',
+                status: 'ready',
+            }),
         } as AnyType;
         const userModel = {
             findSessionUserAndOrgByUuid: vi.fn(),
@@ -2751,12 +2749,10 @@ describe('AiWritebackService.runPipeline', () => {
             organizationUuid: ORG,
         } as AnyType;
         const aiWritebackRunModel = {
-            findByUuid: vi
-                .fn()
-                .mockResolvedValue({
-                    ai_writeback_run_uuid: 'run-1',
-                    status: 'pending',
-                }),
+            findByUuid: vi.fn().mockResolvedValue({
+                ai_writeback_run_uuid: 'run-1',
+                status: 'pending',
+            }),
         } as AnyType;
         const userModel = {
             findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue(sessionUser),

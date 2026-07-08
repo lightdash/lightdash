@@ -88,12 +88,10 @@ const buildService = (overrides: {
         updateToolResult,
     };
     const userModel = {
-        findSessionUserAndOrgByUuid: vi
-            .fn()
-            .mockResolvedValue({
-                userUuid: 'user-1',
-                organizationUuid: 'org-1',
-            }),
+        findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue({
+            userUuid: 'user-1',
+            organizationUuid: 'org-1',
+        }),
     };
     const aiWritebackService = {
         run: overrides.run ?? vi.fn().mockResolvedValue(WRITEBACK_RESULT),
