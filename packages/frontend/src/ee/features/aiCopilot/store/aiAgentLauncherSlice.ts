@@ -10,6 +10,7 @@ export type LauncherDockItem = {
 export type LauncherPendingContext = {
     chartUuid?: string;
     dashboardUuid?: string;
+    dashboardTabUuid?: string | null;
 };
 
 export type LauncherCurrentDashboard = {

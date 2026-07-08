@@ -16059,6 +16059,10 @@
                                 "type": "string",
                                 "nullable": true
                             },
+                            "dashboardTabUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
                             "dashboardUuid": {
                                 "type": "string"
                             },
@@ -17955,6 +17959,10 @@
                     {
                         "properties": {
                             "dashboardSlug": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "dashboardTabUuid": {
                                 "type": "string",
                                 "nullable": true
                             },

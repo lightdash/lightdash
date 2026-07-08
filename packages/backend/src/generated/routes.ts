@@ -14512,6 +14512,13 @@ const models: TsoaRoute.Models = {
                             ],
                             required: true,
                         },
+                        dashboardTabUuid: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                        },
                         dashboardUuid: { dataType: 'string', required: true },
                         type: {
                             dataType: 'enum',
@@ -17458,6 +17465,13 @@ const models: TsoaRoute.Models = {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
                         dashboardSlug: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                        },
+                        dashboardTabUuid: {
                             dataType: 'union',
                             subSchemas: [
                                 { dataType: 'string' },
