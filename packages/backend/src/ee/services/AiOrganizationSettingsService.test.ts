@@ -1,5 +1,6 @@
 import { AiOrganizationSettings } from '@lightdash/common';
 import {
+    areReviewsEnabledForSettings,
     findUnconfiguredProviderKeyWrites,
     maskProviderKeyExposure,
 } from './AiOrganizationSettingsService';
@@ -74,5 +75,47 @@ describe('findUnconfiguredProviderKeyWrites', () => {
                 { openai: {} },
             ),
         ).toEqual([]);
+    });
+});
+
+describe('areReviewsEnabledForSettings', () => {
+    const base = {
+        aiAgentReviewsEnabled: true,
+        providerApiKeysSet: { anthropic: false, openai: false },
+    };
+
+    it('returns false when there are no settings', () => {
+        expect(areReviewsEnabledForSettings(null)).toBe(false);
+    });
+
+    it('returns true when reviews are on and no BYO key is set', () => {
+        expect(areReviewsEnabledForSettings(base)).toBe(true);
+    });
+
+    it('returns false when reviews are off', () => {
+        expect(
+            areReviewsEnabledForSettings({
+                ...base,
+                aiAgentReviewsEnabled: false,
+            }),
+        ).toBe(false);
+    });
+
+    it('disables reviews while a BYO anthropic key is set', () => {
+        expect(
+            areReviewsEnabledForSettings({
+                ...base,
+                providerApiKeysSet: { anthropic: true, openai: false },
+            }),
+        ).toBe(false);
+    });
+
+    it('disables reviews while a BYO openai key is set', () => {
+        expect(
+            areReviewsEnabledForSettings({
+                ...base,
+                providerApiKeysSet: { anthropic: false, openai: true },
+            }),
+        ).toBe(false);
     });
 });
