@@ -3,6 +3,7 @@ import {
     ParameterError,
     type AiWritebackRequestBody,
     type ApiAiWritebackResponse,
+    type ApiAiWritebackRunStatusResponse,
     type ApiCiChecksResponse,
     type ApiClosePullRequestResponse,
     type ApiErrorPayload,
@@ -102,6 +103,34 @@ export class AiWritebackController extends BaseController {
         return {
             status: 'ok',
             results: result,
+        };
+    }
+
+    /**
+     * Poll the status of a writeback run started via the editDbtProject chat
+     * tool or the run_ai_writeback MCP tool. Terminal statuses are 'ready'
+     * (check prUrl) and 'error' (check errorMessage); anything else is
+     * pending/in-progress. Scoped to the caller's own organization.
+     * @summary Get writeback run status
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/status/{aiWritebackRunUuid}')
+    @OperationId('getAiWritebackRunStatus')
+    async getAiWritebackRunStatus(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() aiWritebackRunUuid: string,
+    ): Promise<ApiAiWritebackRunStatusResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.getAiWritebackService().getRunStatus(
+            toSessionUser(req.account),
+            aiWritebackRunUuid,
+        );
+        return {
+            status: 'ok',
+            results,
         };
     }
 

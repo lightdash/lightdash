@@ -4,6 +4,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     getErrorMessage,
+    isAiWritebackRunInProgress,
     isGitProjectType,
     isUserWithOrg,
     MissingConfigError,
@@ -15,7 +16,9 @@ import {
     SupportedDbtVersions,
     WarehouseTypes,
     type AiWritebackDbtSourceOption,
+    type AiWritebackPipelineJobPayload,
     type AiWritebackRunResult,
+    type AiWritebackRunStatus,
     type AiWritebackStep,
     type ClosePullRequestResult,
     type DbtProjectConfig,
@@ -49,17 +52,20 @@ import type { GitlabAppInstallationsModel } from '../../../models/GitlabAppInsta
 import type { ProjectDbtSourcesModel } from '../../../models/ProjectDbtSourcesModel';
 import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type { PullRequestsModel } from '../../../models/PullRequestsModel';
+import type { UserModel } from '../../../models/UserModel';
 import type PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
 import { BaseService } from '../../../services/BaseService';
 import type { CiService } from '../../../services/CiService/CiService';
 import type { GithubAppService } from '../../../services/GithubAppService/GithubAppService';
 import type { ProjectService } from '../../../services/ProjectService/ProjectService';
+import type { AiWritebackRunModel } from '../../models/AiWritebackRunModel';
 import type {
     AiWritebackThreadModel,
     AiWritebackThreadWithPrUrl,
     ResumableWritebackThread,
 } from '../../models/AiWritebackThreadModel';
 import type { SandboxRegistryModel } from '../../models/SandboxRegistryModel';
+import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import {
     createSandboxManager,
     S3SnapshotStore,
@@ -199,11 +205,14 @@ type AiWritebackServiceDeps = {
     githubAppService: GithubAppService;
     gitlabAppInstallationsModel: GitlabAppInstallationsModel;
     aiWritebackThreadModel: AiWritebackThreadModel;
+    aiWritebackRunModel: AiWritebackRunModel;
     sandboxRegistryModel: SandboxRegistryModel;
     pullRequestsModel: PullRequestsModel;
     prometheusMetrics?: PrometheusMetrics;
     ciService: CiService;
     projectService: ProjectService;
+    userModel: UserModel;
+    schedulerClient: CommercialSchedulerClient;
 };
 
 /** One repository in the source-code read union, plus the token that reads it. */
@@ -384,19 +393,17 @@ export class AiWritebackService extends BaseService {
 
     private readonly aiWritebackThreadModel: AiWritebackThreadModel;
 
+    private readonly aiWritebackRunModel: AiWritebackRunModel;
+
     private readonly sandboxRegistryModel: SandboxRegistryModel;
 
     // In-flight WORKSTREAM lock keys, so a second concurrent turn on the same
     // workstream (one sandbox + one PR) is rejected rather than racing the first.
     // Distinct workstreams — different PRs, even on the same repo — run in
-    // parallel. SINGLE-INSTANCE, BEST-EFFORT ONLY: this is an in-process Set, so a
-    // horizontally-scaled backend relies on the chat UI serializing turns per
-    // thread. The partial unique index is keyed on (ai_thread_uuid,
-    // pull_request_uuid) — it does NOT prevent two concurrent fresh turns for the
-    // same (thread, repo) on different pods from each opening a distinct PR (each
-    // gets a different pull_request_uuid, so both inserts satisfy the index). The
-    // worst case is a benign duplicate PR (no data loss / security hole); a DB
-    // advisory lock or a (thread, target_repo) unique is the cross-pod fix (H1).
+    // parallel. This in-process Set is the FAST PATH, single-instance only — the
+    // cross-pod guarantee comes from `acquireWorkstreamLock`'s Postgres session
+    // advisory lock (H1, held for the whole run and checked right after this Set),
+    // so a racing turn is rejected whether it lands on this pod or another one.
     // Cleared in the run's finally.
     private readonly inFlightWorkstreams = new Set<string>();
 
@@ -420,6 +427,10 @@ export class AiWritebackService extends BaseService {
 
     private readonly projectService: ProjectService;
 
+    private readonly userModel: UserModel;
+
+    private readonly schedulerClient: CommercialSchedulerClient;
+
     /** Memoized sandbox provider (e2b | docker), selected by SANDBOX_PROVIDER. */
     private sandboxManager: SandboxManager | undefined;
 
@@ -433,11 +444,14 @@ export class AiWritebackService extends BaseService {
         githubAppService,
         gitlabAppInstallationsModel,
         aiWritebackThreadModel,
+        aiWritebackRunModel,
         sandboxRegistryModel,
         pullRequestsModel,
         prometheusMetrics,
         ciService,
         projectService,
+        userModel,
+        schedulerClient,
     }: AiWritebackServiceDeps) {
         super({ serviceName: 'AiWritebackService' });
         this.lightdashConfig = lightdashConfig;
@@ -446,12 +460,15 @@ export class AiWritebackService extends BaseService {
         this.projectDbtSourcesModel = projectDbtSourcesModel;
         this.featureFlagModel = featureFlagModel;
         this.aiWritebackThreadModel = aiWritebackThreadModel;
+        this.aiWritebackRunModel = aiWritebackRunModel;
         this.sandboxRegistryModel = sandboxRegistryModel;
         this.pullRequestsModel = pullRequestsModel;
         this.prometheusMetrics = prometheusMetrics;
         this.githubAppService = githubAppService;
         this.ciService = ciService;
         this.projectService = projectService;
+        this.userModel = userModel;
+        this.schedulerClient = schedulerClient;
         this.githubProvider = new GithubProvider({
             githubAppInstallationsModel,
             githubAppService,
@@ -1389,6 +1406,11 @@ export class AiWritebackService extends BaseService {
         return Math.round(performance.now() - start);
     }
 
+    private static truncateEnd(text: string, maxLength: number): string {
+        if (text.length <= maxLength) return text;
+        return `...[truncated ${text.length - maxLength} chars]...${text.slice(-maxLength)}`;
+    }
+
     private async createSandbox(
         organizationUuid: string,
         projectUuid: string,
@@ -1555,6 +1577,157 @@ export class AiWritebackService extends BaseService {
     }
 
     /**
+     * Create a 'pending' `ai_writeback_run` row without enqueueing the raw
+     * `aiWritebackPipeline` job — for a caller (AiAgentService's editDbtProject
+     * tool) that needs the tracking row but enqueues its OWN job type, one
+     * that wraps `run()` together with chat-specific side effects (Slack
+     * reaction, remediation tracking, PR preview). {@link enqueueWriteback} is
+     * the all-in-one version for callers happy with the raw run alone.
+     */
+    async createPendingRun(args: {
+        user: SessionUser;
+        projectUuid: string;
+        aiThreadUuid: string | undefined;
+        source: AiWritebackSource;
+    }): Promise<{ aiWritebackRunUuid: string }> {
+        if (!isUserWithOrg(args.user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const runRow = await this.aiWritebackRunModel.create({
+            organizationUuid: args.user.organizationUuid,
+            projectUuid: args.projectUuid,
+            aiThreadUuid: args.aiThreadUuid ?? null,
+            createdByUserUuid: args.user.userUuid,
+            source: args.source,
+        });
+        return { aiWritebackRunUuid: runRow.ai_writeback_run_uuid };
+    }
+
+    /**
+     * Enqueue a dbt-writeback turn as a Graphile Worker job instead of running
+     * it inline, and return immediately. Lets a caller poll `ai_writeback_run`
+     * for the outcome rather than only ever learning it through the
+     * request/connection that started the run — the same pattern as {@link
+     * AppGenerateService.generateApp}. Used by the MCP run_ai_writeback tool.
+     * The full `assertEnabled`/`assertCanManageSourceCode` gate still runs
+     * inside the worker via {@link run}'s existing `prepareTurn`, same as
+     * today — an unauthorized call still creates a 'pending' row, but it
+     * transitions to 'error' almost immediately rather than never being
+     * created.
+     */
+    async enqueueWriteback(
+        args: Omit<AiWritebackRunArgs, 'onProgress' | 'aiWritebackRunUuid'>,
+    ): Promise<{ aiWritebackRunUuid: string }> {
+        const { user, projectUuid, aiThreadUuid, source } = args;
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const runRow = await this.aiWritebackRunModel.create({
+            organizationUuid: user.organizationUuid,
+            projectUuid,
+            aiThreadUuid: aiThreadUuid ?? null,
+            createdByUserUuid: user.userUuid,
+            source,
+        });
+        await this.schedulerClient.aiWritebackPipeline({
+            aiWritebackRunUuid: runRow.ai_writeback_run_uuid,
+            organizationUuid: user.organizationUuid,
+            projectUuid,
+            userUuid: user.userUuid,
+            prompt: args.prompt,
+            aiThreadUuid: args.aiThreadUuid,
+            dbtSourceUuid: args.dbtSourceUuid,
+            prUrl: args.prUrl,
+            startNewPullRequest: args.startNewPullRequest,
+            source,
+        });
+        return { aiWritebackRunUuid: runRow.ai_writeback_run_uuid };
+    }
+
+    /**
+     * Worker entry point for the job enqueued by {@link enqueueWriteback}.
+     * Reconstructs a session user from the payload's ids (the pattern
+     * `AiAgentService.executeReviewRemediationRun` also uses) since a job
+     * payload can only carry serializable data, not a full `SessionUser`.
+     * Skips the run if the row was already terminal when the worker picked it
+     * up (e.g. a duplicate delivery) — defensive, since `maxAttempts: 1`
+     * shouldn't normally allow this.
+     */
+    async runPipeline(payload: AiWritebackPipelineJobPayload): Promise<void> {
+        const { aiWritebackRunUuid, organizationUuid, userUuid } = payload;
+        const runRow =
+            await this.aiWritebackRunModel.findByUuid(aiWritebackRunUuid);
+        if (!runRow || !isAiWritebackRunInProgress(runRow.status)) {
+            this.logger.info(
+                `AiWriteback: pipeline skipped — run ${aiWritebackRunUuid} is ${
+                    runRow?.status ?? 'missing'
+                }`,
+            );
+            return;
+        }
+        const user = await this.userModel.findSessionUserAndOrgByUuid(
+            userUuid,
+            organizationUuid,
+        );
+        // run()'s own catch already persists 'error' (persistRunFailed) before
+        // rethrowing — let the error propagate so Graphile Worker's own
+        // failure bookkeeping sees it too, same as any other task.
+        await this.run({
+            user,
+            projectUuid: payload.projectUuid,
+            prompt: payload.prompt,
+            aiThreadUuid: payload.aiThreadUuid,
+            dbtSourceUuid: payload.dbtSourceUuid,
+            prUrl: payload.prUrl,
+            startNewPullRequest: payload.startNewPullRequest,
+            source: payload.source,
+            aiWritebackRunUuid,
+        });
+    }
+
+    /** Called by the worker's `tryJobOrTimeout` timeout handler. */
+    async markRunError(
+        aiWritebackRunUuid: string,
+        message: string,
+    ): Promise<boolean> {
+        return this.aiWritebackRunModel.markError(aiWritebackRunUuid, message);
+    }
+
+    /**
+     * Poll a writeback run's status — the counterpart to {@link enqueueWriteback}
+     * for a caller that lost its original connection (or just wants to check in
+     * before the run resolves). Scoped to the run's own organization so a caller
+     * can't probe another org's writeback runs by guessing uuids.
+     */
+    async getRunStatus(
+        user: SessionUser,
+        aiWritebackRunUuid: string,
+    ): Promise<{
+        status: AiWritebackRunStatus;
+        prUrl: string | null;
+        errorMessage: string | null;
+    }> {
+        const runRow =
+            await this.aiWritebackRunModel.findByUuid(aiWritebackRunUuid);
+        if (!runRow) {
+            throw new NotFoundError(
+                `Writeback run ${aiWritebackRunUuid} not found`,
+            );
+        }
+        if (
+            !isUserWithOrg(user) ||
+            runRow.organization_uuid !== user.organizationUuid
+        ) {
+            throw new ForbiddenError();
+        }
+        return {
+            status: runRow.status,
+            prUrl: runRow.pr_url,
+            errorMessage: runRow.error_message,
+        };
+    }
+
+    /**
      * Shared coding-agent core: sandbox lifecycle, network lockdown, the agent
      * invocation + stream parsing, the signed-commit → PR pipeline, timeouts,
      * and analytics. The mode-specific half (template, clone options, prompt,
@@ -1576,8 +1749,51 @@ export class AiWritebackService extends BaseService {
             source,
             dbtSourceUuid,
             onProgress,
+            aiWritebackRunUuid,
         } = args;
         const runStartedAt = performance.now();
+        // Best-effort: a DB hiccup persisting job status must never take down
+        // the run itself, and callers of the direct (non-job) path never pass
+        // aiWritebackRunUuid, so these are no-ops there.
+        const persistStage = (stage: AiWritebackFailureStage): void => {
+            if (!aiWritebackRunUuid) return;
+            this.aiWritebackRunModel
+                .updateStageIfInProgress(aiWritebackRunUuid, stage)
+                .catch((error: unknown) => {
+                    this.logger.warn(
+                        `AiWriteback: failed to persist run stage — ignoring: ${getErrorMessage(error)}`,
+                    );
+                });
+        };
+        const persistRunReady = (finalPrUrl: string | null): void => {
+            if (!aiWritebackRunUuid) return;
+            this.aiWritebackRunModel
+                .markReady(aiWritebackRunUuid, {
+                    branchName: null,
+                    prUrl: finalPrUrl,
+                })
+                .catch((error: unknown) => {
+                    this.logger.warn(
+                        `AiWriteback: failed to persist run ready status — ignoring: ${getErrorMessage(error)}`,
+                    );
+                });
+        };
+        const persistRunFailed = (error: unknown): void => {
+            if (!aiWritebackRunUuid) return;
+            this.aiWritebackRunModel
+                .markError(
+                    aiWritebackRunUuid,
+                    AiWritebackService.truncateEnd(
+                        getErrorMessage(error),
+                        4000,
+                    ),
+                )
+                .catch((dbError: unknown) => {
+                    this.logger.warn(
+                        `AiWriteback: failed to persist run error status — ignoring: ${getErrorMessage(dbError)}`,
+                    );
+                });
+        };
 
         // Ordered, structured log of every step (stages + per-file actions),
         // persisted as the writeback step rows so the post-reload view matches
@@ -1631,6 +1847,14 @@ export class AiWritebackService extends BaseService {
                 aiThreadUuid: aiThreadUuid ?? null,
                 optionCount: prepared.options.length,
             });
+            // Terminal from the job queue's point of view — nothing is running
+            // and there's no PR to poll for. A future caller of the async path
+            // would need to re-enqueue with an explicit dbtSourceUuid.
+            persistRunFailed(
+                new Error(
+                    `This project has more than one dbt source; re-run naming one of: ${prepared.options.map((o) => o.name).join(', ')}`,
+                ),
+            );
             return AiWritebackService.buildDbtSourceSelectionResult(
                 prepared.projectName,
                 prepared.options,
@@ -1681,6 +1905,7 @@ export class AiWritebackService extends BaseService {
             );
             failureStage = stage;
             stageStartedAt = now;
+            persistStage(stage);
             // Stages can opt out of progress reporting by returning null
             // from progressTextForStage when their label would duplicate
             // the parent tool's heading or otherwise add no signal.
@@ -1834,6 +2059,7 @@ export class AiWritebackService extends BaseService {
                 });
                 const crashPrUrl =
                     turn.existingRow?.pr_url ?? adoptedPr?.prUrl ?? null;
+                persistRunReady(crashPrUrl);
                 return {
                     output: sanitizedStdout,
                     exitCode: agent.exitCode,
@@ -1898,6 +2124,7 @@ export class AiWritebackService extends BaseService {
                 performance.now() - runStartedAt,
                 'success',
             );
+            persistRunReady(applied.prUrl);
 
             return {
                 output: sanitizedStdout,
@@ -1940,6 +2167,7 @@ export class AiWritebackService extends BaseService {
                 },
             });
             tracker.failed(failureStage, error);
+            persistRunFailed(error);
             throw error;
         } finally {
             this.releaseTurnSlot(aiThreadUuid, lockKey);

@@ -6,6 +6,7 @@ import {
     type AiAgentReviewRemediationPreviewJobPayload,
     type AiAgentReviewRemediationRunJobPayload,
     type AiAgentReviewWritebackJobPayload,
+    type AiWritebackSource,
     type ChartReference,
     type DataAppClaudeModel,
     type DataAppTemplate,
@@ -69,6 +70,47 @@ export type AppBuildFromSourceJobPayload = TraceTaskBase & {
     version: number;
 };
 
+/**
+ * Runs one writeback turn out-of-band from the request that triggered it, so
+ * the caller can poll `ai_writeback_run` for the outcome instead of only ever
+ * learning it through a connection that may not outlive the run. Mirrors the
+ * dbt-writeback path's own args ({@link AiWritebackRunArgs} on the backend) —
+ * the general coding agent (`editRepo`) is out of scope for now.
+ */
+export type AiWritebackPipelineJobPayload = TraceTaskBase & {
+    aiWritebackRunUuid: string;
+    prompt: string;
+    aiThreadUuid?: string;
+    dbtSourceUuid?: string;
+    prUrl?: string | null;
+    startNewPullRequest?: boolean;
+    source: AiWritebackSource;
+};
+
+/**
+ * Runs the `editDbtProject` chat-agent tool's full turn (the dbt-writeback run
+ * itself, plus every side effect that used to happen inline once it resolved:
+ * build-fix remediation event tracking, the Slack ✅ reaction, the
+ * preview-deploy CI check, and server-side PR preview creation) out-of-band
+ * from the SSE/Slack request that triggered the tool call. `promptUuid` +
+ * `isSlackPrompt` let the worker reload the full prompt row (the closure
+ * needs its Slack channel/ts, threadUuid, etc.) instead of serializing it.
+ * `toolCallId` is where the worker rewrites the stored tool-call metadata
+ * once the run reaches a terminal state, so a thread reload reflects it even
+ * if the tab that started the run is long gone.
+ */
+export type AiAgentEditDbtProjectPipelineJobPayload = TraceTaskBase & {
+    aiWritebackRunUuid: string;
+    promptUuid: string;
+    isSlackPrompt: boolean;
+    toolCallId: string;
+    writebackPrompt: string;
+    source: AiWritebackSource;
+    prUrl: string | null;
+    startNewPullRequest: boolean | null;
+    suppressWritebackPreview?: boolean;
+};
+
 export const EE_SCHEDULER_TASKS = {
     SLACK_AI_PROMPT: 'slackAiPrompt',
     AI_AGENT_EVAL_RESULT: 'aiAgentEvalResult',
@@ -82,6 +124,8 @@ export const EE_SCHEDULER_TASKS = {
     GENERATE_ARTIFACT_QUESTION: 'generateArtifactQuestion',
     APP_GENERATE_PIPELINE: 'appGeneratePipeline',
     APP_BUILD_FROM_SOURCE: 'appBuildFromSource',
+    AI_WRITEBACK_PIPELINE: 'aiWritebackPipeline',
+    AI_AGENT_EDIT_DBT_PROJECT_PIPELINE: 'aiAgentEditDbtProjectPipeline',
     SWEEP_STALE_APP_LOCKS: 'sweepStaleAppLocks',
     CLEAN_MCP_TOOL_CALLS: 'cleanMcpToolCalls',
 } as const;
@@ -181,6 +225,8 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.APP_BUILD_FROM_SOURCE]: AppBuildFromSourceJobPayload;
     [SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: TraceTaskBase;
+    [SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE]: AiWritebackPipelineJobPayload;
+    [SCHEDULER_TASKS.AI_AGENT_EDIT_DBT_PROJECT_PIPELINE]: AiAgentEditDbtProjectPipelineJobPayload;
 }
 
 export interface EETaskPayloadMap {
@@ -198,6 +244,8 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.APP_BUILD_FROM_SOURCE]: AppBuildFromSourceJobPayload;
     [EE_SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: TraceTaskBase;
+    [EE_SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE]: AiWritebackPipelineJobPayload;
+    [EE_SCHEDULER_TASKS.AI_AGENT_EDIT_DBT_PROJECT_PIPELINE]: AiAgentEditDbtProjectPipelineJobPayload;
 }
 
 export type SchedulerTaskName =

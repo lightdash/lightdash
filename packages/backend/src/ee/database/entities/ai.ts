@@ -4,6 +4,8 @@ import {
     type AiOrgModelVisibility,
     type AiProviderApiKeyHints,
     type AiThreadCreatedFrom,
+    type AiWritebackRunStatus,
+    type AiWritebackSource,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
@@ -144,6 +146,50 @@ export type AiWritebackThreadTable = Knex.CompositeTableType<
     > &
         Partial<Pick<DbAiWritebackThread, 'project_dbt_source_uuid'>>,
     Partial<Pick<DbAiWritebackThread, 'sandbox_uuid' | 'pull_request_uuid'>>
+>;
+
+export const AiWritebackRunTableName = 'ai_writeback_run';
+
+/**
+ * Tracks one writeback job end-to-end so a caller whose connection died can
+ * poll for the outcome instead of the run only ever reporting through the
+ * request that started it. Created 'pending' at enqueue time, before the
+ * sandbox agent starts — unlike `ai_writeback_thread`, which only gets a row
+ * once a PR has actually opened.
+ */
+export type DbAiWritebackRun = {
+    ai_writeback_run_uuid: string;
+    organization_uuid: string;
+    project_uuid: string;
+    /** Null for a one-shot run (no conversation to attach to). */
+    ai_thread_uuid: string | null;
+    created_by_user_uuid: string;
+    source: AiWritebackSource;
+    status: AiWritebackRunStatus;
+    branch_name: string | null;
+    pr_url: string | null;
+    error_message: string | null;
+    created_at: Date;
+    updated_at: Date;
+};
+
+export type AiWritebackRunTable = Knex.CompositeTableType<
+    DbAiWritebackRun,
+    Pick<
+        DbAiWritebackRun,
+        | 'organization_uuid'
+        | 'project_uuid'
+        | 'ai_thread_uuid'
+        | 'created_by_user_uuid'
+        | 'source'
+    > &
+        Partial<Pick<DbAiWritebackRun, 'status'>>,
+    Partial<
+        Pick<
+            DbAiWritebackRun,
+            'status' | 'branch_name' | 'pr_url' | 'error_message' | 'updated_at'
+        >
+    >
 >;
 
 export const AiPromptTableName = 'ai_prompt';
@@ -342,7 +388,7 @@ export type AiAgentToolResultTable = Knex.CompositeTableType<
         'ai_prompt_uuid' | 'tool_call_id' | 'tool_name' | 'result'
     > &
         Partial<Pick<DbAiAgentToolResult, 'metadata'>>,
-    Partial<Pick<DbAiAgentToolResult, 'metadata'>>
+    Partial<Pick<DbAiAgentToolResult, 'metadata' | 'result'>>
 >;
 
 export const AiPromptContextTableName = 'ai_prompt_context';

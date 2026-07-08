@@ -4,7 +4,7 @@ export const TOOL_EDIT_DBT_PROJECT_DESCRIPTION = [
     'Open or update a pull request that modifies the dbt project / Lightdash semantic layer for this project.',
     'Use this tool ONLY when the user asks to CHANGE something in the underlying repo — e.g. add or rename a metric, edit a dimension definition, modify a dbt model, update YAML metadata.',
     'Do NOT use this tool for read-only questions, querying data, exploring fields, or for changes that can be made inside Lightdash (use editContent for those).',
-    'This tool applies the change on your behalf: it runs in an isolated sandbox, edits the repo, runs `lightdash compile`, and opens a pull request. The call is synchronous and can take several minutes. Treat the result as your own work when you report it to the user.',
+    'This tool applies the change on your behalf: it runs in an isolated sandbox, edits the repo, runs `lightdash compile`, and opens a pull request — but the call returns immediately once the run has started, before any of that finishes (status: "pending"). Give a brief acknowledgement that you have started the change, then end your turn. Do not wait for it or call this tool again to check on it.',
     'A single conversation can open several pull requests: follow-up edits continue the most recent one, prUrl targets a specific existing one, and startNewPullRequest opens a fresh one for an unrelated change.',
 ].join(' ');
 
@@ -37,6 +37,13 @@ export const toolEditDbtProjectArgsSchema = z.object({
 export const toolEditDbtProjectOutputSchema = z.object({
     result: z.string(),
     metadata: z.discriminatedUnion('status', [
+        z.object({
+            status: z.literal('pending'),
+            // Poll get_ai_writeback_status-equivalent state via the frontend
+            // writeback poller; the row is rewritten to 'success'/'error' below
+            // once the background run finishes, via updateToolResult.
+            aiWritebackRunUuid: z.string(),
+        }),
         z.object({
             status: z.literal('success'),
             prUrl: z.string().nullable(),

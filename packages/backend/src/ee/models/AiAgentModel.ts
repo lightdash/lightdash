@@ -6289,6 +6289,29 @@ export class AiAgentModel {
             });
     }
 
+    /**
+     * Rewrite both the display text and metadata of a previously stored tool
+     * result — used to resolve a 'pending' async-job placeholder (see
+     * AiAgentService.runEditDbtProjectPipeline) into its terminal outcome once
+     * the background run finishes, so a thread reload reflects it even after
+     * the request/connection that started the tool call is long gone.
+     */
+    async updateToolResult(
+        promptUuid: string,
+        toolCallId: string,
+        data: { result: string; metadata: AgentToolOutput['metadata'] },
+    ): Promise<void> {
+        await this.database(AiAgentToolResultTableName)
+            .where({
+                ai_prompt_uuid: promptUuid,
+                tool_call_id: toolCallId,
+            })
+            .update({
+                result: data.result,
+                metadata: data.metadata,
+            });
+    }
+
     async createArtifact(
         data: {
             threadUuid: string;

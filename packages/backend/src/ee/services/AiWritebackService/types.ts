@@ -1,5 +1,6 @@
 import { type FeatureFlags } from '@lightdash/common';
 import type {
+    AiWritebackSource,
     PullRequestProvider,
     SessionUser,
     SupportedDbtVersions,
@@ -247,13 +248,9 @@ export type AppliedChanges = {
     deletions: number | null;
 };
 
-export type AiWritebackSource =
-    | 'slack'
-    | 'web'
-    | 'mcp'
-    | 'api'
-    | 'admin_review'
-    | 'changeset';
+// Canonical definition lives in common (@lightdash/common) — the database
+// entity layer needs it too and only imports enum-like types from there.
+export type { AiWritebackSource };
 
 export type AgentToolCall = {
     name: string;
@@ -367,4 +364,13 @@ export type AiWritebackRunArgs = {
      * progress live (the Slack agent updates its "Thinking…" message).
      */
     onProgress?: (message: string) => void;
+    /**
+     * When set, the run's stage transitions and terminal outcome are persisted
+     * to the `ai_writeback_run` row with this uuid — set by {@link
+     * AiWritebackService.runPipeline} (the async job path) so a caller whose
+     * connection died can poll for the outcome. Undefined on the direct
+     * synchronous call path (web stream, MCP), which still reports through the
+     * request/response as today.
+     */
+    aiWritebackRunUuid?: string;
 };

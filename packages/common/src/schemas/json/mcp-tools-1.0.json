@@ -2324,13 +2324,13 @@
                 "idempotentHint": false,
                 "readOnlyHint": false
             },
-            "description": "Tool: run_ai_writeback\n\nPurpose:\nMake a change to the dbt project that backs the active Lightdash project by describing it in natural language, then open a pull request with the result. The target GitHub repository and dbt sub-folder are resolved server-side from the active project's dbt connection — you never specify them.\n\nHow it works:\n- A sandbox is created, the project's GitHub repository is cloned, and the prompt is executed by the Claude Code CLI against the dbt project.\n- If the agent changes any files, a branch is committed, pushed, and a pull request is opened. The PR URL is returned.\n- If the agent makes no file changes, no PR is opened and prUrl is null.\n\nRequirements:\n- An active project must be set first via set_project (or the X-Lightdash-Project header).\n- The project's dbt connection must be GitHub-backed, and the organization must have the GitHub App installed.\n- The AI writeback feature must be enabled for the organization.\n\nImportant:\n- This tool is NOT read-only and NOT idempotent — each call can open a new pull request. Use it only when the user explicitly wants to change their dbt project.\n- The run is synchronous and can take a few minutes (cloning, running the agent, opening the PR).\n- Some projects have more than one dbt source. If the prompt doesn't make clear which one to change, the tool makes no change and returns the list of sources (by name and repository); re-run and name the intended source in the prompt itself (e.g. \"In jaffle-2, add ...\"). You never pass an id.\n\nParameters:\n- prompt: A clear, self-contained description of the change to make to the dbt project (e.g. \"Add a 'total_revenue' metric to the orders model as the sum of amount\"). When the project has more than one dbt source, name the intended source here (e.g. \"In the marketing dbt project, ...\").\n\nResponse shape (MCP CallToolResult):\n- content: [{ type: \"text\", text: \"<human-readable summary including the PR URL>\" }]\n- structuredContent: {\n    output:   string,           // the agent's text output\n    exitCode: number,           // the sandbox command's exit status\n    prUrl:    string | null     // URL of the opened pull request, or null when no changes were made\n  }\n",
+            "description": "Tool: run_ai_writeback\n\nPurpose:\nMake a change to the dbt project that backs the active Lightdash project by describing it in natural language, then open a pull request with the result. The target GitHub repository and dbt sub-folder are resolved server-side from the active project's dbt connection — you never specify them.\n\nHow it works:\n- This tool starts the run and returns immediately with an aiWritebackRunUuid — it does NOT wait for the run to finish.\n- In the background: a sandbox is created, the project's GitHub repository is cloned, and the prompt is executed by the Claude Code CLI against the dbt project. If the agent changes any files, a branch is committed, pushed, and a pull request is opened.\n- Call get_ai_writeback_status with the returned aiWritebackRunUuid to check progress and get the pull request URL once the run finishes. The run typically takes a few minutes (cloning, running the agent, opening the PR) — poll every 10-15 seconds rather than immediately looping.\n\nRequirements:\n- An active project must be set first via set_project (or the X-Lightdash-Project header).\n- The project's dbt connection must be GitHub-backed, and the organization must have the GitHub App installed.\n- The AI writeback feature must be enabled for the organization.\n\nImportant:\n- This tool is NOT read-only and NOT idempotent — each call can start a run that opens a new pull request. Use it only when the user explicitly wants to change their dbt project.\n- Some projects have more than one dbt source. If the prompt doesn't make clear which one to change, the run finishes with status \"error\" and an error message listing the sources by name and repository — call run_ai_writeback again naming the intended source in the prompt itself (e.g. \"In jaffle-2, add ...\"). You never pass an id.\n\nParameters:\n- prompt: A clear, self-contained description of the change to make to the dbt project (e.g. \"Add a 'total_revenue' metric to the orders model as the sum of amount\"). When the project has more than one dbt source, name the intended source here (e.g. \"In the marketing dbt project, ...\").\n\nResponse shape (MCP CallToolResult):\n- content: [{ type: \"text\", text: \"<human-readable message telling you the run started and to poll get_ai_writeback_status>\" }]\n- structuredContent: {\n    aiWritebackRunUuid: string   // pass this to get_ai_writeback_status\n  }\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
                 "properties": {
                     "prompt": {
-                        "description": "A clear, self-contained description of the change to make to the dbt project that backs the active Lightdash project. If the project has more than one dbt source, name the intended one here (e.g. \"In jaffle-2, add ...\") — the tool resolves it from the prompt and asks (listing sources by name) if it can't tell.",
+                        "description": "A clear, self-contained description of the change to make to the dbt project that backs the active Lightdash project. If the project has more than one dbt source, name the intended one here (e.g. \"In jaffle-2, add ...\") — a later get_ai_writeback_status call reports whether the run could tell which source you meant.",
                         "minLength": 1,
                         "type": "string"
                     }
@@ -2343,20 +2343,12 @@
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
                 "properties": {
-                    "exitCode": {
-                        "description": "The sandbox command's exit status.",
-                        "type": "integer"
-                    },
-                    "output": {
-                        "description": "The text output produced by the agent.",
+                    "aiWritebackRunUuid": {
+                        "description": "Id of the writeback run that just started. Pass this to get_ai_writeback_status to check progress and get the pull request URL.",
                         "type": "string"
-                    },
-                    "prUrl": {
-                        "description": "URL of the pull request opened from the agent changes, or null when the agent made no file changes.",
-                        "type": ["string", "null"]
                     }
                 },
-                "required": ["output", "exitCode", "prUrl"],
+                "required": ["aiWritebackRunUuid"],
                 "type": "object"
             },
             "title": "Run AI writeback"

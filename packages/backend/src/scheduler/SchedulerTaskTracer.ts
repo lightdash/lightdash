@@ -256,6 +256,16 @@ const getTagsForTask: {
     }),
     [SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: () => ({}),
     [SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: () => ({}),
+    [SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+        'project.uuid': payload.projectUuid,
+    }),
+    [SCHEDULER_TASKS.AI_AGENT_EDIT_DBT_PROJECT_PIPELINE]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+        'project.uuid': payload.projectUuid,
+    }),
     [SCHEDULER_TASKS.CLEAN_EXPIRED_PREVIEWS]: () => ({}),
     [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS]: () => ({}),
     [SCHEDULER_TASKS.INGEST_PROJECT_CONTEXT]: (payload) => ({

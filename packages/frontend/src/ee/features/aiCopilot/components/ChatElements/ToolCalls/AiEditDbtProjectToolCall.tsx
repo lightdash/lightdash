@@ -443,6 +443,31 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
         return null;
     }
 
+    if (metadata.status === 'pending') {
+        // SPK-548: the run was enqueued and is still working in the
+        // background — usePendingThreadRefetch keeps polling the thread
+        // until the backend rewrites this tool call's stored metadata to its
+        // terminal state, at which point this card re-renders as success or
+        // error on its own; no action needed here beyond showing progress.
+        return (
+            <Paper withBorder p="sm" radius="md">
+                <Group gap="xs" align="center" wrap="nowrap">
+                    <ThemeIcon
+                        variant="light"
+                        color="ldGray"
+                        radius="md"
+                        size="md"
+                    >
+                        <MantineIcon icon={IconGitPullRequest} size={16} />
+                    </ThemeIcon>
+                    <Text size="sm" c="ldGray.7">
+                        Working on the change — this can take a few minutes.
+                    </Text>
+                </Group>
+            </Paper>
+        );
+    }
+
     if (!metadata.prUrl) {
         // Success but no PR opened (writeback agent decided no file changes
         // were needed). Reassure rather than surface as a failure.

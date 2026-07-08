@@ -23,6 +23,7 @@ import { AiAgentAdminService } from '../services/AiAgentAdminService';
 import { AiAgentReviewClassifierService } from '../services/AiAgentReviewClassifierService';
 import { type AiAgentReviewNotificationService } from '../services/AiAgentReviewNotificationService';
 import { AiAgentService } from '../services/AiAgentService/AiAgentService';
+import type { AiWritebackService } from '../services/AiWritebackService/AiWritebackService';
 import { AppGenerateService } from '../services/AppGenerateService/AppGenerateService';
 import type { EmbedService } from '../services/EmbedService/EmbedService';
 import { ManagedAgentService } from '../services/ManagedAgentService/ManagedAgentService';
@@ -35,9 +36,11 @@ const AI_AGENT_REVIEW_REMEDIATION_RUN_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 const AI_AGENT_REVIEW_CLASSIFIER_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
 const AI_AGENT_REVIEW_WRITEBACK_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const APP_GENERATE_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
+const AI_WRITEBACK_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 
 type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     aiAgentService: AiAgentService;
+    aiWritebackService: AiWritebackService;
     aiAgentReviewClassifierService: AiAgentReviewClassifierService;
     aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
     aiAgentReviewNotificationModel: AiAgentReviewNotificationModel;
@@ -54,6 +57,8 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
 
 export class CommercialSchedulerWorker extends SchedulerWorker {
     protected readonly aiAgentService: AiAgentService;
+
+    protected readonly aiWritebackService: AiWritebackService;
 
     protected readonly aiAgentReviewClassifierService: AiAgentReviewClassifierService;
 
@@ -82,6 +87,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
     constructor(args: CommercialSchedulerWorkerArguments) {
         super(args);
         this.aiAgentService = args.aiAgentService;
+        this.aiWritebackService = args.aiWritebackService;
         this.aiAgentReviewClassifierService =
             args.aiAgentReviewClassifierService;
         this.aiAgentReviewClassifierModel = args.aiAgentReviewClassifierModel;
@@ -462,6 +468,61 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                             payload.version,
                             e,
                             'Build timed out. Please try again.',
+                        );
+                    },
+                );
+            },
+            [EE_SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        EE_SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.aiWritebackService.runPipeline(payload);
+                        },
+                    ),
+                    helpers.job,
+                    AI_WRITEBACK_TIMEOUT_MS,
+                    async (_job, e) => {
+                        await this.aiWritebackService.markRunError(
+                            payload.aiWritebackRunUuid,
+                            getErrorMessage(e),
+                        );
+                    },
+                );
+            },
+            [EE_SCHEDULER_TASKS.AI_AGENT_EDIT_DBT_PROJECT_PIPELINE]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        EE_SCHEDULER_TASKS.AI_AGENT_EDIT_DBT_PROJECT_PIPELINE,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.aiAgentService.runEditDbtProjectPipeline(
+                                payload,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    AI_WRITEBACK_TIMEOUT_MS,
+                    async (_job, e) => {
+                        await this.aiWritebackService.markRunError(
+                            payload.aiWritebackRunUuid,
+                            getErrorMessage(e),
+                        );
+                        await this.aiAgentService.markEditDbtProjectToolResultError(
+                            payload.promptUuid,
+                            payload.toolCallId,
+                            `Error running AI writeback: ${getErrorMessage(e)}`,
                         );
                     },
                 );

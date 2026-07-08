@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import {
+    MCP_TOOL_GET_AI_WRITEBACK_STATUS_DESCRIPTION,
     MCP_TOOL_RUN_AI_WRITEBACK_DESCRIPTION,
+    mcpGetAiWritebackStatusArgsSchema,
+    mcpGetAiWritebackStatusStructuredOutputSchema,
     mcpRunAiWritebackArgsSchema,
     mcpRunAiWritebackStructuredOutputSchema,
 } from '../../../aiWriteback/types';
@@ -1373,6 +1376,24 @@ export const runAiWritebackToolDefinition: ToolDefinitionWithMcpOutput<
     mcp: {
         annotations: writeAnnotations,
         structuredContentSchema: mcpRunAiWritebackStructuredOutputSchema,
+    },
+});
+
+export const getAiWritebackStatusToolDefinition: ToolDefinitionWithMcpOutput<
+    'getAiWritebackStatus',
+    typeof mcpGetAiWritebackStatusArgsSchema,
+    typeof mcpGetAiWritebackStatusArgsSchema,
+    undefined,
+    typeof mcpGetAiWritebackStatusStructuredOutputSchema
+> = defineTool({
+    name: 'getAiWritebackStatus',
+    title: 'Get AI writeback status',
+    description: MCP_TOOL_GET_AI_WRITEBACK_STATUS_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: mcpGetAiWritebackStatusArgsSchema,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpGetAiWritebackStatusStructuredOutputSchema,
     },
 });
 

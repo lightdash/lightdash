@@ -1,6 +1,7 @@
 /// <reference path="../@types/rudder-sdk-node.d.ts" />
 import {
     Account,
+    AI_WRITEBACK_STAGES,
     AnyType,
     CacheMetadata,
     CartesianSeriesType,
@@ -32,6 +33,7 @@ import {
     type AiAgentRootCause,
     type AiRouterDecisionConfidence,
     type AiRouterRouteNextAction,
+    type AiWritebackFailureStage,
     type DataAppClaudeModel,
     type PullRequestProvider,
 } from '@lightdash/common';
@@ -1487,17 +1489,10 @@ export type AiWritebackCompletedEvent = BaseTrack & {
 };
 
 // Pipeline stage that was running when an AI writeback run failed.
-export const AI_WRITEBACK_STAGES = [
-    'install',
-    'sandbox',
-    'clone',
-    'agent',
-    'commit',
-    'push',
-    'pull_request',
-] as const;
-
-export type AiWritebackFailureStage = (typeof AI_WRITEBACK_STAGES)[number];
+// Canonical definition lives in common (@lightdash/common) so the job-status
+// persistence layer and analytics tagging share one source of truth.
+export { AI_WRITEBACK_STAGES };
+export type { AiWritebackFailureStage };
 
 export type AiWritebackFailedEvent = BaseTrack & {
     event: 'ai_writeback.failed';

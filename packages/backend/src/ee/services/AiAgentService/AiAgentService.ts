@@ -33,6 +33,7 @@ import {
     AiVizMetadata,
     AiWebAppPrompt,
     AiWritebackAttribution,
+    AiWritebackRunResult,
     AlreadyExistsError,
     AnonymousAccount,
     AnyType,
@@ -70,6 +71,8 @@ import {
     getWebAiChartConfig,
     GITHUB_MCP_SERVER_NAME,
     GITHUB_MCP_SERVER_URL,
+    InsufficientGitPermissionsError,
+    isAiWritebackRunInProgress,
     isGitProjectType,
     isSlackMessageTooLongError,
     isSlackPrompt,
@@ -99,6 +102,7 @@ import {
     UserAttributeValueMap,
     validateAgentSuggestion,
     type AgentSuggestionTool,
+    type AiAgentEditDbtProjectPipelineJobPayload,
     type AiAgentModelConfig,
     type AiClonedThreadCreatedFrom,
     type AiPromptContextInput,
@@ -291,6 +295,10 @@ import {
 } from '../ai/types/aiAgentDependencies';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
 import { AiCallAttribution } from '../ai/utils/aiCallTelemetry';
+import {
+    classifyWritebackError,
+    GIT_WRITE_PERMISSION_AGENT_MESSAGE,
+} from '../ai/utils/classifyWritebackError';
 import { getUserFacingErrorMessage } from '../ai/utils/errorMessages';
 import {
     buildFeedbackContextActions,
@@ -315,11 +323,13 @@ import {
     expandMetricsWithPopAdditionalMetrics,
     populateCustomMetricsSQL,
 } from '../ai/utils/populateCustomMetricsSQL';
+import { toolErrorHandler } from '../ai/utils/toolErrorHandler';
 import { validateSelectedFieldsExistence } from '../ai/utils/validators';
 import { AiAgentToolsService } from '../AiAgentToolsService/AiAgentToolsService';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { AiWritebackService } from '../AiWritebackService/AiWritebackService';
 import { buildChangesetWritebackPrompt } from '../AiWritebackService/changesetPrompt';
+import { WritebackThreadPrClosedError } from '../AiWritebackService/errors';
 import type { AiWritebackSource } from '../AiWritebackService/types';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
 import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
@@ -354,12 +364,22 @@ const ALLOWED_AGENT_AVATAR_MIME_TYPES = new Set([
 ]);
 
 // Web (SSE) agent streams are kept warm with a transient keepalive chunk on
-// this interval. A long, output-silent tool call — notably AI writeback, whose
-// sandbox/agent stage can run for minutes with no streamed tokens — otherwise
-// lets the connection idle long enough for an intermediary (the GCP HTTPS load
-// balancer) to drop it, which the client surfaces as a spurious "something went
-// wrong" even though the backend job completes and opens the PR. 15s sits
-// comfortably under the usual 30-60s idle timeouts.
+// this interval. A long, output-silent tool call otherwise lets the
+// connection idle long enough for an intermediary (the GCP HTTPS load
+// balancer) to drop it, which the client surfaces as a spurious "something
+// went wrong" even though the backend job completes. 15s sits comfortably
+// under the usual 30-60s idle timeouts.
+//
+// SPK-548: AI writeback (editDbtProject) used to be the motivating case —
+// its sandbox/agent stage could run for minutes with no streamed tokens or
+// tool result, so the keepalive was the only thing standing between that and
+// an LB-timeout error despite the backend finishing successfully. It no
+// longer is: editDbtProject now enqueues the run and returns almost
+// immediately (see runEditDbtProjectPipeline), so the tool call itself is no
+// longer output-silent for minutes at a stretch. Kept deliberately — other
+// tool calls (and future ones) can still run long enough silently that an
+// idle connection gets dropped, and this is cheap insurance against that
+// regardless of which tool is responsible.
 const STREAM_KEEPALIVE_INTERVAL_MS = 15_000;
 
 const MAX_MCP_BEARER_TOKEN_LENGTH = 8192;
@@ -6677,6 +6697,230 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         ];
     }
 
+    /**
+     * Worker entry point for the job enqueued by the `editDbtProject` tool
+     * (see `getAiAgentDependencies`). Runs the actual writeback turn — plus
+     * every side effect that used to happen inline once it resolved:
+     * build-fix remediation event tracking, the Slack ✅ reaction, the
+     * preview-deploy CI check, and server-side PR preview creation — then
+     * rewrites the tool call's stored result via `updateToolResult` so a
+     * thread reload reflects the outcome even after the request/connection
+     * that started the tool call is long gone (SPK-548).
+     *
+     * Reconstructs `user` and `prompt` from ids the same way
+     * `AiAgentService.executeReviewRemediationRun` does — a job payload can
+     * only carry serializable data, not a live `SessionUser`/prompt row.
+     */
+    async runEditDbtProjectPipeline(
+        payload: AiAgentEditDbtProjectPipelineJobPayload,
+    ): Promise<void> {
+        const {
+            aiWritebackRunUuid,
+            organizationUuid,
+            projectUuid,
+            userUuid,
+            promptUuid,
+            toolCallId,
+            writebackPrompt,
+            source,
+            prUrl,
+            startNewPullRequest,
+            suppressWritebackPreview,
+        } = payload;
+
+        const user = await this.userModel.findSessionUserAndOrgByUuid(
+            userUuid,
+            organizationUuid,
+        );
+        const prompt = payload.isSlackPrompt
+            ? await this.aiAgentModel.findSlackPrompt(promptUuid)
+            : await this.aiAgentModel.findWebAppPrompt(promptUuid);
+        if (!prompt) {
+            Logger.warn(
+                `AiAgent.runEditDbtProjectPipeline: prompt ${promptUuid} not found — skipping`,
+            );
+            return;
+        }
+
+        let result: AiWritebackRunResult;
+        try {
+            result = await wrapSentryTransaction(
+                'AiAgent.editDbtProject',
+                {},
+                () =>
+                    this.aiWritebackService.run({
+                        user,
+                        projectUuid,
+                        prompt: writebackPrompt,
+                        prUrl,
+                        startNewPullRequest: startNewPullRequest ?? false,
+                        aiThreadUuid: prompt.threadUuid,
+                        source,
+                        aiWritebackRunUuid,
+                    }),
+            );
+        } catch (error) {
+            // Mirrors what the synchronous editDbtProject tool used to do in
+            // its own catch block, before the run moved off the request
+            // thread — same terminal, non-retryable cases relayed verbatim.
+            let toolResult: string;
+            let errorCode: ReturnType<typeof classifyWritebackError>;
+            if (error instanceof WritebackThreadPrClosedError) {
+                toolResult = error.message;
+                errorCode = 'pull_request_not_open';
+            } else if (error instanceof InsufficientGitPermissionsError) {
+                toolResult = GIT_WRITE_PERMISSION_AGENT_MESSAGE;
+                errorCode = 'git_write_permission';
+            } else {
+                toolResult = toolErrorHandler(
+                    error,
+                    'Error running AI writeback. No pull request was opened.',
+                );
+                errorCode = classifyWritebackError(error);
+            }
+            await this.aiAgentModel.updateToolResult(promptUuid, toolCallId, {
+                result: toolResult,
+                metadata: { status: 'error', errorCode },
+            });
+            // aiWritebackService.run() already persisted 'error' on
+            // ai_writeback_run via its own catch (aiWritebackRunUuid was
+            // passed above) — nothing further to do here.
+            return;
+        }
+
+        // Build-fix seam: if this thread is a review remediation's work
+        // thread, every commit it lands (the initial run and each Continue
+        // PR turn) must be reflected on the remediation so the Test-fix
+        // verdict is marked stale (verdict staleness is derived from event
+        // ordering). null for ordinary writeback threads — a no-op.
+        const reviewRemediation =
+            await this.aiAgentReviewClassifierModel.findReviewRemediationByWorkThread(
+                {
+                    organizationUuid,
+                    workThreadUuid: prompt.threadUuid,
+                },
+            );
+        if (reviewRemediation && result.prUrl) {
+            await this.aiAgentReviewClassifierModel.createRemediationEvent({
+                remediationUuid: reviewRemediation.uuid,
+                organizationUuid: reviewRemediation.organizationUuid,
+                event: {
+                    eventType: 'pr_updated',
+                    payload: { prUrl: result.prUrl },
+                },
+            });
+        }
+
+        // On a successful PR open/update, add a green-tick reaction to the
+        // user's original Slack mention so they see the outcome at a glance
+        // without scrolling through the agent's reply. Best-effort — installs
+        // missing `reactions:write` (or any other transient failure) silently
+        // skip the reaction.
+        if (result.prUrl && isSlackPrompt(prompt)) {
+            void this.slackClient
+                .addReaction({
+                    organizationUuid,
+                    channel: prompt.slackChannelId,
+                    timestamp: prompt.promptSlackTs,
+                    name: 'white_check_mark',
+                })
+                .catch((err) => {
+                    Logger.debug(
+                        'Failed to add :white_check_mark: reaction to writeback mention:',
+                        err,
+                    );
+                });
+        }
+
+        // Resolve the repo's preview-deploy CI status once (best-effort,
+        // gated by the ai-preview-deploy-setup flag). It drives the
+        // deterministic "offer to set it up" instruction the editDbtProject
+        // tool relays when no server-side preview could be built. Owned by
+        // the sibling PreviewDeploySetupService — writeback no longer detects
+        // this itself. Never fails the writeback result.
+        let previewDeployConfigured: boolean | null = null;
+        try {
+            const { enabled: previewDeploySetupEnabled } =
+                await this.featureFlagService.get({
+                    user,
+                    featureFlagId: FeatureFlags.AiPreviewDeploySetup,
+                });
+            if (previewDeploySetupEnabled) {
+                const ciStatus =
+                    await this.previewDeploySetupService.getOrScanProjectCiStatus(
+                        user,
+                        projectUuid,
+                    );
+                previewDeployConfigured = ciStatus
+                    ? ciStatus.hasPreviewDeployWorkflow
+                    : null;
+            }
+        } catch (err) {
+            Logger.debug(
+                'Failed to resolve preview-deploy CI status after writeback:',
+                err,
+            );
+        }
+
+        // Server-side preview: for GitHub-connected projects, build the
+        // preview ourselves from the PR's head branch and post its URL on the
+        // PR — no CI in the customer repo required. The URL is surfaced on
+        // the tool result so the agent's reply (web chat and Slack alike)
+        // links the preview directly; this replaced the old
+        // pollWritebackPreview job that scanned PR comments for a CI-posted
+        // URL. Returns null for unsupported projects (e.g. CLI-deployed) or
+        // on any failure — those surface no preview.
+        let previewUrl: string | null = null;
+        if (result.prUrl && !suppressWritebackPreview && !reviewRemediation) {
+            const preview =
+                await this.writebackPreviewService.createPreviewForPullRequest({
+                    user,
+                    projectUuid,
+                    prUrl: result.prUrl,
+                });
+            previewUrl = preview?.previewUrl ?? null;
+        }
+
+        const target = `Lightdash project "${result.projectName}" (repository ${result.repository})`;
+        const prVerb = result.prAction === 'updated' ? 'Updated' : 'Opened';
+        const base = result.prUrl
+            ? `${prVerb} a pull request against ${target}. A "View pull request" button is shown to the user, so do NOT include the pull request URL or number in your reply — just summarise the change and which project/repository it targeted.\n\nAgent summary:\n${result.output}`
+            : `Ran against ${target} but made no file changes, so no pull request was opened.\n\nAgent summary:\n${result.output}`;
+
+        let toolResult = base;
+        if (result.prUrl && previewUrl) {
+            toolResult += `\n\nA Lightdash preview environment was created from the pull request's branch: ${previewUrl} — include this link in your reply so the user can review the change in Lightdash before merging. Explores may take a minute to appear while the preview compiles.`;
+        } else if (previewDeployConfigured === false) {
+            toolResult += `\n\nIMPORTANT — also tell the user: this project does NOT have Lightdash preview deploys set up via GitHub Actions. Offer to set it up by opening a pull request that adds the preview workflow (a preview Lightdash project per PR, torn down on close). If they agree, call the \`setupPreviewDeploy\` tool. Do not call it unless they say yes.`;
+        }
+
+        await this.aiAgentModel.updateToolResult(promptUuid, toolCallId, {
+            result: toolResult,
+            metadata: {
+                status: 'success',
+                prUrl: result.prUrl ?? null,
+                prAction: result.prAction ?? null,
+                commitSha: result.commitSha ?? null,
+                additions: result.additions ?? null,
+                deletions: result.deletions ?? null,
+                previewUrl: previewUrl ?? null,
+                steps: result.steps,
+            },
+        });
+    }
+
+    /** Called by the worker's `tryJobOrTimeout` timeout handler for the editDbtProject pipeline job. */
+    async markEditDbtProjectToolResultError(
+        promptUuid: string,
+        toolCallId: string,
+        message: string,
+    ): Promise<void> {
+        await this.aiAgentModel.updateToolResult(promptUuid, toolCallId, {
+            result: message,
+            metadata: { status: 'error', errorCode: 'unknown' },
+        });
+    }
+
     // Defines the functions that AI Agent tools can use to interact with the Lightdash backend or slack
     // This is scoped to the project, user and prompt (closure)
     private async getAiAgentDependencies(
@@ -6870,33 +7114,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         };
 
         const editDbtProject: EditDbtProjectFn = async (args) => {
-            // Stream coarse progress back to the user so they can see what
-            // the writeback is doing (Starting sandbox → Cloning project →
-            // Discovering models → Editing models → Compiling project →
-            // Committing → …). For Slack this overwrites the pinned
-            // "Thinking…" message; for web it surfaces as a transient
-            // `data-step-progress` chunk on the SSE stream. Tagged with the
-            // `editDbtProject` tool name so the web client only renders
-            // these under the writeback header — never a concurrently running
-            // tool's progress. Fire-and-forget — a Slack rate limit, deleted
-            // message, or dropped SSE client must never take down the
-            // writeback itself.
-            const writebackProgressCallback = (message: string) => {
-                void updateProgress(
-                    message,
-                    `editDbtProject:${message}`,
-                    args.progressId
-                        ? `${args.progressId}:${message}`
-                        : undefined,
-                    'complete',
-                ).catch((err) => {
-                    Logger.debug(
-                        `Failed to update progress for writeback (${message}):`,
-                        err,
-                    );
-                });
-            };
-
             // When the user asks to write back their changeset, build the
             // instructions deterministically from the active changeset's
             // structured changes instead of trusting the LLM-composed prompt.
@@ -6924,122 +7141,48 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 source = isSlackPrompt(prompt) ? 'slack' : 'web';
             }
 
-            const result = await wrapSentryTransaction(
-                'AiAgent.editDbtProject',
-                {},
-                () =>
-                    this.aiWritebackService.run({
-                        user,
-                        projectUuid,
-                        prompt: writebackPrompt,
-                        prUrl: args.prUrl,
-                        startNewPullRequest: args.startNewPullRequest ?? false,
-                        aiThreadUuid: prompt.threadUuid,
-                        source,
-                        onProgress: writebackProgressCallback,
-                    }),
-            );
-
-            // Build-fix seam: if this thread is a review remediation's work
-            // thread, every commit it lands (the initial run and each Continue
-            // PR turn) must be reflected on the remediation so the Test-fix
-            // verdict is marked stale (verdict staleness is derived from event
-            // ordering). null for ordinary writeback threads — a no-op.
-            const reviewRemediation = organizationUuid
-                ? await this.aiAgentReviewClassifierModel.findReviewRemediationByWorkThread(
-                      {
-                          organizationUuid,
-                          workThreadUuid: prompt.threadUuid,
-                      },
-                  )
-                : null;
-            if (reviewRemediation && result.prUrl) {
-                await this.aiAgentReviewClassifierModel.createRemediationEvent({
-                    remediationUuid: reviewRemediation.uuid,
-                    organizationUuid: reviewRemediation.organizationUuid,
-                    event: {
-                        eventType: 'pr_updated',
-                        payload: { prUrl: result.prUrl },
-                    },
-                });
-            }
-
-            // On a successful PR open/update, add a green-tick reaction to the
-            // user's original Slack mention so they see the outcome at a
-            // glance without scrolling through the agent's reply. Best-effort
-            // — installs missing `reactions:write` (or any other transient
-            // failure) silently skip the reaction.
-            if (result.prUrl && isSlackPrompt(prompt)) {
-                void this.slackClient
-                    .addReaction({
-                        organizationUuid,
-                        channel: prompt.slackChannelId,
-                        timestamp: prompt.promptSlackTs,
-                        name: 'white_check_mark',
-                    })
-                    .catch((err) => {
-                        Logger.debug(
-                            'Failed to add :white_check_mark: reaction to writeback mention:',
-                            err,
-                        );
-                    });
-            }
-            // Resolve the repo's preview-deploy CI status once (best-effort,
-            // gated by the ai-preview-deploy-setup flag). It drives the
-            // deterministic "offer to set it up" instruction the editDbtProject
-            // tool relays when no server-side preview could be built. Owned by
-            // the sibling PreviewDeploySetupService — writeback no longer
-            // detects this itself. Never fails the writeback result.
-            let previewDeployConfigured: boolean | null = null;
-            try {
-                const { enabled: previewDeploySetupEnabled } =
-                    await this.featureFlagService.get({
-                        user,
-                        featureFlagId: FeatureFlags.AiPreviewDeploySetup,
-                    });
-                if (previewDeploySetupEnabled) {
-                    const ciStatus =
-                        await this.previewDeploySetupService.getOrScanProjectCiStatus(
-                            user,
-                            projectUuid,
-                        );
-                    previewDeployConfigured = ciStatus
-                        ? ciStatus.hasPreviewDeployWorkflow
-                        : null;
-                }
-            } catch (err) {
-                Logger.debug(
-                    'Failed to resolve preview-deploy CI status after writeback:',
-                    err,
+            // SPK-548: enqueue the run — and every side effect that used to
+            // happen inline once it resolved (remediation tracking, the
+            // Slack ✅ reaction, the preview-deploy check, PR preview
+            // creation) — as a background job instead of awaiting all of it
+            // here. Holding this SSE/Slack request open for a multi-minute
+            // sandbox run is exactly the transport-drop-then-blind-retry
+            // failure mode SPK-548 exists to fix.
+            // runEditDbtProjectPipeline (run by the scheduler worker) does
+            // the actual work and rewrites this tool call's stored result
+            // once it reaches a terminal state — see updateToolResult.
+            if (!args.progressId) {
+                // Always supplied in practice — the sole caller (the
+                // editDbtProject tool wrapper) passes the AI SDK's own
+                // toolCallId. Guarded because the pipeline needs it to find
+                // the stored tool result again later.
+                throw new UnexpectedServerError(
+                    'editDbtProject requires a tool call id (progressId)',
                 );
             }
+            const { aiWritebackRunUuid } =
+                await this.aiWritebackService.createPendingRun({
+                    user,
+                    projectUuid,
+                    aiThreadUuid: prompt.threadUuid,
+                    source,
+                });
+            await this.schedulerClient.aiAgentEditDbtProjectPipeline({
+                aiWritebackRunUuid,
+                organizationUuid,
+                projectUuid,
+                userUuid: user.userUuid,
+                promptUuid: prompt.promptUuid,
+                isSlackPrompt: isSlackPrompt(prompt),
+                toolCallId: args.progressId,
+                writebackPrompt,
+                source,
+                prUrl: args.prUrl,
+                startNewPullRequest: args.startNewPullRequest ?? null,
+                suppressWritebackPreview: options?.suppressWritebackPreview,
+            });
 
-            // Server-side preview: for GitHub-connected projects, build the
-            // preview ourselves from the PR's head branch and post its URL on
-            // the PR — no CI in the customer repo required. The URL is returned
-            // to the editDbtProject tool so the agent's reply (web chat and
-            // Slack alike) links the preview directly; this replaced the old
-            // pollWritebackPreview job that scanned PR comments for a
-            // CI-posted URL. Returns null for unsupported projects (e.g.
-            // CLI-deployed) or on any failure — those surface no preview.
-            let previewUrl: string | null = null;
-            if (
-                result.prUrl &&
-                !options?.suppressWritebackPreview &&
-                !reviewRemediation
-            ) {
-                const preview =
-                    await this.writebackPreviewService.createPreviewForPullRequest(
-                        {
-                            user,
-                            projectUuid,
-                            prUrl: result.prUrl,
-                        },
-                    );
-                previewUrl = preview?.previewUrl ?? null;
-            }
-
-            return { ...result, previewDeployConfigured, previewUrl };
+            return { aiWritebackRunUuid };
         };
 
         // General-purpose coding agent: edit any writable repo and open a PR,

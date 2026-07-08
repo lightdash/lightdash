@@ -1,10 +1,12 @@
 import {
+    AiAgentEditDbtProjectPipelineJobPayload,
     AiAgentEvalRunJobPayload,
     AiAgentReviewClassifierJobPayload,
     AiAgentReviewRemediationCompileJobPayload,
     AiAgentReviewRemediationPreviewJobPayload,
     AiAgentReviewRemediationRunJobPayload,
     AiAgentReviewWritebackJobPayload,
+    AiWritebackPipelineJobPayload,
     AppBuildFromSourceJobPayload,
     AppGeneratePipelineJobPayload,
     EE_SCHEDULER_TASKS,
@@ -195,6 +197,44 @@ export class CommercialSchedulerClient extends SchedulerClient {
                 runAt: new Date(),
                 maxAttempts: 2,
                 jobKey: `app-build:${payload.appUuid}:${payload.version}`,
+            },
+        );
+        return { jobId };
+    }
+
+    /**
+     * `maxAttempts: 1` — unlike app generation, a writeback run isn't built to
+     * resume from a mid-pipeline Graphile retry (only from a fresh caller turn,
+     * via the existing workstream/advisory-lock resume path). jobKey is the run
+     * uuid itself, so a caller that accidentally enqueues the same pending row
+     * twice can't create two jobs for it.
+     */
+    async aiWritebackPipeline(payload: AiWritebackPipelineJobPayload) {
+        const graphileClient = await this.graphileUtils;
+        const { id: jobId } = await graphileClient.addJob(
+            EE_SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE,
+            payload,
+            {
+                runAt: new Date(),
+                maxAttempts: 1,
+                jobKey: `ai-writeback:${payload.aiWritebackRunUuid}`,
+            },
+        );
+        return { jobId };
+    }
+
+    /** Same maxAttempts/jobKey reasoning as {@link aiWritebackPipeline}. */
+    async aiAgentEditDbtProjectPipeline(
+        payload: AiAgentEditDbtProjectPipelineJobPayload,
+    ) {
+        const graphileClient = await this.graphileUtils;
+        const { id: jobId } = await graphileClient.addJob(
+            EE_SCHEDULER_TASKS.AI_AGENT_EDIT_DBT_PROJECT_PIPELINE,
+            payload,
+            {
+                runAt: new Date(),
+                maxAttempts: 1,
+                jobKey: `ai-agent-edit-dbt-project:${payload.aiWritebackRunUuid}`,
             },
         );
         return { jobId };
