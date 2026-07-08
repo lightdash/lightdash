@@ -219,11 +219,13 @@ export type ListContentFn = (args: {
               contentType: 'chart' | 'dashboard' | 'data_app';
               name: string;
               slug: string;
+              href: string;
           }
         | {
               contentType: 'space';
               name: string;
               slug: string;
+              href: string;
               chartCount: number;
               dashboardCount: number;
               childSpaceCount: number;

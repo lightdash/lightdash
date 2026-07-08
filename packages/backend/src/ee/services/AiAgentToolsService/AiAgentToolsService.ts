@@ -1131,6 +1131,7 @@ export class AiAgentToolsService extends BaseService {
 
                 if (spaceSlug === null) {
                     return this.getRootSpacesForAgent(
+                        context,
                         context.user,
                         context.projectUuid,
                         agentSpaceAccess,
@@ -1140,6 +1141,7 @@ export class AiAgentToolsService extends BaseService {
                 }
 
                 return this.getSpaceContentsForAgent(
+                    context,
                     context.user,
                     context.projectUuid,
                     spaceSlug,
@@ -1164,6 +1166,20 @@ export class AiAgentToolsService extends BaseService {
             default:
                 return assertUnreachable(type, 'Invalid content type');
         }
+    }
+
+    private static getSpaceUrl(
+        context: AiAgentToolsRuntimeContext,
+        uuid: string,
+    ) {
+        return `/projects/${context.projectUuid}/spaces/${uuid}`;
+    }
+
+    private static getDataAppUrl(
+        context: AiAgentToolsRuntimeContext,
+        uuid: string,
+    ) {
+        return `/projects/${context.projectUuid}/apps/${uuid}`;
     }
 
     private static getContentTypeLabel(type: ContentAsCodeType) {
@@ -2308,6 +2324,7 @@ export class AiAgentToolsService extends BaseService {
     }
 
     private async getRootSpacesForAgent(
+        context: AiAgentToolsRuntimeContext,
         user: SessionUser,
         projectUuid: string,
         agentSpaceAccess: Set<string> | null,
@@ -2334,6 +2351,7 @@ export class AiAgentToolsService extends BaseService {
                     contentType: ContentType.SPACE,
                     name: space.name,
                     slug: getContentAsCodePathFromLtreePath(space.path),
+                    href: AiAgentToolsService.getSpaceUrl(context, space.uuid),
                     chartCount: space.chartCount,
                     dashboardCount: space.dashboardCount,
                     childSpaceCount: space.childSpaceCount,
@@ -2346,6 +2364,7 @@ export class AiAgentToolsService extends BaseService {
     }
 
     private async getSpaceContentsForAgent(
+        context: AiAgentToolsRuntimeContext,
         user: SessionUser,
         projectUuid: string,
         spaceSlug: string,
@@ -2400,6 +2419,10 @@ export class AiAgentToolsService extends BaseService {
                             contentType: ContentType.SPACE,
                             name: item.name,
                             slug: getContentAsCodePathFromLtreePath(item.path),
+                            href: AiAgentToolsService.getSpaceUrl(
+                                context,
+                                item.uuid,
+                            ),
                             chartCount: item.chartCount,
                             dashboardCount: item.dashboardCount,
                             childSpaceCount: item.childSpaceCount,
@@ -2408,11 +2431,45 @@ export class AiAgentToolsService extends BaseService {
                         };
                     }
 
-                    return {
-                        contentType: item.contentType,
-                        name: item.name,
-                        slug: item.slug,
-                    };
+                    switch (item.contentType) {
+                        case ContentType.DASHBOARD:
+                            return {
+                                contentType: item.contentType,
+                                name: item.name,
+                                slug: item.slug,
+                                href: AiAgentToolsService.getContentUrl(
+                                    context,
+                                    'dashboard',
+                                    item.uuid,
+                                ),
+                            };
+                        case ContentType.CHART:
+                            return {
+                                contentType: item.contentType,
+                                name: item.name,
+                                slug: item.slug,
+                                href: AiAgentToolsService.getContentUrl(
+                                    context,
+                                    'chart',
+                                    item.uuid,
+                                ),
+                            };
+                        case ContentType.DATA_APP:
+                            return {
+                                contentType: item.contentType,
+                                name: item.name,
+                                slug: item.slug,
+                                href: AiAgentToolsService.getDataAppUrl(
+                                    context,
+                                    item.uuid,
+                                ),
+                            };
+                        default:
+                            return assertUnreachable(
+                                item,
+                                'Invalid content type',
+                            );
+                    }
                 }),
             pagination: results.pagination,
         };
