@@ -1,3 +1,12 @@
+# [0.3334.0](https://github.com/lightdash/lightdash/compare/0.3333.0...0.3334.0) (2026-07-08)
+
+
+### Features
+
+* **ai:** show all charts from one Slack turn as a carousel ([#25266](https://github.com/lightdash/lightdash/issues/25266)) ([c6de0b8](https://github.com/lightdash/lightdash/commit/c6de0b879842bbc67354441bd5e6c03c26e81d84))
+* **mcp:** admin API for MCP activity ([#25236](https://github.com/lightdash/lightdash/issues/25236)) ([a067863](https://github.com/lightdash/lightdash/commit/a067863d7e18d679aa2fc86a85bfd5792729f47a))
+* **mcp:** persist MCP tool call activity for admin observability ([#25235](https://github.com/lightdash/lightdash/issues/25235)) ([f390c20](https://github.com/lightdash/lightdash/commit/f390c20d108b40909001990ba4b1c47eff1880e4))
+
 # [0.3333.0](https://github.com/lightdash/lightdash/compare/0.3332.0...0.3333.0) (2026-07-08)
 
 
