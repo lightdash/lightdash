@@ -1,3 +1,12 @@
+# [0.3335.0](https://github.com/lightdash/lightdash/compare/0.3334.2...0.3335.0) (2026-07-08)
+
+
+### Features
+
+* **mcp:** MCP activity tab in AI admin settings ([#25237](https://github.com/lightdash/lightdash/issues/25237)) ([d7e7db4](https://github.com/lightdash/lightdash/commit/d7e7db400ae688d0fa4a32331ac8c3764a770e9c))
+* **mcp:** quieter MCP activity table and redesigned tool call drawer ([#25281](https://github.com/lightdash/lightdash/issues/25281)) ([be9047a](https://github.com/lightdash/lightdash/commit/be9047aa68f15ebd3680e740a1b7540eabda4884)), closes [#25237](https://github.com/lightdash/lightdash/issues/25237)
+* **permissions:** add view:ContentVerification scope for read-only discovery ([#25287](https://github.com/lightdash/lightdash/issues/25287)) ([928a3c3](https://github.com/lightdash/lightdash/commit/928a3c32f0ca9e8f46ff0b06bcfa808afc184abb)), closes [/linear.app/lightdash/issue/PROD-8745/add-viewcontentverification-scope-for-read-only-verified-content#agent-session-7e3e178](https://github.com//linear.app/lightdash/issue/PROD-8745/add-viewcontentverification-scope-for-read-only-verified-content/issues/agent-session-7e3e178)
+
 ## [0.3334.2](https://github.com/lightdash/lightdash/compare/0.3334.1...0.3334.2) (2026-07-08)
 
 
