@@ -1758,6 +1758,19 @@ export type AppRuntimeConfig = {
      * the feature rolls out — set to `true` to enable on an instance.
      */
     customDependenciesEnabled: boolean;
+    /**
+     * NPM registry hosts added to the sandbox egress allowlist when a version
+     * has a custom dependency set (`app_versions.dependencies` non-null).
+     * Template-only builds never gain these hosts. Comma-separated env var
+     * `LIGHTDASH_APP_DEPENDENCY_REGISTRY_HOSTS`; defaults to the public npm
+     * registry.
+     */
+    dependencyRegistryHosts: string[];
+    /**
+     * Timeout in milliseconds for the `pnpm install` step that runs before the
+     * Vite build when a version has custom dependencies. Defaults to 2 minutes.
+     */
+    dependencyInstallTimeoutMs: number;
 };
 
 export type IntercomConfig = {
@@ -2063,6 +2076,20 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             process.env.E2B_CODING_AGENT_TEMPLATE_TAG ?? (VERSION as string),
         customDependenciesEnabled:
             process.env.LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED === 'true',
+        dependencyRegistryHosts: (
+            process.env.LIGHTDASH_APP_DEPENDENCY_REGISTRY_HOSTS ||
+            'registry.npmjs.org'
+        )
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean),
+        dependencyInstallTimeoutMs: process.env
+            .LIGHTDASH_APP_DEPENDENCY_INSTALL_TIMEOUT_MS
+            ? parseInt(
+                  process.env.LIGHTDASH_APP_DEPENDENCY_INSTALL_TIMEOUT_MS,
+                  10,
+              )
+            : 120_000,
     };
 };
 

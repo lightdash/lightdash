@@ -1,4 +1,7 @@
-import { type AppBuildFromSourceJobPayload } from '@lightdash/common';
+import {
+    type AppBuildFromSourceJobPayload,
+    type AppVersionDependencies,
+} from '@lightdash/common';
 import { AppGenerateService } from './AppGenerateService';
 
 vi.mock('e2b', () => ({
@@ -27,6 +30,7 @@ type ServiceWithPrivates = {
     getS3Client: ReturnType<typeof vi.fn>;
     createSandbox: ReturnType<typeof vi.fn>;
     restoreSourceFromS3: ReturnType<typeof vi.fn>;
+    restoreDepsToSandbox: ReturnType<typeof vi.fn>;
     runBuild: ReturnType<typeof vi.fn>;
     packageArtifacts: ReturnType<typeof vi.fn>;
     uploadToS3: ReturnType<typeof vi.fn>;
@@ -52,14 +56,36 @@ const makePayload = (): AppBuildFromSourceJobPayload => ({
     userUuid: 'user-uuid-1',
 });
 
-function buildService() {
+const REGISTRY_HOSTS = ['registry.npmjs.org'];
+
+const CUSTOM_DEPS: AppVersionDependencies = {
+    custom: [{ name: 'react-query', version: '^5.0.0' }],
+    lockfileHash: 'abc123',
+};
+
+function buildService(
+    versionDependencies: AppVersionDependencies | null = null,
+) {
     const appModel = {
         updateVersionStatusIfInProgress: vi.fn().mockResolvedValue(true),
         updateSandboxUuid: vi.fn().mockResolvedValue(undefined),
+        updateStatusMessage: vi.fn().mockResolvedValue(undefined),
+        getVersion: vi
+            .fn()
+            .mockResolvedValue(
+                versionDependencies !== null
+                    ? { dependencies: versionDependencies }
+                    : null,
+            ),
     };
 
     const raw = new AppGenerateService({
-        lightdashConfig: {} as never,
+        lightdashConfig: {
+            appRuntime: {
+                dependencyRegistryHosts: REGISTRY_HOSTS,
+                dependencyInstallTimeoutMs: 120_000,
+            },
+        } as never,
         analytics: {} as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
@@ -95,6 +121,7 @@ function buildService() {
         durationMs: 100,
     });
     service.restoreSourceFromS3 = vi.fn().mockResolvedValue(50);
+    service.restoreDepsToSandbox = vi.fn().mockResolvedValue(30);
     service.packageArtifacts = vi.fn().mockResolvedValue({
         distTar: Buffer.from('dist'),
         sourceTar: Buffer.from('src'),
@@ -165,5 +192,91 @@ describe('AppGenerateService.runBuildFromSourcePipeline', () => {
             appModel.updateVersionStatusIfInProgress.mock.calls as unknown[][]
         ).map((c) => c[2]);
         expect(statusesReached).not.toContain('ready');
+    });
+
+    describe('custom dependencies', () => {
+        it('template-only version: no install step and no registry hosts added to sandbox spec', async () => {
+            // getVersion returns null → versionDeps = null
+            const { service } = buildService(null);
+
+            service.runBuild = vi
+                .fn()
+                .mockResolvedValue({ exitCode: 0, stdout: '', stderr: '' });
+
+            await service.runBuildFromSourcePipeline(makePayload());
+
+            // createSandbox must be called with empty extra egress hosts
+            expect(service.createSandbox).toHaveBeenCalledWith(
+                'app-uuid-1',
+                'org-uuid-1',
+                'proj-uuid-1',
+                [],
+            );
+            // No dep restore or install should have happened
+            expect(service.restoreDepsToSandbox).not.toHaveBeenCalled();
+        });
+
+        it('custom-dep version: registry hosts added to sandbox spec, dep files restored, install runs before build', async () => {
+            const { service } = buildService(CUSTOM_DEPS);
+
+            service.runBuild = vi
+                .fn()
+                .mockResolvedValue({ exitCode: 0, stdout: '', stderr: '' });
+
+            await service.runBuildFromSourcePipeline(makePayload());
+
+            // Sandbox must be created with registry hosts in the egress
+            expect(service.createSandbox).toHaveBeenCalledWith(
+                'app-uuid-1',
+                'org-uuid-1',
+                'proj-uuid-1',
+                REGISTRY_HOSTS,
+            );
+
+            // Dep restore must have been called with the right args
+            expect(service.restoreDepsToSandbox).toHaveBeenCalledWith(
+                fakeSandbox,
+                {},
+                'test-bucket',
+                'app-uuid-1',
+                1,
+                CUSTOM_DEPS,
+            );
+
+            // Install must run before the build
+            const installOrder =
+                service.restoreDepsToSandbox.mock.invocationCallOrder[0];
+            const buildOrder = service.runBuild.mock.invocationCallOrder[0];
+            expect(installOrder).toBeLessThan(buildOrder);
+
+            // Full pipeline still completes successfully
+            expect(service.markError).not.toHaveBeenCalled();
+            expect(service.uploadToS3).toHaveBeenCalledOnce();
+        });
+
+        it('install failure: markError called with "Installing dependencies", build NOT called, packaging skipped', async () => {
+            const { service } = buildService(CUSTOM_DEPS);
+
+            service.restoreDepsToSandbox = vi
+                .fn()
+                .mockRejectedValue(
+                    new Error(
+                        'Dependency install failed (exit 1): ERR_PNPM_PEER_DEP',
+                    ),
+                );
+            service.runBuild = vi.fn();
+
+            await service.runBuildFromSourcePipeline(makePayload());
+
+            expect(service.markError).toHaveBeenCalledWith(
+                'app-uuid-1',
+                1,
+                expect.any(Error),
+                'Installing dependencies',
+            );
+            expect(service.runBuild).not.toHaveBeenCalled();
+            expect(service.packageArtifacts).not.toHaveBeenCalled();
+            expect(service.uploadToS3).not.toHaveBeenCalled();
+        });
     });
 });
