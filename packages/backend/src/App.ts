@@ -69,11 +69,6 @@ import {
 import { sessionAccountMiddleware } from './middlewares/accountMiddleware';
 import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
-import {
-    createLightdashPgWireHandlers,
-    type LightdashPgWireSession,
-} from './postgresWire/lightdashHandlers';
-import { PostgresWireServer } from './postgresWire/PostgresWireServer';
 import PrometheusMetrics from './prometheus/PrometheusMetrics';
 import { apiV1Router } from './routers/apiV1Router';
 import { createAppPreviewRouter } from './routers/appPreviewRouter';
@@ -149,6 +144,17 @@ const schedulerWorkerFactory = (context: {
         prometheusMetrics: context.prometheusMetrics,
     });
 
+/**
+ * Minimal lifecycle contract for a TCP server the App can start/stop without
+ * importing its implementation. The Postgres wire protocol server (EE-only) is
+ * supplied via `pgWireServerFactory` so the semantic-layer endpoint stays in
+ * the enterprise codebase and is only wired up under a valid license.
+ */
+export interface PgWireServerInstance {
+    listen(port: number, host?: string): Promise<void>;
+    close(): Promise<void>;
+}
+
 export type AppArguments = {
     lightdashConfig: LightdashConfig;
     port: string | number;
@@ -163,6 +169,9 @@ export type AppArguments = {
     utilProviders?: UtilProviderMap;
     schedulerWorkerFactory?: typeof schedulerWorkerFactory;
     customExpressMiddlewares?: Array<(app: Express) => void>; // Array of custom middleware functions
+    pgWireServerFactory?: (
+        serviceRepository: ServiceRepository,
+    ) => PgWireServerInstance;
 };
 
 export default class App {
@@ -178,8 +187,10 @@ export default class App {
 
     private schedulerWorker: SchedulerWorker | undefined;
 
-    private pgWireServer:
-        | PostgresWireServer<LightdashPgWireSession>
+    private pgWireServer: PgWireServerInstance | undefined;
+
+    private readonly pgWireServerFactory:
+        | ((serviceRepository: ServiceRepository) => PgWireServerInstance)
         | undefined;
 
     private readonly clients: ClientRepository;
@@ -271,6 +282,7 @@ export default class App {
         this.schedulerWorkerFactory =
             args.schedulerWorkerFactory || schedulerWorkerFactory;
         this.customExpressMiddlewares = args.customExpressMiddlewares || [];
+        this.pgWireServerFactory = args.pgWireServerFactory;
     }
 
     async start() {
@@ -314,17 +326,23 @@ export default class App {
         // Load Lightdash middleware/routes last
         await this.initExpress(expressApp);
 
-        // Postgres wire protocol endpoint for the semantic layer (experimental)
+        // Postgres wire protocol endpoint for the semantic layer (experimental,
+        // enterprise-only). The factory is supplied by the EE bootstrap under a
+        // valid license; without it the endpoint stays disabled.
         const pgWirePort = process.env.PGWIRE_PORT
             ? parseInt(process.env.PGWIRE_PORT, 10)
             : undefined;
-        if (pgWirePort) {
-            this.pgWireServer = new PostgresWireServer(
-                createLightdashPgWireHandlers(this.serviceRepository),
+        if (pgWirePort && this.pgWireServerFactory) {
+            this.pgWireServer = this.pgWireServerFactory(
+                this.serviceRepository,
             );
             await this.pgWireServer.listen(pgWirePort);
             Logger.info(
                 `Postgres wire protocol server listening on port ${pgWirePort}`,
+            );
+        } else if (pgWirePort) {
+            Logger.warn(
+                'PGWIRE_PORT is set but the Postgres wire protocol server is an enterprise feature; set a valid license key to enable it.',
             );
         }
 
