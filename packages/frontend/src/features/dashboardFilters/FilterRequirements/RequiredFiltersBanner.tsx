@@ -279,8 +279,9 @@ const RequiredFiltersBanner: FC<RequiredFiltersBannerProps> = ({
                             color="yellow.7"
                         />
                         <Text size="sm" fw={500}>
-                            Pick a value for at least one of these required
-                            filters to load data:
+                            {group.filters.length === 1
+                                ? 'Pick a value for this required filter to load data:'
+                                : 'Pick a value for at least one of these required filters to load data:'}
                         </Text>
                         {group.filters.map((filter, index) => (
                             <Fragment key={filter.id}>

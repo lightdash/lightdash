@@ -5,7 +5,7 @@ import MantineIcon from '../common/MantineIcon';
 
 /** Shown in place of a tile's content while filter requirements are unmet. */
 const LockedTilePlaceholder: FC = () => (
-    <Center h="100%">
+    <Center h="100%" w="100%">
         <MantineIcon icon={IconLock} size="xl" color="ldGray.4" />
     </Center>
 );
