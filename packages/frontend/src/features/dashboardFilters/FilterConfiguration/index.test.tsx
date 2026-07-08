@@ -15,6 +15,20 @@ vi.mock('../../../providers/Dashboard/useDashboardTileStatusContext', () => ({
     default: vi.fn((selector) => selector({ sqlChartTilesMetadata: {} })),
 }));
 
+vi.mock('../../../providers/Dashboard/useDashboardContext', () => ({
+    default: vi.fn((selector) =>
+        selector({
+            dashboardFilters: {
+                dimensions: [],
+                metrics: [],
+                tableCalculations: [],
+            },
+            allFilterableFieldsMap: {},
+            allFilterableMetricsMap: {},
+        }),
+    ),
+}));
+
 vi.mock('../../../components/common/Filters/useFiltersContext', () => ({
     default: vi.fn(() => ({
         projectUuid: 'test-project-uuid',

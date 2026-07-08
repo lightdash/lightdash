@@ -1520,6 +1520,7 @@ export const resetRequiredFilterRules = (
             const newFilterRule: FilterGroupItem = {
                 ...filterGroupItem,
                 required: false,
+                requiredGroupId: undefined,
             };
             return newFilterRule;
         }

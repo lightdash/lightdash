@@ -36,13 +36,15 @@ import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import { flushSync } from 'react-dom';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import FieldLabel from '../../../components/common/Filters/FieldLabel';
+import { getConditionalRuleLabelFromItem } from '../../../components/common/Filters/FilterInputs/utils';
 import MantineIcon from '../../../components/common/MantineIcon';
+import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import { DEFAULT_TAB, FilterActions, FilterTabs } from './constants';
 import classes from './FilterConfiguration.module.css';
 import FilterCoverageSummary from './FilterCoverageSummary';
 import FilterFieldSelect from './FilterFieldSelect';
-import FilterSettings from './FilterSettings';
+import FilterSettings, { type FilterRuleSummary } from './FilterSettings';
 import TileFilterConfiguration from './TileFilterConfiguration';
 import {
     getFilterRuleRevertableObject,
@@ -104,6 +106,43 @@ const FilterConfiguration: FC<Props> = ({
 
     const draftFilterRuleRef = useRef(draftFilterRule);
     draftFilterRuleRef.current = draftFilterRule;
+
+    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
+    const allFilterableFieldsMap = useDashboardContext(
+        (c) => c.allFilterableFieldsMap,
+    );
+    const allFilterableMetricsMap = useDashboardContext(
+        (c) => c.allFilterableMetricsMap,
+    );
+
+    const otherFilterRules = useMemo<FilterRuleSummary[]>(
+        () =>
+            [...dashboardFilters.dimensions, ...dashboardFilters.metrics]
+                .filter((rule) => rule.id !== draftFilterRule?.id)
+                .map((rule) => {
+                    const ruleField =
+                        allFilterableFieldsMap[rule.target.fieldId] ??
+                        allFilterableMetricsMap[rule.target.fieldId];
+                    return {
+                        id: rule.id,
+                        label:
+                            rule.label ??
+                            (ruleField
+                                ? getConditionalRuleLabelFromItem(
+                                      rule,
+                                      ruleField,
+                                  ).field
+                                : rule.target.fieldId),
+                        requiredGroupId: rule.requiredGroupId,
+                    };
+                }),
+        [
+            dashboardFilters,
+            allFilterableFieldsMap,
+            allFilterableMetricsMap,
+            draftFilterRule?.id,
+        ],
+    );
 
     const isFilterModified = useMemo(() => {
         if (!originalFilterRule || !draftFilterRule) return false;
@@ -364,8 +403,25 @@ const FilterConfiguration: FC<Props> = ({
         }
 
         const ruleToSave = draftFilterRuleRef.current;
-        if (ruleToSave) onSave(ruleToSave);
-    }, [onSave]);
+        if (!ruleToSave) return;
+
+        // A group nobody else belongs to is saved as a plain required filter
+        const isSingletonGroup =
+            !!ruleToSave.requiredGroupId &&
+            !otherFilterRules.some(
+                (rule) => rule.requiredGroupId === ruleToSave.requiredGroupId,
+            );
+
+        onSave(
+            isEditMode && isSingletonGroup
+                ? {
+                      ...ruleToSave,
+                      required: true,
+                      requiredGroupId: undefined,
+                  }
+                : ruleToSave,
+        );
+    }, [onSave, otherFilterRules, isEditMode]);
 
     const isApplyDisabled = !isFilterEnabled(
         draftFilterRule,
@@ -502,6 +558,7 @@ const FilterConfiguration: FC<Props> = ({
                                 filterType={filterType}
                                 field={selectedField}
                                 filterRule={draftFilterRule}
+                                otherFilterRules={otherFilterRules}
                                 onChangeFilterRule={handleChangeFilterRule}
                                 popoverProps={popoverProps}
                             />

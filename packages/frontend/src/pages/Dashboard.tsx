@@ -788,7 +788,7 @@ const Dashboard: FC = () => {
         ];
         // Reset value for required filter on save dashboard
         const requiredFiltersWithoutValues = dimensionFilters.map((filter) => {
-            if (filter.required) {
+            if (filter.required || filter.requiredGroupId) {
                 return {
                     ...filter,
                     disabled: true,

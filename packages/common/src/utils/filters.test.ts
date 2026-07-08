@@ -931,6 +931,31 @@ describe('resetRequiredFilterRules', () => {
         ]);
         expect(newFilterRules).toEqual(expectedRequiredResetResult);
     });
+
+    test('should clear requiredGroupId when resetting a filter rule', () => {
+        const filterGroup: FilterGroup = {
+            id: 'uuidGroup',
+            and: [
+                {
+                    ...expectedRequiredResult('mockFieldRef2', 'table'),
+                    requiredGroupId: 'group-1',
+                },
+            ],
+        };
+        const newFilterRules = resetRequiredFilterRules(filterGroup, [
+            'someOther',
+        ]);
+        expect(newFilterRules).toEqual({
+            id: 'uuidGroup',
+            and: [
+                {
+                    ...expectedRequiredResult('mockFieldRef2', 'table'),
+                    required: false,
+                    requiredGroupId: undefined,
+                },
+            ],
+        });
+    });
 });
 
 describe('trackWhichTimeBasedMetricFiltersToOverride', () => {
