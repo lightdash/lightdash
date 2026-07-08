@@ -1,3 +1,16 @@
+# [0.3330.0](https://github.com/lightdash/lightdash/compare/0.3329.0...0.3330.0) (2026-07-08)
+
+
+### Bug Fixes
+
+* **cli:** never count the pinned query-sdk as a custom app dependency ([#25264](https://github.com/lightdash/lightdash/issues/25264)) ([19f342e](https://github.com/lightdash/lightdash/commit/19f342e9d38f333900fb5f5e967f1ff7a8b8b365))
+
+
+### Features
+
+* add per-prompt page context ([#25223](https://github.com/lightdash/lightdash/issues/25223)) ([7d4d387](https://github.com/lightdash/lightdash/commit/7d4d387aed468916c2eede712dda198d7b41be13))
+* postgres wire protocol endpoint for the semantic layer ([#25269](https://github.com/lightdash/lightdash/issues/25269)) ([f9fd85c](https://github.com/lightdash/lightdash/commit/f9fd85c9d7e832b3ceb4e83ee12e2bef07d88518))
+
 # [0.3329.0](https://github.com/lightdash/lightdash/compare/0.3328.5...0.3329.0) (2026-07-08)
 
 
