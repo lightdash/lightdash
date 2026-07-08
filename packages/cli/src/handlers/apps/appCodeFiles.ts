@@ -222,6 +222,33 @@ export const buildDepsWarningLines = (
     });
 
 /**
+ * Mirrors the server's baseline rule: the declared `@lightdash/query-sdk` spec
+ * is copied into the template baseline so the SDK never counts as custom. The
+ * scaffold pins the SDK per release, so a folder scaffolded under an older CLI
+ * would otherwise flag the SDK as an override after every CLI upgrade.
+ */
+export const applySdkMirrorToTemplateDeps = (
+    templateDependencies: Record<string, string>,
+    packageJson: string,
+): Record<string, string> => {
+    try {
+        const parsed = JSON.parse(packageJson) as {
+            dependencies?: Record<string, unknown>;
+        };
+        const sdkSpec = parsed.dependencies?.['@lightdash/query-sdk'];
+        if (typeof sdkSpec === 'string') {
+            return {
+                ...templateDependencies,
+                '@lightdash/query-sdk': sdkSpec,
+            };
+        }
+    } catch {
+        // Unparseable packageJson — validateDataAppDependencies reports it.
+    }
+    return templateDependencies;
+};
+
+/**
  * Returns a new DataAppCode with `dependencies` attached when the custom set
  * is non-empty, or the original code object unchanged when there are no custom
  * deps (payload stays identical to today's format).
