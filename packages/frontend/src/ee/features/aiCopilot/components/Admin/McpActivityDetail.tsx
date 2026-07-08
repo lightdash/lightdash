@@ -1,110 +1,125 @@
 import { type McpActivityItem } from '@lightdash/common';
 import {
-    Badge,
     Code,
-    Divider,
     Group,
+    Paper,
     ScrollArea,
     Stack,
     Text,
+    Tooltip,
 } from '@mantine-8/core';
-import { type FC } from 'react';
+import { type FC, type ReactNode } from 'react';
 import Callout from '../../../../../components/common/Callout';
+import classes from './McpActivityDetail.module.css';
+import { ToolCallStatusIndicator, ToolNamePill } from './McpActivityDisplay';
+import {
+    formatToolCallDuration,
+    formatToolCallTime,
+    formatToolCallTimeFull,
+} from './mcpActivityFormat';
 
-const DetailRow: FC<{ label: string; children: React.ReactNode }> = ({
-    label,
-    children,
+export const McpActivityDetailTitle: FC<{ toolCall: McpActivityItem }> = ({
+    toolCall,
 }) => (
-    <Group justify="space-between" wrap="nowrap" gap="md">
-        <Text fz="sm" c="ldGray.6" fw={500} style={{ whiteSpace: 'nowrap' }}>
-            {label}
-        </Text>
-        {children}
+    <Group gap="xs" wrap="nowrap">
+        <Text fw={600}>Tool call</Text>
+        <ToolNamePill name={toolCall.toolName} />
+        <ToolCallStatusIndicator status={toolCall.status} />
     </Group>
 );
+
+const SectionLabel: FC<{ children: ReactNode }> = ({ children }) => (
+    <Text fz="xs" fw={600} c="ldGray.5" tt="uppercase" lts="0.05em">
+        {children}
+    </Text>
+);
+
+const serializeArgs = (toolArgs: McpActivityItem['toolArgs']): string => {
+    const compact = JSON.stringify(toolArgs);
+    return compact.length <= 80 ? compact : JSON.stringify(toolArgs, null, 2);
+};
 
 export const McpActivityDetail: FC<{ toolCall: McpActivityItem }> = ({
     toolCall,
 }) => {
-    const durationLabel =
-        toolCall.durationMs >= 1000
-            ? `${(toolCall.durationMs / 1000).toFixed(1)}s`
-            : `${toolCall.durationMs}ms`;
+    const rows: { label: string; value: ReactNode }[] = [
+        {
+            label: 'Time',
+            value: (
+                <Tooltip
+                    withinPortal
+                    variant="xs"
+                    label={formatToolCallTimeFull(toolCall.createdAt)}
+                >
+                    <Text fz="sm" display="inline-block">
+                        {formatToolCallTime(toolCall.createdAt)}
+                    </Text>
+                </Tooltip>
+            ),
+        },
+        {
+            label: 'User',
+            value: `${toolCall.user.name}${
+                toolCall.user.email ? ` (${toolCall.user.email})` : ''
+            }`,
+        },
+        { label: 'Project', value: toolCall.project?.name ?? '—' },
+        { label: 'Agent', value: toolCall.agent?.name ?? '—' },
+        {
+            label: 'Duration',
+            value: formatToolCallDuration(toolCall.durationMs),
+        },
+        {
+            label: 'Client',
+            value: toolCall.clientName
+                ? `${toolCall.clientName}${
+                      toolCall.clientVersion ? ` ${toolCall.clientVersion}` : ''
+                  }`
+                : '—',
+        },
+        { label: 'User agent', value: toolCall.userAgent ?? '—' },
+        { label: 'Auth', value: toolCall.authType },
+        { label: 'Protocol', value: toolCall.protocolVersion ?? '—' },
+    ];
 
     return (
-        <Stack gap="sm" p="md">
-            <Group gap="xs">
-                <Badge variant="light" color="indigo" tt="none">
-                    {toolCall.toolName}
-                </Badge>
-                <Badge
-                    variant="light"
-                    color={toolCall.status === 'error' ? 'red' : 'green'}
-                >
-                    {toolCall.status}
-                </Badge>
-            </Group>
-
+        <Stack gap="md" p="md">
             {toolCall.errorMessage && (
                 <Callout variant="danger" title="Error">
                     {toolCall.errorMessage}
                 </Callout>
             )}
 
-            <Stack gap="xs">
-                <DetailRow label="Time">
-                    <Text fz="sm">
-                        {new Date(toolCall.createdAt).toLocaleString()}
-                    </Text>
-                </DetailRow>
-                <DetailRow label="User">
-                    <Text fz="sm" truncate>
-                        {toolCall.user.name}
-                        {toolCall.user.email ? ` (${toolCall.user.email})` : ''}
-                    </Text>
-                </DetailRow>
-                <DetailRow label="Project">
-                    <Text fz="sm">{toolCall.project?.name ?? '—'}</Text>
-                </DetailRow>
-                <DetailRow label="Agent">
-                    <Text fz="sm">{toolCall.agent?.name ?? '—'}</Text>
-                </DetailRow>
-                <DetailRow label="Duration">
-                    <Text fz="sm">{durationLabel}</Text>
-                </DetailRow>
-                <DetailRow label="Client">
-                    <Text fz="sm" truncate>
-                        {toolCall.clientName
-                            ? `${toolCall.clientName}${
-                                  toolCall.clientVersion
-                                      ? ` ${toolCall.clientVersion}`
-                                      : ''
-                              }`
-                            : '—'}
-                    </Text>
-                </DetailRow>
-                <DetailRow label="User agent">
-                    <Text fz="sm" truncate>
-                        {toolCall.userAgent ?? '—'}
-                    </Text>
-                </DetailRow>
-                <DetailRow label="Auth">
-                    <Text fz="sm">{toolCall.authType}</Text>
-                </DetailRow>
-                <DetailRow label="Protocol">
-                    <Text fz="sm">{toolCall.protocolVersion ?? '—'}</Text>
-                </DetailRow>
-            </Stack>
-
-            <Divider />
+            <Paper>
+                {rows.map((row) => (
+                    <Group
+                        key={row.label}
+                        className={classes.row}
+                        justify="space-between"
+                        wrap="nowrap"
+                        gap="md"
+                        px="md"
+                        py="sm"
+                    >
+                        <Text fz="sm" c="ldGray.6" flex="0 0 auto">
+                            {row.label}
+                        </Text>
+                        {typeof row.value === 'string' ? (
+                            <Text fz="sm" ta="right" truncate>
+                                {row.value}
+                            </Text>
+                        ) : (
+                            row.value
+                        )}
+                    </Group>
+                ))}
+            </Paper>
 
             <Stack gap="xs">
-                <Text fz="sm" fw={500} c="ldGray.7">
-                    Arguments
-                </Text>
+                <SectionLabel>Arguments</SectionLabel>
                 <ScrollArea.Autosize mah={400}>
                     <Code block fz="xs">
-                        {JSON.stringify(toolCall.toolArgs, null, 2)}
+                        {serializeArgs(toolCall.toolArgs)}
                     </Code>
                 </ScrollArea.Autosize>
             </Stack>
