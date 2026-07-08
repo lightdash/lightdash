@@ -240,7 +240,7 @@ export const AiGeneralSettingsPage = () => {
                                         <Divider />
                                         <AiModelAvailabilitySection
                                             modelVisibility={
-                                                settings.modelVisibility
+                                                settings.modelVisibility ?? null
                                             }
                                             configurableModelOptions={
                                                 settings.configurableModelOptions

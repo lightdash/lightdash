@@ -162,8 +162,9 @@ export type ComputedAiOrganizationSettings = {
     isCopilotEnabled: boolean;
     isTrial: boolean;
     defaultAiAgentModelOptions: AiModelOption[];
-    // Full option list an admin can pick from (ignores visibility restrictions); null for non-admins
-    configurableModelOptions: AiModelOption[] | null;
+    // Full option list an admin can pick from (ignores visibility restrictions); null for non-admins.
+    // Optional to keep the response schema backwards-compatible for old clients.
+    configurableModelOptions?: AiModelOption[] | null;
 };
 
 // AI Organization Settings Types
@@ -204,7 +205,8 @@ export type AiOrganizationSettings = {
     aiAgentReviewsEnabled: boolean;
     mcpContentWritesEnabled: boolean;
     defaultAiAgentModelConfig: AiAgentModelConfig | null;
-    modelVisibility: AiOrgModelVisibility | null;
+    // Optional to keep the response schema backwards-compatible for old clients.
+    modelVisibility?: AiOrgModelVisibility | null;
     providerApiKeysSet: AiProviderApiKeysSet;
     providerApiKeyHints: AiProviderApiKeyHints;
 };
