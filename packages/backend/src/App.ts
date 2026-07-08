@@ -68,6 +68,11 @@ import {
 import { sessionAccountMiddleware } from './middlewares/accountMiddleware';
 import { jwtAuthMiddleware } from './middlewares/jwtAuthMiddleware';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
+import {
+    createLightdashPgWireHandlers,
+    type LightdashPgWireSession,
+} from './postgresWire/lightdashHandlers';
+import { PostgresWireServer } from './postgresWire/PostgresWireServer';
 import PrometheusMetrics from './prometheus/PrometheusMetrics';
 import { apiV1Router } from './routers/apiV1Router';
 import { createAppPreviewRouter } from './routers/appPreviewRouter';
@@ -171,6 +176,10 @@ export default class App {
     private readonly environment: 'production' | 'development';
 
     private schedulerWorker: SchedulerWorker | undefined;
+
+    private pgWireServer:
+        | PostgresWireServer<LightdashPgWireSession>
+        | undefined;
 
     private readonly clients: ClientRepository;
 
@@ -302,6 +311,20 @@ export default class App {
 
         // Load Lightdash middleware/routes last
         await this.initExpress(expressApp);
+
+        // Postgres wire protocol endpoint for the semantic layer (experimental)
+        const pgWirePort = process.env.PGWIRE_PORT
+            ? parseInt(process.env.PGWIRE_PORT, 10)
+            : undefined;
+        if (pgWirePort) {
+            this.pgWireServer = new PostgresWireServer(
+                createLightdashPgWireHandlers(this.serviceRepository),
+            );
+            await this.pgWireServer.listen(pgWirePort);
+            Logger.info(
+                `Postgres wire protocol server listening on port ${pgWirePort}`,
+            );
+        }
 
         if (this.lightdashConfig.scheduler?.enabled) {
             this.initSchedulerWorker();
@@ -1003,6 +1026,10 @@ export default class App {
     }
 
     async stop() {
+        if (this.pgWireServer) {
+            await this.pgWireServer.close();
+            Logger.info('Stopped Postgres wire protocol server');
+        }
         if (this.eventStreamWriter) {
             await this.eventStreamWriter.close();
             Logger.info('Flushed usage event stream writer');
