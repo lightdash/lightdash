@@ -6736,6 +6736,40 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     }
 
     /**
+     * True if a job timeout already finalized this run with a DIFFERENT
+     * terminal outcome than the one this (now-late) completion is about to
+     * report. `tryJobOrTimeout` races the job promise rather than cancelling
+     * it (see `SchedulerJobTimeout`), so a long-running writeback can still be
+     * executing in the background after its job has already been timed out —
+     * if that happened, the ai_writeback_run row and the chat tool result
+     * were both already finalized as an error the user has seen, and this
+     * late completion must not silently overwrite that. By the time a caller
+     * reaches this check, `AiWritebackService.run()` has already awaited its
+     * own terminal-status write, so the row is guaranteed to be terminal
+     * ('ready' or 'error') — never a non-terminal stage.
+     */
+    private async isRunAlreadyFinalizedDifferently(
+        user: SessionUser,
+        aiWritebackRunUuid: string,
+        ownOutcome: 'ready' | 'error',
+    ): Promise<boolean> {
+        try {
+            const current = await this.aiWritebackService.getRunStatus(
+                user,
+                aiWritebackRunUuid,
+            );
+            return current.status !== ownOutcome;
+        } catch (error) {
+            // Uncertain — assume not superseded so the user still sees this
+            // outcome rather than silently nothing.
+            Logger.debug(
+                `AiAgent.isRunAlreadyFinalizedDifferently: failed to check run ${aiWritebackRunUuid} status — assuming not superseded: ${getErrorMessage(error)}`,
+            );
+            return false;
+        }
+    }
+
+    /**
      * Worker entry point for the job enqueued by the `editDbtProject` tool
      * (see `getAiAgentDependencies`). Runs the actual writeback turn — plus
      * every side effect that used to happen inline once it resolved:
@@ -6798,6 +6832,18 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     }),
             );
         } catch (error) {
+            if (
+                await this.isRunAlreadyFinalizedDifferently(
+                    user,
+                    aiWritebackRunUuid,
+                    'error',
+                )
+            ) {
+                Logger.warn(
+                    `AiAgent.runEditDbtProjectPipeline: run ${aiWritebackRunUuid} failed after already being finalized as ready (likely a job timeout raced a fast completion) — skipping stale tool-result update`,
+                );
+                return;
+            }
             // Mirrors what the synchronous editDbtProject tool used to do in
             // its own catch block, before the run moved off the request
             // thread — same terminal, non-retryable cases relayed verbatim.
@@ -6823,6 +6869,19 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             // aiWritebackService.run() already persisted 'error' on
             // ai_writeback_run via its own catch (aiWritebackRunUuid was
             // passed above) — nothing further to do here.
+            return;
+        }
+
+        if (
+            await this.isRunAlreadyFinalizedDifferently(
+                user,
+                aiWritebackRunUuid,
+                'ready',
+            )
+        ) {
+            Logger.warn(
+                `AiAgent.runEditDbtProjectPipeline: run ${aiWritebackRunUuid} succeeded after already being finalized as an error (likely a job timeout) — skipping stale tool-result update`,
+            );
             return;
         }
 

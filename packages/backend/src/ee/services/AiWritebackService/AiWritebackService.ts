@@ -1765,35 +1765,78 @@ export class AiWritebackService extends BaseService {
                     );
                 });
         };
-        const persistRunReady = (finalPrUrl: string | null): void => {
-            if (!aiWritebackRunUuid) return;
-            this.aiWritebackRunModel
-                .markReady(aiWritebackRunUuid, {
-                    branchName: null,
-                    prUrl: finalPrUrl,
-                })
-                .catch((error: unknown) => {
-                    this.logger.warn(
-                        `AiWriteback: failed to persist run ready status — ignoring: ${getErrorMessage(error)}`,
-                    );
-                });
+        // Terminal status updates are the contract get_ai_writeback_status and
+        // the chat poller rely on — unlike persistStage above, a failure here
+        // must not be silently swallowed, or the run row (and the tool-result
+        // card) can get stuck reporting "in progress" forever even though the
+        // pipeline itself finished. Retry a few times (the update is a simple
+        // idempotent single-row UPDATE), and if it still fails, escalate to
+        // Sentry for visibility rather than just logging. The pipeline's own
+        // outcome (success or failure) is still returned/thrown to the caller
+        // regardless — a bookkeeping failure here must never masquerade as a
+        // pipeline failure.
+        const persistTerminalStatus = async (
+            write: () => Promise<boolean>,
+            label: string,
+        ): Promise<boolean> => {
+            if (!aiWritebackRunUuid) return true;
+            const maxAttempts = 3;
+            for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+                try {
+                    // eslint-disable-next-line no-await-in-loop
+                    return await write();
+                } catch (error) {
+                    if (attempt === maxAttempts) {
+                        this.logger.warn(
+                            `AiWriteback: failed to persist ${label} after ${maxAttempts} attempts — reporting to Sentry: ${getErrorMessage(error)}`,
+                        );
+                        Sentry.captureException(error, {
+                            tags: {
+                                errorType:
+                                    'AiWritebackPersistTerminalStatusFailed',
+                                label,
+                            },
+                            extra: { aiWritebackRunUuid },
+                        });
+                        // Unknown whether the row is now stuck — assume this
+                        // call is authoritative so the caller still surfaces
+                        // the real outcome to the user instead of nothing.
+                        return true;
+                    }
+                    // eslint-disable-next-line no-await-in-loop
+                    await new Promise((resolve) => {
+                        setTimeout(resolve, 200 * attempt);
+                    });
+                }
+            }
+            return true;
         };
-        const persistRunFailed = (error: unknown): void => {
-            if (!aiWritebackRunUuid) return;
-            this.aiWritebackRunModel
-                .markError(
-                    aiWritebackRunUuid,
-                    AiWritebackService.truncateEnd(
-                        getErrorMessage(error),
-                        4000,
+        // Returns whether this call's outcome actually applied to the row —
+        // false means the run had already reached a terminal status via a
+        // different writer (e.g. a job timeout firing before this slow
+        // completion landed). Callers use this to avoid clobbering an
+        // already-finalized outcome (see runEditDbtProjectPipeline).
+        const persistRunReady = (finalPrUrl: string | null): Promise<boolean> =>
+            persistTerminalStatus(
+                () =>
+                    this.aiWritebackRunModel.markReady(aiWritebackRunUuid!, {
+                        branchName: null,
+                        prUrl: finalPrUrl,
+                    }),
+                'run ready status',
+            );
+        const persistRunFailed = (error: unknown): Promise<boolean> =>
+            persistTerminalStatus(
+                () =>
+                    this.aiWritebackRunModel.markError(
+                        aiWritebackRunUuid!,
+                        AiWritebackService.truncateEnd(
+                            getErrorMessage(error),
+                            4000,
+                        ),
                     ),
-                )
-                .catch((dbError: unknown) => {
-                    this.logger.warn(
-                        `AiWriteback: failed to persist run error status — ignoring: ${getErrorMessage(dbError)}`,
-                    );
-                });
-        };
+                'run error status',
+            );
 
         // Ordered, structured log of every step (stages + per-file actions),
         // persisted as the writeback step rows so the post-reload view matches
@@ -1846,7 +1889,7 @@ export class AiWritebackService extends BaseService {
                 startNewPullRequest,
             });
         } catch (error) {
-            persistRunFailed(error);
+            await persistRunFailed(error);
             throw error;
         }
 
@@ -1864,7 +1907,7 @@ export class AiWritebackService extends BaseService {
             // Terminal from the job queue's point of view — nothing is running
             // and there's no PR to poll for. A future caller of the async path
             // would need to re-enqueue with an explicit dbtSourceUuid.
-            persistRunFailed(
+            await persistRunFailed(
                 new Error(
                     `This project has more than one dbt source; re-run naming one of: ${prepared.options.map((o) => o.name).join(', ')}`,
                 ),
@@ -1902,7 +1945,7 @@ export class AiWritebackService extends BaseService {
                 turn.existingRow,
             );
         } catch (error) {
-            persistRunFailed(error);
+            await persistRunFailed(error);
             throw error;
         }
 
@@ -1961,7 +2004,7 @@ export class AiWritebackService extends BaseService {
                     ? 'An edit is already in progress for this pull request (possibly on another server instance). Please wait for it to finish before making another change.'
                     : 'An edit is already in progress for this repository (possibly on another server instance). Please wait for it to finish before making another change.',
             );
-            persistRunFailed(lockBusyError);
+            await persistRunFailed(lockBusyError);
             throw lockBusyError;
         }
         try {
@@ -2084,7 +2127,7 @@ export class AiWritebackService extends BaseService {
                 });
                 const crashPrUrl =
                     turn.existingRow?.pr_url ?? adoptedPr?.prUrl ?? null;
-                persistRunReady(crashPrUrl);
+                await persistRunReady(crashPrUrl);
                 return {
                     output: sanitizedStdout,
                     exitCode: agent.exitCode,
@@ -2149,7 +2192,7 @@ export class AiWritebackService extends BaseService {
                 performance.now() - runStartedAt,
                 'success',
             );
-            persistRunReady(applied.prUrl);
+            await persistRunReady(applied.prUrl);
 
             return {
                 output: sanitizedStdout,
@@ -2192,7 +2235,7 @@ export class AiWritebackService extends BaseService {
                 },
             });
             tracker.failed(failureStage, error);
-            persistRunFailed(error);
+            await persistRunFailed(error);
             throw error;
         } finally {
             this.releaseTurnSlot(aiThreadUuid, lockKey);

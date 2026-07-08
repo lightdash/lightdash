@@ -515,15 +515,25 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     helpers.job,
                     AI_WRITEBACK_TIMEOUT_MS,
                     async (_job, e) => {
-                        await this.aiWritebackService.markRunError(
-                            payload.aiWritebackRunUuid,
-                            getErrorMessage(e),
-                        );
-                        await this.aiAgentService.markEditDbtProjectToolResultError(
-                            payload.promptUuid,
-                            payload.toolCallId,
-                            `Error running AI writeback: ${getErrorMessage(e)}`,
-                        );
+                        const runMarkedError =
+                            await this.aiWritebackService.markRunError(
+                                payload.aiWritebackRunUuid,
+                                getErrorMessage(e),
+                            );
+                        // markRunError guards its write against an already-
+                        // terminal row (see AiWritebackRunModel.markError). If
+                        // it returns false, the pipeline itself already
+                        // finished (successfully) and wrote its own tool
+                        // result an instant before this timeout fired —
+                        // overwriting that now with an error would be the
+                        // same stale-write bug this timeout path must avoid.
+                        if (runMarkedError) {
+                            await this.aiAgentService.markEditDbtProjectToolResultError(
+                                payload.promptUuid,
+                                payload.toolCallId,
+                                `Error running AI writeback: ${getErrorMessage(e)}`,
+                            );
+                        }
                     },
                 );
             },
