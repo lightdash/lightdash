@@ -405,23 +405,11 @@ const FilterConfiguration: FC<Props> = ({
         const ruleToSave = draftFilterRuleRef.current;
         if (!ruleToSave) return;
 
-        // A group nobody else belongs to is saved as a plain required filter
-        const isSingletonGroup =
-            !!ruleToSave.requiredGroupId &&
-            !otherFilterRules.some(
-                (rule) => rule.requiredGroupId === ruleToSave.requiredGroupId,
-            );
-
-        onSave(
-            isEditMode && isSingletonGroup
-                ? {
-                      ...ruleToSave,
-                      required: true,
-                      requiredGroupId: undefined,
-                  }
-                : ruleToSave,
-        );
-    }, [onSave, otherFilterRules, isEditMode]);
+        // Singleton groups are kept as-is: the first member of a group is
+        // always alone when applied, and at runtime a one-member group
+        // behaves exactly like a plain required filter.
+        onSave(ruleToSave);
+    }, [onSave]);
 
     const isApplyDisabled = !isFilterEnabled(
         draftFilterRule,
