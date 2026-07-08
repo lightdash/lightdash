@@ -1,4 +1,4 @@
-import { FeatureFlags } from '@lightdash/common';
+import { FeatureFlags, type AiOrgModelVisibility } from '@lightdash/common';
 import { AiCopilotConfigSchemaType } from '../../../config/aiConfigSchema';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
@@ -18,6 +18,25 @@ export type CopilotConfig = AiCopilotConfigSchemaType;
  * (the write path rejects them), so BYO can only swap the key of a provider
  * this instance already runs.
  */
+/**
+ * Effective model visibility = stored settings on top of an implicit default:
+ * an org with a BYO Anthropic key but no BYO OpenAI key hides OpenAI from the
+ * model selector, so chat never silently falls back to the instance OpenAI key.
+ * Explicit stored settings win, so an admin can re-enable OpenAI if they want
+ * the fallback.
+ */
+export const resolveEffectiveModelVisibility = (
+    orgKeys: AiOrgProviderApiKeys,
+    stored: AiOrgModelVisibility | null,
+): AiOrgModelVisibility | null => {
+    const implicit: AiOrgModelVisibility = {};
+    if (orgKeys.anthropic && !orgKeys.openai) {
+        implicit.openai = { enabled: false };
+    }
+    const merged = { ...implicit, ...(stored ?? {}) };
+    return Object.keys(merged).length > 0 ? merged : null;
+};
+
 export const overlayOrgProviderApiKeys = (
     config: CopilotConfig,
     orgKeys: AiOrgProviderApiKeys,
@@ -120,7 +139,10 @@ export class OrgAiCopilotConfigResolver {
               }
             : null;
         return {
-            modelVisibility: settings?.modelVisibility ?? null,
+            modelVisibility: resolveEffectiveModelVisibility(
+                orgKeys,
+                settings?.modelVisibility ?? null,
+            ),
             keyAccessibleModelIds,
         };
     }
