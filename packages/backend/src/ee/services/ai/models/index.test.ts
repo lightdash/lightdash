@@ -13,6 +13,7 @@ import {
     filterModelsForOrg,
     getDefaultModel,
     getModel,
+    MODEL_PRESETS,
 } from './index';
 import type { ModelPreset } from './presets';
 
@@ -234,6 +235,26 @@ describe('filterModelsForOrg', () => {
             keyAccessibleModelIds: null,
         });
         expect(result.map((p) => p.name)).toEqual(['claude-haiku-4-5']);
+    });
+
+    // Guards the core promise against the real preset table, not fixtures
+    it('hides claude-opus-4-8 by default but surfaces it when the anthropic key unlocks it', () => {
+        const realPresets = MODEL_PRESETS.anthropic;
+        expect(realPresets.some((p) => p.name === 'claude-opus-4-8')).toBe(
+            true,
+        );
+
+        const noKey = filterModelsForOrg(realPresets, {
+            modelVisibility: null,
+            keyAccessibleModelIds: null,
+        });
+        expect(noKey.map((p) => p.name)).not.toContain('claude-opus-4-8');
+
+        const withKey = filterModelsForOrg(realPresets, {
+            modelVisibility: null,
+            keyAccessibleModelIds: { anthropic: ['claude-opus-4-8'] },
+        });
+        expect(withKey.map((p) => p.name)).toContain('claude-opus-4-8');
     });
 });
 
