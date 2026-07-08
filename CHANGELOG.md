@@ -1,3 +1,16 @@
+# [0.3332.0](https://github.com/lightdash/lightdash/compare/0.3331.0...0.3332.0) (2026-07-08)
+
+
+### Bug Fixes
+
+* **ai-agents:** stop "Ask AI Agent" from shifting the dashboard menu ([#25273](https://github.com/lightdash/lightdash/issues/25273)) ([6932c1b](https://github.com/lightdash/lightdash/commit/6932c1b29d42644e59f4fde80915b1bd1662fefb)), closes [#25271](https://github.com/lightdash/lightdash/issues/25271)
+* **cli:** download warnings no longer overwrite the active spinner ([#25274](https://github.com/lightdash/lightdash/issues/25274)) ([f57fcd5](https://github.com/lightdash/lightdash/commit/f57fcd5c63907433ed2de00df8d60802ac7a6d22))
+
+
+### Features
+
+* **analytics:** emit ai.usage token events into logs and the usage event stream (PROD-8610) ([#25242](https://github.com/lightdash/lightdash/issues/25242)) ([7a44b57](https://github.com/lightdash/lightdash/commit/7a44b5783f301e8a9e5e66166ab12ead26756a40))
+
 # [0.3331.0](https://github.com/lightdash/lightdash/compare/0.3330.0...0.3331.0) (2026-07-08)
 
 
