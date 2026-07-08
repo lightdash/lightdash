@@ -37,7 +37,6 @@ export const getSystemPromptV2 = (args: {
     requestingUser?: AiAgentRequestingUser | null;
     date?: string;
     enableDataAccess?: boolean;
-    enableSearchSemanticLayer?: boolean;
     enableAiWriteback?: boolean;
     writebackAttribution?: AiWritebackAttribution | null;
     enableCodingAgent?: boolean;
@@ -62,7 +61,6 @@ export const getSystemPromptV2 = (args: {
         requestingUser = null,
         date = moment().utc().format('YYYY-MM-DD'),
         enableDataAccess = false,
-        enableSearchSemanticLayer = false,
         enableAiWriteback = false,
         writebackAttribution = null,
         enableCodingAgent = false,
@@ -175,7 +173,7 @@ export const getSystemPromptV2 = (args: {
         )
         .replace(
             '{{search_semantic_layer_section}}',
-            enableSearchSemanticLayer ? SEARCH_SEMANTIC_LAYER_SECTION : '',
+            SEARCH_SEMANTIC_LAYER_SECTION,
         )
         .replace(
             '{{data_access_section}}',

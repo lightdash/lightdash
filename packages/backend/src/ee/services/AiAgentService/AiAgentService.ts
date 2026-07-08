@@ -7609,11 +7609,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 })),
             ),
         });
-        const { enabled: searchSemanticLayerEnabled } =
-            await this.featureFlagService.get({
-                user,
-                featureFlagId: FeatureFlags.SearchSemanticLayer,
-            });
         const { enabled: grepFieldsEnabled } =
             await this.featureFlagService.get({
                 user,
@@ -7842,7 +7837,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableDataAccess: agentSettings.enableDataAccess,
             enableSelfImprovement: agentSettings.enableSelfImprovement,
             enableContentTools: canUseContentTools,
-            enableSearchSemanticLayer: searchSemanticLayerEnabled,
             enableAiWriteback: aiWritebackEnabled,
             enableEditProjectContext: isReviewRemediationWorkThread,
             writebackAttribution,
