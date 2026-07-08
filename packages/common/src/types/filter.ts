@@ -131,6 +131,11 @@ export interface FilterRule<
     /** Whether this filter is required */
     required?: boolean;
     /**
+     * Filters sharing a requiredGroupId form an "any-one required" group:
+     * the dashboard is locked until at least one member has a value.
+     */
+    requiredGroupId?: string;
+    /**
      * Overrides the field/explore case-sensitivity for this rule only.
      * Used by internal features like autocomplete search that must always
      * match case-insensitively regardless of the field's configured setting.

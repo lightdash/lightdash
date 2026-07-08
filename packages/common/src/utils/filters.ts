@@ -1539,3 +1539,49 @@ export const resetRequiredFilterRules = (
         [getFilterGroupItemsPropertyName(filterGroup)]: updatedItems,
     };
 };
+
+export type UnmetFilterRequirement =
+    | { type: 'single'; filter: DashboardFilterRule }
+    | { type: 'group'; groupId: string; filters: DashboardFilterRule[] };
+
+/**
+ * Returns the dashboard filter requirements that are still unmet. Scans
+ * dimensions and metrics only (parity with required-filter behavior); a rule
+ * is valueless iff `disabled === true`. A `required` rule that is valueless
+ * is always an unmet single, even when it also belongs to a group. A group
+ * (rules sharing a non-empty `requiredGroupId`) is unmet iff every member is
+ * valueless. Order: singles in filter order, then groups in first-appearance
+ * order.
+ */
+export const getUnmetFilterRequirements = (
+    dashboardFilters: DashboardFilters,
+): UnmetFilterRequirement[] => {
+    const rules = [...dashboardFilters.dimensions, ...dashboardFilters.metrics];
+
+    const unmetSingles = rules
+        .filter((rule) => rule.required && rule.disabled)
+        .map<UnmetFilterRequirement>((filter) => ({ type: 'single', filter }));
+
+    const groups = rules.reduce<Map<string, DashboardFilterRule[]>>(
+        (acc, rule) => {
+            if (rule.requiredGroupId) {
+                acc.set(rule.requiredGroupId, [
+                    ...(acc.get(rule.requiredGroupId) ?? []),
+                    rule,
+                ]);
+            }
+            return acc;
+        },
+        new Map(),
+    );
+
+    const unmetGroups = [...groups.entries()]
+        .filter(([, members]) => members.every((member) => member.disabled))
+        .map<UnmetFilterRequirement>(([groupId, filters]) => ({
+            type: 'group',
+            groupId,
+            filters,
+        }));
+
+    return [...unmetSingles, ...unmetGroups];
+};
