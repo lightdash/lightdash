@@ -58,6 +58,8 @@
         "@anthropic-ai/sdk": "0.91.1",
         "@aws-sdk/client-lambda-microvms": "3.1075.0",
         "@aws-sdk/client-s3": "3.992.0",
+        "@aws-sdk/client-sso": "3.1079.0",
+        "@aws-sdk/client-sso-oidc": "3.1079.0",
         "@aws-sdk/credential-providers": "3.995.0",
         "@aws-sdk/lib-storage": "3.995.0",
         "@aws-sdk/s3-request-presigner": "3.995.0",

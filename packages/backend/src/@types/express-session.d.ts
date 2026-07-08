@@ -12,6 +12,14 @@ declare module 'express-session' {
             databricks?: {
                 projectUuid?: string | undefined;
             };
+            redshiftAwsSso?: {
+                clientId: string;
+                clientSecret: string;
+                deviceCode: string;
+                region: string;
+                startUrl: string;
+                expiresAt: number;
+            };
             azureAdStrategyName?: string | undefined;
             oktaOrganizationUuid?: string | undefined;
             oidcStrategyName?: string | undefined;

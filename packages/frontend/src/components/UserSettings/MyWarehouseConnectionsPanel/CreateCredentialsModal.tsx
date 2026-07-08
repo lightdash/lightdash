@@ -102,11 +102,18 @@ export const CreateCredentialsModal: FC<Props> = ({
         },
     });
 
-    const showSaveButton = ![
-        WarehouseTypes.BIGQUERY,
-        WarehouseTypes.SNOWFLAKE,
-        WarehouseTypes.DATABRICKS,
-    ].includes(warehouseType ?? form.values.credentials.type);
+    const isRedshiftBrowserSso =
+        form.values.credentials.type === WarehouseTypes.REDSHIFT &&
+        'authenticationType' in form.values.credentials &&
+        form.values.credentials.authenticationType ===
+            RedshiftAuthenticationType.IAM_BROWSER;
+    const showSaveButton =
+        !isRedshiftBrowserSso &&
+        ![
+            WarehouseTypes.BIGQUERY,
+            WarehouseTypes.SNOWFLAKE,
+            WarehouseTypes.DATABRICKS,
+        ].includes(warehouseType ?? form.values.credentials.type);
 
     return (
         <MantineModal
@@ -175,6 +182,7 @@ export const CreateCredentialsModal: FC<Props> = ({
                         form={form}
                         disabled={isSaving}
                         onClose={onClose}
+                        onSuccess={onSuccess}
                         projectUuid={projectUuid}
                         projectName={projectName}
                         databricksCredentialsName={

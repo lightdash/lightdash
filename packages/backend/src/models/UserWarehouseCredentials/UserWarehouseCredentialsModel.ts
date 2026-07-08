@@ -463,8 +463,10 @@ export class UserWarehouseCredentialsModel {
         if (
             data.credentials.type === WarehouseTypes.REDSHIFT &&
             'authenticationType' in data.credentials &&
-            data.credentials.authenticationType ===
-                RedshiftAuthenticationType.IAM
+            (data.credentials.authenticationType ===
+                RedshiftAuthenticationType.IAM ||
+                data.credentials.authenticationType ===
+                    RedshiftAuthenticationType.IAM_BROWSER)
         ) {
             const result = redshiftIamUserCredentialsSchema.safeParse(
                 data.credentials,

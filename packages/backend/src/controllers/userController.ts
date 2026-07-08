@@ -15,10 +15,15 @@ import {
     ParameterError,
     PersonalAccessToken,
     PersonalAccessTokenWithToken,
+    RedshiftAwsSsoCompleteRequest,
+    RedshiftAwsSsoCompleteResponse,
+    RedshiftAwsSsoStartRequest,
+    RedshiftAwsSsoStartResponse,
     RegisterOrActivateUser,
     UpsertUserWarehouseCredentials,
     UserWarehouseCredentials,
     validatePassword,
+    WarehouseTypes,
 } from '@lightdash/common';
 import {
     Body,
@@ -349,6 +354,131 @@ export class UserController extends BaseController {
             results: await this.services
                 .getUserService()
                 .createWarehouseCredentials(toSessionUser(req.account), body),
+        };
+    }
+
+    /**
+     * Start Redshift AWS SSO login
+     * @summary Start Redshift AWS SSO login
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Post('/warehouseCredentials/redshift/aws-sso/start')
+    @OperationId('startRedshiftAwsSsoWarehouseCredentials')
+    async startRedshiftAwsSsoWarehouseCredentials(
+        @Request() req: express.Request,
+        @Body() body: RedshiftAwsSsoStartRequest,
+    ): Promise<RedshiftAwsSsoStartResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        let startRequest = body;
+        if (body.projectUuid) {
+            const project = await this.services
+                .getProjectService()
+                .getProject(body.projectUuid, req.account);
+            if (project.warehouseConnection?.type !== WarehouseTypes.REDSHIFT) {
+                throw new ParameterError(
+                    'Redshift AWS SSO credentials can only be created for Redshift projects.',
+                );
+            }
+            if (
+                !project.warehouseConnection.awsSsoStartUrl ||
+                !project.warehouseConnection.awsSsoRegion
+            ) {
+                throw new ParameterError(
+                    'Redshift AWS SSO credentials require AWS IAM Identity Center to be configured on the project.',
+                );
+            }
+            startRequest = {
+                ...body,
+                startUrl:
+                    body.startUrl ?? project.warehouseConnection.awsSsoStartUrl,
+                region: body.region ?? project.warehouseConnection.awsSsoRegion,
+            };
+        }
+        const { session, results } = await this.services
+            .getUserService()
+            .startRedshiftAwsSsoDeviceAuthorization(startRequest);
+        req.session.oauth = {
+            ...(req.session.oauth ?? {}),
+            redshiftAwsSso: session,
+        };
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Complete Redshift AWS SSO login
+     * @summary Complete Redshift AWS SSO login
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Post('/warehouseCredentials/redshift/aws-sso/complete')
+    @OperationId('completeRedshiftAwsSsoWarehouseCredentials')
+    async completeRedshiftAwsSsoWarehouseCredentials(
+        @Request() req: express.Request,
+        @Body() body: RedshiftAwsSsoCompleteRequest,
+    ): Promise<RedshiftAwsSsoCompleteResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        let completeRequest = body;
+        if (body.projectUuid) {
+            const project = await this.services
+                .getProjectService()
+                .getProject(body.projectUuid, req.account);
+            if (project.warehouseConnection?.type !== WarehouseTypes.REDSHIFT) {
+                throw new ParameterError(
+                    'Redshift AWS SSO credentials can only be created for Redshift projects.',
+                );
+            }
+            if (
+                !project.warehouseConnection.awsSsoAccountId ||
+                !project.warehouseConnection.awsSsoRoleName
+            ) {
+                throw new ParameterError(
+                    'Redshift AWS SSO credentials require AWS IAM Identity Center to be configured on the project.',
+                );
+            }
+            completeRequest = {
+                ...body,
+                accountId:
+                    body.accountId ??
+                    project.warehouseConnection.awsSsoAccountId,
+                roleName:
+                    body.roleName ?? project.warehouseConnection.awsSsoRoleName,
+            };
+        }
+        const results = await this.services
+            .getUserService()
+            .completeRedshiftAwsSsoDeviceAuthorization(
+                toSessionUser(req.account),
+                req.session.oauth?.redshiftAwsSso,
+                completeRequest,
+            );
+
+        if (results.status === 'authenticated') {
+            if (body.projectUuid) {
+                try {
+                    await this.services
+                        .getProjectService()
+                        .upsertProjectCredentialsPreference(
+                            toSessionUser(req.account),
+                            body.projectUuid,
+                            results.credentials.uuid,
+                        );
+                } catch (e) {
+                    Logger.warn(
+                        `Failed to set Redshift AWS SSO credentials preference for project ${body.projectUuid}`,
+                        e,
+                    );
+                }
+            }
+            delete req.session.oauth?.redshiftAwsSso;
+        }
+
+        return {
+            status: 'ok',
+            results,
         };
     }
 

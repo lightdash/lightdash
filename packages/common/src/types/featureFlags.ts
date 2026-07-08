@@ -260,13 +260,6 @@ export enum FeatureFlags {
     ProLimits = 'pro-limits',
 
     /**
-     * Show the AWS IAM authentication option on the Redshift connection form.
-     * When off, only username/password auth is offered. Lets IAM auth be
-     * rolled out / disabled per-org at runtime without a deploy.
-     */
-    RedshiftIamAuth = 'redshift-iam-auth',
-
-    /**
      * Replace the discoverFields sub-agent with a deterministic grep over an
      * in-memory, annotated view of the project's cached explores (explore =
      * directory, field = file). Connection-agnostic (reads compiled explores,

@@ -64,7 +64,7 @@ export const DatabricksSchemaInput: FC<{
     );
 };
 
-export const DatabricksSSOInput: FC<{
+const DatabricksSSOInput: FC<{
     isAuthenticated: boolean;
     disabled: boolean;
     disabledTooltip?: string;

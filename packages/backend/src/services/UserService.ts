@@ -1,3 +1,10 @@
+import { GetRoleCredentialsCommand, SSOClient } from '@aws-sdk/client-sso';
+import {
+    CreateTokenCommand,
+    RegisterClientCommand,
+    SSOOIDCClient,
+    StartDeviceAuthorizationCommand,
+} from '@aws-sdk/client-sso-oidc';
 import { subject } from '@casl/ability';
 import {
     ActivateUser,
@@ -42,6 +49,11 @@ import {
     ParameterError,
     PasswordReset,
     ProjectMemberRole,
+    RedshiftAuthenticationType,
+    RedshiftAwsSsoCompleteRequest,
+    RedshiftAwsSsoCompleteResults,
+    RedshiftAwsSsoStartRequest,
+    RedshiftAwsSsoStartResults,
     RegisterOrActivateUser,
     resolveEffectiveOrganizationSettings,
     ServiceAccount,
@@ -100,6 +112,18 @@ import { wrapSentryTransaction } from '../utils';
 import { processAvatarImage } from '../utils/processAvatarImage';
 import { BaseService } from './BaseService';
 import { getOrganizationSettingsInstanceDefaults } from './OrganizationSettingsService/getInstanceDefaults';
+
+const AWS_SSO_DEVICE_GRANT_TYPE =
+    'urn:ietf:params:oauth:grant-type:device_code';
+
+type RedshiftAwsSsoSession = {
+    clientId: string;
+    clientSecret: string;
+    deviceCode: string;
+    region: string;
+    startUrl: string;
+    expiresAt: number;
+};
 
 type UserServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -2655,6 +2679,224 @@ export class UserService extends BaseService {
         }
 
         return this.createWarehouseCredentials(user, databricksCredentials);
+    }
+
+    static isAwsSsoAuthorizationPending(error: unknown): boolean {
+        const errorName = (error as { name?: string })?.name;
+        return (
+            errorName === 'AuthorizationPendingException' ||
+            errorName === 'SlowDownException'
+        );
+    }
+
+    private static validateRedshiftAwsSsoStartRequest(
+        data: RedshiftAwsSsoStartRequest,
+    ) {
+        try {
+            if (!data.startUrl) {
+                throw new Error('Missing start URL');
+            }
+            const startUrl = new URL(data.startUrl);
+            if (startUrl.protocol !== 'https:') {
+                throw new Error('Invalid protocol');
+            }
+        } catch {
+            throw new ParameterError('AWS access portal URL must be valid.');
+        }
+
+        if (!data.region?.trim()) {
+            throw new ParameterError(
+                'AWS IAM Identity Center region is required.',
+            );
+        }
+    }
+
+    private static validateRedshiftAwsSsoCompleteRequest(
+        data: RedshiftAwsSsoCompleteRequest,
+    ) {
+        if (!data.accountId || !/^\d{12}$/.test(data.accountId.trim())) {
+            throw new ParameterError(
+                'AWS account ID must be a 12 digit number.',
+            );
+        }
+
+        if (!data.roleName?.trim()) {
+            throw new ParameterError('AWS role name is required.');
+        }
+    }
+
+    async startRedshiftAwsSsoDeviceAuthorization(
+        data: RedshiftAwsSsoStartRequest,
+    ): Promise<{
+        session: RedshiftAwsSsoSession;
+        results: RedshiftAwsSsoStartResults;
+    }> {
+        UserService.validateRedshiftAwsSsoStartRequest(data);
+
+        const region = data.region!.trim();
+        const startUrl = data.startUrl!.trim();
+        this.logger.info('Starting Redshift AWS SSO device authorization', {
+            region,
+        });
+        const client = new SSOOIDCClient({ region });
+        const registeredClient = await client.send(
+            new RegisterClientCommand({
+                clientName: 'Lightdash Redshift AWS SSO',
+                clientType: 'public',
+            }),
+        );
+
+        if (!registeredClient.clientId || !registeredClient.clientSecret) {
+            throw new ParameterError(
+                'AWS IAM Identity Center did not return client registration details.',
+            );
+        }
+
+        const authorization = await client.send(
+            new StartDeviceAuthorizationCommand({
+                clientId: registeredClient.clientId,
+                clientSecret: registeredClient.clientSecret,
+                startUrl,
+            }),
+        );
+
+        if (
+            !authorization.deviceCode ||
+            !authorization.verificationUri ||
+            !authorization.verificationUriComplete ||
+            !authorization.userCode ||
+            authorization.expiresIn === undefined ||
+            authorization.interval === undefined
+        ) {
+            throw new ParameterError(
+                'AWS IAM Identity Center did not return device authorization details.',
+            );
+        }
+
+        return {
+            session: {
+                clientId: registeredClient.clientId,
+                clientSecret: registeredClient.clientSecret,
+                deviceCode: authorization.deviceCode,
+                region,
+                startUrl,
+                expiresAt: Date.now() + authorization.expiresIn * 1000,
+            },
+            results: {
+                verificationUri: authorization.verificationUri,
+                verificationUriComplete: authorization.verificationUriComplete,
+                userCode: authorization.userCode,
+                expiresIn: authorization.expiresIn,
+                interval: authorization.interval,
+            },
+        };
+    }
+
+    async completeRedshiftAwsSsoDeviceAuthorization(
+        user: SessionUser,
+        session: RedshiftAwsSsoSession | undefined,
+        data: RedshiftAwsSsoCompleteRequest,
+    ): Promise<RedshiftAwsSsoCompleteResults> {
+        if (!session) {
+            throw new ParameterError('AWS SSO login has not been started.');
+        }
+
+        if (session.expiresAt < Date.now()) {
+            throw new ParameterError('AWS SSO login has expired. Try again.');
+        }
+
+        UserService.validateRedshiftAwsSsoCompleteRequest(data);
+
+        const oidcClient = new SSOOIDCClient({ region: session.region });
+        let accessToken: string | undefined;
+
+        try {
+            const token = await oidcClient.send(
+                new CreateTokenCommand({
+                    clientId: session.clientId,
+                    clientSecret: session.clientSecret,
+                    deviceCode: session.deviceCode,
+                    grantType: AWS_SSO_DEVICE_GRANT_TYPE,
+                }),
+            );
+            accessToken = token.accessToken;
+        } catch (e) {
+            if (UserService.isAwsSsoAuthorizationPending(e)) {
+                return { status: 'pending' };
+            }
+            throw e;
+        }
+
+        if (!accessToken) {
+            throw new ParameterError(
+                'AWS IAM Identity Center did not return an access token.',
+            );
+        }
+
+        const ssoClient = new SSOClient({ region: session.region });
+        const roleCredentials = await ssoClient.send(
+            new GetRoleCredentialsCommand({
+                accessToken,
+                accountId: data.accountId!.trim(),
+                roleName: data.roleName!.trim(),
+            }),
+        );
+
+        const awsCredentials = roleCredentials.roleCredentials;
+        if (
+            !awsCredentials?.accessKeyId ||
+            !awsCredentials.secretAccessKey ||
+            !awsCredentials.sessionToken
+        ) {
+            throw new ParameterError(
+                'AWS IAM Identity Center did not return role credentials.',
+            );
+        }
+
+        const roleName = data.roleName!.trim();
+        const credentialsName =
+            data.credentialsName?.trim() || `Redshift AWS SSO (${roleName})`;
+        const projectName = data.projectName?.trim();
+        const redshiftCredentials: UpsertUserWarehouseCredentials = {
+            name: credentialsName,
+            credentials: {
+                type: WarehouseTypes.REDSHIFT,
+                authenticationType: RedshiftAuthenticationType.IAM_BROWSER,
+                user: data.databaseUser?.trim() ?? '',
+                accessKeyId: awsCredentials.accessKeyId,
+                secretAccessKey: awsCredentials.secretAccessKey,
+                sessionToken: awsCredentials.sessionToken,
+            },
+        };
+
+        const existingCredentials = data.projectUuid
+            ? await this.userWarehouseCredentialsModel.findForProject(
+                  data.projectUuid,
+                  user.userUuid,
+                  WarehouseTypes.REDSHIFT,
+              )
+            : undefined;
+        const credentials = existingCredentials
+            ? await this.updateWarehouseCredentials(
+                  user,
+                  existingCredentials.uuid,
+                  redshiftCredentials,
+              )
+            : await this.createWarehouseCredentials(
+                  user,
+                  {
+                      ...redshiftCredentials,
+                      name: projectName
+                          ? `Redshift AWS SSO (${projectName})`
+                          : redshiftCredentials.name,
+                  },
+                  data.projectUuid,
+              );
+
+        return {
+            status: 'authenticated',
+            credentials,
+        };
     }
 
     async createWarehouseCredentials(
