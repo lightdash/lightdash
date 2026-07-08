@@ -696,4 +696,89 @@ describe('Slack AI agent blocks', () => {
             },
         ]);
     });
+
+    it('keeps a line and a bar of the same query as separate cards', async () => {
+        const vizChartConfig = (
+            defaultVizType: 'line' | 'bar',
+            lineType: 'line' | null,
+        ) => ({
+            groupBy: null,
+            lineType,
+            stackBars: null,
+            xAxisType: 'time' as const,
+            xAxisLabel: 'Order month',
+            yAxisLabel: 'Unique order count',
+            yAxisMetrics: ['orders_unique_order_count'],
+            defaultVizType,
+            xAxisDimension: 'orders_order_date_month',
+            funnelDataInput: null,
+            secondaryYAxisLabel: null,
+            secondaryYAxisMetric: null,
+        });
+
+        const chartVersion = (
+            versionUuid: string,
+            defaultVizType: 'line' | 'bar',
+            lineType: 'line' | null,
+        ) => ({
+            artifactUuid: 'artifact-1',
+            threadUuid: 'thread-1',
+            promptUuid: 'prompt-1',
+            artifactType: 'chart' as const,
+            savedQueryUuid: null,
+            savedDashboardUuid: null,
+            createdAt: new Date(),
+            versionNumber: Number(versionUuid.split('-')[1]),
+            versionUuid,
+            title: 'Unique Order Count Over Time',
+            description: null,
+            dashboardConfig: null,
+            versionCreatedAt: new Date(),
+            verifiedByUserUuid: null,
+            verifiedAt: null,
+            chartConfig: {
+                title: 'Unique Order Count Over Time',
+                description: 'Unique Order Count Over Time',
+                queryConfig: {
+                    exploreName: 'orders',
+                    dimensions: ['orders_order_date_month'],
+                    metrics: ['orders_unique_order_count'],
+                    sorts: [],
+                    limit: 500,
+                    customMetrics: [],
+                    tableCalculations: [],
+                    filters: null,
+                },
+                chartConfig: vizChartConfig(
+                    defaultVizType,
+                    defaultVizType === 'line' ? 'line' : null,
+                ),
+            },
+        });
+
+        const blocks = await getModernArtifactCardBlocks(
+            {
+                promptUuid: 'prompt-1',
+                projectUuid: 'project-1',
+                threadUuid: 'thread-1',
+            } as never,
+            'https://lightdash.example.com',
+            500,
+            async () => 'https://lightdash.example.com/share/chart',
+            async () => ({}) as never,
+            'agent-1',
+            [
+                chartVersion('version-1', 'line', 'line'),
+                chartVersion('version-2', 'bar', null),
+            ],
+            [],
+        );
+
+        expect(blocks).toMatchObject([
+            {
+                type: 'carousel',
+                elements: [{ type: 'card' }, { type: 'card' }],
+            },
+        ]);
+    });
 });

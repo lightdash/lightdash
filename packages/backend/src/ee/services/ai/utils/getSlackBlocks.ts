@@ -14,6 +14,7 @@ import {
 } from '@lightdash/common';
 import { Block, KnownBlock } from '@slack/bolt';
 import { partition } from 'lodash';
+import { z } from 'zod';
 import type { SlackStreamChunk } from '../../../../clients/Slack/SlackClient';
 import { populateCustomMetricsSQL } from './populateCustomMetricsSQL';
 
@@ -548,72 +549,64 @@ export async function getModernArtifactCardBlocks(
                     .chartImageUrl,
         )
         .filter((url): url is string => Boolean(url));
-    // A retried generateVisualization adds another version to the turn's
-    // artifact — sometimes re-running the same query, sometimes tweaking it
-    // (e.g. day -> month grain) to work around an error while keeping the same
-    // title. Its query identity: viz type + query, ignoring the random ids
-    // parseVizConfig stamps on filter rules.
-    const getArtifactQueryIdentity = (artifact: AiArtifact): string => {
+    // The viz type lives in chartConfig.chartConfig.defaultVizType (line, bar,
+    // ...); parseVizConfig flattens the unified generateVisualization shape to
+    // "query_result" and can't tell a line from a bar, so read it directly and
+    // fall back to parseVizConfig's type for legacy per-tool shapes.
+    const vizTypeSchema = z.object({
+        chartConfig: z
+            .object({ defaultVizType: z.string() })
+            .nullable()
+            .optional(),
+    });
+    const getChartVizType = (artifact: AiArtifact): string => {
+        const parsed = vizTypeSchema.safeParse(artifact.chartConfig);
+        if (parsed.success && parsed.data.chartConfig?.defaultVizType) {
+            return parsed.data.chartConfig.defaultVizType;
+        }
+        return (
+            parseVizConfig(artifact.chartConfig, maxQueryLimit)?.type ?? 'chart'
+        );
+    };
+
+    // Identity of a chart within a turn: viz type + title. A retry keeps both
+    // (even when it tweaks the query, e.g. day -> month), so retries collapse;
+    // a line and a bar of the same data differ in viz type, and different
+    // charts differ in title, so both stay separate. Untitled charts fall back
+    // to their query so they don't all collapse together.
+    const getArtifactIdentity = (artifact: AiArtifact): string => {
+        const title = artifact.title?.trim();
         if (artifact.chartConfig) {
+            const vizType = getChartVizType(artifact);
+            if (title) return `chart:${vizType}:${title}`;
             const viz = parseVizConfig(artifact.chartConfig, maxQueryLimit);
-            if (viz) {
-                return JSON.stringify(
-                    { type: viz.type, metricQuery: viz.metricQuery },
-                    (key, value) => (key === 'id' ? undefined : value),
-                );
-            }
+            const query = viz
+                ? JSON.stringify(
+                      { type: viz.type, metricQuery: viz.metricQuery },
+                      (key, value) => (key === 'id' ? undefined : value),
+                  )
+                : artifact.versionUuid;
+            return `chart:${vizType}:${query}`;
         }
         if (artifact.dashboardConfig) {
-            return JSON.stringify({ dashboard: artifact.dashboardConfig });
+            return title
+                ? `dashboard:${title}`
+                : `dashboard:${JSON.stringify(artifact.dashboardConfig)}`;
         }
         return `version:${artifact.versionUuid}`;
     };
 
-    // Treat two versions as the same chart when they share a query OR a title,
-    // so retries collapse whether or not the query changed. Union them and keep
-    // the latest version of each group (Slack allows up to 10 cards).
-    const parent = artifacts.map((_, index) => index);
-    const find = (index: number): number => {
-        let root = index;
-        while (parent[root] !== root) root = parent[root];
-        return root;
-    };
-    const union = (a: number, b: number) => {
-        parent[find(a)] = find(b);
-    };
-    const firstByKey = new Map<string, number>();
-    artifacts.forEach((artifact, index) => {
-        const title = artifact.title?.trim();
-        const keys = [
-            `query:${getArtifactQueryIdentity(artifact)}`,
-            ...(title ? [`title:${title}`] : []),
-        ];
-        keys.forEach((key) => {
-            const seen = firstByKey.get(key);
-            if (seen === undefined) firstByKey.set(key, index);
-            else union(index, seen);
-        });
+    // Keep the latest version per identity, preserving first-appearance order
+    // (Slack allows up to 10 cards).
+    const latestByIdentity = new Map<string, AiArtifact>();
+    artifacts.forEach((artifact) => {
+        const identity = getArtifactIdentity(artifact);
+        const existing = latestByIdentity.get(identity);
+        if (!existing || artifact.versionNumber > existing.versionNumber) {
+            latestByIdentity.set(identity, artifact);
+        }
     });
-    const latestByGroup = new Map<
-        number,
-        { artifact: AiArtifact; firstIndex: number }
-    >();
-    artifacts.forEach((artifact, index) => {
-        const group = find(index);
-        const existing = latestByGroup.get(group);
-        if (
-            !existing ||
-            artifact.versionNumber > existing.artifact.versionNumber
-        )
-            latestByGroup.set(group, {
-                artifact,
-                firstIndex: existing?.firstIndex ?? index,
-            });
-    });
-    const dedupedArtifacts = Array.from(latestByGroup.values())
-        .sort((a, b) => a.firstIndex - b.firstIndex)
-        .map((entry) => entry.artifact)
-        .slice(0, 10);
+    const dedupedArtifacts = Array.from(latestByIdentity.values()).slice(0, 10);
 
     const chartArtifacts = dedupedArtifacts.filter((artifact) =>
         Boolean(artifact.chartConfig),
