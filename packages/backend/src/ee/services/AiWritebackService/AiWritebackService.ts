@@ -1822,19 +1822,33 @@ export class AiWritebackService extends BaseService {
             reportProgress(text);
         };
 
-        const prepared = await this.prepareTurn({
-            user,
-            projectUuid,
-            prompt,
-            aiThreadUuid,
-            source,
-            dbtSourceUuid,
-            featureFlag: config.featureFlag,
-            mode: config.mode,
-            repoTarget: args.repoTarget,
-            prUrl,
-            startNewPullRequest,
-        });
+        // Everything through the workstream-lock acquisition below is
+        // "pre-flight": permission/project/dbt-source resolution and the
+        // concurrency guards, none of which has started a sandbox yet. None of
+        // it was previously wrapped in error handling — an exception here (e.g.
+        // assertCanManageSourceCode's ForbiddenError, or a busy workstream lock)
+        // would escape uncaught and leave the ai_writeback_run row stuck at
+        // 'pending' forever, since only the sandbox/agent phase further below
+        // has a catch that calls persistRunFailed.
+        let prepared: PreparedTurn;
+        try {
+            prepared = await this.prepareTurn({
+                user,
+                projectUuid,
+                prompt,
+                aiThreadUuid,
+                source,
+                dbtSourceUuid,
+                featureFlag: config.featureFlag,
+                mode: config.mode,
+                repoTarget: args.repoTarget,
+                prUrl,
+                startNewPullRequest,
+            });
+        } catch (error) {
+            persistRunFailed(error);
+            throw error;
+        }
 
         // The project has more than one dbt source and the prompt didn't pin a
         // single one down. Ask the caller to choose before spending a sandbox —
@@ -1881,7 +1895,16 @@ export class AiWritebackService extends BaseService {
         // tracking so a rejection neither starts analytics nor enters the finally
         // that clears the winner's slot.
         const lockKey = workstreamLockKey(aiThreadUuid, turn, repository);
-        this.assertTurnSlotAvailable(aiThreadUuid, lockKey, turn.existingRow);
+        try {
+            this.assertTurnSlotAvailable(
+                aiThreadUuid,
+                lockKey,
+                turn.existingRow,
+            );
+        } catch (error) {
+            persistRunFailed(error);
+            throw error;
+        }
 
         const tracker = this.startTracking({ user, projectUuid, turn });
 
@@ -1933,11 +1956,13 @@ export class AiWritebackService extends BaseService {
             : null;
         if (lockKey && !workstreamLock) {
             this.releaseTurnSlot(aiThreadUuid, lockKey);
-            throw new ParameterError(
+            const lockBusyError = new ParameterError(
                 turn.existingRow
                     ? 'An edit is already in progress for this pull request (possibly on another server instance). Please wait for it to finish before making another change.'
                     : 'An edit is already in progress for this repository (possibly on another server instance). Please wait for it to finish before making another change.',
             );
+            persistRunFailed(lockBusyError);
+            throw lockBusyError;
         }
         try {
             const installation = await turn.provider.resolveInstallation(

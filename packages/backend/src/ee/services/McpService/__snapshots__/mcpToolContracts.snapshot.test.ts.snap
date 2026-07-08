@@ -7423,6 +7423,7 @@ Response shape (MCP CallToolResult):
         "properties": {
           "aiWritebackRunUuid": {
             "description": "The id returned by run_ai_writeback.",
+            "format": "uuid",
             "type": "string",
           },
         },

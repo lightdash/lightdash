@@ -246,6 +246,7 @@ Response shape (MCP CallToolResult):
 export const mcpGetAiWritebackStatusArgsSchema = z.object({
     aiWritebackRunUuid: z
         .string()
+        .uuid()
         .describe('The id returned by run_ai_writeback.'),
 });
 

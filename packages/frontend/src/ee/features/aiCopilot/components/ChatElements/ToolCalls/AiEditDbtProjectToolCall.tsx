@@ -13,6 +13,7 @@ import {
     ThemeIcon,
 } from '@mantine-8/core';
 import {
+    IconAlertTriangle,
     IconCheck,
     IconChevronDown,
     IconEye,
@@ -436,11 +437,34 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
             );
         }
         // Any other error (e.g. a write-permission 403, or an unclassified
-        // failure): the agent's own reply already explains what went wrong and,
-        // where relevant, how to fix it — so a separate red "Writeback failed"
-        // card would only duplicate that prose without adding an action. Render
-        // nothing and let the agent's message carry the explanation.
-        return null;
+        // failure). The agent's reply can no longer be trusted to explain this:
+        // since the tool call now returns before the run finishes (SPK-548),
+        // the agent already wrote its "kicked off a pull request"-style reply
+        // before this outcome existed. Show a generic failure card rather than
+        // rendering nothing, so the user isn't left believing a PR is on its way.
+        return (
+            <Paper withBorder p="sm" radius="md">
+                <Group gap="xs" align="flex-start" wrap="nowrap">
+                    <ThemeIcon
+                        variant="light"
+                        color="red"
+                        radius="md"
+                        size="md"
+                    >
+                        <MantineIcon icon={IconAlertTriangle} size={16} />
+                    </ThemeIcon>
+                    <Stack gap={2}>
+                        <Text size="sm" fw={500}>
+                            The change couldn't be completed
+                        </Text>
+                        <Text size="xs" c="ldGray.6">
+                            No pull request was opened. Ask again, or rephrase
+                            the request, to retry.
+                        </Text>
+                    </Stack>
+                </Group>
+            </Paper>
+        );
     }
 
     if (metadata.status === 'pending') {
