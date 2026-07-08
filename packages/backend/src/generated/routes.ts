@@ -12756,9 +12756,14 @@ const models: TsoaRoute.Models = {
                         {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
+                                clientSecret: {
+                                    dataType: 'string',
+                                },
+                                clientId: {
+                                    dataType: 'string',
+                                },
                                 bearerToken: {
                                     dataType: 'string',
-                                    required: true,
                                 },
                             },
                         },

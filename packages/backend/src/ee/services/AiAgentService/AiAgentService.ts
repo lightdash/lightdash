@@ -3229,7 +3229,11 @@ export class AiAgentService extends BaseService {
 
         switch (body.authType) {
             case 'none':
-                if (body.credentials?.bearerToken) {
+                if (
+                    body.credentials?.bearerToken ||
+                    body.credentials?.clientId ||
+                    body.credentials?.clientSecret
+                ) {
                     throw new ParameterError(
                         'Credentials are not allowed for auth type "none"',
                     );
@@ -3246,7 +3250,7 @@ export class AiAgentService extends BaseService {
                 }
                 break;
             case 'bearer':
-                if (!body.credentials?.bearerToken.trim()) {
+                if (!body.credentials?.bearerToken?.trim()) {
                     throw new ParameterError(
                         'Bearer MCP servers require a bearer token',
                     );
@@ -3259,6 +3263,15 @@ export class AiAgentService extends BaseService {
                         `Bearer token must be at most ${MAX_MCP_BEARER_TOKEN_LENGTH} characters`,
                     );
                 }
+
+                if (
+                    body.credentials?.clientId ||
+                    body.credentials?.clientSecret
+                ) {
+                    throw new ParameterError(
+                        'OAuth client credentials are not allowed for auth type "bearer"',
+                    );
+                }
                 if (allowOAuthCredentialSharing) {
                     throw new ParameterError(
                         'OAuth credential sharing is only allowed for auth type "oauth"',
@@ -3269,6 +3282,25 @@ export class AiAgentService extends BaseService {
                 if (body.credentials?.bearerToken) {
                     throw new ParameterError(
                         'Bearer credentials are not allowed for auth type "oauth"',
+                    );
+                }
+                if (
+                    (body.credentials?.clientId?.trim() &&
+                        !body.credentials?.clientSecret?.trim()) ||
+                    (!body.credentials?.clientId?.trim() &&
+                        body.credentials?.clientSecret?.trim())
+                ) {
+                    throw new ParameterError(
+                        'OAuth client ID and secret must be provided together',
+                    );
+                }
+                if (
+                    allowOAuthCredentialSharing &&
+                    (body.credentials?.clientId?.trim() ||
+                        body.credentials?.clientSecret?.trim())
+                ) {
+                    throw new ParameterError(
+                        'OAuth client ID and secret are only supported for personal OAuth credentials',
                     );
                 }
                 if (body.credentialScope !== undefined) {
@@ -3284,12 +3316,22 @@ export class AiAgentService extends BaseService {
                 );
         }
 
-        const credentials =
-            body.authType === 'bearer'
-                ? {
-                      bearerToken: body.credentials!.bearerToken.trim(),
-                  }
-                : null;
+        let credentials: ApiCreateAiMcpServer['credentials'] = null;
+        if (body.authType === 'bearer') {
+            credentials = {
+                bearerToken: body.credentials!.bearerToken!.trim(),
+            };
+        }
+        if (
+            body.authType === 'oauth' &&
+            body.credentials?.clientId?.trim() &&
+            body.credentials?.clientSecret?.trim()
+        ) {
+            credentials = {
+                clientId: body.credentials.clientId.trim(),
+                clientSecret: body.credentials.clientSecret.trim(),
+            };
+        }
 
         let mcpConnectionMetadata: { iconUrl: string | null } | null = null;
 

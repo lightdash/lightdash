@@ -213,6 +213,8 @@ export type AiMcpOAuthCredentialPayload = {
     type: 'oauth';
     credentialScope: AiMcpCredentialScope;
     connectionStatus: AiMcpServerConnectionStatus;
+    configuredClientId?: string;
+    configuredClientSecret?: string;
     tokens?: {
         accessToken: string;
         refreshToken?: string;
@@ -967,7 +969,23 @@ export class AiAgentModel {
                     bearerToken: credentials.bearerToken,
                 };
             case 'oauth':
-                return null;
+                if (!credentials?.clientId && !credentials?.clientSecret) {
+                    return null;
+                }
+
+                if (!credentials.clientId || !credentials.clientSecret) {
+                    throw new ParameterError(
+                        'OAuth client ID and secret must be provided together',
+                    );
+                }
+
+                return {
+                    type: 'oauth',
+                    credentialScope: 'shared',
+                    connectionStatus: 'not_connected',
+                    configuredClientId: credentials.clientId,
+                    configuredClientSecret: credentials.clientSecret,
+                };
             default:
                 return assertUnreachable(
                     authType,

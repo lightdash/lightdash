@@ -402,7 +402,9 @@ export type ApiCreateAiMcpServer = {
     allowOAuthCredentialSharing?: boolean;
     credentialScope?: AiMcpCredentialScope;
     credentials?: {
-        bearerToken: string;
+        bearerToken?: string;
+        clientId?: string;
+        clientSecret?: string;
     } | null;
 };
 

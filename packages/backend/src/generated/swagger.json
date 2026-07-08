@@ -14381,11 +14381,16 @@
                 "properties": {
                     "credentials": {
                         "properties": {
+                            "clientSecret": {
+                                "type": "string"
+                            },
+                            "clientId": {
+                                "type": "string"
+                            },
                             "bearerToken": {
                                 "type": "string"
                             }
                         },
-                        "required": ["bearerToken"],
                         "type": "object",
                         "nullable": true
                     },

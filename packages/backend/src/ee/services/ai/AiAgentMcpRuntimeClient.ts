@@ -76,6 +76,39 @@ const buildDefaultClientMetadata = (
     token_endpoint_auth_method: 'none',
 });
 
+const getOAuthClientInformation = (
+    payload: AiMcpOAuthCredentialPayload,
+): OAuthClientInformationMixed | undefined => {
+    if (payload.configuredClientId && payload.configuredClientSecret) {
+        return {
+            client_id: payload.configuredClientId,
+            client_secret: payload.configuredClientSecret,
+        };
+    }
+
+    return payload.clientInformation as OAuthClientInformationMixed | undefined;
+};
+
+const toPersistedOAuthPayload = (
+    payload: AiMcpOAuthCredentialPayload,
+    credentialScope: AiMcpCredentialScope,
+): AiMcpOAuthCredentialPayload => {
+    if (
+        credentialScope !== 'user' ||
+        !payload.configuredClientId ||
+        !payload.configuredClientSecret
+    ) {
+        return payload;
+    }
+
+    return {
+        ...payload,
+        configuredClientId: undefined,
+        configuredClientSecret: undefined,
+        clientInformation: undefined,
+    };
+};
+
 export const getMcpOAuthCallbackUrl = (siteUrl: string): string =>
     new URL('/api/v1/aiAgents/mcp/oauth/callback', siteUrl).toString();
 
@@ -97,7 +130,13 @@ export const normalizeMcpOAuthPayloadForRedirect = (
         return {
             ...payload,
             credentialScope,
-            clientInformation: undefined,
+            clientInformation:
+                payload.configuredClientId && payload.configuredClientSecret
+                    ? {
+                          client_id: payload.configuredClientId,
+                          client_secret: payload.configuredClientSecret,
+                      }
+                    : undefined,
             clientMetadata: defaultClientMetadata,
             codeVerifier: undefined,
             state: undefined,
@@ -254,8 +293,23 @@ class PersistentMcpOAuthClientProvider implements OAuthClientProvider {
         const payload = credential?.credentials;
 
         if (payload?.type === 'oauth') {
-            return normalizeMcpOAuthPayloadForRedirect(
+            const normalizedPayload = normalizeMcpOAuthPayloadForRedirect(
                 payload,
+                credential!.credentialScope,
+                this.redirectTargetUrl,
+                this.defaultClientMetadata,
+            );
+
+            return normalizeMcpOAuthPayloadForRedirect(
+                {
+                    ...normalizedPayload,
+                    clientInformation: getOAuthClientInformation(
+                        normalizedPayload,
+                    ) as Record<string, unknown> | undefined,
+                    clientMetadata:
+                        normalizedPayload.clientMetadata ??
+                        this.defaultClientMetadata,
+                },
                 credential!.credentialScope,
                 this.redirectTargetUrl,
                 this.defaultClientMetadata,
@@ -292,9 +346,7 @@ class PersistentMcpOAuthClientProvider implements OAuthClientProvider {
         OAuthClientInformationMixed | undefined
     > {
         const payload = await this.loadPayload();
-        return payload.clientInformation as
-            | OAuthClientInformationMixed
-            | undefined;
+        return getOAuthClientInformation(payload);
     }
 
     async saveClientInformation(
@@ -751,23 +803,82 @@ export class AiAgentMcpRuntimeClient {
         forceReauth?: boolean;
         connectionStatusOnAuthorization?: AiMcpServerConnectionStatus;
     }) {
+        const getCredentialWithConfiguredClient = async () => {
+            const credential = await this.aiAgentModel.getCredential(
+                args.mcpServerUuid,
+                args.credentialScope,
+                {
+                    userUuid: args.userUuid,
+                },
+            );
+            const sharedCredential =
+                args.credentialScope === 'shared'
+                    ? credential
+                    : await this.aiAgentModel.getCredential(
+                          args.mcpServerUuid,
+                          'shared',
+                      );
+            const sharedPayload = sharedCredential?.credentials;
+
+            if (
+                !sharedCredential ||
+                sharedPayload?.type !== 'oauth' ||
+                !sharedPayload.configuredClientId ||
+                !sharedPayload.configuredClientSecret
+            ) {
+                return credential;
+            }
+
+            if (!credential) {
+                return {
+                    ...sharedCredential,
+                    credentialScope: args.credentialScope,
+                    userUuid:
+                        args.credentialScope === 'user'
+                            ? (args.userUuid ?? null)
+                            : null,
+                    credentials: {
+                        type: 'oauth',
+                        credentialScope: args.credentialScope,
+                        connectionStatus: 'not_connected',
+                        configuredClientId: sharedPayload.configuredClientId,
+                        configuredClientSecret:
+                            sharedPayload.configuredClientSecret,
+                    },
+                } satisfies AiMcpCredential;
+            }
+
+            if (credential.credentials.type !== 'oauth') {
+                return credential;
+            }
+
+            return {
+                ...credential,
+                credentials: {
+                    ...credential.credentials,
+                    configuredClientId:
+                        credential.credentials.configuredClientId ??
+                        sharedPayload.configuredClientId,
+                    configuredClientSecret:
+                        credential.credentials.configuredClientSecret ??
+                        sharedPayload.configuredClientSecret,
+                },
+            } satisfies AiMcpCredential;
+        };
+
         return new PersistentMcpOAuthClientProvider({
             mcpServerUuid: args.mcpServerUuid,
             credentialScope: args.credentialScope,
             redirectUrl: getMcpOAuthCallbackUrl(this.lightdashConfig.siteUrl),
-            getCredential: () =>
-                this.aiAgentModel.getCredential(
-                    args.mcpServerUuid,
-                    args.credentialScope,
-                    {
-                        userUuid: args.userUuid,
-                    },
-                ),
+            getCredential: getCredentialWithConfiguredClient,
             saveCredential: async (payload) => {
                 await this.aiAgentModel.upsertCredential({
                     serverUuid: args.mcpServerUuid,
                     scope: args.credentialScope,
-                    credentials: payload,
+                    credentials: toPersistedOAuthPayload(
+                        payload,
+                        args.credentialScope,
+                    ),
                     userUuid: args.userUuid,
                     actorUserUuid: args.actorUserUuid ?? null,
                 });
