@@ -5,14 +5,12 @@ import {
     supportsSingleValue,
     type DashboardFilterableField,
     type DashboardFilterRule,
-    type FilterableItem,
     type FilterRule,
 } from '@lightdash/common';
 import { Box, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Button,
-    Checkbox,
     Group,
     Select,
     Switch,
@@ -29,8 +27,7 @@ import { getFilterOperatorOptions } from '../../../components/common/Filters/Fil
 import { getPlaceholderByFilterTypeAndOperator } from '../../../components/common/Filters/utils/getPlaceholderByFilterTypeAndOperator';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useApp from '../../../providers/App/useApp';
-import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
-import { getDashboardFilterRuleLabel } from '../FilterRequirements/utils';
+import RequiredFilterCard from '../FilterRequirements/RequiredFilterCard';
 
 interface FilterSettingsProps {
     isEditMode: boolean;
@@ -40,6 +37,7 @@ interface FilterSettingsProps {
     filterRule: DashboardFilterRule;
     popoverProps?: Omit<PopoverProps, 'children'>;
     onChangeFilterRule: (value: DashboardFilterRule) => void;
+    onEditRequirementRules?: () => void;
 }
 
 const FilterSettings: FC<FilterSettingsProps> = ({
@@ -50,6 +48,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     filterRule,
     popoverProps,
     onChangeFilterRule,
+    onEditRequirementRules,
 }) => {
     const { user } = useApp();
     const canManageExplore = user.data?.ability?.can('manage', 'Explore');
@@ -79,39 +78,23 @@ const FilterSettings: FC<FilterSettingsProps> = ({
 
     const isFilterDisabled = !!filterRule.disabled;
 
-    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
-    const allFilterableFieldsMap = useDashboardContext(
-        (c) => c.allFilterableFieldsMap,
-    );
-    const allFilterableMetricsMap = useDashboardContext(
-        (c) => c.allFilterableMetricsMap,
-    );
-
-    // `required` wins when hand-authored JSON sets both flags
-    const isRequirementRuleMember =
-        !filterRule.required && !!filterRule.requiredGroupId;
-
-    const otherRequirementMemberLabels = useMemo(() => {
-        if (!isRequirementRuleMember) return [];
-        const fieldsMap: Record<string, FilterableItem> = {
-            ...allFilterableFieldsMap,
-            ...allFilterableMetricsMap,
+    const handleToggleRequired = (checked: boolean) => {
+        const newFilter: DashboardFilterRule = {
+            ...filterRule,
+            required: checked,
         };
-        return [...dashboardFilters.dimensions, ...dashboardFilters.metrics]
-            .filter(
-                (rule) =>
-                    rule.requiredGroupId === filterRule.requiredGroupId &&
-                    rule.id !== filterRule.id,
-            )
-            .map((rule) => getDashboardFilterRuleLabel(rule, fieldsMap));
-    }, [
-        isRequirementRuleMember,
-        dashboardFilters,
-        allFilterableFieldsMap,
-        allFilterableMetricsMap,
-        filterRule.requiredGroupId,
-        filterRule.id,
-    ]);
+
+        onChangeFilterRule(
+            checked
+                ? newFilter
+                : getFilterRuleWithDefaultValue(
+                      filterType,
+                      field,
+                      newFilter,
+                      null,
+                  ),
+        );
+    };
 
     const showValueInput = useMemo(() => {
         // Always show the input in view mode
@@ -365,51 +348,11 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                             </Tooltip>
                         )}
 
-                        <Tooltip
-                            withinPortal
-                            position="right"
-                            label="This filter is part of a filter requirement — manage it from Requirements in the filter bar"
-                            disabled={!isRequirementRuleMember}
-                        >
-                            <Box w="max-content">
-                                <Checkbox
-                                    size="xs"
-                                    disabled={isRequirementRuleMember}
-                                    checked={filterRule.required}
-                                    onChange={(e) => {
-                                        const newFilter: DashboardFilterRule = {
-                                            ...filterRule,
-                                            required: e.currentTarget.checked,
-                                        };
-
-                                        onChangeFilterRule(
-                                            e.currentTarget.checked
-                                                ? newFilter
-                                                : getFilterRuleWithDefaultValue(
-                                                      filterType,
-                                                      field,
-                                                      newFilter,
-                                                      null,
-                                                  ),
-                                        );
-                                    }}
-                                    label="Require viewers to pick a value to load the dashboard"
-                                />
-                            </Box>
-                        </Tooltip>
-                        {isRequirementRuleMember ? (
-                            <Text size="xs" c="ldGray.6">
-                                Requires at least one of:{' '}
-                                {otherRequirementMemberLabels.length > 0
-                                    ? otherRequirementMemberLabels.join(', ')
-                                    : 'this filter'}
-                            </Text>
-                        ) : (
-                            <Text size="xs" c="ldGray.6">
-                                To require one of several filters instead, use
-                                Requirements in the filter bar.
-                            </Text>
-                        )}
+                        <RequiredFilterCard
+                            filterRule={filterRule}
+                            onToggleRequired={handleToggleRequired}
+                            onEditRules={onEditRequirementRules}
+                        />
                     </>
                 )}
             </Stack>

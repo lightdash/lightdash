@@ -163,17 +163,16 @@ describe('FilterConfiguration', () => {
             />,
         );
 
+        const requiredSwitch = screen.getByLabelText('Required filter');
+        expect(requiredSwitch).toBeDisabled();
+        expect(requiredSwitch).toBeChecked();
         expect(
-            screen.getByLabelText(
-                'Require viewers to pick a value to load the dashboard',
-            ),
-        ).toBeDisabled();
-        expect(
-            screen.getByText('Requires at least one of: Last name'),
+            screen.getByText('At least one of group A must be set'),
         ).toBeInTheDocument();
+        expect(screen.getByText('Last name')).toBeInTheDocument();
     });
 
-    it('shows the requirements hint when the filter is not part of a rule', () => {
+    it('shows an enabled unchecked required toggle when the filter is not part of a rule', () => {
         renderWithProviders(
             <FilterConfiguration
                 isEditMode
@@ -187,15 +186,9 @@ describe('FilterConfiguration', () => {
             />,
         );
 
-        expect(
-            screen.getByLabelText(
-                'Require viewers to pick a value to load the dashboard',
-            ),
-        ).toBeEnabled();
-        expect(
-            screen.getByText(
-                'To require one of several filters instead, use Requirements in the filter bar.',
-            ),
-        ).toBeInTheDocument();
+        const requiredSwitch = screen.getByLabelText('Required filter');
+        expect(requiredSwitch).toBeEnabled();
+        expect(requiredSwitch).not.toBeChecked();
+        expect(screen.getByText('Required filter')).toBeInTheDocument();
     });
 });

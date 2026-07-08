@@ -12,6 +12,7 @@ import {
     getDashboardFilterRuleLabel,
     getFilterRequirementRules,
     getRequirementIneligibilityReason,
+    getRuleLetter,
 } from './utils';
 
 const createRule = (
@@ -26,6 +27,16 @@ const createRule = (
     disabled: true,
     label: undefined,
     ...overrides,
+});
+
+describe('getRuleLetter', () => {
+    it('maps rule indexes to letters', () => {
+        expect(getRuleLetter(0)).toBe('A');
+        expect(getRuleLetter(1)).toBe('B');
+        expect(getRuleLetter(25)).toBe('Z');
+        expect(getRuleLetter(26)).toBe('AA');
+        expect(getRuleLetter(27)).toBe('AB');
+    });
 });
 
 describe('getFilterRequirementRules', () => {

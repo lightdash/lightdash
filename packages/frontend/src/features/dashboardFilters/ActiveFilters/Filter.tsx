@@ -43,6 +43,7 @@ import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import FilterConfiguration from '../FilterConfiguration';
 import { hasFilterValueSet } from '../FilterConfiguration/utils';
+import { useFilterRulesPopover } from '../FilterRequirements/useFilterRulesPopover';
 import classes from './Filter.module.css';
 
 type Props = {
@@ -291,6 +292,15 @@ const Filter: FC<Props> = ({
         },
         [onUpdate, handleClose],
     );
+
+    const filterRulesPopover = useFilterRulesPopover();
+    const handleEditRequirementRules = useMemo(() => {
+        if (!filterRulesPopover) return undefined;
+        return () => {
+            handleClose();
+            filterRulesPopover.open();
+        };
+    }, [filterRulesPopover, handleClose]);
 
     return (
         <>
@@ -633,6 +643,7 @@ const Filter: FC<Props> = ({
                             }
                             defaultFilterRule={defaultFilterRule}
                             onSave={handleSaveChanges}
+                            onEditRequirementRules={handleEditRequirementRules}
                             popoverProps={{
                                 onOpen: openSubPopover,
                                 onClose: closeSubPopover,

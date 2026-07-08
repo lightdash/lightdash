@@ -21,6 +21,7 @@ import { v4 as uuidv4 } from 'uuid';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import classes from './FilterRequirements.module.css';
+import { useFilterRulesPopover } from './useFilterRulesPopover';
 import {
     getAlwaysRequiredFilters,
     getAlwaysRequiredIneligibilityReason,
@@ -167,7 +168,12 @@ const RequirementRuleRow: FC<RequirementRuleRowProps> = ({
 );
 
 const FilterRequirementsButton: FC = () => {
-    const [isPopoverOpen, { open, close }] = useDisclosure(false);
+    const [isLocalPopoverOpen, { open: openLocal, close: closeLocal }] =
+        useDisclosure(false);
+    const sharedPopoverState = useFilterRulesPopover();
+    const isPopoverOpen = sharedPopoverState?.isOpen ?? isLocalPopoverOpen;
+    const open = sharedPopoverState?.open ?? openLocal;
+    const close = sharedPopoverState?.close ?? closeLocal;
     const [draftRuleIds, setDraftRuleIds] = useState<string[]>([]);
 
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);

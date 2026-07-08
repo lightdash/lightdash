@@ -27,6 +27,7 @@ import { DateZoom } from '../dateZoom';
 import { Parameters } from '../parameters';
 import FilterGroupSeparator from './FilterGroupSeparator';
 import FilterRequirementsButton from './FilterRequirements/FilterRequirementsButton';
+import { FilterRulesPopoverProvider } from './FilterRequirements/FilterRulesPopoverProvider';
 import DashboardFilters from './index';
 
 type Props = {
@@ -101,7 +102,7 @@ export const DashboardFiltersBar: FC<Props> = ({
     const renderFilters = !isAddFilterDisabled || isEditMode || hasFilters;
 
     return (
-        <div>
+        <FilterRulesPopoverProvider>
             <Group
                 justify="apart"
                 align="flex-start"
@@ -243,6 +244,6 @@ export const DashboardFiltersBar: FC<Props> = ({
                     )}
                 </Group>
             </Group>
-        </div>
+        </FilterRulesPopoverProvider>
     );
 };
