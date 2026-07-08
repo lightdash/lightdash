@@ -16,7 +16,6 @@ import {
     Button,
     Group,
     HoverCard,
-    Indicator,
     Popover,
     ScrollArea,
     Text,
@@ -270,14 +269,13 @@ const Filter: FC<Props> = ({
     const hasUnsetRequiredFilter =
         filterRule.required && !hasFilterValueSet(filterRule);
 
-    const showRequiredIndicator =
+    const hasRequirement =
+        !!filterRule.required || !!filterRule.requiredGroupId;
+    const isRequirementUnmet =
         hasUnsetRequiredFilter || unmetGroupRequirement !== undefined;
-    const requiredIndicatorLabel = hasUnsetRequiredFilter
-        ? 'Required'
-        : `Required (any of ${unmetGroupRequirement?.filters.length})`;
-    const requiredIndicatorTooltip = hasUnsetRequiredFilter
-        ? 'Set a value to run this dashboard'
-        : 'Set a value on any filter in this group to run this dashboard';
+    const requirementTooltip = hasUnsetRequiredFilter
+        ? 'Required — set a value to run this dashboard'
+        : 'Required — set a value on any filter in this group to run this dashboard';
 
     const isReadOnlyLocked = isLocked && !isEditMode && !isTemporary;
 
@@ -314,82 +312,100 @@ const Filter: FC<Props> = ({
                 classNames={{ dropdown: dropdownClassName }}
             >
                 <Popover.Target>
-                    <Indicator
-                        inline
-                        classNames={{
-                            indicator: classes.indicator,
-                        }}
-                        position="top-start"
-                        disabled={!showRequiredIndicator}
+                    <Tooltip
+                        fz="xs"
                         label={
-                            <Tooltip fz="xs" label={requiredIndicatorTooltip}>
-                                <Text fz="10px" fw={500}>
-                                    {requiredIndicatorLabel}
-                                </Text>
-                            </Tooltip>
+                            isReadOnlyLocked
+                                ? 'Locked by the dashboard editor — switch to edit mode to change it'
+                                : orphanedTooltip
                         }
+                        disabled={!isOrphaned && !isReadOnlyLocked}
+                        withinPortal
+                        multiline
+                        maw={300}
                     >
-                        <Tooltip
-                            fz="xs"
-                            label={
-                                isReadOnlyLocked
-                                    ? 'Locked by the dashboard editor — switch to edit mode to change it'
-                                    : orphanedTooltip
-                            }
-                            disabled={!isOrphaned && !isReadOnlyLocked}
-                            withinPortal
-                            multiline
-                            maw={300}
-                        >
-                            <Button
-                                pos="relative"
-                                size="xs"
-                                variant={
-                                    isTemporary || showRequiredIndicator
-                                        ? 'outline'
-                                        : 'default'
-                                }
-                                classNames={{
-                                    label: classes.label,
-                                    root: triggerClassName,
-                                }}
-                                className={`${classes.button} ${
-                                    showRequiredIndicator
-                                        ? classes.unsetRequiredFilter
-                                        : ''
-                                } ${isOrphaned ? classes.inactiveFilter : ''}`}
-                                pr={
-                                    truncatedValuesDisplay.hasMore
-                                        ? 6
-                                        : undefined
-                                }
-                                leftSection={
-                                    isDraggable && (
-                                        <MantineIcon
-                                            icon={IconGripVertical}
-                                            cursor="grab"
-                                            size="sm"
-                                        />
-                                    )
-                                }
-                                rightSection={
+                        <Button
+                            pos="relative"
+                            size="xs"
+                            variant={isTemporary ? 'outline' : 'default'}
+                            classNames={{
+                                label: classes.label,
+                                root: triggerClassName,
+                            }}
+                            className={`${classes.button} ${
+                                isRequirementUnmet
+                                    ? classes.requirementUnmet
+                                    : ''
+                            } ${isOrphaned ? classes.inactiveFilter : ''}`}
+                            pr={truncatedValuesDisplay.hasMore ? 6 : undefined}
+                            leftSection={
+                                (isDraggable || hasRequirement) && (
                                     <Group gap={2} wrap="nowrap">
-                                        {isLockFilterEnabled &&
-                                            isEditMode &&
-                                            !isTemporary &&
-                                            (hasTabs
-                                                ? activeTabUuid
-                                                : !!dashboard?.uuid) && (
-                                                <span
-                                                    className={
-                                                        isLocked
-                                                            ? classes.lockSlotActive
-                                                            : classes.lockSlot
+                                        {isDraggable && (
+                                            <MantineIcon
+                                                icon={IconGripVertical}
+                                                cursor="grab"
+                                                size="sm"
+                                            />
+                                        )}
+                                        {hasRequirement && (
+                                            <Tooltip
+                                                fz="xs"
+                                                label={requirementTooltip}
+                                                disabled={!isRequirementUnmet}
+                                                withinPortal
+                                            >
+                                                <MantineIcon
+                                                    icon={IconLock}
+                                                    size="sm"
+                                                    color={
+                                                        isRequirementUnmet
+                                                            ? 'yellow.7'
+                                                            : 'ldGray.6'
                                                     }
+                                                />
+                                            </Tooltip>
+                                        )}
+                                    </Group>
+                                )
+                            }
+                            rightSection={
+                                <Group gap={2} wrap="nowrap">
+                                    {isLockFilterEnabled &&
+                                        isEditMode &&
+                                        !isTemporary &&
+                                        (hasTabs
+                                            ? activeTabUuid
+                                            : !!dashboard?.uuid) && (
+                                            <span
+                                                className={
+                                                    isLocked
+                                                        ? classes.lockSlotActive
+                                                        : classes.lockSlot
+                                                }
+                                            >
+                                                <Tooltip
+                                                    fz="xs"
+                                                    label={
+                                                        isLocked
+                                                            ? hasTabs
+                                                                ? 'Unlock filter on this tab'
+                                                                : 'Unlock filter'
+                                                            : hasTabs
+                                                              ? 'Lock filter on this tab'
+                                                              : 'Lock filter'
+                                                    }
+                                                    withinPortal
                                                 >
-                                                    <Tooltip
-                                                        fz="xs"
-                                                        label={
+                                                    <ActionIcon
+                                                        onClick={
+                                                            handleLockToggle
+                                                        }
+                                                        size="xs"
+                                                        color="dark"
+                                                        radius="xl"
+                                                        variant="subtle"
+                                                        aria-label={
                                                             isLocked
                                                                 ? hasTabs
                                                                     ? 'Unlock filter on this tab'
@@ -398,238 +414,207 @@ const Filter: FC<Props> = ({
                                                                   ? 'Lock filter on this tab'
                                                                   : 'Lock filter'
                                                         }
-                                                        withinPortal
                                                     >
-                                                        <ActionIcon
-                                                            onClick={
-                                                                handleLockToggle
-                                                            }
-                                                            size="xs"
-                                                            color="dark"
-                                                            radius="xl"
-                                                            variant="subtle"
-                                                            aria-label={
+                                                        <MantineIcon
+                                                            size="sm"
+                                                            icon={
                                                                 isLocked
-                                                                    ? hasTabs
-                                                                        ? 'Unlock filter on this tab'
-                                                                        : 'Unlock filter'
-                                                                    : hasTabs
-                                                                      ? 'Lock filter on this tab'
-                                                                      : 'Lock filter'
+                                                                    ? IconLock
+                                                                    : IconLockOpen
                                                             }
-                                                        >
-                                                            <MantineIcon
-                                                                size="sm"
-                                                                icon={
-                                                                    isLocked
-                                                                        ? IconLock
-                                                                        : IconLockOpen
-                                                                }
-                                                            />
-                                                        </ActionIcon>
-                                                    </Tooltip>
-                                                </span>
-                                            )}
-                                        {!isEditMode && isLocked && (
-                                            <span
-                                                className={
-                                                    classes.lockSlotActive
-                                                }
-                                                aria-label={
-                                                    hasTabs
-                                                        ? 'Filter is locked on this tab'
-                                                        : 'Filter is locked'
-                                                }
-                                            >
-                                                <MantineIcon
-                                                    size="sm"
-                                                    icon={IconLock}
-                                                    color="gray"
-                                                />
+                                                        />
+                                                    </ActionIcon>
+                                                </Tooltip>
                                             </span>
                                         )}
-                                        {(isEditMode || isTemporary) && (
-                                            <ActionIcon
-                                                onClick={onRemove}
-                                                size="xs"
-                                                color="dark"
-                                                radius="xl"
-                                                variant="subtle"
-                                            >
-                                                <MantineIcon
-                                                    size="sm"
-                                                    icon={IconX}
-                                                />
-                                            </ActionIcon>
-                                        )}
-                                    </Group>
-                                }
-                                onClick={() => {
-                                    if (isReadOnlyLocked) return;
-                                    if (isPopoverOpen) {
-                                        handleClose();
-                                    } else {
-                                        onPopoverOpen(popoverId);
-                                    }
-                                }}
-                            >
-                                <Box
-                                    style={{
-                                        maxWidth: '100%',
-                                        overflow: 'hidden',
-                                    }}
-                                >
-                                    <Text fz="xs" truncate>
-                                        <Tooltip
-                                            withinPortal
-                                            position="top-start"
-                                            disabled={
-                                                isPopoverOpen ||
-                                                !filterRuleTables?.length
-                                            }
-                                            openDelay={1000}
-                                            offset={8}
-                                            label={
-                                                <Text fz="inherit">
-                                                    {filterRuleTables?.length ===
-                                                    1
-                                                        ? 'Table: '
-                                                        : 'Tables: '}
-                                                    <Text
-                                                        span
-                                                        fw={600}
-                                                        fz="inherit"
-                                                    >
-                                                        {filterRuleTables?.join(
-                                                            ', ',
-                                                        )}
-                                                    </Text>
-                                                </Text>
+                                    {!isEditMode && isLocked && (
+                                        <span
+                                            className={classes.lockSlotActive}
+                                            aria-label={
+                                                hasTabs
+                                                    ? 'Filter is locked on this tab'
+                                                    : 'Filter is locked'
                                             }
                                         >
+                                            <MantineIcon
+                                                size="sm"
+                                                icon={IconLock}
+                                                color="gray"
+                                            />
+                                        </span>
+                                    )}
+                                    {(isEditMode || isTemporary) && (
+                                        <ActionIcon
+                                            onClick={onRemove}
+                                            size="xs"
+                                            color="dark"
+                                            radius="xl"
+                                            variant="subtle"
+                                        >
+                                            <MantineIcon
+                                                size="sm"
+                                                icon={IconX}
+                                            />
+                                        </ActionIcon>
+                                    )}
+                                </Group>
+                            }
+                            onClick={() => {
+                                if (isReadOnlyLocked) return;
+                                if (isPopoverOpen) {
+                                    handleClose();
+                                } else {
+                                    onPopoverOpen(popoverId);
+                                }
+                            }}
+                        >
+                            <Box
+                                style={{
+                                    maxWidth: '100%',
+                                    overflow: 'hidden',
+                                }}
+                            >
+                                <Text fz="xs" truncate>
+                                    <Tooltip
+                                        withinPortal
+                                        position="top-start"
+                                        disabled={
+                                            isPopoverOpen ||
+                                            !filterRuleTables?.length
+                                        }
+                                        openDelay={1000}
+                                        offset={8}
+                                        label={
+                                            <Text fz="inherit">
+                                                {filterRuleTables?.length === 1
+                                                    ? 'Table: '
+                                                    : 'Tables: '}
+                                                <Text
+                                                    span
+                                                    fw={600}
+                                                    fz="inherit"
+                                                >
+                                                    {filterRuleTables?.join(
+                                                        ', ',
+                                                    )}
+                                                </Text>
+                                            </Text>
+                                        }
+                                    >
+                                        <Text
+                                            fz="inherit"
+                                            fw={600}
+                                            span
+                                            truncate
+                                        >
+                                            {filterRule?.label ||
+                                                filterRuleLabels?.field}{' '}
+                                        </Text>
+                                    </Tooltip>
+                                    {filterRule?.disabled ||
+                                    (!filterRule?.required &&
+                                        isEmptyDashboardFilterRule(
+                                            filterRule,
+                                        )) ? (
+                                        <Text
+                                            span
+                                            fz="inherit"
+                                            c="ldGray.6"
+                                            truncate
+                                        >
+                                            is any value
+                                        </Text>
+                                    ) : (
+                                        <>
                                             <Text
+                                                span
                                                 fz="inherit"
-                                                fw={600}
+                                                c="dimmed"
+                                                truncate
+                                            >
+                                                {
+                                                    filterRuleLabels?.operator
+                                                }{' '}
+                                            </Text>
+                                            <Text
+                                                fw={500}
+                                                fz="inherit"
                                                 span
                                                 truncate
                                             >
-                                                {filterRule?.label ||
-                                                    filterRuleLabels?.field}{' '}
+                                                {truncatedValuesDisplay
+                                                    .displayedValues.length > 0
+                                                    ? truncatedValuesDisplay.displayedValues.join(
+                                                          ', ',
+                                                      )
+                                                    : filterRuleLabels?.value}
                                             </Text>
-                                        </Tooltip>
-                                        {filterRule?.disabled ||
-                                        (!filterRule?.required &&
-                                            isEmptyDashboardFilterRule(
-                                                filterRule,
-                                            )) ? (
-                                            <Text
-                                                span
-                                                fz="inherit"
-                                                c="ldGray.6"
-                                                truncate
-                                            >
-                                                is any value
-                                            </Text>
-                                        ) : (
-                                            <>
-                                                <Text
-                                                    span
-                                                    fz="inherit"
-                                                    c="dimmed"
-                                                    truncate
+                                            {truncatedValuesDisplay.hasMore && (
+                                                <HoverCard
+                                                    withinPortal
+                                                    position="bottom"
+                                                    classNames={{
+                                                        dropdown:
+                                                            classes.additionalValuesList,
+                                                    }}
                                                 >
-                                                    {
-                                                        filterRuleLabels?.operator
-                                                    }{' '}
-                                                </Text>
-                                                <Text
-                                                    fw={500}
-                                                    fz="inherit"
-                                                    span
-                                                    truncate
-                                                >
-                                                    {truncatedValuesDisplay
-                                                        .displayedValues
-                                                        .length > 0
-                                                        ? truncatedValuesDisplay.displayedValues.join(
-                                                              ', ',
-                                                          )
-                                                        : filterRuleLabels?.value}
-                                                </Text>
-                                                {truncatedValuesDisplay.hasMore && (
-                                                    <HoverCard
-                                                        withinPortal
-                                                        position="bottom"
-                                                        classNames={{
-                                                            dropdown:
-                                                                classes.additionalValuesList,
-                                                        }}
-                                                    >
-                                                        <HoverCard.Target>
-                                                            <Badge
-                                                                size="sm"
-                                                                variant="light"
-                                                                color="gray"
-                                                                ml={4}
-                                                            >
-                                                                +
-                                                                {
-                                                                    truncatedValuesDisplay
-                                                                        .additionalValues
-                                                                        .length
-                                                                }
-                                                            </Badge>
-                                                        </HoverCard.Target>
-                                                        <HoverCard.Dropdown>
-                                                            <Text
-                                                                fz="xs"
-                                                                fw={500}
-                                                                c="ldGray.5"
-                                                            >
-                                                                Additional
-                                                                values (
-                                                                {
-                                                                    truncatedValuesDisplay
-                                                                        .additionalValues
-                                                                        .length
-                                                                }
-                                                                )
-                                                            </Text>
-                                                            <ScrollArea.Autosize
-                                                                mah={200}
-                                                                type="always"
-                                                                scrollbars="y"
-                                                            >
-                                                                {truncatedValuesDisplay.additionalValues.map(
-                                                                    (
-                                                                        val,
-                                                                        idx,
-                                                                    ) => (
-                                                                        <Text
-                                                                            key={
-                                                                                idx
-                                                                            }
-                                                                            fz="xs"
-                                                                            c="white"
-                                                                        >
-                                                                            •{' '}
-                                                                            {
-                                                                                val
-                                                                            }
-                                                                        </Text>
-                                                                    ),
-                                                                )}
-                                                            </ScrollArea.Autosize>
-                                                        </HoverCard.Dropdown>
-                                                    </HoverCard>
-                                                )}
-                                            </>
-                                        )}
-                                    </Text>
-                                </Box>
-                            </Button>
-                        </Tooltip>
-                    </Indicator>
+                                                    <HoverCard.Target>
+                                                        <Badge
+                                                            size="sm"
+                                                            variant="light"
+                                                            color="gray"
+                                                            ml={4}
+                                                        >
+                                                            +
+                                                            {
+                                                                truncatedValuesDisplay
+                                                                    .additionalValues
+                                                                    .length
+                                                            }
+                                                        </Badge>
+                                                    </HoverCard.Target>
+                                                    <HoverCard.Dropdown>
+                                                        <Text
+                                                            fz="xs"
+                                                            fw={500}
+                                                            c="ldGray.5"
+                                                        >
+                                                            Additional values (
+                                                            {
+                                                                truncatedValuesDisplay
+                                                                    .additionalValues
+                                                                    .length
+                                                            }
+                                                            )
+                                                        </Text>
+                                                        <ScrollArea.Autosize
+                                                            mah={200}
+                                                            type="always"
+                                                            scrollbars="y"
+                                                        >
+                                                            {truncatedValuesDisplay.additionalValues.map(
+                                                                (val, idx) => (
+                                                                    <Text
+                                                                        key={
+                                                                            idx
+                                                                        }
+                                                                        fz="xs"
+                                                                        c="white"
+                                                                    >
+                                                                        • {val}
+                                                                    </Text>
+                                                                ),
+                                                            )}
+                                                        </ScrollArea.Autosize>
+                                                    </HoverCard.Dropdown>
+                                                </HoverCard>
+                                            )}
+                                        </>
+                                    )}
+                                </Text>
+                            </Box>
+                        </Button>
+                    </Tooltip>
                 </Popover.Target>
 
                 <Popover.Dropdown>

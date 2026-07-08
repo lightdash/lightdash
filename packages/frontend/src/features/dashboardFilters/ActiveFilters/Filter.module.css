@@ -2,9 +2,15 @@
     border-radius: 100px !important;
 }
 
-.unsetRequiredFilter {
-    border-style: solid;
-    border-width: '3px';
+.requirementUnmet {
+    border: 1px solid var(--mantine-color-yellow-6);
+
+    @mixin light {
+        background-color: var(--mantine-color-yellow-0);
+    }
+    @mixin dark {
+        background-color: alpha(var(--mantine-color-yellow-9), 0.25);
+    }
 }
 
 .inactiveFilter {
@@ -40,17 +46,6 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-.indicator {
-    top: -5px;
-    left: 40px;
-    height: 13px;
-    &::before {
-        border-radius: 5px;
-        border-bottom-left-radius: 0px;
-        border-bottom-right-radius: 0px;
-    }
 }
 
 .additionalValuesList {
