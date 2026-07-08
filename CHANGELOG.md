@@ -1,3 +1,10 @@
+## [0.3335.1](https://github.com/lightdash/lightdash/compare/0.3335.0...0.3335.1) (2026-07-08)
+
+
+### Bug Fixes
+
+* **pivot:** never freeze pivoted data columns, keep scroll working ([#25286](https://github.com/lightdash/lightdash/issues/25286)) ([ea6cf4a](https://github.com/lightdash/lightdash/commit/ea6cf4acef2ad5f45846dd361ae674af8e061ba9))
+
 # [0.3335.0](https://github.com/lightdash/lightdash/compare/0.3334.2...0.3335.0) (2026-07-08)
 
 
