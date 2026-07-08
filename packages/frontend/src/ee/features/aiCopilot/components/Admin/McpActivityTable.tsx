@@ -2,14 +2,7 @@ import {
     type McpActivityItem,
     type McpActivitySortField,
 } from '@lightdash/common';
-import {
-    Badge,
-    Box,
-    Group,
-    Text,
-    Tooltip,
-    useMantineTheme,
-} from '@mantine-8/core';
+import { Box, Group, Text, Tooltip, useMantineTheme } from '@mantine-8/core';
 import {
     IconArrowDown,
     IconArrowsSort,
@@ -43,6 +36,13 @@ import { useIsTruncated } from '../../../../../hooks/useIsTruncated';
 import { useInfiniteMcpActivity } from '../../hooks/useMcpActivity';
 import { useMcpActivityFilters } from '../../hooks/useMcpActivityFilters';
 import { AgentNamePill } from '../AgentNamePill';
+import { ToolCallStatusIndicator, ToolNamePill } from './McpActivityDisplay';
+import {
+    formatToolCallDuration,
+    formatToolCallTime,
+    formatToolCallTimeFull,
+} from './mcpActivityFormat';
+import styles from './McpActivityTable.module.css';
 import { McpActivityTopToolbar } from './McpActivityTopToolbar';
 
 type McpActivityTableProps = {
@@ -168,9 +168,20 @@ const McpActivityTable = ({
                 </Group>
             ),
             Cell: ({ row }) => (
-                <Text fz="sm" c="ldGray.7">
-                    {new Date(row.original.createdAt).toLocaleString()}
-                </Text>
+                <Tooltip
+                    withinPortal
+                    variant="xs"
+                    label={formatToolCallTimeFull(row.original.createdAt)}
+                >
+                    <Text
+                        fz="xs"
+                        ff="monospace"
+                        c="ldGray.7"
+                        display="inline-block"
+                    >
+                        {formatToolCallTime(row.original.createdAt)}
+                    </Text>
+                </Tooltip>
             ),
         },
         {
@@ -185,11 +196,7 @@ const McpActivityTable = ({
                     {column.columnDef.header}
                 </Group>
             ),
-            Cell: ({ row }) => (
-                <Badge variant="light" color="indigo" tt="none">
-                    {row.original.toolName}
-                </Badge>
-            ),
+            Cell: ({ row }) => <ToolNamePill name={row.original.toolName} />,
         },
         {
             accessorKey: 'user.name',
@@ -308,12 +315,7 @@ const McpActivityTable = ({
                 </Group>
             ),
             Cell: ({ row }) => (
-                <Badge
-                    variant="light"
-                    color={row.original.status === 'error' ? 'red' : 'green'}
-                >
-                    {row.original.status}
-                </Badge>
+                <ToolCallStatusIndicator status={row.original.status} />
             ),
         },
         {
@@ -322,6 +324,10 @@ const McpActivityTable = ({
             enableSorting: true,
             enableEditing: false,
             size: 120,
+            mantineTableHeadCellProps: {
+                className: styles.durationHeadCell,
+            },
+            mantineTableBodyCellProps: { ta: 'right' },
             Header: ({ column }) => (
                 <Group gap="two">
                     <MantineIcon icon={IconHourglass} color="ldGray.6" />
@@ -330,13 +336,15 @@ const McpActivityTable = ({
             ),
             Cell: ({ row }) => {
                 const { durationMs } = row.original;
-                const label =
-                    durationMs >= 1000
-                        ? `${(durationMs / 1000).toFixed(1)}s`
-                        : `${durationMs}ms`;
+                const isSlow = durationMs >= 1000;
                 return (
-                    <Text fz="sm" c="ldGray.7">
-                        {label}
+                    <Text
+                        fz="xs"
+                        ff="monospace"
+                        fw={isSlow ? 600 : 400}
+                        c={isSlow ? 'ldGray.9' : 'ldGray.7'}
+                    >
+                        {formatToolCallDuration(durationMs)}
                     </Text>
                 );
             },

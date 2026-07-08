@@ -4,7 +4,10 @@ import { useState } from 'react';
 import { NAVBAR_HEIGHT } from '../../../../../../components/common/Page/constants';
 import PageBreadcrumbs from '../../../../../../components/common/PageBreadcrumbs';
 import { useAiOrganizationSettings } from '../../../hooks/useAiOrganizationSettings';
-import { McpActivityDetail } from '../McpActivityDetail';
+import {
+    McpActivityDetail,
+    McpActivityDetailTitle,
+} from '../McpActivityDetail';
 import McpActivityTable from '../McpActivityTable';
 import { AiFeaturesDisabledAlert } from './AiFeaturesDisabledAlert';
 import drawerClasses from './ThreadPreviewDrawer.module.css';
@@ -42,7 +45,11 @@ export const McpActivitySettingsPage = () => {
                 onClose={() => setSelectedCall(null)}
                 position="right"
                 size="lg"
-                title="Tool call details"
+                title={
+                    selectedCall && (
+                        <McpActivityDetailTitle toolCall={selectedCall} />
+                    )
+                }
                 classNames={{
                     inner: drawerClasses.inner,
                     overlay: drawerClasses.overlay,
