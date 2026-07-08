@@ -1,4 +1,16 @@
+import {
+    KnexPaginateArgs,
+    KnexPaginatedData,
+    McpActivityFilters,
+    McpActivityItem,
+    McpActivitySort,
+} from '@lightdash/common';
 import { Knex } from 'knex';
+import { EmailTableName } from '../../database/entities/emails';
+import { ProjectTableName } from '../../database/entities/projects';
+import { UserTableName } from '../../database/entities/users';
+import KnexPaginate from '../../database/pagination';
+import { AiAgentTableName } from '../database/entities/aiAgent';
 import {
     DbMcpClientInfo,
     DbMcpToolCall,
@@ -80,6 +92,201 @@ export class McpToolCallModel {
                 user_agent: userAgent,
             })
             .first();
+    }
+
+    private buildActivityQuery(
+        organizationUuid: string,
+        filters?: McpActivityFilters,
+    ): Knex.QueryBuilder {
+        const query = this.database(McpToolCallTableName).where(
+            `${McpToolCallTableName}.organization_uuid`,
+            organizationUuid,
+        );
+
+        if (filters?.projectUuids && filters.projectUuids.length > 0) {
+            void query.whereIn(
+                `${McpToolCallTableName}.project_uuid`,
+                filters.projectUuids,
+            );
+        }
+        if (filters?.userUuids && filters.userUuids.length > 0) {
+            void query.whereIn(
+                `${McpToolCallTableName}.user_uuid`,
+                filters.userUuids,
+            );
+        }
+        if (filters?.agentUuids && filters.agentUuids.length > 0) {
+            void query.whereIn(
+                `${McpToolCallTableName}.agent_uuid`,
+                filters.agentUuids,
+            );
+        }
+        if (filters?.toolNames && filters.toolNames.length > 0) {
+            void query.whereIn(
+                `${McpToolCallTableName}.tool_name`,
+                filters.toolNames,
+            );
+        }
+        if (filters?.clientNames && filters.clientNames.length > 0) {
+            void query.whereIn(
+                `${McpToolCallTableName}.client_name`,
+                filters.clientNames,
+            );
+        }
+        if (filters?.status) {
+            void query.where(`${McpToolCallTableName}.status`, filters.status);
+        }
+        if (filters?.dateFrom) {
+            void query.where(
+                `${McpToolCallTableName}.created_at`,
+                '>=',
+                filters.dateFrom,
+            );
+        }
+        if (filters?.dateTo) {
+            void query.where(
+                `${McpToolCallTableName}.created_at`,
+                '<=',
+                filters.dateTo,
+            );
+        }
+
+        return query;
+    }
+
+    async findActivityPaginated({
+        organizationUuid,
+        paginateArgs,
+        filters,
+        sort,
+    }: {
+        organizationUuid: string;
+        paginateArgs?: KnexPaginateArgs;
+        filters?: McpActivityFilters;
+        sort?: McpActivitySort;
+    }): Promise<KnexPaginatedData<McpActivityItem[]>> {
+        const query = this.buildActivityQuery(organizationUuid, filters)
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${McpToolCallTableName}.user_uuid`,
+            )
+            .leftJoin(EmailTableName, function joinPrimaryEmail() {
+                void this.on(
+                    `${EmailTableName}.user_id`,
+                    '=',
+                    `${UserTableName}.user_id`,
+                ).andOnVal(`${EmailTableName}.is_primary`, true);
+            })
+            .leftJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_uuid`,
+                `${McpToolCallTableName}.project_uuid`,
+            )
+            .leftJoin(
+                AiAgentTableName,
+                `${AiAgentTableName}.ai_agent_uuid`,
+                `${McpToolCallTableName}.agent_uuid`,
+            )
+            .select<
+                {
+                    mcp_tool_call_uuid: string;
+                    created_at: Date;
+                    user_uuid: string;
+                    user_name: string;
+                    user_email: string | null;
+                    project_uuid: string | null;
+                    project_name: string | null;
+                    agent_uuid: string | null;
+                    agent_name: string | null;
+                    tool_name: string;
+                    tool_args: Record<string, unknown>;
+                    status: 'success' | 'error';
+                    error_message: string | null;
+                    duration_ms: number;
+                    client_name: string | null;
+                    client_version: string | null;
+                    user_agent: string | null;
+                    auth_type: string;
+                    protocol_version: string | null;
+                }[]
+            >([
+                `${McpToolCallTableName}.mcp_tool_call_uuid`,
+                `${McpToolCallTableName}.created_at`,
+                `${McpToolCallTableName}.user_uuid`,
+                this.database.raw(
+                    `COALESCE(NULLIF(TRIM(CONCAT(${UserTableName}.first_name, ' ', ${UserTableName}.last_name)), ''), ${EmailTableName}.email, 'Unknown user') as user_name`,
+                ),
+                `${EmailTableName}.email as user_email`,
+                `${McpToolCallTableName}.project_uuid`,
+                `${ProjectTableName}.name as project_name`,
+                `${McpToolCallTableName}.agent_uuid`,
+                `${AiAgentTableName}.name as agent_name`,
+                `${McpToolCallTableName}.tool_name`,
+                `${McpToolCallTableName}.tool_args`,
+                `${McpToolCallTableName}.status`,
+                `${McpToolCallTableName}.error_message`,
+                `${McpToolCallTableName}.duration_ms`,
+                `${McpToolCallTableName}.client_name`,
+                `${McpToolCallTableName}.client_version`,
+                `${McpToolCallTableName}.user_agent`,
+                `${McpToolCallTableName}.auth_type`,
+                `${McpToolCallTableName}.protocol_version`,
+            ]);
+
+        const sortColumn =
+            sort?.field === 'durationMs' ? 'duration_ms' : 'created_at';
+        // uuid tie-breaker keeps pagination stable when sort values collide
+        void query.orderBy([
+            {
+                column: `${McpToolCallTableName}.${sortColumn}`,
+                order: sort?.direction ?? 'desc',
+            },
+            {
+                column: `${McpToolCallTableName}.mcp_tool_call_uuid`,
+                order: 'asc',
+            },
+        ]);
+
+        const { data, pagination } = await KnexPaginate.paginate(
+            query,
+            paginateArgs,
+        );
+
+        return {
+            data: data.map((row) => ({
+                uuid: row.mcp_tool_call_uuid,
+                createdAt: row.created_at.toISOString(),
+                user: {
+                    uuid: row.user_uuid,
+                    name: row.user_name,
+                    email: row.user_email,
+                },
+                project: row.project_uuid
+                    ? {
+                          uuid: row.project_uuid,
+                          name: row.project_name ?? 'Unknown project',
+                      }
+                    : null,
+                agent: row.agent_uuid
+                    ? {
+                          uuid: row.agent_uuid,
+                          name: row.agent_name ?? 'Unknown agent',
+                      }
+                    : null,
+                toolName: row.tool_name,
+                toolArgs: row.tool_args,
+                status: row.status,
+                errorMessage: row.error_message,
+                durationMs: row.duration_ms,
+                clientName: row.client_name,
+                clientVersion: row.client_version,
+                userAgent: row.user_agent,
+                authType: row.auth_type,
+                protocolVersion: row.protocol_version,
+            })),
+            pagination,
+        };
     }
 
     async deleteToolCallsOlderThan(days: number): Promise<number> {
