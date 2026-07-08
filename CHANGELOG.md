@@ -1,3 +1,10 @@
+# [0.3339.0](https://github.com/lightdash/lightdash/compare/0.3338.0...0.3339.0) (2026-07-08)
+
+
+### Features
+
+* **charts:** conditional formatting for multi-metric bar charts ([#25301](https://github.com/lightdash/lightdash/issues/25301)) ([c12de29](https://github.com/lightdash/lightdash/commit/c12de29322eeb4d937e3e460cae6b60f65246b99))
+
 # [0.3338.0](https://github.com/lightdash/lightdash/compare/0.3337.1...0.3338.0) (2026-07-08)
 
 
