@@ -1,3 +1,10 @@
+## [0.3328.2](https://github.com/lightdash/lightdash/compare/0.3328.1...0.3328.2) (2026-07-08)
+
+
+### Bug Fixes
+
+* big number comparison inherits the column's custom formatting ([#25260](https://github.com/lightdash/lightdash/issues/25260)) ([f689000](https://github.com/lightdash/lightdash/commit/f689000429a33539115b646fc66f891e06209564))
+
 ## [0.3328.1](https://github.com/lightdash/lightdash/compare/0.3328.0...0.3328.1) (2026-07-07)
 
 
