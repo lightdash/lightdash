@@ -11,6 +11,7 @@ import {
 import { ContentVerificationModel } from '../models/ContentVerificationModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { ContentVerificationService } from './ContentVerificationService';
+import { SpacePermissionService } from './SpaceService/SpacePermissionService';
 
 const projectSummary = {
     organizationUuid: 'org-uuid',
@@ -90,11 +91,17 @@ const contentVerificationModel = {
     getAllForProject: vi.fn(async () => mockVerifiedItems),
 };
 
+const spacePermissionService = {
+    getAccessibleSpaceUuids: vi.fn(async () => ['space-uuid']),
+};
+
 describe('ContentVerificationService', () => {
     const service = new ContentVerificationService({
         contentVerificationModel:
             contentVerificationModel as unknown as ContentVerificationModel,
         projectModel: projectModel as unknown as ProjectModel,
+        spacePermissionService:
+            spacePermissionService as unknown as SpacePermissionService,
     });
 
     afterEach(() => {
@@ -124,7 +131,7 @@ describe('ContentVerificationService', () => {
             ).toHaveBeenCalledWith('project-uuid');
         });
 
-        it('should return verified content when user is admin', async () => {
+        it('should return verified content the user can access', async () => {
             const result = await service.listVerifiedContent(
                 adminUser,
                 'project-uuid',
@@ -134,6 +141,22 @@ describe('ContentVerificationService', () => {
             expect(
                 contentVerificationModel.getAllForProject,
             ).toHaveBeenCalledWith('project-uuid');
+            expect(
+                spacePermissionService.getAccessibleSpaceUuids,
+            ).toHaveBeenCalledWith('view', adminUser, ['space-uuid']);
+        });
+
+        it('should filter out verified content in spaces the user cannot access', async () => {
+            spacePermissionService.getAccessibleSpaceUuids.mockResolvedValueOnce(
+                [],
+            );
+
+            const result = await service.listVerifiedContent(
+                adminUser,
+                'project-uuid',
+            );
+
+            expect(result).toEqual([]);
         });
     });
 });

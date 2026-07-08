@@ -1287,6 +1287,7 @@ export class ServiceRepository
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
                     projectModel: this.models.getProjectModel(),
+                    spacePermissionService: this.getSpacePermissionService(),
                 }),
         );
     }
