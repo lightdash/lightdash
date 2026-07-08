@@ -12,6 +12,7 @@ import { Box, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Button,
+    Checkbox,
     Group,
     Select,
     Switch,
@@ -371,16 +372,10 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                             disabled={!isRequirementRuleMember}
                         >
                             <Box w="max-content">
-                                <Switch
-                                    label={
-                                        <Text size="xs" mt="two" fw={500}>
-                                            Require viewers to pick a value to
-                                            load the dashboard
-                                        </Text>
-                                    }
-                                    labelPosition="right"
+                                <Checkbox
+                                    size="xs"
                                     disabled={isRequirementRuleMember}
-                                    checked={!!filterRule.required}
+                                    checked={filterRule.required}
                                     onChange={(e) => {
                                         const newFilter: DashboardFilterRule = {
                                             ...filterRule,
@@ -398,6 +393,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                                   ),
                                         );
                                     }}
+                                    label="Require viewers to pick a value to load the dashboard"
                                 />
                             </Box>
                         </Tooltip>

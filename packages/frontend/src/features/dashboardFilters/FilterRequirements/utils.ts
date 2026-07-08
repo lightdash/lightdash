@@ -42,6 +42,34 @@ export const getFilterRequirementRules = (
 };
 
 /**
+ * Filters the viewer must always set individually (`required: true`),
+ * in filter order (dimensions before metrics).
+ */
+export const getAlwaysRequiredFilters = (
+    dashboardFilters: Pick<DashboardFilters, 'dimensions' | 'metrics'>,
+): DashboardFilterRule[] =>
+    [...dashboardFilters.dimensions, ...dashboardFilters.metrics].filter(
+        (filterRule) => !!filterRule.required,
+    );
+
+/**
+ * Why a dashboard filter can't be made individually required from the
+ * requirements popover; null when it is eligible. Same semantics as rule
+ * membership: the filter must be valueless (disabled with no default).
+ */
+export const getAlwaysRequiredIneligibilityReason = (
+    filterRule: DashboardFilterRule,
+): string | null => {
+    if (filterRule.requiredGroupId) {
+        return 'Already part of a requirement rule';
+    }
+    if (!filterRule.disabled) {
+        return 'Has a default value, so the requirement would always be satisfied';
+    }
+    return null;
+};
+
+/**
  * Why a dashboard filter can't be added to a requirement rule;
  * null when it is eligible. Rule members must be valueless
  * (disabled with no default), matching the value stripping applied

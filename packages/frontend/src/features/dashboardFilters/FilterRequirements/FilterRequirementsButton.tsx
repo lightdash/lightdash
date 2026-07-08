@@ -22,6 +22,8 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import classes from './FilterRequirements.module.css';
 import {
+    getAlwaysRequiredFilters,
+    getAlwaysRequiredIneligibilityReason,
     getDashboardFilterRuleLabel,
     getFilterRequirementRules,
     getRequirementIneligibilityReason,
@@ -34,6 +36,83 @@ type SelectableFilter = {
     disabled: boolean;
     reason: string | null;
 };
+
+type FilterSelectProps = {
+    selectableFilters: SelectableFilter[];
+    onSelect: (filterId: string) => void;
+};
+
+const FilterSelect: FC<FilterSelectProps> = ({
+    selectableFilters,
+    onSelect,
+}) => (
+    <Select
+        size="xs"
+        w={180}
+        placeholder="Add filter"
+        value={null}
+        data={selectableFilters}
+        comboboxProps={{ withinPortal: false }}
+        onChange={(filterId) => {
+            if (filterId) onSelect(filterId);
+        }}
+        renderOption={({ option }) => {
+            const reason = selectableFilters.find(
+                (filter) => filter.value === option.value,
+            )?.reason;
+            return (
+                <Stack gap={0}>
+                    <Text size="xs">{option.label}</Text>
+                    {reason && (
+                        <Text size="xs" c="dimmed">
+                            {reason}
+                        </Text>
+                    )}
+                </Stack>
+            );
+        }}
+    />
+);
+
+type AlwaysRequiredSectionProps = {
+    requiredFilters: DashboardFilterRule[];
+    selectableFilters: SelectableFilter[];
+    getFilterLabel: (filterRule: DashboardFilterRule) => string;
+    onAddFilter: (filterId: string) => void;
+    onRemoveFilter: (filterId: string) => void;
+};
+
+const AlwaysRequiredSection: FC<AlwaysRequiredSectionProps> = ({
+    requiredFilters,
+    selectableFilters,
+    getFilterLabel,
+    onAddFilter,
+    onRemoveFilter,
+}) => (
+    <Stack gap="xs" className={classes.ruleRow}>
+        <Text size="xs" fw={500}>
+            Always required
+        </Text>
+        <Text size="xs" c="ldGray.6">
+            Viewers must set each of:
+        </Text>
+        <Group gap="xs">
+            {requiredFilters.map((filterRule) => (
+                <Pill
+                    key={filterRule.id}
+                    withRemoveButton
+                    onRemove={() => onRemoveFilter(filterRule.id)}
+                >
+                    {getFilterLabel(filterRule)}
+                </Pill>
+            ))}
+            <FilterSelect
+                selectableFilters={selectableFilters}
+                onSelect={onAddFilter}
+            />
+        </Group>
+    </Stack>
+);
 
 type RequirementRuleRowProps = {
     members: DashboardFilterRule[];
@@ -79,31 +158,9 @@ const RequirementRuleRow: FC<RequirementRuleRowProps> = ({
                     {getFilterLabel(member)}
                 </Pill>
             ))}
-            <Select
-                size="xs"
-                w={180}
-                placeholder="Add filter"
-                value={null}
-                data={selectableFilters}
-                comboboxProps={{ withinPortal: false }}
-                onChange={(filterId) => {
-                    if (filterId) onAddMember(filterId);
-                }}
-                renderOption={({ option }) => {
-                    const reason = selectableFilters.find(
-                        (filter) => filter.value === option.value,
-                    )?.reason;
-                    return (
-                        <Stack gap={0}>
-                            <Text size="xs">{option.label}</Text>
-                            {reason && (
-                                <Text size="xs" c="dimmed">
-                                    {reason}
-                                </Text>
-                            )}
-                        </Stack>
-                    );
-                }}
+            <FilterSelect
+                selectableFilters={selectableFilters}
+                onSelect={onAddMember}
             />
         </Group>
     </Stack>
@@ -129,6 +186,11 @@ const FilterRequirementsButton: FC = () => {
 
     const requirementRules = useMemo(
         () => getFilterRequirementRules(dashboardFilters),
+        [dashboardFilters],
+    );
+
+    const alwaysRequiredFilters = useMemo(
+        () => getAlwaysRequiredFilters(dashboardFilters),
         [dashboardFilters],
     );
 
@@ -158,6 +220,23 @@ const FilterRequirementsButton: FC = () => {
                 .map((filterRule) => {
                     const reason =
                         getRequirementIneligibilityReason(filterRule);
+                    return {
+                        value: filterRule.id,
+                        label: getFilterLabel(filterRule),
+                        disabled: reason !== null,
+                        reason,
+                    };
+                }),
+        [allFilterRules, getFilterLabel],
+    );
+
+    const alwaysRequiredSelectableFilters = useMemo<SelectableFilter[]>(
+        () =>
+            allFilterRules
+                .filter((filterRule) => !filterRule.required)
+                .map((filterRule) => {
+                    const reason =
+                        getAlwaysRequiredIneligibilityReason(filterRule);
                     return {
                         value: filterRule.id,
                         label: getFilterLabel(filterRule),
@@ -240,12 +319,34 @@ const FilterRequirementsButton: FC = () => {
         [updateFilterRule],
     );
 
+    const handleAddAlwaysRequired = useCallback(
+        (filterId: string) => {
+            // Required filters are valueless by definition
+            updateFilterRule(filterId, {
+                required: true,
+                disabled: true,
+                values: [],
+            });
+        },
+        [updateFilterRule],
+    );
+
+    const handleRemoveAlwaysRequired = useCallback(
+        (filterId: string) => {
+            updateFilterRule(filterId, { required: false });
+        },
+        [updateFilterRule],
+    );
+
     const handleClose = useCallback(() => {
         close();
         setDraftRuleIds([]);
     }, [close]);
 
-    const isEmpty = requirementRules.length === 0 && draftRuleIds.length === 0;
+    const requirementCount =
+        alwaysRequiredFilters.length + requirementRules.length;
+    const hasRuleRows = requirementRules.length > 0 || draftRuleIds.length > 0;
+    const isEmpty = requirementCount === 0 && draftRuleIds.length === 0;
 
     return (
         <Popover
@@ -267,9 +368,9 @@ const FilterRequirementsButton: FC = () => {
                     radius={100}
                     className={classes.requirementsButton}
                     rightSection={
-                        requirementRules.length > 0 ? (
+                        requirementCount > 0 ? (
                             <Badge size="xs" variant="light" circle>
-                                {requirementRules.length}
+                                {requirementCount}
                             </Badge>
                         ) : undefined
                     }
@@ -284,80 +385,72 @@ const FilterRequirementsButton: FC = () => {
                     <Text size="sm" fw={600}>
                         Filter requirements
                     </Text>
-                    {isEmpty ? (
-                        <>
+                    {isEmpty && (
+                        <Text size="xs" c="ldGray.6">
+                            Require viewers to set filters before the dashboard
+                            loads, either individually or at least one from a
+                            set.
+                        </Text>
+                    )}
+                    <AlwaysRequiredSection
+                        requiredFilters={alwaysRequiredFilters}
+                        selectableFilters={alwaysRequiredSelectableFilters}
+                        getFilterLabel={getFilterLabel}
+                        onAddFilter={handleAddAlwaysRequired}
+                        onRemoveFilter={handleRemoveAlwaysRequired}
+                    />
+                    {requirementRules.map((rule) => (
+                        <RequirementRuleRow
+                            key={rule.groupId}
+                            members={rule.members}
+                            selectableFilters={getSelectableFilters(
+                                rule.groupId,
+                            )}
+                            getFilterLabel={getFilterLabel}
+                            onAddMember={(filterId) =>
+                                handleAddMember(rule.groupId, filterId)
+                            }
+                            onRemoveMember={handleRemoveMember}
+                            onDeleteRule={() => handleDeleteRule(rule)}
+                        />
+                    ))}
+                    {draftRuleIds.map((draftId) => (
+                        <RequirementRuleRow
+                            key={draftId}
+                            members={[]}
+                            selectableFilters={getSelectableFilters(draftId)}
+                            getFilterLabel={getFilterLabel}
+                            onAddMember={(filterId) =>
+                                handleAddMember(draftId, filterId)
+                            }
+                            onRemoveMember={handleRemoveMember}
+                            onDeleteRule={() =>
+                                setDraftRuleIds((previous) =>
+                                    previous.filter((id) => id !== draftId),
+                                )
+                            }
+                        />
+                    ))}
+                    <Button
+                        size="xs"
+                        variant="subtle"
+                        w="max-content"
+                        leftSection={<MantineIcon icon={IconPlus} />}
+                        onClick={handleAddRule}
+                    >
+                        {hasRuleRows ? 'Add another rule' : 'Add rule'}
+                    </Button>
+                    {!isEmpty && (
+                        <Group gap={6} wrap="nowrap">
+                            <MantineIcon
+                                icon={IconInfoCircle}
+                                color="ldGray.6"
+                            />
                             <Text size="xs" c="ldGray.6">
-                                Require viewers to set at least one of a set of
-                                filters before the dashboard loads.
+                                Tiles stay locked until every requirement is
+                                satisfied.
                             </Text>
-                            <Button
-                                size="xs"
-                                variant="default"
-                                w="max-content"
-                                leftSection={<MantineIcon icon={IconPlus} />}
-                                onClick={handleAddRule}
-                            >
-                                Add rule
-                            </Button>
-                        </>
-                    ) : (
-                        <>
-                            {requirementRules.map((rule) => (
-                                <RequirementRuleRow
-                                    key={rule.groupId}
-                                    members={rule.members}
-                                    selectableFilters={getSelectableFilters(
-                                        rule.groupId,
-                                    )}
-                                    getFilterLabel={getFilterLabel}
-                                    onAddMember={(filterId) =>
-                                        handleAddMember(rule.groupId, filterId)
-                                    }
-                                    onRemoveMember={handleRemoveMember}
-                                    onDeleteRule={() => handleDeleteRule(rule)}
-                                />
-                            ))}
-                            {draftRuleIds.map((draftId) => (
-                                <RequirementRuleRow
-                                    key={draftId}
-                                    members={[]}
-                                    selectableFilters={getSelectableFilters(
-                                        draftId,
-                                    )}
-                                    getFilterLabel={getFilterLabel}
-                                    onAddMember={(filterId) =>
-                                        handleAddMember(draftId, filterId)
-                                    }
-                                    onRemoveMember={handleRemoveMember}
-                                    onDeleteRule={() =>
-                                        setDraftRuleIds((previous) =>
-                                            previous.filter(
-                                                (id) => id !== draftId,
-                                            ),
-                                        )
-                                    }
-                                />
-                            ))}
-                            <Button
-                                size="xs"
-                                variant="subtle"
-                                w="max-content"
-                                leftSection={<MantineIcon icon={IconPlus} />}
-                                onClick={handleAddRule}
-                            >
-                                Add another rule
-                            </Button>
-                            <Group gap={6} wrap="nowrap">
-                                <MantineIcon
-                                    icon={IconInfoCircle}
-                                    color="ldGray.6"
-                                />
-                                <Text size="xs" c="ldGray.6">
-                                    Tiles stay locked until every rule is
-                                    satisfied.
-                                </Text>
-                            </Group>
-                        </>
+                        </Group>
                     )}
                 </Stack>
             </Popover.Dropdown>

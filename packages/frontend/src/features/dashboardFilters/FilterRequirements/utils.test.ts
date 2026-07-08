@@ -7,6 +7,8 @@ import {
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
+    getAlwaysRequiredFilters,
+    getAlwaysRequiredIneligibilityReason,
     getDashboardFilterRuleLabel,
     getFilterRequirementRules,
     getRequirementIneligibilityReason,
@@ -57,6 +59,61 @@ describe('getFilterRequirementRules', () => {
             { groupId: 'g2', members: [a, c] },
             { groupId: 'g1', members: [b] },
         ]);
+    });
+});
+
+describe('getAlwaysRequiredFilters', () => {
+    it('returns no filters when none are required', () => {
+        expect(
+            getAlwaysRequiredFilters({
+                dimensions: [createRule({ id: 'a' })],
+                metrics: [createRule({ id: 'b' })],
+            }),
+        ).toEqual([]);
+    });
+
+    it('returns required dimension and metric filters in filter order', () => {
+        const a = createRule({ id: 'a', required: true });
+        const b = createRule({ id: 'b' });
+        const c = createRule({ id: 'c', required: true });
+
+        expect(
+            getAlwaysRequiredFilters({ dimensions: [a, b], metrics: [c] }),
+        ).toEqual([a, c]);
+    });
+
+    it('does not include rule members that are not required', () => {
+        const member = createRule({ id: 'a', requiredGroupId: 'g1' });
+
+        expect(
+            getAlwaysRequiredFilters({ dimensions: [member], metrics: [] }),
+        ).toEqual([]);
+    });
+});
+
+describe('getAlwaysRequiredIneligibilityReason', () => {
+    it('is eligible when valueless and not a rule member', () => {
+        expect(
+            getAlwaysRequiredIneligibilityReason(createRule({ id: 'a' })),
+        ).toBeNull();
+    });
+
+    it('is ineligible when already a member of a rule', () => {
+        expect(
+            getAlwaysRequiredIneligibilityReason(
+                createRule({ id: 'a', requiredGroupId: 'g1' }),
+            ),
+        ).toBe('Already part of a requirement rule');
+    });
+
+    it('is ineligible when it has a default value', () => {
+        expect(
+            getAlwaysRequiredIneligibilityReason(
+                createRule({ id: 'a', disabled: false, values: ['adam'] }),
+            ),
+        ).toBe(
+            'Has a default value, so the requirement would always be satisfied',
+        );
     });
 });
 
