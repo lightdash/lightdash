@@ -21,6 +21,7 @@ import {
     Paper,
     PasswordInput,
     SegmentedControl,
+    Select,
     Stack,
     Text,
     TextInput,
@@ -69,6 +70,15 @@ const createMcpServerFormSchema = z
         authType: z.enum(['none', 'bearer', 'oauth']),
         bearerToken: z.string(),
         allowOAuthCredentialSharing: z.boolean(),
+        oauthClientId: z.string(),
+        oauthClientSecret: z.string(),
+        oauthTokenEndpointAuthMethod: z.enum([
+            '',
+            'none',
+            'client_secret_basic',
+            'client_secret_post',
+        ]),
+        oauthClientRegistrationAccessToken: z.string(),
     })
     .superRefine((values, ctx) => {
         if (
@@ -79,6 +89,18 @@ const createMcpServerFormSchema = z
                 code: z.ZodIssueCode.custom,
                 message: 'Bearer token is required',
                 path: ['bearerToken'],
+            });
+        }
+        if (
+            values.authType === 'oauth' &&
+            (values.oauthClientSecret.trim().length > 0 ||
+                values.oauthTokenEndpointAuthMethod.length > 0) &&
+            values.oauthClientId.trim().length === 0
+        ) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'OAuth client ID is required',
+                path: ['oauthClientId'],
             });
         }
     });
@@ -236,6 +258,10 @@ const CreateMcpServerModal = ({
             authType: 'none',
             bearerToken: '',
             allowOAuthCredentialSharing: false,
+            oauthClientId: '',
+            oauthClientSecret: '',
+            oauthTokenEndpointAuthMethod: '',
+            oauthClientRegistrationAccessToken: '',
         },
         validate: zodResolver(createMcpServerFormSchema),
     });
@@ -251,6 +277,11 @@ const CreateMcpServerModal = ({
         form.reset();
         closeOauthOptions();
     });
+    const hasOAuthCredentialOptions =
+        form.values.oauthClientId.trim().length > 0 ||
+        form.values.oauthClientSecret.trim().length > 0 ||
+        form.values.oauthTokenEndpointAuthMethod.length > 0 ||
+        form.values.oauthClientRegistrationAccessToken.trim().length > 0;
 
     return (
         <MantineModal
@@ -330,7 +361,8 @@ const CreateMcpServerModal = ({
                                             icon={
                                                 oauthOptionsOpened ||
                                                 form.values
-                                                    .allowOAuthCredentialSharing
+                                                    .allowOAuthCredentialSharing ||
+                                                hasOAuthCredentialOptions
                                                     ? IconChevronDown
                                                     : IconChevronRight
                                             }
@@ -344,10 +376,12 @@ const CreateMcpServerModal = ({
                                 <Collapse
                                     in={
                                         oauthOptionsOpened ||
-                                        form.values.allowOAuthCredentialSharing
+                                        form.values
+                                            .allowOAuthCredentialSharing ||
+                                        hasOAuthCredentialOptions
                                     }
                                 >
-                                    <Box pt="xs">
+                                    <Stack pt="xs" gap="sm">
                                         <Checkbox
                                             label="Allow shared project credentials for this MCP"
                                             description="Optional. Agent managers can connect a shared project account for this MCP."
@@ -359,7 +393,70 @@ const CreateMcpServerModal = ({
                                                 },
                                             )}
                                         />
-                                    </Box>
+                                        <Divider />
+                                        <TextInput
+                                            variant="subtle"
+                                            label="OAuth client ID"
+                                            disabled={isLoading}
+                                            autoComplete="off"
+                                            {...form.getInputProps(
+                                                'oauthClientId',
+                                            )}
+                                        />
+                                        <PasswordInput
+                                            variant="subtle"
+                                            label="OAuth client secret"
+                                            disabled={isLoading}
+                                            autoComplete="off"
+                                            {...form.getInputProps(
+                                                'oauthClientSecret',
+                                            )}
+                                        />
+                                        <Select
+                                            variant="subtle"
+                                            label="Token endpoint auth method"
+                                            disabled={isLoading}
+                                            data={[
+                                                {
+                                                    label: 'Automatic',
+                                                    value: '',
+                                                },
+                                                {
+                                                    label: 'None',
+                                                    value: 'none',
+                                                },
+                                                {
+                                                    label: 'Client secret basic',
+                                                    value: 'client_secret_basic',
+                                                },
+                                                {
+                                                    label: 'Client secret post',
+                                                    value: 'client_secret_post',
+                                                },
+                                            ]}
+                                            value={
+                                                form.values
+                                                    .oauthTokenEndpointAuthMethod
+                                            }
+                                            onChange={(value) =>
+                                                form.setFieldValue(
+                                                    'oauthTokenEndpointAuthMethod',
+                                                    (value ?? '') as z.infer<
+                                                        typeof createMcpServerFormSchema
+                                                    >['oauthTokenEndpointAuthMethod'],
+                                                )
+                                            }
+                                        />
+                                        <PasswordInput
+                                            variant="subtle"
+                                            label="DCR initial access token"
+                                            disabled={isLoading}
+                                            autoComplete="off"
+                                            {...form.getInputProps(
+                                                'oauthClientRegistrationAccessToken',
+                                            )}
+                                        />
+                                    </Stack>
                                 </Collapse>
                             </Box>
                         </Stack>
@@ -752,6 +849,35 @@ export const AiAgentMcpServersInput = ({
 
     const handleCreateMcpServer = useCallback(
         async (values: z.infer<typeof createMcpServerFormSchema>) => {
+            const oauthClientInformation = values.oauthClientId.trim()
+                ? {
+                      clientId: values.oauthClientId.trim(),
+                      clientSecret:
+                          values.oauthClientSecret.trim() || undefined,
+                      tokenEndpointAuthMethod:
+                          values.oauthTokenEndpointAuthMethod || undefined,
+                  }
+                : undefined;
+            const oauthClientRegistration =
+                values.oauthClientRegistrationAccessToken.trim()
+                    ? {
+                          initialAccessToken:
+                              values.oauthClientRegistrationAccessToken.trim(),
+                      }
+                    : undefined;
+            const credentials =
+                values.authType === 'bearer'
+                    ? {
+                          bearerToken: values.bearerToken.trim(),
+                      }
+                    : values.authType === 'oauth' &&
+                        (oauthClientInformation || oauthClientRegistration)
+                      ? {
+                            oauthClientInformation,
+                            oauthClientRegistration,
+                        }
+                      : null;
+
             const popupWindow =
                 values.authType === 'oauth'
                     ? window.open('', 'mcp-oauth-popup', 'width=600,height=700')
@@ -767,12 +893,7 @@ export const AiAgentMcpServersInput = ({
                         values.authType === 'oauth'
                             ? values.allowOAuthCredentialSharing
                             : undefined,
-                    credentials:
-                        values.authType === 'bearer'
-                            ? {
-                                  bearerToken: values.bearerToken.trim(),
-                              }
-                            : null,
+                    credentials,
                 });
             } catch (error) {
                 popupWindow?.close();

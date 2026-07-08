@@ -208,6 +208,7 @@ import {
     type AiAgentMcpServerToolPermissionSetting,
     type AiAgentMcpServerToolPermissionSettingUpdate,
     type AiMcpCredential,
+    type AiMcpOAuthCredentialPayload,
     type AiMcpServerWithSensitiveData,
 } from '../../models/AiAgentModel';
 import { AiAgentReviewClassifierModel } from '../../models/AiAgentReviewClassifierModel';
@@ -3181,6 +3182,41 @@ export class AiAgentService extends BaseService {
             .then((tools) => tools.map(AiAgentService.toApiAgentMcpServerTool));
     }
 
+    private static normalizeOAuthMcpCredentials(
+        credentials: ApiCreateAiMcpServer['credentials'],
+    ): ApiCreateAiMcpServer['credentials'] {
+        const clientId =
+            credentials?.oauthClientInformation?.clientId?.trim() || undefined;
+        const clientSecret =
+            credentials?.oauthClientInformation?.clientSecret?.trim() ||
+            undefined;
+        const tokenEndpointAuthMethod =
+            credentials?.oauthClientInformation?.tokenEndpointAuthMethod;
+        const initialAccessToken =
+            credentials?.oauthClientRegistration?.initialAccessToken?.trim() ||
+            undefined;
+
+        const oauthClientInformation = clientId
+            ? {
+                  clientId,
+                  clientSecret,
+                  tokenEndpointAuthMethod,
+              }
+            : undefined;
+        const oauthClientRegistration = initialAccessToken
+            ? {
+                  initialAccessToken,
+              }
+            : undefined;
+
+        return oauthClientInformation || oauthClientRegistration
+            ? {
+                  oauthClientInformation,
+                  oauthClientRegistration,
+              }
+            : null;
+    }
+
     public async createMcpServer(
         user: SessionUser,
         projectUuid: string,
@@ -3211,9 +3247,18 @@ export class AiAgentService extends BaseService {
 
         switch (body.authType) {
             case 'none':
-                if (body.credentials?.bearerToken) {
+                if (body.credentials?.bearerToken?.trim()) {
                     throw new ParameterError(
                         'Credentials are not allowed for auth type "none"',
+                    );
+                }
+                if (
+                    AiAgentService.normalizeOAuthMcpCredentials(
+                        body.credentials,
+                    )
+                ) {
+                    throw new ParameterError(
+                        'OAuth client credentials are only allowed for auth type "oauth"',
                     );
                 }
                 if (body.credentialScope !== undefined) {
@@ -3228,9 +3273,18 @@ export class AiAgentService extends BaseService {
                 }
                 break;
             case 'bearer':
-                if (!body.credentials?.bearerToken.trim()) {
+                if (!body.credentials?.bearerToken?.trim()) {
                     throw new ParameterError(
                         'Bearer MCP servers require a bearer token',
+                    );
+                }
+                if (
+                    AiAgentService.normalizeOAuthMcpCredentials(
+                        body.credentials,
+                    )
+                ) {
+                    throw new ParameterError(
+                        'OAuth client credentials are only allowed for auth type "oauth"',
                     );
                 }
                 if (allowOAuthCredentialSharing) {
@@ -3239,10 +3293,44 @@ export class AiAgentService extends BaseService {
                     );
                 }
                 break;
-            case 'oauth':
+            case 'oauth': {
                 if (body.credentials?.bearerToken) {
                     throw new ParameterError(
                         'Bearer credentials are not allowed for auth type "oauth"',
+                    );
+                }
+                const oauthClientInformation =
+                    body.credentials?.oauthClientInformation;
+                if (
+                    oauthClientInformation?.tokenEndpointAuthMethod &&
+                    ![
+                        'none',
+                        'client_secret_basic',
+                        'client_secret_post',
+                    ].includes(oauthClientInformation.tokenEndpointAuthMethod)
+                ) {
+                    throw new ParameterError(
+                        'Unsupported OAuth token endpoint authentication method',
+                    );
+                }
+                if (
+                    (oauthClientInformation?.clientSecret?.trim() ||
+                        oauthClientInformation?.tokenEndpointAuthMethod) &&
+                    !oauthClientInformation.clientId?.trim()
+                ) {
+                    throw new ParameterError(
+                        'OAuth client ID is required when OAuth client secret or token endpoint authentication method is provided',
+                    );
+                }
+                if (
+                    oauthClientInformation?.tokenEndpointAuthMethod &&
+                    ['client_secret_basic', 'client_secret_post'].includes(
+                        oauthClientInformation.tokenEndpointAuthMethod,
+                    ) &&
+                    !oauthClientInformation.clientSecret?.trim()
+                ) {
+                    throw new ParameterError(
+                        'OAuth client secret is required when OAuth token endpoint authentication method uses a client secret',
                     );
                 }
                 if (body.credentialScope !== undefined) {
@@ -3251,6 +3339,7 @@ export class AiAgentService extends BaseService {
                     );
                 }
                 break;
+            }
             default:
                 assertUnreachable(
                     body.authType,
@@ -3258,12 +3347,16 @@ export class AiAgentService extends BaseService {
                 );
         }
 
-        const credentials =
-            body.authType === 'bearer'
-                ? {
-                      bearerToken: body.credentials!.bearerToken.trim(),
-                  }
-                : null;
+        let credentials: ApiCreateAiMcpServer['credentials'] = null;
+        if (body.authType === 'bearer') {
+            credentials = {
+                bearerToken: body.credentials!.bearerToken!.trim(),
+            };
+        } else if (body.authType === 'oauth') {
+            credentials = AiAgentService.normalizeOAuthMcpCredentials(
+                body.credentials,
+            );
+        }
 
         let mcpConnectionMetadata: { iconUrl: string | null } | null = null;
 
@@ -3548,6 +3641,71 @@ export class AiAgentService extends BaseService {
         );
     }
 
+    private async seedUserMcpOAuthClientSetup(args: {
+        mcpServerUuid: string;
+        userUuid: string;
+        actorUserUuid: string;
+    }): Promise<void> {
+        const sharedCredential = await this.aiAgentModel.getCredential(
+            args.mcpServerUuid,
+            'shared',
+        );
+
+        if (sharedCredential?.credentials.type !== 'oauth') {
+            return;
+        }
+
+        const { clientInformation, clientMetadata, clientRegistration } =
+            sharedCredential.credentials;
+
+        if (!clientInformation && !clientRegistration) {
+            return;
+        }
+
+        const userCredential = await this.aiAgentModel.getCredential(
+            args.mcpServerUuid,
+            'user',
+            {
+                userUuid: args.userUuid,
+            },
+        );
+        const userPayload: AiMcpOAuthCredentialPayload =
+            userCredential?.credentials.type === 'oauth'
+                ? userCredential.credentials
+                : {
+                      type: 'oauth',
+                      credentialScope: 'user',
+                      connectionStatus: 'not_connected',
+                  };
+        const nextClientInformation =
+            userPayload.clientInformation ?? clientInformation;
+        const nextClientMetadata = userPayload.clientMetadata ?? clientMetadata;
+        const nextClientRegistration =
+            userPayload.clientRegistration ?? clientRegistration;
+
+        if (
+            nextClientInformation === userPayload.clientInformation &&
+            nextClientMetadata === userPayload.clientMetadata &&
+            nextClientRegistration === userPayload.clientRegistration
+        ) {
+            return;
+        }
+
+        await this.aiAgentModel.upsertCredential({
+            serverUuid: args.mcpServerUuid,
+            scope: 'user',
+            userUuid: args.userUuid,
+            credentials: {
+                ...userPayload,
+                credentialScope: 'user',
+                clientInformation: nextClientInformation,
+                clientMetadata: nextClientMetadata,
+                clientRegistration: nextClientRegistration,
+            },
+            actorUserUuid: args.actorUserUuid,
+        });
+    }
+
     public async startMcpOAuthConnection(
         user: SessionUser,
         projectUuid: string,
@@ -3578,6 +3736,14 @@ export class AiAgentService extends BaseService {
             await this.assertCanManageMcpServers(user, projectUuid);
         } else {
             await this.assertCanUsePersonalMcpCredentials(user, projectUuid);
+        }
+
+        if (credentialScope === 'user') {
+            await this.seedUserMcpOAuthClientSetup({
+                mcpServerUuid,
+                userUuid: user.userUuid,
+                actorUserUuid: user.userUuid,
+            });
         }
 
         return this.aiAgentMcpRuntimeClient.startOAuthConnection({

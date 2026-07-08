@@ -64,6 +64,8 @@ type McpServerInfoWithIcons = Configuration & {
     websiteUrl?: string;
 };
 
+type OAuthFetchFn = typeof fetch;
+
 const buildDefaultClientMetadata = (
     redirectUrl: string,
 ): OAuthClientMetadata => ({
@@ -254,6 +256,21 @@ class PersistentMcpOAuthClientProvider implements OAuthClientProvider {
         return payload.clientInformation as
             | OAuthClientInformationMixed
             | undefined;
+    }
+
+    async clientRegistrationInitialAccessToken(): Promise<string | undefined> {
+        const payload = await this.loadPayload();
+        return payload.clientRegistration?.initialAccessToken;
+    }
+
+    async clientRegistrationEndpoint(): Promise<string | undefined> {
+        const payload = await this.loadPayload();
+        const registrationEndpoint =
+            payload.authorizationServerMetadata?.registration_endpoint;
+
+        return typeof registrationEndpoint === 'string'
+            ? registrationEndpoint
+            : undefined;
     }
 
     async saveClientInformation(
@@ -710,6 +727,40 @@ export class AiAgentMcpRuntimeClient {
         ).toString();
     }
 
+    private async persistSharedOAuthClientInformation(args: {
+        mcpServerUuid: string;
+        clientInformation: Record<string, unknown>;
+        clientMetadata?: Record<string, unknown>;
+        actorUserUuid?: string | null;
+    }): Promise<void> {
+        const sharedCredential = await this.aiAgentModel.getCredential(
+            args.mcpServerUuid,
+            'shared',
+        );
+        const sharedPayload = sharedCredential?.credentials;
+
+        if (
+            sharedPayload?.type !== 'oauth' ||
+            sharedPayload.clientInformation ||
+            !sharedPayload.clientRegistration
+        ) {
+            return;
+        }
+
+        await this.aiAgentModel.upsertCredential({
+            serverUuid: args.mcpServerUuid,
+            scope: 'shared',
+            credentials: {
+                ...sharedPayload,
+                credentialScope: 'shared',
+                clientInformation: args.clientInformation,
+                clientMetadata:
+                    sharedPayload.clientMetadata ?? args.clientMetadata,
+            },
+            actorUserUuid: args.actorUserUuid ?? null,
+        });
+    }
+
     private createMcpOAuthProvider(args: {
         projectUuid: string;
         mcpServerUuid: string;
@@ -742,6 +793,18 @@ export class AiAgentMcpRuntimeClient {
                     userUuid: args.userUuid,
                     actorUserUuid: args.actorUserUuid ?? null,
                 });
+                if (
+                    args.credentialScope === 'user' &&
+                    payload.clientInformation &&
+                    payload.clientRegistration
+                ) {
+                    await this.persistSharedOAuthClientInformation({
+                        mcpServerUuid: args.mcpServerUuid,
+                        clientInformation: payload.clientInformation,
+                        clientMetadata: payload.clientMetadata,
+                        actorUserUuid: args.actorUserUuid,
+                    });
+                }
             },
             onAuthorizationUrl: args.onAuthorizationUrl,
             forceReauth: args.forceReauth,
@@ -789,6 +852,73 @@ export class AiAgentMcpRuntimeClient {
         );
     }
 
+    private static async buildOAuthFetchFn(
+        provider: PersistentMcpOAuthClientProvider,
+    ): Promise<OAuthFetchFn | undefined> {
+        const initialAccessToken =
+            await provider.clientRegistrationInitialAccessToken();
+
+        if (!initialAccessToken) {
+            return undefined;
+        }
+
+        let registrationEndpoint = await provider.clientRegistrationEndpoint();
+
+        return async (input, init) => {
+            const requestUrl =
+                input instanceof Request ? input.url : input.toString();
+            const method = (
+                init?.method ??
+                (input instanceof Request ? input.method : 'GET')
+            ).toUpperCase();
+            const shouldAuthorizeClientRegistration =
+                method === 'POST' &&
+                registrationEndpoint !== undefined &&
+                requestUrl === new URL(registrationEndpoint).toString();
+            const requestInit = shouldAuthorizeClientRegistration
+                ? {
+                      ...init,
+                      headers: new Headers(
+                          init?.headers ??
+                              (input instanceof Request
+                                  ? input.headers
+                                  : undefined),
+                      ),
+                  }
+                : init;
+
+            if (shouldAuthorizeClientRegistration) {
+                (requestInit!.headers as Headers).set(
+                    'Authorization',
+                    `Bearer ${initialAccessToken}`,
+                );
+            }
+
+            const response = await fetch(input, requestInit);
+            const responseContentType =
+                response.headers.get('content-type') ?? '';
+
+            if (
+                !registrationEndpoint &&
+                response.ok &&
+                responseContentType.includes('application/json')
+            ) {
+                try {
+                    const body = await response.clone().json();
+                    if (typeof body?.registration_endpoint === 'string') {
+                        registrationEndpoint = new URL(
+                            body.registration_endpoint,
+                        ).toString();
+                    }
+                } catch {
+                    // Ignore non-JSON discovery responses.
+                }
+            }
+
+            return response;
+        };
+    }
+
     async startOAuthConnection(args: {
         projectUuid: string;
         mcpServerUuid: string;
@@ -812,9 +942,12 @@ export class AiAgentMcpRuntimeClient {
                 authorizationUrl = url;
             },
         });
+        const fetchFn =
+            await AiAgentMcpRuntimeClient.buildOAuthFetchFn(provider);
 
         await auth(provider, {
             serverUrl: args.serverUrl,
+            ...(fetchFn ? { fetchFn } : {}),
         });
 
         if (!authorizationUrl) {
@@ -883,6 +1016,18 @@ export class AiAgentMcpRuntimeClient {
         userUuid?: string;
         actorUserUuid: string;
     }): Promise<void> {
+        const existingCredential = await this.aiAgentModel.getCredential(
+            args.mcpServerUuid,
+            args.credentialScope,
+            {
+                userUuid: args.userUuid,
+            },
+        );
+        const existingPayload =
+            existingCredential?.credentials.type === 'oauth'
+                ? existingCredential.credentials
+                : undefined;
+
         await this.aiAgentModel.upsertCredential({
             serverUuid: args.mcpServerUuid,
             scope: args.credentialScope,
@@ -890,6 +1035,9 @@ export class AiAgentMcpRuntimeClient {
                 type: 'oauth',
                 credentialScope: args.credentialScope,
                 connectionStatus: 'not_connected',
+                clientInformation: existingPayload?.clientInformation,
+                clientMetadata: existingPayload?.clientMetadata,
+                clientRegistration: existingPayload?.clientRegistration,
             },
             userUuid: args.userUuid,
             actorUserUuid: args.actorUserUuid,

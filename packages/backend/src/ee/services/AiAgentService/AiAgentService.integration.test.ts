@@ -597,6 +597,165 @@ describe('AiAgentService MCP support', () => {
         ).resolves.toBeUndefined();
     });
 
+    it('stores OAuth MCP client registration credentials during server creation', async () => {
+        const services = getServices(context.app);
+        const models = getModels(context.app);
+        const suffix = crypto.randomUUID().slice(0, 8);
+        const clientId = `client-${suffix}`;
+
+        const mcpServer = await services.aiAgentService.createMcpServer(
+            context.testUser,
+            SEED_PROJECT.project_uuid,
+            {
+                name: `OAuth DCR MCP ${suffix}`,
+                url: mcpServerUrl,
+                authType: 'oauth',
+                credentials: {
+                    oauthClientInformation: {
+                        clientId,
+                        clientSecret: 'client-secret',
+                        tokenEndpointAuthMethod: 'client_secret_post',
+                    },
+                    oauthClientRegistration: {
+                        initialAccessToken: 'dcr-token',
+                    },
+                },
+            },
+        );
+
+        expect(mcpServer.hasCredentials).toBe(true);
+        expect(mcpServer.credentialScope).toBe('shared');
+        expect(mcpServer.connectionStatus).toBe('not_connected');
+
+        await expect(
+            models.aiAgentModel.getCredential(mcpServer.uuid, 'shared'),
+        ).resolves.toMatchObject({
+            credentials: {
+                type: 'oauth',
+                credentialScope: 'shared',
+                connectionStatus: 'not_connected',
+                clientInformation: {
+                    client_id: clientId,
+                    client_secret: 'client-secret',
+                    token_endpoint_auth_method: 'client_secret_post',
+                },
+                clientRegistration: {
+                    initialAccessToken: 'dcr-token',
+                },
+            },
+        });
+    });
+
+    it('rejects confidential OAuth MCP client authentication without a client secret', async () => {
+        const services = getServices(context.app);
+        const suffix = crypto.randomUUID().slice(0, 8);
+        const invalidOAuthClientInformation = [
+            {
+                clientId: `client-basic-${suffix}`,
+                tokenEndpointAuthMethod: 'client_secret_basic',
+            },
+            {
+                clientId: `client-post-${suffix}`,
+                clientSecret: '   ',
+                tokenEndpointAuthMethod: 'client_secret_post',
+            },
+        ] as const;
+
+        await Promise.all(
+            invalidOAuthClientInformation.map((oauthClientInformation, index) =>
+                expect(
+                    services.aiAgentService.createMcpServer(
+                        context.testUser,
+                        SEED_PROJECT.project_uuid,
+                        {
+                            name: `Invalid Confidential OAuth ${suffix}-${index}`,
+                            url: mcpServerUrl,
+                            authType: 'oauth',
+                            credentials: {
+                                oauthClientInformation,
+                            },
+                        },
+                    ),
+                ).rejects.toThrow(
+                    'OAuth client secret is required when OAuth token endpoint authentication method uses a client secret',
+                ),
+            ),
+        );
+    });
+
+    it('seeds personal OAuth connections with shared client registration setup', async () => {
+        const services = getServices(context.app);
+        const models = getModels(context.app);
+        const suffix = crypto.randomUUID().slice(0, 8);
+        const clientId = `client-${suffix}`;
+
+        const mcpServer = await services.aiAgentService.createMcpServer(
+            context.testUser,
+            SEED_PROJECT.project_uuid,
+            {
+                name: `Personal OAuth DCR MCP ${suffix}`,
+                url: mcpServerUrl,
+                authType: 'oauth',
+                credentials: {
+                    oauthClientInformation: {
+                        clientId,
+                        clientSecret: 'client-secret',
+                        tokenEndpointAuthMethod: 'client_secret_post',
+                    },
+                    oauthClientRegistration: {
+                        initialAccessToken: 'dcr-token',
+                    },
+                },
+            },
+        );
+
+        const runtimeClient = Reflect.get(
+            services.aiAgentService,
+            'aiAgentMcpRuntimeClient',
+        ) as RuntimeClientSpies;
+        const startOAuthConnectionSpy = vi
+            .spyOn(runtimeClient, 'startOAuthConnection')
+            .mockResolvedValue('https://example.com/oauth');
+
+        await expect(
+            services.aiAgentService.startMcpOAuthConnection(
+                context.testUser,
+                SEED_PROJECT.project_uuid,
+                mcpServer.uuid,
+            ),
+        ).resolves.toBe('https://example.com/oauth');
+
+        expect(startOAuthConnectionSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                mcpServerUuid: mcpServer.uuid,
+                credentialScope: 'user',
+                userUuid: context.testUser.userUuid,
+            }),
+        );
+
+        await expect(
+            models.aiAgentModel.getCredential(mcpServer.uuid, 'user', {
+                userUuid: context.testUser.userUuid,
+            }),
+        ).resolves.toMatchObject({
+            credentials: {
+                type: 'oauth',
+                credentialScope: 'user',
+                connectionStatus: 'not_connected',
+                clientInformation: {
+                    client_id: clientId,
+                    client_secret: 'client-secret',
+                    token_endpoint_auth_method: 'client_secret_post',
+                },
+                clientRegistration: {
+                    initialAccessToken: 'dcr-token',
+                },
+            },
+        });
+
+        startOAuthConnectionSpy.mockRestore();
+    });
+
     it('does not let non-managers enable shared OAuth credentials during server creation', async () => {
         const services = getServices(context.app);
         const editorUser = getProjectUser(context, {
