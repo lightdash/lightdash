@@ -11419,8 +11419,32 @@
                 ],
                 "type": "object"
             },
+            "AppVersionDependencyEntry": {
+                "properties": {
+                    "version": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["version", "name"],
+                "type": "object"
+            },
             "ApiAppVersionSummary": {
                 "properties": {
+                    "dependencies": {
+                        "properties": {
+                            "custom": {
+                                "items": {
+                                    "$ref": "#/components/schemas/AppVersionDependencyEntry"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["custom"],
+                        "type": "object"
+                    },
                     "resources": {
                         "allOf": [
                             {
@@ -20031,7 +20055,7 @@
                 "type": "string"
             },
             "RedshiftAuthenticationType": {
-                "enum": ["password", "iam"],
+                "enum": ["password", "iam", "iam_browser"],
                 "type": "string"
             },
             "Pick_CreateRedshiftCredentials.Exclude_keyofCreateRedshiftCredentials.SensitiveCredentialsFieldNames__": {
@@ -20128,6 +20152,18 @@
                         "type": "string"
                     },
                     "assumeRoleExternalId": {
+                        "type": "string"
+                    },
+                    "awsSsoStartUrl": {
+                        "type": "string"
+                    },
+                    "awsSsoRegion": {
+                        "type": "string"
+                    },
+                    "awsSsoAccountId": {
+                        "type": "string"
+                    },
+                    "awsSsoRoleName": {
                         "type": "string"
                     }
                 },
@@ -21086,6 +21122,18 @@
                     },
                     {
                         "properties": {
+                            "awsSsoRoleName": {
+                                "type": "string"
+                            },
+                            "awsSsoAccountId": {
+                                "type": "string"
+                            },
+                            "awsSsoRegion": {
+                                "type": "string"
+                            },
+                            "awsSsoStartUrl": {
+                                "type": "string"
+                            },
                             "assumeRoleExternalId": {
                                 "type": "string"
                             },
@@ -23543,6 +23591,270 @@
             "AiAgentAdminSortField": {
                 "type": "string",
                 "enum": ["createdAt", "title"]
+            },
+            "McpActivityStatus": {
+                "type": "string",
+                "enum": ["success", "error"]
+            },
+            "McpActivityItem": {
+                "properties": {
+                    "protocolVersion": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "authType": {
+                        "type": "string"
+                    },
+                    "userAgent": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "clientVersion": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "clientName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "durationMs": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "errorMessage": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/McpActivityStatus"
+                    },
+                    "toolArgs": {
+                        "$ref": "#/components/schemas/Record_string.unknown_"
+                    },
+                    "toolName": {
+                        "type": "string"
+                    },
+                    "agent": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "project": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "user": {
+                        "properties": {
+                            "email": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["email", "name", "uuid"],
+                        "type": "object"
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "protocolVersion",
+                    "authType",
+                    "userAgent",
+                    "clientVersion",
+                    "clientName",
+                    "durationMs",
+                    "errorMessage",
+                    "status",
+                    "toolArgs",
+                    "toolName",
+                    "agent",
+                    "project",
+                    "user",
+                    "createdAt",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "McpActivitySummary": {
+                "properties": {
+                    "toolCalls": {
+                        "items": {
+                            "$ref": "#/components/schemas/McpActivityItem"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["toolCalls"],
+                "type": "object"
+            },
+            "KnexPaginatedData_McpActivitySummary_": {
+                "properties": {
+                    "pagination": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/KnexPaginateArgs"
+                            },
+                            {
+                                "properties": {
+                                    "totalResults": {
+                                        "type": "number",
+                                        "format": "double"
+                                    },
+                                    "totalPageCount": {
+                                        "type": "number",
+                                        "format": "double"
+                                    }
+                                },
+                                "required": ["totalResults", "totalPageCount"],
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "data": {
+                        "$ref": "#/components/schemas/McpActivitySummary"
+                    }
+                },
+                "required": ["data"],
+                "type": "object"
+            },
+            "ApiSuccess_KnexPaginatedData_McpActivitySummary__": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/KnexPaginatedData_McpActivitySummary_"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiMcpActivityResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_McpActivitySummary__"
+            },
+            "McpActivitySortField": {
+                "type": "string",
+                "enum": ["createdAt", "durationMs"]
+            },
+            "McpActivityToolCount": {
+                "properties": {
+                    "count": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "toolName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["count", "toolName"],
+                "type": "object"
+            },
+            "McpActivityAgentCount": {
+                "properties": {
+                    "count": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "agent": {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "uuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["name", "uuid"],
+                        "type": "object",
+                        "nullable": true
+                    }
+                },
+                "required": ["count", "agent"],
+                "type": "object"
+            },
+            "McpActivityStats": {
+                "properties": {
+                    "recentErrors": {
+                        "items": {
+                            "$ref": "#/components/schemas/McpActivityItem"
+                        },
+                        "type": "array"
+                    },
+                    "agents": {
+                        "items": {
+                            "$ref": "#/components/schemas/McpActivityAgentCount"
+                        },
+                        "type": "array"
+                    },
+                    "topTools": {
+                        "items": {
+                            "$ref": "#/components/schemas/McpActivityToolCount"
+                        },
+                        "type": "array"
+                    },
+                    "errorCalls": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "totalCalls": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "recentErrors",
+                    "agents",
+                    "topTools",
+                    "errorCalls",
+                    "totalCalls"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_McpActivityStats_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/McpActivityStats"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiMcpActivityStatsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_McpActivityStats_"
             },
             "AiAgentAdminPromptActivityPoint": {
                 "properties": {
@@ -26659,6 +26971,129 @@
                     }
                 },
                 "required": ["credentials", "name"],
+                "type": "object"
+            },
+            "RedshiftAwsSsoStartResults": {
+                "properties": {
+                    "interval": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "expiresIn": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "userCode": {
+                        "type": "string"
+                    },
+                    "verificationUriComplete": {
+                        "type": "string"
+                    },
+                    "verificationUri": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "interval",
+                    "expiresIn",
+                    "userCode",
+                    "verificationUriComplete",
+                    "verificationUri"
+                ],
+                "type": "object"
+            },
+            "RedshiftAwsSsoStartResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/RedshiftAwsSsoStartResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "RedshiftAwsSsoStartRequest": {
+                "properties": {
+                    "region": {
+                        "type": "string"
+                    },
+                    "startUrl": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "RedshiftAwsSsoCompleteResults": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "status": {
+                                "type": "string",
+                                "enum": ["pending"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["status"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "credentials": {
+                                "$ref": "#/components/schemas/UserWarehouseCredentials"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["authenticated"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["credentials", "status"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "RedshiftAwsSsoCompleteResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/RedshiftAwsSsoCompleteResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "RedshiftAwsSsoCompleteRequest": {
+                "properties": {
+                    "databaseUser": {
+                        "type": "string"
+                    },
+                    "credentialsName": {
+                        "type": "string"
+                    },
+                    "projectName": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "roleName": {
+                        "type": "string"
+                    },
+                    "accountId": {
+                        "type": "string"
+                    }
+                },
                 "type": "object"
             },
             "OpenIdIdentityIssuerType": {
@@ -29952,6 +30387,7 @@
                     "appGeneratePipeline",
                     "appBuildFromSource",
                     "sweepStaleAppLocks",
+                    "cleanMcpToolCalls",
                     "handleScheduledDelivery",
                     "sendSlackNotification",
                     "sendEmailNotification",
@@ -31779,7 +32215,8 @@
                     "v1.8",
                     "v1.9",
                     "v1.10",
-                    "v1.11"
+                    "v1.11",
+                    "v1.12"
                 ],
                 "type": "string"
             },
@@ -43794,7 +44231,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3328.1",
+        "version": "0.3339.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -50900,6 +51337,255 @@
                 ]
             }
         },
+        "/api/v1/aiAgents/admin/mcp-activity": {
+            "get": {
+                "operationId": "getMcpActivity",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiMcpActivityResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get MCP tool call activity for admin",
+                "summary": "List MCP activity",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "page",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "pageSize",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "projectUuids",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "userUuids",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "agentUuids",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "toolNames",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "clientNames",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/McpActivityStatus"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "dateFrom",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "dateTo",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "sortField",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/McpActivitySortField"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "sortDirection",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "enum": ["asc", "desc"]
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/aiAgents/admin/mcp-activity/stats": {
+            "get": {
+                "operationId": "getMcpActivityStats",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiMcpActivityStatsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get aggregated MCP tool call stats for admin",
+                "summary": "Get MCP activity stats",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "projectUuids",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "userUuids",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "agentUuids",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "toolNames",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "clientNames",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "dateFrom",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "dateTo",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/aiAgents/admin/projects/{projectUuid}/prompt-activity": {
             "get": {
                 "operationId": "getProjectPromptActivity",
@@ -52446,6 +53132,90 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/UpsertUserWarehouseCredentials"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/warehouseCredentials/redshift/aws-sso/start": {
+            "post": {
+                "operationId": "startRedshiftAwsSsoWarehouseCredentials",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RedshiftAwsSsoStartResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Start Redshift AWS SSO login",
+                "summary": "Start Redshift AWS SSO login",
+                "tags": ["My Account"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RedshiftAwsSsoStartRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/warehouseCredentials/redshift/aws-sso/complete": {
+            "post": {
+                "operationId": "completeRedshiftAwsSsoWarehouseCredentials",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RedshiftAwsSsoCompleteResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Complete Redshift AWS SSO login",
+                "summary": "Complete Redshift AWS SSO login",
+                "tags": ["My Account"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RedshiftAwsSsoCompleteRequest"
                             }
                         }
                     }

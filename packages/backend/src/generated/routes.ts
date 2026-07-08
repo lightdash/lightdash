@@ -10057,11 +10057,36 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AppVersionDependencyEntry: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                version: { dataType: 'string', required: true },
+                name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiAppVersionSummary: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                dependencies: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        custom: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'AppVersionDependencyEntry',
+                            },
+                            required: true,
+                        },
+                    },
+                },
                 resources: {
                     dataType: 'union',
                     subSchemas: [
@@ -19624,7 +19649,7 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     RedshiftAuthenticationType: {
         dataType: 'refEnum',
-        enums: ['password', 'iam'],
+        enums: ['password', 'iam', 'iam_browser'],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     'Pick_CreateRedshiftCredentials.Exclude_keyofCreateRedshiftCredentials.SensitiveCredentialsFieldNames__':
@@ -19790,6 +19815,34 @@ const models: TsoaRoute.Models = {
                         ],
                     },
                     assumeRoleExternalId: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    awsSsoStartUrl: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    awsSsoRegion: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    awsSsoAccountId: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    awsSsoRoleName: {
                         dataType: 'union',
                         subSchemas: [
                             { dataType: 'string' },
@@ -21061,6 +21114,10 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        awsSsoRoleName: { dataType: 'string' },
+                        awsSsoAccountId: { dataType: 'string' },
+                        awsSsoRegion: { dataType: 'string' },
+                        awsSsoStartUrl: { dataType: 'string' },
                         assumeRoleExternalId: { dataType: 'string' },
                         assumeRoleArn: { dataType: 'string' },
                         sessionToken: { dataType: 'string' },
@@ -23216,6 +23273,286 @@ const models: TsoaRoute.Models = {
             ],
             validators: {},
         },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    McpActivityStatus: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['success'] },
+                { dataType: 'enum', enums: ['error'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    McpActivityItem: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                protocolVersion: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                authType: { dataType: 'string', required: true },
+                userAgent: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                clientVersion: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                clientName: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                durationMs: { dataType: 'double', required: true },
+                errorMessage: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                status: { ref: 'McpActivityStatus', required: true },
+                toolArgs: { ref: 'Record_string.unknown_', required: true },
+                toolName: { dataType: 'string', required: true },
+                agent: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                name: { dataType: 'string', required: true },
+                                uuid: { dataType: 'string', required: true },
+                            },
+                        },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                project: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                name: { dataType: 'string', required: true },
+                                uuid: { dataType: 'string', required: true },
+                            },
+                        },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                user: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        email: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        name: { dataType: 'string', required: true },
+                        uuid: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
+                createdAt: { dataType: 'string', required: true },
+                uuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    McpActivitySummary: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                toolCalls: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'McpActivityItem' },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    KnexPaginatedData_McpActivitySummary_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                pagination: {
+                    dataType: 'intersection',
+                    subSchemas: [
+                        { ref: 'KnexPaginateArgs' },
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                totalResults: {
+                                    dataType: 'double',
+                                    required: true,
+                                },
+                                totalPageCount: {
+                                    dataType: 'double',
+                                    required: true,
+                                },
+                            },
+                        },
+                    ],
+                },
+                data: { ref: 'McpActivitySummary', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSuccess_KnexPaginatedData_McpActivitySummary__: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    ref: 'KnexPaginatedData_McpActivitySummary_',
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiMcpActivityResponse: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'ApiSuccess_KnexPaginatedData_McpActivitySummary__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    McpActivitySortField: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['createdAt'] },
+                { dataType: 'enum', enums: ['durationMs'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    McpActivityToolCount: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                count: { dataType: 'double', required: true },
+                toolName: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    McpActivityAgentCount: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                count: { dataType: 'double', required: true },
+                agent: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                name: { dataType: 'string', required: true },
+                                uuid: { dataType: 'string', required: true },
+                            },
+                        },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    McpActivityStats: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                recentErrors: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'McpActivityItem' },
+                    required: true,
+                },
+                agents: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'McpActivityAgentCount',
+                    },
+                    required: true,
+                },
+                topTools: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'McpActivityToolCount',
+                    },
+                    required: true,
+                },
+                errorCalls: { dataType: 'double', required: true },
+                totalCalls: { dataType: 'double', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSuccess_McpActivityStats_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'McpActivityStats', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiMcpActivityStatsResponse: {
+        dataType: 'refAlias',
+        type: { ref: 'ApiSuccess_McpActivityStats_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiAgentAdminPromptActivityPoint: {
@@ -26530,6 +26867,111 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    RedshiftAwsSsoStartResults: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                interval: { dataType: 'double', required: true },
+                expiresIn: { dataType: 'double', required: true },
+                userCode: { dataType: 'string', required: true },
+                verificationUriComplete: { dataType: 'string', required: true },
+                verificationUri: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    RedshiftAwsSsoStartResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'RedshiftAwsSsoStartResults', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    RedshiftAwsSsoStartRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                region: { dataType: 'string' },
+                startUrl: { dataType: 'string' },
+                projectUuid: { dataType: 'string' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    RedshiftAwsSsoCompleteResults: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        status: {
+                            dataType: 'enum',
+                            enums: ['pending'],
+                            required: true,
+                        },
+                    },
+                },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        credentials: {
+                            ref: 'UserWarehouseCredentials',
+                            required: true,
+                        },
+                        status: {
+                            dataType: 'enum',
+                            enums: ['authenticated'],
+                            required: true,
+                        },
+                    },
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    RedshiftAwsSsoCompleteResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    ref: 'RedshiftAwsSsoCompleteResults',
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    RedshiftAwsSsoCompleteRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                databaseUser: { dataType: 'string' },
+                credentialsName: { dataType: 'string' },
+                projectName: { dataType: 'string' },
+                projectUuid: { dataType: 'string' },
+                roleName: { dataType: 'string' },
+                accountId: { dataType: 'string' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     OpenIdIdentityIssuerType: {
         dataType: 'refEnum',
         enums: [
@@ -29674,6 +30116,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['appGeneratePipeline'] },
                 { dataType: 'enum', enums: ['appBuildFromSource'] },
                 { dataType: 'enum', enums: ['sweepStaleAppLocks'] },
+                { dataType: 'enum', enums: ['cleanMcpToolCalls'] },
                 { dataType: 'enum', enums: ['handleScheduledDelivery'] },
                 { dataType: 'enum', enums: ['sendSlackNotification'] },
                 { dataType: 'enum', enums: ['sendEmailNotification'] },
@@ -31289,6 +31732,7 @@ const models: TsoaRoute.Models = {
             'v1.9',
             'v1.10',
             'v1.11',
+            'v1.12',
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -58332,6 +58776,197 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAiAgentAdminController_getMcpActivity: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        page: { in: 'query', name: 'page', dataType: 'double' },
+        pageSize: { in: 'query', name: 'pageSize', dataType: 'double' },
+        projectUuids: {
+            in: 'query',
+            name: 'projectUuids',
+            dataType: 'array',
+            array: { dataType: 'string' },
+        },
+        userUuids: {
+            in: 'query',
+            name: 'userUuids',
+            dataType: 'array',
+            array: { dataType: 'string' },
+        },
+        agentUuids: {
+            in: 'query',
+            name: 'agentUuids',
+            dataType: 'array',
+            array: { dataType: 'string' },
+        },
+        toolNames: {
+            in: 'query',
+            name: 'toolNames',
+            dataType: 'array',
+            array: { dataType: 'string' },
+        },
+        clientNames: {
+            in: 'query',
+            name: 'clientNames',
+            dataType: 'array',
+            array: { dataType: 'string' },
+        },
+        status: { in: 'query', name: 'status', ref: 'McpActivityStatus' },
+        dateFrom: { in: 'query', name: 'dateFrom', dataType: 'string' },
+        dateTo: { in: 'query', name: 'dateTo', dataType: 'string' },
+        sortField: {
+            in: 'query',
+            name: 'sortField',
+            ref: 'McpActivitySortField',
+        },
+        sortDirection: {
+            in: 'query',
+            name: 'sortDirection',
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['asc'] },
+                { dataType: 'enum', enums: ['desc'] },
+            ],
+        },
+    };
+    app.get(
+        '/api/v1/aiAgents/admin/mcp-activity',
+        ...fetchMiddlewares<RequestHandler>(AiAgentAdminController),
+        ...fetchMiddlewares<RequestHandler>(
+            AiAgentAdminController.prototype.getMcpActivity,
+        ),
+
+        async function AiAgentAdminController_getMcpActivity(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAiAgentAdminController_getMcpActivity,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AiAgentAdminController>(
+                        AiAgentAdminController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getMcpActivity',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAiAgentAdminController_getMcpActivityStats: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuids: {
+            in: 'query',
+            name: 'projectUuids',
+            dataType: 'array',
+            array: { dataType: 'string' },
+        },
+        userUuids: {
+            in: 'query',
+            name: 'userUuids',
+            dataType: 'array',
+            array: { dataType: 'string' },
+        },
+        agentUuids: {
+            in: 'query',
+            name: 'agentUuids',
+            dataType: 'array',
+            array: { dataType: 'string' },
+        },
+        toolNames: {
+            in: 'query',
+            name: 'toolNames',
+            dataType: 'array',
+            array: { dataType: 'string' },
+        },
+        clientNames: {
+            in: 'query',
+            name: 'clientNames',
+            dataType: 'array',
+            array: { dataType: 'string' },
+        },
+        dateFrom: { in: 'query', name: 'dateFrom', dataType: 'string' },
+        dateTo: { in: 'query', name: 'dateTo', dataType: 'string' },
+    };
+    app.get(
+        '/api/v1/aiAgents/admin/mcp-activity/stats',
+        ...fetchMiddlewares<RequestHandler>(AiAgentAdminController),
+        ...fetchMiddlewares<RequestHandler>(
+            AiAgentAdminController.prototype.getMcpActivityStats,
+        ),
+
+        async function AiAgentAdminController_getMcpActivityStats(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAiAgentAdminController_getMcpActivityStats,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AiAgentAdminController>(
+                        AiAgentAdminController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getMcpActivityStats',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     const argsAiAgentAdminController_getProjectPromptActivity: Record<
         string,
         TsoaRoute.ParameterSchema
@@ -60612,6 +61247,124 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'createWarehouseCredentials',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: undefined,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsUserController_startRedshiftAwsSsoWarehouseCredentials: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'RedshiftAwsSsoStartRequest',
+        },
+    };
+    app.post(
+        '/api/v1/user/warehouseCredentials/redshift/aws-sso/start',
+        ...fetchMiddlewares<RequestHandler>(UserController),
+        ...fetchMiddlewares<RequestHandler>(
+            UserController.prototype.startRedshiftAwsSsoWarehouseCredentials,
+        ),
+
+        async function UserController_startRedshiftAwsSsoWarehouseCredentials(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsUserController_startRedshiftAwsSsoWarehouseCredentials,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<UserController>(UserController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'startRedshiftAwsSsoWarehouseCredentials',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: undefined,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsUserController_completeRedshiftAwsSsoWarehouseCredentials: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'RedshiftAwsSsoCompleteRequest',
+        },
+    };
+    app.post(
+        '/api/v1/user/warehouseCredentials/redshift/aws-sso/complete',
+        ...fetchMiddlewares<RequestHandler>(UserController),
+        ...fetchMiddlewares<RequestHandler>(
+            UserController.prototype.completeRedshiftAwsSsoWarehouseCredentials,
+        ),
+
+        async function UserController_completeRedshiftAwsSsoWarehouseCredentials(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsUserController_completeRedshiftAwsSsoWarehouseCredentials,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<UserController>(UserController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'completeRedshiftAwsSsoWarehouseCredentials',
                     controller,
                     response,
                     next,
