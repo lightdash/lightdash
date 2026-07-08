@@ -149,6 +149,22 @@ describe('AiRouterService', () => {
         });
     });
 
+    it('allows users with AI agent view permission to read router config', async () => {
+        const { service, aiRouterModel } = makeService({ candidates: [] });
+        (ability.cannot as import('vitest').Mock).mockImplementation(
+            (action, resource) =>
+                action === 'manage' &&
+                resource?.__caslSubjectType__ === 'OrganizationAiAgent',
+        );
+
+        const result = await service.getConfig(account);
+
+        expect(result.enabled).toBe(true);
+        expect(aiRouterModel.findByOrganization).toHaveBeenCalledWith(
+            organizationUuid,
+        );
+    });
+
     it('uses the latest routing instructions and accessible candidates', async () => {
         const candidates = [
             createCandidate({ uuid: 'agent-1', name: 'General' }),
