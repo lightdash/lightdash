@@ -1,3 +1,10 @@
+## [0.3328.3](https://github.com/lightdash/lightdash/compare/0.3328.2...0.3328.3) (2026-07-08)
+
+
+### Bug Fixes
+
+* allow viewing ai router config ([#25270](https://github.com/lightdash/lightdash/issues/25270)) ([27584c2](https://github.com/lightdash/lightdash/commit/27584c21f557b9afc6a56d31addbf75f45358327))
+
 ## [0.3328.2](https://github.com/lightdash/lightdash/compare/0.3328.1...0.3328.2) (2026-07-08)
 
 
