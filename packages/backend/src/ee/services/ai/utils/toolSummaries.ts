@@ -84,12 +84,28 @@ export const summarizeToolCall = (toolName: string, input: AnyType) => {
     }
 };
 
+export const isPendingToolResult = (output: AnyType) =>
+    Boolean(output) &&
+    typeof output === 'object' &&
+    typeof output.metadata === 'object' &&
+    Boolean(output.metadata) &&
+    output.metadata.status === 'pending';
+
 export const summarizeToolResult = (toolName: string, output: AnyType) => {
     if (!output || typeof output !== 'object') return `Finished ${toolName}`;
     const metadataStatus =
         typeof output.metadata === 'object' && output.metadata
             ? output.metadata.status
             : undefined;
+    if (metadataStatus === 'pending') {
+        // The tool call started successfully but the underlying work (e.g. an
+        // async writeback run) hasn't finished yet — this is not a skip or a
+        // failure. Reuse the call-start label so the live step list doesn't
+        // gain a separate, misleading line for what is still the same step.
+        return (
+            summarizeToolCall(toolName, undefined) ?? `Running ${toolName}...`
+        );
+    }
     if (typeof metadataStatus === 'string' && metadataStatus !== 'success') {
         if (toolName === 'runSql') {
             return 'Skipped restricted SQL; used table metadata instead';

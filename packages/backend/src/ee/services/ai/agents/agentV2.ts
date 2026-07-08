@@ -76,7 +76,11 @@ import {
     AiAgentStepCapReachedError,
     getUserFacingErrorMessage,
 } from '../utils/errorMessages';
-import { summarizeToolCall, summarizeToolResult } from '../utils/toolSummaries';
+import {
+    isPendingToolResult,
+    summarizeToolCall,
+    summarizeToolResult,
+} from '../utils/toolSummaries';
 import { getDiscoverFields } from './discoverFields/tool';
 import { buildQueryRetryStepOverride } from './queryRetryCap';
 import { getAgentTelemetryConfig, getAiAgentModelName } from './telemetry';
@@ -941,7 +945,11 @@ export const generateAgentResponse = async ({
                                         ),
                                         toolResult.toolName,
                                         toolResult.toolCallId,
-                                        'complete',
+                                        isPendingToolResult(
+                                            toolResult.output as AnyType,
+                                        )
+                                            ? 'in_progress'
+                                            : 'complete',
                                     )
                                     .catch((error) => {
                                         Logger.debug(
@@ -1229,7 +1237,11 @@ export const streamAgentResponse = async ({
                                 ),
                                 event.chunk.toolName,
                                 event.chunk.toolCallId,
-                                'complete',
+                                isPendingToolResult(
+                                    event.chunk.output as AnyType,
+                                )
+                                    ? 'in_progress'
+                                    : 'complete',
                             )
                             .catch((error) => {
                                 Logger.debug(
