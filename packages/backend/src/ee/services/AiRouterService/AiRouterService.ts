@@ -203,7 +203,7 @@ export class AiRouterService extends BaseService {
 
     async getConfig(account: RegisteredAccount): Promise<AiRouter> {
         const organizationUuid = AiRouterService.organizationUuidOf(account);
-        this.assertManageAiAgent(account, organizationUuid);
+        this.assertViewAiAgent(account, organizationUuid);
         const router =
             await this.aiRouterModel.findByOrganization(organizationUuid);
         if (!router) {
