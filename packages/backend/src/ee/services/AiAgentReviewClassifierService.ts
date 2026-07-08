@@ -52,6 +52,7 @@ import {
     getLanguageModelAttribution,
 } from './ai/utils/aiCallTelemetry';
 import { type AiAgentReviewNotificationService } from './AiAgentReviewNotificationService';
+import { areReviewsEnabledForSettings } from './AiOrganizationSettingsService';
 
 const REVIEW_AGENT_VERSION = 'llm-judge-v1';
 const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v15';
@@ -1678,7 +1679,7 @@ Existing review items — dedup rules. The evidence packet field existingReviewI
                 args.organizationUuid,
             );
 
-        return settings?.aiAgentReviewsEnabled ?? false;
+        return areReviewsEnabledForSettings(settings);
     }
 
     private static buildEvidenceExcerpts(

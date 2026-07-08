@@ -61,6 +61,27 @@ export const findUnconfiguredProviderKeyWrites = (
             !configuredProviders[provider],
     );
 
+/**
+ * Review turns still run through the instance AI provider, so they're disabled
+ * while an org has its own BYO key set — their turn data must not leave via our
+ * LLM account until the review pipeline routes through the org's key.
+ */
+export const areReviewsEnabledForSettings = (
+    settings: Pick<
+        AiOrganizationSettings,
+        'aiAgentReviewsEnabled' | 'providerApiKeysSet'
+    > | null,
+): boolean => {
+    if (!settings) return false;
+    if (
+        settings.providerApiKeysSet.anthropic ||
+        settings.providerApiKeysSet.openai
+    ) {
+        return false;
+    }
+    return settings.aiAgentReviewsEnabled;
+};
+
 type AiOrganizationSettingsServiceDependencies = {
     aiOrganizationSettingsModel: AiOrganizationSettingsModel;
     organizationModel: OrganizationModel;
@@ -356,7 +377,7 @@ export class AiOrganizationSettingsService extends BaseService {
                 user.organizationUuid,
             );
 
-        return settings?.aiAgentReviewsEnabled ?? false;
+        return areReviewsEnabledForSettings(settings);
     }
 
     async isMcpContentWritesEnabled(

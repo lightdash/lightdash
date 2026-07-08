@@ -5719,7 +5719,11 @@ export class AiAgentService extends BaseService {
                 return;
             }
 
-            const modelOptions = getModel(this.lightdashConfig.ai.copilot, {
+            const copilotConfig =
+                await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                    payload.organizationUuid,
+                );
+            const modelOptions = getModel(copilotConfig, {
                 enableReasoning: false,
             });
 
