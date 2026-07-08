@@ -6,6 +6,7 @@ import type {
 } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router';
+import { validate as isUuid } from 'uuid';
 import useSearchParams from '../../../../hooks/useSearchParams';
 
 type McpActivityFiltersState = {
@@ -40,11 +41,13 @@ export const useMcpActivityFilters = () => {
 
     const currentFilters = useMemo<McpActivityFiltersState>(
         () => ({
+            // Non-uuid values (hand-edited URLs) are dropped: they can't
+            // match anything and the filter UI can't display them
             selectedProjectUuids:
-                projectsParam?.split(',').filter(Boolean) ||
+                projectsParam?.split(',').filter(isUuid) ||
                 DEFAULT_FILTERS.selectedProjectUuids,
             selectedAgentUuids:
-                agentsParam?.split(',').filter(Boolean) ||
+                agentsParam?.split(',').filter(isUuid) ||
                 DEFAULT_FILTERS.selectedAgentUuids,
             selectedStatus: statusParam || DEFAULT_FILTERS.selectedStatus,
             sortField: sortByParam || DEFAULT_FILTERS.sortField,
