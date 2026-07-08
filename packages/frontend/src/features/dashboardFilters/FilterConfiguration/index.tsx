@@ -36,15 +36,13 @@ import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import { flushSync } from 'react-dom';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import FieldLabel from '../../../components/common/Filters/FieldLabel';
-import { getConditionalRuleLabelFromItem } from '../../../components/common/Filters/FilterInputs/utils';
 import MantineIcon from '../../../components/common/MantineIcon';
-import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import { DEFAULT_TAB, FilterActions, FilterTabs } from './constants';
 import classes from './FilterConfiguration.module.css';
 import FilterCoverageSummary from './FilterCoverageSummary';
 import FilterFieldSelect from './FilterFieldSelect';
-import FilterSettings, { type FilterRuleSummary } from './FilterSettings';
+import FilterSettings from './FilterSettings';
 import TileFilterConfiguration from './TileFilterConfiguration';
 import {
     getFilterRuleRevertableObject,
@@ -106,43 +104,6 @@ const FilterConfiguration: FC<Props> = ({
 
     const draftFilterRuleRef = useRef(draftFilterRule);
     draftFilterRuleRef.current = draftFilterRule;
-
-    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
-    const allFilterableFieldsMap = useDashboardContext(
-        (c) => c.allFilterableFieldsMap,
-    );
-    const allFilterableMetricsMap = useDashboardContext(
-        (c) => c.allFilterableMetricsMap,
-    );
-
-    const otherFilterRules = useMemo<FilterRuleSummary[]>(
-        () =>
-            [...dashboardFilters.dimensions, ...dashboardFilters.metrics]
-                .filter((rule) => rule.id !== draftFilterRule?.id)
-                .map((rule) => {
-                    const ruleField =
-                        allFilterableFieldsMap[rule.target.fieldId] ??
-                        allFilterableMetricsMap[rule.target.fieldId];
-                    return {
-                        id: rule.id,
-                        label:
-                            rule.label ??
-                            (ruleField
-                                ? getConditionalRuleLabelFromItem(
-                                      rule,
-                                      ruleField,
-                                  ).field
-                                : rule.target.fieldId),
-                        requiredGroupId: rule.requiredGroupId,
-                    };
-                }),
-        [
-            dashboardFilters,
-            allFilterableFieldsMap,
-            allFilterableMetricsMap,
-            draftFilterRule?.id,
-        ],
-    );
 
     const isFilterModified = useMemo(() => {
         if (!originalFilterRule || !draftFilterRule) return false;
@@ -403,12 +364,7 @@ const FilterConfiguration: FC<Props> = ({
         }
 
         const ruleToSave = draftFilterRuleRef.current;
-        if (!ruleToSave) return;
-
-        // Singleton groups are kept as-is: the first member of a group is
-        // always alone when applied, and at runtime a one-member group
-        // behaves exactly like a plain required filter.
-        onSave(ruleToSave);
+        if (ruleToSave) onSave(ruleToSave);
     }, [onSave]);
 
     const isApplyDisabled = !isFilterEnabled(
@@ -546,7 +502,6 @@ const FilterConfiguration: FC<Props> = ({
                                 filterType={filterType}
                                 field={selectedField}
                                 filterRule={draftFilterRule}
-                                otherFilterRules={otherFilterRules}
                                 onChangeFilterRule={handleChangeFilterRule}
                                 popoverProps={popoverProps}
                             />

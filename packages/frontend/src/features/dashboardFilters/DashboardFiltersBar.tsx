@@ -26,6 +26,7 @@ import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import { DateZoom } from '../dateZoom';
 import { Parameters } from '../parameters';
 import FilterGroupSeparator from './FilterGroupSeparator';
+import FilterRequirementsButton from './FilterRequirements/FilterRequirementsButton';
 import DashboardFilters from './index';
 
 type Props = {
@@ -132,6 +133,8 @@ export const DashboardFiltersBar: FC<Props> = ({
                                 isEditMode={isEditMode}
                                 activeTabUuid={activeTabUuid}
                             />
+
+                            {isEditMode && <FilterRequirementsButton />}
 
                             {hasDashboardTiles && hasParameters && (
                                 <>

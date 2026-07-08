@@ -5,9 +5,10 @@ import {
     supportsSingleValue,
     type DashboardFilterableField,
     type DashboardFilterRule,
+    type FilterableItem,
     type FilterRule,
 } from '@lightdash/common';
-import { Box, Radio, Stack } from '@mantine-8/core';
+import { Box, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Button,
@@ -21,21 +22,14 @@ import {
 } from '@mantine/core';
 import { IconHelpCircle, IconX } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
-import { v4 as uuidv4 } from 'uuid';
 import FilterInputComponent from '../../../components/common/Filters/FilterInputs';
 import { filterOperatorDescription } from '../../../components/common/Filters/FilterInputs/constants';
 import { getFilterOperatorOptions } from '../../../components/common/Filters/FilterInputs/utils';
 import { getPlaceholderByFilterTypeAndOperator } from '../../../components/common/Filters/utils/getPlaceholderByFilterTypeAndOperator';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useApp from '../../../providers/App/useApp';
-
-export type FilterRuleSummary = {
-    id: string;
-    label: string;
-    requiredGroupId: string | undefined;
-};
-
-type FilterRequirement = 'none' | 'required' | 'group';
+import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import { getDashboardFilterRuleLabel } from '../FilterRequirements/utils';
 
 interface FilterSettingsProps {
     isEditMode: boolean;
@@ -43,7 +37,6 @@ interface FilterSettingsProps {
     filterType: FilterType;
     field?: DashboardFilterableField;
     filterRule: DashboardFilterRule;
-    otherFilterRules: FilterRuleSummary[];
     popoverProps?: Omit<PopoverProps, 'children'>;
     onChangeFilterRule: (value: DashboardFilterRule) => void;
 }
@@ -54,7 +47,6 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     field,
     filterType,
     filterRule,
-    otherFilterRules,
     popoverProps,
     onChangeFilterRule,
 }) => {
@@ -86,60 +78,39 @@ const FilterSettings: FC<FilterSettingsProps> = ({
 
     const isFilterDisabled = !!filterRule.disabled;
 
-    // `required` wins when hand-authored JSON sets both flags
-    const isRequired = !!filterRule.required;
-    const activeGroupId = isRequired ? undefined : filterRule.requiredGroupId;
-    const hasRequirement = isRequired || !!filterRule.requiredGroupId;
-    const requirementValue: FilterRequirement = isRequired
-        ? 'required'
-        : activeGroupId
-          ? 'group'
-          : 'none';
-
-    const otherGroupMemberLabels = useMemo(
-        () =>
-            activeGroupId
-                ? otherFilterRules
-                      .filter((rule) => rule.requiredGroupId === activeGroupId)
-                      .map((rule) => rule.label)
-                : [],
-        [otherFilterRules, activeGroupId],
+    const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
+    const allFilterableFieldsMap = useDashboardContext(
+        (c) => c.allFilterableFieldsMap,
+    );
+    const allFilterableMetricsMap = useDashboardContext(
+        (c) => c.allFilterableMetricsMap,
     );
 
-    const handleChangeRequirement = (value: string) => {
-        if (value === 'required') {
-            onChangeFilterRule({
-                ...filterRule,
-                required: true,
-                requiredGroupId: undefined,
-            });
-        } else if (value === 'group') {
-            // Single implicit group per dashboard: reuse the group id from any
-            // other filter, otherwise start a new group
-            const existingGroupId = otherFilterRules.find(
-                (rule) => rule.requiredGroupId,
-            )?.requiredGroupId;
-            onChangeFilterRule({
-                ...filterRule,
-                required: false,
-                requiredGroupId:
-                    filterRule.requiredGroupId ?? existingGroupId ?? uuidv4(),
-            });
-        } else {
-            onChangeFilterRule(
-                getFilterRuleWithDefaultValue(
-                    filterType,
-                    field,
-                    {
-                        ...filterRule,
-                        required: false,
-                        requiredGroupId: undefined,
-                    },
-                    null,
-                ),
-            );
-        }
-    };
+    // `required` wins when hand-authored JSON sets both flags
+    const isRequirementRuleMember =
+        !filterRule.required && !!filterRule.requiredGroupId;
+
+    const otherRequirementMemberLabels = useMemo(() => {
+        if (!isRequirementRuleMember) return [];
+        const fieldsMap: Record<string, FilterableItem> = {
+            ...allFilterableFieldsMap,
+            ...allFilterableMetricsMap,
+        };
+        return [...dashboardFilters.dimensions, ...dashboardFilters.metrics]
+            .filter(
+                (rule) =>
+                    rule.requiredGroupId === filterRule.requiredGroupId &&
+                    rule.id !== filterRule.id,
+            )
+            .map((rule) => getDashboardFilterRuleLabel(rule, fieldsMap));
+    }, [
+        isRequirementRuleMember,
+        dashboardFilters,
+        allFilterableFieldsMap,
+        allFilterableMetricsMap,
+        filterRule.requiredGroupId,
+        filterRule.id,
+    ]);
 
     const showValueInput = useMemo(() => {
         // Always show the input in view mode
@@ -259,7 +230,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                         )
                     }
                 />
-                {showAnyValueDisabledInput && !hasRequirement && (
+                {showAnyValueDisabledInput && !filterRule.required && (
                     <TextInput
                         disabled
                         size="xs"
@@ -271,7 +242,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                     />
                 )}
 
-                {(showValueInput || hasRequirement) && (
+                {(showValueInput || filterRule.required) && (
                     <Group spacing="xs" noWrap align="flex-start">
                         <Box style={{ flex: 1 }}>
                             <FilterInputComponent
@@ -333,14 +304,14 @@ const FilterSettings: FC<FilterSettingsProps> = ({
 
                 {isEditMode && (
                     <>
-                        {hasRequirement &&
+                        {filterRule.required &&
                             (filterRule?.values || []).length > 0 && (
                                 <Text size="xs" c={'ldGray.7'}>
                                     Temporary filter values for required filters
                                     will be removed on dashboard save
                                 </Text>
                             )}
-                        {!hasRequirement && (
+                        {!filterRule.required && (
                             <Tooltip
                                 withinPortal
                                 position="right"
@@ -373,11 +344,8 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                                             ? // If the filter is required and the user is disabling it, we should also disable the required flag
                                                               false
                                                             : filterRule.required,
-                                                    requiredGroupId:
-                                                        filterRule.requiredGroupId &&
-                                                        !e.currentTarget.checked
-                                                            ? undefined
-                                                            : filterRule.requiredGroupId,
+                                                    // Toggling a default value removes the filter from any requirement rule
+                                                    requiredGroupId: undefined,
                                                 };
 
                                             onChangeFilterRule(
@@ -396,41 +364,56 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                             </Tooltip>
                         )}
 
-                        <Radio.Group
-                            size="xs"
-                            label="Viewer requirement"
-                            value={requirementValue}
-                            onChange={handleChangeRequirement}
+                        <Tooltip
+                            withinPortal
+                            position="right"
+                            label="This filter is part of a filter requirement — manage it from Requirements in the filter bar"
+                            disabled={!isRequirementRuleMember}
                         >
-                            <Stack gap="xs" mt="xs">
-                                <Radio
-                                    size="xs"
-                                    value="none"
-                                    label="Not required"
+                            <Box w="max-content">
+                                <Switch
+                                    label={
+                                        <Text size="xs" mt="two" fw={500}>
+                                            Require viewers to pick a value to
+                                            load the dashboard
+                                        </Text>
+                                    }
+                                    labelPosition="right"
+                                    disabled={isRequirementRuleMember}
+                                    checked={!!filterRule.required}
+                                    onChange={(e) => {
+                                        const newFilter: DashboardFilterRule = {
+                                            ...filterRule,
+                                            required: e.currentTarget.checked,
+                                        };
+
+                                        onChangeFilterRule(
+                                            e.currentTarget.checked
+                                                ? newFilter
+                                                : getFilterRuleWithDefaultValue(
+                                                      filterType,
+                                                      field,
+                                                      newFilter,
+                                                      null,
+                                                  ),
+                                        );
+                                    }}
                                 />
-                                <Radio
-                                    size="xs"
-                                    value="required"
-                                    label="Required"
-                                    description="Viewers must set this filter to load the dashboard"
-                                />
-                                <Radio
-                                    size="xs"
-                                    value="group"
-                                    label="Required as part of a group"
-                                    description="Viewers must set at least one filter in the group to load the dashboard"
-                                />
-                                {requirementValue === 'group' && (
-                                    <Text size="xs" c="ldGray.6" pl="xl">
-                                        {otherGroupMemberLabels.length > 0
-                                            ? `In this group: ${otherGroupMemberLabels.join(
-                                                  ', ',
-                                              )}`
-                                            : 'No other filters in this group yet'}
-                                    </Text>
-                                )}
-                            </Stack>
-                        </Radio.Group>
+                            </Box>
+                        </Tooltip>
+                        {isRequirementRuleMember ? (
+                            <Text size="xs" c="ldGray.6">
+                                Requires at least one of:{' '}
+                                {otherRequirementMemberLabels.length > 0
+                                    ? otherRequirementMemberLabels.join(', ')
+                                    : 'this filter'}
+                            </Text>
+                        ) : (
+                            <Text size="xs" c="ldGray.6">
+                                To require one of several filters instead, use
+                                Requirements in the filter bar.
+                            </Text>
+                        )}
                     </>
                 )}
             </Stack>

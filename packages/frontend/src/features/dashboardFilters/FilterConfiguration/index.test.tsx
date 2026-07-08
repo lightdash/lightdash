@@ -15,18 +15,20 @@ vi.mock('../../../providers/Dashboard/useDashboardTileStatusContext', () => ({
     default: vi.fn((selector) => selector({ sqlChartTilesMetadata: {} })),
 }));
 
+const mockDashboardContext = vi.hoisted(() => ({
+    current: {
+        dashboardFilters: {
+            dimensions: [] as DashboardFilterRule[],
+            metrics: [] as DashboardFilterRule[],
+            tableCalculations: [],
+        },
+        allFilterableFieldsMap: {},
+        allFilterableMetricsMap: {},
+    },
+}));
+
 vi.mock('../../../providers/Dashboard/useDashboardContext', () => ({
-    default: vi.fn((selector) =>
-        selector({
-            dashboardFilters: {
-                dimensions: [],
-                metrics: [],
-                tableCalculations: [],
-            },
-            allFilterableFieldsMap: {},
-            allFilterableMetricsMap: {},
-        }),
-    ),
+    default: vi.fn((selector) => selector(mockDashboardContext.current)),
 }));
 
 vi.mock('../../../components/common/Filters/useFiltersContext', () => ({
@@ -83,6 +85,11 @@ const anyValueRule: DashboardFilterRule = {
 describe('FilterConfiguration', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockDashboardContext.current.dashboardFilters = {
+            dimensions: [],
+            metrics: [],
+            tableCalculations: [],
+        };
     });
 
     it('saves a value typed into the input when Apply is clicked without pressing Enter', async () => {
@@ -119,5 +126,76 @@ describe('FilterConfiguration', () => {
         expect(onSave).toHaveBeenCalledWith(
             expect.objectContaining({ values: ['adam'] }),
         );
+    });
+
+    it('disables the required switch and lists other members for a requirement rule member', () => {
+        const memberRule: DashboardFilterRule = {
+            ...anyValueRule,
+            requiredGroupId: 'group-1',
+        };
+        const otherMemberRule: DashboardFilterRule = {
+            id: 'filter-2',
+            target: {
+                fieldId: 'customers_last_name',
+                tableName: 'customers',
+            },
+            operator: FilterOperator.EQUALS,
+            values: [],
+            disabled: true,
+            label: 'Last name',
+            requiredGroupId: 'group-1',
+        };
+        mockDashboardContext.current.dashboardFilters.dimensions = [
+            memberRule,
+            otherMemberRule,
+        ];
+
+        renderWithProviders(
+            <FilterConfiguration
+                isEditMode
+                tiles={[]}
+                tabs={[]}
+                availableTileFilters={{}}
+                field={mockField}
+                defaultFilterRule={memberRule}
+                originalFilterRule={memberRule}
+                onSave={vi.fn()}
+            />,
+        );
+
+        expect(
+            screen.getByLabelText(
+                'Require viewers to pick a value to load the dashboard',
+            ),
+        ).toBeDisabled();
+        expect(
+            screen.getByText('Requires at least one of: Last name'),
+        ).toBeInTheDocument();
+    });
+
+    it('shows the requirements hint when the filter is not part of a rule', () => {
+        renderWithProviders(
+            <FilterConfiguration
+                isEditMode
+                tiles={[]}
+                tabs={[]}
+                availableTileFilters={{}}
+                field={mockField}
+                defaultFilterRule={anyValueRule}
+                originalFilterRule={anyValueRule}
+                onSave={vi.fn()}
+            />,
+        );
+
+        expect(
+            screen.getByLabelText(
+                'Require viewers to pick a value to load the dashboard',
+            ),
+        ).toBeEnabled();
+        expect(
+            screen.getByText(
+                'To require one of several filters instead, use Requirements in the filter bar.',
+            ),
+        ).toBeInTheDocument();
     });
 });

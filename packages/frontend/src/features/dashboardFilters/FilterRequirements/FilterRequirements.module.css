@@ -1,0 +1,9 @@
+.requirementsButton {
+    border-style: dashed;
+}
+
+.ruleRow {
+    padding: var(--mantine-spacing-xs);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+}
