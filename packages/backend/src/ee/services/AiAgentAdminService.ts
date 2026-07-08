@@ -32,6 +32,8 @@ import {
     KnexPaginatedData,
     McpActivityFilters,
     McpActivitySort,
+    McpActivityStats,
+    McpActivityStatsFilters,
     McpActivitySummary,
     MissingConfigError,
     NotFoundError,
@@ -593,6 +595,35 @@ export class AiAgentAdminService extends BaseService {
             });
 
         return { data: { toolCalls: data }, pagination };
+    }
+
+    async getMcpActivityStats(
+        user: SessionUser,
+        filters?: McpActivityStatsFilters,
+    ): Promise<McpActivityStats> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        const scope = await this.resolveReadScope(user, organizationUuid);
+        // Forcing projectUuids for project-scoped principals also hides rows
+        // with no project — those are visible to org-wide admins only
+        const { filters: scopedFilters, empty } =
+            AiAgentAdminService.restrictFiltersToScope(scope, filters);
+        if (empty) {
+            return {
+                totalCalls: 0,
+                errorCalls: 0,
+                topTools: [],
+                agents: [],
+                recentErrors: [],
+            };
+        }
+
+        return this.mcpToolCallModel.getActivityStats({
+            organizationUuid,
+            filters: scopedFilters,
+        });
     }
 
     async getPromptActivity(

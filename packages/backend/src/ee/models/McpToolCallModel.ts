@@ -4,6 +4,8 @@ import {
     McpActivityFilters,
     McpActivityItem,
     McpActivitySort,
+    McpActivityStats,
+    McpActivityStatsFilters,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { EmailTableName } from '../../database/entities/emails';
@@ -37,6 +39,10 @@ export type UpsertMcpClientInfo = {
 // Oversized args are replaced (not truncated mid-JSON) so tool_args stays
 // valid jsonb; the original size is kept for the admin UI to explain the gap.
 const MAX_TOOL_ARGS_BYTES = 64 * 1024;
+
+const STATS_TOP_TOOLS_LIMIT = 6;
+const STATS_AGENTS_LIMIT = 6;
+const STATS_RECENT_ERRORS_LIMIT = 5;
 
 const capToolArgs = (args: object): object => {
     const serialized = JSON.stringify(args);
@@ -286,6 +292,95 @@ export class McpToolCallModel {
                 protocolVersion: row.protocol_version,
             })),
             pagination,
+        };
+    }
+
+    async getActivityStats({
+        organizationUuid,
+        filters,
+    }: {
+        organizationUuid: string;
+        filters?: McpActivityStatsFilters;
+    }): Promise<McpActivityStats> {
+        const countsQuery = this.buildActivityQuery(organizationUuid, filters)
+            .select<{ total_calls: number; error_calls: number }[]>(
+                this.database.raw('count(*)::int as total_calls'),
+                this.database.raw(
+                    `count(*) filter (where ${McpToolCallTableName}.status = 'error')::int as error_calls`,
+                ),
+            )
+            .first();
+
+        const topToolsQuery = this.buildActivityQuery(organizationUuid, filters)
+            .select<{ tool_name: string; count: number }[]>(
+                `${McpToolCallTableName}.tool_name`,
+                this.database.raw('count(*)::int as count'),
+            )
+            .groupBy(`${McpToolCallTableName}.tool_name`)
+            .orderBy([
+                { column: 'count', order: 'desc' },
+                { column: 'tool_name', order: 'asc' },
+            ])
+            .limit(STATS_TOP_TOOLS_LIMIT);
+
+        const agentsQuery = this.buildActivityQuery(organizationUuid, filters)
+            .leftJoin(
+                AiAgentTableName,
+                `${AiAgentTableName}.ai_agent_uuid`,
+                `${McpToolCallTableName}.agent_uuid`,
+            )
+            .select<
+                {
+                    agent_uuid: string | null;
+                    agent_name: string | null;
+                    count: number;
+                }[]
+            >(
+                `${McpToolCallTableName}.agent_uuid`,
+                `${AiAgentTableName}.name as agent_name`,
+                this.database.raw('count(*)::int as count'),
+            )
+            .groupBy([
+                `${McpToolCallTableName}.agent_uuid`,
+                `${AiAgentTableName}.name`,
+            ])
+            .orderBy([
+                { column: 'count', order: 'desc' },
+                { column: 'agent_name', order: 'asc' },
+            ])
+            .limit(STATS_AGENTS_LIMIT);
+
+        const recentErrorsQuery = this.findActivityPaginated({
+            organizationUuid,
+            paginateArgs: { page: 1, pageSize: STATS_RECENT_ERRORS_LIMIT },
+            filters: { ...filters, status: 'error' },
+            sort: { field: 'createdAt', direction: 'desc' },
+        });
+
+        const [counts, topTools, agents, recentErrors] = await Promise.all([
+            countsQuery,
+            topToolsQuery,
+            agentsQuery,
+            recentErrorsQuery,
+        ]);
+
+        return {
+            totalCalls: counts?.total_calls ?? 0,
+            errorCalls: counts?.error_calls ?? 0,
+            topTools: topTools.map((row) => ({
+                toolName: row.tool_name,
+                count: row.count,
+            })),
+            agents: agents.map((row) => ({
+                agent: row.agent_uuid
+                    ? {
+                          uuid: row.agent_uuid,
+                          name: row.agent_name ?? 'Unknown agent',
+                      }
+                    : null,
+                count: row.count,
+            })),
+            recentErrors: recentErrors.data,
         };
     }
 

@@ -130,6 +130,34 @@ export type ApiMcpActivityResponse = ApiSuccess<
     KnexPaginatedData<McpActivitySummary>
 >;
 
+export type McpActivityToolCount = {
+    toolName: string;
+    count: number;
+};
+
+export type McpActivityAgentCount = {
+    // null represents tool calls made without an agent
+    agent: {
+        uuid: string;
+        name: string;
+    } | null;
+    count: number;
+};
+
+export type McpActivityStats = {
+    totalCalls: number;
+    errorCalls: number;
+    topTools: McpActivityToolCount[];
+    agents: McpActivityAgentCount[];
+    recentErrors: McpActivityItem[];
+};
+
+// Status is not accepted as a filter: the response already breaks results
+// down by status, and recentErrors is always error-only
+export type McpActivityStatsFilters = Omit<McpActivityFilters, 'status'>;
+
+export type ApiMcpActivityStatsResponse = ApiSuccess<McpActivityStats>;
+
 export type ComputedAiOrganizationSettings = {
     isCopilotEnabled: boolean;
     isTrial: boolean;
