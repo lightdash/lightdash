@@ -140,7 +140,6 @@ const makeService = () =>
             getSummary: vi.fn(),
             findExploresFromCache: vi.fn(),
         } as never,
-        featureFlagService: {} as never,
         lightdashConfig: {
             ai: { copilot: { providers: {}, defaultProvider: 'openai' } },
         } as never,

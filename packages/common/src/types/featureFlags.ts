@@ -177,15 +177,6 @@ export enum FeatureFlags {
     OrganizationTrialBlock = 'organization-trial-block',
 
     /**
-     * Enable the (in-progress) AI writeback feature. Spins up an e2b
-     * sandbox pre-loaded with dbt and the Claude Code CLI, then runs a
-     * user-supplied prompt against it synchronously. Off by default — gated
-     * while the sandbox runtime and write-back semantics are still being
-     * built out.
-     */
-    AiWriteback = 'ai-writeback',
-
-    /**
      * Enable the admin API endpoint that captures AI review judge replay
      * inputs (candidate + evidence packet) for the offline eval scoreboard.
      * Off by default — intended only for orgs running classifier evals.

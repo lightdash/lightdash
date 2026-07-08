@@ -7619,17 +7619,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 user,
                 featureFlagId: FeatureFlags.AiGrepFields,
             });
-        let { enabled: aiWritebackEnabled } = await this.featureFlagService.get(
-            {
-                user,
-                featureFlagId: FeatureFlags.AiWriteback,
-            },
-        );
-        if (aiWritebackEnabled && !hasTrustedPromptUserIdentity) {
+        let aiWritebackEnabled = hasTrustedPromptUserIdentity;
+        if (!aiWritebackEnabled) {
             this.logger.info(
                 `Disabling editDbtProject for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
             );
-            aiWritebackEnabled = false;
         }
         // Writeback opens a pull request and only supports GitHub and GitLab
         // dbt connections (see AiWritebackService.getGitProvider, which throws
