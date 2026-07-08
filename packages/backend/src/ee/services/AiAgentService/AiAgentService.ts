@@ -3336,14 +3336,6 @@ export class AiAgentService extends BaseService {
             return { available: false, alreadyConnected: false };
         }
 
-        const { enabled: oneClickEnabled } = await this.featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.GithubMcpOneClick,
-        });
-        if (!oneClickEnabled) {
-            return { available: false, alreadyConnected: false };
-        }
-
         const isCopilotEnabled = await this.getIsCopilotEnabled(user);
         if (!isCopilotEnabled) {
             return { available: false, alreadyConnected: false };
@@ -3386,16 +3378,6 @@ export class AiAgentService extends BaseService {
         const { organizationUuid } = user;
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
-        }
-
-        const { enabled: oneClickEnabled } = await this.featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.GithubMcpOneClick,
-        });
-        if (!oneClickEnabled) {
-            throw new ForbiddenError(
-                'One-click GitHub MCP setup is not enabled',
-            );
         }
 
         const bearerToken = personalAccessToken.trim();
