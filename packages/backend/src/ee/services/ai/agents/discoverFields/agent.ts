@@ -9,6 +9,10 @@ import {
     type ModelMessage,
     type StreamTextResult,
 } from 'ai';
+import {
+    emitAiUsage,
+    languageModelUsageToTokens,
+} from '../../../../../analytics/aiUsage';
 import Logger from '../../../../../logging/logger';
 import { getFindExplores } from '../../tools/findExplores';
 import { getFindFields } from '../../tools/findFields';
@@ -113,6 +117,11 @@ export const runDiscoverFieldsAgent = (
 
     const inflightWrites: Array<Promise<void>> = [];
 
+    const telemetry = getAgentTelemetryConfig(
+        'discoverFieldsSubagent',
+        args.telemetry,
+        'agent-subtask',
+    );
     const stream = streamText({
         model: args.model,
         ...args.callOptions,
@@ -127,11 +136,10 @@ export const runDiscoverFieldsAgent = (
             delayInMs: 40,
             chunking: 'line',
         }),
-        experimental_telemetry: getAgentTelemetryConfig(
-            'discoverFieldsSubagent',
-            args.telemetry,
-            'agent-subtask',
-        ),
+        experimental_telemetry: telemetry,
+        onFinish: ({ totalUsage }) => {
+            emitAiUsage(telemetry, languageModelUsageToTokens(totalUsage));
+        },
         onChunk: ({ chunk }) => {
             if (chunk.type === 'tool-call') {
                 if (!isSubagentPersistedToolName(chunk.toolName)) return;

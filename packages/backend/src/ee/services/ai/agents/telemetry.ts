@@ -1,5 +1,9 @@
 import type { AiAgentArgs } from '../types/aiAgent';
-import { AiCallFeature, getAiCallTelemetry } from '../utils/aiCallTelemetry';
+import {
+    AiCallFeature,
+    getAiCallTelemetry,
+    getLanguageModelAttribution,
+} from '../utils/aiCallTelemetry';
 
 export const getAiAgentModelName = (model: AiAgentArgs['model']) =>
     typeof model === 'string' ? model : model.modelId;
@@ -48,6 +52,6 @@ export const getAgentTelemetryConfig = (
         threadUuid,
         promptUuid,
         userUuid: userId,
-        model: getAiAgentModelName(model),
+        ...getLanguageModelAttribution(model),
         recordIO: telemetryEnabled,
     });

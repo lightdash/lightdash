@@ -15,6 +15,10 @@ import {
     type Output,
     type ToolSet,
 } from 'ai';
+import {
+    emitAiUsage,
+    languageModelUsageToTokens,
+} from '../../../../analytics/aiUsage';
 import Logger from '../../../../logging/logger';
 import { getSystemPromptV2 } from '../prompts/systemV2';
 import { getAnalyzeFieldImpact } from '../tools/analyzeFieldImpact';
@@ -834,6 +838,10 @@ export const generateAgentResponse = async ({
             tools,
             logger,
         });
+        const telemetry = getAgentTelemetryConfig(
+            'generateAgentResponse',
+            args,
+        );
         const result = await generateText({
             ...defaultAgentOptions,
             ...args.callOptions,
@@ -961,11 +969,10 @@ export const generateAgentResponse = async ({
                     promptUuid: args.promptUuid,
                 });
             },
-            experimental_telemetry: getAgentTelemetryConfig(
-                'generateAgentResponse',
-                args,
-            ),
+            experimental_telemetry: telemetry,
         });
+
+        emitAiUsage(telemetry, languageModelUsageToTokens(result.totalUsage));
 
         logger(
             'Generate Agent Response',
@@ -980,7 +987,9 @@ export const generateAgentResponse = async ({
             promptUuid: args.promptUuid,
             response: result.text,
             tokenUsage: {
-                totalTokens: result.usage.totalTokens ?? 0,
+                // All-steps total (matches the ai.usage stream). `usage` is
+                // last-step only and undercounts multi-step tool-calling runs.
+                totalTokens: result.totalUsage.totalTokens ?? 0,
             },
         });
 
@@ -1094,6 +1103,7 @@ export const streamAgentResponse = async ({
             }
             return interrupted;
         };
+        const telemetry = getAgentTelemetryConfig('streamAgentResponse', args);
         const result = streamText({
             ...defaultAgentOptions,
             ...args.callOptions,
@@ -1303,7 +1313,14 @@ export const streamAgentResponse = async ({
                         });
                 }
             },
-            onFinish: async ({ usage, steps, reasoning, finishReason }) => {
+            onFinish: async ({
+                usage,
+                totalUsage,
+                steps,
+                reasoning,
+                finishReason,
+            }) => {
+                emitAiUsage(telemetry, languageModelUsageToTokens(totalUsage));
                 logger(
                     'On Finish',
                     `Stream finished. Updating prompt with response. finishReason: ${finishReason}, steps: ${steps.length}`,
@@ -1316,6 +1333,10 @@ export const streamAgentResponse = async ({
 
                 const stepCapReached = steps.length >= STEP_CAP;
 
+                // All-steps total (matches the ai.usage stream). `usage` is
+                // last-step only and undercounts multi-step tool-calling runs.
+                const promptTotalTokens = totalUsage.totalTokens ?? 0;
+
                 if (stepCapReached && !completeResponse) {
                     void dependencies.updatePrompt({
                         promptUuid: args.promptUuid,
@@ -1323,7 +1344,7 @@ export const streamAgentResponse = async ({
                             new AiAgentStepCapReachedError(steps.length),
                         ),
                         tokenUsage: {
-                            totalTokens: usage.totalTokens ?? 0,
+                            totalTokens: promptTotalTokens,
                         },
                     });
                 } else {
@@ -1331,7 +1352,7 @@ export const streamAgentResponse = async ({
                         response: completeResponse,
                         promptUuid: args.promptUuid,
                         tokenUsage: {
-                            totalTokens: usage.totalTokens ?? 0,
+                            totalTokens: promptTotalTokens,
                         },
                     });
                 }
@@ -1348,7 +1369,7 @@ export const streamAgentResponse = async ({
                         projectId: args.agentSettings.projectUuid,
                         aiAgentId: args.agentSettings.uuid,
                         agentName: args.agentSettings.name,
-                        usageTokensCount: usage.totalTokens ?? 0,
+                        usageTokensCount: promptTotalTokens,
                         stepsCount: steps.length,
                         model:
                             typeof args.model === 'string'
@@ -1402,10 +1423,7 @@ export const streamAgentResponse = async ({
 
                 void cleanupMcpClients();
             },
-            experimental_telemetry: getAgentTelemetryConfig(
-                'streamAgentResponse',
-                args,
-            ),
+            experimental_telemetry: telemetry,
         });
 
         logger('Stream Agent Response', 'Returning stream result.');

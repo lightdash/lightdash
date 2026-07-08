@@ -3,7 +3,7 @@ import { EventStreamRow } from './types';
 
 export const EVENT_STREAM_SCHEMA_VERSION = 1;
 
-export type StreamName = 'query_events';
+export type StreamName = 'query_events' | 'ai_usage';
 
 /**
  * Common envelope stamped on every row pushed into the usage event stream.

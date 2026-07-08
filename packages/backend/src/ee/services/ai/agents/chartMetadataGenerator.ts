@@ -1,6 +1,10 @@
 import { Field, Filters } from '@lightdash/common';
 import { generateObject } from 'ai';
 import { z } from 'zod';
+import {
+    emitAiUsage,
+    languageModelUsageToTokens,
+} from '../../../../analytics/aiUsage';
 import { GeneratorModelOptions } from '../models/types';
 import { getGeneratorTelemetry } from '../utils/aiCallTelemetry';
 
@@ -63,16 +67,17 @@ export async function generateChartMetadata(
 ): Promise<GeneratedChartMetadata> {
     const fieldLabelMap = buildFieldLabelMap(context.fieldsContext);
 
+    const telemetry = getGeneratorTelemetry(
+        modelOptions,
+        'generateChartMetadata',
+        'chart-metadata',
+    );
     const result = await generateObject({
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
         schema: ChartMetadataSchema,
-        experimental_telemetry: getGeneratorTelemetry(
-            modelOptions,
-            'generateChartMetadata',
-            'chart-metadata',
-        ),
+        experimental_telemetry: telemetry,
         messages: [
             {
                 role: 'system',
@@ -102,5 +107,6 @@ ${
             },
         ],
     });
+    emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
     return result.object;
 }
