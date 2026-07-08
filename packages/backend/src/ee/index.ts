@@ -45,6 +45,8 @@ import { ProjectContextModel } from './models/ProjectContextModel';
 import { SandboxRegistryModel } from './models/SandboxRegistryModel';
 import { SchedulerAiAugmentationModel } from './models/SchedulerAiAugmentationModel';
 import { ServiceAccountModel } from './models/ServiceAccountModel';
+import { createLightdashPgWireHandlers } from './postgresWire/lightdashHandlers';
+import { PostgresWireServer } from './postgresWire/PostgresWireServer';
 import { enhanceExploresForPreAggregates } from './preAggregates/enhanceExploresForPreAggregates';
 import { preAggregatePostProcessor } from './preAggregates/postProcessor';
 import { CommercialSchedulerClient } from './scheduler/SchedulerClient';
@@ -89,6 +91,7 @@ type EnterpriseAppArguments = Pick<
     | 'serviceProviders'
     | 'modelProviders'
     | 'customExpressMiddlewares'
+    | 'pgWireServerFactory'
 >;
 
 export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArguments> {
@@ -965,5 +968,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     schedulerClient: repository.getSchedulerClient(),
                 }),
         },
+        pgWireServerFactory: (serviceRepository) =>
+            new PostgresWireServer(
+                createLightdashPgWireHandlers(serviceRepository),
+            ),
     };
 }

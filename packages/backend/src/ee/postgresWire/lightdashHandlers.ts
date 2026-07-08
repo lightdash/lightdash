@@ -1,16 +1,19 @@
 import {
+    AuthTokenPrefix,
     generateSlug,
     getDimensions,
     getItemId,
     getMetrics,
     QueryExecutionContext,
+    ServiceAccountScope,
     type Account,
     type ResultRow,
 } from '@lightdash/common';
 import { parse } from 'pgsql-ast-parser';
-import { fromApiKey } from '../auth/account/account';
-import Logger from '../logging/logger';
-import type { ServiceRepository } from '../services/ServiceRepository';
+import { fromApiKey, fromServiceAccount } from '../../auth/account/account';
+import Logger from '../../logging/logger';
+import type { ServiceRepository } from '../../services/ServiceRepository';
+import type { ServiceAccountService } from '../services/ServiceAccountService/ServiceAccountService';
 import { tryHandleInformationSchema } from './informationSchema';
 import {
     PgWireServerError,
@@ -320,30 +323,89 @@ export const createLightdashPgWireHandlers = (
         return tables.filter((t): t is PgWireTable => t !== null);
     };
 
+    /**
+     * Authenticate a service account token (ldsvc_) into an Account. Mirrors
+     * the checks in `authenticateServiceAccount` middleware: rejects unknown
+     * tokens and SCIM-only tokens, then derives abilities from the SA scopes.
+     */
+    const authenticateServiceAccountToken = async (
+        token: string,
+    ): Promise<Account> => {
+        const serviceAccount = await serviceRepository
+            .getServiceAccountService<ServiceAccountService>()
+            .authenticateServiceAccount(token);
+        if (!serviceAccount) {
+            throw new PgWireServerError(
+                'password authentication failed: invalid service account token',
+                '28P01',
+            );
+        }
+        const isScimOnly =
+            serviceAccount.scopes.length === 1 &&
+            serviceAccount.scopes[0] === ServiceAccountScope.SCIM_MANAGE;
+        if (isScimOnly) {
+            throw new PgWireServerError(
+                'password authentication failed: SCIM-only tokens cannot access the semantic layer',
+                '28P01',
+            );
+        }
+        const sessionUser = await serviceRepository
+            .getUserService()
+            .getSessionUserForServiceAccount(serviceAccount);
+        return fromServiceAccount(
+            {
+                ...sessionUser,
+                serviceAccount: {
+                    uuid: serviceAccount.uuid,
+                    description: serviceAccount.description,
+                },
+            },
+            'pgwire',
+        );
+    };
+
+    const authenticatePatToken = async (token: string): Promise<Account> => {
+        const sessionUser = await serviceRepository
+            .getUserService()
+            .loginWithPersonalAccessToken(token);
+        return fromApiKey(sessionUser, 'pgwire');
+    };
+
     return {
         authenticate: async ({ user, database, password }) => {
             if (!password) {
                 throw new PgWireServerError(
-                    'password authentication failed: provide a Lightdash personal access token as the password',
+                    'password authentication failed: provide a Lightdash service account token (ldsvc_) or personal access token (ldpat_) as the password',
                     '28P01',
                 );
             }
-            let sessionUser;
+            const isServiceAccount = password.startsWith(
+                AuthTokenPrefix.SERVICE_ACCOUNT,
+            );
+            let account: Account;
             try {
-                sessionUser = await serviceRepository
-                    .getUserService()
-                    .loginWithPersonalAccessToken(password);
+                account = isServiceAccount
+                    ? await authenticateServiceAccountToken(password)
+                    : await authenticatePatToken(password);
             } catch (e) {
+                if (e instanceof PgWireServerError) throw e;
                 Logger.info(
-                    `pgwire: PAT authentication failed for user "${user}"`,
+                    `pgwire: ${
+                        isServiceAccount ? 'service account' : 'PAT'
+                    } authentication failed for user "${user}"`,
                 );
                 throw new PgWireServerError(
-                    'password authentication failed: invalid personal access token',
+                    `password authentication failed: invalid ${
+                        isServiceAccount
+                            ? 'service account token'
+                            : 'personal access token'
+                    }`,
                     '28P01',
-                    'Create a token in Lightdash under Settings > Personal access tokens and use it as the password',
+                    isServiceAccount
+                        ? 'Create a service account in Lightdash under Settings > Service accounts and use its token as the password'
+                        : 'Create a token in Lightdash under Settings > Personal access tokens and use it as the password',
                 );
             }
-            const account = fromApiKey(sessionUser, 'pgwire');
             const projectUuid = await resolveProjectUuid(account, database);
             let catalog: PgWireTable[];
             try {
@@ -358,7 +420,11 @@ export const createLightdashPgWireHandlers = (
                 );
             }
             Logger.info(
-                `pgwire: ${sessionUser.email} connected to project ${projectUuid} (${catalog.length} explores)`,
+                `pgwire: ${
+                    account.user?.email ?? account.authentication.type
+                } connected to project ${projectUuid} (${
+                    catalog.length
+                } explores)`,
             );
             return { account, projectUuid, catalog };
         },

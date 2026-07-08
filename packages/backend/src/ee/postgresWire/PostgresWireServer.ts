@@ -1,5 +1,5 @@
 import * as net from 'net';
-import Logger from '../logging/logger';
+import Logger from '../../logging/logger';
 
 /**
  * A minimal implementation of the Postgres wire protocol (v3) frontend/backend
