@@ -34,6 +34,7 @@ import ProjectSwitcher from './components/NavBar/ProjectSwitcher';
 import { ThemeSwitcher } from './components/NavBar/ThemeSwitcher';
 import PrivateRoute from './components/PrivateRoute';
 import ProjectRoute from './components/ProjectRoute';
+import { loadLazyRouteDefault } from './features/chunkErrorHandler';
 import { useActiveProjectUuid } from './hooks/useActiveProject';
 import useLogoutMutation from './hooks/user/useUserLogoutMutation';
 import { getMantineThemeOverride } from './mantineTheme';
@@ -202,15 +203,20 @@ const PUBLIC_ROUTES: RouteObject[] = [
     {
         path: '/auth/popup/:status',
         lazy: async () => {
-            const { default: AuthPopupResult } =
-                await import('./pages/AuthPopupResult');
+            const AuthPopupResult = await loadLazyRouteDefault(
+                './pages/AuthPopupResult',
+                () => import('./pages/AuthPopupResult'),
+            );
             return { Component: AuthPopupResult };
         },
     },
     {
         path: '/login',
         lazy: async () => {
-            const { default: Login } = await import('./pages/Login');
+            const Login = await loadLazyRouteDefault(
+                './pages/Login',
+                () => import('./pages/Login'),
+            );
             return {
                 Component: () => (
                     <TrackPage name={PageName.LOGIN}>
@@ -228,8 +234,10 @@ const PUBLIC_ROUTES: RouteObject[] = [
         // Autoclose popup after github installation
         path: '/generalSettings/integrations',
         lazy: async () => {
-            const { default: SuccessAuthPopupResult } =
-                await import('./pages/SuccessAuthPopupResult');
+            const SuccessAuthPopupResult = await loadLazyRouteDefault(
+                './pages/SuccessAuthPopupResult',
+                () => import('./pages/SuccessAuthPopupResult'),
+            );
             return { Component: SuccessAuthPopupResult };
         },
     },
@@ -246,8 +254,10 @@ const MINIMAL_ROUTES: RouteObject[] = [
             {
                 path: '/minimal/projects/:projectUuid/saved/:savedQueryUuid',
                 lazy: async () => {
-                    const { default: MinimalSavedExplorer } =
-                        await import('./pages/MinimalSavedExplorer');
+                    const MinimalSavedExplorer = await loadLazyRouteDefault(
+                        './pages/MinimalSavedExplorer',
+                        () => import('./pages/MinimalSavedExplorer'),
+                    );
                     return {
                         Component: () => (
                             <Stack p="lg" h="90vh">
@@ -260,24 +270,30 @@ const MINIMAL_ROUTES: RouteObject[] = [
             {
                 path: '/minimal/projects/:projectUuid/dashboards/:dashboardUuid',
                 lazy: async () => {
-                    const { default: MinimalDashboard } =
-                        await import('./pages/MinimalDashboard');
+                    const MinimalDashboard = await loadLazyRouteDefault(
+                        './pages/MinimalDashboard',
+                        () => import('./pages/MinimalDashboard'),
+                    );
                     return { Component: MinimalDashboard };
                 },
             },
             {
                 path: '/minimal/projects/:projectUuid/dashboards/:dashboardUuid/view/tabs/:tabUuid',
                 lazy: async () => {
-                    const { default: MinimalDashboard } =
-                        await import('./pages/MinimalDashboard');
+                    const MinimalDashboard = await loadLazyRouteDefault(
+                        './pages/MinimalDashboard',
+                        () => import('./pages/MinimalDashboard'),
+                    );
                     return { Component: MinimalDashboard };
                 },
             },
             {
                 path: '/minimal/projects/:projectUuid/sql-runner/:savedSqlUuid',
                 lazy: async () => {
-                    const { default: MinimalSqlChart } =
-                        await import('./pages/MinimalSqlChart');
+                    const MinimalSqlChart = await loadLazyRouteDefault(
+                        './pages/MinimalSqlChart',
+                        () => import('./pages/MinimalSqlChart'),
+                    );
                     return {
                         Component: () => (
                             <Stack p="lg" h="90vh">
@@ -303,8 +319,10 @@ const APP_ROUTES: RouteObject[] = [
             {
                 path: '/projects',
                 lazy: async () => {
-                    const { default: Projects } =
-                        await import('./pages/Projects');
+                    const Projects = await loadLazyRouteDefault(
+                        './pages/Projects',
+                        () => import('./pages/Projects'),
+                    );
                     return { Component: Projects };
                 },
             },
@@ -320,8 +338,10 @@ const APP_ROUTES: RouteObject[] = [
                     {
                         path: '/projects/:projectUuid/home',
                         lazy: async () => {
-                            const { default: MobileHome } =
-                                await import('./pages/MobileHome');
+                            const MobileHome = await loadLazyRouteDefault(
+                                './pages/MobileHome',
+                                () => import('./pages/MobileHome'),
+                            );
                             return {
                                 Component: () => (
                                     <TrackPage name={PageName.HOME}>
@@ -342,8 +362,10 @@ const APP_ROUTES: RouteObject[] = [
                     {
                         path: '/projects/:projectUuid/saved',
                         lazy: async () => {
-                            const { default: MobileCharts } =
-                                await import('./pages/MobileCharts');
+                            const MobileCharts = await loadLazyRouteDefault(
+                                './pages/MobileCharts',
+                                () => import('./pages/MobileCharts'),
+                            );
                             return {
                                 Component: () => (
                                     <TrackPage name={PageName.SAVED_QUERIES}>
@@ -356,8 +378,10 @@ const APP_ROUTES: RouteObject[] = [
                     {
                         path: '/projects/:projectUuid/dashboards',
                         lazy: async () => {
-                            const { default: MobileDashboards } =
-                                await import('./pages/MobileDashboards');
+                            const MobileDashboards = await loadLazyRouteDefault(
+                                './pages/MobileDashboards',
+                                () => import('./pages/MobileDashboards'),
+                            );
                             return {
                                 Component: () => (
                                     <TrackPage name={PageName.SAVED_DASHBOARDS}>
@@ -370,8 +394,10 @@ const APP_ROUTES: RouteObject[] = [
                     {
                         path: '/projects/:projectUuid/spaces/:spaceUuid',
                         lazy: async () => {
-                            const { default: MobileSpace } =
-                                await import('./pages/MobileSpace');
+                            const MobileSpace = await loadLazyRouteDefault(
+                                './pages/MobileSpace',
+                                () => import('./pages/MobileSpace'),
+                            );
                             return {
                                 Component: () => (
                                     <TrackPage name={PageName.SPACE}>
@@ -384,8 +410,10 @@ const APP_ROUTES: RouteObject[] = [
                     {
                         path: '/projects/:projectUuid/spaces',
                         lazy: async () => {
-                            const { default: MobileSpaces } =
-                                await import('./pages/MobileSpaces');
+                            const MobileSpaces = await loadLazyRouteDefault(
+                                './pages/MobileSpaces',
+                                () => import('./pages/MobileSpaces'),
+                            );
                             return {
                                 Component: () => (
                                     <TrackPage name={PageName.SPACES}>
@@ -398,16 +426,20 @@ const APP_ROUTES: RouteObject[] = [
                     {
                         path: '/projects/:projectUuid/apps/:appUuid/preview',
                         lazy: async () => {
-                            const { default: AppPreviewTest } =
-                                await import('./pages/AppPreviewTest');
+                            const AppPreviewTest = await loadLazyRouteDefault(
+                                './pages/AppPreviewTest',
+                                () => import('./pages/AppPreviewTest'),
+                            );
                             return { Component: AppPreviewTest };
                         },
                     },
                     {
                         path: '/projects/:projectUuid/apps/:appUuid/versions/:version/preview',
                         lazy: async () => {
-                            const { default: AppPreviewTest } =
-                                await import('./pages/AppPreviewTest');
+                            const AppPreviewTest = await loadLazyRouteDefault(
+                                './pages/AppPreviewTest',
+                                () => import('./pages/AppPreviewTest'),
+                            );
                             return { Component: AppPreviewTest };
                         },
                     },
@@ -460,8 +492,10 @@ const PRIVATE_ROUTES: RouteObject[] = [
             {
                 path: '/share/:shareNanoid',
                 lazy: async () => {
-                    const { default: ShareRedirect } =
-                        await import('./pages/ShareRedirect');
+                    const ShareRedirect = await loadLazyRouteDefault(
+                        './pages/ShareRedirect',
+                        () => import('./pages/ShareRedirect'),
+                    );
                     return {
                         Component: () => (
                             <TrackPage name={PageName.SHARE}>
