@@ -72,6 +72,7 @@ const BASE_ROLE_SCOPES = {
         'view:DataApp@self', // Own personal apps
         'manage:DataApp@self', // Own personal apps
         'view:ExternalConnection', // Select/link connections in the app builder (manage stays admin-only)
+        'view:ContentVerification', // Read-only discovery of verified content (manage stays developer-level)
     ],
 
     [ProjectMemberRole.EDITOR]: [

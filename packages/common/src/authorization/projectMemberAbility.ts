@@ -206,6 +206,9 @@ export const projectMemberAbilities: Record<
         can('create', 'AiAgentThread', {
             projectUuid: member.projectUuid,
         });
+        can('view', 'ContentVerification', {
+            projectUuid: member.projectUuid,
+        });
     },
     editor(member, { can }) {
         projectMemberAbilities.interactive_viewer(member, { can });

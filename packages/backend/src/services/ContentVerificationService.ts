@@ -41,7 +41,7 @@ export class ContentVerificationService extends BaseService {
 
         if (
             auditedAbility.cannot(
-                'manage',
+                'view',
                 subject('ContentVerification', {
                     organizationUuid: project.organizationUuid,
                     projectUuid,

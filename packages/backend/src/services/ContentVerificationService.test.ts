@@ -51,6 +51,15 @@ const editorUser: SessionUser = {
     ]),
 };
 
+const viewOnlyUser: SessionUser = {
+    ...adminUser,
+    userUuid: 'view-only-uuid',
+    role: OrganizationMemberRole.INTERACTIVE_VIEWER,
+    ability: new Ability<PossibleAbilities>([
+        { subject: 'ContentVerification', action: 'view' },
+    ]),
+};
+
 const mockVerifiedItems: VerifiedContentListItem[] = [
     {
         uuid: 'cv-uuid-1',
@@ -93,7 +102,7 @@ describe('ContentVerificationService', () => {
     });
 
     describe('listVerifiedContent', () => {
-        it('should throw ForbiddenError when user lacks manage:ContentVerification', async () => {
+        it('should throw ForbiddenError when user lacks view:ContentVerification', async () => {
             await expect(
                 service.listVerifiedContent(editorUser, 'project-uuid'),
             ).rejects.toThrow(ForbiddenError);
@@ -101,6 +110,18 @@ describe('ContentVerificationService', () => {
             expect(
                 contentVerificationModel.getAllForProject,
             ).not.toHaveBeenCalled();
+        });
+
+        it('should return verified content when user has view:ContentVerification', async () => {
+            const result = await service.listVerifiedContent(
+                viewOnlyUser,
+                'project-uuid',
+            );
+
+            expect(result).toEqual(mockVerifiedItems);
+            expect(
+                contentVerificationModel.getAllForProject,
+            ).toHaveBeenCalledWith('project-uuid');
         });
 
         it('should return verified content when user is admin', async () => {
