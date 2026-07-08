@@ -220,14 +220,6 @@ export enum FeatureFlags {
     AiSlackSystemAgentFallback = 'ai-slack-system-agent-fallback',
 
     /**
-     * Enable one-click "Connect GitHub" setup for AI agent MCP servers. When
-     * enabled (and the org has a GitHub App installation the user can manage),
-     * the agent MCP settings offer a button that provisions the hosted GitHub
-     * MCP using the org's existing installation token — no manual URL/auth.
-     */
-    GithubMcpOneClick = 'github-mcp-one-click',
-
-    /**
      * Let users link their personal GitHub account (user-to-server OAuth
      * token) so write-back commits and pull requests are authored as them
      * instead of the Lightdash GitHub App bot. Off by default while the
