@@ -78,7 +78,6 @@ describe('getAgentTools workstream tool gate', () => {
             enableGrepFields: false,
             enablePreviewDeploySetup: false,
             enableRepoDiscovery: false,
-            enableSearchSemanticLayer: false,
             findExploresFieldSearchSize: 10,
             findFieldsPageSize: 10,
             getDashboardChartsPageSize: 10,
