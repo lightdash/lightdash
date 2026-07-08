@@ -4,7 +4,10 @@ import { useEffect, useRef, type FC } from 'react';
 import { useMatches } from 'react-router';
 import { useActiveProjectUuid } from '../../../../../hooks/useActiveProject';
 import { useAiAgentButtonVisibility } from '../../hooks/useAiAgentsButtonVisibility';
-import { resetActivePanel } from '../../store/aiAgentLauncherSlice';
+import {
+    resetActivePanel,
+    setActiveAgent,
+} from '../../store/aiAgentLauncherSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
@@ -12,6 +15,7 @@ import {
 import { AiSavedChartPreviewPanel } from '../ChatElements/AiSavedChartPreviewPanel';
 import styles from './AiAgentsLauncher.module.css';
 import {
+    getLauncherAgentUuid,
     getLauncherPanelAgent,
     isLauncherAgentAvailable,
 } from './launcherAgentSelection';
@@ -44,7 +48,8 @@ const AiAgentsLauncherInner: FC = () => {
 
     const isAiAgentEnabled = useAiAgentButtonVisibility();
 
-    const { agents, selectedAgent } = useDefaultAiAgent(activeProjectUuid);
+    const { agents, selectedAgent, isResolving } =
+        useDefaultAiAgent(activeProjectUuid);
 
     const dispatch = useAiAgentStoreDispatch();
     const mode = useAiAgentStoreSelector((state) => state.aiAgentLauncher.mode);
@@ -87,6 +92,29 @@ const AiAgentsLauncherInner: FC = () => {
             dispatch(resetActivePanel());
         }
     }, [activeAgentUuid, agents, dispatch, selectedAgent]);
+
+    useEffect(() => {
+        if (
+            mode !== 'panel-open' ||
+            activeAgentUuid !== null ||
+            activeThreadId !== null ||
+            isResolving ||
+            !selectedAgent
+        ) {
+            return;
+        }
+        const resolvedAgentUuid = getLauncherAgentUuid(selectedAgent);
+        if (resolvedAgentUuid) {
+            dispatch(setActiveAgent(resolvedAgentUuid));
+        }
+    }, [
+        mode,
+        activeAgentUuid,
+        activeThreadId,
+        isResolving,
+        selectedAgent,
+        dispatch,
+    ]);
 
     const isAllowed =
         Boolean(activeProjectUuid) && isAiAgentEnabled && agents.length > 0;
