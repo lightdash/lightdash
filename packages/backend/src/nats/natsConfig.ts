@@ -1,3 +1,4 @@
+import type { RunQueryTags } from '@lightdash/common';
 import { z } from 'zod';
 
 export type NatsTraceProperties = {
@@ -13,11 +14,9 @@ export type AsyncQueryNatsEnvelope<TPayload> = NatsTraceProperties & {
     payload: TPayload;
 };
 
-/**
- * Lightweight NATS payload — the worker looks up everything else from query_history.
- */
 export type AsyncQueryJobPayload = {
     queryUuid: string;
+    queryTags?: RunQueryTags;
 };
 
 export type AsyncQueryJobMessage = AsyncQueryNatsEnvelope<AsyncQueryJobPayload>;

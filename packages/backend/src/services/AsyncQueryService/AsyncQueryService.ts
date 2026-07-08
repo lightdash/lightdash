@@ -54,6 +54,7 @@ import {
     getMetricOverridesWithPopInheritance,
     getMetrics,
     getMetricsWithValidParameters,
+    getUserAttributeQueryTags,
     hasReservedParameterReference,
     isCartesianChartConfig,
     isCustomBinDimension,
@@ -2390,6 +2391,7 @@ export class AsyncQueryService extends ProjectService {
     public async runAsyncWarehouseQueryFromHistory(
         queryUuid: string,
         workerLabel: string,
+        queryTagsOverride?: RunQueryTags,
     ): Promise<boolean> {
         const canRun = await this.prepareQueuedQueryForExecution(
             queryUuid,
@@ -2400,7 +2402,10 @@ export class AsyncQueryService extends ProjectService {
             return false;
         }
 
-        const args = await this.buildWarehouseQueryArgs(queryUuid);
+        const args = await this.buildWarehouseQueryArgs(
+            queryUuid,
+            queryTagsOverride,
+        );
         await this.runAsyncWarehouseQuery(args);
         return true;
     }
@@ -2408,6 +2413,7 @@ export class AsyncQueryService extends ProjectService {
     public async runAsyncPreAggregateQueryFromHistory(
         queryUuid: string,
         workerLabel: string,
+        queryTagsOverride?: RunQueryTags,
     ): Promise<boolean> {
         const canRun = await this.prepareQueuedQueryForExecution(
             queryUuid,
@@ -2418,7 +2424,10 @@ export class AsyncQueryService extends ProjectService {
             return false;
         }
 
-        const args = await this.buildPreAggregateQueryArgs(queryUuid);
+        const args = await this.buildPreAggregateQueryArgs(
+            queryUuid,
+            queryTagsOverride,
+        );
         await this.runAsyncPreAggregateQuery(args);
         return true;
     }
@@ -3028,10 +3037,12 @@ export class AsyncQueryService extends ProjectService {
 
     private async buildWarehouseQueryArgs(
         queryUuid: string,
+        queryTagsOverride?: RunQueryTags,
     ): Promise<RunAsyncWarehouseQueryArgs> {
         const query = await this.getQueryHistoryFromHistory(queryUuid);
         const actor = AsyncQueryService.getQueryHistoryActor(query);
-        const queryTags = AsyncQueryService.buildQueryTags(query);
+        const queryTags =
+            queryTagsOverride ?? AsyncQueryService.buildQueryTags(query);
         const warehouseCredentialsOverrides =
             await this.deriveWarehouseCredentialsOverrides(query);
         const displayTimezone = query.metricQuery.timezone ?? null;
@@ -3067,6 +3078,7 @@ export class AsyncQueryService extends ProjectService {
 
     private async buildPreAggregateQueryArgs(
         queryUuid: string,
+        queryTagsOverride?: RunQueryTags,
     ): Promise<RunAsyncPreAggregateQueryArgs> {
         const query = await this.getQueryHistoryFromHistory(queryUuid);
 
@@ -3077,7 +3089,8 @@ export class AsyncQueryService extends ProjectService {
         }
 
         const actor = AsyncQueryService.getQueryHistoryActor(query);
-        const queryTags = AsyncQueryService.buildQueryTags(query);
+        const queryTags =
+            queryTagsOverride ?? AsyncQueryService.buildQueryTags(query);
         const warehouseCredentialsOverrides =
             await this.deriveWarehouseCredentialsOverrides(query);
         const displayTimezone = query.metricQuery.timezone ?? null;
@@ -3272,6 +3285,16 @@ export class AsyncQueryService extends ProjectService {
     private static getAppQueryTags(): Partial<RunQueryTags> {
         const { app_uuid: appUuid } = getAppContext();
         return appUuid ? { app_uuid: appUuid } : {};
+    }
+
+    private static addUserAttributeQueryTags(
+        queryTags: RunQueryTags,
+        userAccessControls: UserAccessControls,
+    ): RunQueryTags {
+        return {
+            ...queryTags,
+            ...getUserAttributeQueryTags(userAccessControls.userAttributes),
+        };
     }
 
     private static buildQueryTags(query: QueryHistory): RunQueryTags {
@@ -4041,6 +4064,7 @@ export class AsyncQueryService extends ProjectService {
                         try {
                             const natsPayload = {
                                 queryUuid: queryHistoryUuid,
+                                queryTags,
                             };
 
                             const enqueueQuery = () => {
@@ -4434,6 +4458,12 @@ export class AsyncQueryService extends ProjectService {
         });
         const prepareMs = Date.now() - prepareStart;
 
+        const queryTagsWithUserAttributes =
+            AsyncQueryService.addUserAttributeQueryTags(
+                queryTags,
+                userAccessControls,
+            );
+
         const requestParameters: ExecuteAsyncMetricQueryRequestParams = {
             context,
             query: metricQuery,
@@ -4467,7 +4497,7 @@ export class AsyncQueryService extends ProjectService {
                 organizationUuid,
                 explore,
                 context,
-                queryTags,
+                queryTags: queryTagsWithUserAttributes,
                 dateZoom,
                 invalidateCache,
                 parameters: combinedParameters,
@@ -4623,7 +4653,7 @@ export class AsyncQueryService extends ProjectService {
                 exploreResolver: this.projectModel,
             });
 
-        const queryTags: RunQueryTags = {
+        const baseQueryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
             ...AsyncQueryService.getSchedulerQueryTags(),
             organization_uuid: organizationUuid,
@@ -4654,6 +4684,7 @@ export class AsyncQueryService extends ProjectService {
             sql,
             fields,
             missingParameterReferences,
+            userAccessControls,
             resolvedTimezone,
             displayTimezone,
             useTimezoneAwareDateTrunc,
@@ -4667,6 +4698,12 @@ export class AsyncQueryService extends ProjectService {
             userAttributeOverrides,
             columnTimezone: getColumnTimezone(warehouseCredentials),
         });
+
+        const queryTagsWithUserAttributes =
+            AsyncQueryService.addUserAttributeQueryTags(
+                baseQueryTags,
+                userAccessControls,
+            );
 
         const requestParameters: ExecuteAsyncFieldValueSearchRequestParams = {
             context,
@@ -4687,7 +4724,7 @@ export class AsyncQueryService extends ProjectService {
                 organizationUuid,
                 explore,
                 context,
-                queryTags,
+                queryTags: queryTagsWithUserAttributes,
                 invalidateCache: invalidateCache || forceRefresh,
                 parameters: combinedParameters,
                 fields,
@@ -5004,6 +5041,12 @@ export class AsyncQueryService extends ProjectService {
             queryContext: context,
         });
 
+        const queryTagsWithUserAttributes =
+            AsyncQueryService.addUserAttributeQueryTags(
+                queryTags,
+                userAccessControls,
+            );
+
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 account,
@@ -5012,7 +5055,7 @@ export class AsyncQueryService extends ProjectService {
                 explore,
                 chart: { uuid: savedChart.uuid },
                 context,
-                queryTags,
+                queryTags: queryTagsWithUserAttributes,
                 invalidateCache,
                 metricQuery: metricQueryWithLimit,
                 parameters: combinedParameters,
@@ -5317,7 +5360,7 @@ export class AsyncQueryService extends ProjectService {
             };
         }
 
-        const queryTags: RunQueryTags = {
+        const baseQueryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
             ...AsyncQueryService.getSchedulerQueryTags(),
             organization_uuid: organizationUuid,
@@ -5470,6 +5513,12 @@ export class AsyncQueryService extends ProjectService {
             queryContext: context,
         });
 
+        const queryTagsWithUserAttributes =
+            AsyncQueryService.addUserAttributeQueryTags(
+                baseQueryTags,
+                queryUserAccessControls,
+            );
+
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 account,
@@ -5479,7 +5528,7 @@ export class AsyncQueryService extends ProjectService {
                 chart: { uuid: savedChart.uuid },
                 metricQuery: metricQueryWithLimit,
                 context,
-                queryTags,
+                queryTags: queryTagsWithUserAttributes,
                 invalidateCache,
                 dateZoom,
                 parameters: combinedParameters,
@@ -5734,7 +5783,7 @@ export class AsyncQueryService extends ProjectService {
             sorts,
         };
 
-        const queryTags: RunQueryTags = {
+        const baseQueryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
             ...AsyncQueryService.getSchedulerQueryTags(),
             organization_uuid: organizationUuid,
@@ -5778,6 +5827,7 @@ export class AsyncQueryService extends ProjectService {
             missingParameterReferences,
             usedParameters,
             responseMetricQuery,
+            userAccessControls,
             resolvedTimezone,
             displayTimezone,
             useTimezoneAwareDateTrunc,
@@ -5795,6 +5845,12 @@ export class AsyncQueryService extends ProjectService {
             preloadedUserAccessControls,
         });
 
+        const queryTagsWithUserAttributes =
+            AsyncQueryService.addUserAttributeQueryTags(
+                baseQueryTags,
+                userAccessControls,
+            );
+
         const { queryUuid: underlyingDataQueryUuid, cacheMetadata } =
             await this.executeAsyncQuery(
                 {
@@ -5804,7 +5860,7 @@ export class AsyncQueryService extends ProjectService {
                     organizationUuid,
                     explore,
                     context,
-                    queryTags,
+                    queryTags: queryTagsWithUserAttributes,
                     invalidateCache,
                     dateZoom,
                     fields,
@@ -5975,7 +6031,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials,
         );
 
-        const queryTags: RunQueryTags = {
+        const baseQueryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
             ...AsyncQueryService.getSchedulerQueryTags(),
             organization_uuid: organizationUuid,
@@ -5984,6 +6040,10 @@ export class AsyncQueryService extends ProjectService {
             ...(chartUuid ? { chart_uuid: chartUuid } : {}),
             ...(dashboardUuid ? { dashboard_uuid: dashboardUuid } : {}),
         };
+        const queryTags = AsyncQueryService.addUserAttributeQueryTags(
+            baseQueryTags,
+            { userAttributes, intrinsicUserAttributes },
+        );
         const durationWarehouseAndUserAttributes =
             performance.now() - sectionStartWarehouse;
 
@@ -6847,6 +6907,12 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
+        const queryTagsWithUserAttributes =
+            AsyncQueryService.addUserAttributeQueryTags(
+                queryTags,
+                resolvedUserAccessControls,
+            );
+
         const { queryUuid, cacheMetadata } =
             await this.executePreparedAsyncQuery(
                 {
@@ -6856,7 +6922,7 @@ export class AsyncQueryService extends ProjectService {
                     explore,
                     metricQuery,
                     context,
-                    queryTags,
+                    queryTags: queryTagsWithUserAttributes,
                     invalidateCache,
                     dateZoom,
                     parameters,

@@ -105,6 +105,50 @@ describe('BigqueryWarehouseClient.sanitizeLabelsWithValues', () => {
             expect.objectContaining({ valueType: 'boolean' }),
         );
     });
+
+    it('sanitizes user attribute query tags for BigQuery labels', () => {
+        const result = BigqueryWarehouseClient.sanitizeLabelsWithValues({
+            'user_attribute_User Tier': 'Enterprise Customer/EMEA',
+            user_attribute_company: "O'Reilly Media",
+        });
+        expect(result).toEqual({
+            user_attribute_user_tier: 'enterprise_customer_emea',
+            user_attribute_company: 'o_reilly_media',
+        });
+        expect(warnSpy).not.toHaveBeenCalled();
+    });
+
+    it('limits labels to the BigQuery maximum', () => {
+        const labels = Object.fromEntries(
+            Array.from({ length: 70 }, (_, index) => [
+                `user_attribute_${index}`,
+                `value_${index}`,
+            ]),
+        );
+
+        const result = BigqueryWarehouseClient.sanitizeLabelsWithValues(labels);
+
+        expect(Object.keys(result ?? {})).toHaveLength(64);
+    });
+
+    it('keeps non-user-attribute labels when user attributes exceed the BigQuery maximum', () => {
+        const labels = {
+            ...Object.fromEntries(
+                Array.from({ length: 70 }, (_, index) => [
+                    `user_attribute_${index}`,
+                    `value_${index}`,
+                ]),
+            ),
+            query_uuid: 'query-uuid',
+        };
+
+        const result = BigqueryWarehouseClient.sanitizeLabelsWithValues(labels);
+
+        expect(result).toEqual(
+            expect.objectContaining({ query_uuid: 'query-uuid' }),
+        );
+        expect(Object.keys(result ?? {})).toHaveLength(64);
+    });
 });
 
 describe('BigquerySqlBuilder escaping', () => {
