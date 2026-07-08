@@ -333,7 +333,9 @@ export default class App {
             ? parseInt(process.env.PGWIRE_PORT, 10)
             : undefined;
         if (pgWirePort && this.pgWireServerFactory) {
-            this.pgWireServer = this.pgWireServerFactory(this.serviceRepository);
+            this.pgWireServer = this.pgWireServerFactory(
+                this.serviceRepository,
+            );
             await this.pgWireServer.listen(pgWirePort);
             Logger.info(
                 `Postgres wire protocol server listening on port ${pgWirePort}`,
