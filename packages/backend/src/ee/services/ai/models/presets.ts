@@ -40,7 +40,7 @@ export const MODEL_PRESETS: {
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
-                parallelToolCalls: true,
+                parallelToolCalls: false,
             },
         },
         {
@@ -56,7 +56,7 @@ export const MODEL_PRESETS: {
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
-                parallelToolCalls: true,
+                parallelToolCalls: false,
             },
         },
         {
@@ -70,7 +70,7 @@ export const MODEL_PRESETS: {
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
-                parallelToolCalls: true,
+                parallelToolCalls: false,
             },
         },
         {
@@ -84,7 +84,7 @@ export const MODEL_PRESETS: {
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
-                parallelToolCalls: true,
+                parallelToolCalls: false,
             },
         },
         {
@@ -98,7 +98,7 @@ export const MODEL_PRESETS: {
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
-                parallelToolCalls: true,
+                parallelToolCalls: false,
                 reasoningEffort: 'minimal',
             },
         },

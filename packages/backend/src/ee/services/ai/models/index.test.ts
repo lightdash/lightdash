@@ -68,6 +68,32 @@ describe('getModel', () => {
         vi.clearAllMocks();
     });
 
+    it('forces sequential tool execution for OpenAI presets', () => {
+        // Regression: presets used to hardcode parallelToolCalls: true, which
+        // (spread last in the factory) silently re-enabled parallel tool calls
+        // and reintroduced the dropped-execution bug.
+        const { providerOptions } = getModel(copilotConfigWithStreaming(true), {
+            modelName: 'gpt-5.5',
+        });
+
+        if (!providerOptions || !('openai' in providerOptions)) {
+            throw new Error('expected openai provider options');
+        }
+        expect(providerOptions.openai.parallelToolCalls).toBe(false);
+    });
+
+    it('keeps preset-specific provider options while staying sequential', () => {
+        const { providerOptions } = getModel(copilotConfigWithStreaming(true), {
+            modelName: 'gpt-5-mini',
+        });
+
+        if (!providerOptions || !('openai' in providerOptions)) {
+            throw new Error('expected openai provider options');
+        }
+        expect(providerOptions.openai.parallelToolCalls).toBe(false);
+        expect(providerOptions.openai.reasoningEffort).toBe('minimal');
+    });
+
     it('does not wrap the model when the provider supports streaming', () => {
         getModel(copilotConfigWithStreaming(true));
 
