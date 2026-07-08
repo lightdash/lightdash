@@ -1,3 +1,10 @@
+## [0.3334.2](https://github.com/lightdash/lightdash/compare/0.3334.1...0.3334.2) (2026-07-08)
+
+
+### Bug Fixes
+
+* **charts:** pin daily time-axis labels to bar days ([#25255](https://github.com/lightdash/lightdash/issues/25255)) ([de00b24](https://github.com/lightdash/lightdash/commit/de00b2460c386e26a8c762dfe58af11e494f646c))
+
 ## [0.3334.1](https://github.com/lightdash/lightdash/compare/0.3334.0...0.3334.1) (2026-07-08)
 
 
