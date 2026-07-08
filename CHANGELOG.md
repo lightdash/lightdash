@@ -1,3 +1,10 @@
+## [0.3328.5](https://github.com/lightdash/lightdash/compare/0.3328.4...0.3328.5) (2026-07-08)
+
+
+### Bug Fixes
+
+* **ai:** disable OpenAI parallel tool calls to stop dropped tool executions ([#25256](https://github.com/lightdash/lightdash/issues/25256)) ([419159a](https://github.com/lightdash/lightdash/commit/419159ae2fd85af0b12e9bd0b804f218c97934f2))
+
 ## [0.3328.4](https://github.com/lightdash/lightdash/compare/0.3328.3...0.3328.4) (2026-07-08)
 
 
