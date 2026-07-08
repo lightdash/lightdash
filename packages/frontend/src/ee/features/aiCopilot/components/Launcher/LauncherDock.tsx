@@ -75,7 +75,8 @@ export const LauncherDock: FC<Props> = ({
     };
 
     const handleNewThread = () => {
-        if (!selectedAgent) return;
+        const agentUuid = getLauncherAgentUuid(selectedAgent);
+        if (!agentUuid) return;
         const pendingContext =
             currentDashboard?.projectUuid === projectUuid
                 ? {
@@ -85,7 +86,7 @@ export const LauncherDock: FC<Props> = ({
         dispatch(
             openPanel({
                 threadId: null,
-                agentUuid: getLauncherAgentUuid(selectedAgent),
+                agentUuid,
                 pendingContext,
             }),
         );
