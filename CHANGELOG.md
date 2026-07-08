@@ -1,3 +1,11 @@
+# [0.3337.0](https://github.com/lightdash/lightdash/compare/0.3336.0...0.3337.0) (2026-07-08)
+
+
+### Features
+
+* **admin-mcp:** admin API for aggregated MCP activity stats ([#25292](https://github.com/lightdash/lightdash/issues/25292)) ([d80b8e5](https://github.com/lightdash/lightdash/commit/d80b8e58e2f8d294e6443d9cb86009d7489c14e8))
+* **admin-mcp:** overview stats panel on the MCP activity page ([#25293](https://github.com/lightdash/lightdash/issues/25293)) ([4b30f6d](https://github.com/lightdash/lightdash/commit/4b30f6de21a51d535277bbcf5b4322fc0b5ddcda))
+
 # [0.3336.0](https://github.com/lightdash/lightdash/compare/0.3335.2...0.3336.0) (2026-07-08)
 
 
