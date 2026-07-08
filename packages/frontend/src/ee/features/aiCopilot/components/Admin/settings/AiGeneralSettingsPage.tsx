@@ -55,12 +55,9 @@ export const AiGeneralSettingsPage = () => {
         useUpsertAiRouterConfig();
     const defaultModelConfig = settings?.defaultAiAgentModelConfig ?? null;
     const defaultModelOptions = settings?.defaultAiAgentModelOptions;
-    // Review turns run through the instance provider, so they're paused while an
-    // org uses its own key (mirrors areReviewsEnabledForSettings on the backend).
-    const reviewsPausedByByok = Boolean(
-        settings?.providerApiKeysSet.anthropic ||
-        settings?.providerApiKeysSet.openai,
-    );
+    // Reviews run on the org's own key; paused when that key can't serve the
+    // review model (computed on the backend).
+    const reviewsPausedByByok = settings?.aiAgentReviewsPausedByByok ?? false;
     const reviewsEffectivelyOn =
         Boolean(settings?.aiAgentReviewsEnabled) && !reviewsPausedByByok;
     const {
@@ -321,9 +318,11 @@ export const AiGeneralSettingsPage = () => {
                                     </Text>
                                     {reviewsPausedByByok && (
                                         <Text c="dimmed" fz="xs" mt={4}>
-                                            Paused while your organization uses
-                                            its own AI provider key — turn data
-                                            isn&apos;t sent through Lightdash.
+                                            Paused — your AI provider key
+                                            can&apos;t run the review model
+                                            (Claude Haiku). Reviews run on your
+                                            own key, so they resume when it has
+                                            access.
                                         </Text>
                                     )}
                                 </Box>

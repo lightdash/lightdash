@@ -11,6 +11,15 @@ import { OrgModelOverrides } from './models';
 
 export type CopilotConfig = AiCopilotConfigSchemaType;
 
+// Review turns run on a fast Anthropic model; a BYO Anthropic key must be able
+// to serve it for reviews to run on the org's own key instead of being paused.
+const REVIEW_JUDGE_ANTHROPIC_MODEL = 'claude-haiku-4-5';
+
+export type ReviewJudgeAvailability = {
+    hasActiveByoKey: boolean;
+    canJudgeOnByoKey: boolean;
+};
+
 /**
  * Overlay an org's own API key onto the instance copilot config. Only the
  * apiKey is org-supplied — every other provider option comes from the instance
@@ -145,5 +154,40 @@ export class OrgAiCopilotConfigResolver {
             ),
             keyAccessibleModelIds,
         };
+    }
+
+    /**
+     * Whether review turns may run for an org while honoring BYO isolation.
+     * Reviews run on a fast Anthropic model, so an org with its own key can only
+     * run them if that key can serve it — never by falling back to the instance
+     * provider.
+     */
+    async getReviewJudgeAvailability(
+        organizationUuid: string | null | undefined,
+    ): Promise<ReviewJudgeAvailability> {
+        const none: ReviewJudgeAvailability = {
+            hasActiveByoKey: false,
+            canJudgeOnByoKey: false,
+        };
+        if (!organizationUuid) return none;
+        if (!(await this.isEnabled(organizationUuid))) return none;
+        const orgKeys =
+            await this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
+                organizationUuid,
+            );
+        if (!orgKeys) return none;
+        const hasActiveByoKey = Boolean(orgKeys.anthropic || orgKeys.openai);
+        if (!orgKeys.anthropic) {
+            return { hasActiveByoKey, canJudgeOnByoKey: false };
+        }
+        const modelIds = await this.aiModelCatalog.getAccessibleModelIds(
+            'anthropic',
+            orgKeys.anthropic,
+        );
+        const canJudgeOnByoKey =
+            modelIds?.some((id) =>
+                id.startsWith(REVIEW_JUDGE_ANTHROPIC_MODEL),
+            ) ?? false;
+        return { hasActiveByoKey, canJudgeOnByoKey };
     }
 }

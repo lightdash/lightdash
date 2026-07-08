@@ -26,7 +26,10 @@ import {
     getDefaultModel,
     presetToModelOption,
 } from './ai/models';
-import { OrgAiCopilotConfigResolver } from './ai/OrgAiCopilotConfigResolver';
+import {
+    OrgAiCopilotConfigResolver,
+    type ReviewJudgeAvailability,
+} from './ai/OrgAiCopilotConfigResolver';
 
 /**
  * Redact partial key material (hints) and the "key is set" booleans for callers
@@ -62,24 +65,16 @@ export const findUnconfiguredProviderKeyWrites = (
     );
 
 /**
- * Review turns still run through the instance AI provider, so they're disabled
- * while an org has its own BYO key set — their turn data must not leave via our
- * LLM account until the review pipeline routes through the org's key.
+ * Reviews run on the org's own key when it has one (never the instance
+ * provider), so a BYO key that can't serve the review model pauses reviews
+ * rather than leaking turn data through our LLM account.
  */
 export const areReviewsEnabledForSettings = (
-    settings: Pick<
-        AiOrganizationSettings,
-        'aiAgentReviewsEnabled' | 'providerApiKeysSet'
-    > | null,
+    settings: Pick<AiOrganizationSettings, 'aiAgentReviewsEnabled'> | null,
+    byo: ReviewJudgeAvailability,
 ): boolean => {
-    if (!settings) return false;
-    if (
-        settings.providerApiKeysSet.anthropic ||
-        settings.providerApiKeysSet.openai
-    ) {
-        return false;
-    }
-    return settings.aiAgentReviewsEnabled;
+    if (!settings?.aiAgentReviewsEnabled) return false;
+    return !byo.hasActiveByoKey || byo.canJudgeOnByoKey;
 };
 
 type AiOrganizationSettingsServiceDependencies = {
@@ -243,11 +238,20 @@ export class AiOrganizationSettingsService extends BaseService {
         // chat surfaces) but must not see another org member's key hints.
         const canManage = this.canManageAiAgent(user);
 
-        const {
-            effectiveOptions,
-            configurableOptions,
-            effectiveModelVisibility,
-        } = await this.getModelOptionLists(user.organizationUuid);
+        const [
+            { effectiveOptions, configurableOptions, effectiveModelVisibility },
+            reviewJudge,
+        ] = await Promise.all([
+            this.getModelOptionLists(user.organizationUuid),
+            this.orgAiCopilotConfigResolver.getReviewJudgeAvailability(
+                user.organizationUuid,
+            ),
+        ]);
+
+        // Reviews are paused when the org's own key can't serve the review model
+        // (we never fall back to the instance provider for their turn data).
+        const aiAgentReviewsPausedByByok =
+            reviewJudge.hasActiveByoKey && !reviewJudge.canJudgeOnByoKey;
 
         // Return default settings if none exist
         if (!settings) {
@@ -265,6 +269,7 @@ export class AiOrganizationSettingsService extends BaseService {
                 configurableModelOptions: canManage
                     ? configurableOptions
                     : null,
+                aiAgentReviewsPausedByByok,
                 isTrial: isTrialEligible,
             };
         }
@@ -278,6 +283,7 @@ export class AiOrganizationSettingsService extends BaseService {
             isCopilotEnabled,
             defaultAiAgentModelOptions: effectiveOptions,
             configurableModelOptions: canManage ? configurableOptions : null,
+            aiAgentReviewsPausedByByok,
         };
     }
 
@@ -372,12 +378,16 @@ export class AiOrganizationSettingsService extends BaseService {
             return false;
         }
 
-        const settings =
-            await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+        const [settings, byo] = await Promise.all([
+            this.aiOrganizationSettingsModel.findByOrganizationUuid(
                 user.organizationUuid,
-            );
+            ),
+            this.orgAiCopilotConfigResolver.getReviewJudgeAvailability(
+                user.organizationUuid,
+            ),
+        ]);
 
-        return areReviewsEnabledForSettings(settings);
+        return areReviewsEnabledForSettings(settings, byo);
     }
 
     async isMcpContentWritesEnabled(

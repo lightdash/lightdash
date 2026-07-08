@@ -461,6 +461,13 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getAiAgentDocumentModel<AiAgentDocumentModel>(),
                     aiOrganizationSettingsModel:
                         models.getAiOrganizationSettingsModel(),
+                    orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
+                        lightdashConfig: context.lightdashConfig,
+                        aiOrganizationSettingsModel:
+                            models.getAiOrganizationSettingsModel(),
+                        featureFlagService: repository.getFeatureFlagService(),
+                        aiModelCatalog,
+                    }),
                     catalogModel: models.getCatalogModel(),
                     projectModel: models.getProjectModel(),
                     lightdashConfig: context.lightdashConfig,

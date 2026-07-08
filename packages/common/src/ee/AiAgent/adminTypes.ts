@@ -165,6 +165,8 @@ export type ComputedAiOrganizationSettings = {
     // Full option list an admin can pick from (ignores visibility restrictions); null for non-admins.
     // Optional to keep the response schema backwards-compatible for old clients.
     configurableModelOptions?: AiModelOption[] | null;
+    // True when a BYO key is set that can't serve the review model, so reviews are paused.
+    aiAgentReviewsPausedByByok?: boolean;
 };
 
 // AI Organization Settings Types
