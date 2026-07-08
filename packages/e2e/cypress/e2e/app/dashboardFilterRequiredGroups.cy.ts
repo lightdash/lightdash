@@ -122,19 +122,15 @@ describe('Dashboard filter required groups', () => {
             );
         });
 
-        // Locked: the modal lists the group members
-        cy.findByText('Set filter values to get started').should('be.visible');
-        cy.contains(
-            'This dashboard requires a value for at least one of: Payment method, Order status',
+        // Locked: the banner lists the group members as action chips
+        cy.findByText(
+            'Pick a value for at least one of these required filters to load data:',
         ).should('be.visible');
 
         // Tiles show the locked placeholder: no chart rendered or loading
-        cy.get('.react-grid-layout').should('have.class', 'locked');
+        cy.get('.react-grid-layout .tabler-icon-lock').should('exist');
         cy.findAllByText('Loading chart').should('have.length', 0);
         cy.get('.echarts-for-react').should('not.exist');
-
-        // Both group members show the group badge
-        cy.findAllByText('Required (any of 2)').should('have.length', 2);
 
         // No chart query ran while locked
         cy.get('@chartQuery.all').should('have.length', 0);
@@ -147,11 +143,12 @@ describe('Dashboard filter required groups', () => {
         cy.findByRole('option', { name: 'credit_card' }).click();
         cy.contains('button', 'Apply').click({ force: true });
 
-        // Unlocked: modal gone, badges cleared, tile runs its query and renders
-        cy.findByText('Set filter values to get started').should('not.exist');
-        cy.get('.react-grid-layout').should('not.have.class', 'locked');
+        // Unlocked: banner gone, tile runs its query and renders
+        cy.findByText(
+            'Pick a value for at least one of these required filters to load data:',
+        ).should('not.exist');
         cy.wait('@chartQuery');
-        cy.findAllByText('Required (any of 2)').should('have.length', 0);
+        cy.get('.react-grid-layout .tabler-icon-lock').should('not.exist');
         cy.findAllByText('Loading chart').should('have.length', 0);
         cy.get('.echarts-for-react').should('exist');
     });
@@ -170,14 +167,12 @@ describe('Dashboard filter required groups', () => {
         });
 
         // Locked with the single-required copy, not the group copy
-        cy.findByText('Set filter values to get started').should('be.visible');
-        cy.contains(
-            'This dashboard cannot be run without setting the filter values that are required',
+        cy.findByText(
+            'Pick a value for this required filter to load data:',
         ).should('be.visible');
         cy.contains('at least one of').should('not.exist');
 
-        cy.get('.react-grid-layout').should('have.class', 'locked');
-        cy.findAllByText('Required').should('have.length', 1);
+        cy.get('.react-grid-layout .tabler-icon-lock').should('exist');
         cy.get('@chartQuery.all').should('have.length', 0);
 
         // Setting a value on the required filter unlocks the dashboard
@@ -188,9 +183,11 @@ describe('Dashboard filter required groups', () => {
         cy.findByRole('option', { name: 'credit_card' }).click();
         cy.contains('button', 'Apply').click({ force: true });
 
-        cy.findByText('Set filter values to get started').should('not.exist');
-        cy.get('.react-grid-layout').should('not.have.class', 'locked');
+        cy.findByText(
+            'Pick a value for this required filter to load data:',
+        ).should('not.exist');
         cy.wait('@chartQuery');
+        cy.get('.react-grid-layout .tabler-icon-lock').should('not.exist');
         cy.findAllByText('Loading chart').should('have.length', 0);
         cy.get('.echarts-for-react').should('exist');
     });
