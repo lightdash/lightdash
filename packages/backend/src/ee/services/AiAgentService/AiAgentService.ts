@@ -92,6 +92,7 @@ import {
     ReadinessScore,
     ShareUrl,
     SlackPrompt,
+    sleep,
     ToolDashboardArgs,
     toolDashboardArgsSchema,
     ToolDashboardV2Args,
@@ -6698,6 +6699,43 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     }
 
     /**
+     * The model's turn-ending reply (e.g. "I've kicked off a pull request...")
+     * is written by the *original* request's own `generateText` call once the
+     * model finishes talking — a separate, concurrent process from this
+     * worker job, with no inherent ordering between the two. Rewriting
+     * `ai_prompt.response` before that write lands would just get clobbered
+     * a moment later when it does. Polls until a response is persisted (or
+     * gives up after `timeoutMs`, so a stuck/erroring original turn can't
+     * hang this job forever) so callers can safely overwrite it afterwards.
+     */
+    private async waitForOriginalResponseWritten(
+        promptUuid: string,
+        fromSlack: boolean,
+        timeoutMs = 20_000,
+    ): Promise<void> {
+        const pollIntervalMs = 300;
+        const deadline = Date.now() + timeoutMs;
+        for (;;) {
+            const fetchPrompt = fromSlack
+                ? this.aiAgentModel.findSlackPrompt(promptUuid)
+                : this.aiAgentModel.findWebAppPrompt(promptUuid);
+            // eslint-disable-next-line no-await-in-loop -- deliberate poll, see docstring
+            const prompt = await fetchPrompt;
+            if (prompt?.response) {
+                return;
+            }
+            if (Date.now() >= deadline) {
+                Logger.warn(
+                    `AiAgent.waitForOriginalResponseWritten: timed out waiting for prompt ${promptUuid}'s original response`,
+                );
+                return;
+            }
+            // eslint-disable-next-line no-await-in-loop -- deliberate poll delay
+            await sleep(pollIntervalMs);
+        }
+    }
+
+    /**
      * Worker entry point for the job enqueued by the `editDbtProject` tool
      * (see `getAiAgentDependencies`). Runs the actual writeback turn — plus
      * every side effect that used to happen inline once it resolved:
@@ -6919,6 +6957,31 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 dbtSourceOptions: result.dbtSourceOptions ?? null,
             },
         });
+
+        // The model's turn-ending reply was already written when the tool
+        // call enqueued (before this outcome was known — see
+        // toolEditDbtProjectArgs.ts's tool description), so it can't ask the
+        // right question itself. Overwrite it in place rather than adding a
+        // second UI element: the chat bubble should just say what's actually
+        // needed instead of a stale "kicked off a pull request" line. This
+        // ambiguity check resolves fast (no sandbox involved), so it's raced
+        // against the original turn's own response write — wait for that
+        // write to land first or it would just clobber ours a moment later.
+        if (result.needsDbtSourceSelection) {
+            await this.waitForOriginalResponseWritten(
+                promptUuid,
+                payload.isSlackPrompt,
+            );
+            const sourceNames = (result.dbtSourceOptions ?? [])
+                .map((option) => option.name)
+                .join(', ');
+            await this.aiAgentModel.updateModelResponse({
+                promptUuid,
+                response: sourceNames
+                    ? `This project has more than one dbt source: ${sourceNames}. Reply naming one and I'll try again.`
+                    : "This project has more than one dbt source, so I couldn't tell which one to change. Reply naming one and I'll try again.",
+            });
+        }
     }
 
     /** Called by the worker's `tryJobOrTimeout` timeout handler for the editDbtProject pipeline job. */
