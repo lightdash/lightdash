@@ -18,6 +18,7 @@ import {
 import { TypedEETaskList } from '../../scheduler/types';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type AiAgentReviewNotificationModel } from '../models/AiAgentReviewNotificationModel';
+import { type McpToolCallModel } from '../models/McpToolCallModel';
 import { AiAgentAdminService } from '../services/AiAgentAdminService';
 import { AiAgentReviewClassifierService } from '../services/AiAgentReviewClassifierService';
 import { type AiAgentReviewNotificationService } from '../services/AiAgentReviewNotificationService';
@@ -28,6 +29,7 @@ import { ManagedAgentService } from '../services/ManagedAgentService/ManagedAgen
 import { ProjectContextService } from '../services/ProjectContextService/ProjectContextService';
 import { sendReviewNotification } from './tasks/sendReviewNotification';
 
+const MCP_TOOL_CALL_RETENTION_DAYS = 90;
 const AI_AGENT_EVAL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 const AI_AGENT_REVIEW_REMEDIATION_RUN_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 const AI_AGENT_REVIEW_CLASSIFIER_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
@@ -47,6 +49,7 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     projectContextService: ProjectContextService;
     projectModel: ProjectModel;
     openIdIdentityModel: OpenIdIdentityModel;
+    mcpToolCallModel: McpToolCallModel;
 };
 
 export class CommercialSchedulerWorker extends SchedulerWorker {
@@ -74,6 +77,8 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
     protected readonly openIdIdentityModel: OpenIdIdentityModel;
 
+    protected readonly mcpToolCallModel: McpToolCallModel;
+
     constructor(args: CommercialSchedulerWorkerArguments) {
         super(args);
         this.aiAgentService = args.aiAgentService;
@@ -91,6 +96,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         this.projectContextService = args.projectContextService;
         this.projectModel = args.projectModel;
         this.openIdIdentityModel = args.openIdIdentityModel;
+        this.mcpToolCallModel = args.mcpToolCallModel;
     }
 
     protected getCronItems() {
@@ -102,6 +108,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 options: {
                     backfillPeriod: 5 * 60 * 1000, // 5 min
                     maxAttempts: 1,
+                },
+            },
+            {
+                task: EE_SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS,
+                pattern: '45 0 * * *', // 00:45 UTC daily
+                options: {
+                    backfillPeriod: 24 * 3600 * 1000, // 24 hours in ms
+                    maxAttempts: 3,
                 },
             },
         ];
@@ -123,6 +137,16 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
             [EE_SCHEDULER_TASKS.SLACK_AI_PROMPT]: async (payload, _helpers) => {
                 await this.aiAgentService.replyToSlackPrompt(
                     payload.slackPromptUuid,
+                );
+            },
+            [EE_SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: async () => {
+                Logger.info('Starting MCP tool call cleanup job');
+                const deleted =
+                    await this.mcpToolCallModel.deleteToolCallsOlderThan(
+                        MCP_TOOL_CALL_RETENTION_DAYS,
+                    );
+                Logger.info(
+                    `MCP tool call cleanup completed. Records deleted: ${deleted}`,
                 );
             },
             [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_PREVIEW]: async (

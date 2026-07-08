@@ -153,6 +153,7 @@ export type ModelManifest = {
     aiAgentReviewNotificationModel: unknown;
     projectContextModel: unknown;
     aiRouterModel: unknown;
+    mcpToolCallModel: unknown;
     managedAgentModel: unknown;
     aiOrganizationSettingsModel: unknown;
     embedModel: unknown;
@@ -779,6 +780,10 @@ export class ModelRepository
 
     public getAiAgentModel<ModelImplT>(): ModelImplT {
         return this.getModel('aiAgentModel');
+    }
+
+    public getMcpToolCallModel<ModelImplT>(): ModelImplT {
+        return this.getModel('mcpToolCallModel');
     }
 
     public getAiAgentDocumentModel<ModelImplT>(): ModelImplT {

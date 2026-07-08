@@ -88,6 +88,55 @@ function extractUserAttributesFromHeader(
     }
 }
 
+const MCP_PROTOCOL_VERSION_HEADER = 'MCP-Protocol-Version';
+
+function extractProtocolVersionFromHeader(
+    req: express.Request,
+): string | undefined {
+    const headerValue = req.headers[MCP_PROTOCOL_VERSION_HEADER.toLowerCase()];
+    return typeof headerValue === 'string' ? headerValue : undefined;
+}
+
+/**
+ * Reads the client identity from an MCP initialize request body
+ * ({ method: 'initialize', params: { clientInfo: { name, version } } }).
+ * Only single-message bodies are inspected: an initialize inside a JSON-RPC
+ * batch array is missed (batching was removed in protocol 2025-06-18, so this
+ * only affects older clients, which then fall back to user-agent identity).
+ */
+function extractClientInfoFromInitialize(
+    req: express.Request,
+): { name: string; version: string | null } | undefined {
+    const { body }: { body: unknown } = req;
+    if (
+        typeof body !== 'object' ||
+        body === null ||
+        !('method' in body) ||
+        body.method !== 'initialize'
+    ) {
+        return undefined;
+    }
+    const params =
+        'params' in body && typeof body.params === 'object'
+            ? (body.params as { clientInfo?: unknown })
+            : undefined;
+    const clientInfo = params?.clientInfo;
+    if (
+        typeof clientInfo !== 'object' ||
+        clientInfo === null ||
+        !('name' in clientInfo) ||
+        typeof clientInfo.name !== 'string' ||
+        clientInfo.name.length === 0
+    ) {
+        return undefined;
+    }
+    const version =
+        'version' in clientInfo && typeof clientInfo.version === 'string'
+            ? clientInfo.version
+            : null;
+    return { name: clientInfo.name, version };
+}
+
 /*
 MCP servers MUST use the HTTP header WWW-Authenticate when returning a 401 Unauthorized to indicate
 the location of the resource server metadata URL as described in RFC9728 Section 5.1 "WWW-Authenticate Response".
@@ -170,6 +219,21 @@ mcpRouter.all(
                 // to prevent cross-client response data leaks (CVE-2026-25536)
                 // See: https://github.com/advisories/GHSA-345p-7cg4-v4c7
                 const headerProjectUuid = extractProjectUuidFromHeader(req);
+                const userAgent = req.account?.requestContext?.userAgent;
+                const protocolVersion = extractProtocolVersionFromHeader(req);
+
+                // The transport is stateless, so clientInfo only ever appears
+                // on initialize requests; store it so later tool calls can
+                // attach the client identity by matching user agent.
+                const clientInfo = extractClientInfoFromInitialize(req);
+                if (clientInfo && userAgent && req.user) {
+                    await mcpService.captureClientInfo({
+                        user: req.user,
+                        clientName: clientInfo.name,
+                        clientVersion: clientInfo.version,
+                        userAgent,
+                    });
+                }
                 // Dark launch: the run_ai_writeback tool is only registered
                 // (and thus only listed/invocable) when the AiWriteback flag is
                 // enabled for this caller. Resolved here because tool
@@ -209,6 +273,8 @@ mcpRouter.all(
                         account: oauthAuth,
                         headerUserAttributes,
                         headerProjectUuid,
+                        userAgent,
+                        protocolVersion,
                     };
                     authReq.auth = {
                         token: oauthAuth.authentication.token,
@@ -225,6 +291,8 @@ mcpRouter.all(
                         account: apiKeyAuth,
                         headerUserAttributes,
                         headerProjectUuid,
+                        userAgent,
+                        protocolVersion,
                     };
                     authReq.auth = {
                         token: apiKeyAuth.authentication.source,
@@ -242,6 +310,8 @@ mcpRouter.all(
                         account: serviceAccountAuth,
                         headerUserAttributes,
                         headerProjectUuid,
+                        userAgent,
+                        protocolVersion,
                     };
                     authReq.auth = {
                         token: serviceAccountAuth.authentication.source,
