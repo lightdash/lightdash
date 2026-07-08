@@ -1279,27 +1279,39 @@ const useCartesianChartConfig = ({
         [dirtyEchartsConfig?.series, dirtyLayout?.stack],
     );
 
-    const isCustomColorsEligible = useMemo(
+    // Conditional formatting: non-stacked all-bar charts without pivots,
+    // regardless of metric count. Mixed bar/line charts are excluded since
+    // formatting only renders on bars.
+    const isConditionalFormattingEligible = useMemo(
         () =>
             dirtyChartType === CartesianSeriesType.BAR &&
+            (dirtyEchartsConfig?.series ?? []).every(
+                (series) => series.type === CartesianSeriesType.BAR,
+            ) &&
             !pivotKeys?.length &&
-            (dirtyLayout?.yField?.length ?? 0) <= 1 &&
             !hasCustomColorsStacking,
         [
             dirtyChartType,
+            dirtyEchartsConfig?.series,
             pivotKeys,
-            dirtyLayout?.yField,
             hasCustomColorsStacking,
         ],
     );
 
+    // Color by category: only single-metric bar charts
+    const isColorByCategoryEligible = useMemo(
+        () =>
+            isConditionalFormattingEligible &&
+            (dirtyLayout?.yField?.length ?? 0) <= 1,
+        [isConditionalFormattingEligible, dirtyLayout?.yField],
+    );
+
     useEffect(() => {
-        if (isCustomColorsEligible) return;
+        if (isColorByCategoryEligible) return;
 
         if (
             !dirtyLayout?.colorByCategory &&
-            !dirtyLayout?.categoryColorOverrides &&
-            conditionalFormattings.length === 0
+            !dirtyLayout?.categoryColorOverrides
         ) {
             return;
         }
@@ -1309,37 +1321,47 @@ const useCartesianChartConfig = ({
             colorByCategory: undefined,
             categoryColorOverrides: undefined,
         }));
-        setConditionalFormattings([]);
     }, [
-        isCustomColorsEligible,
+        isColorByCategoryEligible,
         dirtyLayout?.colorByCategory,
         dirtyLayout?.categoryColorOverrides,
-        conditionalFormattings,
     ]);
 
     useEffect(() => {
-        const targetFieldId = dirtyLayout?.yField?.[0];
-        if (
-            !isCustomColorsEligible ||
-            !targetFieldId ||
-            conditionalFormattings.length === 0
-        ) {
-            return;
-        }
+        if (isConditionalFormattingEligible) return;
 
-        const hasOutdatedTargets = conditionalFormattings.some(
-            (config) => config.target?.fieldId !== targetFieldId,
-        );
+        setConditionalFormattings((prev) => (prev.length === 0 ? prev : []));
+    }, [isConditionalFormattingEligible]);
 
-        if (!hasOutdatedTargets) return;
+    // Repair configs whose target no longer exists on the chart (e.g. the
+    // metric was swapped or removed) by pointing them at the first metric
+    useEffect(() => {
+        if (!isConditionalFormattingEligible) return;
 
-        setConditionalFormattings((prev) =>
-            prev.map((config) => ({
-                ...config,
-                target: { fieldId: targetFieldId },
-            })),
-        );
-    }, [isCustomColorsEligible, dirtyLayout?.yField, conditionalFormattings]);
+        const yFields = dirtyLayout?.yField ?? [];
+        const firstYField = yFields[0];
+        if (!firstYField) return;
+
+        setConditionalFormattings((prev) => {
+            const hasOutdatedTargets = prev.some(
+                (config) =>
+                    !config.target?.fieldId ||
+                    !yFields.includes(config.target.fieldId),
+            );
+
+            if (!hasOutdatedTargets) return prev;
+
+            return prev.map((config) =>
+                config.target?.fieldId &&
+                yFields.includes(config.target.fieldId)
+                    ? config
+                    : {
+                          ...config,
+                          target: { fieldId: firstYField },
+                      },
+            );
+        });
+    }, [isConditionalFormattingEligible, dirtyLayout?.yField]);
 
     const validConfig: CartesianChart = useMemo(() => {
         // Always use the dirtyLayout and dirtyEchartsConfig when possible, fallback to the empty config if not complete.

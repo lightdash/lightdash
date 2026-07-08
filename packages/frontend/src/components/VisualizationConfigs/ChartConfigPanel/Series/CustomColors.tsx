@@ -24,7 +24,8 @@ type Props = {
     items: (Field | TableCalculation | CustomDimension)[];
     rows: ResultRow[] | undefined;
     xField: string | undefined;
-    yField: string | undefined;
+    yFields: string[];
+    canColorByCategory: boolean;
     colorPalette: string[];
     colorByCategory: boolean;
     categoryColorOverrides: Record<string, string>;
@@ -41,7 +42,8 @@ export const CustomColors: FC<Props> = ({
     items,
     rows,
     xField,
-    yField,
+    yFields,
+    canColorByCategory,
     colorPalette,
     colorByCategory,
     categoryColorOverrides,
@@ -80,19 +82,24 @@ export const CustomColors: FC<Props> = ({
 
     const [setAllColor, setSetAllColor] = useState<string | undefined>();
 
-    const customColorMode = colorByCategory
-        ? CUSTOM_COLOR_MODE.CATEGORY
-        : conditionalFormattings.length > 0
-          ? CUSTOM_COLOR_MODE.CONDITIONAL_FORMATTING
-          : CUSTOM_COLOR_MODE.CATEGORY;
+    const customColorMode =
+        canColorByCategory &&
+        (colorByCategory || conditionalFormattings.length === 0)
+            ? CUSTOM_COLOR_MODE.CATEGORY
+            : CUSTOM_COLOR_MODE.CONDITIONAL_FORMATTING;
 
-    const maybeTargetField = items.find(
-        (candidate) => getItemId(candidate) === yField,
+    const targetFields = useMemo(
+        () =>
+            yFields.flatMap((yFieldId) => {
+                const candidate = items.find(
+                    (item) => getItemId(item) === yFieldId,
+                );
+                return candidate && isFilterableItem(candidate)
+                    ? [candidate]
+                    : [];
+            }),
+        [items, yFields],
     );
-    const targetField =
-        maybeTargetField && isFilterableItem(maybeTargetField)
-            ? maybeTargetField
-            : undefined;
 
     const handleSetAllCategoryColors = useCallback(
         (color: string) => {
@@ -110,40 +117,44 @@ export const CustomColors: FC<Props> = ({
 
     return (
         <>
-            <SegmentedControl
-                size="xs"
-                value={customColorMode}
-                data={[
-                    {
-                        value: CUSTOM_COLOR_MODE.CATEGORY,
-                        label: 'Category',
-                    },
-                    {
-                        value: CUSTOM_COLOR_MODE.CONDITIONAL_FORMATTING,
-                        label: 'Conditional formatting',
-                    },
-                ]}
-                onChange={(value) => {
-                    if (value === CUSTOM_COLOR_MODE.CATEGORY) {
-                        setColorByCategory(true);
-                        return;
-                    }
+            {canColorByCategory && (
+                <SegmentedControl
+                    size="xs"
+                    value={customColorMode}
+                    data={[
+                        {
+                            value: CUSTOM_COLOR_MODE.CATEGORY,
+                            label: 'Category',
+                        },
+                        {
+                            value: CUSTOM_COLOR_MODE.CONDITIONAL_FORMATTING,
+                            label: 'Conditional formatting',
+                        },
+                    ]}
+                    onChange={(value) => {
+                        if (value === CUSTOM_COLOR_MODE.CATEGORY) {
+                            setColorByCategory(true);
+                            return;
+                        }
 
-                    setColorByCategory(false);
-                    if (conditionalFormattings.length === 0) {
-                        onSetConditionalFormattings([
-                            createConditionalFormattingConfigWithSingleColor(
-                                colorPalette[0],
-                                targetField
-                                    ? {
-                                          fieldId: getItemId(targetField),
-                                      }
-                                    : null,
-                            ),
-                        ]);
-                    }
-                }}
-            />
+                        setColorByCategory(false);
+                        if (conditionalFormattings.length === 0) {
+                            onSetConditionalFormattings([
+                                createConditionalFormattingConfigWithSingleColor(
+                                    colorPalette[0],
+                                    targetFields[0]
+                                        ? {
+                                              fieldId: getItemId(
+                                                  targetFields[0],
+                                              ),
+                                          }
+                                        : null,
+                                ),
+                            ]);
+                        }
+                    }}
+                />
+            )}
             {customColorMode === CUSTOM_COLOR_MODE.CATEGORY ? (
                 uniqueCategories.length > 0 && (
                     <>
@@ -213,7 +224,7 @@ export const CustomColors: FC<Props> = ({
             ) : (
                 <ChartConditionalFormatting
                     colorPalette={colorPalette}
-                    field={targetField}
+                    fields={targetFields}
                     conditionalFormattings={conditionalFormattings}
                     onSetConditionalFormattings={onSetConditionalFormattings}
                 />
