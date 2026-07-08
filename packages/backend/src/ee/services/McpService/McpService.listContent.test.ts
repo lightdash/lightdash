@@ -90,6 +90,7 @@ type TestSpace = {
 type TestContentItem =
     | {
           contentType: 'chart' | 'dashboard' | 'data_app';
+          uuid: string;
           name: string;
           slug: string;
       }
@@ -165,6 +166,23 @@ const makeMcpService = ({
 
     const toSpaceSlug = (path: string) =>
         path.replace(/\./g, '/').replace(/_/g, '-');
+    const getContentHref = (
+        item: Extract<
+            TestContentItem,
+            { contentType: 'chart' | 'dashboard' | 'data_app' }
+        >,
+    ) => {
+        switch (item.contentType) {
+            case 'dashboard':
+                return `/projects/${projectUuid}/dashboards/${item.uuid}/view#dashboard-link`;
+            case 'chart':
+                return `/projects/${projectUuid}/saved/${item.uuid}/view#chart-link`;
+            case 'data_app':
+                return `/projects/${projectUuid}/apps/${item.uuid}`;
+            default:
+                throw new Error(`Unsupported content type`);
+        }
+    };
     const aiAgentToolsService = {
         createRuntime: vi.fn((runtimeContext: TestRuntimeContext) => ({
             listContent: vi.fn(async ({ spaceSlug, page }) => {
@@ -180,6 +198,7 @@ const makeMcpService = ({
                             contentType: 'space',
                             name: space.name,
                             slug: toSpaceSlug(space.path),
+                            href: `/projects/${projectUuid}/spaces/${space.uuid}`,
                             chartCount: space.chartCount,
                             dashboardCount: space.dashboardCount,
                             childSpaceCount: space.childSpaceCount,
@@ -204,6 +223,7 @@ const makeMcpService = ({
                                   contentType: 'space',
                                   name: item.name,
                                   slug: toSpaceSlug(item.path),
+                                  href: `/projects/${projectUuid}/spaces/${item.uuid}`,
                                   chartCount: item.chartCount,
                                   dashboardCount: item.dashboardCount,
                                   childSpaceCount: item.childSpaceCount,
@@ -211,7 +231,10 @@ const makeMcpService = ({
                                   directAccess:
                                       item.access?.includes(userUuid) === true,
                               }
-                            : item,
+                            : {
+                                  ...item,
+                                  href: getContentHref(item),
+                              },
                     ),
                     pagination: contentResults.pagination,
                 };
@@ -335,6 +358,9 @@ describe('MCP list_content', () => {
         expect(text).toContain('contentType="space"');
         expect(text).toContain('name="Allowed Space"');
         expect(text).toContain('slug="allowed-space"');
+        expect(text).toContain(
+            `href="/projects/${projectUuid}/spaces/${allowedSpaceUuid}"`,
+        );
         expect(text).toContain('chartCount="2"');
         expect(text).not.toContain('Blocked Space');
     });
@@ -358,6 +384,7 @@ describe('MCP list_content', () => {
                 data: [
                     {
                         contentType: 'chart',
+                        uuid: 'revenue-chart-uuid',
                         name: 'Revenue Chart',
                         slug: 'revenue-chart',
                     },
@@ -391,7 +418,13 @@ describe('MCP list_content', () => {
         expect(text).toContain('spaceSlug="allowed-space"');
         expect(text).toContain('name="Revenue Chart"');
         expect(text).toContain('slug="revenue-chart"');
+        expect(text).toContain(
+            `href="/projects/${projectUuid}/saved/revenue-chart-uuid/view#chart-link"`,
+        );
         expect(text).toContain('name="Child Space"');
         expect(text).toContain('slug="allowed-space/child-space"');
+        expect(text).toContain(
+            `href="/projects/${projectUuid}/spaces/child-space-uuid"`,
+        );
     });
 });
