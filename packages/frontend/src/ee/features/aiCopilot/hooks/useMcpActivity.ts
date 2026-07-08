@@ -1,11 +1,14 @@
 import {
     type ApiError,
     type ApiMcpActivityResponse,
+    type ApiMcpActivityStatsResponse,
     type McpActivityFilters,
     type McpActivitySort,
+    type McpActivityStatsFilters,
 } from '@lightdash/common';
 import {
     useInfiniteQuery,
+    useQuery,
     type UseInfiniteQueryOptions,
 } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
@@ -48,6 +51,23 @@ const getMcpActivity = async (
         body: undefined,
     });
 };
+
+const getMcpActivityStats = async (filters: McpActivityStatsFilters) => {
+    const params = createQueryString(filters);
+    return lightdashApi<ApiMcpActivityStatsResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/mcp-activity/stats?${params}`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+export const useMcpActivityStats = (filters: McpActivityStatsFilters) =>
+    useQuery<ApiMcpActivityStatsResponse['results'], ApiError>({
+        queryKey: ['mcp-activity-stats', filters],
+        queryFn: () => getMcpActivityStats(filters),
+        keepPreviousData: true,
+    });
 
 export const useInfiniteMcpActivity = (
     args: McpActivityArgs,
