@@ -1,3 +1,4 @@
+import { DimensionType, FilterOperator, FilterType } from '@lightdash/common';
 import {
     buildFeedbackContextActions,
     buildSlackTaskUpdate,
@@ -375,8 +376,27 @@ describe('Slack AI agent blocks', () => {
         ]);
     });
 
+    const statusFilter = (status: string) => ({
+        type: 'and' as const,
+        dimensions: [
+            {
+                fieldId: 'orders_status',
+                operator: FilterOperator.EQUALS as const,
+                values: [status],
+                fieldType: DimensionType.STRING as const,
+                fieldFilterType: FilterType.STRING as const,
+            },
+        ],
+        metrics: null,
+        tableCalculations: null,
+    });
+
     it('renders one turn with multiple chart versions as a carousel', async () => {
-        const chartVersion = (versionUuid: string, title: string) => ({
+        const chartVersion = (
+            versionUuid: string,
+            title: string,
+            status: string,
+        ) => ({
             artifactUuid: 'artifact-1',
             threadUuid: 'thread-1',
             promptUuid: 'prompt-1',
@@ -403,7 +423,7 @@ describe('Slack AI agent blocks', () => {
                     limit: 500,
                     customMetrics: [],
                     tableCalculations: [],
-                    filters: null,
+                    filters: statusFilter(status),
                 },
                 chartConfig: null,
             },
@@ -432,9 +452,13 @@ describe('Slack AI agent blocks', () => {
             async () => ({}) as never,
             'agent-1',
             [
-                chartVersion('version-1', 'Placed orders by month'),
-                chartVersion('version-2', 'Shipped orders by month'),
-                chartVersion('version-3', 'Completed orders by month'),
+                chartVersion('version-1', 'Placed orders by month', 'placed'),
+                chartVersion('version-2', 'Shipped orders by month', 'shipped'),
+                chartVersion(
+                    'version-3',
+                    'Completed orders by month',
+                    'completed',
+                ),
             ],
             [
                 attempt('call-1', 'https://files.slack.com/placed.png'),
@@ -469,6 +493,146 @@ describe('Slack AI agent blocks', () => {
                         },
                     },
                 ],
+            },
+        ]);
+    });
+
+    it('collapses retried versions of the same chart into a single card', async () => {
+        const retryVersion = (versionUuid: string) => ({
+            artifactUuid: 'artifact-1',
+            threadUuid: 'thread-1',
+            promptUuid: 'prompt-1',
+            artifactType: 'chart' as const,
+            savedQueryUuid: null,
+            savedDashboardUuid: null,
+            createdAt: new Date(),
+            versionNumber: Number(versionUuid.split('-')[1]),
+            versionUuid,
+            title: 'Placed vs completed orders',
+            description: null,
+            dashboardConfig: null,
+            versionCreatedAt: new Date(),
+            verifiedByUserUuid: null,
+            verifiedAt: null,
+            chartConfig: {
+                title: 'Placed vs completed orders',
+                description: 'Placed vs completed orders',
+                queryConfig: {
+                    exploreName: 'orders',
+                    dimensions: ['orders_order_date_month'],
+                    metrics: ['orders_unique_order_count'],
+                    sorts: [],
+                    limit: 500,
+                    customMetrics: [],
+                    tableCalculations: [],
+                    filters: statusFilter('completed'),
+                },
+                chartConfig: null,
+            },
+        });
+
+        const attempt = (callId: string, url: string) => ({
+            uuid: `result-${callId}`,
+            promptUuid: 'prompt-1',
+            toolCallId: callId,
+            toolType: 'built-in' as const,
+            toolName: 'generateVisualization' as const,
+            result: 'ok',
+            createdAt: new Date(),
+            metadata: { status: 'success', chartImageUrl: url } as never,
+        });
+
+        const blocks = await getModernArtifactCardBlocks(
+            {
+                promptUuid: 'prompt-1',
+                projectUuid: 'project-1',
+                threadUuid: 'thread-1',
+            } as never,
+            'https://lightdash.example.com',
+            500,
+            async () => 'https://lightdash.example.com/share/chart',
+            async () => ({}) as never,
+            'agent-1',
+            [
+                retryVersion('version-1'),
+                retryVersion('version-2'),
+                retryVersion('version-3'),
+            ],
+            [
+                attempt('call-1', 'https://files.slack.com/attempt-1.png'),
+                attempt('call-2', 'https://files.slack.com/attempt-2.png'),
+                attempt('call-3', 'https://files.slack.com/attempt-3.png'),
+            ],
+        );
+
+        expect(blocks).toMatchObject([
+            {
+                type: 'card',
+                title: { text: 'Placed vs completed orders' },
+                hero_image: {
+                    image_url: 'https://files.slack.com/attempt-3.png',
+                },
+            },
+        ]);
+        expect(blocks).toHaveLength(1);
+    });
+
+    it('keeps charts with the same title but different queries as separate cards', async () => {
+        const chartVersion = (versionUuid: string, status: string) => ({
+            artifactUuid: 'artifact-1',
+            threadUuid: 'thread-1',
+            promptUuid: 'prompt-1',
+            artifactType: 'chart' as const,
+            savedQueryUuid: null,
+            savedDashboardUuid: null,
+            createdAt: new Date(),
+            versionNumber: Number(versionUuid.split('-')[1]),
+            versionUuid,
+            title: 'Orders by month',
+            description: null,
+            dashboardConfig: null,
+            versionCreatedAt: new Date(),
+            verifiedByUserUuid: null,
+            verifiedAt: null,
+            chartConfig: {
+                title: 'Orders by month',
+                description: 'Orders by month',
+                queryConfig: {
+                    exploreName: 'orders',
+                    dimensions: ['orders_order_date_month'],
+                    metrics: ['orders_unique_order_count'],
+                    sorts: [],
+                    limit: 500,
+                    customMetrics: [],
+                    tableCalculations: [],
+                    filters: statusFilter(status),
+                },
+                chartConfig: null,
+            },
+        });
+
+        const blocks = await getModernArtifactCardBlocks(
+            {
+                promptUuid: 'prompt-1',
+                projectUuid: 'project-1',
+                threadUuid: 'thread-1',
+            } as never,
+            'https://lightdash.example.com',
+            500,
+            async () => 'https://lightdash.example.com/share/chart',
+            async () => ({}) as never,
+            'agent-1',
+            [
+                chartVersion('version-1', 'placed'),
+                chartVersion('version-2', 'completed'),
+            ],
+            [],
+        );
+
+        expect(blocks).toMatchObject([
+            {
+                type: 'carousel',
+                elements: [{ type: 'card' }, { type: 'card' }],
             },
         ]);
     });

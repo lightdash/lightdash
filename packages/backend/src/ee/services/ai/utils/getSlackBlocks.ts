@@ -548,12 +548,52 @@ export async function getModernArtifactCardBlocks(
                     .chartImageUrl,
         )
         .filter((url): url is string => Boolean(url));
-    const chartArtifacts = artifacts
-        .slice(0, 3)
-        .filter((artifact) => Boolean(artifact.chartConfig));
+    // Two chart versions are the "same chart" when their query and viz type
+    // match. A retried generateVisualization re-runs the same query, so those
+    // versions share this identity; genuinely different charts (e.g. a
+    // per-status filter) do not.
+    const getArtifactChartIdentity = (artifact: AiArtifact): string => {
+        if (artifact.chartConfig) {
+            const viz = parseVizConfig(artifact.chartConfig, maxQueryLimit);
+            if (viz) {
+                // parseVizConfig assigns a random id to each filter rule, so
+                // drop id fields to keep the identity stable across retries.
+                return JSON.stringify(
+                    { type: viz.type, metricQuery: viz.metricQuery },
+                    (key, value) => (key === 'id' ? undefined : value),
+                );
+            }
+        }
+        if (artifact.dashboardConfig) {
+            return JSON.stringify({ dashboard: artifact.dashboardConfig });
+        }
+        return `version:${artifact.versionUuid}`;
+    };
+
+    // Collapse retries to the latest version so they render as one card, while
+    // keeping distinct charts as separate cards (Slack allows up to 10).
+    const dedupedArtifacts = Array.from(
+        artifacts
+            .reduce((byIdentity, artifact) => {
+                const identity = getArtifactChartIdentity(artifact);
+                const existing = byIdentity.get(identity);
+                if (
+                    !existing ||
+                    artifact.versionNumber > existing.versionNumber
+                ) {
+                    byIdentity.set(identity, artifact);
+                }
+                return byIdentity;
+            }, new Map<string, AiArtifact>())
+            .values(),
+    ).slice(0, 10);
+
+    const chartArtifacts = dedupedArtifacts.filter((artifact) =>
+        Boolean(artifact.chartConfig),
+    );
 
     const blocks = await Promise.all(
-        artifacts.slice(0, 3).map(async (artifact, index) => {
+        dedupedArtifacts.map(async (artifact, index) => {
             if (artifact.chartConfig) {
                 const vizConfig = parseVizConfig(
                     artifact.chartConfig,
