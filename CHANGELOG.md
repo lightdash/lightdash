@@ -1,3 +1,10 @@
+# [0.3336.0](https://github.com/lightdash/lightdash/compare/0.3335.2...0.3336.0) (2026-07-08)
+
+
+### Features
+
+* **backend:** persist and validate declared app dependencies per version [GLITCH-601] ([#25177](https://github.com/lightdash/lightdash/issues/25177)) ([a6b8d83](https://github.com/lightdash/lightdash/commit/a6b8d83d0769f347fcda6396ef12a2b8ed0db70b))
+
 ## [0.3335.2](https://github.com/lightdash/lightdash/compare/0.3335.1...0.3335.2) (2026-07-08)
 
 
