@@ -54,6 +54,7 @@ import type {
     ApiManagedAgentActionResponse,
     ApiManagedAgentRunResponse,
     ApiManagedAgentRunsListResponse,
+    ApiMcpActivityResponse,
     ApiMyAppsResponse,
     ApiOrganizationDesignFileResponse,
     ApiOrganizationDesignResponse,
@@ -1139,6 +1140,7 @@ type ApiResults =
     | Account
     | ApiAiAgentAdminConversationsResponse['results']
     | ApiAiAgentAdminPromptActivityResponse['results']
+    | ApiMcpActivityResponse['results']
     | ApiAiAgentReviewItemWritebackPreviewResponse['results']
     | ApiAiAgentReviewItemPrDiffResponse['results']
     | ApiAiAgentReviewItemActivityResponse['results']

@@ -409,6 +409,14 @@ export const useSettingsNavigation = (
                     children: [],
                     exact: true,
                 },
+                {
+                    label: 'MCP',
+                    to: '/generalSettings/ai/mcp',
+                    icon: IconPlugConnected,
+                    keywords: ['mcp', 'tools', 'activity', 'claude', 'cursor'],
+                    children: [],
+                    exact: true,
+                },
             );
 
             if (shouldShowAiAgentReviews) {
