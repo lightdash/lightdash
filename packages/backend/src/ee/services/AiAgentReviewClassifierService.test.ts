@@ -294,6 +294,7 @@ describe('AiAgentReviewClassifierService', () => {
             aiAgentReviewsEnabled: true,
             mcpContentWritesEnabled: true,
             defaultAiAgentModelConfig: null,
+            modelVisibility: null,
             providerApiKeysSet: { anthropic: false, openai: false },
             providerApiKeyHints: { anthropic: null, openai: null },
         });
@@ -361,6 +362,7 @@ describe('AiAgentReviewClassifierService', () => {
                 aiAgentReviewsEnabled: false,
                 mcpContentWritesEnabled: true,
                 defaultAiAgentModelConfig: null,
+                modelVisibility: null,
                 providerApiKeysSet: { anthropic: false, openai: false },
                 providerApiKeyHints: { anthropic: null, openai: null },
             },

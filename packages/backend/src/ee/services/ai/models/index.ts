@@ -1,4 +1,11 @@
-import { assertUnreachable, ParameterError } from '@lightdash/common';
+import {
+    assertUnreachable,
+    isByoAiProvider,
+    ParameterError,
+    type AiModelOption,
+    type AiOrgModelVisibility,
+    type ByoAiProvider,
+} from '@lightdash/common';
 import { simulateStreamingMiddleware, wrapLanguageModel } from 'ai';
 import { LightdashConfig } from '../../../../config/parseConfig';
 import Logger from '../../../../logging/logger';
@@ -101,6 +108,61 @@ export const getAvailableModels = (
         return filteredPresets;
     });
 };
+
+export const presetToModelOption = (
+    preset: ModelPreset<'openai' | 'anthropic' | 'bedrock'>,
+    defaultModel: { name: string; provider: string } | null,
+): AiModelOption => ({
+    name: preset.name,
+    displayName: preset.displayName,
+    description: preset.description,
+    provider: preset.provider,
+    default:
+        defaultModel !== null &&
+        preset.provider === defaultModel.provider &&
+        matchesPreset(preset, defaultModel.name),
+    supportsReasoning: preset.supportsReasoning,
+});
+
+export type OrgModelOverrides = {
+    modelVisibility: AiOrgModelVisibility | null;
+    // Model ids each org BYO key can access; missing/null = unknown → fail closed
+    keyAccessibleModelIds: Partial<
+        Record<ByoAiProvider, string[] | null>
+    > | null;
+};
+
+/**
+ * Org-level filter for model LISTINGS only — never applied in getModelPreset
+ * resolution, so agents already configured with a hidden or disallowed model
+ * keep working (grandfathered); they just can't be selected again.
+ */
+export const filterModelsForOrg = (
+    presets: ModelPreset<'openai' | 'anthropic' | 'bedrock'>[],
+    overrides: OrgModelOverrides,
+): ModelPreset<'openai' | 'anthropic' | 'bedrock'>[] =>
+    presets.filter((preset) => {
+        // Only BYO-able providers can unlock hidden models or be restricted
+        const byoProvider = isByoAiProvider(preset.provider)
+            ? preset.provider
+            : null;
+        if (preset.hiddenUnlessKeyAccess) {
+            const accessibleIds = byoProvider
+                ? overrides.keyAccessibleModelIds?.[byoProvider]
+                : null;
+            if (!accessibleIds?.includes(preset.modelId)) return false;
+        }
+        if (!byoProvider) return true;
+        const visibility = overrides.modelVisibility?.[byoProvider];
+        if (!visibility) return true;
+        if (!visibility.enabled) return false;
+        if (visibility.allowedModels && visibility.allowedModels.length > 0) {
+            return visibility.allowedModels.some((model) =>
+                matchesPreset(preset, model),
+            );
+        }
+        return true;
+    });
 
 export const getModelPreset = <T extends 'openai' | 'anthropic' | 'bedrock'>(
     provider: T,

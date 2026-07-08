@@ -1,8 +1,16 @@
+import type {
+    AiOrganizationSettings,
+    AiOrgModelVisibility,
+} from '@lightdash/common';
 import { vi } from 'vitest';
 import { aiCopilotConfigSchema } from '../../../config/aiConfigSchema';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
-import { AiOrganizationSettingsModel } from '../../models/AiOrganizationSettingsModel';
+import { AiModelCatalog } from '../../clients/Ai/AiModelCatalog';
+import {
+    AiOrganizationSettingsModel,
+    AiOrgProviderApiKeys,
+} from '../../models/AiOrganizationSettingsModel';
 import {
     OrgAiCopilotConfigResolver,
     overlayOrgProviderApiKeys,
@@ -63,7 +71,19 @@ describe('overlayOrgProviderApiKeys', () => {
 });
 
 describe('OrgAiCopilotConfigResolver', () => {
-    const makeResolver = (flagEnabled: boolean) =>
+    type ResolverOptions = {
+        flagEnabled: boolean;
+        orgKeys?: AiOrgProviderApiKeys | null;
+        modelVisibility?: AiOrgModelVisibility | null;
+        accessibleModelIds?: string[] | null;
+    };
+
+    const makeResolver = ({
+        flagEnabled,
+        orgKeys = { openai: 'org-openai-key' },
+        modelVisibility = null,
+        accessibleModelIds = null,
+    }: ResolverOptions) =>
         new OrgAiCopilotConfigResolver({
             lightdashConfig: {
                 ai: { copilot: baseConfig },
@@ -71,10 +91,13 @@ describe('OrgAiCopilotConfigResolver', () => {
             aiOrganizationSettingsModel: {
                 findDecryptedProviderApiKeys: vi
                     .fn()
-                    .mockResolvedValue({ openai: 'org-openai-key' }),
+                    .mockResolvedValue(orgKeys),
+                findByOrganizationUuid: vi.fn().mockResolvedValue({
+                    modelVisibility,
+                } as AiOrganizationSettings),
             } as Pick<
                 AiOrganizationSettingsModel,
-                'findDecryptedProviderApiKeys'
+                'findDecryptedProviderApiKeys' | 'findByOrganizationUuid'
             > as AiOrganizationSettingsModel,
             featureFlagService: {
                 get: vi.fn().mockResolvedValue({
@@ -82,15 +105,96 @@ describe('OrgAiCopilotConfigResolver', () => {
                     enabled: flagEnabled,
                 }),
             } as Pick<FeatureFlagService, 'get'> as FeatureFlagService,
+            aiModelCatalog: {
+                getAccessibleModelIds: vi
+                    .fn()
+                    .mockResolvedValue(accessibleModelIds),
+            } as Pick<
+                AiModelCatalog,
+                'getAccessibleModelIds'
+            > as AiModelCatalog,
         });
 
     it('returns the base config untouched when the feature flag is off', async () => {
-        const result = await makeResolver(false).getCopilotConfig('org-uuid');
+        const result = await makeResolver({
+            flagEnabled: false,
+        }).getCopilotConfig('org-uuid');
         expect(result.providers.openai?.apiKey).toBe('instance-openai-key');
     });
 
     it('overlays org keys when the feature flag is on', async () => {
-        const result = await makeResolver(true).getCopilotConfig('org-uuid');
+        const result = await makeResolver({
+            flagEnabled: true,
+        }).getCopilotConfig('org-uuid');
         expect(result.providers.openai?.apiKey).toBe('org-openai-key');
+    });
+
+    describe('getOrgModelOverrides', () => {
+        const none = { modelVisibility: null, keyAccessibleModelIds: null };
+
+        it('returns no overrides without an organization uuid', async () => {
+            const resolver = makeResolver({ flagEnabled: true });
+            expect(await resolver.getOrgModelOverrides(null)).toEqual(none);
+        });
+
+        it('returns no overrides when the feature flag is off', async () => {
+            const resolver = makeResolver({
+                flagEnabled: false,
+                modelVisibility: { openai: { enabled: false } },
+            });
+            expect(await resolver.getOrgModelOverrides('org-uuid')).toEqual(
+                none,
+            );
+        });
+
+        it('returns no overrides without BYO keys (settings become inert)', async () => {
+            const resolver = makeResolver({
+                flagEnabled: true,
+                orgKeys: null,
+                modelVisibility: { openai: { enabled: false } },
+            });
+            expect(await resolver.getOrgModelOverrides('org-uuid')).toEqual(
+                none,
+            );
+        });
+
+        it('returns stored visibility and key-accessible ids with an anthropic key', async () => {
+            const resolver = makeResolver({
+                flagEnabled: true,
+                orgKeys: { anthropic: 'sk-ant-x' },
+                modelVisibility: { openai: { enabled: false } },
+                accessibleModelIds: ['claude-opus-4-8'],
+            });
+            expect(await resolver.getOrgModelOverrides('org-uuid')).toEqual({
+                modelVisibility: { openai: { enabled: false } },
+                keyAccessibleModelIds: { anthropic: ['claude-opus-4-8'] },
+            });
+        });
+
+        it('does not query the catalog with only an openai key', async () => {
+            const resolver = makeResolver({
+                flagEnabled: true,
+                orgKeys: { openai: 'sk-x' },
+                modelVisibility: { anthropic: { enabled: true } },
+                accessibleModelIds: ['claude-opus-4-8'],
+            });
+            expect(await resolver.getOrgModelOverrides('org-uuid')).toEqual({
+                modelVisibility: { anthropic: { enabled: true } },
+                keyAccessibleModelIds: null,
+            });
+        });
+
+        it('fails closed when the catalog returns null', async () => {
+            const resolver = makeResolver({
+                flagEnabled: true,
+                orgKeys: { anthropic: 'sk-ant-x' },
+                modelVisibility: { openai: { enabled: false } },
+                accessibleModelIds: null,
+            });
+            expect(await resolver.getOrgModelOverrides('org-uuid')).toEqual({
+                modelVisibility: { openai: { enabled: false } },
+                keyAccessibleModelIds: { anthropic: null },
+            });
+        });
     });
 });

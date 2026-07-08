@@ -17,6 +17,8 @@ export type ModelPreset<P extends ModelPresetProvider> = {
     // `thinking.type: 'enabled'` + `budgetTokens` API; 'adaptive' uses the newer
     // `effort` API (required by Claude Opus 4.7+). Ignored unless supportsReasoning.
     reasoningStyle?: ReasoningStyle;
+    // Excluded from model pickers unless the org's own provider key can access it
+    hiddenUnlessKeyAccess?: boolean;
     callOptions: CallSettings;
     providerOptions: ProviderOptionsMap[P] | undefined;
 };
@@ -113,6 +115,19 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 200000,
             supportsReasoning: true,
             reasoningStyle: 'adaptive',
+            callOptions: {},
+            providerOptions: undefined,
+        },
+        {
+            name: 'claude-opus-4-8',
+            provider: 'anthropic',
+            modelId: 'claude-opus-4-8',
+            displayName: 'Claude Opus 4.8',
+            description: 'Most intelligent Opus model for complex tasks',
+            contextWindowTokens: 200000,
+            supportsReasoning: true,
+            reasoningStyle: 'adaptive',
+            hiddenUnlessKeyAccess: true,
             callOptions: {},
             providerOptions: undefined,
         },
