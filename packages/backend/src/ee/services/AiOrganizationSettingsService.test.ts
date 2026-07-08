@@ -10,6 +10,7 @@ const settingsWithKeys: AiOrganizationSettings = {
     aiAgentReviewsEnabled: false,
     mcpContentWritesEnabled: true,
     defaultAiAgentModelConfig: null,
+    modelVisibility: null,
     providerApiKeysSet: { anthropic: true, openai: false },
     providerApiKeyHints: { anthropic: 'sk-ant-api03-R2D...igAA', openai: null },
 };

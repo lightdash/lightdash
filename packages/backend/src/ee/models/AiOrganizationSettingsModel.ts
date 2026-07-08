@@ -112,6 +112,7 @@ export class AiOrganizationSettingsModel {
             aiAgentReviewsEnabled: db.ai_agent_reviews_enabled,
             mcpContentWritesEnabled: db.mcp_content_writes_enabled,
             defaultAiAgentModelConfig: db.default_ai_agent_model_config,
+            modelVisibility: db.model_visibility,
             providerApiKeysSet: {
                 anthropic: Boolean(keys.anthropic),
                 openai: Boolean(keys.openai),
@@ -179,6 +180,7 @@ export class AiOrganizationSettingsModel {
                 ai_agent_reviews_enabled: data.aiAgentReviewsEnabled,
                 mcp_content_writes_enabled: data.mcpContentWritesEnabled,
                 default_ai_agent_model_config: data.defaultAiAgentModelConfig,
+                model_visibility: data.modelVisibility,
                 encrypted_provider_api_keys: this.encryptProviderApiKeys(keys),
                 provider_api_key_hints: buildProviderApiKeyHints(keys),
             })
@@ -198,6 +200,7 @@ export class AiOrganizationSettingsModel {
                 | 'ai_agent_reviews_enabled'
                 | 'mcp_content_writes_enabled'
                 | 'default_ai_agent_model_config'
+                | 'model_visibility'
                 | 'encrypted_provider_api_keys'
                 | 'provider_api_key_hints'
             >
@@ -215,6 +218,9 @@ export class AiOrganizationSettingsModel {
         if (data.defaultAiAgentModelConfig !== undefined) {
             updateData.default_ai_agent_model_config =
                 data.defaultAiAgentModelConfig;
+        }
+        if (data.modelVisibility !== undefined) {
+            updateData.model_visibility = data.modelVisibility;
         }
         if (data.providerApiKeys !== undefined) {
             const providerApiKeyUpdates = data.providerApiKeys;
@@ -300,6 +306,7 @@ export class AiOrganizationSettingsModel {
             aiAgentReviewsEnabled: data.aiAgentReviewsEnabled ?? false,
             mcpContentWritesEnabled: data.mcpContentWritesEnabled ?? true,
             defaultAiAgentModelConfig: data.defaultAiAgentModelConfig ?? null,
+            modelVisibility: data.modelVisibility ?? null,
             providerApiKeys: data.providerApiKeys,
         });
     }

@@ -1,6 +1,7 @@
 import {
     type AiAgentModelConfig,
     type AiChartRuntimeOverrides,
+    type AiOrgModelVisibility,
     type AiProviderApiKeyHints,
     type AiThreadCreatedFrom,
 } from '@lightdash/common';
@@ -397,6 +398,7 @@ export type DbAiOrganizationSettings = {
     ai_agent_reviews_enabled: boolean;
     mcp_content_writes_enabled: boolean;
     default_ai_agent_model_config: AiAgentModelConfig | null;
+    model_visibility: AiOrgModelVisibility | null;
     encrypted_provider_api_keys: Buffer | null;
     provider_api_key_hints: AiProviderApiKeyHints | null;
     created_at: Date;
@@ -412,6 +414,7 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
                 | 'ai_agent_reviews_enabled'
                 | 'mcp_content_writes_enabled'
                 | 'default_ai_agent_model_config'
+                | 'model_visibility'
                 | 'encrypted_provider_api_keys'
                 | 'provider_api_key_hints'
             >
@@ -423,6 +426,7 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
             | 'ai_agent_reviews_enabled'
             | 'mcp_content_writes_enabled'
             | 'default_ai_agent_model_config'
+            | 'model_visibility'
             | 'encrypted_provider_api_keys'
             | 'provider_api_key_hints'
         >

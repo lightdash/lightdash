@@ -162,11 +162,16 @@ export type ComputedAiOrganizationSettings = {
     isCopilotEnabled: boolean;
     isTrial: boolean;
     defaultAiAgentModelOptions: AiModelOption[];
+    // Full option list an admin can pick from (ignores visibility restrictions); null for non-admins
+    configurableModelOptions: AiModelOption[] | null;
 };
 
 // AI Organization Settings Types
 export const BYO_AI_PROVIDERS = ['anthropic', 'openai'] as const;
 export type ByoAiProvider = (typeof BYO_AI_PROVIDERS)[number];
+
+export const isByoAiProvider = (provider: string): provider is ByoAiProvider =>
+    (BYO_AI_PROVIDERS as readonly string[]).includes(provider);
 
 export type AiProviderApiKeysSet = {
     anthropic: boolean;
@@ -183,12 +188,23 @@ export type UpdateAiProviderApiKeys = {
     openai?: string | null;
 };
 
+export type AiOrgProviderModelVisibility = {
+    enabled: boolean;
+    // Preset names; omitted or empty = all models of the provider allowed
+    allowedModels?: string[];
+};
+
+export type AiOrgModelVisibility = Partial<
+    Record<ByoAiProvider, AiOrgProviderModelVisibility>
+>;
+
 export type AiOrganizationSettings = {
     organizationUuid: string;
     aiAgentsVisible: boolean;
     aiAgentReviewsEnabled: boolean;
     mcpContentWritesEnabled: boolean;
     defaultAiAgentModelConfig: AiAgentModelConfig | null;
+    modelVisibility: AiOrgModelVisibility | null;
     providerApiKeysSet: AiProviderApiKeysSet;
     providerApiKeyHints: AiProviderApiKeyHints;
 };
@@ -205,6 +221,7 @@ export type UpdateAiOrganizationSettings = {
     aiAgentReviewsEnabled?: boolean;
     mcpContentWritesEnabled?: boolean;
     defaultAiAgentModelConfig?: AiAgentModelConfig | null;
+    modelVisibility?: AiOrgModelVisibility | null;
     providerApiKeys?: UpdateAiProviderApiKeys;
 };
 

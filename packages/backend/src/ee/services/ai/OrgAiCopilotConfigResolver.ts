@@ -2,10 +2,12 @@ import { FeatureFlags } from '@lightdash/common';
 import { AiCopilotConfigSchemaType } from '../../../config/aiConfigSchema';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
+import { AiModelCatalog } from '../../clients/Ai/AiModelCatalog';
 import {
     AiOrganizationSettingsModel,
     AiOrgProviderApiKeys,
 } from '../../models/AiOrganizationSettingsModel';
+import { OrgModelOverrides } from './models';
 
 export type CopilotConfig = AiCopilotConfigSchemaType;
 
@@ -40,6 +42,7 @@ type Dependencies = {
     lightdashConfig: LightdashConfig;
     aiOrganizationSettingsModel: AiOrganizationSettingsModel;
     featureFlagService: FeatureFlagService;
+    aiModelCatalog: AiModelCatalog;
 };
 
 export class OrgAiCopilotConfigResolver {
@@ -49,11 +52,14 @@ export class OrgAiCopilotConfigResolver {
 
     private featureFlagService: FeatureFlagService;
 
+    private aiModelCatalog: AiModelCatalog;
+
     constructor(dependencies: Dependencies) {
         this.lightdashConfig = dependencies.lightdashConfig;
         this.aiOrganizationSettingsModel =
             dependencies.aiOrganizationSettingsModel;
         this.featureFlagService = dependencies.featureFlagService;
+        this.aiModelCatalog = dependencies.aiModelCatalog;
     }
 
     async isEnabled(organizationUuid: string): Promise<boolean> {
@@ -79,5 +85,43 @@ export class OrgAiCopilotConfigResolver {
             );
         if (!orgKeys) return base;
         return overlayOrgProviderApiKeys(base, orgKeys);
+    }
+
+    /**
+     * Org overrides for model LISTINGS (visibility settings + which hidden
+     * models the org's own Anthropic key unlocks). Both are null unless the
+     * feature flag is on AND the org has at least one BYO key, so deleting
+     * the key leaves stored visibility settings inert.
+     */
+    async getOrgModelOverrides(
+        organizationUuid: string | null | undefined,
+    ): Promise<OrgModelOverrides> {
+        const none: OrgModelOverrides = {
+            modelVisibility: null,
+            keyAccessibleModelIds: null,
+        };
+        if (!organizationUuid) return none;
+        if (!(await this.isEnabled(organizationUuid))) return none;
+        const orgKeys =
+            await this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
+                organizationUuid,
+            );
+        if (!orgKeys) return none;
+        const settings =
+            await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+                organizationUuid,
+            );
+        const keyAccessibleModelIds = orgKeys.anthropic
+            ? {
+                  anthropic: await this.aiModelCatalog.getAccessibleModelIds(
+                      'anthropic',
+                      orgKeys.anthropic,
+                  ),
+              }
+            : null;
+        return {
+            modelVisibility: settings?.modelVisibility ?? null,
+            keyAccessibleModelIds,
+        };
     }
 }
