@@ -668,6 +668,126 @@ describe('Parse dimension reference', () => {
     });
 });
 
+describe('Hyphenated table names in references', () => {
+    const hyphenatedTable = 'some_schema-order_events';
+    const exploreWithHyphenatedJoinedTable: UncompiledExplore = {
+        ...simpleJoinedExplore,
+        joinedTables: [
+            {
+                table: hyphenatedTable,
+                sqlOn: `\${a.dim1} = \${${hyphenatedTable}.dim1}`,
+            },
+        ],
+        tables: {
+            a: simpleJoinedExplore.tables.a,
+            [hyphenatedTable]: {
+                ...simpleJoinedExplore.tables.b,
+                name: hyphenatedTable,
+                dimensions: {
+                    dim1: {
+                        ...simpleJoinedExplore.tables.b.dimensions.dim1,
+                        table: hyphenatedTable,
+                    },
+                },
+            },
+        },
+    };
+
+    test('should parse references with hyphenated table names', () => {
+        expect(
+            parseAllReferences(`\${${hyphenatedTable}.dim1}`, 'a'),
+        ).toStrictEqual([{ refName: 'dim1', refTable: hyphenatedTable }]);
+    });
+
+    test('should parse single-part references containing hyphens', () => {
+        expect(parseAllReferences('${my-field}', 'a')).toStrictEqual([
+            { refName: 'my-field', refTable: 'a' },
+        ]);
+    });
+
+    test('should compile join sql_on referencing a hyphenated table', () => {
+        const result = compiler.compileExplore(
+            exploreWithHyphenatedJoinedTable,
+        );
+
+        expect(result.joinedTables[0].compiledSqlOn).toBe(
+            '("a".dim1) = ("some_schema-order_events".dim1)',
+        );
+        expect(result.joinedTables[0].tablesReferences).toStrictEqual([
+            'a',
+            hyphenatedTable,
+        ]);
+    });
+
+    test('should compile a dimension referencing a field in a hyphenated table', () => {
+        const explore: UncompiledExplore = {
+            ...exploreWithHyphenatedJoinedTable,
+            tables: {
+                ...exploreWithHyphenatedJoinedTable.tables,
+                a: {
+                    ...exploreWithHyphenatedJoinedTable.tables.a,
+                    dimensions: {
+                        ...exploreWithHyphenatedJoinedTable.tables.a.dimensions,
+                        dim2: {
+                            ...exploreWithHyphenatedJoinedTable.tables.a
+                                .dimensions.dim1,
+                            name: 'dim2',
+                            label: 'dim2',
+                            sql: `\${${hyphenatedTable}.dim1}`,
+                        },
+                    },
+                },
+            },
+        };
+
+        const result = compiler.compileExplore(explore);
+
+        expect(result.tables.a.dimensions.dim2.compiledSql).toBe(
+            '("some_schema-order_events".dim1)',
+        );
+        expect(result.tables.a.dimensions.dim2.tablesReferences).toEqual(
+            expect.arrayContaining([hyphenatedTable]),
+        );
+    });
+
+    test('should compile a metric referencing a dimension in a hyphenated table', () => {
+        const explore: UncompiledExplore = {
+            ...exploreWithHyphenatedJoinedTable,
+            tables: {
+                ...exploreWithHyphenatedJoinedTable.tables,
+                a: {
+                    ...exploreWithHyphenatedJoinedTable.tables.a,
+                    metrics: {
+                        m1: {
+                            fieldType: FieldType.METRIC,
+                            type: MetricType.SUM,
+                            name: 'm1',
+                            label: 'm1',
+                            table: 'a',
+                            tableLabel: 'a',
+                            sql: `\${${hyphenatedTable}.dim1}`,
+                            hidden: false,
+                        },
+                    },
+                },
+            },
+        };
+
+        const result = compiler.compileExplore(explore);
+
+        expect(result.tables.a.metrics.m1.compiledSql).toBe(
+            'SUM(("some_schema-order_events".dim1))',
+        );
+    });
+
+    test('should still not parse lightdash/ld prefixed references with hyphenated names', () => {
+        expect(
+            parseAllReferences('${lightdash.attributes.my-attr}', 'a'),
+        ).toStrictEqual([]);
+        expect(parseAllReferences('${ld.attr.my-attr}', 'a')).toStrictEqual([]);
+    });
+});
+
 describe('Explore with user attributes', () => {
     test('should compile explore with table and field required attributes', () => {
         expect(
