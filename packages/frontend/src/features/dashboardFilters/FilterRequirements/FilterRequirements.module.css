@@ -7,3 +7,19 @@
     border: 1px solid var(--mantine-color-default-border);
     border-radius: var(--mantine-radius-md);
 }
+
+.memberChip {
+    padding: 2px 4px 2px 8px;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: 100px;
+    max-width: 100%;
+}
+
+.addFilterInput {
+    border-style: dashed;
+    border-radius: 100px;
+}
+
+.addRuleButton {
+    border-style: dashed;
+}
