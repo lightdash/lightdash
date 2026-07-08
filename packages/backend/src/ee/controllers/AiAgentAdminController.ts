@@ -16,6 +16,7 @@ import {
     ApiAiReviewNotificationSettingsResponse,
     ApiErrorPayload,
     ApiMcpActivityResponse,
+    ApiMcpActivityStatsResponse,
     ApiSuccessEmpty,
     ApiUpdateAiOrganizationSettingsResponse,
     assertRegisteredAccount,
@@ -24,6 +25,7 @@ import {
     KnexPaginateArgs,
     McpActivityFilters,
     McpActivitySort,
+    McpActivityStatsFilters,
     ParameterError,
     ReorderAiAgentReviewItems,
     UpdateAiAgentReviewItemAssignee,
@@ -50,6 +52,7 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
+import { validate as isUuid } from 'uuid';
 import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
@@ -72,6 +75,17 @@ const validateDateFilter = (
         throw new ParameterError(`Invalid ${name}: expected an ISO date`);
     }
     return value;
+};
+
+// Same rationale: a non-uuid value in a whereIn on a uuid column is a
+// Postgres cast error (500), not an empty result
+const validateUuidFilter = (
+    name: string,
+    values: string[] | undefined,
+): void => {
+    if (values?.some((value) => !isUuid(value))) {
+        throw new ParameterError(`Invalid ${name}: expected UUIDs`);
+    }
 };
 
 @Route('/api/v1/aiAgents/admin')
@@ -176,6 +190,9 @@ export class AiAgentAdminController extends BaseController {
         assertRegisteredAccount(req.account);
         validateDateFilter('dateFrom', dateFrom);
         validateDateFilter('dateTo', dateTo);
+        validateUuidFilter('projectUuids', projectUuids);
+        validateUuidFilter('userUuids', userUuids);
+        validateUuidFilter('agentUuids', agentUuids);
         // Rows can carry up to 64KB of tool_args each, so cap the page size
         const paginateArgs: KnexPaginateArgs = {
             page: page ?? 1,
@@ -205,6 +222,53 @@ export class AiAgentAdminController extends BaseController {
             paginateArgs,
             filters,
             sort,
+        );
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Get aggregated MCP tool call stats for admin
+     * @summary Get MCP activity stats
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/mcp-activity/stats')
+    @OperationId('getMcpActivityStats')
+    async getMcpActivityStats(
+        @Request() req: express.Request,
+        @Query() projectUuids?: McpActivityFilters['projectUuids'],
+        @Query() userUuids?: McpActivityFilters['userUuids'],
+        @Query() agentUuids?: McpActivityFilters['agentUuids'],
+        @Query() toolNames?: McpActivityFilters['toolNames'],
+        @Query() clientNames?: McpActivityFilters['clientNames'],
+        @Query() dateFrom?: McpActivityFilters['dateFrom'],
+        @Query() dateTo?: McpActivityFilters['dateTo'],
+    ): Promise<ApiMcpActivityStatsResponse> {
+        assertRegisteredAccount(req.account);
+        validateDateFilter('dateFrom', dateFrom);
+        validateDateFilter('dateTo', dateTo);
+        validateUuidFilter('projectUuids', projectUuids);
+        validateUuidFilter('userUuids', userUuids);
+        validateUuidFilter('agentUuids', agentUuids);
+
+        const filters: McpActivityStatsFilters = {
+            ...(projectUuids && { projectUuids }),
+            ...(userUuids && { userUuids }),
+            ...(agentUuids && { agentUuids }),
+            ...(toolNames && { toolNames }),
+            ...(clientNames && { clientNames }),
+            ...(dateFrom && { dateFrom }),
+            ...(dateTo && { dateTo }),
+        };
+
+        const results = await this.getAiAgentAdminService().getMcpActivityStats(
+            toSessionUser(req.account),
+            filters,
         );
 
         this.setStatus(200);
