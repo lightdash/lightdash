@@ -4,6 +4,7 @@ import { produce } from 'immer';
 import { useMemo, type ComponentProps, type FC } from 'react';
 import type DashboardChartTile from '../../../../../components/DashboardTiles/DashboardChartTile';
 import { GenericDashboardChartTile } from '../../../../../components/DashboardTiles/DashboardChartTile';
+import LockedTilePlaceholder from '../../../../../components/DashboardTiles/LockedTilePlaceholder';
 import TileBase from '../../../../../components/DashboardTiles/TileBase';
 import { useDashboardChartReadyQuery } from '../../../../../hooks/dashboard/useDashboardChartReadyQuery';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
@@ -105,7 +106,9 @@ const EmbedDashboardChartTile: FC<Props> = ({
                     title={''}
                     tile={translatedTile}
                     {...rest}
-                />
+                >
+                    <LockedTilePlaceholder />
+                </TileBase>
             </Box>
         );
     }

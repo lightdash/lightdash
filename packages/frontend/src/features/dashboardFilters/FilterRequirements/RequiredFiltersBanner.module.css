@@ -1,0 +1,24 @@
+.banner {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-lg);
+    border-top: 1px solid alpha(var(--mantine-color-yellow-6), 0.3);
+    border-bottom: 1px solid alpha(var(--mantine-color-yellow-6), 0.3);
+
+    @mixin light {
+        background-color: var(--mantine-color-yellow-0);
+    }
+    @mixin dark {
+        background-color: alpha(var(--mantine-color-yellow-9), 0.15);
+    }
+}
+
+.bannerChip {
+    border-color: var(--mantine-color-yellow-6);
+    border-radius: 100px;
+
+    @mixin light {
+        background-color: alpha(var(--mantine-color-yellow-1), 0.5);
+    }
+    @mixin dark {
+        background-color: alpha(var(--mantine-color-yellow-9), 0.25);
+    }
+}

@@ -11,12 +11,14 @@ import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
 import { useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { LockedDashboardModal } from '../../../../../components/common/modal/LockedDashboardModal';
 import SuboptimalState from '../../../../../components/common/SuboptimalState/SuboptimalState';
 import AddTileButton from '../../../../../components/DashboardTiles/AddTileButton';
 import DashboardChartTile from '../../../../../components/DashboardTiles/DashboardChartTile';
 import LoomTile from '../../../../../components/DashboardTiles/DashboardLoomTile';
 import SqlChartTile from '../../../../../components/DashboardTiles/DashboardSqlChartTile';
+import LockedTilePlaceholder from '../../../../../components/DashboardTiles/LockedTilePlaceholder';
+import TileBase from '../../../../../components/DashboardTiles/TileBase';
+import RequiredFiltersBanner from '../../../../../features/dashboardFilters/FilterRequirements/RequiredFiltersBanner';
 import {
     convertLayoutToBaseCoordinates,
     GRID_CONTAINER_PADDING,
@@ -103,34 +105,50 @@ const EmbedDashboardGrid: FC<{
                     onDragStop={onLayoutChange}
                     onResizeStop={onLayoutChange}
                     onBreakpointChange={(_, cols) => onBreakpointChange(cols)}
-                    className={`react-grid-layout-dashboard ${
-                        hasUnmetFilterRequirements ? 'locked' : ''
-                    }`}
+                    className="react-grid-layout-dashboard"
                 >
                     {filteredTiles.map((tile, index) => (
                         <div key={tile.uuid} data-tile-uuid={tile.uuid}>
                             {tile.type === DashboardTileTypes.SAVED_CHART ? (
                                 useDashboardEditorTileQueries ? (
-                                    <DashboardChartTile
-                                        key={tile.uuid}
-                                        minimal
-                                        tile={tile}
-                                        isEditMode={isEditMode}
-                                        onDelete={() => onDeleteTile(tile)}
-                                        onEdit={onEditTile}
-                                        canExportCsv={dashboard.canExportCsv}
-                                        canExportImages={
-                                            dashboard.canExportImages
-                                        }
-                                        canViewExplore={dashboard.canExplore}
-                                        queryContextOverride={
-                                            QueryExecutionContext.DASHBOARD
-                                        }
-                                        colorPaletteOverride={paletteColors}
-                                        darkColorPaletteOverride={
-                                            paletteDarkColors
-                                        }
-                                    />
+                                    hasUnmetFilterRequirements ? (
+                                        <TileBase
+                                            key={tile.uuid}
+                                            isLoading={false}
+                                            title={''}
+                                            tile={tile}
+                                            isEditMode={isEditMode}
+                                            onDelete={() => onDeleteTile(tile)}
+                                            onEdit={onEditTile}
+                                        >
+                                            <LockedTilePlaceholder />
+                                        </TileBase>
+                                    ) : (
+                                        <DashboardChartTile
+                                            key={tile.uuid}
+                                            minimal
+                                            tile={tile}
+                                            isEditMode={isEditMode}
+                                            onDelete={() => onDeleteTile(tile)}
+                                            onEdit={onEditTile}
+                                            canExportCsv={
+                                                dashboard.canExportCsv
+                                            }
+                                            canExportImages={
+                                                dashboard.canExportImages
+                                            }
+                                            canViewExplore={
+                                                dashboard.canExplore
+                                            }
+                                            queryContextOverride={
+                                                QueryExecutionContext.DASHBOARD
+                                            }
+                                            colorPaletteOverride={paletteColors}
+                                            darkColorPaletteOverride={
+                                                paletteDarkColors
+                                            }
+                                        />
+                                    )
                                 ) : (
                                     <EmbedDashboardChartTile
                                         projectUuid={projectUuid}
@@ -171,16 +189,30 @@ const EmbedDashboardGrid: FC<{
                                     onEdit={onEditTile}
                                 />
                             ) : tile.type === DashboardTileTypes.SQL_CHART ? (
-                                <SqlChartTile
-                                    key={tile.uuid}
-                                    tile={tile}
-                                    isEditMode={isEditMode}
-                                    onDelete={() => onDeleteTile(tile)}
-                                    onEdit={onEditTile}
-                                    isEmbed={!useDashboardEditorTileQueries}
-                                    projectUuidOverride={projectUuid}
-                                    dashboardUuidOverride={dashboard.uuid}
-                                />
+                                hasUnmetFilterRequirements ? (
+                                    <TileBase
+                                        key={tile.uuid}
+                                        isLoading={false}
+                                        title={''}
+                                        tile={tile}
+                                        isEditMode={isEditMode}
+                                        onDelete={() => onDeleteTile(tile)}
+                                        onEdit={onEditTile}
+                                    >
+                                        <LockedTilePlaceholder />
+                                    </TileBase>
+                                ) : (
+                                    <SqlChartTile
+                                        key={tile.uuid}
+                                        tile={tile}
+                                        isEditMode={isEditMode}
+                                        onDelete={() => onDeleteTile(tile)}
+                                        onEdit={onEditTile}
+                                        isEmbed={!useDashboardEditorTileQueries}
+                                        projectUuidOverride={projectUuid}
+                                        dashboardUuidOverride={dashboard.uuid}
+                                    />
+                                )
                             ) : tile.type === DashboardTileTypes.HEADING ? (
                                 <EmbedHeadingTile
                                     key={tile.uuid}
@@ -729,10 +761,6 @@ const EmbedDashboard: FC<{
                 }
             }
         >
-            <LockedDashboardModal
-                opened={hasUnmetFilterRequirements && !!hasChartTiles}
-            />
-
             {currentDashboardTiles.length === 0 ? (
                 <>
                     <EmbedDashboardHeader
@@ -776,6 +804,9 @@ const EmbedDashboard: FC<{
                         }
                     />
                     {renderDashboardEditToolbar()}
+                    {hasUnmetFilterRequirements && !!hasChartTiles && (
+                        <RequiredFiltersBanner isEditMode={false} />
+                    )}
                     <EmbedDashboardGrid
                         filteredTiles={filteredTiles}
                         layouts={layouts}
@@ -803,6 +834,9 @@ const EmbedDashboard: FC<{
                         projectUuid={projectUuid}
                     />
                     {renderDashboardEditToolbar()}
+                    {hasUnmetFilterRequirements && !!hasChartTiles && (
+                        <RequiredFiltersBanner isEditMode={false} />
+                    )}
                     <EmbedDashboardGrid
                         filteredTiles={filteredTiles}
                         layouts={layouts}

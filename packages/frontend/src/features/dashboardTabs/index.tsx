@@ -30,12 +30,12 @@ import { useLocation, useNavigate } from 'react-router';
 import { v4 as uuid4 } from 'uuid';
 import { DASHBOARD_HEADER_HEIGHT } from '../../components/common/Dashboard/dashboard.constants';
 import MantineIcon from '../../components/common/MantineIcon';
-import { LockedDashboardModal } from '../../components/common/modal/LockedDashboardModal';
 import { ScrollToTop } from '../../components/common/ScrollToTop';
 import { StickyWithDetection } from '../../components/common/StickyWithDetection';
 import EmptyStateNoTiles from '../../components/DashboardTiles/EmptyStateNoTiles';
 import { useIsLauncherMounted } from '../../ee/features/aiCopilot/components/Launcher/useIsLauncherMounted';
 import useToaster from '../../hooks/toaster/useToaster';
+import { useProject } from '../../hooks/useProject';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -45,6 +45,7 @@ import '../../styles/droppable.css';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import { DashboardFiltersBarSummary } from '../dashboardFilters/DashboardFiltersBarSummary';
 import { doesFilterApplyToTile } from '../dashboardFilters/FilterConfiguration/utils';
+import RequiredFiltersBanner from '../dashboardFilters/FilterRequirements/RequiredFiltersBanner';
 import ErrorBoundary from '../errorBoundary/ErrorBoundary';
 import { AddTabModal } from './AddTabModal';
 import { TabDeleteModal } from './DeleteTabModal';
@@ -139,7 +140,6 @@ const TabGridPanel = memo<TabGridPanelProps>(
             <ErrorBoundary>
                 <ResponsiveGridLayout
                     {...gridProps}
-                    className={locked ? 'locked' : ''}
                     containerPadding={GRID_CONTAINER_PADDING}
                     onDragStart={onDragStart}
                     onDragStop={onDragStop}
@@ -318,6 +318,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
 
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const projectUuid = useDashboardContext((c) => c.projectUuid);
+    const project = useProject(projectUuid);
     const setHaveTabsChanged = useDashboardContext((c) => c.setHaveTabsChanged);
     const dashboardTabs = useDashboardContext((c) => c.dashboardTabs);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
@@ -1119,6 +1120,18 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                     </div>
                                 </StickyWithDetection>
 
+                                {hasUnmetFilterRequirementsForCurrentTab &&
+                                    !!hasDashboardTiles && (
+                                        <RequiredFiltersBanner
+                                            isEditMode={isEditMode}
+                                            startOfWeek={
+                                                project.data
+                                                    ?.warehouseConnection
+                                                    ?.startOfWeek ?? undefined
+                                            }
+                                        />
+                                    )}
+
                                 <Group grow pb={60} px="xs">
                                     <div
                                         ref={gridWrapperRef}
@@ -1220,11 +1233,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                   <ErrorBoundary>
                                                       <ResponsiveGridLayout
                                                           {...gridProps}
-                                                          className={`${
-                                                              hasUnmetFilterRequirementsForCurrentTab
-                                                                  ? 'locked'
-                                                                  : ''
-                                                          }`}
                                                           containerPadding={
                                                               GRID_CONTAINER_PADDING
                                                           }
@@ -1300,12 +1308,6 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                               )}
                                     </div>
                                 </Group>
-                                <LockedDashboardModal
-                                    opened={
-                                        hasUnmetFilterRequirementsForCurrentTab &&
-                                        !!hasDashboardTiles
-                                    }
-                                />
                                 {(!hasDashboardTiles ||
                                     !currentTabHasTiles) && (
                                     <EmptyStateNoTiles

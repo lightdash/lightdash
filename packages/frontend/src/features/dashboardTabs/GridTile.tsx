@@ -12,6 +12,7 @@ import HeadingTile from '../../components/DashboardTiles/DashboardHeadingTile';
 import LoomTile from '../../components/DashboardTiles/DashboardLoomTile';
 import MarkdownTile from '../../components/DashboardTiles/DashboardMarkdownTile';
 import SqlChartTile from '../../components/DashboardTiles/DashboardSqlChartTile';
+import LockedTilePlaceholder from '../../components/DashboardTiles/LockedTilePlaceholder';
 import TileBase from '../../components/DashboardTiles/TileBase';
 import ErrorBoundary from '../errorBoundary/ErrorBoundary';
 
@@ -49,7 +50,9 @@ const GridTileInner: FC<GridTileProps> = memo((props) => {
 
         return (
             <Box h="100%">
-                <TileBase isLoading={false} title={''} {...props} />
+                <TileBase isLoading={false} title={''} {...props}>
+                    <LockedTilePlaceholder />
+                </TileBase>
             </Box>
         );
     }
