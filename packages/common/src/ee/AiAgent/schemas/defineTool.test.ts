@@ -135,7 +135,7 @@ describe('defineTool', () => {
         const tool = defineTool({
             name: 'sampleTool',
             title: 'Sample tool',
-            description: (name) => `Call ${name}`,
+            description: ({ toolName }) => `Call ${toolName}`,
             availability: ['agent', 'mcp'],
             inputSchema: z.object({}),
             mcp: {

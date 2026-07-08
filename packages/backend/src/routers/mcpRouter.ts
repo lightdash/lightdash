@@ -240,12 +240,15 @@ mcpRouter.all(
                 // because tool registration in setupHandlers is synchronous
                 // (createServer only awaits to register skill resources
                 // afterwards).
-                const grepFieldsEnabled =
-                    await mcpService.isAiGrepFieldsEnabled(req.user!);
                 // Content-write tools are only registered when the org-level
                 // setting allows it, so admins can lock down MCP edits.
-                const mcpContentWritesEnabled =
-                    await mcpService.isMcpContentWritesEnabled(req.user!);
+                // These lookups are independent, so resolve them together
+                // rather than paying each round trip serially per request.
+                const [grepFieldsEnabled, mcpContentWritesEnabled] =
+                    await Promise.all([
+                        mcpService.isAiGrepFieldsEnabled(req.user!),
+                        mcpService.isMcpContentWritesEnabled(req.user!),
+                    ]);
                 const mcpServer = await mcpService.createServer({
                     projectPinned: headerProjectUuid !== undefined,
                     // The run_ai_writeback tool is always registered now that

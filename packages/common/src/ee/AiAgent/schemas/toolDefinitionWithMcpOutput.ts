@@ -62,7 +62,10 @@ export class ToolDefinitionWithMcpOutputImpl<
     }
 
     get description(): string {
-        return resolveDescription(this.descriptionConfig, this.name);
+        return resolveDescription(this.descriptionConfig, {
+            runtime: 'agent',
+            toolName: this.name,
+        });
     }
 
     private buildAgentView(): AgentToolView<TName, TInput, TAgentOutputSchema> {
@@ -107,7 +110,10 @@ export class ToolDefinitionWithMcpOutputImpl<
             name: mcpName,
             canonicalName: this.name,
             title: this.title,
-            description: resolveDescription(this.descriptionConfig, mcpName),
+            description: resolveDescription(this.descriptionConfig, {
+                runtime: 'mcp',
+                toolName: mcpName,
+            }),
             inputSchema: createMcpCompatibleInputSchema(this.inputSchema),
             annotations: this.mcpConfig.annotations,
             outputSchema: this.outputSchema,

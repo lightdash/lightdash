@@ -1361,11 +1361,15 @@ export class McpService extends BaseService {
                             ctx,
                             projectUuid,
                         );
-                        const availableExplores =
-                            await toolsRuntime.listExplores();
-                        const verifiedFieldUsage = await toolsRuntime
-                            .getVerifiedFieldUsage()
-                            .catch(() => new Map<string, number>());
+                        // Independent reads — fetch the explore list and the
+                        // verified-usage map together instead of serially.
+                        const [availableExplores, verifiedFieldUsage] =
+                            await Promise.all([
+                                toolsRuntime.listExplores(),
+                                toolsRuntime
+                                    .getVerifiedFieldUsage()
+                                    .catch(() => new Map<string, number>()),
+                            ]);
                         const result = await executeGrepFields(args, {
                             availableExplores,
                             verifiedFieldUsage,

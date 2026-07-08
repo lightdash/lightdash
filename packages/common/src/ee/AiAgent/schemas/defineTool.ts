@@ -8,7 +8,16 @@ import {
 
 export type ToolRuntime = 'agent' | 'mcp';
 
-export type ToolDescription = string | ((runtimeName: string) => string);
+export type ToolDescriptionContext = {
+    runtime: ToolRuntime;
+    // The tool's own name as exposed to this runtime (canonical for agent,
+    // snake_case for mcp), so a description can reference itself.
+    toolName: string;
+};
+
+export type ToolDescription =
+    | string
+    | ((context: ToolDescriptionContext) => string);
 
 export type McpToolAnnotations = {
     readOnlyHint: boolean;

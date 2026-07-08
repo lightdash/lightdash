@@ -1,18 +1,27 @@
 import { z } from 'zod';
+import { type ToolDescriptionContext } from '../defineTool';
 import { baseOutputMetadataSchema } from '../outputMetadata';
+import { toolNameFor } from './discoveryToolNames';
 import { findExploresRequiredFilterSchema } from './toolFindExploresArgs';
 
-export const GET_METADATA_DESCRIPTION = `Tool: getMetadata
+export const GET_METADATA_DESCRIPTION = ({
+    runtime,
+}: ToolDescriptionContext): string => {
+    const getMetadata = toolNameFor('getMetadata', runtime);
+    const grepFields = toolNameFor('grepFields', runtime);
+    const visualization = toolNameFor('generateVisualization', runtime);
+    return `Tool: ${getMetadata}
 
 Purpose:
-Get the full metadata for specific explores and/or fields that you already know the IDs of (typically from grepFields). grepFields is lean — it tells you WHICH fields exist; getMetadata gives you the DETAIL you need to build a correct query: an explore's joined tables and table filters, and a field's filter type, case-sensitivity, hints, and whether it comes from a joined table.
+Get the full metadata for specific explores and/or fields that you already know the IDs of (typically from ${grepFields}). ${grepFields} is lean — it tells you WHICH fields exist; ${getMetadata} gives you the DETAIL you need to build a correct query: an explore's joined tables and table filters, and a field's filter type, case-sensitivity, hints, and whether it comes from a joined table.
 
-Call this AFTER grepFields, once you have narrowed down to the explore(s) and field(s) you intend to use, and BEFORE generateVisualization. You can ask for several explores and several fields across explores in a SINGLE call — batch everything you need at once instead of one request per item.
+Call this AFTER ${grepFields}, once you have narrowed down to the explore(s) and field(s) you intend to use, and BEFORE ${visualization}. You can ask for several explores and several fields across explores in a SINGLE call — batch everything you need at once instead of one request per item.
 
 Each entry in \`requests\` is one of:
 - \`{ "type": "explore", "exploreIds": ["orders", "customers"] }\` — full metadata for those explores (joined tables, table filters, field counts).
 - \`{ "type": "field", "fields": [{ "exploreId": "orders", "fieldId": "orders_status" }] }\` — full metadata for those specific fields.
 `;
+};
 
 const exploreMetadataRequestSchema = z.object({
     type: z.literal('explore'),

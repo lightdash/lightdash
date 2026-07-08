@@ -1,15 +1,15 @@
 import {
     getFilterTypeFromItemType,
-    getMetadataInputSchema,
-    getMetadataResultSchema,
     getMetadataToolDefinition,
     isDimension,
     type CompiledField,
     type Explore,
+    type GetMetadataResult,
+    type ToolGetMetadataArgs,
 } from '@lightdash/common';
 import { tool } from 'ai';
-import { z } from 'zod';
 import { getExploreRequiredFilters } from '../utils/requiredFilters';
+import type { ExecuteStructuredToolResult } from '../utils/structuredToolResult';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { summarizeRequiredFilters } from './grepFieldsIndex';
 
@@ -17,15 +17,6 @@ const toolDefinition = getMetadataToolDefinition.for('agent');
 
 type Dependencies = {
     availableExplores: Explore[];
-};
-
-type ToolGetMetadataArgs = z.infer<typeof getMetadataInputSchema>;
-type GetMetadataResult = z.infer<typeof getMetadataResultSchema>;
-
-type ExecuteStructuredToolResult<TStructuredContent> = {
-    result: string;
-    metadata: { status: 'success' };
-    structuredContent: TStructuredContent;
 };
 
 const flatHint = (hint?: string | string[]): string =>
@@ -154,6 +145,12 @@ const buildExploreStructuredResult = (
 ): GetMetadataResult['explores'][number] => {
     const baseTable = explore.tables[explore.baseTable];
     const hint = flatHint(explore.aiHint);
+    const dimensionIds = getVisibleFieldIds(
+        Object.values(baseTable?.dimensions ?? {}),
+    );
+    const metricIds = getVisibleFieldIds(
+        Object.values(baseTable?.metrics ?? {}),
+    );
     return {
         exploreId: explore.name,
         status: 'found',
@@ -166,19 +163,12 @@ const buildExploreStructuredResult = (
         joinedTables: explore.joinedTables.map((join) => join.table),
         requiredFilters: getExploreRequiredFilters(explore),
         baseDimensions: {
-            count: getVisibleFieldIds(
-                Object.values(baseTable?.dimensions ?? {}),
-            ).length,
-            fieldIds: getVisibleFieldIds(
-                Object.values(baseTable?.dimensions ?? {}),
-            ).slice(0, FIELD_LIST_MAX),
+            count: dimensionIds.length,
+            fieldIds: dimensionIds.slice(0, FIELD_LIST_MAX),
         },
         baseMetrics: {
-            count: getVisibleFieldIds(Object.values(baseTable?.metrics ?? {}))
-                .length,
-            fieldIds: getVisibleFieldIds(
-                Object.values(baseTable?.metrics ?? {}),
-            ).slice(0, FIELD_LIST_MAX),
+            count: metricIds.length,
+            fieldIds: metricIds.slice(0, FIELD_LIST_MAX),
         },
     };
 };

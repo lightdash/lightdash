@@ -1,20 +1,23 @@
 import {
-    grepFieldsInputSchema,
-    grepFieldsResultSchema,
     grepFieldsToolDefinition,
     type Explore,
+    type FindExploresRequiredFilter,
+    type GrepFieldsResult,
+    type ToolGrepFieldsArgs,
 } from '@lightdash/common';
 import { tool } from 'ai';
-import { z } from 'zod';
 import Logger from '../../../../logging/logger';
 import type { FindExploresFn } from '../types/aiAgentDependencies';
 import { getExploreRequiredFilters } from '../utils/requiredFilters';
+import type { ExecuteStructuredToolResult } from '../utils/structuredToolResult';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import {
     buildExploreIndex,
     buildFieldIndex,
     buildMetricAmbiguityNote,
     compileMatcher,
+    MATCH_LOCALITY_RANK,
+    matchLocality,
     summarizeRequiredFilters,
     type ExploreEntry,
     type FieldEntry,
@@ -37,21 +40,27 @@ type FtsFieldMatch = NonNullable<
     Awaited<ReturnType<FindExploresFn>>['topMatchingFields']
 >[number];
 
-type ToolGrepFieldsArgs = z.infer<typeof grepFieldsInputSchema>;
-type GrepFieldsResult = z.infer<typeof grepFieldsResultSchema>;
+type GrepFieldsPatternStats = {
+    pattern: string;
+    matchCount: number;
+    scopeSize: number;
+    matchedAllFields: boolean;
+}[];
 
-type ExecuteStructuredToolResult<TStructuredContent> = {
-    result: string;
-    metadata: {
-        status: 'success';
-        patternStats: {
-            pattern: string;
-            matchCount: number;
-            scopeSize: number;
-            matchedAllFields: boolean;
-        }[];
-    };
-    structuredContent: TStructuredContent;
+type GrepFieldsExecuteResult = ExecuteStructuredToolResult<
+    GrepFieldsResult,
+    { status: 'success'; patternStats: GrepFieldsPatternStats }
+>;
+
+// The scoped, pre-built view of the catalog a grep runs against. Built once per
+// tool instance so repeated grep calls in one agent run don't re-flatten and
+// re-lowercase every field (see buildGrepFieldsContext / getGrepFields).
+type GrepFieldsContext = {
+    index: FieldEntry[];
+    exploreIndex: ExploreEntry[];
+    exploreNames: Set<string>;
+    requiredFiltersSummaryByExplore: Map<string, string>;
+    requiredFiltersByExplore: Map<string, FindExploresRequiredFilter[]>;
 };
 
 // Turn the regex patterns into a plain-keyword query for the FTS fallback.
@@ -91,49 +100,30 @@ const MAX_PER_PATTERN = 40;
 // must not suppress the FTS fallback).
 const ALL_MATCH_NO_SIGNAL_MIN = 25;
 
-// Where the pattern matched, most-specific first: the field's own name/label
-// beats its description, which beats its ai hint. Keeps a name-matching field
+// Rank by where the pattern matched, most-specific first (name/label beats
+// description beats hint), then by verified usage. Keeps a name-matching field
 // visible above the display cap even when many popular fields match loosely.
-const localityScore = (entry: FieldEntry, matches: MatchFn): number => {
-    if (matches(entry.nameHaystack)) return 3;
-    if (matches(entry.descHaystack)) return 2;
-    if (matches(entry.hintHaystack)) return 1;
-    return 0;
-};
-
-const localityLabel = (
-    entry: FieldEntry,
-    matches: MatchFn,
-): GrepFieldsResult['patterns'][number]['resultsByExplore'][number]['fields'][number]['matchLocality'] => {
-    const score = localityScore(entry, matches);
-    switch (score) {
-        case 3:
-            return 'name';
-        case 2:
-            return 'description';
-        default:
-            return 'hint';
-    }
-};
+const localityRank = (entry: FieldEntry, matches: MatchFn): number =>
+    MATCH_LOCALITY_RANK[matchLocality(entry, matches)];
 
 const getOrderedHits = (hits: FieldEntry[], matches: MatchFn): FieldEntry[] =>
     [...hits].sort(
         (a, b) =>
-            localityScore(b, matches) - localityScore(a, matches) ||
+            localityRank(b, matches) - localityRank(a, matches) ||
             b.verifiedUsage - a.verifiedUsage,
     );
 
 const getFieldIdFromEntry = (entry: FieldEntry): string =>
     entry.path.split('/')[1] ?? entry.path;
 
+type ResultsByExplore =
+    GrepFieldsResult['patterns'][number]['resultsByExplore'];
+
 const groupOrderedHitsByExplore = (
     orderedHits: FieldEntry[],
     matches: MatchFn,
-    requiredFiltersByExplore: Map<
-        string,
-        GrepFieldsResult['patterns'][number]['resultsByExplore'][number]['requiredFilters']
-    >,
-): GrepFieldsResult['patterns'][number]['resultsByExplore'] => {
+    requiredFiltersByExplore: Map<string, FindExploresRequiredFilter[]>,
+): ResultsByExplore => {
     const byExplore = new Map<string, FieldEntry[]>();
     for (const hit of orderedHits.slice(0, MAX_PER_PATTERN)) {
         const list = byExplore.get(hit.exploreName) ?? [];
@@ -156,25 +146,18 @@ const groupOrderedHitsByExplore = (
             description: field.description || null,
             hint: field.aiHint || null,
             usageInVerifiedCharts: field.verifiedUsage,
-            matchLocality: localityLabel(field, matches),
+            matchLocality: matchLocality(field, matches),
         })),
     }));
 };
 
-const renderHits = (
-    hits: FieldEntry[],
-    matches: MatchFn,
+// Render the human-readable block from the already-grouped results, so the text
+// and the structuredContent are two views of one computation, not two passes.
+const renderGroupedHits = (
+    resultsByExplore: ResultsByExplore,
     requiredFiltersSummaryByExplore: Map<string, string>,
-    requiredFiltersByExplore: Map<
-        string,
-        GrepFieldsResult['patterns'][number]['resultsByExplore'][number]['requiredFilters']
-    >,
 ): string =>
-    groupOrderedHitsByExplore(
-        getOrderedHits(hits, matches),
-        matches,
-        requiredFiltersByExplore,
-    )
+    resultsByExplore
         .map(({ exploreName, exploreLabel, fields }) => {
             const lines = fields
                 .map((field) => {
@@ -234,10 +217,7 @@ const renderPattern = (
     matches: MatchFn,
     scopeSize: number,
     requiredFiltersSummaryByExplore: Map<string, string>,
-    requiredFiltersByExplore: Map<
-        string,
-        GrepFieldsResult['patterns'][number]['resultsByExplore'][number]['requiredFilters']
-    >,
+    requiredFiltersByExplore: Map<string, FindExploresRequiredFilter[]>,
 ): {
     text: string;
     isSignal: boolean;
@@ -290,15 +270,20 @@ const renderPattern = (
         };
     }
 
+    // Group once and derive both the text block and the structuredContent from
+    // it, so a future ordering/capping change can't make the two disagree.
+    const resultsByExplore = groupOrderedHitsByExplore(
+        getOrderedHits(hits, matches),
+        matches,
+        requiredFiltersByExplore,
+    );
     const capped =
         hits.length > MAX_PER_PATTERN
             ? ` (showing ${MAX_PER_PATTERN} of ${hits.length})`
             : '';
-    const body = renderHits(
-        hits,
-        matches,
+    const body = renderGroupedHits(
+        resultsByExplore,
         requiredFiltersSummaryByExplore,
-        requiredFiltersByExplore,
     );
     const ambiguityNote = buildMetricAmbiguityNote(hits);
     const extras = [ambiguityNote, explorePointersText]
@@ -318,11 +303,7 @@ const renderPattern = (
             scopeSize,
             matchedAllFields,
             note,
-            resultsByExplore: groupOrderedHitsByExplore(
-                getOrderedHits(hits, matches),
-                matches,
-                requiredFiltersByExplore,
-            ),
+            resultsByExplore,
             metricAmbiguityNote: ambiguityNote,
             matchingExploresByName: explorePointers,
         },
@@ -343,24 +324,20 @@ const buildStructuredFuzzyMatches = (
         usageInVerifiedCharts: field.verifiedChartUsage ?? 0,
     }));
 
-export const executeGrepFields = async (
-    { patterns, exploreName }: ToolGrepFieldsArgs,
-    { availableExplores, findExplores, verifiedFieldUsage }: Dependencies,
-): Promise<ExecuteStructuredToolResult<GrepFieldsResult>> => {
-    const index = buildFieldIndex(availableExplores, verifiedFieldUsage);
-    const scoped = exploreName
-        ? index.filter((entry) => entry.exploreName === exploreName)
-        : index;
-    // When already scoped to one explore, explore-level pointers add nothing —
-    // the caller is already inside that explore.
-    const scopedExplores = exploreName
-        ? []
-        : buildExploreIndex(availableExplores);
-
+// Flatten the catalog into the greppable index and required-filter maps once, so
+// callers that reuse the context (the agent tool instance) don't rebuild them on
+// every grep call.
+const buildGrepFieldsContext = ({
+    availableExplores,
+    verifiedFieldUsage,
+}: Pick<
+    Dependencies,
+    'availableExplores' | 'verifiedFieldUsage'
+>): GrepFieldsContext => {
     const requiredFiltersSummaryByExplore = new Map<string, string>();
     const requiredFiltersByExplore = new Map<
         string,
-        GrepFieldsResult['patterns'][number]['resultsByExplore'][number]['requiredFilters']
+        FindExploresRequiredFilter[]
     >();
     for (const explore of availableExplores) {
         const summary = summarizeRequiredFilters(explore);
@@ -372,6 +349,51 @@ export const executeGrepFields = async (
             getExploreRequiredFilters(explore),
         );
     }
+    return {
+        index: buildFieldIndex(availableExplores, verifiedFieldUsage),
+        exploreIndex: buildExploreIndex(availableExplores),
+        exploreNames: new Set(availableExplores.map((explore) => explore.name)),
+        requiredFiltersSummaryByExplore,
+        requiredFiltersByExplore,
+    };
+};
+
+const runGrepFields = async (
+    { patterns, exploreName }: ToolGrepFieldsArgs,
+    context: GrepFieldsContext,
+    findExplores: FindExploresFn,
+): Promise<GrepFieldsExecuteResult> => {
+    // A typo'd or out-of-scope explore name would otherwise scope to zero
+    // fields and report "no matches, try broader keywords" — steering the caller
+    // to retry patterns inside an explore that does not exist. Report it as what
+    // it is, and list the valid explores so the caller can correct the name.
+    if (exploreName && !context.exploreNames.has(exploreName)) {
+        const available = [...context.exploreNames];
+        const message = `Explore "${exploreName}" not found or not available to this agent. ${
+            available.length > 0
+                ? `Available explores: ${available.join(', ')}.`
+                : 'No explores are available.'
+        } Omit exploreName to search all explores.`;
+        return {
+            result: message,
+            metadata: { status: 'success', patternStats: [] },
+            structuredContent: {
+                description: message,
+                exploreName,
+                patterns: [],
+                fuzzyMatches: [],
+            },
+        };
+    }
+
+    const scoped = exploreName
+        ? context.index.filter((entry) => entry.exploreName === exploreName)
+        : context.index;
+    // When already scoped to one explore, explore-level pointers add nothing —
+    // the caller is already inside that explore.
+    const scopedExplores = exploreName ? [] : context.exploreIndex;
+    const { requiredFiltersSummaryByExplore, requiredFiltersByExplore } =
+        context;
 
     // Each pattern is matched against the whole (pre-filtered) index in one
     // pass — "parallel" greps without an extra round-trip.
@@ -495,6 +517,16 @@ export const executeGrepFields = async (
     };
 };
 
+export const executeGrepFields = async (
+    args: ToolGrepFieldsArgs,
+    { availableExplores, findExplores, verifiedFieldUsage }: Dependencies,
+): Promise<GrepFieldsExecuteResult> =>
+    runGrepFields(
+        args,
+        buildGrepFieldsContext({ availableExplores, verifiedFieldUsage }),
+        findExplores,
+    );
+
 /**
  * Deterministic field discovery: grep an in-memory, annotated view of the
  * project's compiled explores (explore = directory, field = file). Reads only
@@ -502,12 +534,19 @@ export const executeGrepFields = async (
  * never touches the warehouse or git. Gated by the `ai-grep-fields` flag as an
  * alternative to the discoverFields sub-agent.
  */
-export const getGrepFields = (dependencies: Dependencies) =>
-    tool({
+export const getGrepFields = (dependencies: Dependencies) => {
+    // The tool instance persists across every grep call in an agent run, so the
+    // greppable index is built once here rather than per call.
+    const context = buildGrepFieldsContext(dependencies);
+    return tool({
         ...toolDefinition,
         execute: async (args) => {
             try {
-                const result = await executeGrepFields(args, dependencies);
+                const result = await runGrepFields(
+                    args,
+                    context,
+                    dependencies.findExplores,
+                );
                 return {
                     result: result.result,
                     metadata: result.metadata,
@@ -520,3 +559,4 @@ export const getGrepFields = (dependencies: Dependencies) =>
             }
         },
     });
+};
