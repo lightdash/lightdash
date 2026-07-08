@@ -3684,34 +3684,31 @@ export class AiAgentService extends BaseService {
     }
 
     public async completeMcpOAuthConnection(args: {
-        projectUuid: string;
-        mcpServerUuid: string;
+        projectUuid?: string;
+        mcpServerUuid?: string;
         code?: string;
         state?: string;
     }): Promise<void> {
-        const server = await this.getProjectMcpServerOrThrow(
-            args.projectUuid,
-            args.mcpServerUuid,
-        );
-
-        if (server.authType !== 'oauth') {
-            throw new ParameterError('MCP server is not configured for OAuth');
-        }
-
-        const credential = args.state
-            ? await this.aiAgentModel.getOauthCredentialByState({
-                  serverUuid: args.mcpServerUuid,
-                  state: args.state,
-              })
-            : undefined;
+        const stateServerUuid =
+            args.mcpServerUuid ??
+            AiAgentService.getMcpServerUuidFromOAuthState(args.state);
+        const credential =
+            args.state && stateServerUuid
+                ? await this.aiAgentModel.getOauthCredentialByState({
+                      serverUuid: stateServerUuid,
+                      state: args.state,
+                  })
+                : undefined;
 
         if (!args.code || !args.state) {
             const errorMessage = 'OAuth callback is missing code or state';
-            await this.persistMcpOAuthConnectionError(
-                args.mcpServerUuid,
-                errorMessage,
-                credential,
-            );
+            if (stateServerUuid || credential) {
+                await this.persistMcpOAuthConnectionError(
+                    stateServerUuid ?? credential?.mcpServerUuid ?? '',
+                    errorMessage,
+                    credential,
+                );
+            }
             throw new ParameterError(errorMessage);
         }
 
@@ -3719,17 +3716,36 @@ export class AiAgentService extends BaseService {
             throw new ParameterError('Invalid OAuth state');
         }
 
+        const server = args.projectUuid
+            ? await this.getProjectMcpServerOrThrow(
+                  args.projectUuid,
+                  credential.mcpServerUuid,
+              )
+            : await this.aiAgentModel.getMcpServer(credential.mcpServerUuid);
+
+        if (!server) {
+            throw new ParameterError('Invalid OAuth state');
+        }
+
+        if (args.mcpServerUuid && server.uuid !== args.mcpServerUuid) {
+            throw new ParameterError('Invalid OAuth state');
+        }
+
+        if (server.authType !== 'oauth') {
+            throw new ParameterError('MCP server is not configured for OAuth');
+        }
+
         await this.aiAgentMcpRuntimeClient.completeOAuthConnection({
-            projectUuid: args.projectUuid,
-            mcpServerUuid: args.mcpServerUuid,
+            projectUuid: server.projectUuid,
+            mcpServerUuid: server.uuid,
             serverUrl: server.url,
             code: args.code,
             credential,
         });
 
         await this.discoverMcpServerTools({
-            projectUuid: args.projectUuid,
-            mcpServerUuid: args.mcpServerUuid,
+            projectUuid: server.projectUuid,
+            mcpServerUuid: server.uuid,
             actorUserUuid:
                 credential.userUuid ??
                 credential.updatedByUserUuid ??
@@ -3743,6 +3759,13 @@ export class AiAgentService extends BaseService {
                 error,
             );
         });
+    }
+
+    private static getMcpServerUuidFromOAuthState(
+        state: string | undefined,
+    ): string | undefined {
+        const [mcpServerUuid, nonce] = state?.split('.', 2) ?? [];
+        return mcpServerUuid && nonce ? mcpServerUuid : undefined;
     }
 
     private async persistMcpOAuthConnectionError(

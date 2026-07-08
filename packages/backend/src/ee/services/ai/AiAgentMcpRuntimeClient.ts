@@ -76,6 +76,41 @@ const buildDefaultClientMetadata = (
     token_endpoint_auth_method: 'none',
 });
 
+export const getMcpOAuthCallbackUrl = (siteUrl: string): string =>
+    new URL('/api/v1/aiAgents/mcp/oauth/callback', siteUrl).toString();
+
+export const normalizeMcpOAuthPayloadForRedirect = (
+    payload: AiMcpOAuthCredentialPayload,
+    credentialScope: AiMcpCredentialScope,
+    redirectTargetUrl: string,
+    defaultClientMetadata: OAuthClientMetadata,
+): AiMcpOAuthCredentialPayload => {
+    if (payload.type !== 'oauth') {
+        return payload;
+    }
+
+    const redirectUris = payload.clientMetadata?.redirect_uris;
+    if (
+        Array.isArray(redirectUris) &&
+        !redirectUris.includes(redirectTargetUrl)
+    ) {
+        return {
+            ...payload,
+            credentialScope,
+            clientInformation: undefined,
+            clientMetadata: defaultClientMetadata,
+            codeVerifier: undefined,
+            state: undefined,
+            tokens: undefined,
+        };
+    }
+
+    return {
+        ...payload,
+        credentialScope,
+    };
+};
+
 const toSdkTokens = (
     payload: AiMcpOAuthCredentialPayload,
 ): OAuthTokens | undefined => {
@@ -161,6 +196,8 @@ export class McpAuthorizationRequiredError extends Error {
 }
 
 class PersistentMcpOAuthClientProvider implements OAuthClientProvider {
+    private readonly mcpServerUuid: string;
+
     private readonly credentialScope: AiMcpCredentialScope;
 
     private readonly redirectTargetUrl: string;
@@ -180,6 +217,7 @@ class PersistentMcpOAuthClientProvider implements OAuthClientProvider {
     private readonly defaultClientMetadata: OAuthClientMetadata;
 
     constructor(args: {
+        mcpServerUuid: string;
         credentialScope: AiMcpCredentialScope;
         redirectUrl: string;
         getCredential: () => Promise<AiMcpCredential | undefined>;
@@ -189,6 +227,7 @@ class PersistentMcpOAuthClientProvider implements OAuthClientProvider {
         connectionStatusOnAuthorization?: AiMcpServerConnectionStatus;
         clientMetadata?: OAuthClientMetadata;
     }) {
+        this.mcpServerUuid = args.mcpServerUuid;
         this.credentialScope = args.credentialScope;
         this.redirectTargetUrl = args.redirectUrl;
         this.getCredential = args.getCredential;
@@ -215,10 +254,12 @@ class PersistentMcpOAuthClientProvider implements OAuthClientProvider {
         const payload = credential?.credentials;
 
         if (payload?.type === 'oauth') {
-            return {
-                ...payload,
-                credentialScope: credential!.credentialScope,
-            };
+            return normalizeMcpOAuthPayloadForRedirect(
+                payload,
+                credential!.credentialScope,
+                this.redirectTargetUrl,
+                this.defaultClientMetadata,
+            );
         }
 
         return {
@@ -238,7 +279,7 @@ class PersistentMcpOAuthClientProvider implements OAuthClientProvider {
 
     async state(): Promise<string> {
         const payload = await this.loadPayload();
-        const state = crypto.randomUUID();
+        const state = `${this.mcpServerUuid}.${crypto.randomUUID()}`;
         await this.persist({
             ...payload,
             state,
@@ -700,16 +741,6 @@ export class AiAgentMcpRuntimeClient {
         }
     }
 
-    private getMcpOAuthCallbackUrl(
-        projectUuid: string,
-        mcpServerUuid: string,
-    ): string {
-        return new URL(
-            `/api/v1/projects/${projectUuid}/aiAgents/mcpServers/${mcpServerUuid}/oauth/callback`,
-            this.lightdashConfig.siteUrl,
-        ).toString();
-    }
-
     private createMcpOAuthProvider(args: {
         projectUuid: string;
         mcpServerUuid: string;
@@ -721,11 +752,9 @@ export class AiAgentMcpRuntimeClient {
         connectionStatusOnAuthorization?: AiMcpServerConnectionStatus;
     }) {
         return new PersistentMcpOAuthClientProvider({
+            mcpServerUuid: args.mcpServerUuid,
             credentialScope: args.credentialScope,
-            redirectUrl: this.getMcpOAuthCallbackUrl(
-                args.projectUuid,
-                args.mcpServerUuid,
-            ),
+            redirectUrl: getMcpOAuthCallbackUrl(this.lightdashConfig.siteUrl),
             getCredential: () =>
                 this.aiAgentModel.getCredential(
                     args.mcpServerUuid,

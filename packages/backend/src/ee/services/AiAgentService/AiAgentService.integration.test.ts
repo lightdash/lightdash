@@ -571,7 +571,6 @@ describe('AiAgentService MCP support', () => {
         const services = getServices(context.app);
         const models = getModels(context.app);
         const suffix = crypto.randomUUID().slice(0, 8);
-
         const mcpServer = await services.aiAgentService.createMcpServer(
             context.testUser,
             SEED_PROJECT.project_uuid,
@@ -626,7 +625,6 @@ describe('AiAgentService MCP support', () => {
         const services = getServices(context.app);
         const models = getModels(context.app);
         const suffix = crypto.randomUUID().slice(0, 8);
-
         const mcpServer = await services.aiAgentService.createMcpServer(
             context.testUser,
             SEED_PROJECT.project_uuid,
@@ -636,7 +634,6 @@ describe('AiAgentService MCP support', () => {
                 authType: 'oauth',
             },
         );
-
         await models.aiAgentModel.upsertCredential({
             serverUuid: mcpServer.uuid,
             scope: 'shared',
@@ -937,6 +934,19 @@ describe('AiAgentService MCP support', () => {
         const services = getServices(context.app);
         const models = getModels(context.app);
         const suffix = crypto.randomUUID().slice(0, 8);
+        const getOauthCredentialByStateSpy = vi.spyOn(
+            models.aiAgentModel,
+            'getOauthCredentialByState',
+        );
+
+        await expect(
+            services.aiAgentService.completeMcpOAuthConnection({
+                code: 'oauth-code',
+                state: 'unscoped-state',
+            }),
+        ).rejects.toThrow('Invalid OAuth state');
+
+        expect(getOauthCredentialByStateSpy).not.toHaveBeenCalled();
 
         const mcpServer = await services.aiAgentService.createMcpServer(
             context.testUser,
@@ -947,6 +957,7 @@ describe('AiAgentService MCP support', () => {
                 authType: 'oauth',
             },
         );
+        const oauthState = `${mcpServer.uuid}.user-oauth-state`;
 
         await models.aiAgentModel.upsertCredential({
             serverUuid: mcpServer.uuid,
@@ -956,7 +967,7 @@ describe('AiAgentService MCP support', () => {
                 type: 'oauth',
                 credentialScope: 'user',
                 connectionStatus: 'connecting',
-                state: 'user-oauth-state',
+                state: oauthState,
             },
             actorUserUuid: context.testUser.userUuid,
         });
@@ -965,9 +976,14 @@ describe('AiAgentService MCP support', () => {
             services.aiAgentService.completeMcpOAuthConnection({
                 projectUuid: SEED_PROJECT.project_uuid,
                 mcpServerUuid: mcpServer.uuid,
-                state: 'user-oauth-state',
+                state: oauthState,
             }),
         ).rejects.toThrow('OAuth callback is missing code or state');
+
+        expect(getOauthCredentialByStateSpy).toHaveBeenCalledWith({
+            serverUuid: mcpServer.uuid,
+            state: oauthState,
+        });
 
         await expect(
             models.aiAgentModel.getCredential(mcpServer.uuid, 'user', {
@@ -996,14 +1012,13 @@ describe('AiAgentService MCP support', () => {
             .mockResolvedValue([]);
 
         await services.aiAgentService.completeMcpOAuthConnection({
-            projectUuid: SEED_PROJECT.project_uuid,
-            mcpServerUuid: mcpServer.uuid,
             code: 'oauth-code',
-            state: 'user-oauth-state',
+            state: oauthState,
         });
 
         expect(completeOAuthConnectionSpy).toHaveBeenCalledWith(
             expect.objectContaining({
+                projectUuid: SEED_PROJECT.project_uuid,
                 mcpServerUuid: mcpServer.uuid,
                 credential: expect.objectContaining({
                     credentialScope: 'user',
@@ -1014,5 +1029,6 @@ describe('AiAgentService MCP support', () => {
 
         completeOAuthConnectionSpy.mockRestore();
         discoverMcpServerToolsSpy.mockRestore();
+        getOauthCredentialByStateSpy.mockRestore();
     });
 });
