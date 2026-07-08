@@ -1429,26 +1429,27 @@ const scopes: Scope[] = [
     },
 ] as const;
 
-const isOrgAssignableScopeDefinition = (scope: Scope): boolean =>
+const isOrganizationOnlyScopeDefinition = (scope: Scope): boolean =>
     scope.level === 'organization';
 
-const ORG_ASSIGNABLE_SCOPE_NAMES = new Set<string>(
-    scopes.filter(isOrgAssignableScopeDefinition).map((scope) => scope.name),
+const ORGANIZATION_ONLY_SCOPE_NAMES = new Set<string>(
+    scopes.filter(isOrganizationOnlyScopeDefinition).map((scope) => scope.name),
 );
 
-export const getOrgAssignableScopes = (): ScopeName[] =>
-    scopes.filter(isOrgAssignableScopeDefinition).map((scope) => scope.name);
+export const getOrganizationOnlyScopes = (): ScopeName[] =>
+    scopes.filter(isOrganizationOnlyScopeDefinition).map((scope) => scope.name);
 
-export const isOrgAssignableScope = (scopeName: string): boolean =>
-    ORG_ASSIGNABLE_SCOPE_NAMES.has(scopeName);
+export const isOrganizationOnlyScope = (scopeName: string): boolean =>
+    ORGANIZATION_ONLY_SCOPE_NAMES.has(scopeName);
+
+export const getOrgAssignableScopes = getOrganizationOnlyScopes;
+
+export const isOrgAssignableScope = isOrganizationOnlyScope;
 
 export const isScopeAssignableAtLevel = (
     scopeName: string,
     level: RoleLevel,
-): boolean =>
-    level === 'organization'
-        ? isOrgAssignableScope(scopeName)
-        : !isOrgAssignableScope(scopeName);
+): boolean => level === 'organization' || !isOrganizationOnlyScope(scopeName);
 
 const getNonEnterpriseScopes = (): Scope[] =>
     scopes.filter((scope) => !scope.isEnterprise);

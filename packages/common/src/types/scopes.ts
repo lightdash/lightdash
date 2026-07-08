@@ -104,8 +104,9 @@ export type Scope = {
      */
     dependencies: ScopeDependency[];
     /**
-     * The level at which this scope can be granted by a custom role.
-     * Defaults to 'project'. Single source of truth for level classification.
+     * Organization-only scopes are unavailable to project roles.
+     * Scopes without a level are project scopes; organization roles may grant
+     * them across all projects.
      */
     level?: RoleLevel;
     /**
