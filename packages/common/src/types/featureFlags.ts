@@ -202,15 +202,6 @@ export enum FeatureFlags {
     AiSlackSystemAgentFallback = 'ai-slack-system-agent-fallback',
 
     /**
-     * Let users link their personal GitHub account (user-to-server OAuth
-     * token) so write-back commits and pull requests are authored as them
-     * instead of the Lightdash GitHub App bot. Off by default while the
-     * link/unlink UX and token lifecycle are validated; when off, write-backs
-     * keep today's bot identity.
-     */
-    GithubUserCredentials = 'github-user-credentials',
-
-    /**
      * Gate the org-level export Limits settings panel (per-org query max rows
      * and CSV cells limit). Backend enforcement of any stored overrides is
      * always on; this flag only controls who can see/configure the panel.
