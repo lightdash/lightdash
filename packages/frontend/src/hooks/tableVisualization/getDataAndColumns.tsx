@@ -4,13 +4,14 @@ import {
     isCustomDimension,
     isDimension,
     isField,
+    isNumericItem,
     normalizePivotMatchRaw,
     type ItemsMap,
     type ParametersValuesMap,
     type ResultRow,
     type ResultValue,
 } from '@lightdash/common';
-import { Text } from '@mantine/core';
+import { Skeleton, Text } from '@mantine/core';
 import { captureException } from '@sentry/react';
 import type { CellContext } from '@tanstack/react-table';
 import {
@@ -35,7 +36,9 @@ type Args = {
     getFieldLabelOverride: (key: string) => string | undefined;
     columnOrder: string[];
     totals?: Record<string, number>;
+    totalsLoading?: boolean;
     groupedSubtotals?: Record<string, Record<string, number>[]>;
+    subtotalsLoading?: boolean;
     parameters?: ParametersValuesMap;
 };
 
@@ -156,7 +159,9 @@ const getDataAndColumns = ({
     getFieldLabelOverride,
     columnOrder,
     totals,
+    totalsLoading,
     groupedSubtotals,
+    subtotalsLoading,
     parameters,
 }: Args): Array<TableHeader | TableColumn> => {
     // Deduplicate columnOrder to prevent duplicate columns if the same field appears multiple times
@@ -223,15 +228,26 @@ const getDataAndColumns = ({
                     ),
                     cell: (info) => getFormattedValueCell(info, parameters),
 
-                    footer: () =>
-                        totals?.[itemId]
-                            ? formatItemValue(
-                                  item,
-                                  totals[itemId],
-                                  false,
-                                  parameters,
-                              )
-                            : null,
+                    footer: () => {
+                        if (totals?.[itemId]) {
+                            return formatItemValue(
+                                item,
+                                totals[itemId],
+                                false,
+                                parameters,
+                            );
+                        }
+                        if (totalsLoading && isNumericItem(item)) {
+                            return (
+                                <Skeleton
+                                    height={16}
+                                    width="min(60%, 50px)"
+                                    ml="auto"
+                                />
+                            );
+                        }
+                        return null;
+                    },
                     meta: {
                         item,
                         labelOverride: headerOverride,
@@ -276,6 +292,20 @@ const getDataAndColumns = ({
 
                             if (subtotalValue === null) {
                                 return null;
+                            }
+
+                            if (
+                                subtotalValue === undefined &&
+                                subtotalsLoading &&
+                                isNumericItem(item)
+                            ) {
+                                return (
+                                    <Skeleton
+                                        height={16}
+                                        width="min(60%, 50px)"
+                                        ml="auto"
+                                    />
+                                );
                             }
 
                             return (

@@ -232,6 +232,9 @@ const SimpleTable: FC<SimpleTableProps> = ({
         showSubtotalsExpanded,
         showRowGrouping,
         updateColumnProperty,
+        isCalculatingColumnTotals,
+        isCalculatingRowTotals,
+        isCalculatingSubtotals,
     } = visualizationConfig.chartConfig;
 
     const onColumnWidthChange =
@@ -325,6 +328,11 @@ const SimpleTable: FC<SimpleTableProps> = ({
                                 }
                                 onColumnWidthChange={onColumnWidthChange}
                                 parameters={parameters}
+                                isColumnTotalsLoading={
+                                    isCalculatingColumnTotals
+                                }
+                                isRowTotalsLoading={isCalculatingRowTotals}
+                                isSubtotalsLoading={isCalculatingSubtotals}
                                 {...rest}
                             />
                         ) : (
@@ -347,6 +355,11 @@ const SimpleTable: FC<SimpleTableProps> = ({
                                 }
                                 onColumnWidthChange={onColumnWidthChange}
                                 parameters={parameters}
+                                isColumnTotalsLoading={
+                                    isCalculatingColumnTotals
+                                }
+                                isRowTotalsLoading={isCalculatingRowTotals}
+                                isSubtotalsLoading={isCalculatingSubtotals}
                                 {...rest}
                             />
                         )}
