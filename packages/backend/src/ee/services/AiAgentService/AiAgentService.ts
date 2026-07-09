@@ -6814,6 +6814,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 result: toolResult,
                 metadata: { status: 'error', errorCode },
             });
+            if (isSlackPrompt(prompt)) {
+                await this.postWritebackOutcomeToSlack(
+                    user,
+                    prompt,
+                    getMarkdownBlocks(`:x: ${toolResult}`),
+                    toolResult,
+                );
+            }
             return;
         }
 
@@ -6936,6 +6944,33 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             },
         });
 
+        // Deliver the PR card to Slack now that the tool result is final — the
+        // agent's own message already went out (cardless) when its turn ended.
+        // Reuses the same renderer as the in-turn card, so it reads identically.
+        // Best-effort: the run has already succeeded, so a Slack/read failure
+        // here must never bubble up and fail the job.
+        if (result.prUrl && isSlackPrompt(prompt)) {
+            try {
+                const finalToolResults =
+                    await this.aiAgentModel.getToolResultsForPrompt(promptUuid);
+                const prCardBlocks =
+                    getModernPullRequestCardBlocks(finalToolResults);
+                if (prCardBlocks.length > 0) {
+                    await this.postWritebackOutcomeToSlack(
+                        user,
+                        prompt,
+                        prCardBlocks,
+                        'Your pull request is ready.',
+                    );
+                }
+            } catch (error) {
+                Logger.error(
+                    'Failed to deliver AI writeback PR card to Slack:',
+                    error,
+                );
+            }
+        }
+
         if (result.needsDbtSourceSelection) {
             await this.waitForOriginalResponseWritten(
                 promptUuid,
@@ -6962,6 +6997,44 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             result: message,
             metadata: { status: 'error', errorCode: 'unknown' },
         });
+    }
+
+    /**
+     * Post the writeback outcome as a follow-up message in the Slack thread. The
+     * agent's turn ends ~1s after the editDbtProject tool starts — long before
+     * the async pipeline resolves — so its final message carries no result. This
+     * delivers the PR card (or the failure) once the pipeline actually finishes,
+     * mirroring what the web chat card shows. Best-effort: a Slack failure must
+     * never fail the run.
+     */
+    private async postWritebackOutcomeToSlack(
+        user: SessionUser,
+        prompt: SlackPrompt,
+        blocks: (Block | KnownBlock)[],
+        text: string,
+    ): Promise<void> {
+        try {
+            let agentName: string | undefined;
+            try {
+                agentName = (await this.getAgentSettings(user, prompt)).name;
+            } catch {
+                // Fall back to the app's default name.
+            }
+            await this.slackClient.postMessage({
+                organizationUuid: prompt.organizationUuid,
+                channel: prompt.slackChannelId,
+                thread_ts: prompt.slackThreadTs || prompt.promptSlackTs,
+                username: agentName,
+                text,
+                blocks,
+                unfurl_links: false,
+            });
+        } catch (error) {
+            Logger.error(
+                'Failed to post AI writeback outcome to Slack:',
+                error,
+            );
+        }
     }
 
     // Defines the functions that AI Agent tools can use to interact with the Lightdash backend or slack

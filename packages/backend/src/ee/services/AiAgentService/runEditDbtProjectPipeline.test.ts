@@ -73,7 +73,24 @@ const buildService = (overrides: {
     const updateToolResult = vi.fn().mockResolvedValue(undefined);
     const updateModelResponse = vi.fn().mockResolvedValue(undefined);
     const addReaction = vi.fn().mockResolvedValue(undefined);
+    const postMessage = vi.fn().mockResolvedValue(undefined);
     const createRemediationEvent = vi.fn().mockResolvedValue(undefined);
+    // A final tool-result row shaped so getModernPullRequestCardBlocks renders
+    // a PR card for it (the Slack success card the pipeline delivers on resolve).
+    const editDbtProjectToolResult = {
+        uuid: 'tr-1',
+        toolType: 'built-in',
+        toolName: 'editDbtProject',
+        metadata: {
+            status: 'success',
+            prUrl: WRITEBACK_RESULT.prUrl,
+            prAction: 'opened',
+            commitSha: WRITEBACK_RESULT.commitSha,
+            additions: WRITEBACK_RESULT.additions,
+            deletions: WRITEBACK_RESULT.deletions,
+            previewUrl: null,
+        },
+    };
     const createPreviewForPullRequest = vi
         .fn()
         .mockResolvedValue(
@@ -95,6 +112,12 @@ const buildService = (overrides: {
             ),
         updateToolResult,
         updateModelResponse,
+        getToolResultsForPrompt: vi
+            .fn()
+            .mockResolvedValue([editDbtProjectToolResult]),
+        getAgentBySlackChannelId: vi
+            .fn()
+            .mockResolvedValue({ uuid: 'agent-1', name: 'Analytics Agent' }),
     };
     const userModel = {
         findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue({
@@ -121,7 +144,7 @@ const buildService = (overrides: {
             .mockResolvedValue(overrides.reviewRemediation ?? null),
         createRemediationEvent,
     };
-    const slackClient = { addReaction };
+    const slackClient = { addReaction, postMessage };
     const featureFlagService = {
         get: vi.fn().mockResolvedValue({
             enabled: overrides.previewDeploySetupEnabled ?? false,
@@ -151,6 +174,7 @@ const buildService = (overrides: {
         updateToolResult,
         updateModelResponse,
         addReaction,
+        postMessage,
         createRemediationEvent,
         createPreviewForPullRequest,
     };
@@ -209,6 +233,52 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
         await service.runEditDbtProjectPipeline(PAYLOAD);
 
         expect(addReaction).not.toHaveBeenCalled();
+    });
+
+    it('posts the PR card to the Slack thread once the pipeline resolves', async () => {
+        const { service, postMessage } = buildService({ isSlack: true });
+
+        await service.runEditDbtProjectPipeline({
+            ...PAYLOAD,
+            isSlackPrompt: true,
+        });
+
+        expect(postMessage).toHaveBeenCalledWith(
+            expect.objectContaining({
+                channel: 'C123',
+                thread_ts: '111.222',
+                blocks: expect.arrayContaining([expect.anything()]),
+            }),
+        );
+    });
+
+    it('does not post a Slack message for a web prompt', async () => {
+        const { service, postMessage } = buildService({});
+
+        await service.runEditDbtProjectPipeline(PAYLOAD);
+
+        expect(postMessage).not.toHaveBeenCalled();
+    });
+
+    it('posts the failure to the Slack thread when the run errors', async () => {
+        const run = vi.fn().mockRejectedValue(new Error('sandbox exploded'));
+        const { service, postMessage } = buildService({
+            isSlack: true,
+            run,
+            getRunStatus: getRunStatusMock('error'),
+        });
+
+        await service.runEditDbtProjectPipeline({
+            ...PAYLOAD,
+            isSlackPrompt: true,
+        });
+
+        expect(postMessage).toHaveBeenCalledWith(
+            expect.objectContaining({
+                channel: 'C123',
+                thread_ts: '111.222',
+            }),
+        );
     });
 
     it('records a build-fix remediation event when the thread is a remediation work thread', async () => {
