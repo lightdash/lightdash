@@ -1,3 +1,16 @@
+# [0.3348.0](https://github.com/lightdash/lightdash/compare/0.3347.0...0.3348.0) (2026-07-09)
+
+
+### Bug Fixes
+
+* keep stuck MCP OAuth connection removable and self-healing ([#25343](https://github.com/lightdash/lightdash/issues/25343)) ([de7527c](https://github.com/lightdash/lightdash/commit/de7527c757dc3e813b0a41276216b4718b7c4cd7))
+* post Slack MCP OAuth login prompt once per user+server ([#25342](https://github.com/lightdash/lightdash/issues/25342)) ([f2bca62](https://github.com/lightdash/lightdash/commit/f2bca6201f20ba4c6bc570d286945ad38abf135e))
+
+
+### Features
+
+* allow embed viewers to add their own dashboard filters ([#25332](https://github.com/lightdash/lightdash/issues/25332)) ([0c1a9f5](https://github.com/lightdash/lightdash/commit/0c1a9f57fe590502c904b301f82787013fa625e0)), closes [#22020](https://github.com/lightdash/lightdash/issues/22020)
+
 # [0.3347.0](https://github.com/lightdash/lightdash/compare/0.3346.0...0.3347.0) (2026-07-09)
 
 
