@@ -1147,9 +1147,7 @@ export const AiAgentMcpServersInput = ({
                                         );
                                     }}
                                     disabled={
-                                        isConnecting ||
-                                        isDisconnecting ||
-                                        isPersistingSelection
+                                        isDisconnecting || isPersistingSelection
                                     }
                                 >
                                     {isDisconnecting
@@ -1166,7 +1164,7 @@ export const AiAgentMcpServersInput = ({
                                 event.stopPropagation();
                                 void handleRemoveMcpServer(mcpServer.uuid);
                             }}
-                            disabled={isConnecting || isPersistingSelection}
+                            disabled={isPersistingSelection}
                             color="red"
                         >
                             Remove

@@ -711,6 +711,11 @@ export class AiAgentModel {
         return slug;
     }
 
+    // An OAuth flow that is never completed leaves the credential at
+    // 'connecting' indefinitely. Treat a 'connecting' credential older than the
+    // OAuth window as stale so the UI self-heals to 'not_connected'.
+    private static readonly STALE_MCP_CONNECTING_TIMEOUT_MS = 5 * 60 * 1000;
+
     private static getMcpServerCredentialStatus(
         row: DbAiMcpServer,
         credential: AiMcpCredential | null,
@@ -746,10 +751,17 @@ export class AiAgentModel {
             row.auth_type === 'oauth' &&
             credential.credentials.type === 'oauth'
         ) {
+            const isStaleConnecting =
+                credential.credentials.connectionStatus === 'connecting' &&
+                Date.now() - credential.updatedAt.getTime() >
+                    AiAgentModel.STALE_MCP_CONNECTING_TIMEOUT_MS;
+
             return {
                 hasCredentials: true,
                 credentialScope: credential.credentialScope,
-                connectionStatus: credential.credentials.connectionStatus,
+                connectionStatus: isStaleConnecting
+                    ? 'not_connected'
+                    : credential.credentials.connectionStatus,
                 error: credential.credentials.lastError ?? null,
                 connectedByUserUuid:
                     credential.updatedByUserUuid ??
