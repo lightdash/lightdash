@@ -7,10 +7,15 @@ import { IconChartBarOff } from '@tabler/icons-react';
 import { type EChartsReactProps, type Opts } from 'echarts-for-react/lib/types';
 import { memo, useCallback, useEffect, useMemo, useRef, type FC } from 'react';
 import useEchartsCartesianConfig from '../../hooks/echarts/useEchartsCartesianConfig';
-import { useLegendDoubleClickSelection } from '../../hooks/echarts/useLegendDoubleClickSelection';
+import {
+    getDisabledLegendEntries,
+    useLegendDoubleClickSelection,
+    type LegendSelection,
+} from '../../hooks/echarts/useLegendDoubleClickSelection';
 import LoadingChart from '../common/LoadingChart';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import EChartsReact from '../EChartsReactWrapper';
+import { isCartesianVisualizationConfig } from '../LightdashVisualization/types';
 import { useVisualizationContext } from '../LightdashVisualization/useVisualizationContext';
 
 type EchartsBaseClickEvent = {
@@ -139,10 +144,37 @@ const SimpleChart: FC<SimpleChartProps> = memo(
             itemsMap,
             resultsData,
             resolvedTimezone,
+            visualizationConfig,
+            isEditMode,
         } = useVisualizationContext();
 
+        const cartesianChartConfig = isCartesianVisualizationConfig(
+            visualizationConfig,
+        )
+            ? visualizationConfig.chartConfig
+            : undefined;
+
+        const persistLegendSelection = useCallback(
+            (selected: LegendSelection) => {
+                if (!isEditMode || !cartesianChartConfig) return;
+                const { selected: previousSelected, ...legend } =
+                    cartesianChartConfig.dirtyEchartsConfig?.legend ?? {};
+                const disabledEntries = getDisabledLegendEntries(selected);
+                if (!disabledEntries && !previousSelected) return;
+                cartesianChartConfig.setLegend(
+                    disabledEntries
+                        ? { ...legend, selected: disabledEntries }
+                        : legend,
+                );
+            },
+            [isEditMode, cartesianChartConfig],
+        );
+
         const { selectedLegends, onLegendChange } =
-            useLegendDoubleClickSelection();
+            useLegendDoubleClickSelection(
+                cartesianChartConfig?.dirtyEchartsConfig?.legend?.selected,
+                persistLegendSelection,
+            );
         const eChartsOptions = useEchartsCartesianConfig(
             selectedLegends,
             props.isInDashboard,

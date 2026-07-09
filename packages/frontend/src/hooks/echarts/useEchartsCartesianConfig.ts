@@ -417,7 +417,7 @@ export const mergeLegendSettings = <
     series: EChartsSeries[],
 ): Record<string, unknown> => {
     const normalizedConfig = removeEmptyProperties(legendConfig);
-    if (!normalizedConfig) {
+    if (!normalizedConfig || Object.keys(normalizedConfig).length === 0) {
         return {
             show: series.length > 1,
             type: 'scroll',

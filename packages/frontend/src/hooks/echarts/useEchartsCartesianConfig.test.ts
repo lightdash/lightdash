@@ -2095,6 +2095,17 @@ describe('mergeLegendSettings', () => {
         });
     });
 
+    test('returns defaults when config is empty', () => {
+        const result = mergeLegendSettings({}, selected, series);
+        expect(result).toMatchObject({
+            show: true,
+            type: 'scroll',
+            orient: 'horizontal',
+            top: 0,
+            selected,
+        });
+    });
+
     test('passes through user orient/position when placement is unset', () => {
         const result = mergeLegendSettings(
             { orient: 'vertical', right: '10', top: '20' },
