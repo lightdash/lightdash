@@ -20,56 +20,70 @@ export type McpCallRow = {
 export type McpActivityRow = McpSessionHeaderRow | McpCallRow;
 
 type SessionGroup = {
-    sessionId: string | null;
+    key: string;
     calls: McpActivityItem[];
 };
 
-// Contiguous runs only: a session whose calls interleave in time with
-// another session's shows as separate blocks. Exact grouping needs
-// server-side session pagination.
-const groupContiguousBySession = (calls: McpActivityItem[]): SessionGroup[] =>
+// The server emits session-grouped queries with segments already
+// contiguous, so grouping consecutive keys reconstructs them exactly;
+// rows without a server group (e.g. from older cached pages) fall back
+// to standalone one-call groups
+const getGroupKey = (call: McpActivityItem): string =>
+    call.sessionGroup?.key ?? `call:${call.uuid}`;
+
+const groupConsecutiveByKey = (calls: McpActivityItem[]): SessionGroup[] =>
     calls.reduce<SessionGroup[]>((groups, call) => {
+        const key = getGroupKey(call);
         const lastGroup = groups[groups.length - 1];
-        if (lastGroup && lastGroup.sessionId === call.sessionId) {
+        if (lastGroup && lastGroup.key === key) {
             lastGroup.calls.push(call);
             return groups;
         }
-        return [...groups, { sessionId: call.sessionId, calls: [call] }];
+        return [...groups, { key, calls: [call] }];
     }, []);
-
-// Keyed by the first call's uuid so keys stay stable while infinite scroll
-// appends older pages (a run only ever grows at its tail).
-const getGroupKey = (group: SessionGroup): string =>
-    `${group.sessionId ?? 'no-session'}:${group.calls[0].uuid}`;
 
 export const buildSessionRows = (
     calls: McpActivityItem[],
     collapsedGroups: ReadonlySet<string>,
 ): McpActivityRow[] =>
-    groupContiguousBySession(calls).flatMap<McpActivityRow>((group) => {
-        const groupKey = getGroupKey(group);
+    groupConsecutiveByKey(calls).flatMap<McpActivityRow>((group) => {
+        const [firstCall] = group.calls;
+        const { sessionGroup, sessionId } = firstCall;
+        const callCount = sessionGroup?.callCount ?? group.calls.length;
+        // A lone sessionless call reads better as a plain chronological row
+        // than as a one-call "No session ID" group
+        const isHeaderless =
+            !sessionGroup || (sessionId === null && callCount === 1);
+        if (isHeaderless) {
+            return group.calls.map<McpCallRow>((call) => ({
+                type: 'call',
+                groupKey: group.key,
+                call,
+            }));
+        }
         const latestCall = group.calls.reduce((latest, call) =>
             call.createdAt > latest.createdAt ? call : latest,
         );
         const header: McpSessionHeaderRow = {
             type: 'session',
-            groupKey,
-            sessionId: group.sessionId,
+            groupKey: group.key,
+            sessionId,
             clientName: latestCall.clientName,
             clientVersion: latestCall.clientVersion,
-            callCount: group.calls.length,
-            errorCount: group.calls.filter((call) => call.status === 'error')
-                .length,
+            callCount,
+            errorCount:
+                sessionGroup?.errorCount ??
+                group.calls.filter((call) => call.status === 'error').length,
             latestCallAt: latestCall.createdAt,
         };
-        if (collapsedGroups.has(groupKey)) {
+        if (collapsedGroups.has(group.key)) {
             return [header];
         }
         return [
             header,
             ...group.calls.map<McpCallRow>((call) => ({
                 type: 'call',
-                groupKey,
+                groupKey: group.key,
                 call,
             })),
         ];
