@@ -108,10 +108,12 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
             enabled: newEnabledValue,
             allowedFilters: newAllowedFilters,
             hidden: newHiddenValue,
+            canAddFilters: newCanAddFiltersValue,
         }: {
             enabled?: FilterInteractivityValues;
             allowedFilters?: string[];
             hidden?: boolean;
+            canAddFilters?: boolean;
         }) => {
             const enabled = getFilterInteractivityValue(
                 newEnabledValue ?? interactivityOptions.enabled,
@@ -139,12 +141,17 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
                 enabled,
                 allowedFilters,
                 hidden: newHiddenValue ?? interactivityOptions.hidden ?? false,
+                canAddFilters:
+                    newCanAddFiltersValue ??
+                    interactivityOptions.canAddFilters ??
+                    false,
             });
         },
         [
             interactivityOptions.enabled,
             interactivityOptions.allowedFilters,
             interactivityOptions.hidden,
+            interactivityOptions.canAddFilters,
             onInteractivityOptionsChange,
         ],
     );
@@ -182,7 +189,6 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
                                 FilterInteractivityValues.all,
                             ),
                             value: FilterInteractivityValues.all,
-                            disabled: dashboardFilters?.length === 0,
                         },
                     ]}
                     size="xs"
@@ -214,6 +220,35 @@ const EmbedFiltersInteractivity: React.FC<Props> = ({
                 onChange={(event) => {
                     setInteractivityOptions({
                         hidden: event.currentTarget.checked,
+                    });
+                }}
+            />
+            <Switch
+                size="sm"
+                checked={interactivityOptions.canAddFilters ?? false}
+                disabled={
+                    getFilterInteractivityValue(
+                        interactivityOptions.enabled,
+                    ) === FilterInteractivityValues.none
+                }
+                label={
+                    <Group gap="xs">
+                        <Text inherit>Users can add their own filters</Text>
+                        <Tooltip
+                            label="Filters added by viewers are temporary and only last for the current session. This also requires the dashboard's 'Add filter' button to be visible to viewers."
+                            withArrow
+                            withinPortal
+                            multiline
+                            maw="300px"
+                            position="right"
+                        >
+                            <MantineIcon icon={IconInfoCircle} size="sm" />
+                        </Tooltip>
+                    </Group>
+                }
+                onChange={(event) => {
+                    setInteractivityOptions({
+                        canAddFilters: event.currentTarget.checked,
                     });
                 }}
             />

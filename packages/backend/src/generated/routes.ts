@@ -2538,6 +2538,7 @@ const models: TsoaRoute.Models = {
                 dashboardFiltersInteractivity: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        canAddFilters: { dataType: 'boolean' },
                         hidden: { dataType: 'boolean' },
                         allowedFilters: {
                             dataType: 'union',
@@ -3712,6 +3713,9 @@ const models: TsoaRoute.Models = {
                                 dashboardFiltersInteractivity: {
                                     dataType: 'nestedObjectLiteral',
                                     nestedProperties: {
+                                        canAddFilters: {
+                                            dataType: 'boolean',
+                                        },
                                         hidden: { dataType: 'boolean' },
                                         allowedFilters: {
                                             dataType: 'union',

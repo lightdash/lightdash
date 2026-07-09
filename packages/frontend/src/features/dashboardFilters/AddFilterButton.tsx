@@ -24,6 +24,14 @@ type Props = {
     onPopoverClose: () => void;
     onSave: (value: DashboardFilterRule) => void;
     onResetDashboardFilters: () => void;
+    /** Public class contract hooks — set only by embed wrappers, never in the main app. */
+    triggerClassName?: string;
+    dropdownClassName?: string;
+    /**
+     * Overrides the view-mode tooltip on the trigger button. Pass `null` to
+     * hide it entirely. Defaults to the app's "edit mode" copy.
+     */
+    unsavedFiltersTooltip?: string | null;
 };
 
 const AddFilterButton: FC<Props> = ({
@@ -34,6 +42,9 @@ const AddFilterButton: FC<Props> = ({
     onPopoverClose,
     onSave,
     onResetDashboardFilters,
+    triggerClassName,
+    dropdownClassName,
+    unsavedFiltersTooltip,
 }) => {
     const popoverId = useId();
     const isAddFilterDisabled = useDashboardContext(
@@ -106,6 +117,19 @@ const AddFilterButton: FC<Props> = ({
     const showResetFiltersButton = !isEditMode && haveFiltersChanged;
     const hasAttachedButton = showResetFiltersButton || isEditMode;
 
+    const tooltipLabel =
+        unsavedFiltersTooltip === undefined ? (
+            <Text fz="xs">
+                Only filters added in{' '}
+                <Text span fw={600}>
+                    'edit'
+                </Text>{' '}
+                mode will be saved
+            </Text>
+        ) : unsavedFiltersTooltip === null ? null : (
+            <Text fz="xs">{unsavedFiltersTooltip}</Text>
+        );
+
     if (isAddFilterDisabled && !isEditMode) {
         if (showResetFiltersButton)
             return (
@@ -151,25 +175,21 @@ const AddFilterButton: FC<Props> = ({
                 offset={1}
                 arrowOffset={14}
                 withinPortal
+                classNames={{ dropdown: dropdownClassName }}
             >
                 <Popover.Target>
                     <Tooltip
-                        disabled={isPopoverOpen || isEditMode}
+                        disabled={
+                            isPopoverOpen || isEditMode || tooltipLabel === null
+                        }
                         position="top-start"
                         withinPortal
                         offset={0}
                         arrowOffset={16}
-                        label={
-                            <Text fz="xs">
-                                Only filters added in{' '}
-                                <Text span fw={600}>
-                                    'edit'
-                                </Text>{' '}
-                                mode will be saved
-                            </Text>
-                        }
+                        label={tooltipLabel}
                     >
                         <Button
+                            className={triggerClassName}
                             size="xs"
                             variant="default"
                             radius={100}
