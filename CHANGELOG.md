@@ -1,3 +1,10 @@
+# [0.3343.0](https://github.com/lightdash/lightdash/compare/0.3342.0...0.3343.0) (2026-07-09)
+
+
+### Features
+
+* support empty default dashboard filters ([#25295](https://github.com/lightdash/lightdash/issues/25295)) ([39a5cea](https://github.com/lightdash/lightdash/commit/39a5cea53a6f1a8ae49407daf1dce9a13a076273))
+
 # [0.3342.0](https://github.com/lightdash/lightdash/compare/0.3341.0...0.3342.0) (2026-07-09)
 
 
