@@ -2083,14 +2083,21 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
         )
             .split(',')
             .map((s) => s.trim())
-            .filter(Boolean),
-        dependencyInstallTimeoutMs: process.env
-            .LIGHTDASH_APP_DEPENDENCY_INSTALL_TIMEOUT_MS
-            ? parseInt(
-                  process.env.LIGHTDASH_APP_DEPENDENCY_INSTALL_TIMEOUT_MS,
-                  10,
-              )
-            : 120_000,
+            .filter(Boolean)
+            .map((host) => {
+                // These feed the sandbox egress allowlist — fail loudly on
+                // anything that isn't a plain hostname.
+                if (!/^[a-zA-Z0-9][a-zA-Z0-9.-]*$/.test(host)) {
+                    throw new ParseError(
+                        `Cannot parse environment variable "LIGHTDASH_APP_DEPENDENCY_REGISTRY_HOSTS". "${host}" is not a valid hostname`,
+                    );
+                }
+                return host;
+            }),
+        dependencyInstallTimeoutMs:
+            getIntegerFromEnvironmentVariable(
+                'LIGHTDASH_APP_DEPENDENCY_INSTALL_TIMEOUT_MS',
+            ) ?? 120_000,
     };
 };
 

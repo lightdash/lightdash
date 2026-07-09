@@ -1280,6 +1280,17 @@ const AppGenerate: FC = () => {
         onPreview: () => pinPreviewToVersion(bubbleVersion),
     });
 
+    // Chip listing the custom packages installed for a version's build.
+    const renderVersionDepsChip = (bubbleVersion: number) => {
+        const vDeps = versionByNumber.get(bubbleVersion)?.dependencies?.custom;
+        if (!vDeps || vDeps.length === 0) return null;
+        return (
+            <Group gap="xs" mt={4}>
+                <DepsChip deps={vDeps} />
+            </Group>
+        );
+    };
+
     // Whether the user is currently looking at a version other than the
     // latest ready one. Drives the "viewing older version" banner.
     const isViewingOlderVersion =
@@ -2304,28 +2315,9 @@ const AppGenerate: FC = () => {
                                                             }
                                                         />
                                                         {msg.version !== null &&
-                                                            (() => {
-                                                                const vDeps =
-                                                                    versionByNumber.get(
-                                                                        msg.version,
-                                                                    )
-                                                                        ?.dependencies
-                                                                        ?.custom;
-                                                                return vDeps &&
-                                                                    vDeps.length >
-                                                                        0 ? (
-                                                                    <Group
-                                                                        gap="xs"
-                                                                        mt={4}
-                                                                    >
-                                                                        <DepsChip
-                                                                            deps={
-                                                                                vDeps
-                                                                            }
-                                                                        />
-                                                                    </Group>
-                                                                ) : null;
-                                                            })()}
+                                                            renderVersionDepsChip(
+                                                                msg.version,
+                                                            )}
                                                         {msg.vizSchema ? (
                                                             msg.version !==
                                                                 null &&
