@@ -8,12 +8,16 @@ import {
     IconArrowsSort,
     IconArrowUp,
     IconBox,
+    IconChevronDown,
+    IconChevronRight,
     IconClock,
     IconDeviceLaptop,
     IconHourglass,
+    IconLink,
     IconPlugConnected,
     IconRobotFace,
     IconTool,
+    IconUnlink,
     IconUser,
 } from '@tabler/icons-react';
 import {
@@ -22,6 +26,7 @@ import {
     useMemo,
     useRef,
     useState,
+    type FC,
     type UIEvent,
 } from 'react';
 import {
@@ -42,12 +47,69 @@ import {
     formatToolCallTime,
     formatToolCallTimeFull,
 } from './mcpActivityFormat';
+import {
+    buildFlatRows,
+    buildSessionRows,
+    type McpActivityRow,
+    type McpSessionHeaderRow,
+} from './mcpActivitySessionRows';
 import styles from './McpActivityTable.module.css';
 import { McpActivityTopToolbar } from './McpActivityTopToolbar';
 
 type McpActivityTableProps = {
     onCallSelect?: (toolCall: McpActivityItem) => void;
     selectedCall?: McpActivityItem | null;
+};
+
+const SessionHeaderLabel: FC<{
+    session: McpSessionHeaderRow;
+    isCollapsed: boolean;
+}> = ({ session, isCollapsed }) => (
+    <Group gap="xs" wrap="nowrap">
+        <MantineIcon
+            icon={isCollapsed ? IconChevronRight : IconChevronDown}
+            color="ldGray.6"
+        />
+        <MantineIcon
+            icon={session.sessionId ? IconLink : IconUnlink}
+            color="ldGray.6"
+        />
+        {session.sessionId ? (
+            <Tooltip withinPortal variant="xs" label={session.sessionId}>
+                <Text fz="xs" ff="monospace" fw={600} c="ldGray.9">
+                    {session.sessionId.slice(0, 8)}
+                </Text>
+            </Tooltip>
+        ) : (
+            <Text fz="sm" fs="italic" c="ldGray.6">
+                No session ID
+            </Text>
+        )}
+    </Group>
+);
+
+// Extracted so the useIsTruncated hook isn't called conditionally from a
+// Cell that also renders session-header rows
+const ClientCellContent: FC<{ call: McpActivityItem }> = ({ call }) => {
+    const isTruncated = useIsTruncated<HTMLDivElement>();
+    const { clientName, clientVersion, userAgent } = call;
+    const label = clientName
+        ? `${clientName}${clientVersion ? ` ${clientVersion}` : ''}`
+        : (userAgent ?? 'Unknown');
+    return (
+        <Tooltip
+            withinPortal
+            variant="xs"
+            label={userAgent ?? label}
+            disabled={!isTruncated.isTruncated && !userAgent}
+            multiline
+            maw={300}
+        >
+            <Text c="ldGray.9" fz="sm" fw={400} truncate ref={isTruncated.ref}>
+                {label}
+            </Text>
+        </Tooltip>
+    );
 };
 
 const McpActivityTable = ({
@@ -121,11 +183,37 @@ const McpActivityTable = ({
         return data.pages.flatMap((page) => page.data.toolCalls);
     }, [data]);
 
+    const [collapsedGroups, setCollapsedGroups] = useState<ReadonlySet<string>>(
+        new Set(),
+    );
+    const toggleGroup = useCallback((groupKey: string) => {
+        setCollapsedGroups((previous) => {
+            const next = new Set(previous);
+            if (next.has(groupKey)) {
+                next.delete(groupKey);
+            } else {
+                next.add(groupKey);
+            }
+            return next;
+        });
+    }, []);
+
+    // Session grouping relies on calls being time-ordered, so it's disabled
+    // when sorting by duration
+    const isSessionGroupingEnabled = sortField === 'createdAt';
+    const rows = useMemo(
+        () =>
+            isSessionGroupingEnabled
+                ? buildSessionRows(flatData, collapsedGroups)
+                : buildFlatRows(flatData),
+        [flatData, collapsedGroups, isSessionGroupingEnabled],
+    );
+
     // Temporary workaround to resolve a memoization issue with react-mantine-table
-    const [tableData, setTableData] = useState<McpActivityItem[]>([]);
+    const [tableData, setTableData] = useState<McpActivityRow[]>([]);
     useEffect(() => {
-        setTableData(flatData);
-    }, [flatData]);
+        setTableData(rows);
+    }, [rows]);
 
     const totalResults = useMemo(() => {
         if (!data) return 0;
@@ -154,9 +242,11 @@ const McpActivityTable = ({
         fetchMoreOnBottomReached(tableContainerRef.current);
     }, [fetchMoreOnBottomReached]);
 
-    const columns: ContentTableColumnDef<McpActivityItem>[] = [
+    const columns: ContentTableColumnDef<McpActivityRow>[] = [
         {
-            accessorKey: 'createdAt',
+            id: 'createdAt',
+            accessorFn: (row) =>
+                row.type === 'call' ? row.call.createdAt : row.latestCallAt,
             header: 'Time',
             enableSorting: true,
             enableEditing: false,
@@ -167,25 +257,35 @@ const McpActivityTable = ({
                     {column.columnDef.header}
                 </Group>
             ),
-            Cell: ({ row }) => (
-                <Tooltip
-                    withinPortal
-                    variant="xs"
-                    label={formatToolCallTimeFull(row.original.createdAt)}
-                >
-                    <Text
-                        fz="xs"
-                        ff="monospace"
-                        c="ldGray.7"
-                        display="inline-block"
+            Cell: ({ row }) =>
+                row.original.type === 'session' ? (
+                    <SessionHeaderLabel
+                        session={row.original}
+                        isCollapsed={collapsedGroups.has(row.original.groupKey)}
+                    />
+                ) : (
+                    <Tooltip
+                        withinPortal
+                        variant="xs"
+                        label={formatToolCallTimeFull(
+                            row.original.call.createdAt,
+                        )}
                     >
-                        {formatToolCallTime(row.original.createdAt)}
-                    </Text>
-                </Tooltip>
-            ),
+                        <Text
+                            fz="xs"
+                            ff="monospace"
+                            c="ldGray.7"
+                            display="inline-block"
+                        >
+                            {formatToolCallTime(row.original.call.createdAt)}
+                        </Text>
+                    </Tooltip>
+                ),
         },
         {
-            accessorKey: 'toolName',
+            id: 'toolName',
+            accessorFn: (row) =>
+                row.type === 'call' ? row.call.toolName : null,
             header: 'Tool',
             enableSorting: false,
             enableEditing: false,
@@ -196,10 +296,20 @@ const McpActivityTable = ({
                     {column.columnDef.header}
                 </Group>
             ),
-            Cell: ({ row }) => <ToolNamePill name={row.original.toolName} />,
+            Cell: ({ row }) =>
+                row.original.type === 'session' ? (
+                    <Text fz="sm" fw={500} c="ldGray.7">
+                        {row.original.callCount}{' '}
+                        {row.original.callCount === 1 ? 'call' : 'calls'}
+                    </Text>
+                ) : (
+                    <ToolNamePill name={row.original.call.toolName} />
+                ),
         },
         {
-            accessorKey: 'user.name',
+            id: 'user.name',
+            accessorFn: (row) =>
+                row.type === 'call' ? row.call.user.name : null,
             header: 'User',
             enableSorting: false,
             enableEditing: false,
@@ -209,20 +319,23 @@ const McpActivityTable = ({
                     {column.columnDef.header}
                 </Group>
             ),
-            Cell: ({ row }) => (
-                <Tooltip
-                    withinPortal
-                    variant="xs"
-                    label={row.original.user.email}
-                >
-                    <Text c="ldGray.9" fz="sm" fw={400}>
-                        {row.original.user.name}
-                    </Text>
-                </Tooltip>
-            ),
+            Cell: ({ row }) =>
+                row.original.type === 'session' ? null : (
+                    <Tooltip
+                        withinPortal
+                        variant="xs"
+                        label={row.original.call.user.email}
+                    >
+                        <Text c="ldGray.9" fz="sm" fw={400}>
+                            {row.original.call.user.name}
+                        </Text>
+                    </Tooltip>
+                ),
         },
         {
-            accessorKey: 'project.name',
+            id: 'project.name',
+            accessorFn: (row) =>
+                row.type === 'call' ? row.call.project?.name : null,
             header: 'Project',
             enableSorting: false,
             enableEditing: false,
@@ -232,14 +345,17 @@ const McpActivityTable = ({
                     {column.columnDef.header}
                 </Group>
             ),
-            Cell: ({ row }) => (
-                <Text c="ldGray.9" fz="sm" fw={400}>
-                    {row.original.project?.name ?? '—'}
-                </Text>
-            ),
+            Cell: ({ row }) =>
+                row.original.type === 'session' ? null : (
+                    <Text c="ldGray.9" fz="sm" fw={400}>
+                        {row.original.call.project?.name ?? '—'}
+                    </Text>
+                ),
         },
         {
-            accessorKey: 'agent.name',
+            id: 'agent.name',
+            accessorFn: (row) =>
+                row.type === 'call' ? row.call.agent?.name : null,
             header: 'Agent',
             enableSorting: false,
             enableEditing: false,
@@ -250,20 +366,24 @@ const McpActivityTable = ({
                     {column.columnDef.header}
                 </Group>
             ),
-            Cell: ({ row }) =>
-                row.original.agent ? (
+            Cell: ({ row }) => {
+                if (row.original.type === 'session') return null;
+                return row.original.call.agent ? (
                     <AgentNamePill
-                        name={row.original.agent.name}
+                        name={row.original.call.agent.name}
                         imageUrl={null}
                     />
                 ) : (
                     <Text c="ldGray.5" fz="sm">
                         —
                     </Text>
-                ),
+                );
+            },
         },
         {
-            accessorKey: 'clientName',
+            id: 'clientName',
+            accessorFn: (row) =>
+                row.type === 'call' ? row.call.clientName : row.clientName,
             header: 'Client',
             enableSorting: false,
             enableEditing: false,
@@ -275,35 +395,33 @@ const McpActivityTable = ({
                 </Group>
             ),
             Cell: ({ row }) => {
-                const isTruncated = useIsTruncated<HTMLDivElement>();
-                const { clientName, clientVersion, userAgent } = row.original;
-                const label = clientName
-                    ? `${clientName}${clientVersion ? ` ${clientVersion}` : ''}`
-                    : (userAgent ?? 'Unknown');
-                return (
-                    <Tooltip
-                        withinPortal
-                        variant="xs"
-                        label={userAgent ?? label}
-                        disabled={!isTruncated.isTruncated && !userAgent}
-                        multiline
-                        maw={300}
-                    >
-                        <Text
-                            c="ldGray.9"
-                            fz="sm"
-                            fw={400}
-                            truncate
-                            ref={isTruncated.ref}
-                        >
-                            {label}
-                        </Text>
-                    </Tooltip>
-                );
+                if (row.original.type === 'session') {
+                    const { clientName, clientVersion, sessionId } =
+                        row.original;
+                    const label = clientName
+                        ? `${clientName}${
+                              clientVersion ? ` ${clientVersion}` : ''
+                          }`
+                        : '—';
+                    return (
+                        <Group gap="xs" wrap="nowrap">
+                            <Text c="ldGray.7" fz="sm" fw={500} truncate>
+                                {label}
+                            </Text>
+                            {!sessionId && (
+                                <Text fz="xs" c="ldGray.5" flex="0 0 auto">
+                                    not reported
+                                </Text>
+                            )}
+                        </Group>
+                    );
+                }
+                return <ClientCellContent call={row.original.call} />;
             },
         },
         {
-            accessorKey: 'status',
+            id: 'status',
+            accessorFn: (row) => (row.type === 'call' ? row.call.status : null),
             header: 'Status',
             enableSorting: false,
             enableEditing: false,
@@ -314,12 +432,24 @@ const McpActivityTable = ({
                     {column.columnDef.header}
                 </Group>
             ),
-            Cell: ({ row }) => (
-                <ToolCallStatusIndicator status={row.original.status} />
-            ),
+            Cell: ({ row }) =>
+                row.original.type === 'session' ? (
+                    row.original.errorCount > 0 ? (
+                        <Text fz="sm" fw={500} c="ldGray.7">
+                            {row.original.errorCount}{' '}
+                            {row.original.errorCount === 1 ? 'error' : 'errors'}
+                        </Text>
+                    ) : null
+                ) : (
+                    <ToolCallStatusIndicator
+                        status={row.original.call.status}
+                    />
+                ),
         },
         {
-            accessorKey: 'durationMs',
+            id: 'durationMs',
+            accessorFn: (row) =>
+                row.type === 'call' ? row.call.durationMs : null,
             header: 'Duration',
             enableSorting: true,
             enableEditing: false,
@@ -335,7 +465,14 @@ const McpActivityTable = ({
                 </Group>
             ),
             Cell: ({ row }) => {
-                const { durationMs } = row.original;
+                if (row.original.type === 'session') {
+                    return (
+                        <Text fz="xs" ff="monospace" c="ldGray.7">
+                            {formatToolCallTime(row.original.latestCallAt)}
+                        </Text>
+                    );
+                }
+                const { durationMs } = row.original.call;
                 const isSlow = durationMs >= 1000;
                 return (
                     <Text
@@ -399,11 +536,23 @@ const McpActivityTable = ({
                 flexDirection: 'column',
             },
         },
+        getRowId: (row) =>
+            row.type === 'session' ? `session:${row.groupKey}` : row.call.uuid,
         mantineTableBodyRowProps: ({ row, table: mantineTable }) => {
             if (mantineTable.getState().showSkeletons) {
                 return {};
             }
-            const toolCall = row.original;
+            if (row.original.type === 'session') {
+                const { groupKey } = row.original;
+                return {
+                    style: {
+                        cursor: 'pointer',
+                        backgroundColor: theme.colors.ldGray[0],
+                    },
+                    onClick: () => toggleGroup(groupKey),
+                };
+            }
+            const toolCall = row.original.call;
             const isSelected = selectedCall?.uuid === toolCall.uuid;
             return {
                 style: {

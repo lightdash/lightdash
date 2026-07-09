@@ -80,6 +80,16 @@ export const McpActivityDetail: FC<{ toolCall: McpActivityItem }> = ({
         { label: 'User agent', value: toolCall.userAgent ?? '—' },
         { label: 'Auth', value: toolCall.authType },
         { label: 'Protocol', value: toolCall.protocolVersion ?? '—' },
+        {
+            label: 'Session',
+            value: toolCall.sessionId ? (
+                <Text fz="sm" ff="monospace" ta="right" truncate>
+                    {toolCall.sessionId}
+                </Text>
+            ) : (
+                '—'
+            ),
+        },
     ];
 
     return (
