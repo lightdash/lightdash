@@ -6,7 +6,6 @@ import { type UtilRepository } from '../utils/UtilRepository';
 import { AnalyticsModel } from './AnalyticsModel';
 import { AppModel } from './AppModel';
 import { CatalogModel } from './CatalogModel/CatalogModel';
-import { ChangesetModel } from './ChangesetModel';
 import { CommentModel } from './CommentModel/CommentModel';
 import { ContentModel } from './ContentModel/ContentModel';
 import { ContentVerificationModel } from './ContentVerificationModel';
@@ -144,7 +143,6 @@ export type ModelManifest = {
     preAggregateModel: PreAggregateModel;
     preAggregateDailyStatsModel: PreAggregateDailyStatsModel;
     projectParametersModel: ProjectParametersModel;
-    changesetModel: ChangesetModel;
     /** An implementation signature for these models are not available at this stage */
     aiAgentModel: unknown;
     aiAgentDocumentModel: unknown;
@@ -745,13 +743,6 @@ export class ModelRepository
                     database: this.database,
                     lightdashConfig: this.lightdashConfig,
                 }),
-        );
-    }
-
-    public getChangesetModel(): ChangesetModel {
-        return this.getModel(
-            'changesetModel',
-            () => new ChangesetModel({ database: this.database }),
         );
     }
 

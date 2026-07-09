@@ -31,12 +31,6 @@ import {
     type MetricsTreesTable,
 } from '../database/entities/catalog';
 import {
-    ChangesetsTable,
-    ChangesetsTableName,
-    ChangesTable,
-    ChangesTableName,
-} from '../database/entities/changesets';
-import {
     DashboardTileCommentsTable,
     DashboardTileCommentsTableName,
 } from '../database/entities/comments';
@@ -654,8 +648,6 @@ declare module 'knex/types/tables' {
         [AiEvalRunTableName]: AiEvalRunTable;
         [AiEvalRunResultTableName]: AiEvalRunResultTable;
         [AiEvalRunResultAssessmentTableName]: AiEvalRunResultAssessmentTable;
-        [ChangesetsTableName]: ChangesetsTable;
-        [ChangesTableName]: ChangesTable;
         [ManagedAgentSettingsTableName]: ManagedAgentSettingsTable;
         [ManagedAgentActionsTableName]: ManagedAgentActionsTable;
         [ManagedAgentRunsTableName]: ManagedAgentRunsTable;

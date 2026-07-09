@@ -69,7 +69,6 @@ import {
     type CatalogSearchContext,
 } from '../../models/CatalogModel/CatalogModel';
 import { parseFieldsFromCompiledTable } from '../../models/CatalogModel/utils/parser';
-import { ChangesetModel } from '../../models/ChangesetModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -93,7 +92,6 @@ export type CatalogArguments<T extends CatalogModel = CatalogModel> = {
     savedChartModel: SavedChartModel;
     spaceModel: SpaceModel;
     tagsModel: TagsModel;
-    changesetModel: ChangesetModel;
     spacePermissionService: SpacePermissionService;
 };
 
@@ -116,8 +114,6 @@ export class CatalogService<
 
     tagsModel: TagsModel;
 
-    changesetModel: ChangesetModel;
-
     spacePermissionService: SpacePermissionService;
 
     constructor({
@@ -129,7 +125,6 @@ export class CatalogService<
         savedChartModel,
         spaceModel,
         tagsModel,
-        changesetModel,
         spacePermissionService,
     }: CatalogArguments<T>) {
         super();
@@ -141,7 +136,6 @@ export class CatalogService<
         this.savedChartModel = savedChartModel;
         this.spaceModel = spaceModel;
         this.tagsModel = tagsModel;
-        this.changesetModel = changesetModel;
         this.spacePermissionService = spacePermissionService;
     }
 
@@ -449,41 +443,6 @@ export class CatalogService<
         }
 
         return result;
-    }
-
-    /**
-     * Index catalog updates for a list of explore names
-     * It will use the changeset to find the changes and update the catalog items in the database
-     * @param projectUuid - project uuid
-     * @param exploreNames - list of explore names
-     * @returns - catalog updates
-     */
-    async indexCatalogUpdates(projectUuid: string, exploreNames: string[]) {
-        const cachedExploreMap = await this.projectModel.findExploresFromCache(
-            projectUuid,
-            'name',
-            exploreNames,
-        );
-
-        const changeset =
-            await this.changesetModel.findActiveChangesetWithChangesByProjectUuid(
-                projectUuid,
-                {
-                    tableNames: exploreNames,
-                },
-            );
-
-        if (!changeset) {
-            return {
-                catalogUpdates: [],
-            };
-        }
-
-        return this.catalogModel.indexCatalogUpdates({
-            projectUuid,
-            cachedExploreMap,
-            changeset,
-        });
     }
 
     /**
