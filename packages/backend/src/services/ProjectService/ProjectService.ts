@@ -4637,6 +4637,7 @@ export class ProjectService extends BaseService {
         }
     }
 
+    /** @deprecated Only used by the deprecated runUnderlyingDataQuery endpoint; use AsyncQueryService.executeAsyncUnderlyingDataQuery instead. */
     async runUnderlyingDataQuery(
         account: Account,
         metricQuery: MetricQuery,
@@ -4777,6 +4778,7 @@ export class ProjectService extends BaseService {
         };
     }
 
+    /** @deprecated Only used by the deprecated chart-and-results endpoint; use AsyncQueryService.executeAsyncDashboardChartQuery instead. */
     async getChartAndResults({
         account,
         chartUuid,
@@ -5885,6 +5887,7 @@ export class ProjectService extends BaseService {
         };
     }
 
+    /** @deprecated Only used by the deprecated SQL runner results endpoint; use AsyncQueryService.getAsyncQueryResults instead. */
     async getFileStream(
         user: SessionUser,
         projectUuid: string,
@@ -7819,6 +7822,7 @@ export class ProjectService extends BaseService {
         }
     }
 
+    /** @deprecated Only used by the deprecated project access endpoint; use RolesService.getProjectRoleAssignments instead. */
     async getProjectMemberAccess(
         user: SessionUser,
         projectUuid: string,
@@ -7915,6 +7919,7 @@ export class ProjectService extends BaseService {
             );
     }
 
+    /** @deprecated Only used by the deprecated project access endpoint; use RolesService.upsertProjectUserRoleAssignment instead. */
     async updateProjectAccess(
         user: SessionUser,
         projectUuid: string,
@@ -8069,6 +8074,7 @@ export class ProjectService extends BaseService {
         });
     }
 
+    /** @deprecated Only used by the deprecated project access endpoint; use RolesService.deleteProjectRoleAssignment instead. */
     async deleteProjectAccess(
         user: SessionUser,
         projectUuid: string,
@@ -8147,6 +8153,7 @@ export class ProjectService extends BaseService {
         return [...savedQueries, ...savedSqlCharts];
     }
 
+    /** @deprecated Only used by the deprecated chart summaries endpoint. */
     async getChartSummaries(
         user: SessionUser,
         projectUuid: string,
@@ -8820,6 +8827,7 @@ export class ProjectService extends BaseService {
         );
     }
 
+    /** @deprecated Only used by the deprecated custom metrics endpoint, which will be removed without replacement. */
     async getCustomMetrics(
         user: SessionUser,
         projectUuid: string,

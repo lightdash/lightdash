@@ -657,6 +657,7 @@ export class SavedSqlService
         await this.savedSqlModel.permanentDelete(savedSqlUuid);
     }
 
+    /** @deprecated Superseded by AsyncQueryService.executeAsyncSqlQuery. */
     async getResultJobFromSql(
         user: SessionUser,
         projectUuid: string,
@@ -698,6 +699,7 @@ export class SavedSqlService
         return { jobId };
     }
 
+    /** @deprecated Superseded by AsyncQueryService.executeAsyncSqlQuery with pivotConfiguration. */
     async getResultJobFromSqlPivotQuery(
         user: SessionUser,
         projectUuid: string,
@@ -762,6 +764,7 @@ export class SavedSqlService
         return { jobId };
     }
 
+    /** @deprecated Superseded by AsyncQueryService.executeAsyncSqlChartQuery. */
     async getSqlChartResultJob(
         user: SessionUser,
         projectUuid: string,

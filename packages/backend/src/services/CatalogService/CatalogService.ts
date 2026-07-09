@@ -746,6 +746,7 @@ export class CatalogService<
         };
     }
 
+    /** @deprecated Only used by the deprecated table metadata endpoint, which will be removed without replacement. */
     async getMetadata(user: SessionUser, projectUuid: string, table: string) {
         // Right now we return the full cached explore based on name
         // We could extract some data to only return what we need instead
@@ -1303,6 +1304,7 @@ export class CatalogService<
         return metrics[0];
     }
 
+    /** @deprecated Only used by deprecated metrics tree endpoints; use getMetricsTreeDetails instead. */
     async getMetricsTree(
         user: SessionUser,
         projectUuid: string,
@@ -1394,6 +1396,7 @@ export class CatalogService<
         }
     }
 
+    /** @deprecated Only used by the deprecated create-edge endpoint; use updateMetricsTree instead. */
     async createMetricsTreeEdge(
         user: SessionUser,
         projectUuid: string,
@@ -1684,6 +1687,7 @@ export class CatalogService<
         return getTypeValidSegmentDimensions(allDimensions);
     }
 
+    /** @deprecated Only used by the deprecated delete-edge endpoint; use updateMetricsTree instead. */
     async deleteMetricsTreeEdge(
         user: SessionUser,
         projectUuid: string,

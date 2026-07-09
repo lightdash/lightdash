@@ -554,6 +554,7 @@ export class OrganizationService extends BaseService {
         });
     }
 
+    /** @deprecated Only used by the deprecated get-member-by-uuid endpoint; use getUsers instead. */
     async getMemberByUuid(
         user: SessionUser,
         memberUuid: string,
@@ -585,6 +586,7 @@ export class OrganizationService extends BaseService {
         return member;
     }
 
+    /** @deprecated Only used by the deprecated get-member-by-email endpoint; use getUsers instead. */
     async getMemberByEmail(
         user: SessionUser,
         email: string,
@@ -617,6 +619,7 @@ export class OrganizationService extends BaseService {
         return member;
     }
 
+    /** @deprecated Only used by the deprecated update-member endpoint; use RolesService.upsertOrganizationUserRoleAssignment instead. */
     async updateMember(
         authenticatedUser: SessionUser,
         memberUserUuid: string,
