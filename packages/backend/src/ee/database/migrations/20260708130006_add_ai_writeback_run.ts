@@ -23,8 +23,6 @@ export async function up(knex: Knex): Promise<void> {
                 .inTable('projects')
                 .onDelete('CASCADE')
                 .index();
-            // Nullable: a one-shot run (no conversation, e.g. a bare MCP call)
-            // has no thread to attach to.
             table
                 .uuid('ai_thread_uuid')
                 .references('ai_thread_uuid')

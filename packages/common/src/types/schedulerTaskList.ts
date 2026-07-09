@@ -70,13 +70,6 @@ export type AppBuildFromSourceJobPayload = TraceTaskBase & {
     version: number;
 };
 
-/**
- * Runs one writeback turn out-of-band from the request that triggered it, so
- * the caller can poll `ai_writeback_run` for the outcome instead of only ever
- * learning it through a connection that may not outlive the run. Mirrors the
- * dbt-writeback path's own args ({@link AiWritebackRunArgs} on the backend) —
- * the general coding agent (`editRepo`) is out of scope for now.
- */
 export type AiWritebackPipelineJobPayload = TraceTaskBase & {
     aiWritebackRunUuid: string;
     prompt: string;
@@ -87,18 +80,6 @@ export type AiWritebackPipelineJobPayload = TraceTaskBase & {
     source: AiWritebackSource;
 };
 
-/**
- * Runs the `editDbtProject` chat-agent tool's full turn (the dbt-writeback run
- * itself, plus every side effect that used to happen inline once it resolved:
- * build-fix remediation event tracking, the Slack ✅ reaction, the
- * preview-deploy CI check, and server-side PR preview creation) out-of-band
- * from the SSE/Slack request that triggered the tool call. `promptUuid` +
- * `isSlackPrompt` let the worker reload the full prompt row (the closure
- * needs its Slack channel/ts, threadUuid, etc.) instead of serializing it.
- * `toolCallId` is where the worker rewrites the stored tool-call metadata
- * once the run reaches a terminal state, so a thread reload reflects it even
- * if the tab that started the run is long gone.
- */
 export type AiAgentEditDbtProjectPipelineJobPayload = TraceTaskBase & {
     aiWritebackRunUuid: string;
     promptUuid: string;

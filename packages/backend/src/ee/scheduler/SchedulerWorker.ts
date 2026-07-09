@@ -36,7 +36,7 @@ const AI_AGENT_REVIEW_REMEDIATION_RUN_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 const AI_AGENT_REVIEW_CLASSIFIER_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
 const AI_AGENT_REVIEW_WRITEBACK_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const APP_GENERATE_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
-const AI_WRITEBACK_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+const AI_WRITEBACK_TIMEOUT_MS = 30 * 60 * 1000;
 
 type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     aiAgentService: AiAgentService;
@@ -520,13 +520,6 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                                 payload.aiWritebackRunUuid,
                                 getErrorMessage(e),
                             );
-                        // markRunError guards its write against an already-
-                        // terminal row (see AiWritebackRunModel.markError). If
-                        // it returns false, the pipeline itself already
-                        // finished (successfully) and wrote its own tool
-                        // result an instant before this timeout fired —
-                        // overwriting that now with an error would be the
-                        // same stale-write bug this timeout path must avoid.
                         if (runMarkedError) {
                             await this.aiAgentService.markEditDbtProjectToolResultError(
                                 payload.promptUuid,

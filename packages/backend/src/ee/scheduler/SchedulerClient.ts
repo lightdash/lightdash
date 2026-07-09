@@ -202,13 +202,6 @@ export class CommercialSchedulerClient extends SchedulerClient {
         return { jobId };
     }
 
-    /**
-     * `maxAttempts: 1` — unlike app generation, a writeback run isn't built to
-     * resume from a mid-pipeline Graphile retry (only from a fresh caller turn,
-     * via the existing workstream/advisory-lock resume path). jobKey is the run
-     * uuid itself, so a caller that accidentally enqueues the same pending row
-     * twice can't create two jobs for it.
-     */
     async aiWritebackPipeline(payload: AiWritebackPipelineJobPayload) {
         const graphileClient = await this.graphileUtils;
         const { id: jobId } = await graphileClient.addJob(
@@ -223,7 +216,6 @@ export class CommercialSchedulerClient extends SchedulerClient {
         return { jobId };
     }
 
-    /** Same maxAttempts/jobKey reasoning as {@link aiWritebackPipeline}. */
     async aiAgentEditDbtProjectPipeline(
         payload: AiAgentEditDbtProjectPipelineJobPayload,
     ) {

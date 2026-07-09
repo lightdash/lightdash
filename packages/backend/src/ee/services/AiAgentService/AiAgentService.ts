@@ -365,22 +365,12 @@ const ALLOWED_AGENT_AVATAR_MIME_TYPES = new Set([
 ]);
 
 // Web (SSE) agent streams are kept warm with a transient keepalive chunk on
-// this interval. A long, output-silent tool call otherwise lets the
-// connection idle long enough for an intermediary (the GCP HTTPS load
-// balancer) to drop it, which the client surfaces as a spurious "something
-// went wrong" even though the backend job completes. 15s sits comfortably
-// under the usual 30-60s idle timeouts.
-//
-// SPK-548: AI writeback (editDbtProject) used to be the motivating case —
-// its sandbox/agent stage could run for minutes with no streamed tokens or
-// tool result, so the keepalive was the only thing standing between that and
-// an LB-timeout error despite the backend finishing successfully. It no
-// longer is: editDbtProject now enqueues the run and returns almost
-// immediately (see runEditDbtProjectPipeline), so the tool call itself is no
-// longer output-silent for minutes at a stretch. Kept deliberately — other
-// tool calls (and future ones) can still run long enough silently that an
-// idle connection gets dropped, and this is cheap insurance against that
-// regardless of which tool is responsible.
+// this interval. A long, output-silent tool call — notably AI writeback, whose
+// sandbox/agent stage can run for minutes with no streamed tokens — otherwise
+// lets the connection idle long enough for an intermediary (the GCP HTTPS load
+// balancer) to drop it, which the client surfaces as a spurious "something went
+// wrong" even though the backend job completes and opens the PR. 15s sits
+// comfortably under the usual 30-60s idle timeouts.
 const STREAM_KEEPALIVE_INTERVAL_MS = 15_000;
 
 const MAX_MCP_BEARER_TOKEN_LENGTH = 8192;
@@ -6698,16 +6688,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         ];
     }
 
-    /**
-     * The model's turn-ending reply (e.g. "I've kicked off a pull request...")
-     * is written by the *original* request's own `generateText` call once the
-     * model finishes talking — a separate, concurrent process from this
-     * worker job, with no inherent ordering between the two. Rewriting
-     * `ai_prompt.response` before that write lands would just get clobbered
-     * a moment later when it does. Polls until a response is persisted (or
-     * gives up after `timeoutMs`, so a stuck/erroring original turn can't
-     * hang this job forever) so callers can safely overwrite it afterwards.
-     */
     private async waitForOriginalResponseWritten(
         promptUuid: string,
         fromSlack: boolean,
@@ -6735,19 +6715,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         }
     }
 
-    /**
-     * True if a job timeout already finalized this run with a DIFFERENT
-     * terminal outcome than the one this (now-late) completion is about to
-     * report. `tryJobOrTimeout` races the job promise rather than cancelling
-     * it (see `SchedulerJobTimeout`), so a long-running writeback can still be
-     * executing in the background after its job has already been timed out —
-     * if that happened, the ai_writeback_run row and the chat tool result
-     * were both already finalized as an error the user has seen, and this
-     * late completion must not silently overwrite that. By the time a caller
-     * reaches this check, `AiWritebackService.run()` has already awaited its
-     * own terminal-status write, so the row is guaranteed to be terminal
-     * ('ready' or 'error') — never a non-terminal stage.
-     */
     private async isRunAlreadyFinalizedDifferently(
         user: SessionUser,
         aiWritebackRunUuid: string,
@@ -6760,8 +6727,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             );
             return current.status !== ownOutcome;
         } catch (error) {
-            // Uncertain — assume not superseded so the user still sees this
-            // outcome rather than silently nothing.
             Logger.debug(
                 `AiAgent.isRunAlreadyFinalizedDifferently: failed to check run ${aiWritebackRunUuid} status — assuming not superseded: ${getErrorMessage(error)}`,
             );
@@ -6769,20 +6734,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         }
     }
 
-    /**
-     * Worker entry point for the job enqueued by the `editDbtProject` tool
-     * (see `getAiAgentDependencies`). Runs the actual writeback turn — plus
-     * every side effect that used to happen inline once it resolved:
-     * build-fix remediation event tracking, the Slack ✅ reaction, the
-     * preview-deploy CI check, and server-side PR preview creation — then
-     * rewrites the tool call's stored result via `updateToolResult` so a
-     * thread reload reflects the outcome even after the request/connection
-     * that started the tool call is long gone (SPK-548).
-     *
-     * Reconstructs `user` and `prompt` from ids the same way
-     * `AiAgentService.executeReviewRemediationRun` does — a job payload can
-     * only carry serializable data, not a live `SessionUser`/prompt row.
-     */
     async runEditDbtProjectPipeline(
         payload: AiAgentEditDbtProjectPipelineJobPayload,
     ): Promise<void> {
@@ -6844,9 +6795,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 );
                 return;
             }
-            // Mirrors what the synchronous editDbtProject tool used to do in
-            // its own catch block, before the run moved off the request
-            // thread — same terminal, non-retryable cases relayed verbatim.
             let toolResult: string;
             let errorCode: ReturnType<typeof classifyWritebackError>;
             if (error instanceof WritebackThreadPrClosedError) {
@@ -6866,9 +6814,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 result: toolResult,
                 metadata: { status: 'error', errorCode },
             });
-            // aiWritebackService.run() already persisted 'error' on
-            // ai_writeback_run via its own catch (aiWritebackRunUuid was
-            // passed above) — nothing further to do here.
             return;
         }
 
@@ -6885,11 +6830,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             return;
         }
 
-        // Build-fix seam: if this thread is a review remediation's work
-        // thread, every commit it lands (the initial run and each Continue
-        // PR turn) must be reflected on the remediation so the Test-fix
-        // verdict is marked stale (verdict staleness is derived from event
-        // ordering). null for ordinary writeback threads — a no-op.
         const reviewRemediation =
             await this.aiAgentReviewClassifierModel.findReviewRemediationByWorkThread(
                 {
@@ -6908,11 +6848,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             });
         }
 
-        // On a successful PR open/update, add a green-tick reaction to the
-        // user's original Slack mention so they see the outcome at a glance
-        // without scrolling through the agent's reply. Best-effort — installs
-        // missing `reactions:write` (or any other transient failure) silently
-        // skip the reaction.
         if (result.prUrl && isSlackPrompt(prompt)) {
             void this.slackClient
                 .addReaction({
@@ -6929,12 +6864,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 });
         }
 
-        // Resolve the repo's preview-deploy CI status once (best-effort,
-        // gated by the ai-preview-deploy-setup flag). It drives the
-        // deterministic "offer to set it up" instruction the editDbtProject
-        // tool relays when no server-side preview could be built. Owned by
-        // the sibling PreviewDeploySetupService — writeback no longer detects
-        // this itself. Never fails the writeback result.
         let previewDeployConfigured: boolean | null = null;
         try {
             const { enabled: previewDeploySetupEnabled } =
@@ -6959,14 +6888,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             );
         }
 
-        // Server-side preview: for GitHub-connected projects, build the
-        // preview ourselves from the PR's head branch and post its URL on the
-        // PR — no CI in the customer repo required. The URL is surfaced on
-        // the tool result so the agent's reply (web chat and Slack alike)
-        // links the preview directly; this replaced the old
-        // pollWritebackPreview job that scanned PR comments for a CI-posted
-        // URL. Returns null for unsupported projects (e.g. CLI-deployed) or
-        // on any failure — those surface no preview.
         let previewUrl: string | null = null;
         if (result.prUrl && !suppressWritebackPreview && !reviewRemediation) {
             const preview =
@@ -6980,11 +6901,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const target = `Lightdash project "${result.projectName}" (repository ${result.repository})`;
         const prVerb = result.prAction === 'updated' ? 'Updated' : 'Opened';
-        // The project has more than one dbt source and the prompt didn't pin
-        // one down — result.output already lists the choices (see
-        // AiWritebackService.buildDbtSourceSelectionResult). Relay it
-        // verbatim rather than the generic "no file changes" text below,
-        // which would otherwise mislabel this as a deliberate no-op.
         let base: string;
         if (result.needsDbtSourceSelection) {
             base = `${result.output}\n\nTell the user which dbt sources they can choose from and ask them to re-run naming one.`;
@@ -7017,15 +6933,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             },
         });
 
-        // The model's turn-ending reply was already written when the tool
-        // call enqueued (before this outcome was known — see
-        // toolEditDbtProjectArgs.ts's tool description), so it can't ask the
-        // right question itself. Overwrite it in place rather than adding a
-        // second UI element: the chat bubble should just say what's actually
-        // needed instead of a stale "kicked off a pull request" line. This
-        // ambiguity check resolves fast (no sandbox involved), so it's raced
-        // against the original turn's own response write — wait for that
-        // write to land first or it would just clobber ours a moment later.
         if (result.needsDbtSourceSelection) {
             await this.waitForOriginalResponseWritten(
                 promptUuid,
@@ -7043,7 +6950,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         }
     }
 
-    /** Called by the worker's `tryJobOrTimeout` timeout handler for the editDbtProject pipeline job. */
     async markEditDbtProjectToolResultError(
         promptUuid: string,
         toolCallId: string,
@@ -7275,21 +7181,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 source = isSlackPrompt(prompt) ? 'slack' : 'web';
             }
 
-            // SPK-548: enqueue the run — and every side effect that used to
-            // happen inline once it resolved (remediation tracking, the
-            // Slack ✅ reaction, the preview-deploy check, PR preview
-            // creation) — as a background job instead of awaiting all of it
-            // here. Holding this SSE/Slack request open for a multi-minute
-            // sandbox run is exactly the transport-drop-then-blind-retry
-            // failure mode SPK-548 exists to fix.
-            // runEditDbtProjectPipeline (run by the scheduler worker) does
-            // the actual work and rewrites this tool call's stored result
-            // once it reaches a terminal state — see updateToolResult.
             if (!args.progressId) {
-                // Always supplied in practice — the sole caller (the
-                // editDbtProject tool wrapper) passes the AI SDK's own
-                // toolCallId. Guarded because the pipeline needs it to find
-                // the stored tool result again later.
                 throw new UnexpectedServerError(
                     'editDbtProject requires a tool call id (progressId)',
                 );

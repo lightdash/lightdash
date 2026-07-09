@@ -110,12 +110,6 @@ export type AiWritebackRunResult = {
 
 export type ApiAiWritebackResponse = ApiSuccess<AiWritebackRunResult>;
 
-/**
- * Polled by the frontend writeback poller (mirrors useAppBuildPoller) so a
- * caller whose connection died — or the chat UI while a background run is
- * in progress — can learn the outcome instead of only ever seeing it through
- * the request/stream that started the run.
- */
 export type AiWritebackRunStatusResult = {
     status: AiWritebackRunStatus;
     prUrl: string | null;
@@ -125,10 +119,6 @@ export type AiWritebackRunStatusResult = {
 export type ApiAiWritebackRunStatusResponse =
     ApiSuccess<AiWritebackRunStatusResult>;
 
-/**
- * Identifies the trigger surface a writeback run came from, so logs, metrics,
- * analytics, and job tracking can group runs by origin.
- */
 export type AiWritebackSource =
     | 'slack'
     | 'web'
@@ -137,12 +127,6 @@ export type AiWritebackSource =
     | 'admin_review'
     | 'changeset';
 
-/**
- * Ordered pipeline stages a writeback run passes through. Also doubles as the
- * "what was running when it failed" tag for analytics. Index position has no
- * special meaning here (unlike app generation's stage order) — a resumed turn
- * can re-enter at any stage depending on what the caller asked for.
- */
 export const AI_WRITEBACK_STAGES = [
     'install',
     'sandbox',
@@ -157,13 +141,6 @@ export type AiWritebackFailureStage = (typeof AI_WRITEBACK_STAGES)[number];
 
 export const AI_WRITEBACK_RUN_TERMINAL_STATUSES = ['ready', 'error'] as const;
 
-/**
- * Status of a persisted `ai_writeback_run` job row: 'pending' before the
- * worker has picked it up, one of the pipeline stages while it's running, and
- * 'ready'/'error' once terminal — lets a caller whose connection died poll for
- * the outcome instead of only ever learning it through the request that
- * started the run.
- */
 export type AiWritebackRunStatus =
     | 'pending'
     | AiWritebackFailureStage

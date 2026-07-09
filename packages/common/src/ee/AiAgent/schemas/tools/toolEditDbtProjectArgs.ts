@@ -39,9 +39,6 @@ export const toolEditDbtProjectOutputSchema = z.object({
     metadata: z.discriminatedUnion('status', [
         z.object({
             status: z.literal('pending'),
-            // Poll get_ai_writeback_status-equivalent state via the frontend
-            // writeback poller; the row is rewritten to 'success'/'error' below
-            // once the background run finishes, via updateToolResult.
             aiWritebackRunUuid: z.string(),
         }),
         z.object({
@@ -84,11 +81,6 @@ export const toolEditDbtProjectOutputSchema = z.object({
                     }),
                 )
                 .nullish(),
-            // Set when the project has several dbt sources and this run
-            // couldn't tell which one the prompt targets — no sandbox ran and
-            // no PR was opened. dbtSourceOptions lists the choices so the
-            // client can prompt the user to name one and retry. Nullish for
-            // back-compat with rows persisted before this existed.
             needsDbtSourceSelection: z.boolean().nullish(),
             dbtSourceOptions: z
                 .array(

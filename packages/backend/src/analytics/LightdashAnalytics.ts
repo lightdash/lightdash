@@ -1489,8 +1489,6 @@ export type AiWritebackCompletedEvent = BaseTrack & {
 };
 
 // Pipeline stage that was running when an AI writeback run failed.
-// Canonical definition lives in common (@lightdash/common) so the job-status
-// persistence layer and analytics tagging share one source of truth.
 export { AI_WRITEBACK_STAGES };
 export type { AiWritebackFailureStage };
 

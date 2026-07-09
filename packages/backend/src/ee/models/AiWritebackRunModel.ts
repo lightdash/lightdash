@@ -14,11 +14,6 @@ type Dependencies = {
     database: Knex;
 };
 
-/**
- * Tracks a writeback job end-to-end (see {@link DbAiWritebackRun}) so a caller
- * whose connection died can poll for the outcome instead of the run only ever
- * reporting through the request that started it.
- */
 export class AiWritebackRunModel {
     private database: Knex;
 
@@ -34,7 +29,6 @@ export class AiWritebackRunModel {
             .first();
     }
 
-    /** Create the 'pending' row before the job is enqueued. */
     async create(data: {
         organizationUuid: string;
         projectUuid: string;
@@ -56,11 +50,6 @@ export class AiWritebackRunModel {
         return row;
     }
 
-    /**
-     * Advance the run to a non-terminal status (a pipeline stage). Silently a
-     * no-op if the run has already reached a terminal status — a stage update
-     * racing a timeout/error from a previous attempt must not resurrect it.
-     */
     async updateStageIfInProgress(
         aiWritebackRunUuid: string,
         status: AiWritebackRunStatus,
@@ -74,11 +63,6 @@ export class AiWritebackRunModel {
             });
     }
 
-    /**
-     * Returns true if the update was applied, false if the run had already
-     * reached a terminal status (e.g. a late timeout firing after the run
-     * already succeeded).
-     */
     async markReady(
         aiWritebackRunUuid: string,
         data: { branchName: string | null; prUrl: string | null },
@@ -114,7 +98,6 @@ export class AiWritebackRunModel {
         return updatedRows > 0;
     }
 
-    /** Persist the branch name as soon as it's known, ahead of the PR opening. */
     async setBranchName(
         aiWritebackRunUuid: string,
         branchName: string,

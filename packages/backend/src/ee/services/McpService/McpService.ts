@@ -1114,11 +1114,6 @@ export class McpService extends BaseService {
      * Registers the run_ai_writeback tool on the current server. Kept separate
      * so setupHandlers can register it conditionally (dark launch — see the
      * AiWriteback gate in setupHandlers).
-     *
-     * Enqueues the run and returns immediately instead of awaiting it — an MCP
-     * tool call held open for a multi-minute sandbox run is exactly the
-     * transport-drop-then-blind-retry failure mode SPK-548 exists to fix. The
-     * caller polls get_ai_writeback_status with the returned uuid.
      */
     private registerRunAiWritebackTool(): void {
         this.registerTrackedTool(
@@ -1171,10 +1166,6 @@ export class McpService extends BaseService {
         );
     }
 
-    /**
-     * Registers the get_ai_writeback_status tool — the polling counterpart to
-     * run_ai_writeback. Same dark-launch gate as run_ai_writeback.
-     */
     private registerGetAiWritebackStatusTool(): void {
         this.registerTrackedTool(
             mcpGetAiWritebackStatusTool.name,

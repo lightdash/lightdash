@@ -504,19 +504,8 @@ export type EditDbtProjectFn = (args: {
     fromActiveChangeset: boolean;
     /** Open a new PR instead of continuing the thread's existing one. */
     startNewPullRequest: boolean | null;
-    /**
-     * The tool call's own id (SPK-548): the async pipeline rewrites this
-     * tool call's stored result once the run finishes, so it needs the id to
-     * find the row again — hence required in practice despite the `?`.
-     */
     progressId?: string;
 }) => Promise<{
-    /**
-     * SPK-548: this only enqueues the run and returns its tracking id — it
-     * does NOT wait for the sandbox/PR to finish. AiAgentService.
-     * runEditDbtProjectPipeline (run by the scheduler worker) does the actual
-     * work and rewrites the stored tool-call metadata on completion.
-     */
     aiWritebackRunUuid: string;
 }>;
 

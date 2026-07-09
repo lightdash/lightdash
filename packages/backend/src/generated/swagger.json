@@ -23142,8 +23142,7 @@
                         "type": "string",
                         "enum": ["pending", "ready", "error"]
                     }
-                ],
-                "description": "Status of a persisted `ai_writeback_run` job row: 'pending' before the\nworker has picked it up, one of the pipeline stages while it's running, and\n'ready'/'error' once terminal — lets a caller whose connection died poll for\nthe outcome instead of only ever learning it through the request that\nstarted the run."
+                ]
             },
             "AiWritebackRunStatusResult": {
                 "properties": {
@@ -23160,8 +23159,7 @@
                     }
                 },
                 "required": ["errorMessage", "prUrl", "status"],
-                "type": "object",
-                "description": "Polled by the frontend writeback poller (mirrors useAppBuildPoller) so a\ncaller whose connection died — or the chat UI while a background run is\nin progress — can learn the outcome instead of only ever seeing it through\nthe request/stream that started the run."
+                "type": "object"
             },
             "ApiSuccess_AiWritebackRunStatusResult_": {
                 "properties": {

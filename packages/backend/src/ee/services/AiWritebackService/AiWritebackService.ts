@@ -397,14 +397,6 @@ export class AiWritebackService extends BaseService {
 
     private readonly sandboxRegistryModel: SandboxRegistryModel;
 
-    // In-flight WORKSTREAM lock keys, so a second concurrent turn on the same
-    // workstream (one sandbox + one PR) is rejected rather than racing the first.
-    // Distinct workstreams — different PRs, even on the same repo — run in
-    // parallel. This in-process Set is the FAST PATH, single-instance only — the
-    // cross-pod guarantee comes from `acquireWorkstreamLock`'s Postgres session
-    // advisory lock (H1, held for the whole run and checked right after this Set),
-    // so a racing turn is rejected whether it lands on this pod or another one.
-    // Cleared in the run's finally.
     private readonly inFlightWorkstreams = new Set<string>();
 
     // Count of in-flight coding-agent turns per thread, so the per-workstream
@@ -1576,14 +1568,6 @@ export class AiWritebackService extends BaseService {
         return this.runCodingAgent(args, this.dbtWritebackConfig());
     }
 
-    /**
-     * Create a 'pending' `ai_writeback_run` row without enqueueing the raw
-     * `aiWritebackPipeline` job — for a caller (AiAgentService's editDbtProject
-     * tool) that needs the tracking row but enqueues its OWN job type, one
-     * that wraps `run()` together with chat-specific side effects (Slack
-     * reaction, remediation tracking, PR preview). {@link enqueueWriteback} is
-     * the all-in-one version for callers happy with the raw run alone.
-     */
     async createPendingRun(args: {
         user: SessionUser;
         projectUuid: string;
@@ -1603,18 +1587,6 @@ export class AiWritebackService extends BaseService {
         return { aiWritebackRunUuid: runRow.ai_writeback_run_uuid };
     }
 
-    /**
-     * Enqueue a dbt-writeback turn as a Graphile Worker job instead of running
-     * it inline, and return immediately. Lets a caller poll `ai_writeback_run`
-     * for the outcome rather than only ever learning it through the
-     * request/connection that started the run — the same pattern as {@link
-     * AppGenerateService.generateApp}. Used by the MCP run_ai_writeback tool.
-     * The full `assertEnabled`/`assertCanManageSourceCode` gate still runs
-     * inside the worker via {@link run}'s existing `prepareTurn`, same as
-     * today — an unauthorized call still creates a 'pending' row, but it
-     * transitions to 'error' almost immediately rather than never being
-     * created.
-     */
     async enqueueWriteback(
         args: Omit<AiWritebackRunArgs, 'onProgress' | 'aiWritebackRunUuid'>,
     ): Promise<{ aiWritebackRunUuid: string }> {
@@ -1644,15 +1616,6 @@ export class AiWritebackService extends BaseService {
         return { aiWritebackRunUuid: runRow.ai_writeback_run_uuid };
     }
 
-    /**
-     * Worker entry point for the job enqueued by {@link enqueueWriteback}.
-     * Reconstructs a session user from the payload's ids (the pattern
-     * `AiAgentService.executeReviewRemediationRun` also uses) since a job
-     * payload can only carry serializable data, not a full `SessionUser`.
-     * Skips the run if the row was already terminal when the worker picked it
-     * up (e.g. a duplicate delivery) — defensive, since `maxAttempts: 1`
-     * shouldn't normally allow this.
-     */
     async runPipeline(payload: AiWritebackPipelineJobPayload): Promise<void> {
         const { aiWritebackRunUuid, organizationUuid, userUuid } = payload;
         const runRow =
@@ -1669,9 +1632,6 @@ export class AiWritebackService extends BaseService {
             userUuid,
             organizationUuid,
         );
-        // run()'s own catch already persists 'error' (persistRunFailed) before
-        // rethrowing — let the error propagate so Graphile Worker's own
-        // failure bookkeeping sees it too, same as any other task.
         await this.run({
             user,
             projectUuid: payload.projectUuid,
@@ -1685,7 +1645,6 @@ export class AiWritebackService extends BaseService {
         });
     }
 
-    /** Called by the worker's `tryJobOrTimeout` timeout handler. */
     async markRunError(
         aiWritebackRunUuid: string,
         message: string,
@@ -1693,12 +1652,6 @@ export class AiWritebackService extends BaseService {
         return this.aiWritebackRunModel.markError(aiWritebackRunUuid, message);
     }
 
-    /**
-     * Poll a writeback run's status — the counterpart to {@link enqueueWriteback}
-     * for a caller that lost its original connection (or just wants to check in
-     * before the run resolves). Scoped to the run's own organization so a caller
-     * can't probe another org's writeback runs by guessing uuids.
-     */
     async getRunStatus(
         user: SessionUser,
         aiWritebackRunUuid: string,
@@ -1752,9 +1705,6 @@ export class AiWritebackService extends BaseService {
             aiWritebackRunUuid,
         } = args;
         const runStartedAt = performance.now();
-        // Best-effort: a DB hiccup persisting job status must never take down
-        // the run itself, and callers of the direct (non-job) path never pass
-        // aiWritebackRunUuid, so these are no-ops there.
         const persistStage = (stage: AiWritebackFailureStage): void => {
             if (!aiWritebackRunUuid) return;
             this.aiWritebackRunModel
@@ -1765,16 +1715,6 @@ export class AiWritebackService extends BaseService {
                     );
                 });
         };
-        // Terminal status updates are the contract get_ai_writeback_status and
-        // the chat poller rely on — unlike persistStage above, a failure here
-        // must not be silently swallowed, or the run row (and the tool-result
-        // card) can get stuck reporting "in progress" forever even though the
-        // pipeline itself finished. Retry a few times (the update is a simple
-        // idempotent single-row UPDATE), and if it still fails, escalate to
-        // Sentry for visibility rather than just logging. The pipeline's own
-        // outcome (success or failure) is still returned/thrown to the caller
-        // regardless — a bookkeeping failure here must never masquerade as a
-        // pipeline failure.
         const persistTerminalStatus = async (
             write: () => Promise<boolean>,
             label: string,
@@ -1798,9 +1738,6 @@ export class AiWritebackService extends BaseService {
                             },
                             extra: { aiWritebackRunUuid },
                         });
-                        // Unknown whether the row is now stuck — assume this
-                        // call is authoritative so the caller still surfaces
-                        // the real outcome to the user instead of nothing.
                         return true;
                     }
                     // eslint-disable-next-line no-await-in-loop
@@ -1811,11 +1748,6 @@ export class AiWritebackService extends BaseService {
             }
             return true;
         };
-        // Returns whether this call's outcome actually applied to the row —
-        // false means the run had already reached a terminal status via a
-        // different writer (e.g. a job timeout firing before this slow
-        // completion landed). Callers use this to avoid clobbering an
-        // already-finalized outcome (see runEditDbtProjectPipeline).
         const persistRunReady = (finalPrUrl: string | null): Promise<boolean> =>
             persistTerminalStatus(
                 () =>
@@ -1865,14 +1797,6 @@ export class AiWritebackService extends BaseService {
             reportProgress(text);
         };
 
-        // Everything through the workstream-lock acquisition below is
-        // "pre-flight": permission/project/dbt-source resolution and the
-        // concurrency guards, none of which has started a sandbox yet. None of
-        // it was previously wrapped in error handling — an exception here (e.g.
-        // assertCanManageSourceCode's ForbiddenError, or a busy workstream lock)
-        // would escape uncaught and leave the ai_writeback_run row stuck at
-        // 'pending' forever, since only the sandbox/agent phase further below
-        // has a catch that calls persistRunFailed.
         let prepared: PreparedTurn;
         try {
             prepared = await this.prepareTurn({
@@ -1904,9 +1828,6 @@ export class AiWritebackService extends BaseService {
                 aiThreadUuid: aiThreadUuid ?? null,
                 optionCount: prepared.options.length,
             });
-            // Terminal from the job queue's point of view — nothing is running
-            // and there's no PR to poll for. A future caller of the async path
-            // would need to re-enqueue with an explicit dbtSourceUuid.
             await persistRunFailed(
                 new Error(
                     `This project has more than one dbt source; re-run naming one of: ${prepared.options.map((o) => o.name).join(', ')}`,

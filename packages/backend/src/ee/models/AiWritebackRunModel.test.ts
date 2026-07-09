@@ -3,10 +3,6 @@ import { AiWritebackRunModel } from './AiWritebackRunModel';
 
 type AnyType = any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
-// Chainable query-builder stub: every non-terminal method returns itself so
-// `.where(...).whereNotIn(...).update(...)` reads the same as it does against
-// a real knex instance. Terminal methods (`update`, `returning`, `first`) are
-// configured per test via `overrides`.
 const buildQueryBuilder = (
     overrides: Partial<Record<string, AnyType>> = {},
 ) => {

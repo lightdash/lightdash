@@ -150,18 +150,10 @@ export type AiWritebackThreadTable = Knex.CompositeTableType<
 
 export const AiWritebackRunTableName = 'ai_writeback_run';
 
-/**
- * Tracks one writeback job end-to-end so a caller whose connection died can
- * poll for the outcome instead of the run only ever reporting through the
- * request that started it. Created 'pending' at enqueue time, before the
- * sandbox agent starts — unlike `ai_writeback_thread`, which only gets a row
- * once a PR has actually opened.
- */
 export type DbAiWritebackRun = {
     ai_writeback_run_uuid: string;
     organization_uuid: string;
     project_uuid: string;
-    /** Null for a one-shot run (no conversation to attach to). */
     ai_thread_uuid: string | null;
     created_by_user_uuid: string;
     source: AiWritebackSource;

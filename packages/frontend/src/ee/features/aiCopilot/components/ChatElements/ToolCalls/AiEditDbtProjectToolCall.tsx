@@ -404,11 +404,6 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                 </Paper>
             );
         }
-        // The Git connection can't create a branch/PR (a 403 from the host).
-        // This is a one-time setup problem, not a transient failure — the
-        // agent's reply can't relay the fix (SPK-548: the reply is written
-        // before this outcome is known), so "ask again" would just keep
-        // failing until an admin fixes the connection's write permissions.
         if (metadata.errorCode === 'git_write_permission') {
             return (
                 <Paper withBorder p="sm" radius="md">
@@ -489,12 +484,6 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                 </Paper>
             );
         }
-        // Any other error (e.g. a write-permission 403, or an unclassified
-        // failure). The agent's reply can no longer be trusted to explain this:
-        // since the tool call now returns before the run finishes (SPK-548),
-        // the agent already wrote its "kicked off a pull request"-style reply
-        // before this outcome existed. Show a generic failure card rather than
-        // rendering nothing, so the user isn't left believing a PR is on its way.
         return (
             <Paper withBorder p="sm" radius="md">
                 <Group gap="xs" align="flex-start" wrap="nowrap">
@@ -521,11 +510,6 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
     }
 
     if (metadata.status === 'pending') {
-        // SPK-548: the run was enqueued and is still working in the
-        // background — usePendingThreadRefetch keeps polling the thread
-        // until the backend rewrites this tool call's stored metadata to its
-        // terminal state, at which point this card re-renders as success or
-        // error on its own; no action needed here beyond showing progress.
         return (
             <Paper withBorder p="sm" radius="md">
                 <Group gap="xs" align="center" wrap="nowrap">
@@ -546,11 +530,6 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
     }
 
     if (metadata.needsDbtSourceSelection) {
-        // The project has more than one dbt source and the run couldn't tell
-        // which one the prompt targets — no sandbox ran, no PR was opened.
-        // The agent's own reply is rewritten server-side (updateModelResponse
-        // in AiAgentService.runEditDbtProjectPipeline) to ask the question
-        // directly, so there's nothing for this card to add here.
         return null;
     }
 
