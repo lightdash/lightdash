@@ -882,3 +882,111 @@ describe('Embedded data app abilities', () => {
         ).toBe(false);
     });
 });
+
+const defineAbilityForAiAgentEmbedUser = (
+    embedUser: CreateEmbedJwt,
+    agentUuid: string,
+): MemberAbility => {
+    const builder = new AbilityBuilder<MemberAbility>(Ability);
+    applyEmbeddedAbility(
+        embedUser,
+        { agentUuid, type: 'aiAgent', chartUuids: [], explores: [] },
+        embed,
+        'external-id-1',
+        builder,
+    );
+    return builder.build();
+};
+
+describe('Embedded AI agent abilities', () => {
+    const agentUuid = 'agent-uuid-1';
+    const projectUuid = 'project-uuid-1';
+    const aiAgentEmbedUser: CreateEmbedJwt = {
+        content: { type: 'aiAgent', agentUuid },
+        exp: Date.now() / 1000 + 3600,
+    };
+
+    it('grants view:Project for the embedded agent project', () => {
+        const ability = defineAbilityForAiAgentEmbedUser(
+            aiAgentEmbedUser,
+            agentUuid,
+        );
+
+        expect(
+            ability.can(
+                'view',
+                subject('Project', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid,
+                }),
+            ),
+        ).toBe(true);
+    });
+
+    it('does not grant view:Explore unless the token enables canExplore', () => {
+        const ability = defineAbilityForAiAgentEmbedUser(
+            aiAgentEmbedUser,
+            agentUuid,
+        );
+
+        expect(
+            ability.can(
+                'view',
+                subject('Explore', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid,
+                }),
+            ),
+        ).toBe(false);
+    });
+
+    it('grants view:Explore when the token enables canExplore', () => {
+        const ability = defineAbilityForAiAgentEmbedUser(
+            {
+                ...aiAgentEmbedUser,
+                content: {
+                    type: 'aiAgent',
+                    agentUuid,
+                    canExplore: true,
+                },
+            },
+            agentUuid,
+        );
+
+        expect(
+            ability.can(
+                'view',
+                subject('Explore', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid,
+                }),
+            ),
+        ).toBe(true);
+    });
+
+    it('does not grant access to a different project', () => {
+        const ability = defineAbilityForAiAgentEmbedUser(
+            aiAgentEmbedUser,
+            agentUuid,
+        );
+
+        expect(
+            ability.can(
+                'view',
+                subject('Explore', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid: 'different-project-uuid',
+                }),
+            ),
+        ).toBe(false);
+        expect(
+            ability.can(
+                'view',
+                subject('Project', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid: 'different-project-uuid',
+                }),
+            ),
+        ).toBe(false);
+    });
+});

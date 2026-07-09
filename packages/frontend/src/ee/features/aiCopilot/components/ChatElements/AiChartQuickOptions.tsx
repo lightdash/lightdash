@@ -22,7 +22,7 @@ import {
     IconTerminal2,
 } from '@tabler/icons-react';
 import { Fragment, useCallback, useMemo, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { SaveToSpaceOrDashboard } from '../../../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
@@ -72,8 +72,10 @@ export const AiChartQuickOptions = ({
 }: Props) => {
     const { track } = useTracking();
     const { user } = useApp();
-    const { writeActions } = useEmbed();
+    const { content, writeActions } = useEmbed();
     const isEmbed = isEmbedAiAgentRoute();
+    const location = useLocation();
+    const navigate = useNavigate();
     const { showToastSuccess, showToastApiError } = useToaster();
 
     const dispatch = useAiAgentStoreDispatch();
@@ -251,12 +253,34 @@ export const AiChartQuickOptions = ({
     const { mutateAsync: createShareUrl } = useCreateShareMutation();
 
     const handleExploreFromHere = useCallback(async () => {
-        if (!openInExploreUrl) return;
-        const shareUrl = await createShareUrl({
-            path: openInExploreUrl.pathname,
-            params: `?${openInExploreUrl.search}`,
-        });
-        window.open(`/share/${shareUrl.nanoid}`, '_blank');
+        if (!openInExploreUrl || !metricQuery?.exploreName) return;
+        if (isEmbed) {
+            void navigate(
+                {
+                    pathname: `/embed/${projectUuid}/explore/${encodeURIComponent(
+                        metricQuery.exploreName,
+                    )}`,
+                    search: openInExploreUrl.search,
+                },
+                {
+                    state: {
+                        embedBackUrl: `${location.pathname}${location.search}`,
+                    },
+                },
+            );
+        } else {
+            const shareWindow = window.open('', '_blank');
+            const shareUrl = await createShareUrl({
+                path: openInExploreUrl.pathname,
+                params: `?${openInExploreUrl.search}`,
+            });
+            if (shareWindow) {
+                shareWindow.opener = null;
+                shareWindow.location.href = `/share/${shareUrl.nanoid}`;
+            } else {
+                window.open(`/share/${shareUrl.nanoid}`, '_blank');
+            }
+        }
         if (
             user?.data?.userUuid &&
             user?.data?.organizationUuid &&
@@ -279,12 +303,16 @@ export const AiChartQuickOptions = ({
         }
     }, [
         openInExploreUrl,
+        isEmbed,
+        navigate,
+        location.pathname,
+        location.search,
+        metricQuery?.exploreName,
         createShareUrl,
         user?.data?.userUuid,
         user?.data?.organizationUuid,
         projectUuid,
         agentUuid,
-        metricQuery?.exploreName,
         track,
         message.threadUuid,
         message.uuid,
@@ -319,7 +347,9 @@ export const AiChartQuickOptions = ({
     const canVerify = !!artifactData && canManageAgent;
     const hasSavedChartAction = !!message.savedQueryUuid && !isEmbed;
     const hasSaveActions = !message.savedQueryUuid;
-    const hasExploreAction = !isEmbed;
+    const canExploreFromEmbed =
+        content?.type === 'aiAgent' && content.canExplore === true;
+    const hasExploreAction = !isEmbed || canExploreFromEmbed;
     const hasSqlActions = !!compiledSql;
     const hasQuickActions =
         hasSavedChartAction ||
@@ -421,7 +451,7 @@ export const AiChartQuickOptions = ({
                             </>
                         )}
 
-                        {!isEmbed && (
+                        {hasExploreAction && (
                             <Menu.Item
                                 leftSection={
                                     <MantineIcon icon={IconExternalLink} />
@@ -468,7 +498,7 @@ export const AiChartQuickOptions = ({
                             </HoverCard>
                         )}
 
-                        {!!compiledSql ? (
+                        {!!compiledSql && !isEmbed ? (
                             <Menu.Item
                                 component={Link}
                                 to={{

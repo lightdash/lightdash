@@ -94,9 +94,18 @@ const COMMERCIAL_EMBED_ROUTES: RouteObject[] = [
             {
                 path: '/embed/:projectUuid/ai-agents/:agentUuid',
                 lazy: async () => {
-                    const { default: AgentPage } =
-                        await import('./pages/AiAgents/AgentPage');
-                    return { Component: AgentPage };
+                    const [{ default: AgentPage }, { default: EmbedProvider }] =
+                        await Promise.all([
+                            import('./pages/AiAgents/AgentPage'),
+                            import('./providers/Embed/EmbedProvider'),
+                        ]);
+                    return {
+                        Component: () => (
+                            <EmbedProvider>
+                                <AgentPage />
+                            </EmbedProvider>
+                        ),
+                    };
                 },
                 children: [
                     {

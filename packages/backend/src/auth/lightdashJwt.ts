@@ -86,7 +86,7 @@ export function decodeLightdashJwt(
         if (e instanceof TokenExpiredError) {
             throw new ForbiddenError('Your embed token has expired.');
         }
-        if (e instanceof JsonWebTokenError) {
+        if (e instanceof JsonWebTokenError || e instanceof SyntaxError) {
             throw new ForbiddenError(`Invalid embed token: ${e.message}`);
         }
         if (e instanceof z.ZodError) {

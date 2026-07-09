@@ -139,7 +139,7 @@ type BackwardsCompatibleCreateSavedChartVersionUrlParam = Omit<
     metricQuery: Omit<MetricQuery, 'exploreName'> & { exploreName?: string };
 };
 
-const parseChartFromExplorerSearchParams = (
+export const parseChartFromExplorerSearchParams = (
     search: string,
 ): CreateSavedChartVersion | undefined => {
     const searchParams = new URLSearchParams(search);

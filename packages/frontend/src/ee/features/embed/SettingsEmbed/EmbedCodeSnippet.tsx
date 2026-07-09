@@ -425,6 +425,7 @@ const data = {
         type: 'aiAgent',
         projectUuid: projectUuid,
         agentUuid: agentUuid,
+        canExplore: {{canExplore}},
     },
     user: {
         externalId: {{externalId}},
@@ -453,6 +454,7 @@ data = {
         "type": "aiAgent",
         "projectUuid": projectUuid,
         "agentUuid": agentUuid,
+        "canExplore": {{canExplore}},
     },
     "user": {
         "externalId": {{externalId}},
@@ -492,6 +494,7 @@ func main() {
             Type        string \`json:"type"\`
             ProjectUuid string \`json:"projectUuid"\`
             AgentUuid   string \`json:"agentUuid"\`
+            CanExplore  bool   \`json:"canExplore"\`
         } \`json:"content"\`
         UserAttributes map[string]string \`json:"userAttributes"\`
         WriteActions *struct {
@@ -511,10 +514,12 @@ func main() {
             Type        string \`json:"type"\`
             ProjectUuid string \`json:"projectUuid"\`
             AgentUuid   string \`json:"agentUuid"\`
+            CanExplore  bool   \`json:"canExplore"\`
         }{
             Type:        "aiAgent",
             ProjectUuid: projectUuid,
             AgentUuid:   agentUuid,
+            CanExplore:  {{canExplore}},
         },
         User: &struct {
             ExternalId *string \`json:"externalId,omitempty"\`
@@ -559,6 +564,7 @@ const data = {
         type: 'aiAgent',
         projectUuid: projectUuid,
         agentUuid: agentUuid,
+        canExplore: {{canExplore}},
     },
     user: {
         externalId: {{externalId}},
@@ -583,6 +589,7 @@ data = {
         "type": "aiAgent",
         "projectUuid": projectUuid,
         "agentUuid": agentUuid,
+        "canExplore": {{canExplore}},
     },
     "user": {
         "externalId": {{externalId}},
@@ -616,6 +623,7 @@ func main() {
             Type        string \`json:"type"\`
             ProjectUuid string \`json:"projectUuid"\`
             AgentUuid   string \`json:"agentUuid"\`
+            CanExplore  bool   \`json:"canExplore"\`
         } \`json:"content"\`
         UserAttributes map[string]string \`json:"userAttributes"\`
         WriteActions *struct {
@@ -635,10 +643,12 @@ func main() {
             Type        string \`json:"type"\`
             ProjectUuid string \`json:"projectUuid"\`
             AgentUuid   string \`json:"agentUuid"\`
+            CanExplore  bool   \`json:"canExplore"\`
         }{
             Type:        "aiAgent",
             ProjectUuid: projectUuid,
             AgentUuid:   agentUuid,
+            CanExplore:  {{canExplore}},
         },
         User: &struct {
             ExternalId *string \`json:"externalId,omitempty"\`
@@ -1385,12 +1395,17 @@ const getBackendCodeSnippet = (
             );
             break;
         case 'aiAgent':
-            codeTemplate = codeTemplate.replace(
-                '{{agentUuid}}',
-                'agentUuid' in data.content
-                    ? data.content.agentUuid || '<AGENT_UUID>'
-                    : '<AGENT_UUID>',
-            );
+            codeTemplate = codeTemplate
+                .replace(
+                    '{{agentUuid}}',
+                    'agentUuid' in data.content
+                        ? data.content.agentUuid || '<AGENT_UUID>'
+                        : '<AGENT_UUID>',
+                )
+                .replace(
+                    '{{canExplore}}',
+                    languageBoolean(language, data.content.canExplore ?? false),
+                );
             break;
         case 'apiAccess':
             break;

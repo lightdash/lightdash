@@ -16,6 +16,7 @@ import {
     SegmentedControl,
     Select,
     Stack,
+    Switch,
     Text,
     TextInput,
     Title,
@@ -63,6 +64,7 @@ type FormValues = {
         value: string;
     }>;
     externalId?: string;
+    canExplore: boolean;
 } & IntrinsicUserAttributes;
 
 const EmbedPreviewAiAgentForm: FC<{
@@ -88,6 +90,7 @@ const EmbedPreviewAiAgentForm: FC<{
                 value: string;
             }>,
             email: user?.email,
+            canExplore: false,
         },
         validate: {
             agentUuid: (value: undefined | string) => {
@@ -113,6 +116,7 @@ const EmbedPreviewAiAgentForm: FC<{
                     type: 'aiAgent',
                     projectUuid,
                     agentUuid: values.agentUuid!,
+                    canExplore: values.canExplore,
                 },
                 writeActions,
                 userAttributes: values.userAttributes.reduce<
@@ -322,6 +326,16 @@ const EmbedPreviewAiAgentForm: FC<{
                 </Paper>
 
                 {writeActionsPanel}
+
+                <Paper p="md" withBorder>
+                    <Switch
+                        label="Explore from here"
+                        description="Allow embedded users to open generated charts in Explore."
+                        {...form.getInputProps('canExplore', {
+                            type: 'checkbox',
+                        })}
+                    />
+                </Paper>
 
                 <Flex justify="flex-end" gap="sm">
                     <Button

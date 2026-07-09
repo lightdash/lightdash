@@ -70,8 +70,8 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     savedQueryUuid,
     appUuid,
 }) => {
-    const embedToken = encodedToken || window.location.hash.replace('#', '');
-    const [isInitialized, setIsInitialized] = useState(false);
+    const embedToken =
+        encodedToken || window.location.hash.replace('#', '') || undefined;
 
     // Parse theme params from URL once on mount (before hash is stripped)
     const [embedThemeParams] = useState(parseEmbedThemeParams);
@@ -81,16 +81,31 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     const [embedTimezone] = useState(() =>
         encodedToken ? null : parseEmbedTimezoneParam(),
     );
-    const embed = getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY);
-    const { data: account, isLoading } = useAccount();
-    const ability = useAbilityContext();
     const params = useParams();
-    const navigate = useNavigate();
     const projectUuid = projectUuidFromProps || params.projectUuid;
+    const storedEmbed = getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY);
+    const embed =
+        embedToken !== undefined
+            ? { projectUuid, token: embedToken }
+            : storedEmbed;
+    if (
+        embedToken !== undefined &&
+        (storedEmbed?.token !== embedToken ||
+            storedEmbed?.projectUuid !== projectUuid)
+    ) {
+        setToInMemoryStorage(EMBED_KEY, embed);
+    }
+
+    const ability = useAbilityContext();
+    const navigate = useNavigate();
     const location = useLocation();
     const { dispatchEmbedEvent } = useEmbedEventEmitter();
     const mode: EmbedMode = encodedToken ? 'sdk' : 'direct';
     const tokenFromStorageOrProps = embedToken || embed?.token;
+    const { data: account, isLoading } = useAccount(
+        true,
+        tokenFromStorageOrProps,
+    );
     const embedWriteContext =
         account && 'embedWriteContext' in account
             ? account.embedWriteContext
@@ -128,19 +143,6 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
             ability.update(account.user.abilityRules);
         }
     }, [ability, account, isLoading]);
-
-    // There is method to this madness:
-    // When we get an embedded URL, the JWT token is added as a hash to the URL location.
-    // We immediately redirect somewhere else to a URL without the hash. Consequently, if we make
-    // this initialization in a useEffect, we will not have the hash token in the URL by the time
-    // the effect runs.
-    if (!isInitialized) {
-        setToInMemoryStorage(EMBED_KEY, {
-            projectUuid,
-            token: embedToken,
-        });
-        setIsInitialized(true);
-    }
 
     const value = useMemo(() => {
         return {
