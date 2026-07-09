@@ -472,13 +472,15 @@ const runGrepFields = async (
                 patternResult.hits.map((hit) => getFieldIdFromEntry(hit)),
             ),
         );
-        const novelFtsFields = ftsFields.filter(
-            (field) => !greppedFieldIds.has(`${field.tableName}_${field.name}`),
-        );
+        const novelFtsFields = rankFtsFields(
+            ftsFields.filter(
+                (field) =>
+                    !greppedFieldIds.has(`${field.tableName}_${field.name}`),
+            ),
+        ).slice(0, 8);
         const crossCheck =
             novelFtsFields.length > 0
                 ? `\n\nCatalog fuzzy search also matches (not in the grep results above):\n${novelFtsFields
-                      .slice(0, 8)
                       .map(
                           (field) =>
                               `  ${field.tableName}_${field.name}  [${field.fieldType}] ${field.label}`,
