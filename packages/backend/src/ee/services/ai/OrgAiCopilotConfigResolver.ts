@@ -1,4 +1,9 @@
-import { FeatureFlags, type AiOrgModelVisibility } from '@lightdash/common';
+import {
+    BYO_AI_PROVIDERS,
+    FeatureFlags,
+    type AiOrgModelVisibility,
+    type ByoAiProvider,
+} from '@lightdash/common';
 import { AiCopilotConfigSchemaType } from '../../../config/aiConfigSchema';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
@@ -7,7 +12,8 @@ import {
     AiOrganizationSettingsModel,
     AiOrgProviderApiKeys,
 } from '../../models/AiOrganizationSettingsModel';
-import { OrgModelOverrides } from './models';
+import { getFastModelForAccessibleKey, OrgModelOverrides } from './models';
+import { keyGrantsModel } from './models/presets';
 
 export type CopilotConfig = AiCopilotConfigSchemaType;
 
@@ -63,7 +69,24 @@ export const overlayOrgProviderApiKeys = (
         providers.openai = { ...providers.openai, apiKey: orgKeys.openai };
     }
 
-    return { ...config, providers };
+    // When the org brings its own key(s), never resolve to a provider it did
+    // not supply — that would silently use the instance key (a billing +
+    // data-governance leak for a BYO org). If the instance default provider
+    // isn't one the org keyed, switch the default to a provider the org's own
+    // key serves, so auxiliary AI (titles, suggestions, routing, compaction)
+    // runs on the org's key instead of falling back to the instance provider.
+    const usableByoProviders = BYO_AI_PROVIDERS.filter(
+        (provider) => orgKeys[provider] && providers[provider],
+    );
+    const defaultProvider =
+        usableByoProviders.length > 0 &&
+        !usableByoProviders.some(
+            (provider) => provider === config.defaultProvider,
+        )
+            ? usableByoProviders[0]
+            : config.defaultProvider;
+
+    return { ...config, providers, defaultProvider };
 };
 
 type Dependencies = {
@@ -157,6 +180,61 @@ export class OrgAiCopilotConfigResolver {
     }
 
     /**
+     * Effective model visibility for a *submitted* payload — merges the implicit
+     * auto-hide (Anthropic-only key ⇒ OpenAI hidden) under the submission, the
+     * same way getOrgModelOverrides does for stored settings. Used to validate a
+     * save against what the selector will actually show, so an admin can't hide
+     * every model by disabling the one provider whose toggle isn't locked.
+     */
+    async resolveEffectiveModelVisibilityForOrg(
+        organizationUuid: string,
+        submitted: AiOrgModelVisibility | null,
+    ): Promise<AiOrgModelVisibility | null> {
+        const orgKeys =
+            await this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
+                organizationUuid,
+            );
+        if (!orgKeys) return submitted;
+        return resolveEffectiveModelVisibility(orgKeys, submitted);
+    }
+
+    /**
+     * The model ids a provider API key can access (cached in the catalog).
+     * Null on any failure so callers fail closed.
+     */
+    async getAccessibleModelIds(
+        provider: ByoAiProvider,
+        apiKey: string,
+    ): Promise<string[] | null> {
+        return this.aiModelCatalog.getAccessibleModelIds(provider, apiKey);
+    }
+
+    /**
+     * A fast/lightweight-task model for the given (already overlaid) config,
+     * BYO-key-aware: on a BYO Anthropic key it picks a fast model the key can
+     * actually serve (falling back to an accessible preset like opus 4.8 rather
+     * than erroring on haiku). Auxiliary AI (titles, suggestions, compaction)
+     * uses this so it runs on the org's own key without the fast model breaking.
+     */
+    async resolveFastModel(
+        config: CopilotConfig,
+        options?: { enableReasoning?: boolean },
+    ) {
+        const { anthropic } = config.providers;
+        const accessibleModelIds = anthropic?.apiKey
+            ? await this.aiModelCatalog.getAccessibleModelIds(
+                  'anthropic',
+                  anthropic.apiKey,
+              )
+            : null;
+        return getFastModelForAccessibleKey(
+            config,
+            accessibleModelIds,
+            options,
+        );
+    }
+
+    /**
      * Whether review turns may run for an org while honoring BYO isolation.
      * Reviews run on a fast Anthropic model, so an org with its own key can only
      * run them if that key can serve it — never by falling back to the instance
@@ -184,10 +262,9 @@ export class OrgAiCopilotConfigResolver {
             'anthropic',
             orgKeys.anthropic,
         );
-        const canJudgeOnByoKey =
-            modelIds?.some((id) =>
-                id.startsWith(REVIEW_JUDGE_ANTHROPIC_MODEL),
-            ) ?? false;
+        const canJudgeOnByoKey = modelIds
+            ? keyGrantsModel(modelIds, REVIEW_JUDGE_ANTHROPIC_MODEL)
+            : false;
         return { hasActiveByoKey, canJudgeOnByoKey };
     }
 }

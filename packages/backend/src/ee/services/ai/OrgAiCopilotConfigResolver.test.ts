@@ -11,6 +11,7 @@ import {
     AiOrganizationSettingsModel,
     AiOrgProviderApiKeys,
 } from '../../models/AiOrganizationSettingsModel';
+import { filterModelsForOrg, getAvailableModels } from './models';
 import {
     OrgAiCopilotConfigResolver,
     overlayOrgProviderApiKeys,
@@ -39,7 +40,54 @@ const baseConfig: CopilotConfig = aiCopilotConfigSchema.parse({
     },
 });
 
+const bothProvidersConfig: CopilotConfig = aiCopilotConfigSchema.parse({
+    enabled: true,
+    requiresFeatureFlag: false,
+    telemetryEnabled: false,
+    debugLoggingEnabled: false,
+    askAiButtonEnabled: false,
+    embeddingEnabled: false,
+    maxQueryLimit: 100,
+    runSqlMaxLimit: 100,
+    defaultProvider: 'openai',
+    defaultEmbeddingModelProvider: 'openai',
+    providers: {
+        openai: {
+            apiKey: 'instance-openai-key',
+            modelName: 'gpt-5.4',
+            embeddingModelName: 'text-embedding-3-small',
+            zeroDataRetention: false,
+        },
+        anthropic: { apiKey: 'instance-anthropic-key' },
+    },
+});
+
 describe('overlayOrgProviderApiKeys', () => {
+    it('switches the default provider to the org key when the instance default is not BYO-supplied', () => {
+        const result = overlayOrgProviderApiKeys(bothProvidersConfig, {
+            anthropic: 'org-anthropic-key',
+        });
+        // Anthropic-only BYO key + instance default "openai" would otherwise
+        // resolve auxiliary AI to the instance OpenAI key — switch to anthropic.
+        expect(result.defaultProvider).toBe('anthropic');
+        expect(result.providers.anthropic?.apiKey).toBe('org-anthropic-key');
+    });
+
+    it('keeps the default provider when the org supplied a key for it', () => {
+        const result = overlayOrgProviderApiKeys(bothProvidersConfig, {
+            openai: 'org-openai-key',
+        });
+        expect(result.defaultProvider).toBe('openai');
+    });
+
+    it('keeps the default provider when the org keyed both providers', () => {
+        const result = overlayOrgProviderApiKeys(bothProvidersConfig, {
+            anthropic: 'org-anthropic-key',
+            openai: 'org-openai-key',
+        });
+        expect(result.defaultProvider).toBe('openai');
+    });
+
     it('replaces the apiKey of an instance-configured provider, keeping other settings', () => {
         const result = overlayOrgProviderApiKeys(baseConfig, {
             openai: 'org-openai-key',
@@ -177,6 +225,69 @@ describe('OrgAiCopilotConfigResolver', () => {
             flagEnabled: true,
         }).getCopilotConfig('org-uuid');
         expect(result.providers.openai?.apiKey).toBe('org-openai-key');
+    });
+
+    describe('resolveEffectiveModelVisibilityForOrg', () => {
+        it('merges the implicit auto-hide under the submitted visibility', async () => {
+            const resolver = makeResolver({
+                flagEnabled: true,
+                orgKeys: { anthropic: 'sk-ant' },
+            });
+            const effective =
+                await resolver.resolveEffectiveModelVisibilityForOrg(
+                    'org-uuid',
+                    { anthropic: { enabled: false } },
+                );
+            expect(effective).toEqual({
+                openai: { enabled: false },
+                anthropic: { enabled: false },
+            });
+        });
+
+        it('blocks the lockout: an anthropic-only org disabling anthropic leaves no models', async () => {
+            const resolver = makeResolver({
+                flagEnabled: true,
+                orgKeys: { anthropic: 'sk-ant' },
+            });
+            const effective =
+                await resolver.resolveEffectiveModelVisibilityForOrg(
+                    'org-uuid',
+                    { anthropic: { enabled: false } },
+                );
+            const remaining = filterModelsForOrg(
+                getAvailableModels(baseConfig),
+                {
+                    modelVisibility: effective,
+                    keyAccessibleModelIds: null,
+                },
+            );
+            expect(remaining).toHaveLength(0);
+        });
+
+        it('validating the raw submission (the old bug) would have left instance models', () => {
+            const remaining = filterModelsForOrg(
+                getAvailableModels(baseConfig),
+                {
+                    modelVisibility: { anthropic: { enabled: false } },
+                    keyAccessibleModelIds: null,
+                },
+            );
+            expect(remaining.length).toBeGreaterThan(0);
+        });
+
+        it('returns the submission unchanged when the org has no keys', async () => {
+            const resolver = makeResolver({
+                flagEnabled: true,
+                orgKeys: null,
+            });
+            const submitted = { openai: { enabled: false } };
+            expect(
+                await resolver.resolveEffectiveModelVisibilityForOrg(
+                    'org-uuid',
+                    submitted,
+                ),
+            ).toEqual(submitted);
+        });
     });
 
     describe('getOrgModelOverrides', () => {

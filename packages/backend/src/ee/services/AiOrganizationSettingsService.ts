@@ -345,16 +345,24 @@ export class AiOrganizationSettingsService extends BaseService {
         }
 
         if (data.modelVisibility) {
-            // Validate against real key access so an allowlist of only a
-            // key-unlocked hidden model (e.g. opus 4.8) still counts.
-            const overrides =
-                await this.orgAiCopilotConfigResolver.getOrgModelOverrides(
+            // Validate against the EFFECTIVE visibility (implicit auto-hide
+            // merged under the submission) and real key access — so disabling
+            // the only provider whose toggle isn't locked can't leave an empty
+            // selector, and an allowlist of only a key-unlocked hidden model
+            // (e.g. opus 4.8) still counts.
+            const [overrides, effectiveVisibility] = await Promise.all([
+                this.orgAiCopilotConfigResolver.getOrgModelOverrides(
                     user.organizationUuid,
-                );
+                ),
+                this.orgAiCopilotConfigResolver.resolveEffectiveModelVisibilityForOrg(
+                    user.organizationUuid,
+                    data.modelVisibility,
+                ),
+            ]);
             const remaining = filterModelsForOrg(
                 getAvailableModels(this.lightdashConfig.ai.copilot),
                 {
-                    modelVisibility: data.modelVisibility,
+                    modelVisibility: effectiveVisibility,
                     keyAccessibleModelIds: overrides.keyAccessibleModelIds,
                 },
             );

@@ -1700,10 +1700,11 @@ export class AiAgentService extends BaseService {
                 await this.orgAiCopilotConfigResolver.getCopilotConfig(
                     organizationUuid,
                 );
-            const modelOptions = getModel(copilotConfig, {
-                enableReasoning: false,
-                useFastModel: true,
-            });
+            const modelOptions =
+                await this.orgAiCopilotConfigResolver.resolveFastModel(
+                    copilotConfig,
+                    { enableReasoning: false },
+                );
 
             const generated = await generateAgentSuggestions(
                 modelOptions,
@@ -4893,10 +4894,10 @@ export class AiAgentService extends BaseService {
                     user.organizationUuid ?? null,
                 );
             const modelOptions = {
-                ...getModel(copilotConfig, {
-                    enableReasoning: false,
-                    useFastModel: true,
-                }),
+                ...(await this.orgAiCopilotConfigResolver.resolveFastModel(
+                    copilotConfig,
+                    { enableReasoning: false },
+                )),
                 telemetry: {
                     organizationUuid: user.organizationUuid ?? null,
                     agentUuid,

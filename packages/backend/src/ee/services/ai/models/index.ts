@@ -15,6 +15,7 @@ import { getBedrockModel } from './bedrock';
 import { getOpenaiGptmodel } from './openai-gpt';
 import { getOpenRouterModel } from './openrouter';
 import {
+    keyGrantsModel,
     matchesPreset,
     MODEL_PRESETS,
     ModelPreset,
@@ -30,6 +31,28 @@ const FAST_MODELS: Record<ModelPresetProvider, string> = {
     openai: 'gpt-5-mini',
     anthropic: 'claude-haiku-4-5',
     bedrock: 'claude-haiku-4-5',
+};
+
+// Picks the model an ambient/fast task should use on a BYO Anthropic key:
+// the fast model when the key can serve it, otherwise the first shipped preset
+// the key can access (e.g. an org whose key only unlocks claude-opus-4-8).
+// A null accessible list means the models probe failed — fall back to the fast
+// model optimistically and let the request itself surface any access error.
+// Returns null only when the key can access no shipped Anthropic preset.
+export const pickAmbientAnthropicPreset = (
+    accessibleModelIds: string[] | null,
+): ModelPreset<'anthropic'> | null => {
+    const fast =
+        MODEL_PRESETS.anthropic.find((preset) =>
+            matchesPreset(preset, FAST_MODELS.anthropic),
+        ) ?? null;
+    if (accessibleModelIds === null) return fast;
+    if (fast && keyGrantsModel(accessibleModelIds, fast.modelId)) return fast;
+    return (
+        MODEL_PRESETS.anthropic.find((preset) =>
+            keyGrantsModel(accessibleModelIds, preset.modelId),
+        ) ?? null
+    );
 };
 
 // Returns null when the configured default provider isn't set up (e.g. the
@@ -150,7 +173,11 @@ export const filterModelsForOrg = (
             const accessibleIds = byoProvider
                 ? overrides.keyAccessibleModelIds?.[byoProvider]
                 : null;
-            if (!accessibleIds?.includes(preset.modelId)) return false;
+            if (
+                !accessibleIds ||
+                !keyGrantsModel(accessibleIds, preset.modelId)
+            )
+                return false;
         }
         if (!byoProvider) return true;
         const visibility = overrides.modelVisibility?.[byoProvider];
@@ -329,6 +356,34 @@ export const getModel = (
         default:
             return assertUnreachable(provider, `Invalid provider: ${provider}`);
     }
+};
+
+// Fast/lightweight-task model resolution that is BYO-key-aware. When the config
+// resolves to a BYO Anthropic key, pick a fast model the key can serve (falling
+// back to any accessible preset like opus 4.8 instead of erroring on haiku).
+// Otherwise fall back to the standard fast-model selection. Never resolves to a
+// provider the org didn't supply (defaultProvider is already switched upstream).
+export const getFastModelForAccessibleKey = (
+    config: LightdashConfig['ai']['copilot'],
+    accessibleModelIds: string[] | null,
+    options?: { enableReasoning?: boolean },
+) => {
+    const { anthropic } = config.providers;
+    if (anthropic?.apiKey) {
+        const preset = pickAmbientAnthropicPreset(accessibleModelIds);
+        if (preset) {
+            return applyStreamingCapability(
+                getAnthropicModel(anthropic, preset, {
+                    enableReasoning: options?.enableReasoning,
+                }),
+                anthropic.supportsStreaming,
+            );
+        }
+    }
+    return getModel(config, {
+        useFastModel: true,
+        enableReasoning: options?.enableReasoning,
+    });
 };
 
 export const getCompactionModelMetadata = (
