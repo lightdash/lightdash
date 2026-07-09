@@ -1,3 +1,16 @@
+# [0.3351.0](https://github.com/lightdash/lightdash/compare/0.3350.0...0.3351.0) (2026-07-09)
+
+
+### Bug Fixes
+
+* **scheduler:** enforce AI agent space access on AI-augmented deliveries ([#25357](https://github.com/lightdash/lightdash/issues/25357)) ([5d64b50](https://github.com/lightdash/lightdash/commit/5d64b502551ad1ab0334c37951e779814a985491))
+
+
+### Features
+
+* **tables:** use 3-dot icon for column header context menus ([#25354](https://github.com/lightdash/lightdash/issues/25354)) ([8765ca9](https://github.com/lightdash/lightdash/commit/8765ca948d686cbe77a2436aa6e09afb8a874daa))
+* **totals:** gate totals on query success and show loading skeletons ([#25353](https://github.com/lightdash/lightdash/issues/25353)) ([17ce73d](https://github.com/lightdash/lightdash/commit/17ce73d2c36ad1559ec15c055d5d0aae2834c351))
+
 # [0.3350.0](https://github.com/lightdash/lightdash/compare/0.3349.0...0.3350.0) (2026-07-09)
 
 
