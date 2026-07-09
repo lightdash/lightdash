@@ -1,3 +1,16 @@
+# [0.3347.0](https://github.com/lightdash/lightdash/compare/0.3346.0...0.3347.0) (2026-07-09)
+
+
+### Bug Fixes
+
+* address stack review feedback — lockfile shape validation, config hardening, typed errors ([#25296](https://github.com/lightdash/lightdash/issues/25296)) ([6413f43](https://github.com/lightdash/lightdash/commit/6413f4355dc66f2bb6fd1916d83104d83f24c044))
+* remove navbar height offset on embedded AI agent pages ([#25339](https://github.com/lightdash/lightdash/issues/25339)) ([a2705f8](https://github.com/lightdash/lightdash/commit/a2705f8f75db92ae1af7f32c0b5334bbf1912482))
+
+
+### Features
+
+* **charts:** conditional formatting for stacked and 100% stacked bar charts ([#25326](https://github.com/lightdash/lightdash/issues/25326)) ([e37664d](https://github.com/lightdash/lightdash/commit/e37664d4f267ed634c74da9855235f6d27208890)), closes [#25301](https://github.com/lightdash/lightdash/issues/25301)
+
 # [0.3346.0](https://github.com/lightdash/lightdash/compare/0.3345.0...0.3346.0) (2026-07-09)
 
 
