@@ -1,8 +1,12 @@
 import { type SavedChart } from '@lightdash/common';
 import { useEffect, useState, type FC } from 'react';
-import { Outlet, useNavigate, useParams } from 'react-router';
+import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import EmbedProvider from '../../providers/Embed/EmbedProvider';
 import useEmbed from '../../providers/Embed/useEmbed';
+
+type EmbedExploreLocationState = {
+    embedBackUrl?: string;
+};
 
 /**
  * Applies the embed's custom background color if provided.
@@ -38,6 +42,7 @@ const EmbeddedApp: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [savedChart, setSavedChart] = useState<SavedChart>();
     const navigate = useNavigate();
+    const location = useLocation();
 
     const handleExplore = (options: { chart: SavedChart }) => {
         setSavedChart(options.chart);
@@ -47,6 +52,12 @@ const EmbeddedApp: FC = () => {
     };
 
     const handleBackToDashboard = async () => {
+        const state = location.state as EmbedExploreLocationState | null;
+        if (state?.embedBackUrl) {
+            await navigate(state.embedBackUrl);
+            return;
+        }
+
         await navigate(`/embed/${projectUuid}`);
     };
 

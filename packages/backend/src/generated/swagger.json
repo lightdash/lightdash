@@ -2695,6 +2695,9 @@
             },
             "EmbedJwtContentAiAgent": {
                 "properties": {
+                    "canExplore": {
+                        "type": "boolean"
+                    },
                     "agentUuid": {
                         "type": "string"
                     },

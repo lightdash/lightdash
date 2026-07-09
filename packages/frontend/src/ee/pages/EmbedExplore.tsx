@@ -1,16 +1,23 @@
-import { isChartContent, type SavedChart } from '@lightdash/common';
+import {
+    isChartContent,
+    type CreateSavedChartVersion,
+    type SavedChart,
+} from '@lightdash/common';
 import { IconUnlink } from '@tabler/icons-react';
-import { type FC } from 'react';
-import { useParams, useSearchParams } from 'react-router';
+import { useMemo, type FC } from 'react';
+import { useLocation, useParams, useSearchParams } from 'react-router';
 import SuboptimalState from '../../components/common/SuboptimalState/SuboptimalState';
+import { parseChartFromExplorerSearchParams } from '../../hooks/useExplorerRoute';
 import { useSavedQuery } from '../../hooks/useSavedQuery';
 import EmbedExplore from '../features/embed/EmbedExplore/components/EmbedExplore';
 import useEmbed from '../providers/Embed/useEmbed';
 
+type EmbedExploreChart = SavedChart | CreateSavedChartVersion;
+
 const EmbedExplorePage: FC<{
     containerStyles?: React.CSSProperties;
     exploreId?: string;
-    savedChart?: SavedChart;
+    savedChart?: EmbedExploreChart;
 }> = ({
     containerStyles,
     exploreId: exploreIdProps,
@@ -25,23 +32,33 @@ const EmbedExplorePage: FC<{
     const { projectUuid: paramsProjectUuid } = useParams<{
         projectUuid: string;
     }>();
+    const { search } = useLocation();
     const [searchParams] = useSearchParams();
     const projectUuid = embedProjectUuid ?? paramsProjectUuid;
     const chartUuidFromJwt =
         content && isChartContent(content) ? content.contentId : undefined;
     const chartUuid = searchParams.get('chartUuid') ?? chartUuidFromJwt;
+    const chartFromUrl = useMemo(() => {
+        try {
+            return parseChartFromExplorerSearchParams(search);
+        } catch {
+            return undefined;
+        }
+    }, [search]);
     const chartQuery = useSavedQuery({
         uuidOrSlug: chartUuid,
         projectUuid,
         useQueryOptions: {
             enabled:
                 !!embedToken &&
+                chartFromUrl === undefined &&
                 savedChartEmbed === undefined &&
                 savedChartProps === undefined &&
                 chartUuid !== undefined,
         },
     });
-    const savedChart = savedChartEmbed || savedChartProps || chartQuery.data;
+    const savedChart =
+        savedChartEmbed || savedChartProps || chartFromUrl || chartQuery.data;
 
     if (!embedToken) {
         return (

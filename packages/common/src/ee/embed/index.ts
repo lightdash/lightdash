@@ -175,6 +175,7 @@ export const EmbedJwtSchema = z
                 type: z.literal('aiAgent'),
                 projectUuid: z.string().optional(),
                 agentUuid: z.string(),
+                canExplore: z.boolean().optional(),
             }),
             z.object({
                 type: z.literal('apiAccess'),
@@ -260,6 +261,7 @@ export type EmbedJwtContentAiAgent = {
     type: 'aiAgent';
     projectUuid?: string;
     agentUuid: string;
+    canExplore?: boolean;
 };
 
 export type EmbedJwtContentApiAccess = {
