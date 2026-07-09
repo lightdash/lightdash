@@ -1,3 +1,10 @@
+# [0.3341.0](https://github.com/lightdash/lightdash/compare/0.3340.0...0.3341.0) (2026-07-09)
+
+
+### Features
+
+* add user attributes to query tags ([#25300](https://github.com/lightdash/lightdash/issues/25300)) ([2c77c16](https://github.com/lightdash/lightdash/commit/2c77c16c7a9f2ff3eab8bbc9360c19edc6b20143))
+
 # [0.3340.0](https://github.com/lightdash/lightdash/compare/0.3339.0...0.3340.0) (2026-07-08)
 
 
