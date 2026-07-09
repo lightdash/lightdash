@@ -19,6 +19,7 @@ export type DbMcpToolCall = {
     user_agent: string | null;
     auth_type: string;
     protocol_version: string | null;
+    mcp_session_id: string | null;
     created_at: Date;
 };
 

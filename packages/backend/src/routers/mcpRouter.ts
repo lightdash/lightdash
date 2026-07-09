@@ -12,6 +12,7 @@ import {
 import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 // eslint-disable-next-line import/extensions
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { randomUUID } from 'crypto';
 import express, { type Router } from 'express';
 import { IncomingMessage } from 'http';
 import { validate as isValidUuid } from 'uuid';
@@ -98,24 +99,49 @@ function extractProtocolVersionFromHeader(
 }
 
 /**
- * Reads the client identity from an MCP initialize request body
- * ({ method: 'initialize', params: { clientInfo: { name, version } } }).
  * Only single-message bodies are inspected: an initialize inside a JSON-RPC
  * batch array is missed (batching was removed in protocol 2025-06-18, so this
- * only affects older clients, which then fall back to user-agent identity).
+ * only affects older clients).
+ */
+function isInitializeRequest(req: express.Request): boolean {
+    const { body }: { body: unknown } = req;
+    return (
+        typeof body === 'object' &&
+        body !== null &&
+        'method' in body &&
+        body.method === 'initialize'
+    );
+}
+
+const MCP_SESSION_ID_HEADER = 'Mcp-Session-Id';
+
+/**
+ * The transport is stateless, so the session id is purely an analytics
+ * correlation token: minted on initialize, echoed back by spec-compliant
+ * clients on every subsequent request, never used as server-side state.
+ * Only UUIDs (the shape we mint) are accepted back — anything else is
+ * dropped rather than persisted.
+ */
+function extractSessionIdFromHeader(req: express.Request): string | undefined {
+    const headerValue = req.headers[MCP_SESSION_ID_HEADER.toLowerCase()];
+    if (typeof headerValue !== 'string' || !isValidUuid(headerValue)) {
+        return undefined;
+    }
+    return headerValue;
+}
+
+/**
+ * Reads the client identity from an MCP initialize request body
+ * ({ method: 'initialize', params: { clientInfo: { name, version } } }).
+ * Non-initialize requests never carry clientInfo (stateless transport).
  */
 function extractClientInfoFromInitialize(
     req: express.Request,
 ): { name: string; version: string | null } | undefined {
-    const { body }: { body: unknown } = req;
-    if (
-        typeof body !== 'object' ||
-        body === null ||
-        !('method' in body) ||
-        body.method !== 'initialize'
-    ) {
+    if (!isInitializeRequest(req)) {
         return undefined;
     }
+    const { body } = req as { body: object };
     const params =
         'params' in body && typeof body.params === 'object'
             ? (body.params as { clientInfo?: unknown })
@@ -222,6 +248,19 @@ mcpRouter.all(
                 const userAgent = req.account?.requestContext?.userAgent;
                 const protocolVersion = extractProtocolVersionFromHeader(req);
 
+                // Session ids group tool calls made over one client
+                // connection. Assigned on initialize (spec: clients MUST echo
+                // the header on all subsequent requests); the stateless
+                // transport skips session validation, so this stays a pure
+                // correlation token with no server-side session state.
+                const isInitialize = isInitializeRequest(req);
+                const sessionId = isInitialize
+                    ? randomUUID()
+                    : extractSessionIdFromHeader(req);
+                if (isInitialize && sessionId) {
+                    res.setHeader(MCP_SESSION_ID_HEADER, sessionId);
+                }
+
                 // The transport is stateless, so clientInfo only ever appears
                 // on initialize requests; store it so later tool calls can
                 // attach the client identity by matching user agent.
@@ -282,6 +321,7 @@ mcpRouter.all(
                         headerProjectUuid,
                         userAgent,
                         protocolVersion,
+                        sessionId,
                     };
                     authReq.auth = {
                         token: oauthAuth.authentication.token,
@@ -300,6 +340,7 @@ mcpRouter.all(
                         headerProjectUuid,
                         userAgent,
                         protocolVersion,
+                        sessionId,
                     };
                     authReq.auth = {
                         token: apiKeyAuth.authentication.source,
@@ -319,6 +360,7 @@ mcpRouter.all(
                         headerProjectUuid,
                         userAgent,
                         protocolVersion,
+                        sessionId,
                     };
                     authReq.auth = {
                         token: serviceAccountAuth.authentication.source,

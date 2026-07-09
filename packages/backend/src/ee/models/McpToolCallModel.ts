@@ -215,6 +215,7 @@ export class McpToolCallModel {
                     user_agent: string | null;
                     auth_type: string;
                     protocol_version: string | null;
+                    mcp_session_id: string | null;
                 }[]
             >([
                 `${McpToolCallTableName}.mcp_tool_call_uuid`,
@@ -238,6 +239,7 @@ export class McpToolCallModel {
                 `${McpToolCallTableName}.user_agent`,
                 `${McpToolCallTableName}.auth_type`,
                 `${McpToolCallTableName}.protocol_version`,
+                `${McpToolCallTableName}.mcp_session_id`,
             ]);
 
         const sortColumn =
@@ -290,6 +292,7 @@ export class McpToolCallModel {
                 userAgent: row.user_agent,
                 authType: row.auth_type,
                 protocolVersion: row.protocol_version,
+                sessionId: row.mcp_session_id,
             })),
             pagination,
         };
