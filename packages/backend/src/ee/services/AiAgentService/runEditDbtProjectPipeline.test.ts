@@ -24,6 +24,9 @@ const WRITEBACK_RESULT = {
     dbtSourceUuid: null,
 };
 
+const getRunStatusMock = (status: 'ready' | 'error') =>
+    vi.fn().mockResolvedValue({ status, prUrl: null, errorMessage: null });
+
 const WEB_PROMPT = {
     promptUuid: 'prompt-1',
     threadUuid: 'thread-1',
@@ -56,14 +59,19 @@ const buildService = (overrides: {
     isSlack?: boolean;
     promptFound?: boolean;
     run?: ReturnType<typeof vi.fn>;
+    getRunStatus?: ReturnType<typeof vi.fn>;
     reviewRemediation?: unknown;
     previewDeploySetupEnabled?: boolean;
     ciStatus?: { hasPreviewDeployWorkflow: boolean } | null;
     previewUrl?: string | null;
 }) => {
-    const prompt = overrides.isSlack ? SLACK_PROMPT : WEB_PROMPT;
+    const prompt = {
+        ...(overrides.isSlack ? SLACK_PROMPT : WEB_PROMPT),
+        response: 'prior response',
+    };
     const promptFound = overrides.promptFound ?? true;
     const updateToolResult = vi.fn().mockResolvedValue(undefined);
+    const updateModelResponse = vi.fn().mockResolvedValue(undefined);
     const addReaction = vi.fn().mockResolvedValue(undefined);
     const createRemediationEvent = vi.fn().mockResolvedValue(undefined);
     const createPreviewForPullRequest = vi
@@ -86,6 +94,7 @@ const buildService = (overrides: {
                 !overrides.isSlack && promptFound ? prompt : undefined,
             ),
         updateToolResult,
+        updateModelResponse,
     };
     const userModel = {
         findSessionUserAndOrgByUuid: vi.fn().mockResolvedValue({
@@ -95,6 +104,16 @@ const buildService = (overrides: {
     };
     const aiWritebackService = {
         run: overrides.run ?? vi.fn().mockResolvedValue(WRITEBACK_RESULT),
+        // Mirrors what persistRunReady/persistRunFailed actually write for a
+        // normal (non-raced) resolution, so the stale-race guard doesn't
+        // fire by default — tests exercising the guard override this.
+        getRunStatus:
+            overrides.getRunStatus ??
+            vi.fn().mockResolvedValue({
+                status: 'ready',
+                prUrl: null,
+                errorMessage: null,
+            }),
     };
     const aiAgentReviewClassifierModel = {
         findReviewRemediationByWorkThread: vi
@@ -130,6 +149,7 @@ const buildService = (overrides: {
     return {
         service,
         updateToolResult,
+        updateModelResponse,
         addReaction,
         createRemediationEvent,
         createPreviewForPullRequest,
@@ -251,7 +271,10 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
         const run = vi
             .fn()
             .mockRejectedValue(new WritebackThreadPrClosedError('merged'));
-        const { service, updateToolResult } = buildService({ run });
+        const { service, updateToolResult } = buildService({
+            run,
+            getRunStatus: getRunStatusMock('error'),
+        });
 
         await expect(
             service.runEditDbtProjectPipeline(PAYLOAD),
@@ -273,7 +296,10 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
         const run = vi
             .fn()
             .mockRejectedValue(new InsufficientGitPermissionsError());
-        const { service, updateToolResult } = buildService({ run });
+        const { service, updateToolResult } = buildService({
+            run,
+            getRunStatus: getRunStatusMock('error'),
+        });
 
         await service.runEditDbtProjectPipeline(PAYLOAD);
 
@@ -291,7 +317,10 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
 
     it('classifies an unrecognised error as unknown', async () => {
         const run = vi.fn().mockRejectedValue(new Error('sandbox exploded'));
-        const { service, updateToolResult } = buildService({ run });
+        const { service, updateToolResult } = buildService({
+            run,
+            getRunStatus: getRunStatusMock('error'),
+        });
 
         await service.runEditDbtProjectPipeline(PAYLOAD);
 
@@ -305,5 +334,63 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
                 }),
             }),
         );
+    });
+
+    it('writes the dbt-source-selection outcome even though the run row was marked error', async () => {
+        const options = [
+            { name: 'jaffle-2', repository: null, isPrimary: false },
+        ];
+        const run = vi.fn().mockResolvedValue({
+            ...WRITEBACK_RESULT,
+            prUrl: null,
+            prAction: null,
+            needsDbtSourceSelection: true,
+            dbtSourceOptions: options,
+        });
+        const { service, updateToolResult, updateModelResponse } = buildService(
+            { run, getRunStatus: getRunStatusMock('error') },
+        );
+
+        await service.runEditDbtProjectPipeline(PAYLOAD);
+
+        expect(updateToolResult).toHaveBeenCalledWith(
+            'prompt-1',
+            'tool-call-1',
+            expect.objectContaining({
+                metadata: expect.objectContaining({
+                    status: 'success',
+                    needsDbtSourceSelection: true,
+                    dbtSourceOptions: options,
+                }),
+            }),
+        );
+        expect(updateModelResponse).toHaveBeenCalledWith(
+            expect.objectContaining({
+                promptUuid: 'prompt-1',
+                response: expect.stringContaining('jaffle-2'),
+            }),
+        );
+    });
+
+    it('skips a stale success once the run was already finalized as an error', async () => {
+        const { service, updateToolResult } = buildService({
+            getRunStatus: getRunStatusMock('error'),
+        });
+
+        await service.runEditDbtProjectPipeline(PAYLOAD);
+
+        expect(updateToolResult).not.toHaveBeenCalled();
+    });
+
+    it('skips a stale error once the run was already finalized as ready', async () => {
+        const run = vi.fn().mockRejectedValue(new Error('sandbox exploded'));
+        const { service, updateToolResult } = buildService({
+            run,
+            getRunStatus: getRunStatusMock('ready'),
+        });
+
+        await service.runEditDbtProjectPipeline(PAYLOAD);
+
+        expect(updateToolResult).not.toHaveBeenCalled();
     });
 });

@@ -6817,12 +6817,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             return;
         }
 
+        // run() marks the run row 'error' for a source-selection outcome even
+        // though it's not a failure, so the guard must not apply to it here.
         if (
-            await this.isRunAlreadyFinalizedDifferently(
+            !result.needsDbtSourceSelection &&
+            (await this.isRunAlreadyFinalizedDifferently(
                 user,
                 aiWritebackRunUuid,
                 'ready',
-            )
+            ))
         ) {
             Logger.warn(
                 `AiAgent.runEditDbtProjectPipeline: run ${aiWritebackRunUuid} succeeded after already being finalized as an error (likely a job timeout) — skipping stale tool-result update`,
