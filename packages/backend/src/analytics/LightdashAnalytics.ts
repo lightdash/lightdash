@@ -2129,6 +2129,7 @@ export type McpToolCallEvent = BaseTrack & {
         clientVersion?: string;
         userAgent?: string;
         protocolVersion?: string;
+        sessionId?: string;
     };
 };
 

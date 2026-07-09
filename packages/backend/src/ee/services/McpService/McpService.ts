@@ -256,6 +256,8 @@ export type ExtraContext = {
     userAgent?: string;
     /** Negotiated protocol version from the MCP-Protocol-Version header */
     protocolVersion?: string;
+    /** Correlation id minted on initialize and echoed via the Mcp-Session-Id header; groups tool calls from one client connection */
+    sessionId?: string;
 };
 
 type McpEffectiveScope = {
@@ -278,6 +280,7 @@ const extraContextSchema = z.object({
     headerProjectUuid: z.string().optional(),
     userAgent: z.string().optional(),
     protocolVersion: z.string().optional(),
+    sessionId: z.string().optional(),
 });
 
 const mcpProtocolContextSchema = z.object({
@@ -3550,7 +3553,7 @@ export class McpService extends BaseService {
         const context = getMcpContext(extra);
         const { user, account, organizationUuid } =
             McpService.getAccount(context);
-        const { userAgent, protocolVersion, headerProjectUuid } =
+        const { userAgent, protocolVersion, headerProjectUuid, sessionId } =
             context.authInfo?.extra ?? {};
 
         // Project/agent scope and client identity come from DB lookups, but
@@ -3605,6 +3608,7 @@ export class McpService extends BaseService {
                 clientVersion: clientInfo?.client_version ?? undefined,
                 userAgent,
                 protocolVersion,
+                sessionId,
             },
         });
 
@@ -3624,6 +3628,7 @@ export class McpService extends BaseService {
             user_agent: userAgent ?? null,
             auth_type: authType,
             protocol_version: protocolVersion ?? null,
+            mcp_session_id: sessionId ?? null,
         });
     }
 

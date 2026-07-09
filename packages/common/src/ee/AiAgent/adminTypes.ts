@@ -120,6 +120,7 @@ export type McpActivityItem = {
     userAgent: string | null;
     authType: string;
     protocolVersion: string | null;
+    sessionId: string | null;
 };
 
 export type McpActivitySummary = {
