@@ -986,6 +986,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
 
     /**
      * Get the YAML file for an explore's base table
+     * @deprecated Only used by the deprecated explore files endpoint; use getFileOrDirectory instead.
      */
     async getFileForExplore(
         user: SessionUser,
@@ -1102,6 +1103,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
 
     /**
      * Create a pull request with arbitrary file changes
+     * @deprecated Only used by the deprecated file-change PR endpoint; use createPullRequestFromBranch instead.
      */
     async createPullRequestWithFileChange(
         user: SessionUser,

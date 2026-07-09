@@ -1332,6 +1332,7 @@ export class SchedulerService extends BaseService {
         }
     }
 
+    /** @deprecated Only used by the deprecated scheduler jobs endpoint, which will be removed without replacement. */
     async getScheduledJobs(
         user: SessionUser,
         schedulerUuid: string,
@@ -1382,6 +1383,7 @@ export class SchedulerService extends BaseService {
         await this.schedulerModel.updateGsheetExportProgress(jobId, progress);
     }
 
+    /** @deprecated Only used by the deprecated scheduler logs endpoint; use getSchedulerRuns instead. */
     async getSchedulerLogs(
         user: SessionUser,
         projectUuid: string,

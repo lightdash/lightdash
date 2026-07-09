@@ -302,6 +302,7 @@ export class EmbedService extends BaseService {
         return this.getConfig(account, projectUuid);
     }
 
+    /** @deprecated Superseded by updateConfig (PATCH /api/v1/embed/{projectUuid}/config). */
     async updateDashboards(
         account: SessionAccount,
         projectUuid: string,
@@ -1462,6 +1463,7 @@ export class EmbedService extends BaseService {
         });
     }
 
+    /** @deprecated Only used by the deprecated embed chart-and-results endpoint; use executeAsyncDashboardTileQuery instead. */
     async getChartAndResults(
         projectUuid: string,
         account: AnonymousAccount,
@@ -1766,6 +1768,7 @@ export class EmbedService extends BaseService {
         };
     }
 
+    /** @deprecated Superseded by AsyncQueryService.executeAsyncCalculateTotalFromQueryHistory. */
     async calculateTotalFromSavedChart(
         account: AnonymousAccount,
         projectUuid: string,
@@ -1847,7 +1850,7 @@ export class EmbedService extends BaseService {
         }
     }
 
-    /** @deprecated Superseded by the V2 calculate-total path (kind 'columnSubtotal'). */
+    /** @deprecated Superseded by AsyncQueryService.executeAsyncCalculateTotalFromQueryHistory (kind 'columnSubtotal'). */
     async calculateSubtotalsFromSavedChart(
         account: AnonymousAccount,
         projectUuid: string,
@@ -1985,6 +1988,7 @@ export class EmbedService extends BaseService {
     /**
      * Calculate totals from a raw metric query in embed context.
      * This is used when exploring data directly (not from a saved chart).
+     * @deprecated Superseded by AsyncQueryService.executeAsyncCalculateTotalFromQueryHistory.
      */
     async calculateTotalFromQuery(
         account: AnonymousAccount,
@@ -2064,7 +2068,7 @@ export class EmbedService extends BaseService {
     /**
      * Calculate subtotals from a raw metric query in embed context.
      * This is used when exploring data directly (not from a saved chart).
-     * @deprecated Superseded by the V2 calculate-total path (kind 'columnSubtotal').
+     * @deprecated Superseded by AsyncQueryService.executeAsyncCalculateTotalFromQueryHistory (kind 'columnSubtotal').
      */
     async calculateSubtotalsFromQuery(
         account: AnonymousAccount,

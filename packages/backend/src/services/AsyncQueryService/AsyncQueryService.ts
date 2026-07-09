@@ -7137,7 +7137,7 @@ export class AsyncQueryService extends ProjectService {
         return rows[0];
     }
 
-    /** @deprecated Superseded by the V2 calculate-total path (kind 'columnSubtotal'). */
+    /** @deprecated Superseded by executeAsyncCalculateTotalFromQueryHistory (kind 'columnSubtotal'). */
     async calculateMetricQuerySubtotals({
         account,
         projectUuid,
@@ -7244,6 +7244,7 @@ export class AsyncQueryService extends ProjectService {
         return SubtotalsCalculator.formatSubtotalEntries(subtotalsEntries);
     }
 
+    /** @deprecated Superseded by executeAsyncCalculateTotalFromQueryHistory. */
     async calculateTotalFromSavedChart(
         account: Account,
         chartUuid: string,
@@ -7356,6 +7357,7 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
+    /** @deprecated Superseded by executeAsyncCalculateTotalFromQueryHistory. */
     async calculateTotalFromQuery(
         account: Account,
         projectUuid: string,
