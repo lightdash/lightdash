@@ -1,3 +1,15 @@
+# [0.3350.0](https://github.com/lightdash/lightdash/compare/0.3349.0...0.3350.0) (2026-07-09)
+
+
+### Bug Fixes
+
+* correct oversized 'edit' emphasis in dashboard filter tooltip ([#25349](https://github.com/lightdash/lightdash/issues/25349)) ([5e01a46](https://github.com/lightdash/lightdash/commit/5e01a46561d6982d9f6aaf74e8a5544f8e9697e3))
+
+
+### Features
+
+* **charts:** persist legend selection state in saved charts ([#25341](https://github.com/lightdash/lightdash/issues/25341)) ([d9af3f8](https://github.com/lightdash/lightdash/commit/d9af3f8457457527541766b79d9a9e11f9fa84b6))
+
 # [0.3349.0](https://github.com/lightdash/lightdash/compare/0.3348.0...0.3349.0) (2026-07-09)
 
 
