@@ -14,19 +14,13 @@ export const getEditDbtProject = ({ editDbtProject }: Dependencies) =>
     tool({
         ...toolDefinition,
         execute: async (
-            {
-                prompt,
-                prUrl: pastedPrUrl,
-                fromActiveChangeset,
-                startNewPullRequest,
-            },
+            { prompt, prUrl: pastedPrUrl, startNewPullRequest },
             { toolCallId },
         ) => {
             try {
                 const { aiWritebackRunUuid } = await editDbtProject({
                     prompt,
                     prUrl: pastedPrUrl,
-                    fromActiveChangeset,
                     startNewPullRequest,
                     progressId: toolCallId,
                 });

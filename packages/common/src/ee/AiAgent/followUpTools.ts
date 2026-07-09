@@ -1,6 +1,22 @@
 import { z } from 'zod';
 import { AiResultType } from './types';
 
+export type ActiveFollowUpTool = Exclude<
+    AiResultType,
+    AiResultType.PROPOSE_CHANGE
+>;
+
+export const activeFollowUpTools: readonly ActiveFollowUpTool[] = Object.values(
+    AiResultType,
+).filter(
+    (tool): tool is ActiveFollowUpTool => tool !== AiResultType.PROPOSE_CHANGE,
+);
+
+export const isActiveFollowUpTool = (
+    value: unknown,
+): value is ActiveFollowUpTool =>
+    activeFollowUpTools.some((tool) => tool === value);
+
 export type FollowUpToolsText = {
     [key in AiResultType]: string;
 };

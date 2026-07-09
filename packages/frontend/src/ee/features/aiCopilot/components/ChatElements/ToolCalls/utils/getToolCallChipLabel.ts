@@ -177,8 +177,6 @@ export const getToolCallChipLabel = (
         case 'runSavedChart':
         case 'generateHashes':
         case 'improveContext':
-        case 'proposeChange':
-            return null;
         case 'runContentQuery': {
             const args = toolArgs as ToolRunContentQueryArgs;
             if (args.source.type === 'metricQuery')

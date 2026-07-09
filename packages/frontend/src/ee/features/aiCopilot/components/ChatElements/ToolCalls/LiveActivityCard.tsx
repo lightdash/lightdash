@@ -83,7 +83,6 @@ const REASONING_PREVIEW_LENGTH = 140;
 const TOOLS_WITHOUT_PREVIEW = new Set<string>([
     'runSql',
     'improveContext',
-    'proposeChange',
     'runSavedChart',
 ]);
 
@@ -102,7 +101,6 @@ const TOOLS_WITHOUT_LATEST_DESCRIPTION = new Set<string>([
     'improveContext',
     'loadSkill',
     'loadProjectContext',
-    'proposeChange',
     'editDbtProject',
     'setupPreviewDeploy',
     'runSavedChart',
