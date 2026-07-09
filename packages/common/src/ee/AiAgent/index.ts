@@ -399,6 +399,10 @@ export type ApiCreateAiMcpServer = {
     } | null;
 };
 
+export type ApiUpdateAiMcpServerCredentialBody = {
+    bearerToken: string;
+};
+
 export type ApiAiMcpOAuthCredentialRequest = {
     credentialScope?: AiMcpCredentialScope;
 };
