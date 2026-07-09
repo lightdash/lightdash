@@ -7,10 +7,11 @@ const ANTHROPIC_VERSION = '2023-06-01';
 const CACHE_TTL_MS = 60 * 60 * 1000;
 const PAGE_LIMIT = 100;
 const MAX_PAGES = 10;
+const REQUEST_TIMEOUT_MS = 5000;
 
 export type FetchLike = (
     url: string,
-    init: { headers: Record<string, string> },
+    init: { headers: Record<string, string>; signal?: AbortSignal },
 ) => Promise<{ ok: boolean; status?: number; json: () => Promise<unknown> }>;
 
 type AnthropicModelsPage = {
@@ -36,7 +37,8 @@ export class AiModelCatalog {
     constructor(dependencies: Dependencies = {}) {
         this.fetchFn =
             dependencies.fetchFn ??
-            ((url, init) => fetch(url, { headers: init.headers }));
+            ((url, init) =>
+                fetch(url, { headers: init.headers, signal: init.signal }));
     }
 
     async getAccessibleModelIds(
@@ -79,6 +81,7 @@ export class AiModelCatalog {
                         'x-api-key': apiKey,
                         'anthropic-version': ANTHROPIC_VERSION,
                     },
+                    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
                 });
                 if (!response.ok) {
                     Logger.warn(
