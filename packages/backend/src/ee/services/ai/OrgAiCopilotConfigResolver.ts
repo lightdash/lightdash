@@ -1,4 +1,5 @@
 import {
+    BYO_AI_PROVIDERS,
     FeatureFlags,
     type AiOrgModelVisibility,
     type ByoAiProvider,
@@ -68,7 +69,24 @@ export const overlayOrgProviderApiKeys = (
         providers.openai = { ...providers.openai, apiKey: orgKeys.openai };
     }
 
-    return { ...config, providers };
+    // When the org brings its own key(s), never resolve to a provider it did
+    // not supply — that would silently use the instance key (a billing +
+    // data-governance leak for a BYO org). If the instance default provider
+    // isn't one the org keyed, switch the default to a provider the org's own
+    // key serves, so auxiliary AI (titles, suggestions, routing, compaction)
+    // runs on the org's key instead of falling back to the instance provider.
+    const usableByoProviders = BYO_AI_PROVIDERS.filter(
+        (provider) => orgKeys[provider] && providers[provider],
+    );
+    const defaultProvider =
+        usableByoProviders.length > 0 &&
+        !usableByoProviders.some(
+            (provider) => provider === config.defaultProvider,
+        )
+            ? usableByoProviders[0]
+            : config.defaultProvider;
+
+    return { ...config, providers, defaultProvider };
 };
 
 type Dependencies = {
