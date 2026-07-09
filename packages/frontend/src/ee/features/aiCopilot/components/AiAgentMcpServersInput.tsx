@@ -1414,6 +1414,46 @@ export const AiAgentMcpServersInput = ({
                                                         },
                                                     )}
                                                 </Badge>
+                                                {connectionStatus ===
+                                                    'connected' &&
+                                                    shouldShowMcpRetestConnection(
+                                                        mcpServer,
+                                                        connectionStatus,
+                                                    ) && (
+                                                        <Tooltip
+                                                            label="Re-test connection"
+                                                            withArrow
+                                                            withinPortal
+                                                        >
+                                                            <ActionIcon
+                                                                type="button"
+                                                                variant="subtle"
+                                                                color="gray"
+                                                                size="sm"
+                                                                loading={
+                                                                    isRetesting
+                                                                }
+                                                                disabled={
+                                                                    isRetesting ||
+                                                                    isPersistingSelection
+                                                                }
+                                                                onClick={(
+                                                                    event,
+                                                                ) => {
+                                                                    event.stopPropagation();
+                                                                    void handleRetestMcpServerConnection(
+                                                                        mcpServer.uuid,
+                                                                    );
+                                                                }}
+                                                            >
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconRefresh
+                                                                    }
+                                                                />
+                                                            </ActionIcon>
+                                                        </Tooltip>
+                                                    )}
                                                 {sharingPolicyLabel && (
                                                     <Tooltip
                                                         label={
