@@ -113,6 +113,7 @@
     flex: 1;
     min-height: 0;
     overflow: hidden;
+    height: calc(100vh - var(--navbar-height));
 
     @mixin light {
         background-color: var(--mantine-color-white);
@@ -121,6 +122,11 @@
     @mixin dark {
         background-color: var(--mantine-color-dark-8);
     }
+}
+
+/* Embed pages render without the app navbar */
+.workspaceEmbed {
+    height: 100vh;
 }
 
 .floatingArtifactRegion {
