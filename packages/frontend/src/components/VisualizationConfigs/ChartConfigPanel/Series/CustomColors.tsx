@@ -26,6 +26,7 @@ type Props = {
     xField: string | undefined;
     yFields: string[];
     canColorByCategory: boolean;
+    enforceSingleTarget: boolean;
     colorPalette: string[];
     colorByCategory: boolean;
     categoryColorOverrides: Record<string, string>;
@@ -44,6 +45,7 @@ export const CustomColors: FC<Props> = ({
     xField,
     yFields,
     canColorByCategory,
+    enforceSingleTarget,
     colorPalette,
     colorByCategory,
     categoryColorOverrides,
@@ -225,6 +227,7 @@ export const CustomColors: FC<Props> = ({
                 <ChartConditionalFormatting
                     colorPalette={colorPalette}
                     fields={targetFields}
+                    enforceSingleTarget={enforceSingleTarget}
                     conditionalFormattings={conditionalFormattings}
                     onSetConditionalFormattings={onSetConditionalFormattings}
                 />

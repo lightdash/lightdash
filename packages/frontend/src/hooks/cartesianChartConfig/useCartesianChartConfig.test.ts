@@ -1062,7 +1062,7 @@ describe('useCartesianChartConfig', () => {
         );
     });
 
-    test('should clear custom colors when stacking is enabled', () => {
+    test('should clear category colors but keep conditional formatting when stacking is enabled', () => {
         const initialParams = getSingleSeriesParams();
         const conditionalFormattings = [
             createConditionalFormattingConfigWithSingleColor('#ff0000', {
@@ -1115,7 +1115,70 @@ describe('useCartesianChartConfig', () => {
         expect(
             result.current.dirtyLayout?.categoryColorOverrides,
         ).toBeUndefined();
-        expect(result.current.validConfig.conditionalFormattings).toEqual([]);
+        // Stacked bar charts support conditional formatting, so configs survive
+        expect(result.current.validConfig.conditionalFormattings).toEqual(
+            conditionalFormattings,
+        );
+    });
+
+    test('should coerce conditional formatting to a single target when stacked', () => {
+        const initialParams = getSingleSeriesParams();
+        const multiMetricParams = {
+            ...initialParams,
+            stacking: StackType.NORMAL,
+            initialChartConfig: {
+                ...initialParams.initialChartConfig,
+                layout: {
+                    xField: 'orders_customer_id',
+                    yField: ['orders_total_order_amount', 'orders_order_count'],
+                },
+                eChartsConfig: {
+                    series: [
+                        {
+                            type: CartesianSeriesType.BAR,
+                            yAxisIndex: 0,
+                            encode: {
+                                xRef: { field: 'orders_customer_id' },
+                                yRef: {
+                                    field: 'orders_total_order_amount',
+                                },
+                            },
+                        },
+                        {
+                            type: CartesianSeriesType.BAR,
+                            yAxisIndex: 0,
+                            encode: {
+                                xRef: { field: 'orders_customer_id' },
+                                yRef: { field: 'orders_order_count' },
+                            },
+                        },
+                    ],
+                },
+                conditionalFormattings: [
+                    createConditionalFormattingConfigWithSingleColor(
+                        '#ff0000',
+                        { fieldId: 'orders_total_order_amount' },
+                    ),
+                    createConditionalFormattingConfigWithSingleColor(
+                        '#0000ff',
+                        { fieldId: 'orders_order_count' },
+                    ),
+                ],
+            },
+        };
+
+        const { result } = renderHook(
+            ({ params }) =>
+                // @ts-expect-error partially mock params for hook
+                useCartesianChartConfig(params),
+            { initialProps: { params: multiMetricParams } },
+        );
+
+        expect(
+            result.current.validConfig.conditionalFormattings.map(
+                (config) => config.target?.fieldId,
+            ),
+        ).toEqual(['orders_total_order_amount', 'orders_total_order_amount']);
     });
 
     test('should clear conditional formattings when chart becomes ineligible', () => {

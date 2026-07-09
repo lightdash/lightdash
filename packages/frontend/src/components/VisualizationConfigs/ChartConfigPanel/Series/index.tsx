@@ -168,17 +168,19 @@ export const Series: FC<Props> = ({ items }) => {
         (dirtyLayout?.stack !== undefined &&
             dirtyLayout.stack !== StackType.NONE);
 
-    // Conditional formatting: available for non-stacked all-bar charts
-    // without pivots, regardless of how many metrics are charted. Mixed
-    // bar/line charts are excluded since formatting only renders on bars.
+    // Conditional formatting: available for all-bar charts without pivots,
+    // regardless of how many metrics are charted or stacking. Mixed bar/line
+    // charts are excluded since formatting only renders on bars.
     const supportsCustomColors =
         dirtyChartType === CartesianSeriesType.BAR &&
         allSeries.every((series) => series.type === CartesianSeriesType.BAR) &&
-        !pivotDimensions?.length &&
-        !hasCustomColorsStacking;
+        !pivotDimensions?.length;
 
-    // Color by category: only for single-series bar charts
-    const isSingleSeriesBar = supportsCustomColors && allSeries.length <= 1;
+    // Color by category: only for single-series non-stacked bar charts
+    const isSingleSeriesBar =
+        supportsCustomColors &&
+        allSeries.length <= 1 &&
+        !hasCustomColorsStacking;
 
     const colorByCategory = dirtyLayout?.colorByCategory ?? false;
     const customColorsEnabled =
@@ -359,6 +361,9 @@ export const Series: FC<Props> = ({ items }) => {
                                     xField={dirtyLayout?.xField}
                                     yFields={dirtyLayout?.yField ?? []}
                                     canColorByCategory={isSingleSeriesBar}
+                                    enforceSingleTarget={
+                                        hasCustomColorsStacking
+                                    }
                                     colorPalette={colorPalette}
                                     colorByCategory={colorByCategory}
                                     categoryColorOverrides={
