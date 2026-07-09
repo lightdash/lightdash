@@ -36,6 +36,7 @@ import {
     IconChevronRight,
     IconDots,
     IconEye,
+    IconKey,
     IconPlug,
     IconPlugConnected,
     IconRefresh,
@@ -57,6 +58,7 @@ import {
     useProjectCreateAiMcpServerMutation,
     useRefreshAiMcpServerToolsMutation,
     useStartMcpOAuthConnectionMutation,
+    useUpdateAiMcpServerCredentialMutation,
 } from '../hooks/useProjectAiMcpServers';
 import { AiAgentMcpServerToolsPanel } from './AiAgentMcpServerToolsPanel';
 import { AiMcpServerIcon } from './AiMcpServerIcon';
@@ -427,6 +429,90 @@ const CreateMcpServerModal = ({
     );
 };
 
+const updateMcpTokenFormSchema = z.object({
+    bearerToken: z.string().trim().min(1, 'Bearer token is required'),
+});
+
+const UpdateMcpServerTokenModal = ({
+    mcpServer,
+    isLoading,
+    onClose,
+    onSubmit,
+}: {
+    mcpServer: AiMcpServer | null;
+    isLoading: boolean;
+    onClose: () => void;
+    onSubmit: (
+        values: z.infer<typeof updateMcpTokenFormSchema>,
+    ) => Promise<void> | void;
+}) => {
+    const form = useForm<z.infer<typeof updateMcpTokenFormSchema>>({
+        initialValues: { bearerToken: '' },
+        validate: zodResolver(updateMcpTokenFormSchema),
+    });
+
+    const handleClose = useCallback(() => {
+        form.reset();
+        onClose();
+    }, [form, onClose]);
+
+    const handleSubmit = form.onSubmit(async (values) => {
+        await onSubmit(values);
+        form.reset();
+    });
+
+    return (
+        <MantineModal
+            opened={mcpServer !== null}
+            onClose={handleClose}
+            title="Update token"
+            icon={IconKey}
+            cancelDisabled={isLoading}
+            actions={
+                <Button
+                    type="submit"
+                    form="update-mcp-token-form"
+                    loading={isLoading}
+                >
+                    Update token
+                </Button>
+            }
+        >
+            <form id="update-mcp-token-form" onSubmit={handleSubmit}>
+                <Stack gap="md">
+                    <TextInput
+                        variant="subtle"
+                        label="Name"
+                        value={mcpServer?.name ?? ''}
+                        disabled
+                    />
+                    <TextInput
+                        variant="subtle"
+                        label="URL"
+                        value={mcpServer?.url ?? ''}
+                        disabled
+                    />
+                    <Box>
+                        <PasswordInput
+                            variant="subtle"
+                            label="New bearer token"
+                            placeholder="API key or personal access token"
+                            disabled={isLoading}
+                            autoComplete="off"
+                            {...form.getInputProps('bearerToken')}
+                        />
+                        <Text size="xs" c="dimmed" mt="xs">
+                            Enter a new token to replace the current one. It will
+                            be encrypted and shared across all users of the
+                            agent.
+                        </Text>
+                    </Box>
+                </Stack>
+            </form>
+        </MantineModal>
+    );
+};
+
 const AttachMcpServersModal = ({
     opened,
     isLoading,
@@ -569,12 +655,18 @@ export const AiAgentMcpServersInput = ({
     const [attachSelection, setAttachSelection] = useState<string[]>([]);
     const [expandedMcpServers, setExpandedMcpServers] = useState<string[]>([]);
     const [isPersistingSelection, setIsPersistingSelection] = useState(false);
+    const [editingTokenMcpServer, setEditingTokenMcpServer] =
+        useState<AiMcpServer | null>(null);
     const isPersistingSelectionRef = useRef(false);
     const { showToastSuccess } = useToaster();
     const { data: mcpServers, isLoading: isLoadingMcpServers } =
         useProjectAiMcpServers(projectUuid);
     const { mutateAsync: createMcpServer, isLoading: isCreatingMcpServer } =
         useProjectCreateAiMcpServerMutation(projectUuid);
+    const {
+        mutateAsync: updateMcpServerCredential,
+        isLoading: isUpdatingToken,
+    } = useUpdateAiMcpServerCredentialMutation(projectUuid);
     const { mutateAsync: updateAgentMcpServers } =
         useProjectUpdateAiAgentMutation(projectUuid, {
             showSuccessToast: false,
@@ -837,6 +929,23 @@ export const AiAgentMcpServersInput = ({
         ],
     );
 
+    const handleUpdateMcpToken = useCallback(
+        async (values: { bearerToken: string }) => {
+            if (!editingTokenMcpServer) return;
+            try {
+                await updateMcpServerCredential({
+                    mcpServerUuid: editingTokenMcpServer.uuid,
+                    bearerToken: values.bearerToken.trim(),
+                });
+                setEditingTokenMcpServer(null);
+            } catch {
+                // The mutation surfaces the failure via an error toast; keep the
+                // modal open so the user can correct the token.
+            }
+        },
+        [editingTokenMcpServer, updateMcpServerCredential],
+    );
+
     const handleStartMcpOAuthConnection = useCallback(
         async (mcpServerUuid: string) => {
             await startMcpOAuthConnection({ mcpServerUuid });
@@ -961,6 +1070,19 @@ export const AiAgentMcpServersInput = ({
                         >
                             {isExpanded ? 'Hide tools' : 'View tools'}
                         </Menu.Item>
+                        {mcpServer.authType === 'bearer' && (
+                            <Menu.Item
+                                type="button"
+                                leftSection={<MantineIcon icon={IconKey} />}
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    setEditingTokenMcpServer(mcpServer);
+                                }}
+                                disabled={isPersistingSelection}
+                            >
+                                Update token
+                            </Menu.Item>
+                        )}
                         {mcpServer.authType === 'oauth' && (
                             <Menu.Item
                                 type="button"
@@ -1067,6 +1189,7 @@ export const AiAgentMcpServersInput = ({
             handleSetExpandedMcpServer,
             handleStartMcpOAuthConnection,
             isPersistingSelection,
+            setEditingTokenMcpServer,
         ],
     );
 
@@ -1439,6 +1562,12 @@ export const AiAgentMcpServersInput = ({
                 onClose={createMcpServerModalHandlers.close}
                 onSubmit={handleCreateMcpServer}
                 isLoading={isCreatingMcpServer || isPersistingSelection}
+            />
+            <UpdateMcpServerTokenModal
+                mcpServer={editingTokenMcpServer}
+                isLoading={isUpdatingToken}
+                onClose={() => setEditingTokenMcpServer(null)}
+                onSubmit={handleUpdateMcpToken}
             />
             <AttachMcpServersModal
                 opened={isAttachMcpServersModalOpen}
