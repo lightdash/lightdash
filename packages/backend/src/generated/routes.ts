@@ -47,6 +47,8 @@ import { GroupsController } from './../controllers/groupsController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { ImpersonationController } from './../controllers/impersonationController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { InviteLinksController } from './../controllers/inviteLinksController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { MetricsExplorerController } from './../controllers/metricsExplorerController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { NotificationsController } from './../controllers/notificationsController';
@@ -10055,11 +10057,36 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AppVersionDependencyEntry: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                version: { dataType: 'string', required: true },
+                name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ApiAppVersionSummary: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                dependencies: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        custom: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'AppVersionDependencyEntry',
+                            },
+                            required: true,
+                        },
+                    },
+                },
                 resources: {
                     dataType: 'union',
                     subSchemas: [
@@ -12437,8 +12464,8 @@ const models: TsoaRoute.Models = {
                     imageUrlSource: {
                         dataType: 'union',
                         subSchemas: [
-                            { dataType: 'enum', enums: ['upload'] },
                             { dataType: 'enum', enums: ['url'] },
+                            { dataType: 'enum', enums: ['upload'] },
                             { dataType: 'enum', enums: [null] },
                         ],
                         required: true,
@@ -12708,6 +12735,17 @@ const models: TsoaRoute.Models = {
                 authType: { ref: 'AiMcpServerAuthType', required: true },
                 url: { dataType: 'string', required: true },
                 name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiUpdateAiMcpServerCredentialBody: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                bearerToken: { dataType: 'string', required: true },
             },
             validators: {},
         },
@@ -13086,8 +13124,8 @@ const models: TsoaRoute.Models = {
                     imageUrlSource: {
                         dataType: 'union',
                         subSchemas: [
-                            { dataType: 'enum', enums: ['upload'] },
                             { dataType: 'enum', enums: ['url'] },
+                            { dataType: 'enum', enums: ['upload'] },
                             { dataType: 'enum', enums: [null] },
                         ],
                         required: true,
@@ -14970,11 +15008,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['rejected'],
+                                                            enums: ['accepted'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['accepted'],
+                                                            enums: ['rejected'],
                                                         },
                                                         {
                                                             dataType:
@@ -15032,11 +15070,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['rejected'],
+                                                            enums: ['accepted'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['accepted'],
+                                                            enums: ['rejected'],
                                                         },
                                                         {
                                                             dataType:
@@ -15808,149 +15846,6 @@ const models: TsoaRoute.Models = {
                                                             dataType:
                                                                 'nestedObjectLiteral',
                                                             nestedProperties: {
-                                                                rationale: {
-                                                                    dataType:
-                                                                        'union',
-                                                                    subSchemas:
-                                                                        [
-                                                                            {
-                                                                                dataType:
-                                                                                    'string',
-                                                                            },
-                                                                            {
-                                                                                dataType:
-                                                                                    'enum',
-                                                                                enums: [
-                                                                                    null,
-                                                                                ],
-                                                                            },
-                                                                        ],
-                                                                    required: true,
-                                                                },
-                                                                fields: {
-                                                                    dataType:
-                                                                        'array',
-                                                                    array: {
-                                                                        dataType:
-                                                                            'nestedObjectLiteral',
-                                                                        nestedProperties:
-                                                                            {
-                                                                                isFromJoinedTable:
-                                                                                    {
-                                                                                        dataType:
-                                                                                            'boolean',
-                                                                                        required: true,
-                                                                                    },
-                                                                                caseSensitiveFilters:
-                                                                                    {
-                                                                                        dataType:
-                                                                                            'union',
-                                                                                        subSchemas:
-                                                                                            [
-                                                                                                {
-                                                                                                    dataType:
-                                                                                                        'enum',
-                                                                                                    enums: [
-                                                                                                        'true',
-                                                                                                    ],
-                                                                                                },
-                                                                                                {
-                                                                                                    dataType:
-                                                                                                        'enum',
-                                                                                                    enums: [
-                                                                                                        'false',
-                                                                                                    ],
-                                                                                                },
-                                                                                                {
-                                                                                                    dataType:
-                                                                                                        'enum',
-                                                                                                    enums: [
-                                                                                                        'not_applicable',
-                                                                                                    ],
-                                                                                                },
-                                                                                            ],
-                                                                                        required: true,
-                                                                                    },
-                                                                                fieldFilterType:
-                                                                                    {
-                                                                                        dataType:
-                                                                                            'string',
-                                                                                        required: true,
-                                                                                    },
-                                                                                fieldValueType:
-                                                                                    {
-                                                                                        dataType:
-                                                                                            'string',
-                                                                                        required: true,
-                                                                                    },
-                                                                                table: {
-                                                                                    dataType:
-                                                                                        'string',
-                                                                                    required: true,
-                                                                                },
-                                                                                fieldType:
-                                                                                    {
-                                                                                        dataType:
-                                                                                            'union',
-                                                                                        subSchemas:
-                                                                                            [
-                                                                                                {
-                                                                                                    dataType:
-                                                                                                        'enum',
-                                                                                                    enums: [
-                                                                                                        'dimension',
-                                                                                                    ],
-                                                                                                },
-                                                                                                {
-                                                                                                    dataType:
-                                                                                                        'enum',
-                                                                                                    enums: [
-                                                                                                        'metric',
-                                                                                                    ],
-                                                                                                },
-                                                                                            ],
-                                                                                        required: true,
-                                                                                    },
-                                                                                fieldId:
-                                                                                    {
-                                                                                        dataType:
-                                                                                            'string',
-                                                                                        required: true,
-                                                                                    },
-                                                                                label: {
-                                                                                    dataType:
-                                                                                        'string',
-                                                                                    required: true,
-                                                                                },
-                                                                                description:
-                                                                                    {
-                                                                                        dataType:
-                                                                                            'union',
-                                                                                        subSchemas:
-                                                                                            [
-                                                                                                {
-                                                                                                    dataType:
-                                                                                                        'string',
-                                                                                                },
-                                                                                                {
-                                                                                                    dataType:
-                                                                                                        'enum',
-                                                                                                    enums: [
-                                                                                                        null,
-                                                                                                    ],
-                                                                                                },
-                                                                                            ],
-                                                                                        required: true,
-                                                                                    },
-                                                                                name: {
-                                                                                    dataType:
-                                                                                        'string',
-                                                                                    required: true,
-                                                                                },
-                                                                            },
-                                                                    },
-                                                                    required: true,
-                                                                },
                                                                 explore: {
                                                                     dataType:
                                                                         'nestedObjectLiteral',
@@ -16000,12 +15895,6 @@ const models: TsoaRoute.Models = {
                                                                                                                         'boolean',
                                                                                                                     required: true,
                                                                                                                 },
-                                                                                                            operator:
-                                                                                                                {
-                                                                                                                    dataType:
-                                                                                                                        'string',
-                                                                                                                    required: true,
-                                                                                                                },
                                                                                                             tableName:
                                                                                                                 {
                                                                                                                     dataType:
@@ -16019,6 +15908,12 @@ const models: TsoaRoute.Models = {
                                                                                                                     required: true,
                                                                                                                 },
                                                                                                             fieldId:
+                                                                                                                {
+                                                                                                                    dataType:
+                                                                                                                        'string',
+                                                                                                                    required: true,
+                                                                                                                },
+                                                                                                            operator:
                                                                                                                 {
                                                                                                                     dataType:
                                                                                                                         'string',
@@ -16060,6 +15955,149 @@ const models: TsoaRoute.Models = {
                                                                                 required: true,
                                                                             },
                                                                         },
+                                                                    required: true,
+                                                                },
+                                                                fields: {
+                                                                    dataType:
+                                                                        'array',
+                                                                    array: {
+                                                                        dataType:
+                                                                            'nestedObjectLiteral',
+                                                                        nestedProperties:
+                                                                            {
+                                                                                fieldValueType:
+                                                                                    {
+                                                                                        dataType:
+                                                                                            'string',
+                                                                                        required: true,
+                                                                                    },
+                                                                                caseSensitiveFilters:
+                                                                                    {
+                                                                                        dataType:
+                                                                                            'union',
+                                                                                        subSchemas:
+                                                                                            [
+                                                                                                {
+                                                                                                    dataType:
+                                                                                                        'enum',
+                                                                                                    enums: [
+                                                                                                        'true',
+                                                                                                    ],
+                                                                                                },
+                                                                                                {
+                                                                                                    dataType:
+                                                                                                        'enum',
+                                                                                                    enums: [
+                                                                                                        'false',
+                                                                                                    ],
+                                                                                                },
+                                                                                                {
+                                                                                                    dataType:
+                                                                                                        'enum',
+                                                                                                    enums: [
+                                                                                                        'not_applicable',
+                                                                                                    ],
+                                                                                                },
+                                                                                            ],
+                                                                                        required: true,
+                                                                                    },
+                                                                                isFromJoinedTable:
+                                                                                    {
+                                                                                        dataType:
+                                                                                            'boolean',
+                                                                                        required: true,
+                                                                                    },
+                                                                                fieldFilterType:
+                                                                                    {
+                                                                                        dataType:
+                                                                                            'string',
+                                                                                        required: true,
+                                                                                    },
+                                                                                fieldType:
+                                                                                    {
+                                                                                        dataType:
+                                                                                            'union',
+                                                                                        subSchemas:
+                                                                                            [
+                                                                                                {
+                                                                                                    dataType:
+                                                                                                        'enum',
+                                                                                                    enums: [
+                                                                                                        'dimension',
+                                                                                                    ],
+                                                                                                },
+                                                                                                {
+                                                                                                    dataType:
+                                                                                                        'enum',
+                                                                                                    enums: [
+                                                                                                        'metric',
+                                                                                                    ],
+                                                                                                },
+                                                                                            ],
+                                                                                        required: true,
+                                                                                    },
+                                                                                description:
+                                                                                    {
+                                                                                        dataType:
+                                                                                            'union',
+                                                                                        subSchemas:
+                                                                                            [
+                                                                                                {
+                                                                                                    dataType:
+                                                                                                        'string',
+                                                                                                },
+                                                                                                {
+                                                                                                    dataType:
+                                                                                                        'enum',
+                                                                                                    enums: [
+                                                                                                        null,
+                                                                                                    ],
+                                                                                                },
+                                                                                            ],
+                                                                                        required: true,
+                                                                                    },
+                                                                                label: {
+                                                                                    dataType:
+                                                                                        'string',
+                                                                                    required: true,
+                                                                                },
+                                                                                fieldId:
+                                                                                    {
+                                                                                        dataType:
+                                                                                            'string',
+                                                                                        required: true,
+                                                                                    },
+                                                                                table: {
+                                                                                    dataType:
+                                                                                        'string',
+                                                                                    required: true,
+                                                                                },
+                                                                                name: {
+                                                                                    dataType:
+                                                                                        'string',
+                                                                                    required: true,
+                                                                                },
+                                                                            },
+                                                                    },
+                                                                    required: true,
+                                                                },
+                                                                rationale: {
+                                                                    dataType:
+                                                                        'union',
+                                                                    subSchemas:
+                                                                        [
+                                                                            {
+                                                                                dataType:
+                                                                                    'string',
+                                                                            },
+                                                                            {
+                                                                                dataType:
+                                                                                    'enum',
+                                                                                enums: [
+                                                                                    null,
+                                                                                ],
+                                                                            },
+                                                                        ],
                                                                     required: true,
                                                                 },
                                                                 status: {
@@ -16214,6 +16252,10 @@ const models: TsoaRoute.Models = {
                                                     },
                                                     required: true,
                                                 },
+                                                href: {
+                                                    dataType: 'string',
+                                                    required: true,
+                                                },
                                                 warnings: {
                                                     dataType: 'array',
                                                     array: {
@@ -16221,24 +16263,20 @@ const models: TsoaRoute.Models = {
                                                     },
                                                     required: true,
                                                 },
-                                                href: {
-                                                    dataType: 'string',
+                                                status: {
+                                                    dataType: 'enum',
+                                                    enums: ['success'],
                                                     required: true,
                                                 },
                                                 slug: {
                                                     dataType: 'string',
                                                     required: true,
                                                 },
-                                                status: {
-                                                    dataType: 'enum',
-                                                    enums: ['success'],
-                                                    required: true,
-                                                },
-                                                name: {
+                                                uuid: {
                                                     dataType: 'string',
                                                     required: true,
                                                 },
-                                                uuid: {
+                                                name: {
                                                     dataType: 'string',
                                                     required: true,
                                                 },
@@ -16582,13 +16620,13 @@ const models: TsoaRoute.Models = {
                                                     dataType: 'string',
                                                     required: true,
                                                 },
-                                                slug: {
-                                                    dataType: 'string',
-                                                    required: true,
-                                                },
                                                 status: {
                                                     dataType: 'enum',
                                                     enums: ['success'],
+                                                    required: true,
+                                                },
+                                                slug: {
+                                                    dataType: 'string',
                                                     required: true,
                                                 },
                                                 name: {
@@ -16661,11 +16699,11 @@ const models: TsoaRoute.Models = {
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['rejected'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['rejected'],
+                                                            enums: ['error'],
                                                         },
                                                         {
                                                             dataType: 'enum',
@@ -16765,17 +16803,17 @@ const models: TsoaRoute.Models = {
                                                                                             'string',
                                                                                         required: true,
                                                                                     },
+                                                                                label: {
+                                                                                    dataType:
+                                                                                        'string',
+                                                                                    required: true,
+                                                                                },
                                                                                 tableName:
                                                                                     {
                                                                                         dataType:
                                                                                             'string',
                                                                                         required: true,
                                                                                     },
-                                                                                label: {
-                                                                                    dataType:
-                                                                                        'string',
-                                                                                    required: true,
-                                                                                },
                                                                                 name: {
                                                                                     dataType:
                                                                                         'string',
@@ -23439,6 +23477,93 @@ const models: TsoaRoute.Models = {
             ],
             validators: {},
         },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    McpActivityToolCount: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                count: { dataType: 'double', required: true },
+                toolName: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    McpActivityAgentCount: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                count: { dataType: 'double', required: true },
+                agent: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'nestedObjectLiteral',
+                            nestedProperties: {
+                                name: { dataType: 'string', required: true },
+                                uuid: { dataType: 'string', required: true },
+                            },
+                        },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    McpActivityStats: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                recentErrors: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'McpActivityItem' },
+                    required: true,
+                },
+                agents: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'McpActivityAgentCount',
+                    },
+                    required: true,
+                },
+                topTools: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'McpActivityToolCount',
+                    },
+                    required: true,
+                },
+                errorCalls: { dataType: 'double', required: true },
+                totalCalls: { dataType: 'double', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSuccess_McpActivityStats_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'McpActivityStats', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiMcpActivityStatsResponse: {
+        dataType: 'refAlias',
+        type: { ref: 'ApiSuccess_McpActivityStats_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiAgentAdminPromptActivityPoint: {
@@ -31689,6 +31814,7 @@ const models: TsoaRoute.Models = {
             'v1.9',
             'v1.10',
             'v1.11',
+            'v1.12',
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -34080,7 +34206,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__':
+    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -34090,7 +34216,7 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__':
+    'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -34100,7 +34226,7 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             {
-                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__',
+                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__',
                             },
                             { dataType: 'undefined' },
                         ],
@@ -34113,7 +34239,7 @@ const models: TsoaRoute.Models = {
     'PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__': {
         dataType: 'refAlias',
         type: {
-            ref: 'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__',
+            ref: 'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__',
             validators: {},
         },
     },
@@ -37627,6 +37753,47 @@ const models: TsoaRoute.Models = {
                 },
                 pivotQuery: { dataType: 'string' },
                 query: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    InviteLink: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                email: { dataType: 'string', required: true },
+                userUuid: { dataType: 'string', required: true },
+                organizationUuid: { dataType: 'string', required: true },
+                inviteUrl: { dataType: 'string', required: true },
+                inviteCode: { dataType: 'string', required: true },
+                expiresAt: { dataType: 'datetime', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiInviteLinkResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'InviteLink', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CreateInviteLink: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                role: { ref: 'OrganizationMemberRole' },
+                expiresAt: { dataType: 'datetime' },
+                email: { dataType: 'string', required: true },
             },
             validators: {},
         },
@@ -51868,6 +52035,77 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAiAgentController_updateMcpServerBearerCredential: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        mcpServerUuid: {
+            in: 'path',
+            name: 'mcpServerUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'ApiUpdateAiMcpServerCredentialBody',
+        },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/aiAgents/mcpServers/:mcpServerUuid/credential',
+        ...fetchMiddlewares<RequestHandler>(AiAgentController),
+        ...fetchMiddlewares<RequestHandler>(
+            AiAgentController.prototype.updateMcpServerBearerCredential,
+        ),
+
+        async function AiAgentController_updateMcpServerBearerCredential(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAiAgentController_updateMcpServerBearerCredential,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'updateMcpServerBearerCredential',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     const argsAiAgentController_getGithubMcpAvailability: Record<
         string,
         TsoaRoute.ParameterSchema
@@ -58692,6 +58930,93 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'getMcpActivity',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAiAgentAdminController_getMcpActivityStats: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuids: {
+            in: 'query',
+            name: 'projectUuids',
+            dataType: 'array',
+            array: { dataType: 'string' },
+        },
+        userUuids: {
+            in: 'query',
+            name: 'userUuids',
+            dataType: 'array',
+            array: { dataType: 'string' },
+        },
+        agentUuids: {
+            in: 'query',
+            name: 'agentUuids',
+            dataType: 'array',
+            array: { dataType: 'string' },
+        },
+        toolNames: {
+            in: 'query',
+            name: 'toolNames',
+            dataType: 'array',
+            array: { dataType: 'string' },
+        },
+        clientNames: {
+            in: 'query',
+            name: 'clientNames',
+            dataType: 'array',
+            array: { dataType: 'string' },
+        },
+        dateFrom: { in: 'query', name: 'dateFrom', dataType: 'string' },
+        dateTo: { in: 'query', name: 'dateTo', dataType: 'string' },
+    };
+    app.get(
+        '/api/v1/aiAgents/admin/mcp-activity/stats',
+        ...fetchMiddlewares<RequestHandler>(AiAgentAdminController),
+        ...fetchMiddlewares<RequestHandler>(
+            AiAgentAdminController.prototype.getMcpActivityStats,
+        ),
+
+        async function AiAgentAdminController_getMcpActivityStats(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAiAgentAdminController_getMcpActivityStats,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AiAgentAdminController>(
+                        AiAgentAdminController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getMcpActivityStats',
                     controller,
                     response,
                     next,
@@ -74242,6 +74567,182 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'compileMetricTotalQuery',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsInviteLinksController_getInviteLink: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        inviteLinkCode: {
+            in: 'path',
+            name: 'inviteLinkCode',
+            required: true,
+            dataType: 'string',
+        },
+    };
+    app.get(
+        '/api/v1/invite-links/:inviteLinkCode',
+        ...fetchMiddlewares<RequestHandler>(InviteLinksController),
+        ...fetchMiddlewares<RequestHandler>(
+            InviteLinksController.prototype.getInviteLink,
+        ),
+
+        async function InviteLinksController_getInviteLink(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsInviteLinksController_getInviteLink,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<InviteLinksController>(
+                        InviteLinksController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getInviteLink',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsInviteLinksController_createInviteLink: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'CreateInviteLink',
+        },
+    };
+    app.post(
+        '/api/v1/invite-links',
+        ...fetchMiddlewares<RequestHandler>(InviteLinksController),
+        ...fetchMiddlewares<RequestHandler>(
+            InviteLinksController.prototype.createInviteLink,
+        ),
+
+        async function InviteLinksController_createInviteLink(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsInviteLinksController_createInviteLink,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<InviteLinksController>(
+                        InviteLinksController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'createInviteLink',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 201,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsInviteLinksController_revokeAllInviteLinks: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.delete(
+        '/api/v1/invite-links',
+        ...fetchMiddlewares<RequestHandler>(InviteLinksController),
+        ...fetchMiddlewares<RequestHandler>(
+            InviteLinksController.prototype.revokeAllInviteLinks,
+        ),
+
+        async function InviteLinksController_revokeAllInviteLinks(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsInviteLinksController_revokeAllInviteLinks,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<InviteLinksController>(
+                        InviteLinksController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'revokeAllInviteLinks',
                     controller,
                     response,
                     next,
