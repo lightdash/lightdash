@@ -1,7 +1,6 @@
 import {
     AnyType,
     AthenaAuthenticationType,
-    Change,
     CompiledDimension,
     CompiledMetric,
     CreateAthenaCredentials,
