@@ -47,7 +47,7 @@ const STATS_RECENT_ERRORS_LIMIT = 5;
 // A session left open across sittings is split into display segments at
 // this inactivity gap, so old calls aren't hoisted out of their
 // chronological neighborhood when the session resumes days later
-const SESSION_SEGMENT_INACTIVITY_GAP = '1 hour';
+const SESSION_SEGMENT_INACTIVITY_GAP_HOURS = 1;
 
 const capToolArgs = (args: object): object => {
     const serialized = JSON.stringify(args);
@@ -194,16 +194,19 @@ export class McpToolCallModel {
             .with('filtered_calls', filteredCalls)
             .with(
                 'gapped_calls',
-                this.database.raw(`
+                this.database.raw(
+                    `
                     SELECT *,
                         CASE
                             WHEN created_at - lag(created_at) OVER (
                                 PARTITION BY session_block_key ORDER BY created_at
-                            ) > interval '${SESSION_SEGMENT_INACTIVITY_GAP}'
+                            ) > make_interval(hours => ?)
                             THEN 1 ELSE 0
                         END AS gap_start
                     FROM filtered_calls
-                `),
+                `,
+                    [SESSION_SEGMENT_INACTIVITY_GAP_HOURS],
+                ),
             )
             .with(
                 'segmented_calls',
@@ -379,9 +382,12 @@ export class McpToolCallModel {
             ]);
         }
 
+        // Counting the un-joined base query skips the window-function passes
+        // (and the 1:1 display joins) the count doesn't need
         const { data, pagination } = await KnexPaginate.paginate(
             query,
             paginateArgs,
+            this.buildActivityQuery(organizationUuid, filters),
         );
 
         return {
