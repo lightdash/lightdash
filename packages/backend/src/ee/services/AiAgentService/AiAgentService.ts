@@ -238,12 +238,13 @@ import { generateThreadTitle as generateTitleFromMessages } from '../ai/agents/t
 import { AiAgentMcpRuntimeClient } from '../ai/AiAgentMcpRuntimeClient';
 import { Compaction } from '../ai/compaction';
 import {
+    filterModelsForOrg,
     getAvailableModels,
     getCompactionModelMetadata,
     getDefaultModel,
     getModel,
+    presetToModelOption,
 } from '../ai/models';
-import { matchesPreset } from '../ai/models/presets';
 import { OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
 import {
     requestingUserRoleFromCustomRole,
@@ -2130,27 +2131,18 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        const copilotConfig =
-            await this.orgAiCopilotConfigResolver.getCopilotConfig(
+        const [copilotConfig, orgModelOverrides] = await Promise.all([
+            this.orgAiCopilotConfigResolver.getCopilotConfig(organizationUuid),
+            this.orgAiCopilotConfigResolver.getOrgModelOverrides(
                 organizationUuid,
-            );
+            ),
+        ]);
         const defaultModel = getDefaultModel(copilotConfig);
 
-        return getAvailableModels(copilotConfig).map((preset) => {
-            const isDefault =
-                defaultModel !== null &&
-                preset.provider === defaultModel.provider &&
-                matchesPreset(preset, defaultModel.name);
-
-            return {
-                name: preset.name,
-                displayName: preset.displayName,
-                description: preset.description,
-                provider: preset.provider,
-                default: isDefault,
-                supportsReasoning: preset.supportsReasoning,
-            };
-        });
+        return filterModelsForOrg(
+            getAvailableModels(copilotConfig),
+            orgModelOverrides,
+        ).map((preset) => presetToModelOption(preset, defaultModel));
     }
 
     async listAgentThreads(
@@ -5727,7 +5719,11 @@ export class AiAgentService extends BaseService {
                 return;
             }
 
-            const modelOptions = getModel(this.lightdashConfig.ai.copilot, {
+            const copilotConfig =
+                await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                    payload.organizationUuid,
+                );
+            const modelOptions = getModel(copilotConfig, {
                 enableReasoning: false,
             });
 

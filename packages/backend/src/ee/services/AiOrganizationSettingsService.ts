@@ -11,6 +11,7 @@ import {
     UpdateAiProviderApiKeys,
     type AiAgentModelConfig,
     type AiModelOption,
+    type AiOrgModelVisibility,
     type ByoAiProvider,
     type SessionUser,
 } from '@lightdash/common';
@@ -19,9 +20,16 @@ import { OrganizationModel } from '../../models/OrganizationModel';
 import { BaseService } from '../../services/BaseService';
 import { AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
 import { CommercialFeatureFlagModel } from '../models/CommercialFeatureFlagModel';
-import { getAvailableModels, getDefaultModel } from './ai/models';
-import { matchesPreset } from './ai/models/presets';
-import { OrgAiCopilotConfigResolver } from './ai/OrgAiCopilotConfigResolver';
+import {
+    filterModelsForOrg,
+    getAvailableModels,
+    getDefaultModel,
+    presetToModelOption,
+} from './ai/models';
+import {
+    OrgAiCopilotConfigResolver,
+    type ReviewJudgeAvailability,
+} from './ai/OrgAiCopilotConfigResolver';
 
 /**
  * Redact partial key material (hints) and the "key is set" booleans for callers
@@ -55,6 +63,19 @@ export const findUnconfiguredProviderKeyWrites = (
             typeof providerApiKeys[provider] === 'string' &&
             !configuredProviders[provider],
     );
+
+/**
+ * Reviews run on the org's own key when it has one (never the instance
+ * provider), so a BYO key that can't serve the review model pauses reviews
+ * rather than leaking turn data through our LLM account.
+ */
+export const areReviewsEnabledForSettings = (
+    settings: Pick<AiOrganizationSettings, 'aiAgentReviewsEnabled'> | null,
+    byo: ReviewJudgeAvailability,
+): boolean => {
+    if (!settings?.aiAgentReviewsEnabled) return false;
+    return !byo.hasActiveByoKey || byo.canJudgeOnByoKey;
+};
 
 type AiOrganizationSettingsServiceDependencies = {
     aiOrganizationSettingsModel: AiOrganizationSettingsModel;
@@ -117,26 +138,32 @@ export class AiOrganizationSettingsService extends BaseService {
         return isCopilotEnabled.enabled;
     }
 
-    private async getDefaultModelOptions(
-        organizationUuid: string,
-    ): Promise<AiModelOption[]> {
-        const copilotConfig =
-            await this.orgAiCopilotConfigResolver.getCopilotConfig(
+    private async getModelOptionLists(organizationUuid: string): Promise<{
+        effectiveOptions: AiModelOption[];
+        configurableOptions: AiModelOption[];
+        effectiveModelVisibility: AiOrgModelVisibility | null;
+    }> {
+        const [copilotConfig, overrides] = await Promise.all([
+            this.orgAiCopilotConfigResolver.getCopilotConfig(organizationUuid),
+            this.orgAiCopilotConfigResolver.getOrgModelOverrides(
                 organizationUuid,
-            );
+            ),
+        ]);
         const defaultModel = getDefaultModel(copilotConfig);
-
-        return getAvailableModels(copilotConfig).map((preset) => ({
-            name: preset.name,
-            displayName: preset.displayName,
-            description: preset.description,
-            provider: preset.provider,
-            default:
-                defaultModel !== null &&
-                preset.provider === defaultModel.provider &&
-                matchesPreset(preset, defaultModel.name),
-            supportsReasoning: preset.supportsReasoning,
-        }));
+        const allPresets = getAvailableModels(copilotConfig);
+        const toOption = (preset: (typeof allPresets)[number]): AiModelOption =>
+            presetToModelOption(preset, defaultModel);
+        return {
+            effectiveOptions: filterModelsForOrg(allPresets, overrides).map(
+                toOption,
+            ),
+            // Admin picker ignores visibility so restricted models stay selectable
+            configurableOptions: filterModelsForOrg(allPresets, {
+                modelVisibility: null,
+                keyAccessibleModelIds: overrides.keyAccessibleModelIds,
+            }).map(toOption),
+            effectiveModelVisibility: overrides.modelVisibility,
+        };
     }
 
     /**
@@ -206,6 +233,26 @@ export class AiOrganizationSettingsService extends BaseService {
                 user.organizationUuid,
             );
 
+        // Partial key material (hints) and the "key is set" booleans are only
+        // exposed to org admins; other members read this endpoint too (agent
+        // chat surfaces) but must not see another org member's key hints.
+        const canManage = this.canManageAiAgent(user);
+
+        const [
+            { effectiveOptions, configurableOptions, effectiveModelVisibility },
+            reviewJudge,
+        ] = await Promise.all([
+            this.getModelOptionLists(user.organizationUuid),
+            this.orgAiCopilotConfigResolver.getReviewJudgeAvailability(
+                user.organizationUuid,
+            ),
+        ]);
+
+        // Reviews are paused when the org's own key can't serve the review model
+        // (we never fall back to the instance provider for their turn data).
+        const aiAgentReviewsPausedByByok =
+            reviewJudge.hasActiveByoKey && !reviewJudge.canJudgeOnByoKey;
+
         // Return default settings if none exist
         if (!settings) {
             return {
@@ -215,27 +262,28 @@ export class AiOrganizationSettingsService extends BaseService {
                 aiAgentReviewsEnabled: false,
                 mcpContentWritesEnabled: true,
                 defaultAiAgentModelConfig: null,
+                modelVisibility: effectiveModelVisibility,
                 providerApiKeysSet: { anthropic: false, openai: false },
                 providerApiKeyHints: { anthropic: null, openai: null },
-                defaultAiAgentModelOptions: await this.getDefaultModelOptions(
-                    user.organizationUuid,
-                ),
+                defaultAiAgentModelOptions: effectiveOptions,
+                configurableModelOptions: canManage
+                    ? configurableOptions
+                    : null,
+                aiAgentReviewsPausedByByok,
                 isTrial: isTrialEligible,
             };
         }
 
-        // Partial key material (hints) and the "key is set" booleans are only
-        // exposed to org admins; other members read this endpoint too (agent
-        // chat surfaces) but must not see another org member's key hints.
-        const canManage = this.canManageAiAgent(user);
-
         return {
             ...maskProviderKeyExposure(settings, canManage),
+            // Surface the effective visibility (implicit BYOK defaults merged in)
+            // so the admin card reflects what users actually see.
+            modelVisibility: effectiveModelVisibility,
             isTrial: isTrialEligible,
             isCopilotEnabled,
-            defaultAiAgentModelOptions: await this.getDefaultModelOptions(
-                user.organizationUuid,
-            ),
+            defaultAiAgentModelOptions: effectiveOptions,
+            configurableModelOptions: canManage ? configurableOptions : null,
+            aiAgentReviewsPausedByByok,
         };
     }
 
@@ -249,9 +297,26 @@ export class AiOrganizationSettingsService extends BaseService {
 
         this.checkManageAiAgentAccess(user);
 
-        if (data.providerApiKeys !== undefined) {
-            // BYO keys require both AI copilot (env/ai-copilot flag) and the
-            // org-ai-provider-api-keys flag to be enabled for this org.
+        // The model-visibility validation below reads the CURRENT key's model
+        // access, which would be stale if the key changed in the same request
+        // (e.g. restrict to only a key-unlocked model while swapping to a key
+        // that can't reach it → zero models). Require separate requests so the
+        // two never race.
+        if (
+            data.providerApiKeys !== undefined &&
+            data.modelVisibility !== undefined
+        ) {
+            throw new ParameterError(
+                'Update provider API keys and model visibility in separate requests',
+            );
+        }
+
+        if (
+            data.providerApiKeys !== undefined ||
+            data.modelVisibility !== undefined
+        ) {
+            // BYO keys and model visibility require both AI copilot (env/ai-copilot
+            // flag) and the org-ai-provider-api-keys flag to be enabled for this org.
             const [copilotEnabled, byoKeysEnabled] = await Promise.all([
                 this.getIsCopilotEnabled(user),
                 this.orgAiCopilotConfigResolver.isEnabled(
@@ -263,7 +328,9 @@ export class AiOrganizationSettingsService extends BaseService {
                     'Organization AI provider API keys are not enabled',
                 );
             }
+        }
 
+        if (data.providerApiKeys !== undefined) {
             const unconfigured = findUnconfiguredProviderKeyWrites(
                 data.providerApiKeys,
                 this.lightdashConfig.ai.copilot.providers,
@@ -273,6 +340,27 @@ export class AiOrganizationSettingsService extends BaseService {
                     `Cannot set an API key for a provider this instance does not configure: ${unconfigured.join(
                         ', ',
                     )}`,
+                );
+            }
+        }
+
+        if (data.modelVisibility) {
+            // Validate against real key access so an allowlist of only a
+            // key-unlocked hidden model (e.g. opus 4.8) still counts.
+            const overrides =
+                await this.orgAiCopilotConfigResolver.getOrgModelOverrides(
+                    user.organizationUuid,
+                );
+            const remaining = filterModelsForOrg(
+                getAvailableModels(this.lightdashConfig.ai.copilot),
+                {
+                    modelVisibility: data.modelVisibility,
+                    keyAccessibleModelIds: overrides.keyAccessibleModelIds,
+                },
+            );
+            if (remaining.length === 0) {
+                throw new ParameterError(
+                    'At least one AI model must remain available',
                 );
             }
         }
@@ -290,12 +378,16 @@ export class AiOrganizationSettingsService extends BaseService {
             return false;
         }
 
-        const settings =
-            await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+        const [settings, byo] = await Promise.all([
+            this.aiOrganizationSettingsModel.findByOrganizationUuid(
                 user.organizationUuid,
-            );
+            ),
+            this.orgAiCopilotConfigResolver.getReviewJudgeAvailability(
+                user.organizationUuid,
+            ),
+        ]);
 
-        return settings?.aiAgentReviewsEnabled ?? false;
+        return areReviewsEnabledForSettings(settings, byo);
     }
 
     async isMcpContentWritesEnabled(

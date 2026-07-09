@@ -1,13 +1,24 @@
-import { FeatureFlags } from '@lightdash/common';
+import { FeatureFlags, type AiOrgModelVisibility } from '@lightdash/common';
 import { AiCopilotConfigSchemaType } from '../../../config/aiConfigSchema';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
+import { AiModelCatalog } from '../../clients/Ai/AiModelCatalog';
 import {
     AiOrganizationSettingsModel,
     AiOrgProviderApiKeys,
 } from '../../models/AiOrganizationSettingsModel';
+import { OrgModelOverrides } from './models';
 
 export type CopilotConfig = AiCopilotConfigSchemaType;
+
+// Review turns run on a fast Anthropic model; a BYO Anthropic key must be able
+// to serve it for reviews to run on the org's own key instead of being paused.
+const REVIEW_JUDGE_ANTHROPIC_MODEL = 'claude-haiku-4-5';
+
+export type ReviewJudgeAvailability = {
+    hasActiveByoKey: boolean;
+    canJudgeOnByoKey: boolean;
+};
 
 /**
  * Overlay an org's own API key onto the instance copilot config. Only the
@@ -16,6 +27,25 @@ export type CopilotConfig = AiCopilotConfigSchemaType;
  * (the write path rejects them), so BYO can only swap the key of a provider
  * this instance already runs.
  */
+/**
+ * Effective model visibility = stored settings on top of an implicit default:
+ * an org with a BYO Anthropic key but no BYO OpenAI key hides OpenAI from the
+ * model selector, so chat never silently falls back to the instance OpenAI key.
+ * Explicit stored settings win, so an admin can re-enable OpenAI if they want
+ * the fallback.
+ */
+export const resolveEffectiveModelVisibility = (
+    orgKeys: AiOrgProviderApiKeys,
+    stored: AiOrgModelVisibility | null,
+): AiOrgModelVisibility | null => {
+    const implicit: AiOrgModelVisibility = {};
+    if (orgKeys.anthropic && !orgKeys.openai) {
+        implicit.openai = { enabled: false };
+    }
+    const merged = { ...implicit, ...(stored ?? {}) };
+    return Object.keys(merged).length > 0 ? merged : null;
+};
+
 export const overlayOrgProviderApiKeys = (
     config: CopilotConfig,
     orgKeys: AiOrgProviderApiKeys,
@@ -40,6 +70,7 @@ type Dependencies = {
     lightdashConfig: LightdashConfig;
     aiOrganizationSettingsModel: AiOrganizationSettingsModel;
     featureFlagService: FeatureFlagService;
+    aiModelCatalog: AiModelCatalog;
 };
 
 export class OrgAiCopilotConfigResolver {
@@ -49,11 +80,14 @@ export class OrgAiCopilotConfigResolver {
 
     private featureFlagService: FeatureFlagService;
 
+    private aiModelCatalog: AiModelCatalog;
+
     constructor(dependencies: Dependencies) {
         this.lightdashConfig = dependencies.lightdashConfig;
         this.aiOrganizationSettingsModel =
             dependencies.aiOrganizationSettingsModel;
         this.featureFlagService = dependencies.featureFlagService;
+        this.aiModelCatalog = dependencies.aiModelCatalog;
     }
 
     async isEnabled(organizationUuid: string): Promise<boolean> {
@@ -79,5 +113,81 @@ export class OrgAiCopilotConfigResolver {
             );
         if (!orgKeys) return base;
         return overlayOrgProviderApiKeys(base, orgKeys);
+    }
+
+    /**
+     * Org overrides for model LISTINGS (visibility settings + which hidden
+     * models the org's own Anthropic key unlocks). Both are null unless the
+     * feature flag is on AND the org has at least one BYO key, so deleting
+     * the key leaves stored visibility settings inert.
+     */
+    async getOrgModelOverrides(
+        organizationUuid: string | null | undefined,
+    ): Promise<OrgModelOverrides> {
+        const none: OrgModelOverrides = {
+            modelVisibility: null,
+            keyAccessibleModelIds: null,
+        };
+        if (!organizationUuid) return none;
+        if (!(await this.isEnabled(organizationUuid))) return none;
+        const orgKeys =
+            await this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
+                organizationUuid,
+            );
+        if (!orgKeys) return none;
+        const settings =
+            await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+                organizationUuid,
+            );
+        const keyAccessibleModelIds = orgKeys.anthropic
+            ? {
+                  anthropic: await this.aiModelCatalog.getAccessibleModelIds(
+                      'anthropic',
+                      orgKeys.anthropic,
+                  ),
+              }
+            : null;
+        return {
+            modelVisibility: resolveEffectiveModelVisibility(
+                orgKeys,
+                settings?.modelVisibility ?? null,
+            ),
+            keyAccessibleModelIds,
+        };
+    }
+
+    /**
+     * Whether review turns may run for an org while honoring BYO isolation.
+     * Reviews run on a fast Anthropic model, so an org with its own key can only
+     * run them if that key can serve it — never by falling back to the instance
+     * provider.
+     */
+    async getReviewJudgeAvailability(
+        organizationUuid: string | null | undefined,
+    ): Promise<ReviewJudgeAvailability> {
+        const none: ReviewJudgeAvailability = {
+            hasActiveByoKey: false,
+            canJudgeOnByoKey: false,
+        };
+        if (!organizationUuid) return none;
+        if (!(await this.isEnabled(organizationUuid))) return none;
+        const orgKeys =
+            await this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
+                organizationUuid,
+            );
+        if (!orgKeys) return none;
+        const hasActiveByoKey = Boolean(orgKeys.anthropic || orgKeys.openai);
+        if (!orgKeys.anthropic) {
+            return { hasActiveByoKey, canJudgeOnByoKey: false };
+        }
+        const modelIds = await this.aiModelCatalog.getAccessibleModelIds(
+            'anthropic',
+            orgKeys.anthropic,
+        );
+        const canJudgeOnByoKey =
+            modelIds?.some((id) =>
+                id.startsWith(REVIEW_JUDGE_ANTHROPIC_MODEL),
+            ) ?? false;
+        return { hasActiveByoKey, canJudgeOnByoKey };
     }
 }

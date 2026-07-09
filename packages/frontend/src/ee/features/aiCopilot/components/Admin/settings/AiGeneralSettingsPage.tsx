@@ -33,6 +33,7 @@ import {
     useAiRouterConfig,
     useUpsertAiRouterConfig,
 } from '../../../hooks/useAiRouter';
+import { AiModelAvailabilitySection } from './AiModelAvailabilitySection';
 import { AiProviderApiKeysCard } from './AiProviderApiKeysCard';
 import { AiRouterInstructionsCard } from './AiRouterInstructionsCard';
 import { ReviewNotificationsSettings } from './ReviewNotificationsSettings';
@@ -54,6 +55,11 @@ export const AiGeneralSettingsPage = () => {
         useUpsertAiRouterConfig();
     const defaultModelConfig = settings?.defaultAiAgentModelConfig ?? null;
     const defaultModelOptions = settings?.defaultAiAgentModelOptions;
+    // Reviews run on the org's own key; paused when that key can't serve the
+    // review model (computed on the backend).
+    const reviewsPausedByByok = settings?.aiAgentReviewsPausedByByok ?? false;
+    const reviewsEffectivelyOn =
+        Boolean(settings?.aiAgentReviewsEnabled) && !reviewsPausedByByok;
     const {
         fallbackModelLabel: systemDefaultModelLabel,
         selectedModel: selectedDefaultModel,
@@ -229,6 +235,33 @@ export const AiGeneralSettingsPage = () => {
                                     </Group>
                                 </>
                             )}
+
+                            {orgAiProviderKeysFlag.data?.enabled &&
+                                settings.isCopilotEnabled &&
+                                (settings.providerApiKeysSet.anthropic ||
+                                    settings.providerApiKeysSet.openai) &&
+                                settings.configurableModelOptions && (
+                                    <>
+                                        <Divider />
+                                        <AiModelAvailabilitySection
+                                            modelVisibility={
+                                                settings.modelVisibility ?? null
+                                            }
+                                            configurableModelOptions={
+                                                settings.configurableModelOptions
+                                            }
+                                            providerApiKeysSet={
+                                                settings.providerApiKeysSet
+                                            }
+                                            disabled={isUpdatingSettings}
+                                            onUpdate={(modelVisibility) =>
+                                                updateSettings({
+                                                    modelVisibility,
+                                                })
+                                            }
+                                        />
+                                    </>
+                                )}
                         </Stack>
                     </SettingsCard>
 
@@ -268,7 +301,7 @@ export const AiGeneralSettingsPage = () => {
                                         For connected projects, Lightdash can
                                         suggest pull requests that improve
                                         context and dbt definitions.
-                                        {settings.aiAgentReviewsEnabled && (
+                                        {reviewsEffectivelyOn && (
                                             <>
                                                 {' '}
                                                 See issues in{' '}
@@ -283,11 +316,23 @@ export const AiGeneralSettingsPage = () => {
                                             </>
                                         )}
                                     </Text>
+                                    {reviewsPausedByByok && (
+                                        <Text c="dimmed" fz="xs" mt={4}>
+                                            Paused — your AI provider key
+                                            can&apos;t run the review model
+                                            (Claude Haiku). Reviews run on your
+                                            own key, so they resume when it has
+                                            access.
+                                        </Text>
+                                    )}
                                 </Box>
                                 <Switch
                                     size="md"
-                                    checked={settings.aiAgentReviewsEnabled}
-                                    disabled={isUpdatingSettings}
+                                    checked={reviewsEffectivelyOn}
+                                    disabled={
+                                        isUpdatingSettings ||
+                                        reviewsPausedByByok
+                                    }
                                     onChange={(event) =>
                                         updateSettings({
                                             aiAgentReviewsEnabled:
@@ -297,7 +342,7 @@ export const AiGeneralSettingsPage = () => {
                                 />
                             </Group>
 
-                            {settings.aiAgentReviewsEnabled && (
+                            {reviewsEffectivelyOn && (
                                 <ReviewNotificationsSettings />
                             )}
                         </Stack>

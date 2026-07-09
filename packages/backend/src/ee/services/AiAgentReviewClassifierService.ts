@@ -47,11 +47,13 @@ import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassi
 import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
 import { defaultAgentOptions } from './ai/agents/agentV2';
 import { getModel } from './ai/models';
+import { OrgAiCopilotConfigResolver } from './ai/OrgAiCopilotConfigResolver';
 import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
 } from './ai/utils/aiCallTelemetry';
 import { type AiAgentReviewNotificationService } from './AiAgentReviewNotificationService';
+import { areReviewsEnabledForSettings } from './AiOrganizationSettingsService';
 
 const REVIEW_AGENT_VERSION = 'llm-judge-v1';
 const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v15';
@@ -91,6 +93,7 @@ type AiAgentReviewClassifierServiceDependencies = {
     aiAgentModel: AiAgentModel;
     aiAgentDocumentModel: Pick<AiAgentDocumentModel, 'findAllForAgent'>;
     aiOrganizationSettingsModel: AiOrganizationSettingsModel;
+    orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
     catalogModel: Pick<CatalogModel, 'getCatalogItemsSummary'>;
     projectModel: Pick<ProjectModel, 'getSummary' | 'findExploresFromCache'>;
     lightdashConfig: LightdashConfig;
@@ -283,6 +286,8 @@ export class AiAgentReviewClassifierService extends BaseService {
 
     private readonly aiOrganizationSettingsModel: AiOrganizationSettingsModel;
 
+    private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
+
     private readonly aiAgentReviewNotificationService: AiAgentReviewNotificationService;
 
     private readonly lightdashConfig: LightdashConfig;
@@ -299,6 +304,8 @@ export class AiAgentReviewClassifierService extends BaseService {
         this.projectModel = dependencies.projectModel;
         this.aiOrganizationSettingsModel =
             dependencies.aiOrganizationSettingsModel;
+        this.orgAiCopilotConfigResolver =
+            dependencies.orgAiCopilotConfigResolver;
         this.aiAgentReviewNotificationService =
             dependencies.aiAgentReviewNotificationService;
         this.lightdashConfig = dependencies.lightdashConfig;
@@ -1509,10 +1516,22 @@ export class AiAgentReviewClassifierService extends BaseService {
         candidate: AiAgentReviewClassifierTurnCandidate,
         evidencePacket: AiAgentReviewJudgeEvidencePacket,
     ): Promise<AiAgentReviewClassifierJudgeOutput> {
-        const model = getModel(this.lightdashConfig.ai.copilot, {
-            provider: resolveReviewJudgeProvider(
-                this.lightdashConfig.ai.copilot,
-            ),
+        // Run the judge on the org's own key when they have a BYO Anthropic key
+        // that can serve the review model — never fall back to the instance
+        // provider for their turn data.
+        const { canJudgeOnByoKey } =
+            await this.orgAiCopilotConfigResolver.getReviewJudgeAvailability(
+                candidate.subject.organizationUuid,
+            );
+        const copilotConfig = canJudgeOnByoKey
+            ? await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                  candidate.subject.organizationUuid,
+              )
+            : this.lightdashConfig.ai.copilot;
+        const model = getModel(copilotConfig, {
+            provider: canJudgeOnByoKey
+                ? 'anthropic'
+                : resolveReviewJudgeProvider(copilotConfig),
             useFastModel: true,
         });
 
@@ -1673,12 +1692,16 @@ Existing review items — dedup rules. The evidence packet field existingReviewI
         organizationUuid: string;
         organizationName?: string;
     }): Promise<boolean> {
-        const settings =
-            await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+        const [settings, byo] = await Promise.all([
+            this.aiOrganizationSettingsModel.findByOrganizationUuid(
                 args.organizationUuid,
-            );
+            ),
+            this.orgAiCopilotConfigResolver.getReviewJudgeAvailability(
+                args.organizationUuid,
+            ),
+        ]);
 
-        return settings?.aiAgentReviewsEnabled ?? false;
+        return areReviewsEnabledForSettings(settings, byo);
     }
 
     private static buildEvidenceExcerpts(

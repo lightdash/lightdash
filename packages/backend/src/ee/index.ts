@@ -22,6 +22,7 @@ import { InstanceConfigurationService } from '../services/InstanceConfigurationS
 import { ProjectService } from '../services/ProjectService/ProjectService';
 import { RolesService } from '../services/RolesService/RolesService';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
+import { AiModelCatalog } from './clients/Ai/AiModelCatalog';
 import LicenseClient from './clients/License/LicenseClient';
 import { ManagedAgentClient } from './clients/ManagedAgentClient';
 import OpenAi from './clients/OpenAi';
@@ -93,6 +94,9 @@ type EnterpriseAppArguments = Pick<
     | 'customExpressMiddlewares'
     | 'pgWireServerFactory'
 >;
+
+// Shared instance so the per-key model list cache is shared across resolvers
+const aiModelCatalog = new AiModelCatalog();
 
 export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArguments> {
     if (!lightdashConfig.license.licenseKey) {
@@ -213,6 +217,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
                         featureFlagService: repository.getFeatureFlagService(),
+                        aiModelCatalog,
                     }),
                 }),
             embedService: ({ repository, context, models }) =>
@@ -255,6 +260,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
                         featureFlagService: repository.getFeatureFlagService(),
+                        aiModelCatalog,
                     }),
                 }),
             aiAgentToolsService: ({ models, repository, context }) =>
@@ -338,6 +344,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
                         featureFlagService: repository.getFeatureFlagService(),
+                        aiModelCatalog,
                     }),
                     shareService: repository.getShareService(),
                     fileStorageClient: clients.getFileStorageClient(),
@@ -424,6 +431,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
                         featureFlagService: repository.getFeatureFlagService(),
+                        aiModelCatalog,
                     }),
                 }),
             aiAgentDocumentService: ({ models, repository, context }) =>
@@ -441,6 +449,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
                         featureFlagService: repository.getFeatureFlagService(),
+                        aiModelCatalog,
                     }),
                 }),
             aiAgentReviewClassifierService: ({ models, repository, context }) =>
@@ -452,6 +461,13 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getAiAgentDocumentModel<AiAgentDocumentModel>(),
                     aiOrganizationSettingsModel:
                         models.getAiOrganizationSettingsModel(),
+                    orgAiCopilotConfigResolver: new OrgAiCopilotConfigResolver({
+                        lightdashConfig: context.lightdashConfig,
+                        aiOrganizationSettingsModel:
+                            models.getAiOrganizationSettingsModel(),
+                        featureFlagService: repository.getFeatureFlagService(),
+                        aiModelCatalog,
+                    }),
                     catalogModel: models.getCatalogModel(),
                     projectModel: models.getProjectModel(),
                     lightdashConfig: context.lightdashConfig,
@@ -471,6 +487,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         aiOrganizationSettingsModel:
                             models.getAiOrganizationSettingsModel(),
                         featureFlagService: repository.getFeatureFlagService(),
+                        aiModelCatalog,
                     }),
                 }),
             schedulerAiAugmentationService: ({ models, repository }) =>
