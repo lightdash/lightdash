@@ -137,20 +137,26 @@ describe('Invite links endpoints', () => {
             );
         });
 
-        // Current behaviour: the body is not validated, so missing required
-        // fields surface as database errors (500) instead of 400s
-        it('returns 500 when expiresAt is missing', async () => {
+        it('defaults expiresAt to 3 days from now when omitted', async () => {
+            const before = Date.now();
             const resp = await createInvite({
                 email: uniqueEmail('no-expiry'),
             });
-            expect(resp.status).toBe(500);
+            expect(resp.status).toBe(201);
+
+            const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
+            const expiresAtMs = new Date(resp.body.results.expiresAt).getTime();
+            expect(expiresAtMs).toBeGreaterThanOrEqual(before + threeDaysMs);
+            expect(expiresAtMs).toBeLessThanOrEqual(
+                Date.now() + threeDaysMs + 60 * 1000,
+            );
         });
 
-        it('returns 500 when email is missing', async () => {
+        it('returns 422 when email is missing', async () => {
             const resp = await createInvite({
                 expiresAt: futureExpiresAt(),
             });
-            expect(resp.status).toBe(500);
+            expect(resp.status).toBe(422);
         });
 
         // expires_at >= created_at is enforced by a DB check constraint,

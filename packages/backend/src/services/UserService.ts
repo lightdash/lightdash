@@ -577,7 +577,11 @@ export class UserService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
-        const { expiresAt, email, role } = createInviteLink;
+        const { email, role } = createInviteLink;
+        // Same default expiry as the invite modal in the frontend
+        const expiresAt =
+            createInviteLink.expiresAt ??
+            new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
         const inviteCode = nanoid(30);
         if (organizationUuid === undefined) {
             throw new NotFoundError('Organization not found');
