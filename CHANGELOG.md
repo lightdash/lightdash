@@ -1,3 +1,10 @@
+# [0.3345.0](https://github.com/lightdash/lightdash/compare/0.3344.0...0.3345.0) (2026-07-09)
+
+
+### Features
+
+* **backend:** migrate invite-links router to tsoa controller ([#25322](https://github.com/lightdash/lightdash/issues/25322)) ([e74141c](https://github.com/lightdash/lightdash/commit/e74141c5b886b9cc394885a89ad92ee1e70f126e))
+
 # [0.3344.0](https://github.com/lightdash/lightdash/compare/0.3343.0...0.3344.0) (2026-07-09)
 
 
