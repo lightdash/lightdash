@@ -1,4 +1,8 @@
-import { FeatureFlags, type AiOrgModelVisibility } from '@lightdash/common';
+import {
+    FeatureFlags,
+    type AiOrgModelVisibility,
+    type ByoAiProvider,
+} from '@lightdash/common';
 import { AiCopilotConfigSchemaType } from '../../../config/aiConfigSchema';
 import { LightdashConfig } from '../../../config/parseConfig';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
@@ -155,6 +159,17 @@ export class OrgAiCopilotConfigResolver {
             ),
             keyAccessibleModelIds,
         };
+    }
+
+    /**
+     * The model ids a provider API key can access (cached in the catalog).
+     * Null on any failure so callers fail closed.
+     */
+    async getAccessibleModelIds(
+        provider: ByoAiProvider,
+        apiKey: string,
+    ): Promise<string[] | null> {
+        return this.aiModelCatalog.getAccessibleModelIds(provider, apiKey);
     }
 
     /**
