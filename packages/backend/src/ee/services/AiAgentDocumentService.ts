@@ -2,17 +2,20 @@ import { subject } from '@casl/ability';
 import {
     AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES,
     AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES,
+    AiAgent,
     AiAgentDocument,
     AiAgentDocumentSummary,
+    ApiCreateAgentDocument,
     ApiCreateAiAgentDocument,
     CommercialFeatureFlags,
     Explore,
     ForbiddenError,
+    NotFoundError,
     ParameterError,
     PayloadTooLargeError,
     type SessionUser,
 } from '@lightdash/common';
-import { v4 as uuidv4 } from 'uuid';
+import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
 import {
     AiAgentDocumentCreatedEvent,
     AiAgentDocumentDeletedEvent,
@@ -62,6 +65,11 @@ const normalizeMimeType = (mimeType: string, filename: string): string => {
     );
 };
 
+export type AiAgentDocumentScope = {
+    projectUuid: string;
+    agentUuid: string;
+};
+
 type AiAgentDocumentServiceDependencies = {
     analytics: LightdashAnalytics;
     aiAgentDocumentModel: AiAgentDocumentModel;
@@ -100,34 +108,18 @@ export class AiAgentDocumentService extends BaseService {
      * Build the explore context used to ground the summary generator. Mirrors
      * what the agent itself sees at conversation time: filtered by the
      * agent's tags AND the user's attributes via
-     * AiAgentService.getAvailableExplores. If the upload isn't bound to an
-     * agent, falls back to all explores in the project.
+     * AiAgentService.getAvailableExplores.
      */
-    private async getProjectExploresForSummarization(
+    private async getAgentExploresForSummarization(
         user: SessionUser,
-        body: ApiCreateAiAgentDocument,
+        agent: AiAgent,
     ): Promise<Explore[]> {
-        const primaryAgentUuid = body.agentAccess?.[0];
         try {
-            if (primaryAgentUuid) {
-                const agent = await this.aiAgentService.getAgent(
-                    user,
-                    primaryAgentUuid,
-                );
-                return await this.aiAgentService.getAvailableExplores(
-                    user,
-                    agent.projectUuid,
-                    agent.tags,
-                );
-            }
-            if (body.projectUuid) {
-                return await this.aiAgentService.getAvailableExplores(
-                    user,
-                    body.projectUuid,
-                    null,
-                );
-            }
-            return [];
+            return await this.aiAgentService.getAvailableExplores(
+                user,
+                agent.projectUuid,
+                agent.tags,
+            );
         } catch (e) {
             this.logger.warn(
                 'Failed to fetch project explores for document summarization',
@@ -150,7 +142,7 @@ export class AiAgentDocumentService extends BaseService {
     private assertCanViewDocuments(
         user: SessionUser,
         organizationUuid: string,
-        projectUuid: string | null = null,
+        projectUuid: string | null,
     ): void {
         const ability = this.createAuditedAbility(user);
         if (
@@ -166,10 +158,15 @@ export class AiAgentDocumentService extends BaseService {
         }
     }
 
+    /**
+     * A document with no project is org-wide: the project-level rule cannot
+     * match a subject without a projectUuid, so managing it needs org-level
+     * permission.
+     */
     private assertCanManageDocuments(
         user: SessionUser,
         organizationUuid: string,
-        projectUuid: string | null = null,
+        projectUuid: string | null,
     ): void {
         const ability = this.createAuditedAbility(user);
         if (
@@ -187,51 +184,56 @@ export class AiAgentDocumentService extends BaseService {
 
     async listDocuments(
         user: SessionUser,
-        { projectUuid }: { projectUuid?: string | null } = {},
+        { projectUuid, agentUuid }: AiAgentDocumentScope,
     ): Promise<AiAgentDocumentSummary[]> {
         const organizationUuid = assertOrganizationUuid(user);
         await this.assertCopilotEnabled(user);
-        this.assertCanViewDocuments(
-            user,
+        this.assertCanViewDocuments(user, organizationUuid, projectUuid);
+        // Throws if the agent does not exist in this project
+        await this.aiAgentService.getAgent(user, agentUuid, projectUuid);
+
+        return this.aiAgentDocumentModel.findAllForAgent({
             organizationUuid,
-            projectUuid ?? null,
-        );
-        return this.aiAgentDocumentModel.findAllForOrganization({
-            organizationUuid,
+            agentUuid,
             projectUuid,
         });
     }
 
-    private async getDocument(
-        user: SessionUser,
-        documentUuid: string,
-    ): Promise<AiAgentDocument> {
-        const organizationUuid = assertOrganizationUuid(user);
-        await this.assertCopilotEnabled(user);
-        const document = await this.aiAgentDocumentModel.get(documentUuid);
-        if (document.organizationUuid !== organizationUuid) {
-            throw new ForbiddenError();
-        }
-        this.assertCanViewDocuments(
-            user,
-            organizationUuid,
-            document.projectUuid,
-        );
-        return document;
-    }
-
     async createDocument(
         user: SessionUser,
-        body: ApiCreateAiAgentDocument,
+        { projectUuid, agentUuid }: AiAgentDocumentScope,
+        body: ApiCreateAgentDocument,
     ): Promise<AiAgentDocument> {
         const organizationUuid = assertOrganizationUuid(user);
         await this.assertCopilotEnabled(user);
-        this.assertCanManageDocuments(
+        this.assertCanManageDocuments(user, organizationUuid, projectUuid);
+        const agent = await this.aiAgentService.getAgent(
             user,
-            organizationUuid,
-            body.projectUuid ?? null,
+            agentUuid,
+            projectUuid,
+        );
+        const projectExplores = await this.getAgentExploresForSummarization(
+            user,
+            agent,
         );
 
+        return this.persistDocument(user, organizationUuid, body, {
+            projectUuid,
+            agentUuids: [agentUuid],
+            projectExplores,
+        });
+    }
+
+    private async persistDocument(
+        user: SessionUser,
+        organizationUuid: string,
+        body: ApiCreateAgentDocument,
+        scope: {
+            projectUuid: string | null;
+            agentUuids: string[];
+            projectExplores: Explore[];
+        },
+    ): Promise<AiAgentDocument> {
         const contentBytes = Buffer.byteLength(body.content, 'utf8');
         if (contentBytes > AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES) {
             throw new PayloadTooLargeError(
@@ -263,10 +265,6 @@ export class AiAgentDocumentService extends BaseService {
             body.originalFilename,
         );
 
-        const projectExplores = await this.getProjectExploresForSummarization(
-            user,
-            body,
-        );
         const copilotConfig =
             await this.orgAiCopilotConfigResolver.getCopilotConfig(
                 organizationUuid,
@@ -286,7 +284,7 @@ export class AiAgentDocumentService extends BaseService {
             summary = await generateDocumentSummary(modelOptions, {
                 name: body.name,
                 content: body.content,
-                projectExplores,
+                projectExplores: scope.projectExplores,
             });
         } catch (error) {
             this.logger.error(
@@ -301,14 +299,14 @@ export class AiAgentDocumentService extends BaseService {
 
         const document = await this.aiAgentDocumentModel.create({
             organizationUuid,
-            projectUuid: body.projectUuid ?? null,
+            projectUuid: scope.projectUuid,
             name: body.name,
             originalFilename: body.originalFilename,
             mimeType,
             content: body.content,
             summary,
             storageKey,
-            agentUuids: body.agentAccess ?? [],
+            agentUuids: scope.agentUuids,
             createdByUserUuid: user.userUuid,
         });
 
@@ -321,7 +319,7 @@ export class AiAgentDocumentService extends BaseService {
                 documentId: document.uuid,
                 mimeType: document.mimeType,
                 contentSizeBytes: contentBytes,
-                agentAccessCount: body.agentAccess?.length ?? 0,
+                agentAccessCount: document.agentAccess.length,
             },
         });
 
@@ -330,12 +328,176 @@ export class AiAgentDocumentService extends BaseService {
 
     async deleteDocument(
         user: SessionUser,
+        { projectUuid, agentUuid }: AiAgentDocumentScope,
         documentUuid: string,
     ): Promise<void> {
-        const existing = await this.getDocument(user, documentUuid);
+        const organizationUuid = assertOrganizationUuid(user);
+        await this.assertCopilotEnabled(user);
+        this.assertCanManageDocuments(user, organizationUuid, projectUuid);
+        await this.aiAgentService.getAgent(user, agentUuid, projectUuid);
+
+        const existing = await this.aiAgentDocumentModel.findAccessibleForAgent(
+            {
+                organizationUuid,
+                agentUuid,
+                projectUuid,
+                documentUuid,
+            },
+        );
+        if (!existing) {
+            throw new NotFoundError(
+                `AI agent document ${documentUuid} not found`,
+            );
+        }
+        // An org-wide document outranks the path's project scope
         this.assertCanManageDocuments(
             user,
-            existing.organizationUuid,
+            organizationUuid,
+            existing.projectUuid,
+        );
+
+        await this.aiAgentDocumentModel.delete(documentUuid);
+
+        this.analytics.track<AiAgentDocumentDeletedEvent>({
+            event: 'ai_agent_document.deleted',
+            userId: user.userUuid,
+            properties: {
+                organizationId: existing.organizationUuid,
+                projectId: existing.projectUuid,
+                documentId: documentUuid,
+            },
+        });
+    }
+
+    /**
+     * @deprecated Serves GET /api/v1/aiAgents/documents. Use listDocuments.
+     */
+    async listOrganizationDocuments(
+        user: SessionUser,
+        { projectUuid }: { projectUuid?: string | null } = {},
+    ): Promise<AiAgentDocumentSummary[]> {
+        const organizationUuid = assertOrganizationUuid(user);
+        await this.assertCopilotEnabled(user);
+        this.assertCanViewDocuments(
+            user,
+            organizationUuid,
+            projectUuid ?? null,
+        );
+        return this.aiAgentDocumentModel.findAllForOrganization({
+            organizationUuid,
+            projectUuid,
+        });
+    }
+
+    /**
+     * Resolve the summarization explores from the request body rather than the
+     * route, mirroring the pre-deprecation behaviour.
+     * @deprecated Serves POST /api/v1/aiAgents/documents.
+     */
+    private async getBodyScopeExploresForSummarization(
+        user: SessionUser,
+        body: ApiCreateAiAgentDocument,
+        agent: AiAgent | null,
+    ): Promise<Explore[]> {
+        if (agent) {
+            return this.getAgentExploresForSummarization(user, agent);
+        }
+        if (!body.projectUuid) {
+            return [];
+        }
+        try {
+            return await this.aiAgentService.getAvailableExplores(
+                user,
+                body.projectUuid,
+                null,
+            );
+        } catch (e) {
+            this.logger.warn(
+                'Failed to fetch project explores for document summarization',
+                { error: e },
+            );
+            return [];
+        }
+    }
+
+    /**
+     * Resolve every agentAccess entry through the org-filtered agent lookup, so
+     * an unknown or foreign agent fails the request instead of the FK, and a
+     * wrong-project agent cannot be persisted as an access row nothing reads.
+     * @deprecated Serves POST /api/v1/aiAgents/documents.
+     */
+    private async resolveBodyScopeAgents(
+        user: SessionUser,
+        body: ApiCreateAiAgentDocument,
+    ): Promise<AiAgent[]> {
+        const agentAccess = body.agentAccess ?? [];
+        const { projectUuid } = body;
+        return Promise.all(
+            agentAccess.map(async (agentUuid) => {
+                const agent = await this.aiAgentService.getAgent(
+                    user,
+                    agentUuid,
+                );
+                if (projectUuid && agent.projectUuid !== projectUuid) {
+                    throw new ParameterError(
+                        `Agent ${agentUuid} does not belong to project ${projectUuid}.`,
+                    );
+                }
+                return agent;
+            }),
+        );
+    }
+
+    /**
+     * @deprecated Serves POST /api/v1/aiAgents/documents. Use createDocument.
+     */
+    async createOrganizationDocument(
+        user: SessionUser,
+        body: ApiCreateAiAgentDocument,
+    ): Promise<AiAgentDocument> {
+        const organizationUuid = assertOrganizationUuid(user);
+        await this.assertCopilotEnabled(user);
+        this.assertCanManageDocuments(
+            user,
+            organizationUuid,
+            body.projectUuid ?? null,
+        );
+
+        const agents = await this.resolveBodyScopeAgents(user, body);
+        const projectExplores = await this.getBodyScopeExploresForSummarization(
+            user,
+            body,
+            agents[0] ?? null,
+        );
+
+        return this.persistDocument(user, organizationUuid, body, {
+            projectUuid: body.projectUuid ?? null,
+            agentUuids: agents.map((agent) => agent.uuid),
+            projectExplores,
+        });
+    }
+
+    /**
+     * The path param stays a plain string: tightening it to a uuid pattern is a
+     * breaking OpenAPI change, so reject a malformed uuid here instead.
+     * @deprecated Serves DELETE /api/v1/aiAgents/documents/{documentUuid}. Use deleteDocument.
+     */
+    async deleteOrganizationDocument(
+        user: SessionUser,
+        documentUuid: string,
+    ): Promise<void> {
+        const organizationUuid = assertOrganizationUuid(user);
+        await this.assertCopilotEnabled(user);
+        if (!isValidUuid(documentUuid)) {
+            throw new ParameterError(`Invalid document uuid: ${documentUuid}`);
+        }
+        const existing = await this.aiAgentDocumentModel.get(documentUuid);
+        if (existing.organizationUuid !== organizationUuid) {
+            throw new ForbiddenError();
+        }
+        this.assertCanManageDocuments(
+            user,
+            organizationUuid,
             existing.projectUuid,
         );
         await this.aiAgentDocumentModel.delete(documentUuid);

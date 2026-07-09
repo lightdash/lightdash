@@ -1,10 +1,11 @@
 import {
     ApiAiAgentDocumentResponse,
     ApiAiAgentDocumentSummaryListResponse,
-    ApiCreateAiAgentDocument,
+    ApiCreateAgentDocument,
     ApiErrorPayload,
     ApiSuccessEmpty,
     assertRegisteredAccount,
+    type UUID,
 } from '@lightdash/common';
 import {
     Body,
@@ -14,7 +15,6 @@ import {
     OperationId,
     Path,
     Post,
-    Query,
     Request,
     Response,
     Route,
@@ -30,41 +30,41 @@ import {
 import { BaseController } from '../../controllers/baseController';
 import { type AiAgentDocumentService } from '../services/AiAgentDocumentService';
 
-@Route('/api/v1/aiAgents/documents')
+@Route('/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/documents')
 @Response<ApiErrorPayload>('default', 'Error')
-export class AiAgentDocumentController extends BaseController {
+export class AiAgentScopedDocumentController extends BaseController {
     private getService(): AiAgentDocumentService {
         return this.services.getAiAgentDocumentService<AiAgentDocumentService>();
     }
 
     /**
-     * List every knowledge document in the organization.
-     * @summary List AI agent documents
+     * List the knowledge documents this agent can use: the organization level
+     * documents plus the ones granted to this agent in this project.
+     * @summary List agent documents
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
     @Get('/')
-    @OperationId('listAiAgentDocuments')
+    @OperationId('listAgentDocuments')
     async listDocuments(
         @Request() req: express.Request,
-        @Query() projectUuid?: string,
+        @Path() projectUuid: UUID,
+        @Path() agentUuid: UUID,
     ): Promise<ApiAiAgentDocumentSummaryListResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
-            results: await this.getService().listOrganizationDocuments(
+            results: await this.getService().listDocuments(
                 toSessionUser(req.account),
-                { projectUuid: projectUuid ?? undefined },
+                { projectUuid, agentUuid },
             ),
         };
     }
 
     /**
-     * Create a knowledge document. The projectUuid and agentAccess body fields
-     * are deprecated: scope the document by creating it on the agent route
-     * instead. Without them the document is available to every agent.
-     * @summary Create AI agent document
+     * Create a knowledge document scoped to this project and agent.
+     * @summary Create agent document
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -73,25 +73,28 @@ export class AiAgentDocumentController extends BaseController {
     ])
     @SuccessResponse('201', 'Created')
     @Post('/')
-    @OperationId('createAiAgentDocument')
+    @OperationId('createAgentDocument')
     async createDocument(
         @Request() req: express.Request,
-        @Body() body: ApiCreateAiAgentDocument,
+        @Path() projectUuid: UUID,
+        @Path() agentUuid: UUID,
+        @Body() body: ApiCreateAgentDocument,
     ): Promise<ApiAiAgentDocumentResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(201);
         return {
             status: 'ok',
-            results: await this.getService().createOrganizationDocument(
+            results: await this.getService().createDocument(
                 toSessionUser(req.account),
+                { projectUuid, agentUuid },
                 body,
             ),
         };
     }
 
     /**
-     * Delete a knowledge document anywhere in the organization.
-     * @summary Delete AI agent document
+     * Delete a knowledge document this agent can use.
+     * @summary Delete agent document
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -100,14 +103,17 @@ export class AiAgentDocumentController extends BaseController {
     ])
     @SuccessResponse('200', 'Success')
     @Delete('/{documentUuid}')
-    @OperationId('deleteAiAgentDocument')
+    @OperationId('deleteAgentDocument')
     async deleteDocument(
         @Request() req: express.Request,
-        @Path() documentUuid: string,
+        @Path() projectUuid: UUID,
+        @Path() agentUuid: UUID,
+        @Path() documentUuid: UUID,
     ): Promise<ApiSuccessEmpty> {
         assertRegisteredAccount(req.account);
-        await this.getService().deleteOrganizationDocument(
+        await this.getService().deleteDocument(
             toSessionUser(req.account),
+            { projectUuid, agentUuid },
             documentUuid,
         );
         this.setStatus(200);

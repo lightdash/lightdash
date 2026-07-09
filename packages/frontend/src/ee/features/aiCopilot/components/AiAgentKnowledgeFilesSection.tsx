@@ -1,7 +1,4 @@
-import {
-    AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES,
-    type AiAgentDocumentSummary,
-} from '@lightdash/common';
+import { AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -80,20 +77,12 @@ export const AiAgentKnowledgeFilesSection = ({
     agentUuid,
     projectUuid,
 }: Props) => {
-    const { data: documents, isLoading } = useAiAgentDocuments();
-    const createDocument = useCreateAiAgentDocument();
-    const deleteDocument = useDeleteAiAgentDocument();
+    const { data, isLoading } = useAiAgentDocuments(projectUuid, agentUuid);
+    const createDocument = useCreateAiAgentDocument(projectUuid, agentUuid);
+    const deleteDocument = useDeleteAiAgentDocument(projectUuid, agentUuid);
     const { showToastError } = useToaster();
 
-    const accessibleDocuments = useMemo<AiAgentDocumentSummary[]>(
-        () =>
-            (documents ?? []).filter(
-                (doc) =>
-                    doc.agentAccess.length === 0 ||
-                    doc.agentAccess.includes(agentUuid),
-            ),
-        [documents, agentUuid],
-    );
+    const documents = useMemo(() => data ?? [], [data]);
 
     const [pendingUploads, setPendingUploads] = useState<PendingUpload[]>([]);
     const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -102,14 +91,11 @@ export const AiAgentKnowledgeFilesSection = ({
         if (selectedId && pendingUploads.some((p) => p.tempId === selectedId)) {
             return selectedId;
         }
-        if (
-            selectedId &&
-            accessibleDocuments.some((doc) => doc.uuid === selectedId)
-        ) {
+        if (selectedId && documents.some((doc) => doc.uuid === selectedId)) {
             return selectedId;
         }
-        return accessibleDocuments[0]?.uuid ?? null;
-    }, [accessibleDocuments, pendingUploads, selectedId]);
+        return documents[0]?.uuid ?? null;
+    }, [documents, pendingUploads, selectedId]);
 
     const selectedPending = useMemo(
         () =>
@@ -121,10 +107,9 @@ export const AiAgentKnowledgeFilesSection = ({
         () =>
             selectedPending
                 ? null
-                : (accessibleDocuments.find(
-                      (doc) => doc.uuid === effectiveSelectedId,
-                  ) ?? null),
-        [accessibleDocuments, effectiveSelectedId, selectedPending],
+                : (documents.find((doc) => doc.uuid === effectiveSelectedId) ??
+                  null),
+        [documents, effectiveSelectedId, selectedPending],
     );
 
     const handleFiles = useCallback(
@@ -183,8 +168,6 @@ export const AiAgentKnowledgeFilesSection = ({
                         originalFilename: file.name,
                         mimeType: normalizeMimeType(file),
                         content,
-                        agentAccess: [agentUuid],
-                        projectUuid,
                     });
                     setSelectedId((current) =>
                         current === pending.tempId ? created.uuid : current,
@@ -198,13 +181,11 @@ export const AiAgentKnowledgeFilesSection = ({
                 }
             }
         },
-        [agentUuid, createDocument, projectUuid, showToastError],
+        [createDocument, showToastError],
     );
 
     const isEmpty =
-        !isLoading &&
-        pendingUploads.length === 0 &&
-        accessibleDocuments.length === 0;
+        !isLoading && pendingUploads.length === 0 && documents.length === 0;
 
     return (
         <Stack gap="md">
@@ -329,7 +310,7 @@ export const AiAgentKnowledgeFilesSection = ({
                                                 </Skeleton>
                                             ),
                                         })),
-                                        ...accessibleDocuments.map((doc) => ({
+                                        ...documents.map((doc) => ({
                                             id: doc.uuid,
                                             name: doc.name,
                                             sizeBytes: doc.contentSizeBytes,
