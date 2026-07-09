@@ -1,14 +1,12 @@
 import { readContentToolDefinition } from '@lightdash/common';
-import { tool } from 'ai';
 import type { ReadContentFn } from '../types/aiAgentDependencies';
-import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
 type Dependencies = {
     readContent: ReadContentFn;
 };
 
-const toolDefinition = readContentToolDefinition.for('agent');
+const toolDefinition = readContentToolDefinition.for('ai-sdk');
 
 const contentResult = ({
     content,
@@ -21,8 +19,7 @@ const contentResult = ({
 }) => `<${type} href="${href}" />\n---\n${JSON.stringify(content, null, 2)}`;
 
 export const getReadContent = ({ readContent }: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async ({ slug, type }) => {
             try {
                 const result = await readContent({ slug, type });
@@ -34,6 +31,8 @@ export const getReadContent = ({ readContent }: Dependencies) =>
                 };
 
                 return {
+                    status: 'success' as const,
+                    type: 'string' as const,
                     result: contentResult({
                         content: result.content,
                         href: metadata.href,
@@ -43,7 +42,8 @@ export const getReadContent = ({ readContent }: Dependencies) =>
                 };
             } catch (error) {
                 return {
-                    result: toolErrorHandler(
+                    status: 'error' as const,
+                    error: toolErrorHandler(
                         error,
                         `Error reading ${type} "${slug}"`,
                     ),
@@ -53,5 +53,4 @@ export const getReadContent = ({ readContent }: Dependencies) =>
                 };
             }
         },
-        toModelOutput: ({ output }) => toModelOutput(output),
     });

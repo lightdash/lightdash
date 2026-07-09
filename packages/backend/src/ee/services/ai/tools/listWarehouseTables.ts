@@ -1,5 +1,4 @@
 import { listWarehouseTablesToolDefinition } from '@lightdash/common';
-import { tool } from 'ai';
 import type { ListWarehouseTablesFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
@@ -7,11 +6,10 @@ type Dependencies = {
     listWarehouseTables: ListWarehouseTablesFn;
 };
 
-const toolDefinition = listWarehouseTablesToolDefinition.for('agent');
+const toolDefinition = listWarehouseTablesToolDefinition.for('ai-sdk');
 
 export const getListWarehouseTables = ({ listWarehouseTables }: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async ({ schema, search, limit }) => {
             try {
                 const all = await listWarehouseTables();
@@ -55,6 +53,8 @@ export const getListWarehouseTables = ({ listWarehouseTables }: Dependencies) =>
 
                 if (matches.length === 0) {
                     return {
+                        status: 'success' as const,
+                        type: 'string' as const,
                         result: `No tables matched. Filters: schema=${
                             schema ?? '(none)'
                         }, search=${search ?? '(none)'}. Try a broader search.`,
@@ -80,12 +80,15 @@ export const getListWarehouseTables = ({ listWarehouseTables }: Dependencies) =>
                 }
 
                 return {
+                    status: 'success' as const,
+                    type: 'string' as const,
                     result: lines.join('\n'),
                     metadata: { status: 'success' },
                 };
             } catch (e) {
                 return {
-                    result: toolErrorHandler(
+                    status: 'error' as const,
+                    error: toolErrorHandler(
                         e,
                         'Error listing warehouse tables.',
                     ),

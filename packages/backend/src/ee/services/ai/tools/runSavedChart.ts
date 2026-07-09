@@ -4,7 +4,6 @@ import {
     type AiMetricQueryWithFilters,
     type MetricQuery,
 } from '@lightdash/common';
-import { tool } from 'ai';
 import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type {
     GetSavedChartFn,
@@ -13,7 +12,6 @@ import type {
 } from '../types/aiAgentDependencies';
 import { convertQueryResultsToCsv } from '../utils/convertQueryResultsToCsv';
 import { serializeData } from '../utils/serializeData';
-import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
 type Dependencies = {
@@ -24,7 +22,7 @@ type Dependencies = {
     enableDataAccess: boolean;
 };
 
-const toolDefinition = runSavedChartToolDefinition.for('agent');
+const toolDefinition = runSavedChartToolDefinition.for('ai-sdk');
 
 /**
  * Builds a structural summary the LLM can read to understand what the saved
@@ -94,8 +92,7 @@ export const getRunSavedChart = ({
     maxLimit,
     enableDataAccess,
 }: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async ({ chartUuid }) => {
             try {
                 await updateProgress('Running saved chart...');
@@ -105,6 +102,8 @@ export const getRunSavedChart = ({
 
                 if (!enableDataAccess) {
                     return {
+                        status: 'success',
+                        type: 'string',
                         result: `${buildSavedChartHeader(
                             chartUuid,
                             name,
@@ -133,6 +132,8 @@ export const getRunSavedChart = ({
 
                 if (queryResults.rows.length === 0) {
                     return {
+                        status: 'success',
+                        type: 'string',
                         result: NO_RESULTS_RETRY_PROMPT,
                         metadata: { status: 'success' },
                     };
@@ -140,6 +141,8 @@ export const getRunSavedChart = ({
 
                 const csv = convertQueryResultsToCsv(queryResults);
                 return {
+                    status: 'success',
+                    type: 'string',
                     result: `${buildSavedChartHeader(
                         chartUuid,
                         name,
@@ -152,10 +155,10 @@ export const getRunSavedChart = ({
                 };
             } catch (e) {
                 return {
-                    result: toolErrorHandler(e, 'Error running saved chart.'),
+                    status: 'error',
+                    error: toolErrorHandler(e, 'Error running saved chart.'),
                     metadata: { status: 'error' },
                 };
             }
         },
-        toModelOutput: ({ output }) => toModelOutput(output),
     });

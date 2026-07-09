@@ -3,13 +3,11 @@ import {
     toolDashboardV2ArgsSchemaTransformed,
     type ToolDashboardV2ArgsTransformed,
 } from '@lightdash/common';
-import { tool } from 'ai';
 import type {
     CreateOrUpdateArtifactFn,
     GetPromptFn,
 } from '../types/aiAgentDependencies';
 import { AgentContext } from '../utils/AgentContext';
-import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { validateRunQueryTool } from './runQuery';
 
@@ -18,14 +16,13 @@ type Dependencies = {
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
 };
 
-const toolDefinition = generateDashboardToolDefinition.for('agent');
+const toolDefinition = generateDashboardToolDefinition.for('ai-sdk');
 
 export const getGenerateDashboardV2 = ({
     getPrompt,
     createOrUpdateArtifact,
 }: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async (toolArgs, { experimental_context: context }) => {
             try {
                 const ctx = AgentContext.from(context);
@@ -73,13 +70,14 @@ export const getGenerateDashboardV2 = ({
                 // Check if we have at least one valid visualization
                 if (validVisualizations.length === 0) {
                     return {
-                        result: `Dashboard generation failed - all visualizations had validation errors:\n${errors.join(
+                        status: 'error' as const,
+                        error: `Dashboard generation failed - all visualizations had validation errors:\n${errors.join(
                             '\n',
                         )}
                     Please fix these issues and try again.
                     `,
                         metadata: {
-                            status: 'error',
+                            status: 'error' as const,
                         },
                     };
                 }
@@ -106,6 +104,8 @@ export const getGenerateDashboardV2 = ({
                 // Return appropriate message based on whether some visualizations failed
                 if (errors.length > 0) {
                     return {
+                        status: 'success' as const,
+                        type: 'string' as const,
                         result: `Dashboard created with ${
                             validVisualizations.length
                         } visualization${
@@ -114,25 +114,27 @@ export const getGenerateDashboardV2 = ({
                             .map((title) => `- ${title}`)
                             .join('\n')}\n\nErrors:\n${errors.join('\n')}`,
                         metadata: {
-                            status: 'success',
+                            status: 'success' as const,
                         },
                     };
                 }
 
                 return {
+                    status: 'success' as const,
+                    type: 'string' as const,
                     result: `Success`,
                     metadata: {
-                        status: 'success',
+                        status: 'success' as const,
                     },
                 };
             } catch (e) {
                 return {
-                    result: toolErrorHandler(e, 'Error generating dashboard.'),
+                    status: 'error' as const,
+                    error: toolErrorHandler(e, 'Error generating dashboard.'),
                     metadata: {
-                        status: 'error',
+                        status: 'error' as const,
                     },
                 };
             }
         },
-        toModelOutput: ({ output }) => toModelOutput(output),
     });

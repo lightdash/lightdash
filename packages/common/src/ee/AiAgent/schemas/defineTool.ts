@@ -1,10 +1,16 @@
-import { type Schema } from 'ai';
+import { type Tool } from 'ai';
 import { type z } from 'zod';
-import { type McpCompatibleInputSchema } from './McpSchemaCompatLayer';
+import assertUnreachable from '../../../utils/assertUnreachable';
+import { createAgentInputSchema } from './agentInputSchema';
 import {
-    ToolDefinitionWithMcpOutputImpl,
-    ToolDefinitionWithoutMcpOutputImpl,
-} from './toolDefinition';
+    createMcpCompatibleInputSchema,
+    type McpCompatibleInputSchema,
+} from './McpSchemaCompatLayer';
+import {
+    createMcpToolResultBuilders,
+    defaultAgentToModelOutput,
+    resolveDescription,
+} from './toolDefinitionUtils';
 
 export type ToolRuntime = 'agent' | 'mcp';
 
@@ -33,33 +39,88 @@ export type AgentToModelOutput<TOutput = unknown> = (args: {
     output: TOutput;
 }) => AgentModelOutput;
 
-export type StandardAgentToolOutput = {
-    result: string;
-    metadata: { status: string };
+// TODO: tighten this back to a recursive JSONValue type once all tool
+// outputs are migrated away from loose object payloads.
+export type ToolJsonValue = Record<string, unknown>;
+
+export type ToolOutputMetadata = Record<string, unknown>;
+
+export type ToolOutputSuccessItem =
+    | {
+          status: 'success';
+          type: 'json';
+          result: ToolJsonValue;
+          metadata?: ToolOutputMetadata;
+      }
+    | {
+          status: 'success';
+          type: 'csv';
+          result: string;
+          metadata?: ToolOutputMetadata;
+      }
+    | {
+          status: 'success';
+          type: 'string';
+          result: string;
+          metadata?: ToolOutputMetadata;
+      };
+
+export type ToolOutputError = {
+    status: 'error';
+    error: string;
+    metadata?: ToolOutputMetadata;
 };
 
-export type AgentOutputSchema = z.ZodTypeAny;
+export type ToolOutputItem = ToolOutputSuccessItem | ToolOutputError;
 
-export type AgentToolConfig<
-    TOutputSchema extends AgentOutputSchema | undefined = undefined,
-> = {
-    outputSchema?: TOutputSchema;
-    toModelOutput?: AgentToModelOutput<StandardAgentToolOutput>;
+// An error is always a single item; only successes may come as a list.
+export type ToolOutput = ToolOutputItem | ToolOutputSuccessItem[];
+
+export type ToolMeta = Record<string, unknown>;
+
+export type ToolInputSchema = z.ZodObject<z.ZodRawShape>;
+export type ToolTransformedInputSchema<
+    TInput extends ToolInputSchema = ToolInputSchema,
+> = z.ZodType<unknown> & { readonly __inputSchema?: TInput };
+
+// MCP requires structuredContent (and its advertised schema) to be a single
+// object, so the payload schema is object-shaped rather than the envelope union.
+export type ToolStructuredContentSchema = z.ZodType<ToolJsonValue>;
+
+export type ToolOutputSchema = z.ZodType<ToolOutput> & {
+    structuredContentSchema: ToolStructuredContentSchema | undefined;
 };
 
-export type McpOutputSchema = z.ZodObject<z.ZodRawShape>;
+type StructuredContentSchemaOf<TOutputSchema extends ToolOutputSchema> =
+    TOutputSchema['structuredContentSchema'];
+
+type StructuredContentOf<TOutputSchema extends ToolOutputSchema> =
+    StructuredContentSchemaOf<TOutputSchema> extends ToolStructuredContentSchema
+        ? z.infer<StructuredContentSchemaOf<TOutputSchema>>
+        : never;
+
+export type AgentToolConfig = {
+    toModelOutput: AgentToModelOutput<ToolOutput>;
+};
+
+export type McpToolConfig<TMcpName extends string = string> = {
+    name: TMcpName;
+    annotations: McpToolAnnotations;
+};
 
 export type McpTextContent = { type: 'text'; text: string };
 
-export type McpTextResult = { content: [McpTextContent] };
+export type McpContent = [McpTextContent, ...McpTextContent[]];
+
+export type McpTextResult = { content: McpContent };
 
 export type McpErrorResult = {
     isError: true;
-    content: [McpTextContent];
+    content: McpContent;
 };
 
 export type McpStructuredResult<TStructuredContent> = {
-    content: [McpTextContent];
+    content: McpContent;
     structuredContent: TStructuredContent;
 };
 
@@ -72,308 +133,409 @@ export type McpToolResultBuilders<TStructuredContent = unknown> = {
     ): McpStructuredResult<TStructuredContent>;
 };
 
-type McpToolConfigBase = {
-    name?: string;
-    annotations: McpToolAnnotations;
-    meta?: Record<string, unknown>;
-};
-
-export type McpToolConfigWithoutOutput = McpToolConfigBase & {
-    structuredContentSchema?: undefined;
-};
-
-export type McpToolConfigWithOutput<TOutputSchema extends McpOutputSchema> =
-    McpToolConfigBase & {
-        structuredContentSchema: TOutputSchema;
-    };
-
-export type McpToolConfig =
-    | McpToolConfigWithoutOutput
-    | McpToolConfigWithOutput<McpOutputSchema>;
-
-type AgentToolViewBase<
-    TName extends string,
-    TInput extends z.ZodObject<z.ZodRawShape>,
-> = {
-    name: TName;
-    title: string;
-    description: string;
-    inputSchema: Schema<z.infer<TInput>>;
-};
-
-export type AgentToolView<
-    TName extends string,
-    TInput extends z.ZodObject<z.ZodRawShape>,
-    TAgentOutputSchema extends AgentOutputSchema | undefined = undefined,
-> = AgentToolViewBase<TName, TInput> & {
-    outputSchema?: TAgentOutputSchema;
-    toModelOutput: AgentToModelOutput<StandardAgentToolOutput>;
-};
-
 type McpToolViewBase<
     TName extends string,
-    TInput extends z.ZodObject<z.ZodRawShape>,
+    TInput extends ToolInputSchema,
+    TStructuredContent,
+    TMcpName extends string,
 > = {
-    name: string;
+    name: TMcpName;
     canonicalName: TName;
     title: string;
     description: string;
     inputSchema: McpCompatibleInputSchema<TInput>;
     annotations: McpToolAnnotations;
-    meta: Record<string, unknown> | undefined;
-    result: McpToolResultBuilders;
+    meta: ToolMeta | undefined;
+    result: McpToolResultBuilders<TStructuredContent>;
 };
 
-export type McpToolViewWithoutOutput<
+export type McpToolView<
     TName extends string,
-    TInput extends z.ZodObject<z.ZodRawShape>,
-> = McpToolViewBase<TName, TInput> & {
-    outputSchema?: undefined;
+    TInput extends ToolInputSchema,
+    TOutputSchema extends ToolOutputSchema,
+    TMcpName extends string = string,
+> = McpToolViewBase<
+    TName,
+    TInput,
+    StructuredContentOf<TOutputSchema>,
+    TMcpName
+> & {
+    outputSchema: StructuredContentSchemaOf<TOutputSchema>;
 };
 
-export type McpToolViewWithOutput<
-    TName extends string,
-    TInput extends z.ZodObject<z.ZodRawShape>,
-    TOutputSchema extends McpOutputSchema,
-> = Omit<McpToolViewBase<TName, TInput>, 'result'> & {
-    result: McpToolResultBuilders<z.infer<TOutputSchema>>;
-    outputSchema: TOutputSchema;
+export type AgentOnlyAvailability = {
+    runtime: 'agent';
+    // Config object with a sensible default: omit to use defaultAgentToModelOutput
+    agent?: AgentToolConfig;
 };
 
-export type ToolDefinitionWithoutMcpOutput<
-    TName extends string,
-    TInput extends z.ZodObject<z.ZodRawShape>,
-    TInputTransformed extends z.ZodTypeAny,
-    TAgentOutputSchema extends AgentOutputSchema | undefined,
-> = {
-    readonly name: TName;
-    readonly title: string;
-    readonly availability: readonly ToolRuntime[];
-    readonly inputSchema: TInput;
-    readonly inputSchemaTransformed: TInputTransformed;
-    readonly description: string;
-    for(runtime: 'agent'): AgentToolView<TName, TInput, TAgentOutputSchema>;
-    for(runtime: 'mcp'): McpToolViewWithoutOutput<TName, TInput>;
+export type McpOnlyAvailability<TMcpName extends string = string> = {
+    runtime: 'mcp';
+    mcp: McpToolConfig<TMcpName>;
 };
 
-export type ToolDefinitionWithMcpOutput<
-    TName extends string,
-    TInput extends z.ZodObject<z.ZodRawShape>,
-    TInputTransformed extends z.ZodTypeAny,
-    TAgentOutputSchema extends AgentOutputSchema | undefined,
-    TOutputSchema extends McpOutputSchema,
-> = {
-    readonly name: TName;
-    readonly title: string;
-    readonly availability: readonly ToolRuntime[];
-    readonly inputSchema: TInput;
-    readonly inputSchemaTransformed: TInputTransformed;
-    readonly description: string;
-    for(runtime: 'agent'): AgentToolView<TName, TInput, TAgentOutputSchema>;
-    for(runtime: 'mcp'): McpToolViewWithOutput<TName, TInput, TOutputSchema>;
+export type AgentAndMcpAvailability<TMcpName extends string = string> = {
+    runtime: 'both';
+    agent?: AgentToolConfig;
+    mcp: McpToolConfig<TMcpName>;
 };
+
+export type ToolAvailability =
+    | AgentOnlyAvailability
+    | McpOnlyAvailability
+    | AgentAndMcpAvailability;
+
+type McpNameForAvailability<TAvailability extends ToolAvailability> =
+    TAvailability extends
+        | McpOnlyAvailability<infer TMcpName>
+        | AgentAndMcpAvailability<infer TMcpName>
+        ? TMcpName
+        : never;
+
+// TODO: temporary ai-sdk build override bag until we split adapter/runtime
+// concerns more cleanly.
+type AiSdkBuildArgs<TInput extends ToolInputSchema> = {
+    execute: NonNullable<Tool<z.infer<TInput>, ToolOutput>['execute']>;
+} & Partial<
+    Pick<
+        Tool<z.infer<TInput>, ToolOutput>,
+        'title' | 'description' | 'inputSchema' | 'needsApproval' | 'strict'
+    >
+>;
+
+type ToolDefinitionRuntimeViews<
+    TName extends string,
+    TInput extends ToolInputSchema,
+    TOutputSchema extends ToolOutputSchema,
+    TAvailability extends ToolAvailability,
+> = [TAvailability] extends [AgentOnlyAvailability]
+    ? {
+          for(runtime: 'ai-sdk'): Pick<
+              Tool<z.infer<TInput>, ToolOutput>,
+              'title' | 'description' | 'inputSchema' | 'outputSchema'
+          > & {
+              toModelOutput: NonNullable<
+                  Tool<unknown, ToolOutput>['toModelOutput']
+              >;
+              build(
+                  args: AiSdkBuildArgs<TInput>,
+              ): Tool<z.infer<TInput>, ToolOutput>;
+          };
+      }
+    : [TAvailability] extends [McpOnlyAvailability]
+      ? {
+            for(
+                runtime: 'mcp',
+            ): McpToolView<
+                TName,
+                TInput,
+                TOutputSchema,
+                McpNameForAvailability<TAvailability>
+            >;
+        }
+      : {
+            for(runtime: 'ai-sdk'): Pick<
+                Tool<z.infer<TInput>, ToolOutput>,
+                'title' | 'description' | 'inputSchema' | 'outputSchema'
+            > & {
+                toModelOutput: NonNullable<
+                    Tool<unknown, ToolOutput>['toModelOutput']
+                >;
+                build(
+                    args: AiSdkBuildArgs<TInput>,
+                ): Tool<z.infer<TInput>, ToolOutput>;
+            };
+            for(
+                runtime: 'mcp',
+            ): McpToolView<
+                TName,
+                TInput,
+                TOutputSchema,
+                McpNameForAvailability<TAvailability>
+            >;
+        };
 
 export type ToolDefinition<
     TName extends string,
-    TInput extends z.ZodObject<z.ZodRawShape>,
-    TInputTransformed extends z.ZodTypeAny = TInput,
-    TAgentOutputSchema extends AgentOutputSchema | undefined = undefined,
+    TInput extends ToolInputSchema,
+    TInputTransformed extends ToolTransformedInputSchema<TInput> = TInput,
+    TOutputSchema extends ToolOutputSchema = ToolOutputSchema,
+    TAvailability extends ToolAvailability = ToolAvailability,
+> = {
+    readonly name: TName;
+    readonly title: string;
+    readonly availability: TAvailability;
+    readonly inputSchema: TInput;
+    readonly inputSchemaTransformed: TInputTransformed;
+    readonly outputSchema: TOutputSchema;
+    readonly meta: ToolMeta | undefined;
+    readonly description: string;
+} & ToolDefinitionRuntimeViews<TName, TInput, TOutputSchema, TAvailability>;
+
+type AnyToolDefinition<
+    TName extends string,
+    TInput extends ToolInputSchema,
+    TInputTransformed extends ToolTransformedInputSchema<TInput>,
+    TOutputSchema extends ToolOutputSchema,
 > =
-    | ToolDefinitionWithoutMcpOutput<
+    | ToolDefinition<
           TName,
           TInput,
           TInputTransformed,
-          TAgentOutputSchema
+          TOutputSchema,
+          AgentOnlyAvailability
       >
-    | ToolDefinitionWithMcpOutput<
+    | ToolDefinition<
           TName,
           TInput,
           TInputTransformed,
-          TAgentOutputSchema,
-          McpOutputSchema
+          TOutputSchema,
+          McpOnlyAvailability
+      >
+    | ToolDefinition<
+          TName,
+          TInput,
+          TInputTransformed,
+          TOutputSchema,
+          AgentAndMcpAvailability
       >;
 
-export type ToolDefinitionInstance = ToolDefinition<
+export type ToolDefinitionInstance = AnyToolDefinition<
     string,
-    z.ZodObject<z.ZodRawShape>,
-    z.ZodTypeAny,
-    AgentOutputSchema | undefined
+    ToolInputSchema,
+    ToolTransformedInputSchema<ToolInputSchema>,
+    ToolOutputSchema
 >;
 
-export type ToolInput<T extends ToolDefinitionInstance> = z.infer<
+export type ToolInput<T extends { inputSchema: ToolInputSchema }> = z.infer<
     T['inputSchema']
 >;
 
-export type ToolInputTransformed<T extends ToolDefinitionInstance> = z.infer<
-    T['inputSchemaTransformed']
->;
+export type ToolInputTransformed<
+    T extends {
+        inputSchemaTransformed: ToolTransformedInputSchema<T['inputSchema']>;
+    } & {
+        inputSchema: ToolInputSchema;
+    },
+> = z.infer<T['inputSchemaTransformed']>;
 
-type ToolDefinitionArgsBase<
+export type ToolDefinitionArgs<
     TName extends string,
-    TInput extends z.ZodObject<z.ZodRawShape>,
-    TInputTransformed extends z.ZodTypeAny,
-    TAgentOutputSchema extends AgentOutputSchema | undefined,
+    TInput extends ToolInputSchema,
+    TInputTransformed extends ToolTransformedInputSchema<TInput>,
+    TOutputSchema extends ToolOutputSchema,
+    TAvailability extends ToolAvailability,
 > = {
     name: TName;
     title: string;
     description: ToolDescription;
-    availability: readonly ToolRuntime[];
+    availability: TAvailability;
     inputSchema: TInput;
     inputSchemaTransformed?: TInputTransformed;
-    agent?: AgentToolConfig<TAgentOutputSchema>;
+    outputSchema: TOutputSchema;
+    meta?: ToolMeta;
 };
-
-type ToolDefinitionArgsWithoutMcpOutput<
-    TName extends string,
-    TInput extends z.ZodObject<z.ZodRawShape>,
-    TInputTransformed extends z.ZodTypeAny,
-    TAgentOutputSchema extends AgentOutputSchema | undefined,
-> = ToolDefinitionArgsBase<
-    TName,
-    TInput,
-    TInputTransformed,
-    TAgentOutputSchema
-> & {
-    mcp?: McpToolConfigWithoutOutput;
-};
-
-type ToolDefinitionArgsWithMcpOutput<
-    TName extends string,
-    TInput extends z.ZodObject<z.ZodRawShape>,
-    TInputTransformed extends z.ZodTypeAny,
-    TAgentOutputSchema extends AgentOutputSchema | undefined,
-    TOutputSchema extends McpOutputSchema,
-> = ToolDefinitionArgsBase<
-    TName,
-    TInput,
-    TInputTransformed,
-    TAgentOutputSchema
-> & {
-    mcp: McpToolConfigWithOutput<TOutputSchema>;
-};
-
-const validateToolDefinition = (args: {
-    name: string;
-    availability: readonly ToolRuntime[];
-    mcp?: McpToolConfig;
-}): void => {
-    if (args.availability.length === 0) {
-        throw new Error(`Tool "${args.name}" must be available somewhere`);
-    }
-    if (new Set(args.availability).size !== args.availability.length) {
-        throw new Error(`Tool "${args.name}" has duplicate runtimes`);
-    }
-    if (args.availability.includes('mcp') && !args.mcp?.annotations) {
-        throw new Error(
-            `Tool "${args.name}" is MCP-available but has no annotations`,
-        );
-    }
-};
-
-const hasMcpStructuredContentSchema = (
-    mcpConfig: McpToolConfig | undefined,
-): mcpConfig is McpToolConfigWithOutput<McpOutputSchema> =>
-    mcpConfig?.structuredContentSchema !== undefined;
 
 export function defineTool<
     TName extends string,
-    TInput extends z.ZodObject<z.ZodRawShape>,
-    TInputTransformed extends z.ZodTypeAny = TInput,
-    TAgentOutputSchema extends AgentOutputSchema | undefined = undefined,
-    TOutputSchema extends McpOutputSchema = McpOutputSchema,
+    TInput extends ToolInputSchema,
+    TOutputSchema extends ToolOutputSchema,
+    TAvailability extends ToolAvailability,
 >(
-    def: ToolDefinitionArgsWithMcpOutput<
+    def: ToolDefinitionArgs<
+        TName,
+        TInput,
+        TInput,
+        TOutputSchema,
+        TAvailability
+    > & {
+        inputSchemaTransformed?: undefined;
+    },
+): ToolDefinition<TName, TInput, TInput, TOutputSchema, TAvailability>;
+export function defineTool<
+    TName extends string,
+    TInput extends ToolInputSchema,
+    TInputTransformed extends ToolTransformedInputSchema<TInput>,
+    TOutputSchema extends ToolOutputSchema,
+    TAvailability extends ToolAvailability,
+>(
+    def: ToolDefinitionArgs<
         TName,
         TInput,
         TInputTransformed,
-        TAgentOutputSchema,
-        TOutputSchema
-    >,
-): ToolDefinitionWithMcpOutput<
+        TOutputSchema,
+        TAvailability
+    > & {
+        inputSchemaTransformed: TInputTransformed;
+    },
+): ToolDefinition<
     TName,
     TInput,
     TInputTransformed,
-    TAgentOutputSchema,
+    TOutputSchema,
+    TAvailability
+>;
+export function defineTool<
+    TName extends string,
+    TInput extends ToolInputSchema,
+    TOutputSchema extends ToolOutputSchema,
+>(
+    def: ToolDefinitionArgs<
+        TName,
+        TInput,
+        ToolTransformedInputSchema<TInput>,
+        TOutputSchema,
+        ToolAvailability
+    >,
+): AnyToolDefinition<
+    TName,
+    TInput,
+    ToolTransformedInputSchema<TInput>,
     TOutputSchema
->;
-export function defineTool<
-    TName extends string,
-    TInput extends z.ZodObject<z.ZodRawShape>,
-    TInputTransformed extends z.ZodTypeAny = TInput,
-    TAgentOutputSchema extends AgentOutputSchema | undefined = undefined,
->(
-    def: ToolDefinitionArgsWithoutMcpOutput<
-        TName,
-        TInput,
-        TInputTransformed,
-        TAgentOutputSchema
-    >,
-): ToolDefinitionWithoutMcpOutput<
-    TName,
-    TInput,
-    TInputTransformed,
-    TAgentOutputSchema
->;
-export function defineTool<
-    TName extends string,
-    TInput extends z.ZodObject<z.ZodRawShape>,
->(
-    def:
-        | ToolDefinitionArgsWithoutMcpOutput<
-              TName,
-              TInput,
-              z.ZodTypeAny,
-              AgentOutputSchema | undefined
-          >
-        | ToolDefinitionArgsWithMcpOutput<
-              TName,
-              TInput,
-              z.ZodTypeAny,
-              AgentOutputSchema | undefined,
-              McpOutputSchema
-          >,
-):
-    | ToolDefinitionWithoutMcpOutput<
-          TName,
-          TInput,
-          z.ZodTypeAny,
-          AgentOutputSchema | undefined
-      >
-    | ToolDefinitionWithMcpOutput<
-          TName,
-          TInput,
-          z.ZodTypeAny,
-          AgentOutputSchema | undefined,
-          McpOutputSchema
-      > {
-    validateToolDefinition(def);
-
-    const inputSchemaTransformed =
+> {
+    const inputSchemaTransformed: ToolTransformedInputSchema<TInput> =
         def.inputSchemaTransformed ?? def.inputSchema;
 
-    const mcpConfig: McpToolConfig | undefined = def.mcp;
+    const buildAiSdkView = (
+        agentConfig: AgentToolConfig | undefined,
+    ): Pick<
+        Tool<z.infer<TInput>, ToolOutput>,
+        'title' | 'description' | 'inputSchema' | 'outputSchema'
+    > & {
+        toModelOutput: NonNullable<Tool<unknown, ToolOutput>['toModelOutput']>;
+        build(args: AiSdkBuildArgs<TInput>): Tool<z.infer<TInput>, ToolOutput>;
+    } => {
+        const agentToModelOutput =
+            agentConfig?.toModelOutput ?? defaultAgentToModelOutput;
+        const toModelOutput: NonNullable<
+            Tool<unknown, ToolOutput>['toModelOutput']
+        > = ({ output }) => agentToModelOutput({ output });
 
-    if (hasMcpStructuredContentSchema(mcpConfig)) {
-        return new ToolDefinitionWithMcpOutputImpl({
-            name: def.name,
+        const aiSdkToolDefinition = {
             title: def.title,
-            description: def.description,
-            availability: def.availability,
-            inputSchema: def.inputSchema,
-            inputSchemaTransformed,
-            agentConfig: def.agent ?? null,
-            mcpConfig,
-        });
-    }
+            description: resolveDescription(def.description, {
+                runtime: 'agent',
+                toolName: def.name,
+            }),
+            inputSchema: createAgentInputSchema(def.inputSchema),
+            outputSchema: def.outputSchema,
+            toModelOutput,
+        };
 
-    return new ToolDefinitionWithoutMcpOutputImpl({
+        return {
+            ...aiSdkToolDefinition,
+            build: ({ execute, ...overrides }) => ({
+                ...aiSdkToolDefinition,
+                ...overrides,
+                execute,
+            }),
+        };
+    };
+
+    const buildMcpView = <TMcpName extends string>(
+        mcpConfig: McpToolConfig<TMcpName>,
+    ): McpToolView<TName, TInput, TOutputSchema, TMcpName> => ({
+        name: mcpConfig.name,
+        canonicalName: def.name,
+        title: def.title,
+        description: resolveDescription(def.description, {
+            runtime: 'mcp',
+            toolName: mcpConfig.name,
+        }),
+        inputSchema: createMcpCompatibleInputSchema(def.inputSchema),
+        annotations: mcpConfig.annotations,
+        outputSchema: def.outputSchema.structuredContentSchema,
+        meta: def.meta,
+        result: createMcpToolResultBuilders<
+            StructuredContentOf<TOutputSchema>
+        >(),
+    });
+
+    const base = {
         name: def.name,
         title: def.title,
-        description: def.description,
-        availability: def.availability,
         inputSchema: def.inputSchema,
         inputSchemaTransformed,
-        agentConfig: def.agent ?? null,
-        mcpConfig: mcpConfig ?? null,
-    });
+        outputSchema: def.outputSchema,
+        meta: def.meta,
+        get description() {
+            return resolveDescription(def.description, {
+                runtime: 'agent',
+                toolName: def.name,
+            });
+        },
+    };
+
+    const buildBothRuntimeDefinition = <TMcpName extends string>(
+        availability: AgentAndMcpAvailability<TMcpName>,
+    ): ToolDefinition<
+        TName,
+        TInput,
+        ToolTransformedInputSchema<TInput>,
+        TOutputSchema,
+        AgentAndMcpAvailability<TMcpName>
+    > => {
+        const { agent, mcp } = availability;
+
+        function forRuntime(runtime: 'ai-sdk'): Pick<
+            Tool<z.infer<TInput>, ToolOutput>,
+            'title' | 'description' | 'inputSchema' | 'outputSchema'
+        > & {
+            toModelOutput: NonNullable<
+                Tool<unknown, ToolOutput>['toModelOutput']
+            >;
+            build(
+                args: AiSdkBuildArgs<TInput>,
+            ): Tool<z.infer<TInput>, ToolOutput>;
+        };
+        function forRuntime(
+            runtime: 'mcp',
+        ): McpToolView<TName, TInput, TOutputSchema, TMcpName>;
+        function forRuntime(runtime: 'ai-sdk' | 'mcp') {
+            switch (runtime) {
+                case 'ai-sdk':
+                    return buildAiSdkView(agent);
+                case 'mcp':
+                    return buildMcpView(mcp);
+                default:
+                    return assertUnreachable(runtime, 'Unknown tool runtime');
+            }
+        }
+
+        return {
+            ...base,
+            availability,
+            for: forRuntime,
+        };
+    };
+
+    switch (def.availability.runtime) {
+        case 'agent': {
+            const { agent } = def.availability;
+            return {
+                ...base,
+                availability: def.availability,
+                for(_runtime: 'ai-sdk') {
+                    return buildAiSdkView(agent);
+                },
+            };
+        }
+        case 'mcp': {
+            const { mcp } = def.availability;
+            return {
+                ...base,
+                availability: def.availability,
+                for(_runtime: 'mcp') {
+                    return buildMcpView(mcp);
+                },
+            };
+        }
+        case 'both':
+            return buildBothRuntimeDefinition(def.availability);
+        default:
+            return assertUnreachable(
+                def.availability,
+                'Unknown tool availability',
+            );
+    }
 }

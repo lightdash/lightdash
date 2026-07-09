@@ -1,15 +1,16 @@
-import { createContentToolDefinition } from '@lightdash/common';
-import { tool } from 'ai';
+import {
+    createContentToolDefinition,
+    type ContentToolSuccessMetadata,
+} from '@lightdash/common';
 import type { CreateContentFn } from '../types/aiAgentDependencies';
 import { getContentWarnings } from '../utils/contentWarnings';
-import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
 type Dependencies = {
     createContent: CreateContentFn;
 };
 
-const toolDefinition = createContentToolDefinition.for('agent');
+const toolDefinition = createContentToolDefinition.for('ai-sdk');
 
 const contentResult = ({
     content,
@@ -32,8 +33,7 @@ const contentResult = ({
 };
 
 export const getCreateContent = ({ createContent }: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async ({ type, content }) => {
             try {
                 const result = await createContent({
@@ -48,9 +48,11 @@ export const getCreateContent = ({ createContent }: Dependencies) =>
                     uuid: result.uuid,
                     href: result.href,
                     warnings,
-                };
+                } satisfies ContentToolSuccessMetadata;
 
                 return {
+                    status: 'success' as const,
+                    type: 'string' as const,
                     result: contentResult({
                         content: result.content,
                         href: metadata.href,
@@ -61,7 +63,8 @@ export const getCreateContent = ({ createContent }: Dependencies) =>
                 };
             } catch (error) {
                 return {
-                    result: toolErrorHandler(
+                    status: 'error' as const,
+                    error: toolErrorHandler(
                         error,
                         `Error creating ${type} "${content.slug}". Content was not created.`,
                     ),
@@ -71,5 +74,4 @@ export const getCreateContent = ({ createContent }: Dependencies) =>
                 };
             }
         },
-        toModelOutput: ({ output }) => toModelOutput(output),
     });

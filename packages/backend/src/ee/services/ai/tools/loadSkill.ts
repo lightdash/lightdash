@@ -1,7 +1,5 @@
 import { loadSkillToolDefinition } from '@lightdash/common';
-import { tool } from 'ai';
 import { LoadAgentSkillFn } from '../types/aiAgentDependencies';
-import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
 const formatResourceList = (
@@ -13,18 +11,18 @@ const formatResourceList = (
               .join('\n')
         : '- No resources available for this skill.';
 
-const toolDefinition = loadSkillToolDefinition.for('agent');
+const toolDefinition = loadSkillToolDefinition.for('ai-sdk');
 
 export const getLoadSkill = ({ loadSkill }: { loadSkill: LoadAgentSkillFn }) =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async ({ name, resourceName }) => {
             try {
                 const skill = await loadSkill(name);
 
                 if (!skill) {
                     return {
-                        result: `Skill "${name}" was not found.`,
+                        status: 'error' as const,
+                        error: `Skill "${name}" was not found.`,
                         metadata: {
                             status: 'error' as const,
                         },
@@ -40,7 +38,8 @@ export const getLoadSkill = ({ loadSkill }: { loadSkill: LoadAgentSkillFn }) =>
 
                     if (!resource) {
                         return {
-                            result: `Resource "${resourceName}" was not found for skill "${skill.name}".
+                            status: 'error' as const,
+                            error: `Resource "${resourceName}" was not found for skill "${skill.name}".
 
 Available resources:
 ${formatResourceList(
@@ -56,6 +55,8 @@ ${formatResourceList(
                     }
 
                     return {
+                        status: 'success' as const,
+                        type: 'string' as const,
                         result: `# Resource: ${resource.name}
 
 Skill: ${skill.name}
@@ -68,6 +69,8 @@ ${resource.content.trim()}`,
                 }
 
                 return {
+                    status: 'success' as const,
+                    type: 'string' as const,
                     result: `# Skill: ${skill.name}
 
 ${skill.body.trim()}
@@ -86,12 +89,12 @@ ${formatResourceList(
                 };
             } catch (error) {
                 return {
-                    result: toolErrorHandler(error, 'Error loading skill'),
+                    status: 'error' as const,
+                    error: toolErrorHandler(error, 'Error loading skill'),
                     metadata: {
                         status: 'error' as const,
                     },
                 };
             }
         },
-        toModelOutput: ({ output }) => toModelOutput(output),
     });

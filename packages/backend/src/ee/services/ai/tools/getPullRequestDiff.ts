@@ -2,7 +2,6 @@ import {
     ForbiddenError,
     getPullRequestDiffToolDefinition,
 } from '@lightdash/common';
-import { tool } from 'ai';
 import type { GetPullRequestDiffFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
@@ -10,7 +9,7 @@ type Dependencies = {
     getPullRequestDiff: GetPullRequestDiffFn;
 };
 
-const toolDefinition = getPullRequestDiffToolDefinition.for('agent');
+const toolDefinition = getPullRequestDiffToolDefinition.for('ai-sdk');
 
 // Cap the diff so a large pull request can't blow the context window.
 // ~40k chars ≈ 10k tokens; the agent is told how to get the rest if truncated.
@@ -25,8 +24,7 @@ const labelForPr = (prUrl: string): string => {
 };
 
 export const getGetPullRequestDiff = ({ getPullRequestDiff }: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async ({ prUrl }) => {
             try {
                 const diff = await getPullRequestDiff({ prUrl });
@@ -35,12 +33,15 @@ export const getGetPullRequestDiff = ({ getPullRequestDiff }: Dependencies) =>
                 // installation, or an unparseable URL (see CiService).
                 if (diff === null) {
                     return {
-                        result: `I couldn't read the diff for ${label}. It must be a pull request in this project's own repository, and I need source-code access to it.`,
+                        status: 'error' as const,
+                        error: `I couldn't read the diff for ${label}. It must be a pull request in this project's own repository, and I need source-code access to it.`,
                         metadata: { status: 'error' as const },
                     };
                 }
                 if (diff.trim().length === 0) {
                     return {
+                        status: 'success' as const,
+                        type: 'string' as const,
                         result: `${label} has no file changes.`,
                         metadata: { status: 'success' as const },
                     };
@@ -51,18 +52,22 @@ export const getGetPullRequestDiff = ({ getPullRequestDiff }: Dependencies) =>
                     ? `\n\n[diff truncated at ${MAX_DIFF_CHARS} characters of ${diff.length} total — ask about a specific file if you need the rest.]`
                     : '';
                 return {
+                    status: 'success' as const,
+                    type: 'string' as const,
                     result: `Unified diff for ${label}:\n\n\`\`\`diff\n${body}\n\`\`\`${note}`,
                     metadata: { status: 'success' as const },
                 };
             } catch (error) {
                 if (error instanceof ForbiddenError) {
                     return {
-                        result: `I couldn't read that pull request's diff — you don't have source-code access on this project. ${error.message}`,
+                        status: 'error' as const,
+                        error: `I couldn't read that pull request's diff — you don't have source-code access on this project. ${error.message}`,
                         metadata: { status: 'error' as const },
                     };
                 }
                 return {
-                    result: toolErrorHandler(
+                    status: 'error' as const,
+                    error: toolErrorHandler(
                         error,
                         'Error reading the pull request diff.',
                     ),

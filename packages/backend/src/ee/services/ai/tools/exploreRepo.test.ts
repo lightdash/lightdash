@@ -1,3 +1,4 @@
+import { type ToolOutput } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import Logger from '../../../../logging/logger';
 import { ShellError } from '../repoFs/bashShell';
@@ -16,18 +17,36 @@ const captureException = Sentry.captureException as import('vitest').Mock;
 
 type ExecuteResult = { result: string; metadata: { status: string } };
 
+const toolOutputToExecuteResult = (output: ToolOutput): ExecuteResult => {
+    const items = Array.isArray(output) ? output : [output];
+    return {
+        result: items
+            .map((item) =>
+                item.status === 'error' ? item.error : String(item.result),
+            )
+            .join('\n'),
+        metadata: {
+            status: items.some((item) => item.status === 'error')
+                ? 'error'
+                : 'success',
+        },
+    };
+};
+
 const execute = async (
     exploreRepo: import('vitest').Mock,
 ): Promise<ExecuteResult> => {
     const exploreRepoTool = getExploreRepo({ exploreRepo });
-    // `tool()` always defines execute for our definition, and it resolves to an
-    // object (not a stream); the casts keep TS happy without changing behaviour.
     const result = await exploreRepoTool.execute!(
         { command: 'ls models', target: null },
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        {} as any,
+        { messages: [], toolCallId: 'test' },
     );
-    return result as ExecuteResult;
+
+    if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected streaming result');
+    }
+
+    return toolOutputToExecuteResult(result);
 };
 
 describe('exploreRepo tool error handling', () => {

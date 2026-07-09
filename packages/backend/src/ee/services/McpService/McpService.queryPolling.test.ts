@@ -1890,34 +1890,57 @@ describe('MCP async query polling', () => {
         expect(asyncQueryService.getAsyncQueryResults).not.toHaveBeenCalled();
     });
 
-    it('returns terminal errors from get_query_result without waiting', async () => {
-        const { asyncQueryService } = makeMcpService();
-        asyncQueryService.getAsyncQueryHistory.mockResolvedValue(
-            makeQueryHistory(
-                QueryHistoryStatus.ERROR,
-                QueryExecutionContext.MCP_RUN_SQL,
-                'Warehouse timed out',
-            ),
-        );
+    it.each([
+        {
+            queryStatus: QueryHistoryStatus.ERROR,
+            expectedStatus: 'error',
+            error: 'Warehouse timed out',
+        },
+        {
+            queryStatus: QueryHistoryStatus.CANCELLED,
+            expectedStatus: 'cancelled',
+            error: null,
+        },
+        {
+            queryStatus: QueryHistoryStatus.EXPIRED,
+            expectedStatus: 'expired',
+            error: null,
+        },
+    ])(
+        'returns terminal $expectedStatus from get_query_result without waiting',
+        async ({ queryStatus, expectedStatus, error }) => {
+            const { asyncQueryService } = makeMcpService();
+            asyncQueryService.getAsyncQueryHistory.mockResolvedValue(
+                makeQueryHistory(
+                    queryStatus,
+                    QueryExecutionContext.MCP_RUN_SQL,
+                    error,
+                ),
+            );
 
-        const result = await getToolCallback(McpToolName.GET_QUERY_RESULT)(
-            { queryUuid },
-            extra,
-        );
+            const result = await getToolCallback(McpToolName.GET_QUERY_RESULT)(
+                { queryUuid },
+                extra,
+            );
 
-        expect(result).toMatchObject({
-            structuredContent: {
-                result: {
-                    status: 'error',
-                    queryUuid,
-                    error: 'Warehouse timed out',
+            expect(result).toMatchObject({
+                structuredContent: {
+                    result: {
+                        status: expectedStatus,
+                        queryUuid,
+                        error,
+                    },
                 },
-            },
-        });
-        expect(asyncQueryService.getAsyncQueryHistory).toHaveBeenCalledTimes(1);
-        expect(
-            asyncQueryService.pollQueryHistoryUntilDeadline,
-        ).not.toHaveBeenCalled();
-        expect(asyncQueryService.getAsyncQueryResults).not.toHaveBeenCalled();
-    });
+            });
+            expect(
+                asyncQueryService.getAsyncQueryHistory,
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                asyncQueryService.pollQueryHistoryUntilDeadline,
+            ).not.toHaveBeenCalled();
+            expect(
+                asyncQueryService.getAsyncQueryResults,
+            ).not.toHaveBeenCalled();
+        },
+    );
 });

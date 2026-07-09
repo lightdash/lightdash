@@ -1,10 +1,8 @@
 import { analyzeFieldImpactToolDefinition } from '@lightdash/common';
-import { tool } from 'ai';
 import type {
     AnalyzeFieldImpactFn,
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
-import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { xmlBuilder } from '../xmlBuilder';
 
@@ -13,7 +11,7 @@ type Dependencies = {
     updateProgress: UpdateProgressFn;
 };
 
-const toolDefinition = analyzeFieldImpactToolDefinition.for('agent');
+const toolDefinition = analyzeFieldImpactToolDefinition.for('ai-sdk');
 
 const generateResponse = (
     report: Awaited<ReturnType<AnalyzeFieldImpactFn>>,
@@ -92,8 +90,7 @@ export const getAnalyzeFieldImpact = ({
     analyzeFieldImpact,
     updateProgress,
 }: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async (args) => {
             try {
                 await updateProgress(
@@ -105,6 +102,8 @@ export const getAnalyzeFieldImpact = ({
                 });
 
                 return {
+                    status: 'success' as const,
+                    type: 'string' as const,
                     result: generateResponse(report).toString(),
                     metadata: {
                         status: 'success',
@@ -112,7 +111,8 @@ export const getAnalyzeFieldImpact = ({
                 };
             } catch (error) {
                 return {
-                    result: toolErrorHandler(
+                    status: 'error' as const,
+                    error: toolErrorHandler(
                         error,
                         `Error analyzing the impact of "${args.fieldId}".`,
                     ),
@@ -122,5 +122,4 @@ export const getAnalyzeFieldImpact = ({
                 };
             }
         },
-        toModelOutput: ({ output }) => toModelOutput(output),
     });

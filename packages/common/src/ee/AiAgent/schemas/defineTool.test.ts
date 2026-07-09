@@ -1,49 +1,138 @@
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import { defineTool } from './defineTool';
+import {
+    defineTool,
+    type AgentToModelOutput,
+    type ToolOutput,
+} from './defineTool';
+import { appendMcpText } from './toolDefinitionUtils';
 import {
     agentToolNames,
+    buildToolOutputSchema,
+    findContentToolDefinition,
     generateVisualizationToolDefinition,
+    getMetadataToolDefinition,
+    grepFieldsToolDefinition,
     mcpToolDefinitions,
     runQueryToolDefinition,
 } from './tools';
+import { CROSS_REFERENCED_TOOL_NAMES } from './tools/discoveryToolNames';
 import { ToolNameSchema } from './visualizations';
+
+const structuredContentSchema = z.object({ count: z.number() });
+
+const outputSchema = buildToolOutputSchema();
+const outputSchemaWithStructuredContent = buildToolOutputSchema(
+    structuredContentSchema,
+);
+
+const toModelOutput: AgentToModelOutput<ToolOutput> = ({ output }) => {
+    const items = Array.isArray(output) ? output : [output];
+    const isError = items.some((item) => item.status === 'error');
+    return {
+        type: isError ? 'error-text' : 'text',
+        value: items
+            .map((item) =>
+                item.status === 'error' ? item.error : String(item.result),
+            )
+            .join('\n'),
+    };
+};
+
+const mcpAnnotations = {
+    readOnlyHint: true,
+    destructiveHint: false,
+    idempotentHint: true,
+};
 
 describe('defineTool', () => {
     it('builds separate agent and MCP runtime views', () => {
-        const agentView = generateVisualizationToolDefinition.for('agent');
+        const agentView = generateVisualizationToolDefinition.for('ai-sdk');
         const mcpView = runQueryToolDefinition.for('mcp');
 
-        expect(agentView.name).toBe('generateVisualization');
+        expect(generateVisualizationToolDefinition.name).toBe(
+            'generateVisualization',
+        );
+        expect(agentView.outputSchema).toBeDefined();
         expect(mcpView.name).toBe('run_metric_query');
         expect(mcpView.canonicalName).toBe('runQuery');
         expect(mcpView.outputSchema).toBeDefined();
     });
 
-    it('builds spreadable agent views with output schemas', () => {
-        const outputSchema = z.object({
-            result: z.string(),
-            metadata: z.object({ status: z.enum(['success', 'error']) }),
-        });
+    it('builds AI SDK tools with output schemas', () => {
         const tool = defineTool({
             name: 'sampleAgentTool',
             title: 'Sample agent tool',
             description: 'Sample',
-            availability: ['agent'],
+            availability: {
+                runtime: 'agent',
+                agent: { toModelOutput },
+            },
             inputSchema: z.object({}),
-            agent: { outputSchema },
+            outputSchema,
         });
 
-        const agentView = tool.for('agent');
+        const agentView = tool.for('ai-sdk');
         expect(agentView.outputSchema).toBe(outputSchema);
         expect(
             agentView.toModelOutput({
+                toolCallId: 'tool-call-1',
+                input: {},
                 output: {
-                    result: 'Nope',
-                    metadata: { status: 'error' },
+                    status: 'error',
+                    error: 'Nope',
                 },
             }),
         ).toEqual({ type: 'error-text', value: 'Nope' });
+
+        const builtTool = agentView.build({
+            description: 'Overridden description',
+            needsApproval: true,
+            execute: async () => ({
+                status: 'success',
+                type: 'string',
+                result: 'Done',
+            }),
+        });
+
+        expect(builtTool.description).toBe('Overridden description');
+        expect(builtTool.needsApproval).toBe(true);
+        expect(builtTool.outputSchema).toBe(outputSchema);
+        expect(builtTool.execute).toBeDefined();
+    });
+
+    it('defaults toModelOutput when no agent config is provided', () => {
+        const tool = defineTool({
+            name: 'defaultedAgentTool',
+            title: 'Defaulted agent tool',
+            description: 'Sample',
+            availability: { runtime: 'agent' },
+            inputSchema: z.object({}),
+            outputSchema,
+        });
+
+        const agentView = tool.for('ai-sdk');
+        expect(
+            agentView.toModelOutput({
+                toolCallId: 'tool-call-1',
+                input: {},
+                output: { status: 'error', error: 'Nope' },
+            }),
+        ).toEqual({ type: 'error-text', value: 'Nope' });
+        expect(
+            agentView.toModelOutput({
+                toolCallId: 'tool-call-2',
+                input: {},
+                output: {
+                    status: 'success',
+                    type: 'json',
+                    result: { count: 1 },
+                },
+            }),
+        ).toEqual({
+            type: 'text',
+            value: JSON.stringify({ count: 1 }, null, 2),
+        });
     });
 
     it('builds agent validation and keeps MCP input schemas ref-free', () => {
@@ -60,31 +149,38 @@ describe('defineTool', () => {
             name: 'referencedSchemaTool',
             title: 'Referenced schema tool',
             description: 'Sample',
-            availability: ['agent', 'mcp'],
-            inputSchema,
-            mcp: {
-                annotations: {
-                    readOnlyHint: true,
-                    destructiveHint: false,
-                    idempotentHint: true,
+            availability: {
+                runtime: 'both',
+                agent: { toModelOutput },
+                mcp: {
+                    name: 'referenced_schema_tool',
+                    annotations: mcpAnnotations,
                 },
             },
+            inputSchema,
+            outputSchema,
         });
 
-        const agentInputSchema = tool.for('agent').inputSchema;
-        const { jsonSchema, validate } = agentInputSchema;
-        expect(jsonSchema).toEqual(
+        const agentInputSchema = tool.for('ai-sdk').inputSchema;
+        if (
+            !('jsonSchema' in agentInputSchema) ||
+            !('validate' in agentInputSchema)
+        ) {
+            throw new Error('Expected ai-sdk input schema wrapper');
+        }
+
+        expect(agentInputSchema.jsonSchema).toEqual(
             zodToJsonSchema(inputSchema, {
                 $refStrategy: 'root',
                 target: 'jsonSchema7',
             }),
         );
-        expect(validate?.(input)).toEqual({
+        expect(agentInputSchema.validate?.(input)).toEqual({
             success: true,
             value: input,
         });
         expect(
-            validate?.({
+            agentInputSchema.validate?.({
                 first: { value: 1 },
                 second: { value: 'two' },
             }),
@@ -99,25 +195,23 @@ describe('defineTool', () => {
     });
 
     it('builds MCP result helpers', () => {
-        const outputSchema = z.object({ count: z.number() });
         const tool = defineTool({
             name: 'sampleMcpTool',
             title: 'Sample MCP tool',
             description: 'Sample',
-            availability: ['mcp'],
-            inputSchema: z.object({}),
-            mcp: {
-                annotations: {
-                    readOnlyHint: true,
-                    destructiveHint: false,
-                    idempotentHint: true,
+            availability: {
+                runtime: 'mcp',
+                mcp: {
+                    name: 'sample_mcp_tool',
+                    annotations: mcpAnnotations,
                 },
-                structuredContentSchema: outputSchema,
             },
+            inputSchema: z.object({}),
+            outputSchema: outputSchemaWithStructuredContent,
         });
 
         const mcpView = tool.for('mcp');
-        expect(mcpView.outputSchema).toBe(outputSchema);
+        expect(mcpView.outputSchema).toBe(structuredContentSchema);
         expect(mcpView.result.text('Done')).toEqual({
             content: [{ type: 'text', text: 'Done' }],
         });
@@ -129,6 +223,37 @@ describe('defineTool', () => {
             content: [{ type: 'text', text: 'Counted' }],
             structuredContent: { count: 1 },
         });
+        expect(
+            appendMcpText(
+                mcpView.result.structured('Counted', { count: 1 }),
+                'Extra',
+            ),
+        ).toEqual({
+            content: [
+                { type: 'text', text: 'Counted' },
+                { type: 'text', text: 'Extra' },
+            ],
+            structuredContent: { count: 1 },
+        });
+    });
+
+    it('omits the MCP output schema when the tool has no structured content', () => {
+        const tool = defineTool({
+            name: 'textOnlyMcpTool',
+            title: 'Text-only MCP tool',
+            description: 'Sample',
+            availability: {
+                runtime: 'mcp',
+                mcp: {
+                    name: 'text_only_mcp_tool',
+                    annotations: mcpAnnotations,
+                },
+            },
+            inputSchema: z.object({}),
+            outputSchema,
+        });
+
+        expect(tool.for('mcp').outputSchema).toBeUndefined();
     });
 
     it('resolves descriptions with the runtime-specific name', () => {
@@ -136,48 +261,26 @@ describe('defineTool', () => {
             name: 'sampleTool',
             title: 'Sample tool',
             description: ({ toolName }) => `Call ${toolName}`,
-            availability: ['agent', 'mcp'],
-            inputSchema: z.object({}),
-            mcp: {
-                name: 'sample_tool',
-                annotations: {
-                    readOnlyHint: true,
-                    destructiveHint: false,
-                    idempotentHint: true,
+            availability: {
+                runtime: 'both',
+                agent: { toModelOutput },
+                mcp: {
+                    name: 'sample_tool',
+                    annotations: mcpAnnotations,
                 },
             },
+            inputSchema: z.object({}),
+            outputSchema,
         });
 
-        expect(tool.for('agent').description).toBe('Call sampleTool');
+        expect(tool.for('ai-sdk').description).toBe('Call sampleTool');
         expect(tool.for('mcp').description).toBe('Call sample_tool');
     });
 
-    it('rejects inconsistent availability config', () => {
-        expect(() =>
-            defineTool({
-                name: 'badMcpTool',
-                title: 'Bad MCP tool',
-                description: 'Bad',
-                availability: ['mcp'],
-                inputSchema: z.object({}),
-            }),
-        ).toThrow('MCP-available');
-
-        expect(() =>
-            defineTool({
-                name: 'duplicateRuntimeTool',
-                title: 'Duplicate runtime tool',
-                description: 'Bad',
-                availability: ['agent', 'agent'],
-                inputSchema: z.object({}),
-            }),
-        ).toThrow('duplicate runtimes');
-    });
-
-    it('keeps MCP structured output schemas aligned with current structured tools', () => {
+    it('advertises MCP output schemas exactly for the structured-content tools', () => {
         const structuredMcpToolNames = mcpToolDefinitions
             .map((tool) => tool.for('mcp'))
-            .filter((tool) => 'outputSchema' in tool)
+            .filter((tool) => tool.outputSchema !== undefined)
             .map((tool) => tool.name)
             .sort();
 
@@ -196,6 +299,33 @@ describe('defineTool', () => {
             'run_metric_query',
             'run_sql',
         ]);
+    });
+
+    it('keeps cross-referenced tool names aligned with declarations', () => {
+        expect(grepFieldsToolDefinition.name).toBe(
+            CROSS_REFERENCED_TOOL_NAMES.grepFields.agent,
+        );
+        expect(grepFieldsToolDefinition.for('mcp').name).toBe(
+            CROSS_REFERENCED_TOOL_NAMES.grepFields.mcp,
+        );
+        expect(getMetadataToolDefinition.name).toBe(
+            CROSS_REFERENCED_TOOL_NAMES.getMetadata.agent,
+        );
+        expect(getMetadataToolDefinition.for('mcp').name).toBe(
+            CROSS_REFERENCED_TOOL_NAMES.getMetadata.mcp,
+        );
+        expect(findContentToolDefinition.name).toBe(
+            CROSS_REFERENCED_TOOL_NAMES.findContent.agent,
+        );
+        expect(findContentToolDefinition.for('mcp').name).toBe(
+            CROSS_REFERENCED_TOOL_NAMES.findContent.mcp,
+        );
+        expect(generateVisualizationToolDefinition.name).toBe(
+            CROSS_REFERENCED_TOOL_NAMES.visualization.agent,
+        );
+        expect(runQueryToolDefinition.for('mcp').name).toBe(
+            CROSS_REFERENCED_TOOL_NAMES.visualization.mcp,
+        );
     });
 
     it('keeps ToolNameSchema aligned with agent-available definitions', () => {

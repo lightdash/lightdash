@@ -1,5 +1,4 @@
 import { discoverReposToolDefinition } from '@lightdash/common';
-import { tool } from 'ai';
 import type { DiscoverReposFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
@@ -7,17 +6,18 @@ type Dependencies = {
     discoverRepos: DiscoverReposFn;
 };
 
-const toolDefinition = discoverReposToolDefinition.for('agent');
+const toolDefinition = discoverReposToolDefinition.for('ai-sdk');
 
 export const getDiscoverRepos = ({ discoverRepos }: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async () => {
             try {
                 const repos = await discoverRepos();
 
                 if (repos.length === 0) {
                     return {
+                        status: 'success' as const,
+                        type: 'string' as const,
                         result: "No repositories are accessible to this organization's GitHub App installation.",
                         metadata: { status: 'success' as const },
                     };
@@ -36,12 +36,15 @@ export const getDiscoverRepos = ({ discoverRepos }: Dependencies) =>
                 ];
 
                 return {
+                    status: 'success' as const,
+                    type: 'string' as const,
                     result: lines.join('\n'),
                     metadata: { status: 'success' as const },
                 };
             } catch (error) {
                 return {
-                    result: toolErrorHandler(
+                    status: 'error' as const,
+                    error: toolErrorHandler(
                         error,
                         'Error discovering repositories.',
                     ),

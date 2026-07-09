@@ -2,7 +2,6 @@ import {
     DbtProjectTypeLabels,
     getProjectInfoToolDefinition,
 } from '@lightdash/common';
-import { tool } from 'ai';
 import type { GetProjectInfoFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
@@ -10,11 +9,10 @@ type Dependencies = {
     getProjectInfo: GetProjectInfoFn;
 };
 
-const toolDefinition = getProjectInfoToolDefinition.for('agent');
+const toolDefinition = getProjectInfoToolDefinition.for('ai-sdk');
 
 export const getGetProjectInfo = ({ getProjectInfo }: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async () => {
             try {
                 const info = await getProjectInfo();
@@ -64,12 +62,15 @@ export const getGetProjectInfo = ({ getProjectInfo }: Dependencies) =>
                 }
 
                 return {
+                    status: 'success' as const,
+                    type: 'string' as const,
                     result: lines.join('\n'),
                     metadata: { status: 'success' as const },
                 };
             } catch (error) {
                 return {
-                    result: toolErrorHandler(
+                    status: 'error' as const,
+                    error: toolErrorHandler(
                         error,
                         'Error getting project details.',
                     ),

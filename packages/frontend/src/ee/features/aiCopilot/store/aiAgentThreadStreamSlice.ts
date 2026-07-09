@@ -3,11 +3,13 @@ import {
     prepareAutoBatched,
     type PayloadAction,
 } from '@reduxjs/toolkit';
-import { type AiAgentToolCall } from '../types';
 
-type ToolCall = AiAgentToolCall & {
+type ToolCall = {
     toolCallId: string;
-    toolResult: AiAgentToolCall['toolResult'] | null;
+    toolName: string;
+    toolArgs: unknown;
+    toolResult: unknown;
+    isPreliminary?: boolean;
 };
 
 type Reasoning = {

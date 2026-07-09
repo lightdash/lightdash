@@ -1,5 +1,4 @@
 import { readPinnedThreadToolDefinition } from '@lightdash/common';
-import { tool } from 'ai';
 import type { ReadPinnedThreadFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { xmlBuilder } from '../xmlBuilder';
@@ -8,14 +7,13 @@ type Dependencies = {
     readPinnedThread: ReadPinnedThreadFn;
 };
 
-const toolDefinition = readPinnedThreadToolDefinition.for('agent');
+const toolDefinition = readPinnedThreadToolDefinition.for('ai-sdk');
 
 const MAX_MESSAGE_CHARS = 4_000;
 const MAX_TRANSCRIPT_CHARS = 40_000;
 
 export const getReadPinnedThread = ({ readPinnedThread }: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async ({ threadUuid }) => {
             try {
                 const messages = await readPinnedThread({ threadUuid });
@@ -31,6 +29,8 @@ export const getReadPinnedThread = ({ readPinnedThread }: Dependencies) =>
                 });
 
                 return {
+                    status: 'success' as const,
+                    type: 'string' as const,
                     result: (
                         <conversation threadUuid={threadUuid}>
                             {bounded.map((message, index) => (
@@ -51,7 +51,8 @@ export const getReadPinnedThread = ({ readPinnedThread }: Dependencies) =>
                 };
             } catch (e) {
                 return {
-                    result: toolErrorHandler(
+                    status: 'error' as const,
+                    error: toolErrorHandler(
                         e,
                         'Error reading pinned conversation.',
                     ),

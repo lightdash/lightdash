@@ -1,18 +1,15 @@
 import { setupPreviewDeployToolDefinition } from '@lightdash/common';
-import { tool } from 'ai';
 import type { SetupPreviewDeployFn } from '../types/aiAgentDependencies';
-import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
 type Dependencies = {
     setupPreviewDeploy: SetupPreviewDeployFn;
 };
 
-const toolDefinition = setupPreviewDeployToolDefinition.for('agent');
+const toolDefinition = setupPreviewDeployToolDefinition.for('ai-sdk');
 
 export const getSetupPreviewDeploy = ({ setupPreviewDeploy }: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async () => {
             try {
                 const { prUrl, projectName, repository, secrets } =
@@ -33,6 +30,8 @@ export const getSetupPreviewDeploy = ({ setupPreviewDeploy }: Dependencies) =>
                 const result = `Opened a pull request against ${target} that adds the Lightdash preview-deploy GitHub Actions workflow. A "View pull request" button is shown to the user, so do NOT include the pull request URL or number in your reply. IMPORTANT: tell the user which GitHub Actions secrets to add, presenting the pre-filled values EXACTLY as given below (do not replace them with generic descriptions):\n\n${secretsList}`;
 
                 return {
+                    status: 'success' as const,
+                    type: 'string' as const,
                     result,
                     metadata: {
                         status: 'success' as const,
@@ -41,7 +40,8 @@ export const getSetupPreviewDeploy = ({ setupPreviewDeploy }: Dependencies) =>
                 };
             } catch (error) {
                 return {
-                    result: toolErrorHandler(
+                    status: 'error' as const,
+                    error: toolErrorHandler(
                         error,
                         'Error setting up preview deploys. No pull request was opened.',
                     ),
@@ -51,5 +51,4 @@ export const getSetupPreviewDeploy = ({ setupPreviewDeploy }: Dependencies) =>
                 };
             }
         },
-        toModelOutput: ({ output }) => toModelOutput(output),
     });

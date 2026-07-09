@@ -10,6 +10,8 @@ const dashboardEditResult = {
         patch: [],
     },
     toolResult: {
+        status: 'success',
+        type: 'string',
         result: '{}',
         metadata: {
             status: 'success',
@@ -21,7 +23,7 @@ const dashboardEditResult = {
             versionUuids: { before: null, after: null },
         },
     },
-} as AiAgentToolResult;
+} satisfies AiAgentToolResult;
 
 describe('getDashboardNavigationUrlFromContentToolResult', () => {
     it('does not navigate when already on the same dashboard tab by uuid', () => {

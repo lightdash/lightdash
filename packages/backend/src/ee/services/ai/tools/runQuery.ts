@@ -12,7 +12,6 @@ import {
     type Explore,
     type ToolRunQueryArgsTransformed,
 } from '@lightdash/common';
-import { tool } from 'ai';
 import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type {
     CreateOrUpdateArtifactFn,
@@ -29,8 +28,6 @@ import {
     populateCustomMetricsSQL,
 } from '../utils/populateCustomMetricsSQL';
 import { renderEcharts } from '../utils/renderEcharts';
-import { serializeData } from '../utils/serializeData';
-import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import {
     validateAxisFields,
@@ -56,7 +53,7 @@ type Dependencies = {
     enableDataAccess: boolean;
 };
 
-const toolDefinition = runQueryToolDefinition.for('agent');
+const toolDefinition = runQueryToolDefinition.for('ai-sdk');
 
 export const validateRunQueryTool = (
     queryTool: ToolRunQueryArgsTransformed,
@@ -172,8 +169,7 @@ export const getRunQuery = ({
     maxLimit,
     enableDataAccess,
 }: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async (toolArgs, { experimental_context: context }) => {
             try {
                 await updateProgress('Running your query...');
@@ -235,7 +231,9 @@ export const getRunQuery = ({
                 if (!enableDataAccess && !isSlackPrompt(prompt)) {
                     await createOrUpdateArtifactHook();
                     return {
-                        result: `Success`,
+                        status: 'success',
+                        type: 'string',
+                        result: 'Success',
                         metadata: { status: 'success' },
                     };
                 }
@@ -267,6 +265,8 @@ export const getRunQuery = ({
 
                 if (queryResults.rows.length === 0) {
                     return {
+                        status: 'success',
+                        type: 'string',
                         result: NO_RESULTS_RETRY_PROMPT,
                         metadata: { status: 'success' },
                     };
@@ -319,22 +319,26 @@ export const getRunQuery = ({
 
                 if (!enableDataAccess) {
                     return {
-                        result: `Success.`,
+                        status: 'success',
+                        type: 'string',
+                        result: 'Success.',
                         metadata: { status: 'success', chartImageUrl },
                     };
                 }
 
                 const csv = convertQueryResultsToCsv(queryResults);
                 return {
-                    result: serializeData(csv, 'csv'),
+                    status: 'success',
+                    type: 'csv',
+                    result: csv,
                     metadata: { status: 'success', chartImageUrl },
                 };
             } catch (e) {
                 return {
-                    result: toolErrorHandler(e, `Error running query.`),
+                    status: 'error',
+                    error: toolErrorHandler(e, `Error running query.`),
                     metadata: { status: 'error' },
                 };
             }
         },
-        toModelOutput: ({ output }) => toModelOutput(output),
     });

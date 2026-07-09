@@ -4,7 +4,6 @@ import {
     InsufficientGitPermissionsError,
     PullRequestProvider,
 } from '@lightdash/common';
-import { tool } from 'ai';
 import { DeniedPathError } from '../../AiWritebackService/deniedPaths';
 import {
     RepoTooLargeError,
@@ -12,7 +11,6 @@ import {
     WritebackThreadPrClosedError,
 } from '../../AiWritebackService/errors';
 import type { EditRepoFn } from '../types/aiAgentDependencies';
-import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
 type Dependencies = {
@@ -61,11 +59,10 @@ const classifyEditRepoError = (error: unknown): EditRepoErrorCode => {
     return 'unknown';
 };
 
-const toolDefinition = editRepoToolDefinition.for('agent');
+const toolDefinition = editRepoToolDefinition.for('ai-sdk');
 
 export const getEditRepo = ({ editRepo }: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async (
             { repoTarget, prompt, prUrl: pastedPrUrl, startNewPullRequest },
             { toolCallId },
@@ -95,6 +92,8 @@ export const getEditRepo = ({ editRepo }: Dependencies) =>
                     : `Ran against ${target} but made no file changes, so no pull request was opened.\n\nAgent summary:\n${output}`;
 
                 return {
+                    status: 'success' as const,
+                    type: 'string' as const,
                     result,
                     // These fields are already `T | null` on AiWritebackRunResult
                     // (never undefined), so they're passed through as-is — no
@@ -115,7 +114,8 @@ export const getEditRepo = ({ editRepo }: Dependencies) =>
                 // failure to retry. Surface its guidance verbatim.
                 if (error instanceof WritebackThreadPrClosedError) {
                     return {
-                        result: error.message,
+                        status: 'error' as const,
+                        error: error.message,
                         metadata: {
                             status: 'error' as const,
                             errorCode: 'pull_request_not_open' as const,
@@ -125,7 +125,8 @@ export const getEditRepo = ({ editRepo }: Dependencies) =>
                 // Repo too large — terminal, do not retry. Relay verbatim.
                 if (error instanceof RepoTooLargeError) {
                     return {
-                        result: error.message,
+                        status: 'error' as const,
+                        error: error.message,
                         metadata: {
                             status: 'error' as const,
                             errorCode: 'repo_too_large' as const,
@@ -136,7 +137,8 @@ export const getEditRepo = ({ editRepo }: Dependencies) =>
                 // host-side — terminal, do not retry. Relay the reason verbatim.
                 if (error instanceof DeniedPathError) {
                     return {
-                        result: `${error.message} Do not retry this — tell the user the agent will not edit CI/workflow or secret files. If they need that change, they must make it themselves.`,
+                        status: 'error' as const,
+                        error: `${error.message} Do not retry this — tell the user the agent will not edit CI/workflow or secret files. If they need that change, they must make it themselves.`,
                         metadata: {
                             status: 'error' as const,
                             errorCode: 'denied_path' as const,
@@ -154,7 +156,8 @@ export const getEditRepo = ({ editRepo }: Dependencies) =>
                             ? ('gitlab_not_installed' as const)
                             : ('github_not_installed' as const);
                     return {
-                        result: `The change could not be made: ${error.message} Tell the user they need to connect the ${
+                        status: 'error' as const,
+                        error: `The change could not be made: ${error.message} Tell the user they need to connect the ${
                             error.provider === PullRequestProvider.GITLAB
                                 ? 'GitLab'
                                 : 'GitHub'
@@ -169,7 +172,8 @@ export const getEditRepo = ({ editRepo }: Dependencies) =>
                 // write the repo, or it's denylisted) without a retry suffix.
                 if (error instanceof ForbiddenError) {
                     return {
-                        result: `The change could not be made: you don't have write access to ${repoTarget} through this project's Git connection, or the repository can't be edited. ${error.message}`,
+                        status: 'error' as const,
+                        error: `The change could not be made: you don't have write access to ${repoTarget} through this project's Git connection, or the repository can't be edited. ${error.message}`,
                         metadata: {
                             status: 'error' as const,
                             errorCode: 'repo_write_forbidden' as const,
@@ -178,7 +182,8 @@ export const getEditRepo = ({ editRepo }: Dependencies) =>
                     };
                 }
                 return {
-                    result: toolErrorHandler(
+                    status: 'error' as const,
+                    error: toolErrorHandler(
                         error,
                         'Error running the coding agent. No pull request was opened.',
                     ),
@@ -189,5 +194,4 @@ export const getEditRepo = ({ editRepo }: Dependencies) =>
                 };
             }
         },
-        toModelOutput: ({ output }) => toModelOutput(output),
     });

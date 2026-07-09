@@ -7,7 +7,6 @@ import {
     type UIMessage,
 } from 'ai';
 import type { AiAgentArgs } from '../../types/aiAgent';
-import { toModelOutput } from '../../utils/toModelOutput';
 import { toolErrorHandler } from '../../utils/toolErrorHandler';
 import { xmlBuilder } from '../../xmlBuilder';
 import {
@@ -19,7 +18,7 @@ import {
     type DiscoverFieldsResult,
 } from './schema';
 
-const discoverFieldsTool = discoverFieldsToolDefinition.for('agent');
+const discoverFieldsTool = discoverFieldsToolDefinition.for('ai-sdk');
 
 const renderResolved = (
     result: Extract<DiscoverFieldsResult, { status: 'resolved' }>,
@@ -196,8 +195,7 @@ type ToolArgs = {
  * so the parent's tool-result row never commits before the children rows.
  */
 export const getDiscoverFields = (args: ToolArgs, dependencies: Dependencies) =>
-    tool({
-        ...discoverFieldsTool,
+    discoverFieldsTool.build({
         async *execute(input, { toolCallId, abortSignal }) {
             try {
                 const { stream, flushPersistence } = runDiscoverFieldsAgent(
@@ -247,6 +245,8 @@ export const getDiscoverFields = (args: ToolArgs, dependencies: Dependencies) =>
                     ) {
                         lastTraceSignature = traceSignature;
                         yield {
+                            status: 'success',
+                            type: 'string',
                             result: '',
                             metadata: {
                                 status: 'streaming' as const,
@@ -262,7 +262,8 @@ export const getDiscoverFields = (args: ToolArgs, dependencies: Dependencies) =>
                 if ('error' in handoff) {
                     // Soft, parent-recoverable model-output anomaly; parent retries on tool-error.
                     yield {
-                        result: toolErrorHandler(
+                        status: 'error',
+                        error: toolErrorHandler(
                             new Error(handoff.error),
                             'Error discovering fields.',
                             { captureToSentry: false },
@@ -273,6 +274,8 @@ export const getDiscoverFields = (args: ToolArgs, dependencies: Dependencies) =>
                 }
 
                 yield {
+                    status: 'success',
+                    type: 'string',
                     result: renderResult(handoff),
                     metadata: {
                         status: 'success' as const,
@@ -282,13 +285,10 @@ export const getDiscoverFields = (args: ToolArgs, dependencies: Dependencies) =>
                 };
             } catch (error) {
                 yield {
-                    result: toolErrorHandler(
-                        error,
-                        'Error discovering fields.',
-                    ),
+                    status: 'error',
+                    error: toolErrorHandler(error, 'Error discovering fields.'),
                     metadata: { status: 'error' as const },
                 };
             }
         },
-        toModelOutput: ({ output }) => toModelOutput(output),
     });

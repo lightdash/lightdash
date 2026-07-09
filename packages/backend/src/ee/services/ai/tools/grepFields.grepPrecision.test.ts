@@ -5,6 +5,7 @@ import {
     SupportedDbtAdapter,
     type Explore,
     type ModelRequiredFilterRule,
+    type ToolOutputSuccessItem,
 } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
 import type { FindExploresFn } from '../types/aiAgentDependencies';
@@ -69,7 +70,7 @@ const makeExplore = (over: {
     },
 });
 
-type ExecuteResult = { result: string; metadata: { status: string } };
+type StringToolOutput = Extract<ToolOutputSuccessItem, { type: 'string' }>;
 
 const noFtsResults = vi.fn(async () => ({
     topMatchingFields: [],
@@ -78,10 +79,20 @@ const noFtsResults = vi.fn(async () => ({
 const execute = async (
     tool: ReturnType<typeof getGrepFields>,
     args: { patterns: string[]; exploreName: string | null },
-): Promise<ExecuteResult> => {
+): Promise<StringToolOutput> => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = await tool.execute!(args, {} as any);
-    return result as ExecuteResult;
+    if (Symbol.asyncIterator in result) {
+        throw new Error('Expected a non-streaming result');
+    }
+    if (
+        Array.isArray(result) ||
+        result.status !== 'success' ||
+        result.type !== 'string'
+    ) {
+        throw new Error('Expected a successful string result');
+    }
+    return result;
 };
 
 describe('grepFields locality ranking', () => {

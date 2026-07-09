@@ -1,4 +1,4 @@
-import { AgentToolOutput, Explore } from '@lightdash/common';
+import { Explore } from '@lightdash/common';
 import {
     hasToolCall,
     smoothStream,
@@ -19,6 +19,7 @@ import { getFindFields } from '../../tools/findFields';
 import { getSubmitDiscoverFieldsResult } from '../../tools/submitDiscoverFieldsResult';
 import type { AiAgentArgs, AiAgentDependencies } from '../../types/aiAgent';
 import { AgentContext } from '../../utils/AgentContext';
+import { normalizeToolOutput } from '../../utils/normalizeToolOutput';
 import { getAgentTelemetryConfig } from '../telemetry';
 import type { DiscoverFieldsInput } from './schema';
 import { getDiscoverFieldsSystemPrompt } from './systemPrompt';
@@ -163,7 +164,6 @@ export const runDiscoverFieldsAgent = (
             }
             if (chunk.type === 'tool-result') {
                 if (!isSubagentPersistedToolName(chunk.toolName)) return;
-                const output = chunk.output as AgentToolOutput;
                 inflightWrites.push(
                     dependencies
                         .storeToolResults([
@@ -171,8 +171,7 @@ export const runDiscoverFieldsAgent = (
                                 promptUuid: args.promptUuid,
                                 toolCallId: chunk.toolCallId,
                                 toolName: chunk.toolName,
-                                result: output.result,
-                                metadata: output.metadata,
+                                ...normalizeToolOutput(chunk.output),
                             },
                         ])
                         .catch((err) => {

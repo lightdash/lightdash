@@ -13,6 +13,8 @@ const dashboardEditPart = {
         patch: [],
     },
     toolResult: {
+        status: 'success',
+        type: 'string',
         result: '{}',
         metadata: {
             status: 'success',
@@ -24,7 +26,7 @@ const dashboardEditPart = {
             versionUuids: { before: null, after: null },
         },
     },
-} as StreamPart;
+} satisfies StreamPart;
 
 const chartEditPart = {
     type: 'toolCall',
@@ -37,6 +39,8 @@ const chartEditPart = {
         patch: [],
     },
     toolResult: {
+        status: 'success',
+        type: 'string',
         result: '{}',
         metadata: {
             status: 'success',
@@ -48,7 +52,7 @@ const chartEditPart = {
             versionUuids: { before: null, after: null },
         },
     },
-} as StreamPart;
+} satisfies StreamPart;
 
 const chartCreatePart = {
     type: 'toolCall',
@@ -86,6 +90,8 @@ const chartCreatePart = {
         },
     },
     toolResult: {
+        status: 'success',
+        type: 'string',
         result: '{}',
         metadata: {
             status: 'success',
@@ -96,7 +102,7 @@ const chartCreatePart = {
             warnings: [],
         },
     },
-} as StreamPart;
+} satisfies StreamPart;
 
 describe('planDashboardAiAgentChanges', () => {
     it('plans a dashboard refresh for current dashboard edits', () => {

@@ -11,17 +11,14 @@ import {
     isEmojiIcon,
     type FindFieldsResult,
 } from '@lightdash/common';
-import { tool } from 'ai';
 import type {
     FindFieldsFn,
     FindFieldsSearchQueryResult,
     GetExploreFn,
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
-import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { truncate } from '../utils/truncation';
-import { formatToolJsonOutput } from './toolOutputFormat';
 
 type Dependencies = {
     getExplore: GetExploreFn;
@@ -31,7 +28,7 @@ type Dependencies = {
     toolDescriptionMaxChars: number;
 };
 
-const toolDefinition = findFieldsToolDefinition.for('agent');
+const toolDefinition = findFieldsToolDefinition.for('ai-sdk');
 
 const getFieldCaseSensitive = (
     catalogField: CatalogField,
@@ -149,8 +146,7 @@ export const getFindFields = ({
     pageSize,
     toolDescriptionMaxChars,
 }: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async (args) => {
             try {
                 const searchLabels = args.fieldSearchQueries
@@ -179,7 +175,9 @@ export const getFindFields = ({
                 });
 
                 return {
-                    result: formatToolJsonOutput(structuredContent),
+                    status: 'success' as const,
+                    type: 'json' as const,
+                    result: structuredContent,
                     metadata: {
                         status: 'success',
                         ranking: {
@@ -225,7 +223,8 @@ export const getFindFields = ({
                 };
             } catch (error) {
                 return {
-                    result: toolErrorHandler(
+                    status: 'error' as const,
+                    error: toolErrorHandler(
                         error,
                         `Error finding fields for search queries: ${args.fieldSearchQueries
                             .map((q) => q.label)
@@ -237,5 +236,4 @@ export const getFindFields = ({
                 };
             }
         },
-        toModelOutput: ({ output }) => toModelOutput(output),
     });

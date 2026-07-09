@@ -3,6 +3,7 @@ import {
     FieldType,
     SupportedDbtAdapter,
     type Explore,
+    type ToolOutput,
 } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
 import type { FindExploresFn } from '../types/aiAgentDependencies';
@@ -86,19 +87,6 @@ const makeExplore = (over: {
     },
 });
 
-type ExecuteResult = {
-    result: string;
-    metadata: {
-        status: string;
-        patternStats?: Array<{
-            pattern: string;
-            matchCount: number;
-            scopeSize: number;
-            matchedAllFields: boolean;
-        }>;
-    };
-};
-
 const ftsField = (name: string, tableName: string) => ({
     tableName,
     name,
@@ -110,13 +98,29 @@ const ftsField = (name: string, tableName: string) => ({
     searchRank: 1,
 });
 
+const getSuccessStringOutput = (output: ToolOutput) => {
+    if (Array.isArray(output)) {
+        throw new Error('Unexpected array output');
+    }
+    if (output.status === 'error') {
+        throw new Error(output.error);
+    }
+    if (output.type !== 'string') {
+        throw new Error(`Unexpected output type: ${output.type}`);
+    }
+    return output;
+};
+
 const execute = async (
     tool: ReturnType<typeof getGrepFields>,
     args: { patterns: string[]; exploreName: string | null },
-): Promise<ExecuteResult> => {
+) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = await tool.execute!(args, {} as any);
-    return result as ExecuteResult;
+    if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected streaming result');
+    }
+    return getSuccessStringOutput(result);
 };
 
 describe('grepFields FTS cross-check on successful greps', () => {
@@ -181,7 +185,7 @@ describe('grepFields FTS cross-check on successful greps', () => {
             patterns: ['status'],
             exploreName: null,
         });
-        expect(metadata.status).toBe('success');
+        expect(metadata).toMatchObject({ status: 'success' });
         expect(result).toContain('orders_status');
     });
 
@@ -240,20 +244,22 @@ describe('grepFields pattern stats metadata', () => {
             patterns: ['status', 'nomatchxyz'],
             exploreName: null,
         });
-        expect(metadata.patternStats).toEqual([
-            {
-                pattern: 'status',
-                matchCount: 1,
-                scopeSize: 2,
-                matchedAllFields: false,
-            },
-            {
-                pattern: 'nomatchxyz',
-                matchCount: 0,
-                scopeSize: 2,
-                matchedAllFields: false,
-            },
-        ]);
+        expect(metadata).toMatchObject({
+            patternStats: [
+                {
+                    pattern: 'status',
+                    matchCount: 1,
+                    scopeSize: 2,
+                    matchedAllFields: false,
+                },
+                {
+                    pattern: 'nomatchxyz',
+                    matchCount: 0,
+                    scopeSize: 2,
+                    matchedAllFields: false,
+                },
+            ],
+        });
     });
 
     it('flags matchedAllFields — the fingerprint of a broken/too-broad grep', async () => {
@@ -276,11 +282,14 @@ describe('grepFields pattern stats metadata', () => {
             patterns: ['order'],
             exploreName: 'orders',
         });
-        expect(metadata.patternStats).toHaveLength(1);
-        expect(metadata.patternStats![0]).toMatchObject({
-            matchCount: 30,
-            scopeSize: 30,
-            matchedAllFields: true,
+        expect(metadata).toMatchObject({
+            patternStats: [
+                {
+                    matchCount: 30,
+                    scopeSize: 30,
+                    matchedAllFields: true,
+                },
+            ],
         });
     });
 });

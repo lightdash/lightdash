@@ -6,7 +6,6 @@ import {
     type Filters,
     type ParametersValuesMap,
 } from '@lightdash/common';
-import { tool } from 'ai';
 import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type {
     GetSavedChartFn,
@@ -17,7 +16,6 @@ import type {
 } from '../types/aiAgentDependencies';
 import { convertQueryResultsToCsv } from '../utils/convertQueryResultsToCsv';
 import { serializeData } from '../utils/serializeData';
-import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { buildSavedChartHeader } from './runSavedChart';
 
@@ -31,7 +29,7 @@ type Dependencies = {
     enableDataAccess: boolean;
 };
 
-const toolDefinition = runContentQueryToolDefinition.for('agent');
+const toolDefinition = runContentQueryToolDefinition.for('ai-sdk');
 
 export const getRunContentQuery = ({
     updateProgress,
@@ -42,8 +40,7 @@ export const getRunContentQuery = ({
     maxLimit,
     enableDataAccess,
 }: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async ({ source }) => {
             try {
                 await updateProgress('Running content query...');
@@ -57,6 +54,8 @@ export const getRunContentQuery = ({
 
                     if (!enableDataAccess) {
                         return {
+                            status: 'success',
+                            type: 'string',
                             result: `${buildSavedChartHeader(
                                 uuid,
                                 name,
@@ -80,6 +79,8 @@ export const getRunContentQuery = ({
 
                     if (queryResults.rows.length === 0) {
                         return {
+                            status: 'success',
+                            type: 'string',
                             result: NO_RESULTS_RETRY_PROMPT,
                             metadata: { status: 'success' as const },
                         };
@@ -87,6 +88,8 @@ export const getRunContentQuery = ({
 
                     const csv = convertQueryResultsToCsv(queryResults);
                     return {
+                        status: 'success',
+                        type: 'string',
                         result: `${buildSavedChartHeader(
                             uuid,
                             name,
@@ -138,6 +141,8 @@ export const getRunContentQuery = ({
 
                 if (!enableDataAccess) {
                     return {
+                        status: 'success',
+                        type: 'string',
                         result: 'Data access is disabled for this agent. The metric query shape is valid, but row values cannot be returned.',
                         metadata: { status: 'success' as const },
                     };
@@ -153,21 +158,23 @@ export const getRunContentQuery = ({
 
                 if (queryResults.rows.length === 0) {
                     return {
+                        status: 'success',
+                        type: 'string',
                         result: NO_RESULTS_RETRY_PROMPT,
                         metadata: { status: 'success' as const },
                     };
                 }
 
                 return {
-                    result: serializeData(
-                        convertQueryResultsToCsv(queryResults),
-                        'csv',
-                    ),
+                    status: 'success',
+                    type: 'csv',
+                    result: convertQueryResultsToCsv(queryResults),
                     metadata: { status: 'success' as const },
                 };
             } catch (error) {
                 return {
-                    result: toolErrorHandler(
+                    status: 'error',
+                    error: toolErrorHandler(
                         error,
                         'Error running content query.',
                     ),
@@ -175,5 +182,4 @@ export const getRunContentQuery = ({
                 };
             }
         },
-        toModelOutput: ({ output }) => toModelOutput(output),
     });

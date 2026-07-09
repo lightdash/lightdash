@@ -2,9 +2,7 @@ import {
     loadProjectContextToolDefinition,
     type ProjectContextEntry,
 } from '@lightdash/common';
-import { tool } from 'ai';
 import Logger from '../../../../logging/logger';
-import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { filterProjectContext } from './filterProjectContext';
 
@@ -49,8 +47,7 @@ export const getLoadProjectContext = ({
 }: {
     getDocument: () => Promise<ProjectContextEntry[]>;
 }) =>
-    tool({
-        ...loadProjectContextToolDefinition.for('agent'),
+    loadProjectContextToolDefinition.for('ai-sdk').build({
         execute: async ({ patterns }) => {
             try {
                 const entries = await getDocument();
@@ -62,6 +59,8 @@ export const getLoadProjectContext = ({
                 // entries instead of an empty result.
                 if (patterns?.length && selected.length === 0) {
                     return {
+                        status: 'success' as const,
+                        type: 'string' as const,
                         result: renderNoMatch(entries),
                         metadata: {
                             status: 'success' as const,
@@ -94,6 +93,8 @@ export const getLoadProjectContext = ({
                 );
 
                 return {
+                    status: 'success' as const,
+                    type: 'string' as const,
                     result: renderEntries(selected),
                     metadata: {
                         status: 'success' as const,
@@ -103,7 +104,8 @@ export const getLoadProjectContext = ({
                 };
             } catch (error) {
                 return {
-                    result: toolErrorHandler(
+                    status: 'error' as const,
+                    error: toolErrorHandler(
                         error,
                         'Error loading project context',
                     ),
@@ -111,5 +113,4 @@ export const getLoadProjectContext = ({
                 };
             }
         },
-        toModelOutput: ({ output }) => toModelOutput(output),
     });

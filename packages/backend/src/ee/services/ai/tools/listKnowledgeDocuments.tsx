@@ -2,7 +2,6 @@ import {
     AiAgentDocumentSummary,
     listKnowledgeDocumentsToolDefinition,
 } from '@lightdash/common';
-import { tool } from 'ai';
 import type { ListKnowledgeDocumentsFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { xmlBuilder } from '../xmlBuilder';
@@ -11,7 +10,7 @@ type Dependencies = {
     listKnowledgeDocuments: ListKnowledgeDocumentsFn;
 };
 
-const toolDefinition = listKnowledgeDocumentsToolDefinition.for('agent');
+const toolDefinition = listKnowledgeDocumentsToolDefinition.for('ai-sdk');
 
 const renderDocument = (doc: AiAgentDocumentSummary) => (
     <document uuid={doc.uuid} sizeBytes={doc.contentSizeBytes}>
@@ -23,12 +22,13 @@ const renderDocument = (doc: AiAgentDocumentSummary) => (
 export const getListKnowledgeDocuments = ({
     listKnowledgeDocuments,
 }: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async () => {
             try {
                 const documents = await listKnowledgeDocuments();
                 return {
+                    status: 'success' as const,
+                    type: 'string' as const,
                     result: (
                         <knowledgedocuments count={documents.length}>
                             {documents.map(renderDocument)}
@@ -38,7 +38,8 @@ export const getListKnowledgeDocuments = ({
                 };
             } catch (e) {
                 return {
-                    result: toolErrorHandler(
+                    status: 'error' as const,
+                    error: toolErrorHandler(
                         e,
                         'Error listing knowledge documents.',
                     ),

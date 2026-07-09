@@ -1,13 +1,13 @@
+import assertUnreachable from '../../../utils/assertUnreachable';
 import {
     type AgentToModelOutput,
     type McpErrorResult,
     type McpStructuredResult,
     type McpTextResult,
     type McpToolResultBuilders,
-    type StandardAgentToolOutput,
     type ToolDescription,
     type ToolDescriptionContext,
-    type ToolRuntime,
+    type ToolOutput,
 } from './defineTool';
 
 export const resolveDescription = (
@@ -16,24 +16,34 @@ export const resolveDescription = (
 ): string =>
     typeof description === 'function' ? description(context) : description;
 
-export const assertAvailable = (
-    name: string,
-    availability: readonly ToolRuntime[],
-    runtime: ToolRuntime,
-): void => {
-    if (!availability.includes(runtime)) {
-        throw new Error(
-            `Tool "${name}" is not available in the ${runtime} runtime`,
-        );
-    }
+export const toolOutputToText = (output: ToolOutput): string => {
+    const items = Array.isArray(output) ? output : [output];
+    return items
+        .map((item) => {
+            if (item.status === 'error') return item.error;
+            switch (item.type) {
+                case 'json':
+                    return JSON.stringify(item.result, null, 2);
+                case 'csv':
+                case 'string':
+                    return item.result;
+                default:
+                    return assertUnreachable(item, 'Unknown tool output type');
+            }
+        })
+        .join('\n');
 };
 
-export const defaultAgentToModelOutput: AgentToModelOutput<
-    StandardAgentToolOutput
-> = ({ output }) =>
-    output.metadata.status === 'error'
-        ? { type: 'error-text', value: output.result }
-        : { type: 'text', value: output.result };
+// Arrays can only contain success items, so only a single item can be an error.
+export const hasToolOutputError = (output: ToolOutput): boolean =>
+    !Array.isArray(output) && output.status === 'error';
+
+export const defaultAgentToModelOutput: AgentToModelOutput<ToolOutput> = ({
+    output,
+}) => ({
+    type: hasToolOutputError(output) ? 'error-text' : 'text',
+    value: toolOutputToText(output),
+});
 
 const text = (textContent: string): McpTextResult => ({
     content: [{ type: 'text', text: textContent }],
@@ -50,6 +60,14 @@ const structured = <TStructuredContent>(
 ): McpStructuredResult<TStructuredContent> => ({
     content: [{ type: 'text', text: textContent }],
     structuredContent,
+});
+
+export const appendMcpText = <TStructuredContent>(
+    result: McpStructuredResult<TStructuredContent>,
+    textContent: string,
+): McpStructuredResult<TStructuredContent> => ({
+    ...result,
+    content: [...result.content, { type: 'text', text: textContent }],
 });
 
 export const createMcpToolResultBuilders = <

@@ -1,13 +1,10 @@
 import { findExploresToolDefinition } from '@lightdash/common';
-import { tool } from 'ai';
 import type {
     FindExploresFn,
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
-import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { truncate } from '../utils/truncation';
-import { formatToolJsonOutput } from './toolOutputFormat';
 
 type Dependencies = {
     fieldSearchSize: number;
@@ -15,8 +12,6 @@ type Dependencies = {
     updateProgress: UpdateProgressFn;
     toolDescriptionMaxChars: number;
 };
-
-const toolDefinition = findExploresToolDefinition.for('agent');
 
 export const buildFindExploresStructuredContent = ({
     searchQuery,
@@ -91,14 +86,14 @@ export const buildFindExploresStructuredContent = ({
         },
     };
 };
+
 export const getFindExplores = ({
     findExplores,
     updateProgress,
     fieldSearchSize,
     toolDescriptionMaxChars,
 }: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    findExploresToolDefinition.for('ai-sdk').build({
         execute: async (args) => {
             try {
                 await updateProgress(
@@ -119,7 +114,9 @@ export const getFindExplores = ({
                 });
 
                 return {
-                    result: formatToolJsonOutput(structuredContent),
+                    status: 'success' as const,
+                    type: 'json' as const,
+                    result: structuredContent,
                     metadata: {
                         status: 'success',
                         ranking: {
@@ -156,12 +153,12 @@ export const getFindExplores = ({
                 };
             } catch (error) {
                 return {
-                    result: toolErrorHandler(error, `Error listing explores.`),
+                    status: 'error' as const,
+                    error: toolErrorHandler(error, `Error listing explores.`),
                     metadata: {
                         status: 'error',
                     },
                 };
             }
         },
-        toModelOutput: ({ output }) => toModelOutput(output),
     });

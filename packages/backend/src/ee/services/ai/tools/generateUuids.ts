@@ -1,16 +1,15 @@
 import { generateUuidsToolDefinition } from '@lightdash/common';
-import { tool } from 'ai';
-import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
-const toolDefinition = generateUuidsToolDefinition.for('agent');
+const toolDefinition = generateUuidsToolDefinition.for('ai-sdk');
 
 export const getGenerateUuids = () =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async ({ count }) => {
             try {
                 return {
+                    status: 'success' as const,
+                    type: 'string' as const,
                     result: JSON.stringify({
                         uuids: Array.from({ length: count }, () =>
                             crypto.randomUUID(),
@@ -22,12 +21,12 @@ export const getGenerateUuids = () =>
                 };
             } catch (error) {
                 return {
-                    result: toolErrorHandler(error, 'Error generating UUIDs.'),
+                    status: 'error' as const,
+                    error: toolErrorHandler(error, 'Error generating UUIDs.'),
                     metadata: {
                         status: 'error' as const,
                     },
                 };
             }
         },
-        toModelOutput: ({ output }) => toModelOutput(output),
     });

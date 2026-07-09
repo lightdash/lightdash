@@ -1,14 +1,11 @@
+import { type ToolOutput } from '@lightdash/common';
 import { getEditDbtProject } from './editDbtProject';
 
 type EditDbtProjectTool = ReturnType<typeof getEditDbtProject>;
-type EditDbtProjectOutput = {
-    result: string;
-    metadata?: {
-        status: string;
-        aiWritebackRunUuid?: string;
-        errorCode?: string;
-    };
-};
+type EditDbtProjectOutput = Exclude<ToolOutput, ToolOutput[]>;
+
+const isAsyncIterable = (value: unknown): value is AsyncIterable<unknown> =>
+    value != null && typeof value === 'object' && Symbol.asyncIterator in value;
 
 const executeEditDbtProject = (
     tool: EditDbtProjectTool,
@@ -19,19 +16,27 @@ const executeEditDbtProject = (
         startNewPullRequest: boolean | null;
     }> = {},
 ) =>
-    tool.execute!(
-        {
-            prompt: 'fix the descriptions',
-            prUrl: null,
-            fromActiveChangeset: false,
-            startNewPullRequest: false,
-            ...args,
-        },
-        {
-            messages: [],
-            toolCallId: 'tool-call-1',
-        },
-    ) as Promise<EditDbtProjectOutput>;
+    (async (): Promise<EditDbtProjectOutput> => {
+        const output = await tool.execute!(
+            {
+                prompt: 'fix the descriptions',
+                prUrl: null,
+                fromActiveChangeset: false,
+                startNewPullRequest: false,
+                ...args,
+            },
+            {
+                messages: [],
+                toolCallId: 'tool-call-1',
+            },
+        );
+
+        if (isAsyncIterable(output) || Array.isArray(output)) {
+            throw new Error('Expected non-streaming single tool output item');
+        }
+
+        return output;
+    })();
 
 describe('getEditDbtProject', () => {
     it('forwards startNewPullRequest: true to the editDbtProject dependency', async () => {
@@ -83,6 +88,11 @@ describe('getEditDbtProject', () => {
             getEditDbtProject({ editDbtProject }),
         );
 
+        expect(output.status).toBe('success');
+        if (output.status === 'error') {
+            throw new Error(`Unexpected error output: ${output.error}`);
+        }
+
         expect(output.metadata?.status).toBe('pending');
         expect(output.metadata?.aiWritebackRunUuid).toBe('run-1');
         expect(output.result).not.toContain('run-1');
@@ -101,6 +111,11 @@ describe('getEditDbtProject', () => {
             getEditDbtProject({ editDbtProject }),
             { fromActiveChangeset: true, prompt: null },
         );
+
+        expect(output.status).toBe('error');
+        if (output.status === 'success') {
+            throw new Error(`Unexpected success output: ${output.result}`);
+        }
 
         expect(output.metadata?.status).toBe('error');
         expect(output.metadata?.errorCode).toBe('unknown');
