@@ -265,6 +265,19 @@ export function matchesPreset(
     return preset.name === name || preset.modelId === name;
 }
 
+// Whether a provider's /v1/models listing grants access to a base model id.
+// Matches the exact id or a dated variant of it — e.g. "claude-opus-4-8" is
+// granted by "claude-opus-4-8" or "claude-opus-4-8-20260115", but not by
+// "claude-opus-4-80".
+export function keyGrantsModel(
+    accessibleModelIds: readonly string[],
+    baseModelId: string,
+): boolean {
+    return accessibleModelIds.some(
+        (id) => id === baseModelId || id.startsWith(`${baseModelId}-`),
+    );
+}
+
 export function getModelPreset<T extends ModelPresetProvider>(
     provider: T,
     name: string,

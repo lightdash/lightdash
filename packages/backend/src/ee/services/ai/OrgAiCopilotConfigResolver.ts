@@ -8,6 +8,7 @@ import {
     AiOrgProviderApiKeys,
 } from '../../models/AiOrganizationSettingsModel';
 import { OrgModelOverrides } from './models';
+import { keyGrantsModel } from './models/presets';
 
 export type CopilotConfig = AiCopilotConfigSchemaType;
 
@@ -184,10 +185,9 @@ export class OrgAiCopilotConfigResolver {
             'anthropic',
             orgKeys.anthropic,
         );
-        const canJudgeOnByoKey =
-            modelIds?.some((id) =>
-                id.startsWith(REVIEW_JUDGE_ANTHROPIC_MODEL),
-            ) ?? false;
+        const canJudgeOnByoKey = modelIds
+            ? keyGrantsModel(modelIds, REVIEW_JUDGE_ANTHROPIC_MODEL)
+            : false;
         return { hasActiveByoKey, canJudgeOnByoKey };
     }
 }
