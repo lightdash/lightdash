@@ -47,6 +47,8 @@ import { GroupsController } from './../controllers/groupsController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { ImpersonationController } from './../controllers/impersonationController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { InviteLinksController } from './../controllers/inviteLinksController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { MetricsExplorerController } from './../controllers/metricsExplorerController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { NotificationsController } from './../controllers/notificationsController';
@@ -2536,6 +2538,7 @@ const models: TsoaRoute.Models = {
                 dashboardFiltersInteractivity: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        canAddFilters: { dataType: 'boolean' },
                         hidden: { dataType: 'boolean' },
                         allowedFilters: {
                             dataType: 'union',
@@ -2676,6 +2679,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                canExplore: { dataType: 'boolean' },
                 agentUuid: { dataType: 'string', required: true },
                 projectUuid: { dataType: 'string' },
                 type: { dataType: 'enum', enums: ['aiAgent'], required: true },
@@ -3709,6 +3713,7 @@ const models: TsoaRoute.Models = {
                                 dashboardFiltersInteractivity: {
                                     dataType: 'nestedObjectLiteral',
                                     nestedProperties: {
+                                        canAddFilters: { dataType: 'boolean' },
                                         hidden: { dataType: 'boolean' },
                                         allowedFilters: {
                                             dataType: 'union',
@@ -25691,6 +25696,53 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiOrgProviderModelVisibility: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                allowedModels: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
+                enabled: { dataType: 'boolean', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Partial_Record_ByoAiProvider.AiOrgProviderModelVisibility__': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                anthropic: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AiOrgProviderModelVisibility' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                openai: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AiOrgProviderModelVisibility' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiOrgModelVisibility: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Partial_Record_ByoAiProvider.AiOrgProviderModelVisibility__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiProviderApiKeysSet: {
         dataType: 'refAlias',
         type: {
@@ -25742,6 +25794,13 @@ const models: TsoaRoute.Models = {
                     ref: 'AiProviderApiKeysSet',
                     required: true,
                 },
+                modelVisibility: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AiOrgModelVisibility' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 defaultAiAgentModelConfig: {
                     dataType: 'union',
                     subSchemas: [
@@ -25767,6 +25826,20 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                aiAgentReviewsPausedByByok: { dataType: 'boolean' },
+                configurableModelOptions: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'AiModelOption',
+                            },
+                        },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 defaultAiAgentModelOptions: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'AiModelOption' },
@@ -25853,6 +25926,13 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 providerApiKeys: { ref: 'UpdateAiProviderApiKeys' },
+                modelVisibility: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AiOrgModelVisibility' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 defaultAiAgentModelConfig: {
                     dataType: 'union',
                     subSchemas: [
@@ -30334,6 +30414,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['aiWritebackPipeline'] },
                 { dataType: 'enum', enums: ['aiAgentEditDbtProjectPipeline'] },
                 { dataType: 'enum', enums: ['sweepStaleAppLocks'] },
+                { dataType: 'enum', enums: ['sweepStaleAiWritebackRuns'] },
                 { dataType: 'enum', enums: ['cleanMcpToolCalls'] },
                 { dataType: 'enum', enums: ['handleScheduledDelivery'] },
                 { dataType: 'enum', enums: ['sendSlackNotification'] },
@@ -37885,6 +37966,47 @@ const models: TsoaRoute.Models = {
                 },
                 pivotQuery: { dataType: 'string' },
                 query: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    InviteLink: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                email: { dataType: 'string', required: true },
+                userUuid: { dataType: 'string', required: true },
+                organizationUuid: { dataType: 'string', required: true },
+                inviteUrl: { dataType: 'string', required: true },
+                inviteCode: { dataType: 'string', required: true },
+                expiresAt: { dataType: 'datetime', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiInviteLinkResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'InviteLink', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CreateInviteLink: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                role: { ref: 'OrganizationMemberRole' },
+                expiresAt: { dataType: 'datetime' },
+                email: { dataType: 'string', required: true },
             },
             validators: {},
         },
@@ -74725,6 +74847,182 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'compileMetricTotalQuery',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsInviteLinksController_getInviteLink: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        inviteLinkCode: {
+            in: 'path',
+            name: 'inviteLinkCode',
+            required: true,
+            dataType: 'string',
+        },
+    };
+    app.get(
+        '/api/v1/invite-links/:inviteLinkCode',
+        ...fetchMiddlewares<RequestHandler>(InviteLinksController),
+        ...fetchMiddlewares<RequestHandler>(
+            InviteLinksController.prototype.getInviteLink,
+        ),
+
+        async function InviteLinksController_getInviteLink(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsInviteLinksController_getInviteLink,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<InviteLinksController>(
+                        InviteLinksController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getInviteLink',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsInviteLinksController_createInviteLink: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'CreateInviteLink',
+        },
+    };
+    app.post(
+        '/api/v1/invite-links',
+        ...fetchMiddlewares<RequestHandler>(InviteLinksController),
+        ...fetchMiddlewares<RequestHandler>(
+            InviteLinksController.prototype.createInviteLink,
+        ),
+
+        async function InviteLinksController_createInviteLink(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsInviteLinksController_createInviteLink,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<InviteLinksController>(
+                        InviteLinksController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'createInviteLink',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 201,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsInviteLinksController_revokeAllInviteLinks: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.delete(
+        '/api/v1/invite-links',
+        ...fetchMiddlewares<RequestHandler>(InviteLinksController),
+        ...fetchMiddlewares<RequestHandler>(
+            InviteLinksController.prototype.revokeAllInviteLinks,
+        ),
+
+        async function InviteLinksController_revokeAllInviteLinks(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsInviteLinksController_revokeAllInviteLinks,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<InviteLinksController>(
+                        InviteLinksController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'revokeAllInviteLinks',
                     controller,
                     response,
                     next,

@@ -2537,6 +2537,9 @@
                     },
                     "dashboardFiltersInteractivity": {
                         "properties": {
+                            "canAddFilters": {
+                                "type": "boolean"
+                            },
                             "hidden": {
                                 "type": "boolean"
                             },
@@ -2695,6 +2698,9 @@
             },
             "EmbedJwtContentAiAgent": {
                 "properties": {
+                    "canExplore": {
+                        "type": "boolean"
+                    },
                     "agentUuid": {
                         "type": "string"
                     },
@@ -3824,6 +3830,9 @@
                                     },
                                     "dashboardFiltersInteractivity": {
                                         "properties": {
+                                            "canAddFilters": {
+                                                "type": "boolean"
+                                            },
                                             "hidden": {
                                                 "type": "boolean"
                                             },
@@ -25763,6 +25772,36 @@
             "UpdateAiReviewNotificationSettings": {
                 "$ref": "#/components/schemas/Pick_AiReviewNotificationSettings.enabled-or-slackChannelId_"
             },
+            "AiOrgProviderModelVisibility": {
+                "properties": {
+                    "allowedModels": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["enabled"],
+                "type": "object"
+            },
+            "Partial_Record_ByoAiProvider.AiOrgProviderModelVisibility__": {
+                "properties": {
+                    "anthropic": {
+                        "$ref": "#/components/schemas/AiOrgProviderModelVisibility"
+                    },
+                    "openai": {
+                        "$ref": "#/components/schemas/AiOrgProviderModelVisibility"
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "AiOrgModelVisibility": {
+                "$ref": "#/components/schemas/Partial_Record_ByoAiProvider.AiOrgProviderModelVisibility__"
+            },
             "AiProviderApiKeysSet": {
                 "properties": {
                     "openai": {
@@ -25796,6 +25835,14 @@
                     },
                     "providerApiKeysSet": {
                         "$ref": "#/components/schemas/AiProviderApiKeysSet"
+                    },
+                    "modelVisibility": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiOrgModelVisibility"
+                            }
+                        ],
+                        "nullable": true
                     },
                     "defaultAiAgentModelConfig": {
                         "allOf": [
@@ -25831,6 +25878,16 @@
             },
             "ComputedAiOrganizationSettings": {
                 "properties": {
+                    "aiAgentReviewsPausedByByok": {
+                        "type": "boolean"
+                    },
+                    "configurableModelOptions": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiModelOption"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
                     "defaultAiAgentModelOptions": {
                         "items": {
                             "$ref": "#/components/schemas/AiModelOption"
@@ -25909,6 +25966,14 @@
                 "properties": {
                     "providerApiKeys": {
                         "$ref": "#/components/schemas/UpdateAiProviderApiKeys"
+                    },
+                    "modelVisibility": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiOrgModelVisibility"
+                            }
+                        ],
+                        "nullable": true
                     },
                     "defaultAiAgentModelConfig": {
                         "allOf": [
@@ -30514,6 +30579,7 @@
                     "aiWritebackPipeline",
                     "aiAgentEditDbtProjectPipeline",
                     "sweepStaleAppLocks",
+                    "sweepStaleAiWritebackRuns",
                     "cleanMcpToolCalls",
                     "handleScheduledDelivery",
                     "sendSlackNotification",
@@ -38019,6 +38085,68 @@
                 "required": ["parameterReferences", "query"],
                 "type": "object"
             },
+            "InviteLink": {
+                "properties": {
+                    "email": {
+                        "type": "string"
+                    },
+                    "userUuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "inviteUrl": {
+                        "type": "string"
+                    },
+                    "inviteCode": {
+                        "type": "string"
+                    },
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "email",
+                    "userUuid",
+                    "organizationUuid",
+                    "inviteUrl",
+                    "inviteCode",
+                    "expiresAt"
+                ],
+                "type": "object"
+            },
+            "ApiInviteLinkResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/InviteLink"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "CreateInviteLink": {
+                "properties": {
+                    "role": {
+                        "$ref": "#/components/schemas/OrganizationMemberRole"
+                    },
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "email": {
+                        "type": "string"
+                    }
+                },
+                "required": ["email"],
+                "type": "object"
+            },
             "ApiStartImpersonationResponse": {
                 "properties": {
                     "results": {
@@ -44212,7 +44340,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3344.0",
+        "version": "0.3348.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -63758,6 +63886,122 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/invite-links/{inviteLinkCode}": {
+            "get": {
+                "operationId": "GetInviteLink",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiInviteLinkResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get an invite link by its code. Public endpoint used by the invite\nacceptance page.",
+                "summary": "Get invite link",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the code of the invite link",
+                        "in": "path",
+                        "name": "inviteLinkCode",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/invite-links": {
+            "post": {
+                "operationId": "CreateInviteLink",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiInviteLinkResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Invite a new user to the organization and create an invite link for\nthem. If the email already belongs to a pending user, a new invite\nlink is generated for them. Only available to organization admins.",
+                "summary": "Create invite link",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "description": "the email, role and expiry of the invite.\nexpiresAt defaults to 3 days from now when omitted",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateInviteLink",
+                                "description": "the email, role and expiry of the invite.\nexpiresAt defaults to 3 days from now when omitted"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "RevokeAllInviteLinks",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Revoke all invite links in the organization. Only available to\norganization admins.",
+                "summary": "Revoke all invite links",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v1/impersonation/start": {
