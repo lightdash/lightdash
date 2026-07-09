@@ -176,6 +176,24 @@ describe('filterModelsForOrg', () => {
         expect(result.map((p) => p.name)).toContain('claude-opus-4-8');
     });
 
+    it('unlocks a hidden preset when the key lists a dated variant of it', () => {
+        const result = filterModelsForOrg(presets, {
+            modelVisibility: null,
+            keyAccessibleModelIds: {
+                anthropic: ['claude-opus-4-8-20260115'],
+            },
+        });
+        expect(result.map((p) => p.name)).toContain('claude-opus-4-8');
+    });
+
+    it('does not unlock a hidden preset on a false-prefix model id', () => {
+        const result = filterModelsForOrg(presets, {
+            modelVisibility: null,
+            keyAccessibleModelIds: { anthropic: ['claude-opus-4-80'] },
+        });
+        expect(result.map((p) => p.name)).not.toContain('claude-opus-4-8');
+    });
+
     it('does not unlock hidden presets via another provider key', () => {
         const result = filterModelsForOrg(presets, {
             modelVisibility: null,

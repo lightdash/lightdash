@@ -15,6 +15,7 @@ import { getBedrockModel } from './bedrock';
 import { getOpenaiGptmodel } from './openai-gpt';
 import { getOpenRouterModel } from './openrouter';
 import {
+    keyGrantsModel,
     matchesPreset,
     MODEL_PRESETS,
     ModelPreset,
@@ -150,7 +151,8 @@ export const filterModelsForOrg = (
             const accessibleIds = byoProvider
                 ? overrides.keyAccessibleModelIds?.[byoProvider]
                 : null;
-            if (!accessibleIds?.includes(preset.modelId)) return false;
+            if (!accessibleIds || !keyGrantsModel(accessibleIds, preset.modelId))
+                return false;
         }
         if (!byoProvider) return true;
         const visibility = overrides.modelVisibility?.[byoProvider];
