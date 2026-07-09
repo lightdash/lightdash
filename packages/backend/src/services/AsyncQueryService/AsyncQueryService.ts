@@ -154,6 +154,7 @@ import {
     processFieldsForExport,
     streamJsonlData,
 } from '../../utils/FileDownloadUtils/FileDownloadUtils';
+import { updateExploreWithDateZoom } from '../../utils/QueryBuilder/dateZoom';
 import { safeReplaceParametersWithSqlBuilder } from '../../utils/QueryBuilder/parameters';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import {
@@ -3405,7 +3406,7 @@ export class AsyncQueryService extends ProjectService {
         const availableParameters = Object.keys(availableParameterDefinitions);
 
         const { explore: exploreWithOverride, dateZoomApplied } =
-            ProjectService.updateExploreWithDateZoom(
+            updateExploreWithDateZoom(
                 explore,
                 metricQuery,
                 warehouseSqlBuilder,
