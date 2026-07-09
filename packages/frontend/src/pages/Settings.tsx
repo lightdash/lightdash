@@ -714,12 +714,6 @@ const Settings: FC = () => {
             ) &&
             !matchPath(
                 {
-                    path: '/generalSettings/projectManagement/:projectUuid/changesets',
-                },
-                location.pathname,
-            ) &&
-            !matchPath(
-                {
                     path: '/generalSettings/projectManagement/:projectUuid/scheduledDeliveries',
                 },
                 location.pathname,
