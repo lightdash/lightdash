@@ -37,6 +37,8 @@ const buildService = () => {
     };
     const aiAgentModel = {
         findSlackPrompt: vi.fn().mockResolvedValue(buildSlackPrompt()),
+        getCredential: vi.fn().mockResolvedValue(undefined),
+        upsertCredential: vi.fn().mockResolvedValue(undefined),
     };
     const service = new AiAgentService({
         slackClient,
@@ -238,5 +240,48 @@ describe('AiAgentService :eyes: ack reaction lifecycle', () => {
                 text: 'GitHub MCP needs you to log in before I can use it.',
             }),
         );
+    });
+
+    it('records the prompted timestamp after posting so it only fires once', async () => {
+        const { service, aiAgentModel, webClient } = buildService();
+        vi.spyOn(service, 'startMcpOAuthConnection').mockResolvedValue(
+            'https://oauth.example/mcp-1',
+        );
+        aiAgentModel.getCredential.mockResolvedValue({
+            credentials: { type: 'oauth', connectionStatus: 'not_connected' },
+        });
+
+        await postMcpOAuthLoginMessages(service);
+
+        expect(webClient.chat.postEphemeral).toHaveBeenCalledTimes(1);
+        expect(aiAgentModel.upsertCredential).toHaveBeenCalledWith(
+            expect.objectContaining({
+                serverUuid: 'mcp-1',
+                scope: 'user',
+                userUuid: 'user-1',
+                credentials: expect.objectContaining({
+                    type: 'oauth',
+                    slackLoginPromptedAt: expect.any(String),
+                }),
+            }),
+        );
+    });
+
+    it('does not re-post when the user was already prompted for the server', async () => {
+        const { service, aiAgentModel, webClient } = buildService();
+        const startOAuth = vi.spyOn(service, 'startMcpOAuthConnection');
+        aiAgentModel.getCredential.mockResolvedValue({
+            credentials: {
+                type: 'oauth',
+                connectionStatus: 'not_connected',
+                slackLoginPromptedAt: '2026-01-01T00:00:00.000Z',
+            },
+        });
+
+        await postMcpOAuthLoginMessages(service);
+
+        expect(startOAuth).not.toHaveBeenCalled();
+        expect(webClient.chat.postEphemeral).not.toHaveBeenCalled();
+        expect(aiAgentModel.upsertCredential).not.toHaveBeenCalled();
     });
 });

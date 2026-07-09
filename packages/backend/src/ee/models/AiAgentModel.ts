@@ -229,6 +229,7 @@ export type AiMcpOAuthCredentialPayload = {
     resourceMetadata?: Record<string, unknown>;
     authorizationServerMetadata?: Record<string, unknown>;
     lastError?: string;
+    slackLoginPromptedAt?: string;
 };
 
 export type AiMcpCredentialPayload =

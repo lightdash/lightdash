@@ -6049,6 +6049,19 @@ export class AiAgentService extends BaseService {
         await Promise.all(
             loginServers.map(async ({ serverName, serverUuid, mcpServer }) => {
                 try {
+                    const existingCredential =
+                        await this.aiAgentModel.getCredential(
+                            serverUuid,
+                            'user',
+                            { userUuid: user.userUuid },
+                        );
+                    if (
+                        existingCredential?.credentials.type === 'oauth' &&
+                        existingCredential.credentials.slackLoginPromptedAt
+                    ) {
+                        return;
+                    }
+
                     const authorizationUrl = await this.startMcpOAuthConnection(
                         user,
                         prompt.projectUuid,
@@ -6089,6 +6102,25 @@ export class AiAgentService extends BaseService {
                             },
                         ],
                     });
+
+                    const promptedCredential =
+                        await this.aiAgentModel.getCredential(
+                            serverUuid,
+                            'user',
+                            { userUuid: user.userUuid },
+                        );
+                    if (promptedCredential?.credentials.type === 'oauth') {
+                        await this.aiAgentModel.upsertCredential({
+                            serverUuid,
+                            scope: 'user',
+                            userUuid: user.userUuid,
+                            actorUserUuid: user.userUuid,
+                            credentials: {
+                                ...promptedCredential.credentials,
+                                slackLoginPromptedAt: new Date().toISOString(),
+                            },
+                        });
+                    }
                 } catch (error) {
                     Logger.error(
                         `Failed to post Slack MCP OAuth login message for ${mcpServer.name}`,
