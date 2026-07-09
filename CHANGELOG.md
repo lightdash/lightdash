@@ -1,3 +1,16 @@
+# [0.3344.0](https://github.com/lightdash/lightdash/compare/0.3343.0...0.3344.0) (2026-07-09)
+
+
+### Bug Fixes
+
+* **docker:** pin dbt 1.12 pre-releases, unbreaking image builds ([#25327](https://github.com/lightdash/lightdash/issues/25327)) ([7cdb62f](https://github.com/lightdash/lightdash/commit/7cdb62f21650cba83684c0399d54c91946593e33))
+* **mcp:** accept explicit null for nullable tool inputs ([#25324](https://github.com/lightdash/lightdash/issues/25324)) ([1567fcf](https://github.com/lightdash/lightdash/commit/1567fcf63e1dcbbe482440c6fb8747463e42ea27))
+
+
+### Features
+
+* **mcp:** use grep field discovery ([#25231](https://github.com/lightdash/lightdash/issues/25231)) ([461f40b](https://github.com/lightdash/lightdash/commit/461f40bbe5b54cc9e53003d277edac5265d5ef0e))
+
 # [0.3343.0](https://github.com/lightdash/lightdash/compare/0.3342.0...0.3343.0) (2026-07-09)
 
 
