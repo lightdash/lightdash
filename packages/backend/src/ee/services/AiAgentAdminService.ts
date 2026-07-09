@@ -592,6 +592,7 @@ export class AiAgentAdminService extends BaseService {
                 paginateArgs,
                 filters: scopedFilters,
                 sort,
+                groupBySession: true,
             });
 
         return { data: { toolCalls: data }, pagination };

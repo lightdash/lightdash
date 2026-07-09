@@ -94,6 +94,19 @@ export type McpActivitySort = {
     direction: 'asc' | 'desc';
 };
 
+/**
+ * Server-computed display group for session-grouped activity: a session
+ * split into segments on 1h inactivity gaps (sessionless calls chunk the
+ * same way under a shared no-session block). Counts cover the whole
+ * segment, not just the loaded page. Null when the query isn't
+ * session-grouped (e.g. sorted by duration).
+ */
+export type McpActivitySessionGroup = {
+    key: string;
+    callCount: number;
+    errorCount: number;
+};
+
 export type McpActivityItem = {
     uuid: string;
     createdAt: string;
@@ -121,6 +134,7 @@ export type McpActivityItem = {
     authType: string;
     protocolVersion: string | null;
     sessionId: string | null;
+    sessionGroup: McpActivitySessionGroup | null;
 };
 
 export type McpActivitySummary = {

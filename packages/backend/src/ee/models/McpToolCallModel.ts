@@ -44,6 +44,11 @@ const STATS_TOP_TOOLS_LIMIT = 6;
 const STATS_AGENTS_LIMIT = 6;
 const STATS_RECENT_ERRORS_LIMIT = 5;
 
+// A session left open across sittings is split into display segments at
+// this inactivity gap, so old calls aren't hoisted out of their
+// chronological neighborhood when the session resumes days later
+const SESSION_SEGMENT_INACTIVITY_GAP_HOURS = 1;
+
 const capToolArgs = (args: object): object => {
     const serialized = JSON.stringify(args);
     if (serialized.length <= MAX_TOOL_ARGS_BYTES) {
@@ -160,18 +165,107 @@ export class McpToolCallModel {
         return query;
     }
 
+    /**
+     * Wraps the filtered calls in a window-function CTE chain that assigns
+     * each call to a display block (its session id, or a shared no-session
+     * block), splits blocks into segments on inactivity gaps, and anchors
+     * each segment at its latest (or earliest, for asc) call. Ordering by
+     * the anchor keeps segments contiguous in the stream while sessionless
+     * calls stay in their chronological position. The final CTE is aliased
+     * back to the tool-call table name so the caller's joins and selects
+     * work unchanged.
+     */
+    private buildSessionGroupedQuery(
+        organizationUuid: string,
+        filters: McpActivityFilters | undefined,
+        direction: 'asc' | 'desc',
+    ): Knex.QueryBuilder {
+        const filteredCalls = this.buildActivityQuery(organizationUuid, filters)
+            .select(`${McpToolCallTableName}.*`)
+            .select(
+                this.database.raw(
+                    `COALESCE(${McpToolCallTableName}.mcp_session_id::text, 'no-session') AS session_block_key`,
+                ),
+            );
+
+        const anchorFn = direction === 'asc' ? 'min' : 'max';
+
+        return this.database
+            .with('filtered_calls', filteredCalls)
+            .with(
+                'gapped_calls',
+                this.database.raw(
+                    `
+                    SELECT *,
+                        CASE
+                            WHEN created_at - lag(created_at) OVER (
+                                PARTITION BY session_block_key ORDER BY created_at
+                            ) > make_interval(hours => ?)
+                            THEN 1 ELSE 0
+                        END AS gap_start
+                    FROM filtered_calls
+                `,
+                    [SESSION_SEGMENT_INACTIVITY_GAP_HOURS],
+                ),
+            )
+            .with(
+                'segmented_calls',
+                this.database.raw(`
+                    SELECT *,
+                        sum(gap_start) OVER (
+                            PARTITION BY session_block_key ORDER BY created_at
+                        ) AS session_segment
+                    FROM gapped_calls
+                `),
+            )
+            .with(
+                'session_blocks',
+                this.database.raw(`
+                    SELECT *,
+                        ${anchorFn}(created_at) OVER (
+                            PARTITION BY session_block_key, session_segment
+                        ) AS session_anchor_at,
+                        (count(*) OVER (
+                            PARTITION BY session_block_key, session_segment
+                        ))::int AS session_call_count,
+                        (count(*) FILTER (WHERE status = 'error') OVER (
+                            PARTITION BY session_block_key, session_segment
+                        ))::int AS session_error_count
+                    FROM segmented_calls
+                `),
+            )
+            .from({ [McpToolCallTableName]: 'session_blocks' });
+    }
+
     async findActivityPaginated({
         organizationUuid,
         paginateArgs,
         filters,
         sort,
+        groupBySession = false,
     }: {
         organizationUuid: string;
         paginateArgs?: KnexPaginateArgs;
         filters?: McpActivityFilters;
         sort?: McpActivitySort;
+        groupBySession?: boolean;
     }): Promise<KnexPaginatedData<McpActivityItem[]>> {
-        const query = this.buildActivityQuery(organizationUuid, filters)
+        const sortColumn =
+            sort?.field === 'durationMs' ? 'duration_ms' : 'created_at';
+        const direction = sort?.direction ?? 'desc';
+        // Session grouping reorders rows around segment anchors, which only
+        // makes sense for the time sort
+        const isSessionGrouped = groupBySession && sortColumn === 'created_at';
+
+        const query = (
+            isSessionGrouped
+                ? this.buildSessionGroupedQuery(
+                      organizationUuid,
+                      filters,
+                      direction,
+                  )
+                : this.buildActivityQuery(organizationUuid, filters)
+        )
             .leftJoin(
                 UserTableName,
                 `${UserTableName}.user_uuid`,
@@ -216,6 +310,9 @@ export class McpToolCallModel {
                     auth_type: string;
                     protocol_version: string | null;
                     mcp_session_id: string | null;
+                    session_group_key?: string;
+                    session_call_count?: number;
+                    session_error_count?: number;
                 }[]
             >([
                 `${McpToolCallTableName}.mcp_tool_call_uuid`,
@@ -242,23 +339,55 @@ export class McpToolCallModel {
                 `${McpToolCallTableName}.mcp_session_id`,
             ]);
 
-        const sortColumn =
-            sort?.field === 'durationMs' ? 'duration_ms' : 'created_at';
-        // uuid tie-breaker keeps pagination stable when sort values collide
-        void query.orderBy([
-            {
-                column: `${McpToolCallTableName}.${sortColumn}`,
-                order: sort?.direction ?? 'desc',
-            },
-            {
-                column: `${McpToolCallTableName}.mcp_tool_call_uuid`,
-                order: 'asc',
-            },
-        ]);
+        if (isSessionGrouped) {
+            void query.select(
+                this.database.raw(
+                    `${McpToolCallTableName}.session_block_key || ':' || ${McpToolCallTableName}.session_segment AS session_group_key`,
+                ),
+                `${McpToolCallTableName}.session_call_count`,
+                `${McpToolCallTableName}.session_error_count`,
+            );
+            // Anchor ordering keeps each segment's calls contiguous;
+            // block-key tie-break keeps whole segments intact when anchors
+            // collide
+            void query.orderBy([
+                {
+                    column: `${McpToolCallTableName}.session_anchor_at`,
+                    order: direction,
+                },
+                {
+                    column: `${McpToolCallTableName}.session_block_key`,
+                    order: 'asc',
+                },
+                {
+                    column: `${McpToolCallTableName}.created_at`,
+                    order: direction,
+                },
+                {
+                    column: `${McpToolCallTableName}.mcp_tool_call_uuid`,
+                    order: 'asc',
+                },
+            ]);
+        } else {
+            // uuid tie-breaker keeps pagination stable when sort values collide
+            void query.orderBy([
+                {
+                    column: `${McpToolCallTableName}.${sortColumn}`,
+                    order: direction,
+                },
+                {
+                    column: `${McpToolCallTableName}.mcp_tool_call_uuid`,
+                    order: 'asc',
+                },
+            ]);
+        }
 
+        // Counting the un-joined base query skips the window-function passes
+        // (and the 1:1 display joins) the count doesn't need
         const { data, pagination } = await KnexPaginate.paginate(
             query,
             paginateArgs,
+            this.buildActivityQuery(organizationUuid, filters),
         );
 
         return {
@@ -293,6 +422,14 @@ export class McpToolCallModel {
                 authType: row.auth_type,
                 protocolVersion: row.protocol_version,
                 sessionId: row.mcp_session_id,
+                sessionGroup:
+                    row.session_group_key !== undefined
+                        ? {
+                              key: row.session_group_key,
+                              callCount: row.session_call_count ?? 0,
+                              errorCount: row.session_error_count ?? 0,
+                          }
+                        : null,
             })),
             pagination,
         };
