@@ -34,7 +34,6 @@ import {
     convertExplores,
     countCustomDimensionsInMetricQuery,
     countTotalFilterRules,
-    createDimensionWithGranularity,
     CreateJob,
     CreateProject,
     CreateProjectMember,
@@ -63,7 +62,6 @@ import {
     deepEqual,
     DEFAULT_SPOTLIGHT_CONFIG,
     DefaultSupportedDbtVersion,
-    DimensionType,
     DownloadFileType,
     DuckdbConnectionType,
     Explore,
@@ -76,7 +74,6 @@ import {
     ForbiddenError,
     formatRows,
     getAccountUserTimezone,
-    getAllDimensionsMap,
     getAvailableFilterFieldIds,
     getAvailableParametersFromTables,
     getColumnTimezone,
@@ -92,7 +89,6 @@ import {
     getMetrics,
     getParameterReferences,
     getPreAggregateExploreName,
-    getTimeDimensionsMap,
     getTimezoneLabel,
     GroupType,
     hasConnectionChanges,
@@ -105,8 +101,6 @@ import {
     isFilterableDimension,
     isJwtUser,
     isNotNull,
-    isStandardDateGranularity,
-    isSubDayGranularity,
     isUserWithOrg,
     isValidTimezone,
     ItemsMap,
@@ -154,12 +148,10 @@ import {
     ReplaceableCustomFields,
     ReplaceCustomFields,
     ReplaceCustomFieldsPayload,
-    replaceDimensionInExplore,
     RequestMethod,
     ResolvedProjectColorPalette,
     resolveQueryTimezone,
     resolveReservedParameterValues,
-    resolveToBaseTimeDimension,
     ResultRow,
     SavedChartDAO,
     SavedChartsInfoForDashboardAvailableFilters,
@@ -284,6 +276,7 @@ import {
 import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
+import { updateExploreWithDateZoom } from '../../utils/QueryBuilder/dateZoom';
 import {
     CompiledQuery,
     MetricQueryBuilder,
@@ -4074,105 +4067,6 @@ export class ProjectService extends BaseService {
         });
     }
 
-    static updateExploreWithDateZoom(
-        explore: Explore,
-        metricQuery: MetricQuery,
-        warehouseSqlBuilder: WarehouseSqlBuilder,
-        availableParameters: string[],
-        dateZoom?: DateZoom,
-    ): {
-        explore: Explore;
-        dateZoomApplied: boolean;
-        dateZoomTargetFieldId?: string;
-    } {
-        if (dateZoom?.granularity) {
-            const allDimensionsMap = getAllDimensionsMap(explore);
-            const timeDimensionsMap = getTimeDimensionsMap(explore);
-
-            let timeOrDateDimension = dateZoom?.xAxisFieldId;
-
-            if (!timeOrDateDimension) {
-                timeOrDateDimension = metricQuery.dimensions.find(
-                    (dimension) =>
-                        !!resolveToBaseTimeDimension(
-                            dimension,
-                            allDimensionsMap,
-                            timeDimensionsMap,
-                        ),
-                );
-            }
-
-            if (timeOrDateDimension) {
-                const dimToOverride = allDimensionsMap[timeOrDateDimension];
-                const baseTimeDimension = resolveToBaseTimeDimension(
-                    timeOrDateDimension,
-                    allDimensionsMap,
-                    timeDimensionsMap,
-                );
-
-                if (!baseTimeDimension) {
-                    return { explore, dateZoomApplied: false };
-                }
-
-                // Skip sub-day zoom for DATE-only dimensions (no time component)
-                if (
-                    baseTimeDimension.type === DimensionType.DATE &&
-                    isStandardDateGranularity(dateZoom.granularity) &&
-                    isSubDayGranularity(dateZoom.granularity)
-                ) {
-                    return { explore, dateZoomApplied: false };
-                }
-
-                if (!isStandardDateGranularity(dateZoom.granularity)) {
-                    // Custom granularity: find the pre-compiled dimension
-                    const customDimName = `${baseTimeDimension.name}_${dateZoom.granularity}`;
-                    const customDim = Object.values(explore.tables).reduce<
-                        CompiledDimension | undefined
-                    >(
-                        (found, t) => found ?? t.dimensions[customDimName],
-                        undefined,
-                    );
-
-                    if (customDim) {
-                        const dimWithCustomOverride: CompiledDimension = {
-                            ...customDim,
-                            name: dimToOverride.name,
-                        };
-                        return {
-                            explore: replaceDimensionInExplore(
-                                explore,
-                                dimWithCustomOverride,
-                            ),
-                            dateZoomApplied: true,
-                            dateZoomTargetFieldId: timeOrDateDimension,
-                        };
-                    }
-                    // Custom granularity not found — return unchanged explore
-                } else {
-                    // Standard granularity: existing logic
-                    const dimWithGranularityOverride =
-                        createDimensionWithGranularity(
-                            dimToOverride.name,
-                            baseTimeDimension,
-                            explore,
-                            warehouseSqlBuilder,
-                            dateZoom.granularity,
-                            availableParameters,
-                        );
-                    return {
-                        explore: replaceDimensionInExplore(
-                            explore,
-                            dimWithGranularityOverride,
-                        ),
-                        dateZoomApplied: true,
-                        dateZoomTargetFieldId: timeOrDateDimension,
-                    };
-                }
-            }
-        }
-        return { explore, dateZoomApplied: false };
-    }
-
     static async _compileQuery({
         metricQuery,
         explore,
@@ -4223,7 +4117,7 @@ export class ProjectService extends BaseService {
             explore: exploreWithOverride,
             dateZoomApplied,
             dateZoomTargetFieldId,
-        } = ProjectService.updateExploreWithDateZoom(
+        } = updateExploreWithDateZoom(
             explore,
             metricQuery,
             warehouseSqlBuilder,
