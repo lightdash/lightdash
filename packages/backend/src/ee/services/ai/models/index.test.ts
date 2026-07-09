@@ -12,6 +12,7 @@ import {
     applyStreamingCapability,
     filterModelsForOrg,
     getDefaultModel,
+    getFastModelForAccessibleKey,
     getModel,
     MODEL_PRESETS,
     pickAmbientAnthropicPreset,
@@ -407,5 +408,35 @@ describe('pickAmbientAnthropicPreset', () => {
     it('returns null when the key can access no shipped preset', () => {
         const preset = pickAmbientAnthropicPreset(['some-unknown-model']);
         expect(preset).toBeNull();
+    });
+});
+
+describe('getFastModelForAccessibleKey', () => {
+    const anthropicByoConfig = {
+        ...baseCopilotConfig,
+        defaultProvider: 'anthropic' as const,
+        providers: {
+            ...baseCopilotConfig.providers,
+            anthropic: {
+                apiKey: 'sk-ant-x',
+                modelName: 'claude-sonnet-5',
+                supportsStreaming: false,
+                customHeaders: {},
+            },
+        },
+    };
+
+    it('uses the fast model when the BYO key can serve it', () => {
+        const { model } = getFastModelForAccessibleKey(anthropicByoConfig, [
+            'claude-haiku-4-5-20251001',
+        ]);
+        expect(model.modelId).toBe('claude-haiku-4-5-20251001');
+    });
+
+    it('falls back to an accessible model (opus 4.8) when the key lacks the fast one', () => {
+        const { model } = getFastModelForAccessibleKey(anthropicByoConfig, [
+            'claude-opus-4-8',
+        ]);
+        expect(model.modelId).toBe('claude-opus-4-8');
     });
 });

@@ -358,6 +358,34 @@ export const getModel = (
     }
 };
 
+// Fast/lightweight-task model resolution that is BYO-key-aware. When the config
+// resolves to a BYO Anthropic key, pick a fast model the key can serve (falling
+// back to any accessible preset like opus 4.8 instead of erroring on haiku).
+// Otherwise fall back to the standard fast-model selection. Never resolves to a
+// provider the org didn't supply (defaultProvider is already switched upstream).
+export const getFastModelForAccessibleKey = (
+    config: LightdashConfig['ai']['copilot'],
+    accessibleModelIds: string[] | null,
+    options?: { enableReasoning?: boolean },
+) => {
+    const { anthropic } = config.providers;
+    if (anthropic?.apiKey) {
+        const preset = pickAmbientAnthropicPreset(accessibleModelIds);
+        if (preset) {
+            return applyStreamingCapability(
+                getAnthropicModel(anthropic, preset, {
+                    enableReasoning: options?.enableReasoning,
+                }),
+                anthropic.supportsStreaming,
+            );
+        }
+    }
+    return getModel(config, {
+        useFastModel: true,
+        enableReasoning: options?.enableReasoning,
+    });
+};
+
 export const getCompactionModelMetadata = (
     config: LightdashConfig['ai']['copilot'],
     options?: {

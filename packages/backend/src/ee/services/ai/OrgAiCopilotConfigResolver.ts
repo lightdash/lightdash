@@ -12,7 +12,7 @@ import {
     AiOrganizationSettingsModel,
     AiOrgProviderApiKeys,
 } from '../../models/AiOrganizationSettingsModel';
-import { OrgModelOverrides } from './models';
+import { getFastModelForAccessibleKey, OrgModelOverrides } from './models';
 import { keyGrantsModel } from './models/presets';
 
 export type CopilotConfig = AiCopilotConfigSchemaType;
@@ -207,6 +207,31 @@ export class OrgAiCopilotConfigResolver {
         apiKey: string,
     ): Promise<string[] | null> {
         return this.aiModelCatalog.getAccessibleModelIds(provider, apiKey);
+    }
+
+    /**
+     * A fast/lightweight-task model for the given (already overlaid) config,
+     * BYO-key-aware: on a BYO Anthropic key it picks a fast model the key can
+     * actually serve (falling back to an accessible preset like opus 4.8 rather
+     * than erroring on haiku). Auxiliary AI (titles, suggestions, compaction)
+     * uses this so it runs on the org's own key without the fast model breaking.
+     */
+    async resolveFastModel(
+        config: CopilotConfig,
+        options?: { enableReasoning?: boolean },
+    ) {
+        const { anthropic } = config.providers;
+        const accessibleModelIds = anthropic?.apiKey
+            ? await this.aiModelCatalog.getAccessibleModelIds(
+                  'anthropic',
+                  anthropic.apiKey,
+              )
+            : null;
+        return getFastModelForAccessibleKey(
+            config,
+            accessibleModelIds,
+            options,
+        );
     }
 
     /**
