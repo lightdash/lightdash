@@ -7,3 +7,7 @@ Two skills in `.claude/skills/` describe how to edit this app:
 Edit only `src/`. Root config files are read-only reference — the server rebuilds against a trusted template.
 
 The local `pnpm install && pnpm build` is an optional pre-check. If install fails, skip it and upload — never modify machine config, npmrc, or dependency files to force it; the server rebuild is authoritative.
+
+Exception: adding a dependency requires a matching `pnpm-lock.yaml`, so `pnpm add <pkg>` (or `pnpm install --lockfile-only`) must succeed locally. If it fails, stop and report the error — hand-editing `package.json` without the lockfile makes the upload fail.
+
+`.npmrc` sets `ignore-scripts=true` — never remove it or run installs with scripts enabled; this app may be authored by someone else and their dependencies' lifecycle scripts must not run here.

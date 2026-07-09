@@ -885,7 +885,7 @@ Opt-in flags on the existing `lightdash download` / `lightdash upload` commands 
 ### Constraints & notes
 
 - **Enterprise-only** (`APP_RUNTIME_ENABLED`); the caller needs `view` / `create` / `manage:DataApp`.
-- **Fixed dependency set:** upload rebuilds against the sandbox template's pre-installed libraries — you can edit source but can't add libraries the sandbox lacks (a future "bring your own libraries" phase covers that via local builds).
+- **Declared dependencies:** apps can declare custom npm packages in their `package.json`. The CLI validates the declared set (registry-only specs, no git/file/url, up to 60 direct deps, `pnpm-lock.yaml` must be committed) and warns which packages will be installed in the build sandbox before uploading. Install scripts never run. The instance-level flag `LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED` (default `false` during rollout) gates this feature; when disabled, uploads with a non-empty custom dependency set are rejected at the API with a clear error, and builds/iterations of versions that already store custom deps refuse to run (template-only uploads are always accepted). The AI builder and in-app UI cannot change the dependency set — dependencies are declared by editing `package.json` and re-uploading. The dependency summary (name + version) is shown as a chip on the assistant bubble in the chat UI so the author can confirm what was installed.
 - **Semantic-layer coupling:** a moved app's queries run against the **target project's** fields *by name*; fields missing in the target surface as in-app query errors, not upload failures.
 - **Security:** because the server only ever builds source in its trusted, network-locked sandbox and never serves client-supplied *built* code, the runtime trust model is unchanged from AI-generated apps. See [Security Model](#security-model). (Follow-up: the query bridge runs as the *viewing* user — a pre-existing consideration for any app, generated or uploaded.)
 
@@ -931,7 +931,7 @@ If the org design linked to the app has more than **30 asset files**, the theme 
 #### Out of scope (Phase 3)
 
 - **Local preview against real data** — `pnpm build` is a compile check only, not a live data preview.
-- **Bring-your-own libraries** — running `pnpm add` locally has no effect on the server's sandbox. This is the "future bring your own libraries" path noted in [Constraints & notes](#constraints--notes).
+- **Org-level custom-dependency toggle** — the `LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED` flag is instance-wide only; per-org control is not implemented.
 
 ---
 
