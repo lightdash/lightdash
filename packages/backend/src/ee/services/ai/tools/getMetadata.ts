@@ -7,13 +7,12 @@ import {
     type GetMetadataResult,
     type ToolGetMetadataArgs,
 } from '@lightdash/common';
-import { tool } from 'ai';
 import { getExploreRequiredFilters } from '../utils/requiredFilters';
 import type { ExecuteStructuredToolResult } from '../utils/structuredToolResult';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { summarizeRequiredFilters } from './grepFieldsIndex';
 
-const toolDefinition = getMetadataToolDefinition.for('agent');
+const toolDefinition = getMetadataToolDefinition.for('ai-sdk');
 
 type Dependencies = {
     availableExplores: Explore[];
@@ -285,18 +284,20 @@ export const executeGetMetadata = (
  * the entities the agent asked about, in one batched call.
  */
 export const getGetMetadata = (dependencies: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async (args) => {
             try {
                 const result = executeGetMetadata(args, dependencies);
                 return {
+                    status: 'success' as const,
+                    type: 'string' as const,
                     result: result.result,
                     metadata: result.metadata,
                 };
             } catch (error) {
                 return {
-                    result: toolErrorHandler(error, 'Error getting metadata'),
+                    status: 'error' as const,
+                    error: toolErrorHandler(error, 'Error getting metadata'),
                     metadata: { status: 'error' as const },
                 };
             }

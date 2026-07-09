@@ -1,10 +1,8 @@
 import { searchSemanticLayerToolDefinition } from '@lightdash/common';
-import { tool } from 'ai';
 import type {
     SearchSemanticLayerFn,
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
-import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { truncate } from '../utils/truncation';
 import { xmlBuilder } from '../xmlBuilder';
@@ -20,7 +18,7 @@ type Dependencies = {
 /** Used when the agent does not specify a pageSize. */
 const DEFAULT_PAGE_SIZE = 200;
 
-const toolDefinition = searchSemanticLayerToolDefinition.for('agent');
+const toolDefinition = searchSemanticLayerToolDefinition.for('ai-sdk');
 
 const generateResponse = ({
     fields,
@@ -68,8 +66,7 @@ export const getSearchSemanticLayer = ({
     maxPageSize,
     toolDescriptionMaxChars,
 }: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async (args) => {
             try {
                 const hasQuery = !!args.searchQuery?.trim();
@@ -93,6 +90,8 @@ export const getSearchSemanticLayer = ({
                 });
 
                 return {
+                    status: 'success' as const,
+                    type: 'string' as const,
                     result: generateResponse({
                         fields,
                         pagination,
@@ -116,7 +115,8 @@ export const getSearchSemanticLayer = ({
                 };
             } catch (error) {
                 return {
-                    result: toolErrorHandler(
+                    status: 'error' as const,
+                    error: toolErrorHandler(
                         error,
                         `Error searching the semantic layer.`,
                     ),
@@ -126,5 +126,4 @@ export const getSearchSemanticLayer = ({
                 };
             }
         },
-        toModelOutput: ({ output }) => toModelOutput(output),
     });

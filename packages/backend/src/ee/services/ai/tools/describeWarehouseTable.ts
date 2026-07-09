@@ -1,5 +1,4 @@
 import { describeWarehouseTableToolDefinition } from '@lightdash/common';
-import { tool } from 'ai';
 import type { DescribeWarehouseTableFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
@@ -7,13 +6,12 @@ type Dependencies = {
     describeWarehouseTable: DescribeWarehouseTableFn;
 };
 
-const toolDefinition = describeWarehouseTableToolDefinition.for('agent');
+const toolDefinition = describeWarehouseTableToolDefinition.for('ai-sdk');
 
 export const getDescribeWarehouseTable = ({
     describeWarehouseTable,
 }: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async ({ table, schema }) => {
             try {
                 const { columns, resolvedSchema } =
@@ -21,6 +19,8 @@ export const getDescribeWarehouseTable = ({
 
                 if (columns.length === 0) {
                     return {
+                        status: 'success' as const,
+                        type: 'string' as const,
                         result: `No columns found for \`${
                             resolvedSchema ?? schema ?? '(default schema)'
                         }.${table}\`. The table may not exist or may be empty of metadata. Confirm the name via listWarehouseTables or ask the user.`,
@@ -36,12 +36,15 @@ export const getDescribeWarehouseTable = ({
                     .join('\n');
 
                 return {
+                    status: 'success' as const,
+                    type: 'string' as const,
                     result: `Columns for \`${qualified}\` (${columns.length}):\n${columnLines}`,
                     metadata: { status: 'success' },
                 };
             } catch (e) {
                 return {
-                    result: toolErrorHandler(
+                    status: 'error' as const,
+                    error: toolErrorHandler(
                         e,
                         'Error describing warehouse table.',
                     ),

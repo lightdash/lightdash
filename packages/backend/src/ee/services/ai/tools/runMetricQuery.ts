@@ -11,15 +11,12 @@ import {
     ToolRunMetricQueryArgsTransformed,
     toolRunMetricQueryOutputSchema,
 } from '@lightdash/common';
-import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
 import { CsvService } from '../../../../services/CsvService/CsvService';
 import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type { RunAsyncQueryFn } from '../types/aiAgentDependencies';
 import { AgentContext } from '../utils/AgentContext';
 import { populateCustomMetricsSQL } from '../utils/populateCustomMetricsSQL';
-import { serializeData } from '../utils/serializeData';
-import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import {
     validateCustomMetricsDefinition,
@@ -30,7 +27,7 @@ import {
     validateSortFieldsAreSelected,
 } from '../utils/validators';
 
-const toolDefinition = runMetricQueryToolDefinition.for('agent');
+const toolDefinition = runMetricQueryToolDefinition.for('ai-sdk');
 
 type Dependencies = {
     runAsyncQuery: RunAsyncQueryFn;
@@ -88,8 +85,7 @@ export const getRunMetricQuery = ({
         );
     };
 
-    return tool({
-        ...toolDefinition,
+    return toolDefinition.build({
         execute: async (toolArgs, { experimental_context: context }) => {
             try {
                 const ctx = AgentContext.from(context);
@@ -120,6 +116,8 @@ export const getRunMetricQuery = ({
 
                 if (results.rows.length === 0) {
                     return {
+                        status: 'success',
+                        type: 'string',
                         result: NO_RESULTS_RETRY_PROMPT,
                         metadata: {
                             status: 'success',
@@ -154,20 +152,22 @@ export const getRunMetricQuery = ({
                 });
 
                 return {
-                    result: serializeData(csv, 'csv'),
+                    status: 'success',
+                    type: 'csv',
+                    result: csv,
                     metadata: {
                         status: 'success',
                     },
                 };
             } catch (e) {
                 return {
-                    result: toolErrorHandler(e, 'Error running metric query.'),
+                    status: 'error',
+                    error: toolErrorHandler(e, 'Error running metric query.'),
                     metadata: {
                         status: 'error',
                     },
                 };
             }
         },
-        toModelOutput: ({ output }) => toModelOutput(output),
     });
 };

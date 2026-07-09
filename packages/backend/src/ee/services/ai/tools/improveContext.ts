@@ -1,14 +1,11 @@
 import { improveContextToolDefinition } from '@lightdash/common';
-import { tool } from 'ai';
 import Logger from '../../../../logging/logger';
-import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
-const toolDefinition = improveContextToolDefinition.for('agent');
+const toolDefinition = improveContextToolDefinition.for('ai-sdk');
 
 export const getImproveContext = () =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async (toolArgs) => {
             try {
                 Logger.debug(`[AI Agent] Attempting to improve context:
@@ -23,6 +20,8 @@ export const getImproveContext = () =>
                         '[AI Agent] Confidence too low to improve context',
                     );
                     return {
+                        status: 'success' as const,
+                        type: 'string' as const,
                         result: `\
 <InstructionLearned>
     <Status>rejected</Status>
@@ -33,7 +32,7 @@ export const getImproveContext = () =>
     </Message>
 </InstructionLearned>`.trim(),
                         metadata: {
-                            status: 'success',
+                            status: 'success' as const,
                         },
                     };
                 }
@@ -43,6 +42,8 @@ export const getImproveContext = () =>
                 );
 
                 return {
+                    status: 'success' as const,
+                    type: 'string' as const,
                     result: `\
 <InstructionLearned>
     <Status>learned</Status>
@@ -53,17 +54,17 @@ export const getImproveContext = () =>
     <Confidence>${toolArgs.confidence}</Confidence>
 </InstructionLearned>`.trim(),
                     metadata: {
-                        status: 'success',
+                        status: 'success' as const,
                     },
                 };
             } catch (error) {
                 return {
-                    result: toolErrorHandler(error, 'Error improving context'),
+                    status: 'error' as const,
+                    error: toolErrorHandler(error, 'Error improving context'),
                     metadata: {
-                        status: 'error',
+                        status: 'error' as const,
                     },
                 };
             }
         },
-        toModelOutput: ({ output }) => toModelOutput(output),
     });

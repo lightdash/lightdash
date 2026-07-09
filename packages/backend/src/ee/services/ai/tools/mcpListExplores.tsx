@@ -1,11 +1,6 @@
-import {
-    Explore,
-    listExploresToolDefinition,
-    mcpToolListExploresOutputSchema,
-} from '@lightdash/common';
+import { Explore, listExploresToolDefinition } from '@lightdash/common';
 import { tool } from 'ai';
 import { getExploreRequiredFilters } from '../utils/requiredFilters';
-import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { xmlBuilder } from '../xmlBuilder';
 
@@ -68,23 +63,25 @@ export const getMcpListExplores = ({ listExplores }: Dependencies) =>
                 const explores = await listExplores();
 
                 return {
+                    status: 'success' as const,
+                    type: 'string' as const,
                     result: (
                         <explores count={explores.length}>
                             {explores.map((explore) => renderExplore(explore))}
                         </explores>
                     ).toString(),
                     metadata: {
-                        status: 'success',
+                        status: 'success' as const,
                     },
                 };
             } catch (error) {
                 return {
-                    result: toolErrorHandler(error, 'Error listing explores'),
+                    status: 'error' as const,
+                    error: toolErrorHandler(error, 'Error listing explores'),
                     metadata: {
-                        status: 'error',
+                        status: 'error' as const,
                     },
                 };
             }
         },
-        toModelOutput: ({ output }) => toModelOutput(output),
     });

@@ -5,6 +5,7 @@ import {
     SupportedDbtAdapter,
     type Explore,
     type ModelRequiredFilterRule,
+    type ToolOutputSuccessItem,
 } from '@lightdash/common';
 import { getGetMetadata } from './getMetadata';
 
@@ -61,21 +62,31 @@ const makeExplore = (overrides: {
     },
 });
 
-type ExecuteResult = { result: string; metadata: { status: string } };
+type StringToolOutput = Extract<ToolOutputSuccessItem, { type: 'string' }>;
 
 const execute = async (
     explore: Explore,
     requests: Parameters<
         NonNullable<ReturnType<typeof getGetMetadata>['execute']>
     >[0]['requests'],
-): Promise<ExecuteResult> => {
+): Promise<StringToolOutput> => {
     const tool = getGetMetadata({ availableExplores: [explore] });
     const result = await tool.execute!(
         { requests },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         {} as any,
     );
-    return result as ExecuteResult;
+    if (Symbol.asyncIterator in result) {
+        throw new Error('Expected a non-streaming result');
+    }
+    if (
+        Array.isArray(result) ||
+        result.status !== 'success' ||
+        result.type !== 'string'
+    ) {
+        throw new Error('Expected a successful string result');
+    }
+    return result;
 };
 
 describe('getMetadata description truncation', () => {

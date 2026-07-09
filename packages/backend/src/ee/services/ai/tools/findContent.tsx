@@ -6,7 +6,6 @@ import {
     isSavedChartSearchResult,
     isSqlChartSearchResult,
 } from '@lightdash/common';
-import { tool } from 'ai';
 import moment from 'moment';
 import type {
     FindContentChartResult,
@@ -16,7 +15,6 @@ import type {
     FindContentSpaceMetadata,
     FindContentSpaceResult,
 } from '../types/aiAgentDependencies';
-import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { DASHBOARD_CHARTS_PREVIEW_COUNT, truncate } from '../utils/truncation';
 import { xmlBuilder } from '../xmlBuilder';
@@ -41,7 +39,7 @@ type Dependencies = {
     }) => void;
 };
 
-const toolDefinition = findContentToolDefinition.for('agent');
+const toolDefinition = findContentToolDefinition.for('ai-sdk');
 
 const renderSpaceMetadata = (space: FindContentSpaceMetadata) => (
     <space
@@ -237,8 +235,7 @@ export const getFindContent = ({
     toolDescriptionMaxChars,
     trackCoverage,
 }: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async (args) => {
             try {
                 const searchQueryResults = await Promise.all(
@@ -268,6 +265,8 @@ export const getFindContent = ({
                 }
 
                 return {
+                    status: 'success' as const,
+                    type: 'string' as const,
                     result: (
                         <searchresults>
                             {searchQueryResults.map((searchQueryResult) =>
@@ -285,7 +284,8 @@ export const getFindContent = ({
                 };
             } catch (error) {
                 return {
-                    result: toolErrorHandler(
+                    status: 'error' as const,
+                    error: toolErrorHandler(
                         error,
                         `Error finding content for search queries: ${args.searchQueries
                             .map((q) => q.label)
@@ -297,5 +297,4 @@ export const getFindContent = ({
                 };
             }
         },
-        toModelOutput: ({ output }) => toModelOutput(output),
     });

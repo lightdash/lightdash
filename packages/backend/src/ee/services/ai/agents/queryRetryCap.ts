@@ -11,7 +11,7 @@ export const QUERY_TOOL_NAMES: ReadonlySet<string> = new Set([
 
 export type QueryResultClass = 'ok' | 'warehouse-slow' | 'fixable' | 'other';
 
-// A tool result as it appears in the model messages (see toModelOutput):
+// A tool result as it appears in the model messages (see defaultAgentToModelOutput):
 // success → { type: 'text' }, error → { type: 'error-text' }.
 type ToolResultOutput = { type: string; value: string };
 

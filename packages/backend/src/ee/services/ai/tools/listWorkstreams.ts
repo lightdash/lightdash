@@ -1,5 +1,4 @@
 import { listWorkstreamsToolDefinition } from '@lightdash/common';
-import { tool } from 'ai';
 import type { ListWorkstreamsFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
@@ -7,17 +6,18 @@ type Dependencies = {
     listWorkstreams: ListWorkstreamsFn;
 };
 
-const toolDefinition = listWorkstreamsToolDefinition.for('agent');
+const toolDefinition = listWorkstreamsToolDefinition.for('ai-sdk');
 
 export const getListWorkstreams = ({ listWorkstreams }: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async ({ repoTarget }) => {
             try {
                 const workstreams = await listWorkstreams({ repoTarget });
 
                 if (workstreams.length === 0) {
                     return {
+                        status: 'success' as const,
+                        type: 'string' as const,
                         result: repoTarget
                             ? `This conversation has not opened any pull requests on ${repoTarget} yet. Use editRepo or editDbtProject to open one.`
                             : 'This conversation has not opened any pull requests yet. Use editRepo or editDbtProject to open one.',
@@ -38,12 +38,15 @@ export const getListWorkstreams = ({ listWorkstreams }: Dependencies) =>
                 ];
 
                 return {
+                    status: 'success' as const,
+                    type: 'string' as const,
                     result: lines.join('\n'),
                     metadata: { status: 'success' as const },
                 };
             } catch (error) {
                 return {
-                    result: toolErrorHandler(
+                    status: 'error' as const,
+                    error: toolErrorHandler(
                         error,
                         'Error listing the pull requests for this conversation.',
                     ),

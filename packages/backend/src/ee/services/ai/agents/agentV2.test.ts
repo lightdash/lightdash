@@ -1,45 +1,5 @@
 import type { AiAgentArgs, AiAgentDependencies } from '../types/aiAgent';
-import {
-    getAgentTools,
-    normalizeToolOutput,
-    type AgentMcpToolSetup,
-} from './agentV2';
-
-describe('normalizeToolOutput', () => {
-    it('preserves built-in tool output result and metadata', () => {
-        expect(
-            normalizeToolOutput({
-                result: 'ok',
-                metadata: { status: 'success' },
-            }),
-        ).toEqual({
-            result: 'ok',
-            metadata: { status: 'success' },
-        });
-    });
-
-    it('stores plain-text MCP output', () => {
-        expect(normalizeToolOutput('plain text')).toEqual({
-            result: 'plain text',
-        });
-    });
-
-    it('stores structured MCP output as JSON text', () => {
-        const output = {
-            content: [{ type: 'text', text: 'hello' }],
-        };
-
-        expect(normalizeToolOutput(output)).toEqual({
-            result: JSON.stringify(output),
-        });
-    });
-
-    it('always returns a string result for empty MCP output', () => {
-        expect(normalizeToolOutput(undefined)).toEqual({
-            result: 'undefined',
-        });
-    });
-});
+import { getAgentTools, type AgentMcpToolSetup } from './agentV2';
 
 // Change B: the workstream tools (listWorkstreams, closePullRequest) are shared
 // by the general coding agent (editRepo) and the dbt-writeback agent

@@ -2,8 +2,7 @@ import {
     ChartKind,
     type ContentVerificationInfo,
     type DashboardSearchResult,
-    type ToolFindContentOutput,
-    type ToolGetDashboardChartsOutput,
+    type ToolOutput,
 } from '@lightdash/common';
 import type {
     FindContentDashboardResult,
@@ -79,24 +78,55 @@ const makeMockDashboard = (
 
 type FindContentTool = ReturnType<typeof getFindContent>;
 type GetDashboardChartsTool = ReturnType<typeof getGetDashboardCharts>;
+type ExecuteResult = { result: string; metadata: { status: string } };
 
-const executeFindContent = (
+const toolOutputToExecuteResult = (output: ToolOutput): ExecuteResult => {
+    const items = Array.isArray(output) ? output : [output];
+    return {
+        result: items
+            .map((item) =>
+                item.status === 'error' ? item.error : String(item.result),
+            )
+            .join('\n'),
+        metadata: {
+            status: items.some((item) => item.status === 'error')
+                ? 'error'
+                : 'success',
+        },
+    };
+};
+
+const executeFindContent = async (
     tool: FindContentTool,
     args: Parameters<NonNullable<FindContentTool['execute']>>[0],
-): Promise<ToolFindContentOutput> =>
-    tool.execute!(args, {
+): Promise<ExecuteResult> => {
+    const result = await tool.execute!(args, {
         messages: [],
         toolCallId: 'test',
-    }) as Promise<ToolFindContentOutput>;
+    });
 
-const executeGetDashboardCharts = (
+    if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected streaming result');
+    }
+
+    return toolOutputToExecuteResult(result);
+};
+
+const executeGetDashboardCharts = async (
     tool: GetDashboardChartsTool,
     args: Parameters<NonNullable<GetDashboardChartsTool['execute']>>[0],
-): Promise<ToolGetDashboardChartsOutput> =>
-    tool.execute!(args, {
+): Promise<ExecuteResult> => {
+    const result = await tool.execute!(args, {
         messages: [],
         toolCallId: 'test',
-    }) as Promise<ToolGetDashboardChartsOutput>;
+    });
+
+    if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected streaming result');
+    }
+
+    return toolOutputToExecuteResult(result);
+};
 
 const makeMockSpace = (): FindContentResult => ({
     contentType: 'space',

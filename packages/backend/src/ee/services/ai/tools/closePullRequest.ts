@@ -2,7 +2,6 @@ import {
     closePullRequestToolDefinition,
     ForbiddenError,
 } from '@lightdash/common';
-import { tool } from 'ai';
 import type { ClosePullRequestFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
@@ -10,15 +9,16 @@ type Dependencies = {
     closePullRequest: ClosePullRequestFn;
 };
 
-const toolDefinition = closePullRequestToolDefinition.for('agent');
+const toolDefinition = closePullRequestToolDefinition.for('ai-sdk');
 
 export const getClosePullRequest = ({ closePullRequest }: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async ({ prUrl }) => {
             try {
                 await closePullRequest({ prUrl });
                 return {
+                    status: 'success' as const,
+                    type: 'string' as const,
                     result: `Closed the pull request. The card above reflects its closed state, so do NOT repeat the pull request URL — just confirm it was closed.`,
                     metadata: { status: 'success' as const },
                 };
@@ -28,12 +28,14 @@ export const getClosePullRequest = ({ closePullRequest }: Dependencies) =>
                 // Relay it without a retry suggestion.
                 if (error instanceof ForbiddenError) {
                     return {
-                        result: `The pull request could not be closed: you don't have source-code write permission on this project, or that pull request doesn't belong to it. ${error.message}`,
+                        status: 'error' as const,
+                        error: `The pull request could not be closed: you don't have source-code write permission on this project, or that pull request doesn't belong to it. ${error.message}`,
                         metadata: { status: 'error' as const },
                     };
                 }
                 return {
-                    result: toolErrorHandler(
+                    status: 'error' as const,
+                    error: toolErrorHandler(
                         error,
                         'Error closing the pull request.',
                     ),

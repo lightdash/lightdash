@@ -1,5 +1,4 @@
 import { exploreRepoToolDefinition } from '@lightdash/common';
-import { tool } from 'ai';
 import { ShellError } from '../repoFs/bashShell';
 import type { ExploreRepoFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
@@ -8,15 +7,16 @@ type Dependencies = {
     exploreRepo: ExploreRepoFn;
 };
 
-const toolDefinition = exploreRepoToolDefinition.for('agent');
+const toolDefinition = exploreRepoToolDefinition.for('ai-sdk');
 
 export const getExploreRepo = ({ exploreRepo }: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async ({ command, target }) => {
             try {
                 const result = await exploreRepo({ command, target });
                 return {
+                    status: 'success' as const,
+                    type: 'string' as const,
                     result,
                     metadata: { status: 'success' as const },
                 };
@@ -27,7 +27,8 @@ export const getExploreRepo = ({ exploreRepo }: Dependencies) =>
                 // Anything else (e.g. a GitHub access failure) is a real fault
                 // worth capturing.
                 return {
-                    result: toolErrorHandler(
+                    status: 'error' as const,
+                    error: toolErrorHandler(
                         error,
                         'Error reading the repository.',
                         { captureToSentry: !(error instanceof ShellError) },

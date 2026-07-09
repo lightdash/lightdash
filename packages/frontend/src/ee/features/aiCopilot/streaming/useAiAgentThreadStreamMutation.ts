@@ -1,7 +1,8 @@
 import {
+    hasToolOutputError,
     isAiAgentToolName,
     toolImproveContextArgsSchema,
-    toolRunQueryOutputSchema,
+    toolOutputSchema,
 } from '@lightdash/common';
 import { captureException } from '@sentry/react';
 import {
@@ -70,6 +71,13 @@ type StepProgressChunk = UIMessageChunk & {
         toolName?: string | null;
     };
     transient?: boolean;
+};
+
+// Same success semantics as the backend's toModelOutput: an error is always a
+// single error item, arrays are success-only.
+const isSuccessfulToolOutput = (output: unknown): boolean => {
+    const parsed = toolOutputSchema.safeParse(output);
+    return parsed.success && !hasToolOutputError(parsed.data);
 };
 
 const getAgentThreadReadableStream = async (
@@ -348,7 +356,11 @@ export function useAiAgentThreadStreamMutation() {
                             !notifiedToolCallIds.has(toolPart.toolCallId)
                         ) {
                             notifiedToolCallIds.add(toolPart.toolCallId);
-                            onToolCall?.(toolCallPart);
+                            const toolCall = parseStreamRawToolCall({
+                                toolName: toolCallPart.toolName,
+                                toolArgs: toolCallPart.toolArgs,
+                            });
+                            if (toolCall) onToolCall?.(toolCall);
                         }
 
                         if (
@@ -432,16 +444,7 @@ export function useAiAgentThreadStreamMutation() {
                                         break;
                                     }
 
-                                    const output =
-                                        toolRunQueryOutputSchema.safeParse(
-                                            part.output,
-                                        );
-
-                                    if (
-                                        output.success &&
-                                        output.data.metadata.status ===
-                                            'success'
-                                    ) {
+                                    if (isSuccessfulToolOutput(part.output)) {
                                         handledToolOutputIds.add(
                                             part.toolCallId,
                                         );

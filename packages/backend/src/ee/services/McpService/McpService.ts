@@ -5,6 +5,7 @@ import {
     AiResultType,
     AnyType,
     ApiKeyAccount,
+    appendMcpText,
     assertUnreachable,
     buildRunSqlDescription,
     ChartType,
@@ -35,6 +36,7 @@ import {
     getTotalFilterRules,
     getValidAiQueryLimit,
     grepFieldsToolDefinition,
+    hasToolOutputError,
     ItemsMap,
     listAgentsToolDefinition,
     listContentToolDefinition,
@@ -47,6 +49,7 @@ import {
     MetricQuery,
     MissingConfigError,
     NotFoundError,
+    NotImplementedError,
     OauthAccount,
     ParameterError,
     QueryExecutionContext,
@@ -64,12 +67,15 @@ import {
     SessionUser,
     setAgentToolDefinition,
     setProjectToolDefinition,
+    toolOutputToText,
     toolRenderChartArgsSchemaTransformed,
     ToolRenderChartArgsTransformed,
     toolRunQueryArgsSchemaTransformed,
     ToolRunQueryArgsTransformed,
     UnexpectedServerError,
     UserAttributeValueMap,
+    type McpStructuredResult,
+    type ToolOutput,
 } from '@lightdash/common';
 // eslint-disable-next-line import/extensions
 import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
@@ -222,6 +228,11 @@ const mcpListVerifiedContentTool = listVerifiedContentToolDefinition.for('mcp');
 const mcpListSkillsTool = listSkillsToolDefinition.for('mcp');
 const mcpReadSkillTool = readSkillToolDefinition.for('mcp');
 const mcpReadSkillResourceTool = readSkillResourceToolDefinition.for('mcp');
+
+type TerminalQueryStatus =
+    | QueryHistoryStatus.ERROR
+    | QueryHistoryStatus.CANCELLED
+    | QueryHistoryStatus.EXPIRED;
 
 type McpServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -439,7 +450,6 @@ export class McpService extends BaseService {
     private async buildScopedResponse(
         context: McpProtocolContext,
         toolResult: string,
-        structuredContent?: Record<string, unknown>,
         projectUuid?: string,
     ) {
         const scopeInfo = await this.getScopeInfo(context, projectUuid);
@@ -453,9 +463,19 @@ export class McpService extends BaseService {
             });
         }
 
-        return structuredContent !== undefined
-            ? { content, structuredContent }
-            : { content };
+        return { content };
+    }
+
+    // structuredContent can only be produced via the tool's typed
+    // result.structured builder; this just appends the scope text block.
+    private async withScope<TStructuredContent>(
+        context: McpProtocolContext,
+        result: McpStructuredResult<TStructuredContent>,
+        projectUuid?: string,
+    ) {
+        const scopeInfo = await this.getScopeInfo(context, projectUuid);
+        if (!scopeInfo) return result;
+        return appendMcpText(result, `[Scope: ${scopeInfo}]`);
     }
 
     private static buildAgentContextResponse(agent: AiAgentWithContext) {
@@ -505,17 +525,26 @@ export class McpService extends BaseService {
         });
     }
 
-    static async streamToolResult<T extends { result: string }>(
-        result: T | AsyncIterable<T>,
+    private async buildScopedToolOutputResponse(
+        context: McpProtocolContext,
+        result: ToolOutput | AsyncIterable<ToolOutput>,
+        projectUuid?: string,
     ) {
         if (Symbol.asyncIterator in result) {
-            let out = '';
-            for await (const chunk of result) {
-                out += chunk.result;
-            }
-            return out;
+            throw new NotImplementedError(
+                'Streaming MCP tool outputs are not implemented',
+            );
         }
-        return result.result;
+
+        const response = await this.buildScopedResponse(
+            context,
+            toolOutputToText(result),
+            projectUuid,
+        );
+
+        return hasToolOutputError(result)
+            ? { ...response, isError: true as const }
+            : response;
     }
 
     private static getMcpQueryWaitMs(
@@ -535,14 +564,8 @@ export class McpService extends BaseService {
         );
     }
 
-    private static getPollingStatus(status: QueryHistoryStatus) {
+    private static getTerminalPollingStatus(status: TerminalQueryStatus) {
         switch (status) {
-            case QueryHistoryStatus.PENDING:
-            case QueryHistoryStatus.QUEUED:
-            case QueryHistoryStatus.EXECUTING:
-                return 'running' as const;
-            case QueryHistoryStatus.READY:
-                return 'done' as const;
             case QueryHistoryStatus.ERROR:
                 return 'error' as const;
             case QueryHistoryStatus.CANCELLED:
@@ -550,7 +573,10 @@ export class McpService extends BaseService {
             case QueryHistoryStatus.EXPIRED:
                 return 'expired' as const;
             default:
-                return assertUnreachable(status, 'Unknown query status');
+                return assertUnreachable(
+                    status,
+                    'Unknown terminal query status',
+                );
         }
     }
 
@@ -884,25 +910,21 @@ export class McpService extends BaseService {
         });
 
         if (rows.length === 0) {
-            return {
-                content: [
-                    {
-                        type: 'text' as const,
-                        text: `Result rendered for queryUuid: ${queryUuid}, but the query returned 0 rows.${
-                            exploreUrl
-                                ? ` Explore from here: ${exploreUrl}`
-                                : ''
-                        }`,
-                    },
-                ],
-                structuredContent: {
+            const result = mcpRenderChartTool.result.structured(
+                `Result rendered for queryUuid: ${queryUuid}, but the query returned 0 rows.${
+                    exploreUrl ? ` Explore from here: ${exploreUrl}` : ''
+                }`,
+                {
                     result: {
-                        status: 'done' as const,
+                        status: 'done',
                         queryUuid,
                         echartsOption: null,
                         exploreUrl,
                     },
                 },
+            );
+            return {
+                ...result,
                 _meta: {
                     result: {
                         rows: [],
@@ -940,33 +962,26 @@ export class McpService extends BaseService {
               }
             : null;
 
-        const scopeInfo = await this.getScopeInfo(ctx, projectUuid);
-
-        const content = [
+        const baseResult = mcpRenderChartTool.result.structured(
+            `${mcpEchartsOption ? 'Chart' : 'Result table'} rendered for queryUuid: ${queryUuid}.${
+                exploreUrl ? ` Explore from here: ${exploreUrl}` : ''
+            }`,
             {
-                type: 'text' as const,
-                text: `${mcpEchartsOption ? 'Chart' : 'Result table'} rendered for queryUuid: ${queryUuid}.${
-                    exploreUrl ? ` Explore from here: ${exploreUrl}` : ''
-                }`,
-            },
-        ];
-        if (scopeInfo) {
-            content.push({
-                type: 'text' as const,
-                text: `[Scope: ${scopeInfo}]`,
-            });
-        }
-
-        return {
-            content,
-            structuredContent: {
                 result: {
-                    status: 'done' as const,
+                    status: 'done',
                     queryUuid,
                     echartsOption: mcpEchartsOption ? {} : null,
                     exploreUrl,
                 },
             },
+        );
+        const scopeInfo = await this.getScopeInfo(ctx, projectUuid);
+        const result = scopeInfo
+            ? appendMcpText(baseResult, `[Scope: ${scopeInfo}]`)
+            : baseResult;
+
+        return {
+            ...result,
             _meta: {
                 result: {
                     rows,
@@ -978,7 +993,7 @@ export class McpService extends BaseService {
         };
     }
 
-    private static buildMetricQueryPollResult({
+    private static buildMetricQueryPollContent({
         queryUuid,
         rows,
         fields,
@@ -1010,42 +1025,28 @@ export class McpService extends BaseService {
         const body = rows.length === 0 ? 'Query returned 0 rows.' : csv;
 
         return {
-            content: [
-                {
-                    type: 'text' as const,
-                    text: body,
-                },
-                {
-                    type: 'text' as const,
-                    text: `queryUuid: ${queryUuid}`,
-                },
-            ],
-            structuredContent: {
-                result: {
-                    status: 'done' as const,
-                    queryUuid,
-                    rows,
-                    fields,
-                    exploreUrl,
-                },
+            text: body,
+            queryUuidText: `queryUuid: ${queryUuid}`,
+            result: {
+                status: 'done' as const,
+                queryUuid,
+                rows,
+                fields,
+                exploreUrl,
             },
         };
     }
 
-    private async buildSqlQueryResultResponse({
+    private async getSqlQueryResult({
         ctx,
         queryUuid,
         projectUuid,
         pageSize,
-        includeStatus,
-        sqlRunnerUrl,
     }: {
         ctx: McpProtocolContext;
         queryUuid: string;
         projectUuid: string;
         pageSize?: number;
-        includeStatus: boolean;
-        sqlRunnerUrl: string | null;
     }) {
         const { account } = McpService.getAccount(ctx);
         const result = await this.asyncQueryService.getAsyncQueryResults({
@@ -1074,21 +1075,11 @@ export class McpService extends BaseService {
         if (rows.length === 0) {
             const header =
                 columns.length > 0 ? `Columns: ${columns.join(', ')}` : '';
-            return this.buildScopedResponse(
-                ctx,
-                `Query returned 0 rows.${header ? ` ${header}` : ''}`,
-                {
-                    result: {
-                        ...(includeStatus ? { queryUuid } : {}),
-                        status: 'done' as const,
-                        rows: [],
-                        columns,
-                        rowCount: 0,
-                        sqlRunnerUrl,
-                    },
-                },
-                projectUuid,
-            );
+            return {
+                text: `Query returned 0 rows.${header ? ` ${header}` : ''}`,
+                rows,
+                columns,
+            };
         }
 
         const csv = stringify(rows, {
@@ -1096,21 +1087,7 @@ export class McpService extends BaseService {
             columns,
         });
 
-        return this.buildScopedResponse(
-            ctx,
-            csv,
-            {
-                result: {
-                    ...(includeStatus ? { queryUuid } : {}),
-                    status: 'done' as const,
-                    rows,
-                    columns,
-                    rowCount: rows.length,
-                    sqlRunnerUrl,
-                },
-            },
-            projectUuid,
-        );
+        return { text: csv, rows, columns };
     }
 
     /**
@@ -1143,10 +1120,12 @@ export class McpService extends BaseService {
                             source: 'mcp',
                         });
 
-                    return await this.buildScopedResponse(
+                    return await this.withScope(
                         ctx,
-                        `Started AI writeback (run ${aiWritebackRunUuid}). This can take several minutes — call get_ai_writeback_status with this id to check progress and get the pull request URL once it's ready.`,
-                        { aiWritebackRunUuid },
+                        mcpRunAiWritebackTool.result.structured(
+                            `Started AI writeback (run ${aiWritebackRunUuid}). This can take several minutes — call get_ai_writeback_status with this id to check progress and get the pull request URL once it's ready.`,
+                            { aiWritebackRunUuid },
+                        ),
                         projectUuid,
                     );
                 } catch (e) {
@@ -1203,10 +1182,13 @@ export class McpService extends BaseService {
                         summary = `AI writeback still running (stage: ${status}). Check back in 10-15 seconds.`;
                     }
 
-                    return await this.buildScopedResponse(
+                    return await this.withScope(
                         ctx,
-                        summary,
-                        { status, prUrl, errorMessage },
+                        mcpGetAiWritebackStatusTool.result.structured(summary, {
+                            status,
+                            prUrl,
+                            errorMessage,
+                        }),
                         projectUuid,
                     );
                 } catch (e) {
@@ -1259,10 +1241,9 @@ export class McpService extends BaseService {
                     },
                 );
 
-                return this.buildScopedResponse(
+                return this.buildScopedToolOutputResponse(
                     ctx,
-                    await McpService.streamToolResult(result),
-                    undefined,
+                    result,
                     projectUuid,
                 );
             },
@@ -1294,10 +1275,9 @@ export class McpService extends BaseService {
                     messages: [],
                 });
 
-                return this.buildScopedResponse(
+                return this.buildScopedToolOutputResponse(
                     ctx,
-                    await McpService.streamToolResult(result),
-                    undefined,
+                    result,
                     projectUuid,
                 );
             },
@@ -1370,10 +1350,9 @@ export class McpService extends BaseService {
                         },
                     );
 
-                    return await this.buildScopedResponse(
+                    return await this.buildScopedToolOutputResponse(
                         ctx,
-                        await McpService.streamToolResult(result),
-                        undefined,
+                        result,
                         projectUuid,
                     );
                 } catch (error) {
@@ -1458,10 +1437,12 @@ export class McpService extends BaseService {
                                 : {}),
                         };
 
-                        return await this.buildScopedResponse(
+                        return await this.withScope(
                             ctx,
-                            formatToolJsonOutput(structuredContent),
-                            structuredContent,
+                            mcpGrepFieldsTool.result.structured(
+                                formatToolJsonOutput(structuredContent),
+                                structuredContent,
+                            ),
                             projectUuid,
                         );
                     } catch (error) {
@@ -1496,10 +1477,12 @@ export class McpService extends BaseService {
                             availableExplores,
                         });
 
-                        return await this.buildScopedResponse(
+                        return await this.withScope(
                             ctx,
-                            formatToolJsonOutput(result.structuredContent),
-                            result.structuredContent,
+                            mcpGetMetadataTool.result.structured(
+                                formatToolJsonOutput(result.structuredContent),
+                                result.structuredContent,
+                            ),
                             projectUuid,
                         );
                     } catch (error) {
@@ -1573,14 +1556,16 @@ export class McpService extends BaseService {
                               )}\n</verifiedAnswers>`
                             : '';
 
-                    return this.buildScopedResponse(
+                    return this.withScope(
                         ctx,
-                        `${resultText}${verifiedAnswersText}`,
-                        {
-                            ...structuredContent,
-                            relevantVerifiedAnswers:
-                                verifiedAnswerContext.relevantVerifiedAnswers,
-                        },
+                        mcpFindExploresTool.result.structured(
+                            `${resultText}${verifiedAnswersText}`,
+                            {
+                                ...structuredContent,
+                                relevantVerifiedAnswers:
+                                    verifiedAnswerContext.relevantVerifiedAnswers,
+                            },
+                        ),
                         projectUuid,
                     );
                 },
@@ -1636,10 +1621,12 @@ export class McpService extends BaseService {
                         explore: exploreResult.data,
                     });
 
-                    return this.buildScopedResponse(
+                    return this.withScope(
                         ctx,
-                        formatToolJsonOutput(structuredContent),
-                        structuredContent,
+                        mcpFindFieldsTool.result.structured(
+                            formatToolJsonOutput(structuredContent),
+                            structuredContent,
+                        ),
                         projectUuid,
                     );
                 },
@@ -1677,10 +1664,9 @@ export class McpService extends BaseService {
                     messages: [],
                 });
 
-                return this.buildScopedResponse(
+                return this.buildScopedToolOutputResponse(
                     ctx,
-                    await McpService.streamToolResult(result),
-                    undefined,
+                    result,
                     projectUuid,
                 );
             },
@@ -1713,10 +1699,9 @@ export class McpService extends BaseService {
                     messages: [],
                 });
 
-                return this.buildScopedResponse(
+                return this.buildScopedToolOutputResponse(
                     ctx,
-                    await McpService.streamToolResult(result),
-                    undefined,
+                    result,
                     projectUuid,
                 );
             },
@@ -1748,10 +1733,9 @@ export class McpService extends BaseService {
                     messages: [],
                 });
 
-                return this.buildScopedResponse(
+                return this.buildScopedToolOutputResponse(
                     ctx,
-                    await McpService.streamToolResult(result),
-                    undefined,
+                    result,
                     projectUuid,
                 );
             },
@@ -2345,12 +2329,19 @@ export class McpService extends BaseService {
                         queryTool,
                     });
 
-                    return McpService.buildMetricQueryPollResult({
-                        queryUuid,
-                        rows: results.rows,
-                        fields: results.fields,
-                        exploreUrl,
-                    });
+                    const { text, queryUuidText, result } =
+                        McpService.buildMetricQueryPollContent({
+                            queryUuid,
+                            rows: results.rows,
+                            fields: results.fields,
+                            exploreUrl,
+                        });
+                    return appendMcpText(
+                        mcpRunMetricQueryTool.result.structured(text, {
+                            result,
+                        }),
+                        queryUuidText,
+                    );
                 } catch (e) {
                     const errorMessage =
                         e instanceof Error ? e.message : String(e);
@@ -2499,10 +2490,9 @@ export class McpService extends BaseService {
                     },
                 );
 
-                return this.buildScopedResponse(
+                return this.buildScopedToolOutputResponse(
                     ctx,
-                    await McpService.streamToolResult(result),
-                    undefined,
+                    result,
                     projectUuid,
                 );
             },
@@ -2574,14 +2564,26 @@ export class McpService extends BaseService {
                         limit: args.limit ?? 500,
                     });
 
-                    return await this.buildSqlQueryResultResponse({
+                    const { text, rows, columns } =
+                        await this.getSqlQueryResult({
+                            ctx,
+                            queryUuid,
+                            projectUuid,
+                            pageSize: args.limit ?? 500,
+                        });
+                    return await this.withScope(
                         ctx,
-                        queryUuid,
+                        mcpRunSqlTool.result.structured(text, {
+                            result: {
+                                status: 'done',
+                                rows,
+                                columns,
+                                rowCount: rows.length,
+                                sqlRunnerUrl,
+                            },
+                        }),
                         projectUuid,
-                        pageSize: args.limit ?? 500,
-                        includeStatus: false,
-                        sqlRunnerUrl,
-                    });
+                    );
                 } catch (e) {
                     const errorMessage =
                         e instanceof Error ? e.message : String(e);
@@ -2660,24 +2662,28 @@ export class McpService extends BaseService {
                         }
                     }
 
+                    const { status } = queryHistory;
                     if (
-                        queryHistory.status === QueryHistoryStatus.ERROR ||
-                        queryHistory.status === QueryHistoryStatus.CANCELLED ||
-                        queryHistory.status === QueryHistoryStatus.EXPIRED
+                        status === QueryHistoryStatus.ERROR ||
+                        status === QueryHistoryStatus.CANCELLED ||
+                        status === QueryHistoryStatus.EXPIRED
                     ) {
-                        return await this.buildScopedResponse(
+                        // Deliberately not isError: terminal status is in structuredContent,
+                        // and isError would also flip wrapToolCallback telemetry.
+                        return await this.withScope(
                             ctx,
-                            queryHistory.error ??
-                                `Query ${queryHistory.status}`,
-                            {
-                                result: {
-                                    status: McpService.getPollingStatus(
-                                        queryHistory.status,
-                                    ),
-                                    queryUuid: args.queryUuid,
-                                    error: queryHistory.error ?? null,
+                            mcpGetQueryResultTool.result.structured(
+                                queryHistory.error ?? `Query ${status}`,
+                                {
+                                    result: {
+                                        status: McpService.getTerminalPollingStatus(
+                                            status,
+                                        ),
+                                        queryUuid: args.queryUuid,
+                                        error: queryHistory.error ?? null,
+                                    },
                                 },
-                            },
+                            ),
                             projectUuid,
                         );
                     }
@@ -2694,13 +2700,26 @@ export class McpService extends BaseService {
                                   })
                                 : null;
 
-                        return await this.buildSqlQueryResultResponse({
+                        const { text, rows, columns } =
+                            await this.getSqlQueryResult({
+                                ctx,
+                                queryUuid: args.queryUuid,
+                                projectUuid,
+                            });
+                        return await this.withScope(
                             ctx,
-                            queryUuid: args.queryUuid,
+                            mcpGetQueryResultTool.result.structured(text, {
+                                result: {
+                                    status: 'done',
+                                    queryUuid: args.queryUuid,
+                                    rows,
+                                    columns,
+                                    rowCount: rows.length,
+                                    sqlRunnerUrl,
+                                },
+                            }),
                             projectUuid,
-                            includeStatus: true,
-                            sqlRunnerUrl,
-                        });
+                        );
                     }
 
                     if (isMcpMetricQuery) {
@@ -2729,12 +2748,19 @@ export class McpService extends BaseService {
                                 : Object.keys(results.fields),
                         });
 
-                        return McpService.buildMetricQueryPollResult({
-                            queryUuid: args.queryUuid,
-                            rows: results.rows,
-                            fields: results.fields,
-                            exploreUrl,
-                        });
+                        const { text, queryUuidText, result } =
+                            McpService.buildMetricQueryPollContent({
+                                queryUuid: args.queryUuid,
+                                rows: results.rows,
+                                fields: results.fields,
+                                exploreUrl,
+                            });
+                        return appendMcpText(
+                            mcpGetQueryResultTool.result.structured(text, {
+                                result,
+                            }),
+                            queryUuidText,
+                        );
                     }
 
                     throw new ParameterError(
@@ -2813,7 +2839,6 @@ export class McpService extends BaseService {
                 return this.buildScopedResponse(
                     ctx,
                     JSON.stringify(scopedVerifiedContent, null, 2),
-                    undefined,
                     projectUuid,
                 );
             },

@@ -1,10 +1,10 @@
-import { type AiWebAppPrompt } from '@lightdash/common';
+import { type AiWebAppPrompt, type ToolOutput } from '@lightdash/common';
 import { getRunSql } from './runSql';
 
 type RunSqlTool = ReturnType<typeof getRunSql>;
 type RunSqlOutput = {
     result: string;
-    metadata?: { status: string };
+    metadata?: Record<string, unknown>;
 };
 type MakeToolOptions = {
     autoApproveSql?: boolean;
@@ -14,8 +14,23 @@ type MakeToolOptions = {
     maxQueryLimit?: number;
 };
 
-const executeRunSql = (tool: RunSqlTool, toolCallId: string = 'tool-call-1') =>
-    tool.execute!(
+const toolOutputToRunSqlOutput = (output: ToolOutput): RunSqlOutput => {
+    const items = Array.isArray(output) ? output : [output];
+    return {
+        result: items
+            .map((item) =>
+                item.status === 'error' ? item.error : String(item.result),
+            )
+            .join('\n'),
+        metadata: items.find((item) => item.metadata !== undefined)?.metadata,
+    };
+};
+
+const executeRunSql = async (
+    tool: RunSqlTool,
+    toolCallId: string = 'tool-call-1',
+): Promise<RunSqlOutput> => {
+    const result = await tool.execute!(
         {
             sql: 'select 1 as answer',
             limit: 500,
@@ -24,7 +39,14 @@ const executeRunSql = (tool: RunSqlTool, toolCallId: string = 'tool-call-1') =>
             messages: [],
             toolCallId,
         },
-    ) as Promise<RunSqlOutput>;
+    );
+
+    if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected streaming result');
+    }
+
+    return toolOutputToRunSqlOutput(result);
+};
 
 const makePrompt = (): AiWebAppPrompt => ({
     organizationUuid: 'org-uuid',
@@ -161,7 +183,7 @@ describe('getRunSql', () => {
     it('rejects nested SQL execution functions before approval', async () => {
         const { tool, dependencies } = makeTool();
 
-        const output = (await tool.execute!(
+        const result = await tool.execute!(
             {
                 sql: "SELECT * FROM query('INSTALL shellfs')",
                 limit: 500,
@@ -170,7 +192,12 @@ describe('getRunSql', () => {
                 messages: [],
                 toolCallId: 'tool-call-1',
             },
-        )) as RunSqlOutput;
+        );
+
+        if (Symbol.asyncIterator in result) {
+            throw new Error('Unexpected streaming result');
+        }
+        const output = toolOutputToRunSqlOutput(result);
 
         expect(output.metadata?.status).toBe('error');
         expect(output.result).toContain('forbidden functions');

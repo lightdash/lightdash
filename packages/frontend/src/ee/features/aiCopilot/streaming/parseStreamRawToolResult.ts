@@ -1,56 +1,41 @@
 import {
     agentToolDefinitionsByName,
     isAiAgentMcpToolName,
-    type ToolDefinition,
     type ToolName,
+    type ToolOutput,
 } from '@lightdash/common';
 import { type z } from 'zod';
 
 type ParsedToolName = ToolName;
 type McpStreamToolName = `mcp_${string}`;
 
-type ToolArgs<TName extends ToolName> = z.infer<
-    (typeof agentToolDefinitionsByName)[TName]['inputSchema']
->;
-type ToolOutputSchema<TName extends ToolName> =
-    (typeof agentToolDefinitionsByName)[TName] extends ToolDefinition<
-        string,
-        z.ZodObject<z.ZodRawShape>,
-        z.ZodTypeAny,
-        infer TOutputSchema
-    >
-        ? TOutputSchema
-        : never;
-type ToolResult<TName extends ParsedToolName> = z.infer<
-    NonNullable<ToolOutputSchema<TName>>
->;
+type ToolArgs<TName extends ToolName> = TName extends ToolName
+    ? z.infer<(typeof agentToolDefinitionsByName)[TName]['inputSchema']>
+    : never;
+type ToolResult = ToolOutput;
 
-export type AiAgentToolOutput = {
-    [K in ParsedToolName]: ToolResult<K>;
-}[ParsedToolName];
+export type AiAgentToolOutput = ToolOutput;
+
+type BuiltInToolArgs = ToolArgs<ParsedToolName>;
 
 type BuiltInToolCall = {
-    [K in ParsedToolName]: {
-        toolName: K;
-        toolArgs: ToolArgs<K>;
-        toolResult?: ToolResult<K> | null;
-        isPreliminary?: boolean;
-    };
-}[ParsedToolName];
+    toolName: ParsedToolName;
+    toolArgs: BuiltInToolArgs;
+    toolResult?: ToolResult | null;
+    isPreliminary?: boolean;
+};
 
 type BuiltInToolResult = {
-    [K in ParsedToolName]: {
-        toolName: K;
-        toolArgs: ToolArgs<K>;
-        toolResult: ToolResult<K>;
-        isPreliminary?: boolean;
-    };
-}[ParsedToolName];
+    toolName: ParsedToolName;
+    toolArgs: BuiltInToolArgs;
+    toolResult: ToolResult;
+    isPreliminary?: boolean;
+};
 
 type McpToolCall = {
     toolName: McpStreamToolName;
     toolArgs: object;
-    toolResult?: unknown | null;
+    toolResult?: unknown;
     isPreliminary?: boolean;
 };
 
@@ -87,14 +72,67 @@ const parseMcpToolArgs = (toolArgs: unknown): object =>
         ? toolArgs
         : {};
 
-const parseToolArgs = (toolName: ParsedToolName, toolArgs: unknown) =>
-    agentToolDefinitionsByName[toolName].inputSchema.safeParse(toolArgs);
+type ParseResult<T> = { success: true; data: T } | { success: false };
 
-const parseToolOutput = (toolName: ParsedToolName, toolOutput: unknown) => {
-    const outputSchema =
-        agentToolDefinitionsByName[toolName].for('agent').outputSchema;
+const parseToolArgs = (
+    toolName: ParsedToolName,
+    toolArgs: unknown,
+): ParseResult<BuiltInToolArgs> => {
+    const result =
+        agentToolDefinitionsByName[toolName].inputSchema.safeParse(toolArgs);
 
-    return outputSchema?.safeParse(toolOutput) ?? null;
+    if (!result.success) {
+        return { success: false };
+    }
+
+    return { success: true, data: result.data };
+};
+
+const parseToolOutput = (
+    toolName: ParsedToolName,
+    toolOutput: unknown,
+): ParseResult<ToolOutput> => {
+    const result =
+        agentToolDefinitionsByName[toolName].outputSchema.safeParse(toolOutput);
+
+    if (!result.success) {
+        return { success: false };
+    }
+
+    return { success: true, data: result.data };
+};
+
+const parseBuiltInToolCall = (
+    toolName: ParsedToolName,
+    toolArgs: unknown,
+    isPreliminary?: boolean,
+): BuiltInToolCall | null => {
+    const parsedToolArgs = parseToolArgs(toolName, toolArgs);
+    if (!parsedToolArgs.success) return null;
+
+    return {
+        toolName,
+        toolArgs: parsedToolArgs.data,
+        isPreliminary,
+    };
+};
+
+const parseBuiltInToolResult = (
+    toolName: ParsedToolName,
+    toolArgs: unknown,
+    toolOutput: unknown,
+    isPreliminary?: boolean,
+): BuiltInToolResult | null => {
+    const parsedToolArgs = parseToolArgs(toolName, toolArgs);
+    const parsedToolResult = parseToolOutput(toolName, toolOutput);
+    if (!parsedToolArgs.success || !parsedToolResult.success) return null;
+
+    return {
+        toolName,
+        toolArgs: parsedToolArgs.data,
+        toolResult: parsedToolResult.data,
+        isPreliminary,
+    };
 };
 
 export const parseStreamRawToolCall = (
@@ -109,14 +147,12 @@ export const parseStreamRawToolCall = (
     }
 
     if (!isParsedToolName(toolCall.toolName)) return null;
-    const toolArgs = parseToolArgs(toolCall.toolName, toolCall.toolArgs);
-    if (!toolArgs.success) return null;
 
-    return {
-        toolName: toolCall.toolName,
-        toolArgs: toolArgs.data,
-        isPreliminary: toolCall.isPreliminary,
-    } as AiAgentToolCall;
+    return parseBuiltInToolCall(
+        toolCall.toolName,
+        toolCall.toolArgs,
+        toolCall.isPreliminary,
+    );
 };
 
 export const parseStreamRawToolResult = (
@@ -132,17 +168,11 @@ export const parseStreamRawToolResult = (
     }
 
     if (!isParsedToolName(toolResult.toolName)) return null;
-    const toolArgs = parseToolArgs(toolResult.toolName, toolResult.toolArgs);
-    const parsedToolResult = parseToolOutput(
-        toolResult.toolName,
-        toolResult.toolOutput,
-    );
-    if (!toolArgs.success || !parsedToolResult?.success) return null;
 
-    return {
-        toolName: toolResult.toolName,
-        toolArgs: toolArgs.data,
-        toolResult: parsedToolResult.data,
-        isPreliminary: toolResult.isPreliminary,
-    } as AiAgentToolResult;
+    return parseBuiltInToolResult(
+        toolResult.toolName,
+        toolResult.toolArgs,
+        toolResult.toolOutput,
+        toolResult.isPreliminary,
+    );
 };

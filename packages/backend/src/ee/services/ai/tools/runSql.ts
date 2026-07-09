@@ -3,9 +3,10 @@ import {
     createToolRunSqlArgsSchema,
     isSlackPrompt,
     runSqlToolDefinition,
+    toolOutputToText,
     type AnyType,
+    type ToolOutputItem,
 } from '@lightdash/common';
-import { tool } from 'ai';
 import { stringify } from 'csv-stringify/sync';
 import type {
     GetPromptFn,
@@ -39,7 +40,7 @@ type Dependencies = {
     useSlackStreamCard?: boolean;
 };
 
-const toolDefinition = runSqlToolDefinition.for('agent');
+const toolDefinition = runSqlToolDefinition.for('ai-sdk');
 
 // Strip --line and /* block */ comments + string literals so subsequent
 // keyword checks don't false-positive on text that's inside a comment or a
@@ -116,15 +117,15 @@ export const getRunSql = ({
         );
     };
 
-    return tool({
+    return toolDefinition.build({
         description: buildRunSqlDescription(500, maxQueryLimit),
         inputSchema,
-        outputSchema: toolDefinition.outputSchema,
-        toModelOutput: toolDefinition.toModelOutput,
         needsApproval: usesNativeApproval,
         execute: async ({ sql, limit }, { toolCallId }) => {
             if (sqlApprovalTimedOut) {
                 return {
+                    status: 'success',
+                    type: 'string',
                     result: 'A previous SQL approval timed out in this response. Do not call runSql again in this response; tell the user the SQL was not approved and ask them to retry when ready.',
                     metadata: { status: 'timeout' },
                 };
@@ -136,7 +137,8 @@ export const getRunSql = ({
                 validateSelectOnly(sql);
             } catch (e) {
                 return {
-                    result: toolErrorHandler(e, 'Error running SQL query.'),
+                    status: 'error',
+                    error: toolErrorHandler(e, 'Error running SQL query.'),
                     metadata: { status: 'error' },
                 };
             }
@@ -161,9 +163,7 @@ export const getRunSql = ({
             // either by the native path, or (when "don't ask again" flipped the
             // thread to auto-approve) by the decision already being recorded.
             let isResumeExecution = isNativeApprovalPath;
-            const persistResumeResult = async <
-                T extends { result: string; metadata: AnyType },
-            >(
+            const persistResumeResult = async <T extends ToolOutputItem>(
                 output: T,
             ): Promise<T> => {
                 if (isResumeExecution) {
@@ -172,7 +172,7 @@ export const getRunSql = ({
                             promptUuid: prompt.promptUuid,
                             toolCallId,
                             toolName: 'runSql',
-                            result: output.result,
+                            result: toolOutputToText(output),
                             metadata: output.metadata,
                         },
                     ]).catch(() => {
@@ -234,6 +234,8 @@ export const getRunSql = ({
                 if (decision === 'rejected') {
                     await renderState({ kind: 'rejected', sql });
                     return {
+                        status: 'success',
+                        type: 'string',
                         result: 'User rejected this SQL execution. Do not retry the same query; ask the user what they would like instead.',
                         metadata: { status: 'rejected' },
                     };
@@ -242,6 +244,8 @@ export const getRunSql = ({
                     sqlApprovalTimedOut = true;
                     await renderState({ kind: 'timeout', sql });
                     return {
+                        status: 'success',
+                        type: 'string',
                         result: 'SQL approval timed out after 5 minutes with no response. The user may have stepped away — acknowledge politely and wait for them to re-ask.',
                         metadata: { status: 'timeout' },
                     };
@@ -267,6 +271,8 @@ export const getRunSql = ({
                         truncated: false,
                     });
                     return await persistResumeResult({
+                        status: 'success',
+                        type: 'string',
                         result: `Query returned 0 rows.${
                             columns.length > 0
                                 ? ` Columns: ${columns.join(', ')}`
@@ -341,6 +347,8 @@ export const getRunSql = ({
                         : '';
 
                 return await persistResumeResult({
+                    status: 'success',
+                    type: 'string',
                     result: `${rowCount} rows. Columns: ${columns.join(
                         ', ',
                     )}.${truncatedNote}\n${serializeData(previewCsv, 'csv')}`,
@@ -356,7 +364,8 @@ export const getRunSql = ({
                     /* don't shadow the original error if rendering fails */
                 });
                 return persistResumeResult({
-                    result: toolErrorHandler(e, 'Error running SQL query.'),
+                    status: 'error',
+                    error: toolErrorHandler(e, 'Error running SQL query.'),
                     metadata: { status: 'error' },
                 });
             }

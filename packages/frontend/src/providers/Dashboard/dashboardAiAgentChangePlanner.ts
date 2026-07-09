@@ -1,15 +1,26 @@
+import {
+    contentToolSuccessOutputSchema,
+    type ContentToolSuccessMetadata,
+} from '@lightdash/common';
+import { z } from 'zod';
 import { type StreamPart } from '../../ee/features/aiCopilot/store/aiAgentThreadStreamSlice';
 
-type SuccessfulContentToolCall = Extract<StreamPart, { type: 'toolCall' }> & {
-    toolName: 'createContent' | 'editContent';
-    isPreliminary: false;
-    toolResult: {
-        metadata: {
-            status: 'success';
-            slug: string;
-        };
-    };
-};
+const contentToolArgsSchema = z
+    .object({
+        type: z.union([z.literal('chart'), z.literal('dashboard')]),
+    })
+    .passthrough();
+
+const createChartContentToolArgsSchema = z
+    .object({
+        type: z.literal('chart'),
+        content: z
+            .object({
+                dashboardSlug: z.string().optional(),
+            })
+            .passthrough(),
+    })
+    .passthrough();
 
 export type DashboardAiAgentChangeAction =
     | {
@@ -28,22 +39,23 @@ export type DashboardAiAgentChangePlan = {
     pendingChartSlugToFocus: string | null;
 };
 
-const isSuccessfulContentToolCall = (
+const getSuccessfulContentToolMetadata = (
     part: StreamPart,
-): part is SuccessfulContentToolCall =>
-    part.type === 'toolCall' &&
-    (part.toolName === 'createContent' || part.toolName === 'editContent') &&
-    part.isPreliminary === false &&
-    part.toolResult?.metadata.status === 'success';
+): ContentToolSuccessMetadata | null => {
+    if (part.type !== 'toolCall') return null;
+    if (part.toolName !== 'createContent' && part.toolName !== 'editContent') {
+        return null;
+    }
+    if (part.isPreliminary !== false || !part.toolResult) return null;
 
-const getContentSlug = (part: SuccessfulContentToolCall) =>
-    part.toolResult.metadata.slug;
+    const output = contentToolSuccessOutputSchema.safeParse(part.toolResult);
+    return output.success ? output.data.metadata : null;
+};
 
-const getTargetDashboardSlug = (part: SuccessfulContentToolCall) =>
-    part.toolName === 'createContent' &&
-    'dashboardSlug' in part.toolArgs.content
-        ? part.toolArgs.content.dashboardSlug
-        : undefined;
+const getTargetDashboardSlug = (toolArgs: unknown) => {
+    const args = createChartContentToolArgsSchema.safeParse(toolArgs);
+    return args.success ? args.data.content.dashboardSlug : undefined;
+};
 
 export const planDashboardAiAgentChanges = ({
     parts,
@@ -61,19 +73,30 @@ export const planDashboardAiAgentChanges = ({
     let nextPendingChartSlugToFocus = pendingChartSlugToFocus;
 
     for (const part of parts) {
-        if (!isSuccessfulContentToolCall(part)) continue;
+        const metadata = getSuccessfulContentToolMetadata(part);
+        if (!metadata) continue;
+        if (part.type !== 'toolCall') continue;
+        if (
+            part.toolName !== 'createContent' &&
+            part.toolName !== 'editContent'
+        ) {
+            continue;
+        }
         if (handledToolCallIds.has(part.toolCallId)) continue;
 
         nextHandledToolCallIds.push(part.toolCallId);
 
-        const contentSlug = getContentSlug(part);
+        const contentSlug = metadata.slug;
 
-        switch (part.toolArgs.type) {
+        const args = contentToolArgsSchema.safeParse(part.toolArgs);
+        if (!args.success) continue;
+
+        switch (args.data.type) {
             case 'chart': {
-                const targetDashboardSlug = getTargetDashboardSlug(part);
                 if (
                     part.toolName === 'createContent' &&
-                    targetDashboardSlug === currentDashboardSlug
+                    getTargetDashboardSlug(part.toolArgs) ===
+                        currentDashboardSlug
                 ) {
                     nextPendingChartSlugToFocus = contentSlug;
                     actions.push({

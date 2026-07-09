@@ -1,5 +1,4 @@
 import { getKnowledgeDocumentContentToolDefinition } from '@lightdash/common';
-import { tool } from 'ai';
 import type { GetKnowledgeDocumentContentFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { xmlBuilder } from '../xmlBuilder';
@@ -8,19 +7,20 @@ type Dependencies = {
     getKnowledgeDocumentContent: GetKnowledgeDocumentContentFn;
 };
 
-const toolDefinition = getKnowledgeDocumentContentToolDefinition.for('agent');
+const toolDefinition = getKnowledgeDocumentContentToolDefinition.for('ai-sdk');
 
 export const getGetKnowledgeDocumentContent = ({
     getKnowledgeDocumentContent,
 }: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async ({ documentUuid }) => {
             try {
                 const document = await getKnowledgeDocumentContent({
                     documentUuid,
                 });
                 return {
+                    status: 'success' as const,
+                    type: 'string' as const,
                     result: (
                         <knowledgedocument
                             uuid={document.uuid}
@@ -41,7 +41,8 @@ export const getGetKnowledgeDocumentContent = ({
                 };
             } catch (e) {
                 return {
-                    result: toolErrorHandler(
+                    status: 'error' as const,
+                    error: toolErrorHandler(
                         e,
                         'Error reading knowledge document.',
                     ),

@@ -5,7 +5,6 @@ import {
     type GrepFieldsResult,
     type ToolGrepFieldsArgs,
 } from '@lightdash/common';
-import { tool } from 'ai';
 import Logger from '../../../../logging/logger';
 import type { FindExploresFn } from '../types/aiAgentDependencies';
 import { getExploreRequiredFilters } from '../utils/requiredFilters';
@@ -23,7 +22,7 @@ import {
     type FieldEntry,
 } from './grepFieldsIndex';
 
-const toolDefinition = grepFieldsToolDefinition.for('agent');
+const toolDefinition = grepFieldsToolDefinition.for('ai-sdk');
 
 type Dependencies = {
     availableExplores: Explore[];
@@ -541,8 +540,7 @@ export const getGrepFields = (dependencies: Dependencies) => {
     // The tool instance persists across every grep call in an agent run, so the
     // greppable index is built once here rather than per call.
     const context = buildGrepFieldsContext(dependencies);
-    return tool({
-        ...toolDefinition,
+    return toolDefinition.build({
         execute: async (args) => {
             try {
                 const result = await runGrepFields(
@@ -551,12 +549,15 @@ export const getGrepFields = (dependencies: Dependencies) => {
                     dependencies.findExplores,
                 );
                 return {
+                    status: 'success' as const,
+                    type: 'string' as const,
                     result: result.result,
                     metadata: result.metadata,
                 };
             } catch (error) {
                 return {
-                    result: toolErrorHandler(error, 'Error grepping fields'),
+                    status: 'error' as const,
+                    error: toolErrorHandler(error, 'Error grepping fields'),
                     metadata: { status: 'error' as const },
                 };
             }

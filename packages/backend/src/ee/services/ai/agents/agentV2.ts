@@ -1,9 +1,4 @@
-import {
-    AgentToolOutput,
-    AnyType,
-    assertUnreachable,
-    Explore,
-} from '@lightdash/common';
+import { AnyType, assertUnreachable, Explore } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
     generateText,
@@ -76,6 +71,7 @@ import {
     AiAgentStepCapReachedError,
     getUserFacingErrorMessage,
 } from '../utils/errorMessages';
+import { normalizeToolOutput } from '../utils/normalizeToolOutput';
 import {
     isPendingToolResult,
     summarizeToolCall,
@@ -165,37 +161,6 @@ export type AgentMcpToolSetup = {
     mcpToolNameToServerUuid: Record<string, string>;
     unavailableMcpServers: UnavailableMcpServer[];
     closeMcpClients: () => Promise<void>;
-};
-
-export const normalizeToolOutput = (
-    output: unknown,
-): { result: string; metadata?: AgentToolOutput['metadata'] } => {
-    if (
-        output !== null &&
-        typeof output === 'object' &&
-        'result' in output &&
-        typeof output.result === 'string'
-    ) {
-        const metadata =
-            'metadata' in output
-                ? (output.metadata as AgentToolOutput['metadata'])
-                : undefined;
-
-        return {
-            result: output.result,
-            metadata,
-        };
-    }
-
-    if (typeof output === 'string') {
-        return { result: output };
-    }
-
-    try {
-        return { result: JSON.stringify(output) ?? String(output) };
-    } catch {
-        return { result: String(output) };
-    }
 };
 
 export const defaultAgentOptions = {

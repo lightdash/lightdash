@@ -1,23 +1,21 @@
-import snakeCase from 'lodash/snakeCase';
 import { type ToolRuntime } from '../defineTool';
 
 /**
- * The discovery/query tools reference each other by name in their prose
- * descriptions, and the agent and MCP runtimes expose the same tools under
- * different names — so a description must use the names of the runtime it is
- * rendered for, or it points the model at a tool that does not exist.
- *
- * The MCP name is the framework's own rule, `snakeCase(canonicalName)` (see
- * `toolDefinitionWith[out]McpOutput`), so we reuse it rather than hardcode a
- * second copy. The one exception is the chart tool: `generateVisualization` on
- * the agent, `render_chart` on MCP.
+ * Tool descriptions reference a small set of tools by runtime-specific name.
+ * The agent and MCP runtimes expose the same tools under different names, so a
+ * description must use the current runtime's name or it points at a tool that
+ * does not exist. Keep these names explicit and shared with toolDefinitions.ts.
  */
+export const CROSS_REFERENCED_TOOL_NAMES = {
+    grepFields: { agent: 'grepFields', mcp: 'grep_fields' },
+    getMetadata: { agent: 'getMetadata', mcp: 'get_metadata' },
+    findContent: { agent: 'findContent', mcp: 'find_content' },
+    visualization: { agent: 'generateVisualization', mcp: 'run_metric_query' },
+} as const satisfies Record<string, Record<ToolRuntime, string>>;
+
+export type CrossReferencedTool = keyof typeof CROSS_REFERENCED_TOOL_NAMES;
+
 export const toolNameFor = (
-    canonicalName: string,
+    tool: CrossReferencedTool,
     runtime: ToolRuntime,
-): string => {
-    if (runtime === 'agent') return canonicalName;
-    return canonicalName === 'generateVisualization'
-        ? 'render_chart'
-        : snakeCase(canonicalName);
-};
+): string => CROSS_REFERENCED_TOOL_NAMES[tool][runtime];

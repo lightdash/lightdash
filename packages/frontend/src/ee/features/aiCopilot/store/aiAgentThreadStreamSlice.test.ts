@@ -223,8 +223,9 @@ describe('aiAgentThreadStreamSlice', () => {
                         toolName: 'findExplores',
                         toolArgs: { searchQuery: 'orders' },
                         toolResult: {
+                            status: 'success',
+                            type: 'string',
                             result: '<searchResults />',
-                            metadata: { status: 'success' },
                         },
                         isPreliminary: false,
                     },
@@ -241,8 +242,9 @@ describe('aiAgentThreadStreamSlice', () => {
                 toolName: 'findExplores',
                 toolArgs: { searchQuery: 'orders' },
                 toolResult: {
+                    status: 'success',
+                    type: 'string',
                     result: '<searchResults />',
-                    metadata: { status: 'success' },
                 },
                 isPreliminary: false,
             },

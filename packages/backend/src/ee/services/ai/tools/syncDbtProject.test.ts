@@ -1,4 +1,4 @@
-import { ForbiddenError } from '@lightdash/common';
+import { ForbiddenError, type ToolOutput } from '@lightdash/common';
 import { getSyncDbtProject } from './syncDbtProject';
 
 type SyncDbtProjectTool = ReturnType<typeof getSyncDbtProject>;
@@ -7,14 +7,41 @@ type SyncDbtProjectOutput = {
     metadata?: { status: string };
 };
 
-const executeSyncDbtProject = (tool: SyncDbtProjectTool) =>
-    tool.execute!(
+const toolOutputToSyncDbtProjectOutput = (
+    output: ToolOutput,
+): SyncDbtProjectOutput => {
+    const items = Array.isArray(output) ? output : [output];
+    return {
+        result: items
+            .map((item) =>
+                item.status === 'error' ? item.error : String(item.result),
+            )
+            .join('\n'),
+        metadata: {
+            status: items.some((item) => item.status === 'error')
+                ? 'error'
+                : 'success',
+        },
+    };
+};
+
+const executeSyncDbtProject = async (
+    tool: SyncDbtProjectTool,
+): Promise<SyncDbtProjectOutput> => {
+    const result = await tool.execute!(
         { reason: null },
         {
             messages: [],
             toolCallId: 'tool-call-1',
         },
-    ) as Promise<SyncDbtProjectOutput>;
+    );
+
+    if (Symbol.asyncIterator in result) {
+        throw new Error('Unexpected streaming result');
+    }
+
+    return toolOutputToSyncDbtProjectOutput(result);
+};
 
 describe('getSyncDbtProject', () => {
     it('reports success and includes the message in the model output', async () => {

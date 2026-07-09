@@ -2,10 +2,8 @@ import {
     DashboardSearchResult,
     getDashboardChartsToolDefinition,
 } from '@lightdash/common';
-import { tool } from 'ai';
 import moment from 'moment';
 import type { GetDashboardChartsFn } from '../types/aiAgentDependencies';
-import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { xmlBuilder } from '../xmlBuilder';
 
@@ -15,7 +13,7 @@ type Dependencies = {
     pageSize: number;
 };
 
-const toolDefinition = getDashboardChartsToolDefinition.for('agent');
+const toolDefinition = getDashboardChartsToolDefinition.for('ai-sdk');
 
 const renderChart = (chart: DashboardSearchResult['charts'][number]) => (
     <chart
@@ -39,8 +37,7 @@ export const getGetDashboardCharts = ({
     siteUrl,
     pageSize,
 }: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async (args) => {
             try {
                 const page = args.page ?? 1;
@@ -58,6 +55,8 @@ export const getGetDashboardCharts = ({
                 );
 
                 return {
+                    status: 'success' as const,
+                    type: 'string' as const,
                     result: (
                         <dashboardCharts
                             dashboardUuid={args.dashboardUuid}
@@ -76,7 +75,8 @@ export const getGetDashboardCharts = ({
                 };
             } catch (error) {
                 return {
-                    result: toolErrorHandler(
+                    status: 'error' as const,
+                    error: toolErrorHandler(
                         error,
                         `Error getting charts for dashboard: ${args.dashboardUuid}`,
                     ),
@@ -86,5 +86,4 @@ export const getGetDashboardCharts = ({
                 };
             }
         },
-        toModelOutput: ({ output }) => toModelOutput(output),
     });

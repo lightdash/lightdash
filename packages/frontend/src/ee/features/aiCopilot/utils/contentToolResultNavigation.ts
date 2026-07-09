@@ -1,3 +1,5 @@
+import { contentToolSuccessOutputSchema } from '@lightdash/common';
+import { z } from 'zod';
 import {
     isSameDashboardRoute,
     isSameLocation,
@@ -5,6 +7,10 @@ import {
 import { type AiAgentToolResult } from '../types';
 
 type LocationLike = Parameters<typeof isSameLocation>[1];
+
+const dashboardContentToolArgsSchema = z.object({
+    type: z.literal('dashboard'),
+});
 
 const getDashboardNavigationTargetFromContentToolResult = (
     toolResult: AiAgentToolResult,
@@ -23,13 +29,21 @@ const getDashboardNavigationTargetFromContentToolResult = (
     ) {
         return undefined;
     }
-    if (toolResult.toolArgs.type !== 'dashboard') return undefined;
-    if (toolResult.toolResult.metadata.status !== 'success') return undefined;
+    const toolArgs = dashboardContentToolArgsSchema.safeParse(
+        toolResult.toolArgs,
+    );
+    if (!toolArgs.success) return undefined;
 
+    const output = contentToolSuccessOutputSchema.safeParse(
+        toolResult.toolResult,
+    );
+    if (!output.success) return undefined;
+
+    const { metadata } = output.data;
     return {
-        dashboardUrl: toolResult.toolResult.metadata.href,
-        dashboardUuid: toolResult.toolResult.metadata.uuid,
-        dashboardSlug: toolResult.toolResult.metadata.slug,
+        dashboardUrl: metadata.href,
+        dashboardUuid: metadata.uuid,
+        dashboardSlug: metadata.slug,
     };
 };
 

@@ -1,7 +1,5 @@
 import { ContentType, listContentToolDefinition } from '@lightdash/common';
-import { tool } from 'ai';
 import type { ListContentFn } from '../types/aiAgentDependencies';
-import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { xmlBuilder } from '../xmlBuilder';
 
@@ -9,7 +7,7 @@ type Dependencies = {
     listContent: ListContentFn;
 };
 
-const toolDefinition = listContentToolDefinition.for('agent');
+const toolDefinition = listContentToolDefinition.for('ai-sdk');
 
 const renderContent = (content: Awaited<ReturnType<ListContentFn>>) => (
     <contentList
@@ -45,11 +43,12 @@ const renderContent = (content: Awaited<ReturnType<ListContentFn>>) => (
 );
 
 export const getListContent = ({ listContent }: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async (args) => {
             try {
                 return {
+                    status: 'success' as const,
+                    type: 'string' as const,
                     result: renderContent(
                         await listContent({
                             spaceSlug: args.spaceSlug ?? null,
@@ -62,12 +61,12 @@ export const getListContent = ({ listContent }: Dependencies) =>
                 };
             } catch (error) {
                 return {
-                    result: toolErrorHandler(error, 'Error listing content'),
+                    status: 'error' as const,
+                    error: toolErrorHandler(error, 'Error listing content'),
                     metadata: {
                         status: 'error',
                     },
                 };
             }
         },
-        toModelOutput: ({ output }) => toModelOutput(output),
     });

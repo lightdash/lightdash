@@ -3,10 +3,8 @@ import {
     InsufficientGitPermissionsError,
     PullRequestProvider,
 } from '@lightdash/common';
-import { tool } from 'ai';
 import { WritebackGitNotConnectedError } from '../../AiWritebackService/errors';
 import type { EditProjectContextFn } from '../types/aiAgentDependencies';
-import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
 type Dependencies = {
@@ -31,11 +29,10 @@ const classifyError = (error: unknown): EditProjectContextErrorCode => {
     return 'unknown';
 };
 
-const toolDefinition = editProjectContextToolDefinition.for('agent');
+const toolDefinition = editProjectContextToolDefinition.for('ai-sdk');
 
 export const getEditProjectContext = ({ editProjectContext }: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async ({ op, id, kind, content, terms, objects }) => {
             try {
                 const { prUrl, prAction } = await editProjectContext({
@@ -49,6 +46,8 @@ export const getEditProjectContext = ({ editProjectContext }: Dependencies) =>
 
                 const verb = prAction === 'updated' ? 'Updated' : 'Opened';
                 return {
+                    status: 'success' as const,
+                    type: 'string' as const,
                     result: `${verb} a pull request that ${
                         op === 'update' ? 'updates' : 'adds'
                     } a project context entry. A "View pull request" button is shown to the user, so do NOT include the pull request URL in your reply — summarise the entry you wrote ("${content}") and that it now applies to this project's context.`,
@@ -60,7 +59,8 @@ export const getEditProjectContext = ({ editProjectContext }: Dependencies) =>
                 };
             } catch (error) {
                 return {
-                    result: toolErrorHandler(
+                    status: 'error' as const,
+                    error: toolErrorHandler(
                         error,
                         'Error updating project context. No pull request was opened.',
                     ),
@@ -71,5 +71,4 @@ export const getEditProjectContext = ({ editProjectContext }: Dependencies) =>
                 };
             }
         },
-        toModelOutput: ({ output }) => toModelOutput(output),
     });

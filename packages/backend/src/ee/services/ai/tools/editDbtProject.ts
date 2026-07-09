@@ -1,18 +1,15 @@
 import { editDbtProjectToolDefinition } from '@lightdash/common';
-import { tool } from 'ai';
 import type { EditDbtProjectFn } from '../types/aiAgentDependencies';
-import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
 type Dependencies = {
     editDbtProject: EditDbtProjectFn;
 };
 
-const toolDefinition = editDbtProjectToolDefinition.for('agent');
+const toolDefinition = editDbtProjectToolDefinition.for('ai-sdk');
 
 export const getEditDbtProject = ({ editDbtProject }: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async (
             {
                 prompt,
@@ -32,6 +29,8 @@ export const getEditDbtProject = ({ editDbtProject }: Dependencies) =>
                 });
 
                 return {
+                    status: 'success' as const,
+                    type: 'string' as const,
                     result: 'Started the change. Give a brief one-line acknowledgement.',
                     metadata: {
                         status: 'pending' as const,
@@ -40,7 +39,8 @@ export const getEditDbtProject = ({ editDbtProject }: Dependencies) =>
                 };
             } catch (error) {
                 return {
-                    result: toolErrorHandler(
+                    status: 'error' as const,
+                    error: toolErrorHandler(
                         error,
                         'Error starting AI writeback. No pull request was opened.',
                     ),
@@ -51,5 +51,4 @@ export const getEditDbtProject = ({ editDbtProject }: Dependencies) =>
                 };
             }
         },
-        toModelOutput: ({ output }) => toModelOutput(output),
     });

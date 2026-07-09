@@ -1,15 +1,16 @@
-import { editContentToolDefinition } from '@lightdash/common';
-import { tool } from 'ai';
+import {
+    editContentToolDefinition,
+    type ContentToolSuccessMetadata,
+} from '@lightdash/common';
 import type { EditContentFn } from '../types/aiAgentDependencies';
 import { getContentWarnings } from '../utils/contentWarnings';
-import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
 type Dependencies = {
     editContent: EditContentFn;
 };
 
-const toolDefinition = editContentToolDefinition.for('agent');
+const toolDefinition = editContentToolDefinition.for('ai-sdk');
 
 const contentResult = ({
     content,
@@ -32,8 +33,7 @@ const contentResult = ({
 };
 
 export const getEditContent = ({ editContent }: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async ({ slug, type, patch }) => {
             try {
                 const result = await editContent({ slug, type, patch });
@@ -46,9 +46,11 @@ export const getEditContent = ({ editContent }: Dependencies) =>
                     href: result.href,
                     versionUuids: result.versionUuids,
                     warnings,
-                };
+                } satisfies ContentToolSuccessMetadata;
 
                 return {
+                    status: 'success' as const,
+                    type: 'string' as const,
                     result: contentResult({
                         content: result.content,
                         href: metadata.href,
@@ -59,7 +61,8 @@ export const getEditContent = ({ editContent }: Dependencies) =>
                 };
             } catch (error) {
                 return {
-                    result: toolErrorHandler(
+                    status: 'error' as const,
+                    error: toolErrorHandler(
                         error,
                         `Error editing ${type} "${slug}". Patch was not applied.`,
                     ),
@@ -69,5 +72,4 @@ export const getEditContent = ({ editContent }: Dependencies) =>
                 };
             }
         },
-        toModelOutput: ({ output }) => toModelOutput(output),
     });

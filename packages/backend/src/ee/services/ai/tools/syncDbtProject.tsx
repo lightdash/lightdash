@@ -1,10 +1,8 @@
 import { syncDbtProjectToolDefinition } from '@lightdash/common';
-import { tool } from 'ai';
 import type {
     SyncDbtProjectFn,
     UpdateProgressFn,
 } from '../types/aiAgentDependencies';
-import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { xmlBuilder } from '../xmlBuilder';
 
@@ -13,7 +11,7 @@ type Dependencies = {
     updateProgress: UpdateProgressFn;
 };
 
-const toolDefinition = syncDbtProjectToolDefinition.for('agent');
+const toolDefinition = syncDbtProjectToolDefinition.for('ai-sdk');
 
 const generateResponse = (result: Awaited<ReturnType<SyncDbtProjectFn>>) => (
     <syncDbtProject status={result.status} jobUuid={result.jobUuid}>
@@ -39,8 +37,7 @@ export const getSyncDbtProject = ({
     syncDbtProject,
     updateProgress,
 }: Dependencies) =>
-    tool({
-        ...toolDefinition,
+    toolDefinition.build({
         execute: async (args) => {
             try {
                 await updateProgress('Syncing the dbt project...');
@@ -48,24 +45,37 @@ export const getSyncDbtProject = ({
                 const result = await syncDbtProject({
                     reason: args.reason,
                 });
+                const response = generateResponse(result).toString();
+
+                if (result.status === 'error') {
+                    return {
+                        status: 'error' as const,
+                        error: response,
+                        metadata: {
+                            status: 'error' as const,
+                        },
+                    };
+                }
 
                 return {
-                    result: generateResponse(result).toString(),
+                    status: 'success' as const,
+                    type: 'string' as const,
+                    result: response,
                     metadata: {
-                        status: result.status === 'error' ? 'error' : 'success',
+                        status: 'success' as const,
                     },
                 };
             } catch (error) {
                 return {
-                    result: toolErrorHandler(
+                    status: 'error' as const,
+                    error: toolErrorHandler(
                         error,
                         'Error syncing the dbt project.',
                     ),
                     metadata: {
-                        status: 'error',
+                        status: 'error' as const,
                     },
                 };
             }
         },
-        toModelOutput: ({ output }) => toModelOutput(output),
     });

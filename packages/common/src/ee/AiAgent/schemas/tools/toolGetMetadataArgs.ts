@@ -9,7 +9,7 @@ export const GET_METADATA_DESCRIPTION = ({
 }: ToolDescriptionContext): string => {
     const getMetadata = toolNameFor('getMetadata', runtime);
     const grepFields = toolNameFor('grepFields', runtime);
-    const visualization = toolNameFor('generateVisualization', runtime);
+    const visualization = toolNameFor('visualization', runtime);
     return `Tool: ${getMetadata}
 
 Purpose:
