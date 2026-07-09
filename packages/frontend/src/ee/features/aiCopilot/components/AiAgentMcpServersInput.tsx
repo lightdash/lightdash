@@ -493,8 +493,8 @@ const UpdateMcpServerTokenModal = ({
                             {...form.getInputProps('bearerToken')}
                         />
                         <Text size="xs" c="dimmed" mt="xs">
-                            Enter a new token to replace the current one. It will
-                            be encrypted and shared across all users of the
+                            Enter a new token to replace the current one. It
+                            will be encrypted and shared across all users of the
                             agent.
                         </Text>
                     </Box>
@@ -952,7 +952,9 @@ export const AiAgentMcpServersInput = ({
                     agentUuid,
                     showSuccessToast: false,
                 });
-                showToastSuccess({ title: 'Connection re-tested successfully' });
+                showToastSuccess({
+                    title: 'Connection re-tested successfully',
+                });
             } catch {
                 // The mutation surfaces the failure via an error toast, and the
                 // server's connection status/error is refreshed in the list.
