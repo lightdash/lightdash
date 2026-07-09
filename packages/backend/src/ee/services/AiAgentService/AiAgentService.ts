@@ -361,6 +361,8 @@ const ALLOWED_AGENT_AVATAR_MIME_TYPES = new Set([
 // comfortably under the usual 30-60s idle timeouts.
 const STREAM_KEEPALIVE_INTERVAL_MS = 15_000;
 
+const MAX_MCP_BEARER_TOKEN_LENGTH = 8192;
+
 type EmbedAiAgentRuntimeOptions = {
     embedSpaceUuid: string;
     spaceAccess: string[];
@@ -3248,6 +3250,14 @@ export class AiAgentService extends BaseService {
                         'Bearer MCP servers require a bearer token',
                     );
                 }
+                if (
+                    body.credentials.bearerToken.trim().length >
+                    MAX_MCP_BEARER_TOKEN_LENGTH
+                ) {
+                    throw new ParameterError(
+                        `Bearer token must be at most ${MAX_MCP_BEARER_TOKEN_LENGTH} characters`,
+                    );
+                }
                 if (allowOAuthCredentialSharing) {
                     throw new ParameterError(
                         'OAuth credential sharing is only allowed for auth type "oauth"',
@@ -3356,6 +3366,11 @@ export class AiAgentService extends BaseService {
         const bearerToken = body.bearerToken.trim();
         if (!bearerToken) {
             throw new ParameterError('A bearer token is required');
+        }
+        if (bearerToken.length > MAX_MCP_BEARER_TOKEN_LENGTH) {
+            throw new ParameterError(
+                `Bearer token must be at most ${MAX_MCP_BEARER_TOKEN_LENGTH} characters`,
+            );
         }
 
         let mcpConnectionMetadata: { iconUrl: string | null };

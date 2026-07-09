@@ -194,6 +194,21 @@ describe('updateMcpServerBearerCredential', () => {
         expect(aiAgentModel.upsertCredential).not.toHaveBeenCalled();
     });
 
+    it('rejects a token longer than the max length', async () => {
+        const { service, aiAgentModel } = buildService();
+
+        await expect(
+            service.updateMcpServerBearerCredential(
+                user,
+                PROJECT_UUID,
+                SERVER_UUID,
+                { bearerToken: 'a'.repeat(8193) },
+            ),
+        ).rejects.toBeInstanceOf(ParameterError);
+
+        expect(aiAgentModel.upsertCredential).not.toHaveBeenCalled();
+    });
+
     it('rejects a non-bearer server', async () => {
         const { service, aiAgentModel } = buildService({
             getMcpServer: { ...bearerServer, authType: 'oauth' },
