@@ -40,7 +40,54 @@ const baseConfig: CopilotConfig = aiCopilotConfigSchema.parse({
     },
 });
 
+const bothProvidersConfig: CopilotConfig = aiCopilotConfigSchema.parse({
+    enabled: true,
+    requiresFeatureFlag: false,
+    telemetryEnabled: false,
+    debugLoggingEnabled: false,
+    askAiButtonEnabled: false,
+    embeddingEnabled: false,
+    maxQueryLimit: 100,
+    runSqlMaxLimit: 100,
+    defaultProvider: 'openai',
+    defaultEmbeddingModelProvider: 'openai',
+    providers: {
+        openai: {
+            apiKey: 'instance-openai-key',
+            modelName: 'gpt-5.4',
+            embeddingModelName: 'text-embedding-3-small',
+            zeroDataRetention: false,
+        },
+        anthropic: { apiKey: 'instance-anthropic-key' },
+    },
+});
+
 describe('overlayOrgProviderApiKeys', () => {
+    it('switches the default provider to the org key when the instance default is not BYO-supplied', () => {
+        const result = overlayOrgProviderApiKeys(bothProvidersConfig, {
+            anthropic: 'org-anthropic-key',
+        });
+        // Anthropic-only BYO key + instance default "openai" would otherwise
+        // resolve auxiliary AI to the instance OpenAI key — switch to anthropic.
+        expect(result.defaultProvider).toBe('anthropic');
+        expect(result.providers.anthropic?.apiKey).toBe('org-anthropic-key');
+    });
+
+    it('keeps the default provider when the org supplied a key for it', () => {
+        const result = overlayOrgProviderApiKeys(bothProvidersConfig, {
+            openai: 'org-openai-key',
+        });
+        expect(result.defaultProvider).toBe('openai');
+    });
+
+    it('keeps the default provider when the org keyed both providers', () => {
+        const result = overlayOrgProviderApiKeys(bothProvidersConfig, {
+            anthropic: 'org-anthropic-key',
+            openai: 'org-openai-key',
+        });
+        expect(result.defaultProvider).toBe('openai');
+    });
+
     it('replaces the apiKey of an instance-configured provider, keeping other settings', () => {
         const result = overlayOrgProviderApiKeys(baseConfig, {
             openai: 'org-openai-key',
