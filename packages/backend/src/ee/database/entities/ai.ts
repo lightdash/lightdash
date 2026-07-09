@@ -161,6 +161,8 @@ export type DbAiWritebackRun = {
     branch_name: string | null;
     pr_url: string | null;
     error_message: string | null;
+    prompt_uuid: string | null;
+    tool_call_id: string | null;
     created_at: Date;
     updated_at: Date;
 };
@@ -175,7 +177,9 @@ export type AiWritebackRunTable = Knex.CompositeTableType<
         | 'created_by_user_uuid'
         | 'source'
     > &
-        Partial<Pick<DbAiWritebackRun, 'status'>>,
+        Partial<
+            Pick<DbAiWritebackRun, 'status' | 'prompt_uuid' | 'tool_call_id'>
+        >,
     Partial<
         Pick<
             DbAiWritebackRun,

@@ -10,6 +10,7 @@ const buildQueryBuilder = (
         insert: vi.fn().mockReturnThis(),
         where: vi.fn().mockReturnThis(),
         whereNotIn: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
         returning: vi
             .fn()
             .mockResolvedValue([{ ai_writeback_run_uuid: 'run-1' }]),
@@ -23,6 +24,7 @@ const buildQueryBuilder = (
 const buildModel = (qb: AnyType) => {
     const database = vi.fn().mockReturnValue(qb) as unknown as Knex;
     (database as AnyType).fn = { now: vi.fn().mockReturnValue('NOW()') };
+    (database as AnyType).raw = vi.fn().mockReturnValue('RAW_INTERVAL');
     const model = new AiWritebackRunModel({ database });
     return { model, database };
 };
@@ -38,7 +40,9 @@ describe('AiWritebackRunModel', () => {
                 projectUuid: 'proj-1',
                 aiThreadUuid: 'thread-1',
                 createdByUserUuid: 'user-1',
-                source: 'mcp',
+                source: 'web',
+                promptUuid: 'prompt-1',
+                toolCallId: 'tool-1',
             });
 
             expect(qb.insert).toHaveBeenCalledWith({
@@ -46,12 +50,14 @@ describe('AiWritebackRunModel', () => {
                 project_uuid: 'proj-1',
                 ai_thread_uuid: 'thread-1',
                 created_by_user_uuid: 'user-1',
-                source: 'mcp',
+                source: 'web',
+                prompt_uuid: 'prompt-1',
+                tool_call_id: 'tool-1',
             });
             expect(row).toEqual({ ai_writeback_run_uuid: 'run-1' });
         });
 
-        it('allows a null aiThreadUuid for a one-shot run', async () => {
+        it('allows a null aiThreadUuid and null tool-call linkage for a one-shot run', async () => {
             const qb = buildQueryBuilder();
             const { model } = buildModel(qb);
 
@@ -61,11 +67,68 @@ describe('AiWritebackRunModel', () => {
                 aiThreadUuid: null,
                 createdByUserUuid: 'user-1',
                 source: 'api',
+                promptUuid: null,
+                toolCallId: null,
             });
 
             expect(qb.insert).toHaveBeenCalledWith(
-                expect.objectContaining({ ai_thread_uuid: null }),
+                expect.objectContaining({
+                    ai_thread_uuid: null,
+                    prompt_uuid: null,
+                    tool_call_id: null,
+                }),
             );
+        });
+    });
+
+    describe('markStaleRunsAsError', () => {
+        it('errors only non-terminal runs older than the threshold and returns their tool-call linkage', async () => {
+            const qb = buildQueryBuilder({
+                update: vi.fn().mockReturnThis(),
+                returning: vi.fn().mockResolvedValue([
+                    {
+                        ai_writeback_run_uuid: 'run-1',
+                        prompt_uuid: 'prompt-1',
+                        tool_call_id: 'tool-1',
+                        source: 'web',
+                    },
+                    {
+                        ai_writeback_run_uuid: 'run-2',
+                        prompt_uuid: null,
+                        tool_call_id: null,
+                        source: 'mcp',
+                    },
+                ]),
+            });
+            const { model, database } = buildModel(qb);
+
+            const rows = await model.markStaleRunsAsError(45, 'stuck');
+
+            // Never overwrites a terminal run, and never touches a 'pending' one
+            // (still queued behind an earlier edit — not a worker's to reclaim).
+            expect(qb.whereNotIn).toHaveBeenCalledWith('status', [
+                'ready',
+                'error',
+                'pending',
+            ]);
+            // Only touches rows whose last progress predates the threshold.
+            expect((database as AnyType).raw).toHaveBeenCalledWith(
+                "now() - (? * interval '1 minute')",
+                [45],
+            );
+            expect(qb.andWhere).toHaveBeenCalledWith(
+                'updated_at',
+                '<',
+                'RAW_INTERVAL',
+            );
+            expect(qb.update).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    status: 'error',
+                    error_message: 'stuck',
+                }),
+            );
+            expect(qb.returning).toHaveBeenCalledWith('*');
+            expect(rows).toHaveLength(2);
         });
     });
 

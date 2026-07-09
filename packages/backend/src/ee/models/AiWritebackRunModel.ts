@@ -35,6 +35,8 @@ export class AiWritebackRunModel {
         aiThreadUuid: string | null;
         createdByUserUuid: string;
         source: AiWritebackSource;
+        promptUuid: string | null;
+        toolCallId: string | null;
     }): Promise<DbAiWritebackRun> {
         const [row] = await this.database<AiWritebackRunTable>(
             AiWritebackRunTableName,
@@ -45,6 +47,8 @@ export class AiWritebackRunModel {
                 ai_thread_uuid: data.aiThreadUuid,
                 created_by_user_uuid: data.createdByUserUuid,
                 source: data.source,
+                prompt_uuid: data.promptUuid,
+                tool_call_id: data.toolCallId,
             })
             .returning('*');
         return row;
@@ -109,5 +113,42 @@ export class AiWritebackRunModel {
                 branch_name: branchName,
                 updated_at: this.database.fn.now() as unknown as Date,
             });
+    }
+
+    /**
+     * Atomically mark every actively-running run whose last update predates the
+     * threshold as errored, returning the rows it changed. A run only lingers in
+     * a stage past the job's own timeout when the worker died (pod
+     * crash/redeploy) before either the in-process catch or the timeout callback
+     * could finalize it — this is the out-of-band recovery for that case. The
+     * returned prompt/tool-call linkage lets the caller also un-stick the chat
+     * card, not just the run row.
+     *
+     * 'pending' runs are deliberately excluded: a worker moves a run off
+     * 'pending' the moment it picks it up, so a still-'pending' run has not been
+     * started by any worker and is not a died-mid-run case to reclaim.
+     */
+    async markStaleRunsAsError(
+        thresholdMinutes: number,
+        errorMessage: string,
+    ): Promise<DbAiWritebackRun[]> {
+        return this.database<AiWritebackRunTable>(AiWritebackRunTableName)
+            .whereNotIn('status', [
+                ...AI_WRITEBACK_RUN_TERMINAL_STATUSES,
+                'pending',
+            ])
+            .andWhere(
+                'updated_at',
+                '<',
+                this.database.raw("now() - (? * interval '1 minute')", [
+                    thresholdMinutes,
+                ]),
+            )
+            .update({
+                status: 'error',
+                error_message: errorMessage,
+                updated_at: this.database.fn.now() as unknown as Date,
+            })
+            .returning('*');
     }
 }

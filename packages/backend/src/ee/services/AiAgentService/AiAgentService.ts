@@ -7195,6 +7195,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     projectUuid,
                     aiThreadUuid: prompt.threadUuid,
                     source,
+                    promptUuid: prompt.promptUuid,
+                    toolCallId: args.progressId,
                 });
             await this.schedulerClient.aiAgentEditDbtProjectPipeline({
                 aiWritebackRunUuid,

@@ -159,6 +159,14 @@ const WRITEBACK_WORKSPACE: PersistentWorkspace = {
     exclude: ['node_modules'],
 };
 
+// A run only lingers non-terminal past the pipeline job's own 30-min timeout
+// when the worker died before it could be finalized. Sweep well beyond that
+// hard timeout so an in-flight or just-timing-out run is never falsely errored.
+const STALE_RUN_THRESHOLD_MINUTES = 45;
+
+const STALE_RUN_ERROR_MESSAGE =
+    'This change stopped unexpectedly before it finished, most likely because the server restarted mid-run. Please ask again to retry.';
+
 // Maps the applied-changes outcome to the PR action surfaced to the user: a
 // fresh PR is 'opened', a resumed thread or adopted pasted-link PR is
 // 'updated', and no PR touched is null.
@@ -1573,6 +1581,10 @@ export class AiWritebackService extends BaseService {
         projectUuid: string;
         aiThreadUuid: string | undefined;
         source: AiWritebackSource;
+        // The chat tool call this run fulfils, so a stuck-run sweep can un-stick
+        // its card and not only the run row. Null for non-chat callers.
+        promptUuid: string | null;
+        toolCallId: string | null;
     }): Promise<{ aiWritebackRunUuid: string }> {
         if (!isUserWithOrg(args.user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -1585,6 +1597,8 @@ export class AiWritebackService extends BaseService {
             aiThreadUuid: args.aiThreadUuid ?? null,
             createdByUserUuid: args.user.userUuid,
             source: args.source,
+            promptUuid: args.promptUuid,
+            toolCallId: args.toolCallId,
         });
         return { aiWritebackRunUuid: runRow.ai_writeback_run_uuid };
     }
@@ -1604,6 +1618,8 @@ export class AiWritebackService extends BaseService {
             aiThreadUuid: aiThreadUuid ?? null,
             createdByUserUuid: user.userUuid,
             source,
+            promptUuid: null,
+            toolCallId: null,
         });
         await this.schedulerClient.aiWritebackPipeline({
             aiWritebackRunUuid: runRow.ai_writeback_run_uuid,
@@ -1654,6 +1670,37 @@ export class AiWritebackService extends BaseService {
         message: string,
     ): Promise<boolean> {
         return this.aiWritebackRunModel.markError(aiWritebackRunUuid, message);
+    }
+
+    /**
+     * Out-of-band recovery for runs orphaned by a dead worker: mark every
+     * run stuck non-terminal past the stale threshold as errored, and return
+     * their chat-tool-call linkage so the caller can also fail the chat card
+     * (which reflects the tool-result row, not the run row). In-process
+     * failures and the job timeout already finalize their own runs; this only
+     * catches the case where neither could run because the process itself died.
+     */
+    async sweepStaleRuns(): Promise<
+        Array<{
+            aiWritebackRunUuid: string;
+            promptUuid: string | null;
+            toolCallId: string | null;
+        }>
+    > {
+        const swept = await this.aiWritebackRunModel.markStaleRunsAsError(
+            STALE_RUN_THRESHOLD_MINUTES,
+            STALE_RUN_ERROR_MESSAGE,
+        );
+        if (swept.length > 0) {
+            this.logger.warn(
+                `AiWriteback: swept ${swept.length} stale run(s) stuck non-terminal for over ${STALE_RUN_THRESHOLD_MINUTES}m (worker likely died mid-run)`,
+            );
+        }
+        return swept.map((row) => ({
+            aiWritebackRunUuid: row.ai_writeback_run_uuid,
+            promptUuid: row.prompt_uuid,
+            toolCallId: row.tool_call_id,
+        }));
     }
 
     async getRunStatus(
@@ -1804,6 +1851,24 @@ export class AiWritebackService extends BaseService {
             stepLog.push(step);
             reportProgress(text);
         };
+
+        // Mark the run as picked up by a worker (pending → 'install') before any
+        // real work, so the stale sweeper can tell a run a worker is actively
+        // running from one not yet started by any worker (which stays 'pending'
+        // and must never be swept). Best-effort: a mark failure only risks a
+        // rare dying run staying 'pending' and unswept — no worse than before
+        // this guard existed.
+        if (aiWritebackRunUuid) {
+            await this.aiWritebackRunModel
+                .updateStageIfInProgress(aiWritebackRunUuid, 'install')
+                .catch((error: unknown) => {
+                    this.logger.warn(
+                        `AiWriteback: failed to mark run started — ${getErrorMessage(
+                            error,
+                        )}`,
+                    );
+                });
+        }
 
         let prepared: PreparedTurn;
         try {

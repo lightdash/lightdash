@@ -117,6 +117,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 },
             },
             {
+                task: EE_SCHEDULER_TASKS.SWEEP_STALE_AI_WRITEBACK_RUNS,
+                pattern: '*/2 * * * *', // Every 2 minutes
+                options: {
+                    backfillPeriod: 5 * 60 * 1000, // 5 min
+                    maxAttempts: 1,
+                },
+            },
+            {
                 task: EE_SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS,
                 pattern: '45 0 * * *', // 00:45 UTC daily
                 options: {
@@ -532,6 +540,32 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
             },
             [EE_SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: async () => {
                 await this.appGenerateService.sweepStaleLocks();
+            },
+            [EE_SCHEDULER_TASKS.SWEEP_STALE_AI_WRITEBACK_RUNS]: async () => {
+                const swept = await this.aiWritebackService.sweepStaleRuns();
+                // A chat run's card reflects the tool-result row, not the run
+                // row, so marking the run errored alone would leave it stuck on
+                // "Working on the change". Fail the card too — mirrors the
+                // dual-recovery the pipeline's timeout callback already does.
+                const chatRuns = swept.filter(
+                    (run) => run.promptUuid && run.toolCallId,
+                );
+                for (const run of chatRuns) {
+                    try {
+                        // eslint-disable-next-line no-await-in-loop
+                        await this.aiAgentService.markEditDbtProjectToolResultError(
+                            run.promptUuid!,
+                            run.toolCallId!,
+                            'Error running AI writeback: the run stopped unexpectedly before it finished.',
+                        );
+                    } catch (error) {
+                        Logger.warn(
+                            `Failed to fail stale writeback tool-result card for run ${run.aiWritebackRunUuid}: ${getErrorMessage(
+                                error,
+                            )}`,
+                        );
+                    }
+                }
             },
             [EE_SCHEDULER_TASKS.SEND_REVIEW_NOTIFICATION]: async (payload) => {
                 await sendReviewNotification({
