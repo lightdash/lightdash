@@ -1,3 +1,23 @@
+# [0.3346.0](https://github.com/lightdash/lightdash/compare/0.3345.0...0.3346.0) (2026-07-09)
+
+
+### Bug Fixes
+
+* **ai:** robust BYO-key model resolution — timeout, dated-id match, ambient fallback ([#25323](https://github.com/lightdash/lightdash/issues/25323)) ([627a4cf](https://github.com/lightdash/lightdash/commit/627a4cfb25c24a093ec60c2f4358a494d8c717f2))
+* upgrade js-yaml 4.2.0→4.3.0 (security) ([#25316](https://github.com/lightdash/lightdash/issues/25316)) ([af2722b](https://github.com/lightdash/lightdash/commit/af2722b3ed5812a0081566452f946f92e20a7198))
+* upgrade js-yaml 4.2.0→4.3.0 (security) ([#25317](https://github.com/lightdash/lightdash/issues/25317)) ([e2dcab2](https://github.com/lightdash/lightdash/commit/e2dcab2f40498457f059609fbab894c57a555c51))
+* upgrade js-yaml 4.2.0→4.3.0 (security) ([#25318](https://github.com/lightdash/lightdash/issues/25318)) ([e10a08f](https://github.com/lightdash/lightdash/commit/e10a08f648bfaaa96048bcbbe302268f129e6e7e))
+* upgrade js-yaml 4.2.0→4.3.0 (security) ([#25319](https://github.com/lightdash/lightdash/issues/25319)) ([3ead26f](https://github.com/lightdash/lightdash/commit/3ead26f64858d2f25dc862163c2d6ae7f885eb7e))
+* upgrade js-yaml 4.2.0→4.3.0 (security) ([#25320](https://github.com/lightdash/lightdash/issues/25320)) ([0675805](https://github.com/lightdash/lightdash/commit/0675805d93202d0a593df0d7f00ddfa57cad3490))
+
+
+### Features
+
+* add explore navigation support for embedded AI agent ([#25325](https://github.com/lightdash/lightdash/issues/25325)) ([0360519](https://github.com/lightdash/lightdash/commit/036051977c7549c32824e32c48e2a65e8566c0eb)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* **frontend:** merge AI provider keys + model availability into one card ([#25336](https://github.com/lightdash/lightdash/issues/25336)) ([7ecdc62](https://github.com/lightdash/lightdash/commit/7ecdc6251b8ff74ea75286a57a358b0ecac146db))
+* org-level AI model visibility (provider toggles + allowlist + key-gated opus 4.8) ([#25288](https://github.com/lightdash/lightdash/issues/25288)) ([7af6b68](https://github.com/lightdash/lightdash/commit/7af6b68ff747109a314885d2efe2d9d4f798350a))
+* surface app dependency changes; instance toggle for custom deps [GLITCH-603] ([#25179](https://github.com/lightdash/lightdash/issues/25179)) ([d98d2ce](https://github.com/lightdash/lightdash/commit/d98d2ced90c0c20512e57489bbd75836dad52992))
+
 # [0.3345.0](https://github.com/lightdash/lightdash/compare/0.3344.0...0.3345.0) (2026-07-09)
 
 
