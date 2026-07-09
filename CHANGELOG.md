@@ -1,3 +1,10 @@
+# [0.3342.0](https://github.com/lightdash/lightdash/compare/0.3341.0...0.3342.0) (2026-07-09)
+
+
+### Features
+
+* **ai-agents:** recover broken MCP connections — rotate bearer tokens + persist status [PROD-8746] ([#25298](https://github.com/lightdash/lightdash/issues/25298)) ([a653306](https://github.com/lightdash/lightdash/commit/a653306979f24ba2ce7dee1355a09b801fea679f)), closes [/linear.app/lightdash/issue/PROD-8746/add-reauthenticate-option-for-mcp-connections#agent-session-20e05e03](https://github.com//linear.app/lightdash/issue/PROD-8746/add-reauthenticate-option-for-mcp-connections/issues/agent-session-20e05e03)
+
 # [0.3341.0](https://github.com/lightdash/lightdash/compare/0.3340.0...0.3341.0) (2026-07-09)
 
 
