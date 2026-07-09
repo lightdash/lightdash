@@ -33,6 +33,28 @@ const FAST_MODELS: Record<ModelPresetProvider, string> = {
     bedrock: 'claude-haiku-4-5',
 };
 
+// Picks the model an ambient/fast task should use on a BYO Anthropic key:
+// the fast model when the key can serve it, otherwise the first shipped preset
+// the key can access (e.g. an org whose key only unlocks claude-opus-4-8).
+// A null accessible list means the models probe failed — fall back to the fast
+// model optimistically and let the request itself surface any access error.
+// Returns null only when the key can access no shipped Anthropic preset.
+export const pickAmbientAnthropicPreset = (
+    accessibleModelIds: string[] | null,
+): ModelPreset<'anthropic'> | null => {
+    const fast =
+        MODEL_PRESETS.anthropic.find((preset) =>
+            matchesPreset(preset, FAST_MODELS.anthropic),
+        ) ?? null;
+    if (accessibleModelIds === null) return fast;
+    if (fast && keyGrantsModel(accessibleModelIds, fast.modelId)) return fast;
+    return (
+        MODEL_PRESETS.anthropic.find((preset) =>
+            keyGrantsModel(accessibleModelIds, preset.modelId),
+        ) ?? null
+    );
+};
+
 // Returns null when the configured default provider isn't set up (e.g. the
 // default `openai` provider with no OPENAI_API_KEY). Callers use this only to
 // flag which preset is the default, so a missing provider should degrade to

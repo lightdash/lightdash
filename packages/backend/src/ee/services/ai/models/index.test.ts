@@ -14,6 +14,7 @@ import {
     getDefaultModel,
     getModel,
     MODEL_PRESETS,
+    pickAmbientAnthropicPreset,
 } from './index';
 import type { ModelPreset } from './presets';
 
@@ -381,5 +382,30 @@ describe('applyStreamingCapability', () => {
             'step-start',
             'text',
         ]);
+    });
+});
+
+describe('pickAmbientAnthropicPreset', () => {
+    it('prefers the fast model when the key can serve it', () => {
+        const preset = pickAmbientAnthropicPreset([
+            'claude-haiku-4-5-20251001',
+            'claude-opus-4-8',
+        ]);
+        expect(preset?.modelId).toBe('claude-haiku-4-5-20251001');
+    });
+
+    it('falls back to an accessible model when the key lacks the fast one', () => {
+        const preset = pickAmbientAnthropicPreset(['claude-opus-4-8']);
+        expect(preset?.modelId).toBe('claude-opus-4-8');
+    });
+
+    it('optimistically returns the fast model when the probe failed (null)', () => {
+        const preset = pickAmbientAnthropicPreset(null);
+        expect(preset?.modelId).toBe('claude-haiku-4-5-20251001');
+    });
+
+    it('returns null when the key can access no shipped preset', () => {
+        const preset = pickAmbientAnthropicPreset(['some-unknown-model']);
+        expect(preset).toBeNull();
     });
 });
