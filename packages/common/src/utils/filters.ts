@@ -211,15 +211,16 @@ export const isWithValueFilter = (filterOperator: FilterOperator) =>
     filterOperator !== FilterOperator.IN_PERIOD_TO_DATE;
 
 /**
- * A dashboard filter is "malformed empty" when it is active (not disabled),
- * uses an operator that requires values, and has no values. These filters
- * look empty in the UI but still override chart-level filters at runtime,
- * which is surprising. See PROD-7445.
+ * An "empty" dashboard filter is active (not disabled), uses a value-requiring
+ * operator, and has no value set — an unset default control the viewer fills in
+ * at runtime. It must not override chart-level filters until a value is picked.
  *
- * `values` is checked with Array.isArray to tolerate hand-authored YAML
- * where `values:` or `values: ~` parses to JS `null` instead of `[]`.
+ * IN_THE_CURRENT / NOT_IN_THE_CURRENT are excluded: they compile from
+ * settings.unitOfTime, not values, so a value-less one is still an active
+ * filter. `values` uses Array.isArray to tolerate hand-authored YAML where
+ * `values:` / `values: ~` parses to JS `null` instead of `[]`.
  */
-export const isMalformedEmptyDashboardFilter = (filter: {
+export const isEmptyDashboardFilterRule = (filter: {
     operator: FilterOperator;
     values?: unknown[] | null;
     disabled?: boolean;
@@ -227,6 +228,8 @@ export const isMalformedEmptyDashboardFilter = (filter: {
 }): boolean =>
     filter.disabled !== true &&
     isWithValueFilter(filter.operator) &&
+    filter.operator !== FilterOperator.IN_THE_CURRENT &&
+    filter.operator !== FilterOperator.NOT_IN_THE_CURRENT &&
     filter.includeNull !== true &&
     (!Array.isArray(filter.values) || filter.values.length === 0);
 
@@ -778,7 +781,8 @@ export const getDashboardFilterRulesForTile = (
     needsExplicitTileOverride: boolean = false, // If true, we don't apply the default tile targets to the filter rule'
 ): DashboardFilterRule[] =>
     rules
-        .filter((rule) => !rule.disabled)
+        // Skip disabled and unset (empty) filters — neither applies to a tile.
+        .filter((rule) => !rule.disabled && !isEmptyDashboardFilterRule(rule))
         .map((filter) => {
             const tileConfig = filter.tileTargets?.[tileUuid];
 
@@ -875,7 +879,13 @@ export const getDashboardFilterRulesForTables = (
     availableFieldIds: string[],
     rules: DashboardFilterRule[],
 ): DashboardFilterRule[] =>
-    rules.filter((f) => availableFieldIds.includes(f.target.fieldId));
+    rules.filter(
+        (f) =>
+            // Unset (empty) filters don't apply, so they must not appear in the
+            // applied-filters set that callers diff against chart-level filters.
+            availableFieldIds.includes(f.target.fieldId) &&
+            !isEmptyDashboardFilterRule(f),
+    );
 
 export const getDashboardFilterRulesForTileAndTables = (
     tileUuid: string,
@@ -1289,7 +1299,10 @@ export const addDashboardFiltersToMetricQuery = (
 ): MetricQuery => {
     const timeBasedOverrideMap: TimeBasedOverrideMap = {};
 
+    // Drop unset (empty) filters so they neither add a clause nor replace a
+    // chart-level filter on the same field.
     const processedDimensionFilters = dashboardFilters.dimensions
+        .filter((filter) => !isEmptyDashboardFilterRule(filter))
         .map((filter) => {
             const result = trackWhichTimeBasedMetricFiltersToOverride(
                 metricQuery.filters?.dimensions,
@@ -1313,16 +1326,16 @@ export const addDashboardFiltersToMetricQuery = (
             ),
             metrics: overrideFilterGroupWithFilterRules(
                 metricQuery.filters?.metrics,
-                dashboardFilters.metrics.map(
-                    convertDashboardFilterRuleToFilterRule,
-                ),
+                dashboardFilters.metrics
+                    .filter((filter) => !isEmptyDashboardFilterRule(filter))
+                    .map(convertDashboardFilterRuleToFilterRule),
                 undefined,
             ),
             tableCalculations: overrideFilterGroupWithFilterRules(
                 metricQuery.filters?.tableCalculations,
-                dashboardFilters.tableCalculations.map(
-                    convertDashboardFilterRuleToFilterRule,
-                ),
+                dashboardFilters.tableCalculations
+                    .filter((filter) => !isEmptyDashboardFilterRule(filter))
+                    .map(convertDashboardFilterRuleToFilterRule),
                 undefined,
             ),
         },
