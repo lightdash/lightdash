@@ -1,4 +1,7 @@
-import { type SchedulerAiAugmentation } from '@lightdash/common';
+import {
+    hasAiAgentAccessToSpace,
+    type SchedulerAiAugmentation,
+} from '@lightdash/common';
 import {
     Box,
     Group,
@@ -8,7 +11,7 @@ import {
     Text,
     Textarea,
 } from '@mantine-8/core';
-import { type FC } from 'react';
+import { useEffect, type FC } from 'react';
 import { AiAgentIcon } from '../../../../ee/features/aiCopilot/components/AiAgentIcon';
 import { useAiAgentButtonVisibility } from '../../../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useProjectAiAgents } from '../../../../ee/features/aiCopilot/hooks/useProjectAiAgents';
@@ -18,13 +21,21 @@ import { useSchedulerFormContext } from './schedulerFormContext';
 
 type Props = {
     projectUuid: string | undefined;
+    /** Space of the delivered chart/dashboard; agents are not filtered while undefined (loading) */
+    resourceSpaceUuid: string | undefined;
     /** Skip the panel chrome and leading icon when the host surface already provides them */
     bare?: boolean;
 };
 
 // Renders nothing unless AI is available for this project. Turning it on makes
 // the delivery message AI-written; picking an agent is an optional upgrade.
-export const SchedulerFormAiInput: FC<Props> = ({ projectUuid, bare }) => {
+// Agents whose space access doesn't cover the delivered content are hidden —
+// at delivery time they can't fetch it and produce a broken summary.
+export const SchedulerFormAiInput: FC<Props> = ({
+    projectUuid,
+    resourceSpaceUuid,
+    bare,
+}) => {
     const form = useSchedulerFormContext();
     const isAiVisible = useAiAgentButtonVisibility();
     const { data: agentsData } = useProjectAiAgents({
@@ -33,12 +44,39 @@ export const SchedulerFormAiInput: FC<Props> = ({ projectUuid, bare }) => {
         options: { enabled: isAiVisible },
     });
 
+    const augmentation = form.values.aiAugmentation;
+    const { setFieldValue } = form;
+
+    // A saved agent may have lost access to the content's space since the
+    // schedule was created; downgrade so the hidden selection isn't silently
+    // re-saved and rejected by the backend.
+    useEffect(() => {
+        if (
+            augmentation?.type === 'agent' &&
+            agentsData !== undefined &&
+            resourceSpaceUuid !== undefined &&
+            !agentsData.some(
+                (agent) =>
+                    agent.uuid === augmentation.agentUuid &&
+                    hasAiAgentAccessToSpace(agent, resourceSpaceUuid),
+            )
+        ) {
+            setFieldValue('aiAugmentation', {
+                type: 'fast_model',
+                prompt: augmentation.prompt,
+            });
+        }
+    }, [augmentation, agentsData, resourceSpaceUuid, setFieldValue]);
+
     if (!isAiVisible) {
         return null;
     }
 
-    const agents = agentsData ?? [];
-    const augmentation = form.values.aiAugmentation;
+    const agents = (agentsData ?? []).filter(
+        (agent) =>
+            resourceSpaceUuid === undefined ||
+            hasAiAgentAccessToSpace(agent, resourceSpaceUuid),
+    );
     const isEnabled = augmentation !== null;
     const selectedAgentUuid =
         augmentation?.type === 'agent' ? augmentation.agentUuid : null;
