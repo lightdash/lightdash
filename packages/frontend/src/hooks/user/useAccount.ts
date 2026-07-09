@@ -22,10 +22,9 @@ const getAccount = async <T extends Account>(): Promise<T> => {
 
 export const useAccount = <T extends Account>(
     isAuthenticated: boolean = true,
-    accountCacheKey?: string,
 ) => {
     return useQuery<T, ApiError>({
-        queryKey: accountCacheKey ? ['account', accountCacheKey] : ['account'],
+        queryKey: ['account'],
         queryFn: getAccount,
         enabled: isAuthenticated,
         retry: false,

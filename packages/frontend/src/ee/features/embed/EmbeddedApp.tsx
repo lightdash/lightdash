@@ -1,32 +1,11 @@
-import { type CreateEmbedJwt, type SavedChart } from '@lightdash/common';
+import { type SavedChart } from '@lightdash/common';
 import { useEffect, useState, type FC } from 'react';
 import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
-import { getFromInMemoryStorage } from '../../../utils/inMemoryStorage';
 import EmbedProvider from '../../providers/Embed/EmbedProvider';
-import { EMBED_KEY, type InMemoryEmbed } from '../../providers/Embed/types';
 import useEmbed from '../../providers/Embed/useEmbed';
 
 type EmbedExploreLocationState = {
     embedBackUrl?: string;
-};
-
-const decodeEmbedJwtContent = (
-    token: string | undefined,
-): CreateEmbedJwt['content'] | undefined => {
-    const payload = token?.split('.')[1];
-    if (!payload) return undefined;
-
-    try {
-        const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/');
-        const paddedPayload = normalizedPayload.padEnd(
-            Math.ceil(normalizedPayload.length / 4) * 4,
-            '=',
-        );
-        return (JSON.parse(window.atob(paddedPayload)) as CreateEmbedJwt)
-            .content;
-    } catch {
-        return undefined;
-    }
 };
 
 /**
@@ -76,15 +55,6 @@ const EmbeddedApp: FC = () => {
         const state = location.state as EmbedExploreLocationState | null;
         if (state?.embedBackUrl) {
             await navigate(state.embedBackUrl);
-            return;
-        }
-
-        const embed = getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY);
-        const content = decodeEmbedJwtContent(embed?.token);
-        if (content?.type === 'aiAgent') {
-            await navigate(
-                `/embed/${projectUuid}/ai-agents/${content.agentUuid}/threads`,
-            );
             return;
         }
 

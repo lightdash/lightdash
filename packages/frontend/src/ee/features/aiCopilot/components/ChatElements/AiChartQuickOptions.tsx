@@ -253,8 +253,10 @@ export const AiChartQuickOptions = ({
     const { mutateAsync: createShareUrl } = useCreateShareMutation();
 
     const handleExploreFromHere = useCallback(async () => {
-        if (!openInExploreUrl || !metricQuery?.exploreName) return;
+        if (!openInExploreUrl) return;
         if (isEmbed) {
+            if (!metricQuery?.exploreName) return;
+
             void navigate(
                 {
                     pathname: `/embed/${projectUuid}/explore/${encodeURIComponent(
@@ -269,17 +271,11 @@ export const AiChartQuickOptions = ({
                 },
             );
         } else {
-            const shareWindow = window.open('', '_blank');
             const shareUrl = await createShareUrl({
                 path: openInExploreUrl.pathname,
                 params: `?${openInExploreUrl.search}`,
             });
-            if (shareWindow) {
-                shareWindow.opener = null;
-                shareWindow.location.href = `/share/${shareUrl.nanoid}`;
-            } else {
-                window.open(`/share/${shareUrl.nanoid}`, '_blank');
-            }
+            window.open(`/share/${shareUrl.nanoid}`, '_blank');
         }
         if (
             user?.data?.userUuid &&
