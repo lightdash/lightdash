@@ -1,3 +1,15 @@
+# [0.3349.0](https://github.com/lightdash/lightdash/compare/0.3348.0...0.3349.0) (2026-07-09)
+
+
+### Bug Fixes
+
+* **custom-roles:** clarify role type copy ([#25340](https://github.com/lightdash/lightdash/issues/25340)) ([044e9b1](https://github.com/lightdash/lightdash/commit/044e9b18842db698cbcbe01721af762f237e87d5))
+
+
+### Features
+
+* **ai-writeback:** decouple long-running writeback runs from the connection ([#25297](https://github.com/lightdash/lightdash/issues/25297)) ([85f4c22](https://github.com/lightdash/lightdash/commit/85f4c22aeee446bcb6faa99fae5517fe2b4a60ab))
+
 # [0.3348.0](https://github.com/lightdash/lightdash/compare/0.3347.0...0.3348.0) (2026-07-09)
 
 
