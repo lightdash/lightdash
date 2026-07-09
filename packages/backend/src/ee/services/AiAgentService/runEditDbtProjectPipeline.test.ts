@@ -75,6 +75,7 @@ const buildService = (overrides: {
     const updateModelResponse = vi.fn().mockResolvedValue(undefined);
     const addReaction = vi.fn().mockResolvedValue(undefined);
     const postMessage = vi.fn().mockResolvedValue(undefined);
+    const hasToolResult = vi.fn().mockResolvedValue(true);
     const createRemediationEvent = vi.fn().mockResolvedValue(undefined);
     // A final tool-result row shaped so getModernPullRequestCardBlocks renders
     // a PR card for it (the Slack success card the pipeline delivers on resolve).
@@ -113,6 +114,7 @@ const buildService = (overrides: {
             ),
         updateToolResult,
         updateModelResponse,
+        hasToolResult,
         getToolResultsForPrompt: vi
             .fn()
             .mockResolvedValue([editDbtProjectToolResult]),
@@ -176,6 +178,7 @@ const buildService = (overrides: {
         updateModelResponse,
         addReaction,
         postMessage,
+        hasToolResult,
         createRemediationEvent,
         createPreviewForPullRequest,
     };
@@ -209,6 +212,17 @@ describe('AiAgentService.runEditDbtProjectPipeline', () => {
                 }),
             }),
         );
+    });
+
+    it('waits for the tool-result row to exist before updating it', async () => {
+        const { service, hasToolResult, updateToolResult } = buildService({});
+
+        await service.runEditDbtProjectPipeline(PAYLOAD);
+
+        // The guard is checked (with the run's prompt + tool call) so a fast
+        // pipeline can't updateToolResult before onStepFinish inserts the row.
+        expect(hasToolResult).toHaveBeenCalledWith('prompt-1', 'tool-call-1');
+        expect(updateToolResult).toHaveBeenCalled();
     });
 
     it('adds a Slack reaction only for a Slack-originated prompt', async () => {

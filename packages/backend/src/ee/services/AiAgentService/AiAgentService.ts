@@ -6715,6 +6715,37 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         }
     }
 
+    /**
+     * The editDbtProject tool enqueues this pipeline job mid-step, so the job
+     * can start — and a fast pre-flight failure can call updateToolResult —
+     * before onStepFinish has inserted the tool-result row. updateToolResult is
+     * an UPDATE, so it would silently match no rows and leave the card stuck.
+     * Poll until the row exists (bounded), mirroring
+     * waitForOriginalResponseWritten for the model-response field.
+     */
+    private async waitForToolResultWritten(
+        promptUuid: string,
+        toolCallId: string,
+        timeoutMs = 20_000,
+    ): Promise<void> {
+        const pollIntervalMs = 300;
+        const deadline = Date.now() + timeoutMs;
+        for (;;) {
+            // eslint-disable-next-line no-await-in-loop -- deliberate poll
+            if (await this.aiAgentModel.hasToolResult(promptUuid, toolCallId)) {
+                return;
+            }
+            if (Date.now() >= deadline) {
+                Logger.warn(
+                    `AiAgent.waitForToolResultWritten: timed out waiting for tool result ${toolCallId} on prompt ${promptUuid}`,
+                );
+                return;
+            }
+            // eslint-disable-next-line no-await-in-loop -- deliberate poll delay
+            await sleep(pollIntervalMs);
+        }
+    }
+
     private async isRunAlreadyFinalizedDifferently(
         user: SessionUser,
         aiWritebackRunUuid: string,
@@ -6764,6 +6795,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             );
             return;
         }
+
+        // This job is enqueued mid-step, so it can outrun the onStepFinish
+        // insert of its own tool-result row — wait for it before any
+        // updateToolResult below would otherwise no-op and strand the card.
+        await this.waitForToolResultWritten(promptUuid, toolCallId);
 
         let result: AiWritebackRunResult;
         try {
