@@ -1,0 +1,24 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`QueryComposer > compiles a metric query and returns the base SQL via getSql when there is no pivot 1`] = `
+"WITH metrics AS (
+SELECT
+  "table1".dim1 AS "table1_dim1",
+  MAX("table1".number_column) AS "table1_metric1"
+FROM "db"."schema"."table1" AS "table1"
+
+GROUP BY 1
+)
+SELECT
+  *,
+  "table1_dim1" + "table1_metric1" AS "calc3"
+FROM metrics
+ORDER BY "table1_metric1" DESC
+LIMIT 10"
+`;
+
+exports[`QueryComposer > wraps the base query with the pivot query when a pivot configuration is set 1`] = `
+"WITH original_query AS (WITH metrics AS ( SELECT "table1".dim1 AS "table1_dim1", MAX("table1".number_column) AS "table1_metric1" FROM "db"."schema"."table1" AS "table1" GROUP BY 1 ) SELECT *, "table1_dim1" + "table1_metric1" AS "calc3" FROM metrics ORDER BY "table1_metric1" DESC),
+group_by_query AS (SELECT "table1_dim1", sum("table1_metric1") AS "table1_metric1_sum" FROM original_query group by "table1_dim1")
+SELECT * FROM group_by_query ORDER BY "table1_dim1" ASC LIMIT 10"
+`;

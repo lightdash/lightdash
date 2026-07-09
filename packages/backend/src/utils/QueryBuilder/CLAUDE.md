@@ -1,5 +1,6 @@
 <summary>
 SQL generation and transformation utilities for Lightdash queries.
+One facade: QueryComposer (orchestrates context prep + the builders below to own metric SQL generation end-to-end).
 Four builders: MetricQueryBuilder (metrics/dimensions with joins), PivotQueryBuilder (flat → pivot table with row/column indexes), SqlQueryBuilder (SQL charts with filtering), TotalQueryBuilder (source query → grand/row/column/subtotal query transform).
 PivotQueryBuilder does NOT pivot data — it generates SQL that tags each row with `row_index` and `column_index` metadata via DENSE_RANK(). The actual pivoting happens downstream in AsyncQueryService.runQueryAndTransformRows.
 
@@ -8,7 +9,35 @@ This file covers SQL generation only. For the end-to-end pivot pipeline (config 
 
 <howToUse>
 
-**MetricQueryBuilder** — builds the base SQL from an Explore + MetricQuery (dimensions, metrics, filters, joins, table calculations). Handles fan-out protection via CTEs and period-over-period comparisons.
+**QueryComposer** — the facade to reach for when you have a `MetricQuery` (+ optional `PivotConfiguration`) and want SQL. It owns the context prep internally — reserved-parameter merge, date-zoom explore rewrite, `compileMetricQuery` — then orchestrates `MetricQueryBuilder` and `PivotQueryBuilder`. It does not generate SQL itself. Prefer this over wiring the builders by hand. Construct it directly at the call site.
+
+```typescript
+import { QueryComposer } from './QueryComposer';
+
+const composer = new QueryComposer(
+    { metricQuery, pivotConfiguration }, // pivotConfiguration: undefined for a flat query
+    {
+        explore,
+        warehouseSqlBuilder,
+        intrinsicUserAttributes,
+        userAttributes,
+        timezone,
+        availableParameterDefinitions,
+        parameters,
+        dateZoom,
+        pivotDimensions,
+        continueOnError,
+        useTimezoneAwareDateTrunc,
+        columnTimezone,
+        applyDateZoomToFilters,
+    },
+);
+
+const compiled = composer.compile(); // memoized CompiledQuery (base SQL, fields, warnings, params)
+const sql = composer.getSql({ columnLimit }); // PivotQueryBuilder-wrapped when pivotConfiguration is set, else base
+```
+
+**MetricQueryBuilder** — builds the base SQL from an Explore + MetricQuery (dimensions, metrics, filters, joins, table calculations). Handles fan-out protection via CTEs and period-over-period comparisons. Usually driven via `QueryComposer` rather than constructed directly.
 
 ```typescript
 import { MetricQueryBuilder } from './MetricQueryBuilder';
@@ -114,6 +143,7 @@ graph TD
 
 <links>
 
+- @/packages/backend/src/utils/QueryBuilder/QueryComposer.ts — Facade that owns metric SQL generation end-to-end
 - @/packages/backend/src/services/AsyncQueryService/AsyncQueryService.ts — Query execution and pivot result streaming
 - @/packages/backend/src/utils/QueryBuilder/PivotQueryBuilder.test.ts — PivotQueryBuilder tests (all CTE paths)
 - @/packages/backend/src/utils/QueryBuilder/MetricQueryBuilder.test.ts — MetricQueryBuilder tests

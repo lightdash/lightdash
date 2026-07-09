@@ -117,8 +117,6 @@ import {
     maybeOverrideDbtConnection,
     maybeOverrideWarehouseConnection,
     maybeReplaceFieldsInChartVersion,
-    mergeReservedDefinitions,
-    mergeReservedValues,
     mergeWarehouseCredentials,
     MetricQuery,
     MissingWarehouseCredentialsError,
@@ -151,7 +149,6 @@ import {
     RequestMethod,
     ResolvedProjectColorPalette,
     resolveQueryTimezone,
-    resolveReservedParameterValues,
     ResultRow,
     SavedChartDAO,
     SavedChartsInfoForDashboardAvailableFilters,
@@ -268,20 +265,13 @@ import { compileMetricQuery } from '../../queryCompiler';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { traceSpan } from '../../tracing/tracing';
 import { CachedWarehouse, ProjectAdapter } from '../../types';
-import {
-    runWorkerThread,
-    wrapSentryTransaction,
-    wrapSentryTransactionSync,
-} from '../../utils';
+import { runWorkerThread, wrapSentryTransaction } from '../../utils';
 import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
-import { updateExploreWithDateZoom } from '../../utils/QueryBuilder/dateZoom';
-import {
-    CompiledQuery,
-    MetricQueryBuilder,
-} from '../../utils/QueryBuilder/MetricQueryBuilder';
+import { CompiledQuery } from '../../utils/QueryBuilder/MetricQueryBuilder';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
+import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
@@ -4105,64 +4095,24 @@ export class ProjectService extends BaseService {
          */
         applyDateZoomToFilters?: boolean;
     }): Promise<CompiledQuery> {
-        // Fold reserved definitions in so custom SQL referencing them compiles; a
-        // same-named user parameter wins (shadows the reserved one).
-        const parameterDefinitionsWithReserved: ParameterDefinitions =
-            mergeReservedDefinitions(availableParameterDefinitions);
-        const availableParameters = Object.keys(
-            parameterDefinitionsWithReserved,
-        );
-
-        const {
-            explore: exploreWithOverride,
-            dateZoomApplied,
-            dateZoomTargetFieldId,
-        } = updateExploreWithDateZoom(
-            explore,
-            metricQuery,
-            warehouseSqlBuilder,
-            availableParameters,
-            dateZoom,
-        );
-
-        // Resolve reserved values from the query context (date zoom reflects the selected
-        // grain whenever a zoom reaches the query); a same-named user value wins.
-        const parametersWithReserved: ParametersValuesMap = mergeReservedValues(
-            parameters,
-            resolveReservedParameterValues({ dateZoom }),
-        );
-
-        const compiledMetricQuery = compileMetricQuery({
-            explore: exploreWithOverride,
-            metricQuery,
-            warehouseSqlBuilder,
-            availableParameters,
-        });
-
-        const queryBuilder = new MetricQueryBuilder({
-            explore: exploreWithOverride,
-            compiledMetricQuery,
-            warehouseSqlBuilder,
-            intrinsicUserAttributes,
-            userAttributes,
-            timezone,
-            parameters: parametersWithReserved,
-            parameterDefinitions: parameterDefinitionsWithReserved,
-            pivotConfiguration,
-            pivotDimensions,
-            continueOnError,
-            originalExplore: dateZoom ? explore : undefined,
-            dateZoomFilterTargetFieldId:
-                applyDateZoomToFilters && dateZoomApplied
-                    ? dateZoomTargetFieldId
-                    : undefined,
-            useTimezoneAwareDateTrunc,
-            columnTimezone,
-        });
-
-        return wrapSentryTransactionSync('QueryBuilder.buildQuery', {}, () =>
-            queryBuilder.compileQuery(),
-        );
+        return new QueryComposer(
+            { metricQuery, pivotConfiguration },
+            {
+                explore,
+                warehouseSqlBuilder,
+                intrinsicUserAttributes,
+                userAttributes,
+                timezone,
+                availableParameterDefinitions,
+                parameters,
+                dateZoom,
+                pivotDimensions,
+                continueOnError,
+                useTimezoneAwareDateTrunc,
+                columnTimezone,
+                applyDateZoomToFilters,
+            },
+        ).compile();
     }
 
     /**
@@ -4290,36 +4240,33 @@ export class ProjectService extends BaseService {
             organizationUuid: account.organization.organizationUuid,
         });
 
-        const compiledQuery = await ProjectService._compileQuery({
-            metricQuery,
-            explore,
-            warehouseSqlBuilder,
-            intrinsicUserAttributes,
-            userAttributes,
-            timezone,
-            parameters: combinedParameters,
-            availableParameterDefinitions,
-            pivotConfiguration,
-            pivotDimensions,
-            continueOnError: true, // Return SQL even with compilation errors for debugging
-            useTimezoneAwareDateTrunc,
-            columnTimezone: getColumnTimezone(warehouseCredentials),
-        });
-
-        // Generate pivot query if pivot configuration is provided
-        let pivotQuery: string | undefined;
-        if (pivotConfiguration) {
-            const pivotQueryBuilder = new PivotQueryBuilder(
-                compiledQuery.query,
-                pivotConfiguration,
+        const queryComposer = new QueryComposer(
+            { metricQuery, pivotConfiguration },
+            {
+                explore,
                 warehouseSqlBuilder,
-                metricQuery.limit,
-                compiledQuery.fields,
-            );
-            pivotQuery = pivotQueryBuilder.toSql({
-                columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
-            });
-        }
+                intrinsicUserAttributes,
+                userAttributes,
+                timezone,
+                availableParameterDefinitions,
+                parameters: combinedParameters,
+                dateZoom: undefined,
+                pivotDimensions,
+                continueOnError: true, // Return SQL even with compilation errors for debugging
+                useTimezoneAwareDateTrunc,
+                columnTimezone: getColumnTimezone(warehouseCredentials),
+                applyDateZoomToFilters: undefined,
+            },
+        );
+
+        const compiledQuery = queryComposer.compile();
+
+        // Include pivot query only when a pivot configuration was provided
+        const pivotQuery = pivotConfiguration
+            ? queryComposer.getSql({
+                  columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
+              })
+            : undefined;
 
         return {
             ...compiledQuery,
