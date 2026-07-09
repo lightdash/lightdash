@@ -36,6 +36,7 @@ import {
     IconChevronRight,
     IconDots,
     IconEye,
+    IconKey,
     IconPlug,
     IconPlugConnected,
     IconRefresh,
@@ -46,6 +47,7 @@ import { z } from 'zod';
 import { BetaBadge } from '../../../../components/common/BetaBadge';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
+import useToaster from '../../../../hooks/toaster/useToaster';
 import { useProjectUpdateAiAgentMutation } from '../hooks/useProjectAiAgents';
 import {
     useConnectGithubMcpServerMutation,
@@ -54,7 +56,9 @@ import {
     useProjectAiMcpServers,
     useAgentAiMcpServerTools,
     useProjectCreateAiMcpServerMutation,
+    useRefreshAiMcpServerToolsMutation,
     useStartMcpOAuthConnectionMutation,
+    useUpdateAiMcpServerCredentialMutation,
 } from '../hooks/useProjectAiMcpServers';
 import { AiAgentMcpServerToolsPanel } from './AiAgentMcpServerToolsPanel';
 import { AiMcpServerIcon } from './AiMcpServerIcon';
@@ -135,15 +139,6 @@ const getMcpOAuthSharingPolicyLabel = (
             : 'Personal sign-in only'
         : null;
 
-const getMcpOAuthSharingPolicyTooltip = (
-    mcpServer: Pick<AiMcpServer, 'authType' | 'allowOAuthCredentialSharing'>,
-) =>
-    mcpServer.authType === 'oauth'
-        ? mcpServer.allowOAuthCredentialSharing
-            ? 'This MCP can use a shared project sign-in or each person can sign in with their own account.'
-            : 'This MCP only supports personal sign-in. Each person must connect their own account.'
-        : null;
-
 const getMcpOAuthConnectionSummary = (
     mcpServer: Pick<
         AiMcpServer,
@@ -179,9 +174,9 @@ const getMcpOAuthPrimaryActionLabel = (
 ) => {
     switch (mcpServer.connectionStatus) {
         case 'connected':
-            return `Sign in to ${mcpServer.name}`;
+            return 'Reauthenticate';
         case 'error':
-            return `Sign in to ${mcpServer.name}`;
+            return 'Reauthenticate';
         case 'connecting':
             return 'Connecting...';
         case 'not_connected':
@@ -195,6 +190,17 @@ const shouldShowMcpOAuthPrimaryAction = (
 ) =>
     mcpServer.connectionStatus === 'not_connected' ||
     mcpServer.credentialScope === 'shared';
+
+// Re-testing reconnects to the server and rediscovers tools, so it only makes
+// sense once credentials exist. Non-oauth servers always have what they need;
+// oauth servers must already be connected (or in an error state worth retrying).
+const shouldShowMcpRetestConnection = (
+    mcpServer: Pick<AiMcpServer, 'authType'>,
+    connectionStatus: AiMcpServerConnectionStatus | null,
+) =>
+    mcpServer.authType !== 'oauth' ||
+    connectionStatus === 'connected' ||
+    connectionStatus === 'error';
 
 const getMcpServerIconColor = (
     connectionStatus: AiMcpServerConnectionStatus | null,
@@ -414,6 +420,90 @@ const CreateMcpServerModal = ({
     );
 };
 
+const updateMcpTokenFormSchema = z.object({
+    bearerToken: z.string().trim().min(1, 'Bearer token is required'),
+});
+
+const UpdateMcpServerTokenModal = ({
+    mcpServer,
+    isLoading,
+    onClose,
+    onSubmit,
+}: {
+    mcpServer: AiMcpServer | null;
+    isLoading: boolean;
+    onClose: () => void;
+    onSubmit: (
+        values: z.infer<typeof updateMcpTokenFormSchema>,
+    ) => Promise<void> | void;
+}) => {
+    const form = useForm<z.infer<typeof updateMcpTokenFormSchema>>({
+        initialValues: { bearerToken: '' },
+        validate: zodResolver(updateMcpTokenFormSchema),
+    });
+
+    const handleClose = useCallback(() => {
+        form.reset();
+        onClose();
+    }, [form, onClose]);
+
+    const handleSubmit = form.onSubmit(async (values) => {
+        await onSubmit(values);
+        form.reset();
+    });
+
+    return (
+        <MantineModal
+            opened={mcpServer !== null}
+            onClose={handleClose}
+            title="Update token"
+            icon={IconKey}
+            cancelDisabled={isLoading}
+            actions={
+                <Button
+                    type="submit"
+                    form="update-mcp-token-form"
+                    loading={isLoading}
+                >
+                    Update token
+                </Button>
+            }
+        >
+            <form id="update-mcp-token-form" onSubmit={handleSubmit}>
+                <Stack gap="md">
+                    <TextInput
+                        variant="subtle"
+                        label="Name"
+                        value={mcpServer?.name ?? ''}
+                        disabled
+                    />
+                    <TextInput
+                        variant="subtle"
+                        label="URL"
+                        value={mcpServer?.url ?? ''}
+                        disabled
+                    />
+                    <Box>
+                        <PasswordInput
+                            variant="subtle"
+                            label="New bearer token"
+                            placeholder="API key or personal access token"
+                            disabled={isLoading}
+                            autoComplete="off"
+                            {...form.getInputProps('bearerToken')}
+                        />
+                        <Text size="xs" c="dimmed" mt="xs">
+                            Enter a new token to replace the current one. It
+                            will be encrypted and shared across all users of the
+                            agent.
+                        </Text>
+                    </Box>
+                </Stack>
+            </form>
+        </MantineModal>
+    );
+};
+
 const AttachMcpServersModal = ({
     opened,
     isLoading,
@@ -556,11 +646,18 @@ export const AiAgentMcpServersInput = ({
     const [attachSelection, setAttachSelection] = useState<string[]>([]);
     const [expandedMcpServers, setExpandedMcpServers] = useState<string[]>([]);
     const [isPersistingSelection, setIsPersistingSelection] = useState(false);
+    const [editingTokenMcpServer, setEditingTokenMcpServer] =
+        useState<AiMcpServer | null>(null);
     const isPersistingSelectionRef = useRef(false);
+    const { showToastSuccess } = useToaster();
     const { data: mcpServers, isLoading: isLoadingMcpServers } =
         useProjectAiMcpServers(projectUuid);
     const { mutateAsync: createMcpServer, isLoading: isCreatingMcpServer } =
         useProjectCreateAiMcpServerMutation(projectUuid);
+    const {
+        mutateAsync: updateMcpServerCredential,
+        isLoading: isUpdatingToken,
+    } = useUpdateAiMcpServerCredentialMutation(projectUuid);
     const { mutateAsync: updateAgentMcpServers } =
         useProjectUpdateAiAgentMutation(projectUuid, {
             showSuccessToast: false,
@@ -575,6 +672,11 @@ export const AiAgentMcpServersInput = ({
         isLoading: isDisconnectingMcpOAuthConnection,
         variables: disconnectingMcpOAuthConnection,
     } = useDisconnectMcpOAuthConnectionMutation(projectUuid);
+    const {
+        mutateAsync: refreshMcpServerTools,
+        isLoading: isRetestingMcpServerConnection,
+        variables: retestingMcpServerConnection,
+    } = useRefreshAiMcpServerToolsMutation(projectUuid);
     const { data: githubMcpAvailability } =
         useGithubMcpAvailability(projectUuid);
     const { mutateAsync: connectGithubMcp, isLoading: isConnectingGithubMcp } =
@@ -818,11 +920,47 @@ export const AiAgentMcpServersInput = ({
         ],
     );
 
+    const handleUpdateMcpToken = useCallback(
+        async (values: { bearerToken: string }) => {
+            if (!editingTokenMcpServer) return;
+            try {
+                await updateMcpServerCredential({
+                    mcpServerUuid: editingTokenMcpServer.uuid,
+                    bearerToken: values.bearerToken.trim(),
+                });
+                setEditingTokenMcpServer(null);
+            } catch {
+                // The mutation surfaces the failure via an error toast; keep the
+                // modal open so the user can correct the token.
+            }
+        },
+        [editingTokenMcpServer, updateMcpServerCredential],
+    );
+
     const handleStartMcpOAuthConnection = useCallback(
         async (mcpServerUuid: string) => {
             await startMcpOAuthConnection({ mcpServerUuid });
         },
         [startMcpOAuthConnection],
+    );
+
+    const handleRetestMcpServerConnection = useCallback(
+        async (mcpServerUuid: string) => {
+            try {
+                await refreshMcpServerTools({
+                    mcpServerUuid,
+                    agentUuid,
+                    showSuccessToast: false,
+                });
+                showToastSuccess({
+                    title: 'Connection re-tested successfully',
+                });
+            } catch {
+                // The mutation surfaces the failure via an error toast, and the
+                // server's connection status/error is refreshed in the list.
+            }
+        },
+        [agentUuid, refreshMcpServerTools, showToastSuccess],
     );
 
     const handleDisconnectMcpOAuthConnection = useCallback(
@@ -890,6 +1028,7 @@ export const AiAgentMcpServersInput = ({
             connectionStatus: AiMcpServerConnectionStatus | null,
             isConnecting: boolean,
             isDisconnecting: boolean,
+            isRetesting: boolean,
             isExpanded: boolean,
         ) => {
             return (
@@ -924,13 +1063,27 @@ export const AiAgentMcpServersInput = ({
                         >
                             {isExpanded ? 'Hide tools' : 'View tools'}
                         </Menu.Item>
+                        {mcpServer.authType === 'bearer' && (
+                            <Menu.Item
+                                type="button"
+                                leftSection={<MantineIcon icon={IconKey} />}
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    setEditingTokenMcpServer(mcpServer);
+                                }}
+                                disabled={isPersistingSelection}
+                            >
+                                Update token
+                            </Menu.Item>
+                        )}
                         {mcpServer.authType === 'oauth' && (
                             <Menu.Item
                                 type="button"
                                 leftSection={
                                     <MantineIcon
                                         icon={
-                                            connectionStatus === 'connected'
+                                            connectionStatus === 'connected' ||
+                                            connectionStatus === 'error'
                                                 ? IconRefresh
                                                 : IconPlugConnected
                                         }
@@ -952,6 +1105,32 @@ export const AiAgentMcpServersInput = ({
                                           credentialScope:
                                               mcpServer.credentialScope,
                                       })}
+                            </Menu.Item>
+                        )}
+                        {shouldShowMcpRetestConnection(
+                            mcpServer,
+                            connectionStatus,
+                        ) && (
+                            <Menu.Item
+                                type="button"
+                                leftSection={
+                                    <MantineIcon icon={IconPlugConnected} />
+                                }
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    void handleRetestMcpServerConnection(
+                                        mcpServer.uuid,
+                                    );
+                                }}
+                                disabled={
+                                    isRetesting ||
+                                    isConnecting ||
+                                    isPersistingSelection
+                                }
+                            >
+                                {isRetesting
+                                    ? 'Re-testing...'
+                                    : 'Re-test connection'}
                             </Menu.Item>
                         )}
                         {mcpServer.hasCredentials &&
@@ -999,9 +1178,11 @@ export const AiAgentMcpServersInput = ({
         [
             handleDisconnectMcpOAuthConnection,
             handleRemoveMcpServer,
+            handleRetestMcpServerConnection,
             handleSetExpandedMcpServer,
             handleStartMcpOAuthConnection,
             isPersistingSelection,
+            setEditingTokenMcpServer,
         ],
     );
 
@@ -1114,6 +1295,10 @@ export const AiAgentMcpServersInput = ({
                                     isDisconnectingMcpOAuthConnection &&
                                     disconnectingMcpOAuthConnection?.mcpServerUuid ===
                                         mcpServer.uuid;
+                                const isRetesting =
+                                    isRetestingMcpServerConnection &&
+                                    retestingMcpServerConnection?.mcpServerUuid ===
+                                        mcpServer.uuid;
                                 const connectionStatus = isConnecting
                                     ? 'connecting'
                                     : mcpServer.connectionStatus;
@@ -1126,12 +1311,6 @@ export const AiAgentMcpServersInput = ({
                                     ) ?? false;
                                 const sharingPolicyLabel =
                                     getMcpOAuthSharingPolicyLabel({
-                                        authType: mcpServer.authType,
-                                        allowOAuthCredentialSharing:
-                                            mcpServer.allowOAuthCredentialSharing,
-                                    });
-                                const sharingPolicyTooltip =
-                                    getMcpOAuthSharingPolicyTooltip({
                                         authType: mcpServer.authType,
                                         allowOAuthCredentialSharing:
                                             mcpServer.allowOAuthCredentialSharing,
@@ -1185,6 +1364,18 @@ export const AiAgentMcpServersInput = ({
                                                             )}
                                                         </Text>
                                                     )}
+                                                    <Text
+                                                        size="sm"
+                                                        c="dimmed"
+                                                        fw={450}
+                                                    >
+                                                        {getMcpAuthTypeLabel(
+                                                            mcpServer.authType,
+                                                        )}
+                                                        {sharingPolicyLabel
+                                                            ? ` · ${sharingPolicyLabel}`
+                                                            : ''}
+                                                    </Text>
                                                     {mcpServer.error && (
                                                         <Text
                                                             size="xs"
@@ -1201,14 +1392,6 @@ export const AiAgentMcpServersInput = ({
                                                 wrap="nowrap"
                                             >
                                                 <Badge
-                                                    variant="default"
-                                                    color="gray"
-                                                >
-                                                    {getMcpAuthTypeLabel(
-                                                        mcpServer.authType,
-                                                    )}
-                                                </Badge>
-                                                <Badge
                                                     variant="light"
                                                     color={getMcpConnectionStatusColor(
                                                         connectionStatus,
@@ -1222,22 +1405,46 @@ export const AiAgentMcpServersInput = ({
                                                         },
                                                     )}
                                                 </Badge>
-                                                {sharingPolicyLabel && (
-                                                    <Tooltip
-                                                        label={
-                                                            sharingPolicyTooltip
-                                                        }
-                                                        withArrow
-                                                        withinPortal
-                                                    >
-                                                        <Badge
-                                                            variant="default"
-                                                            color="gray"
+                                                {connectionStatus ===
+                                                    'connected' &&
+                                                    shouldShowMcpRetestConnection(
+                                                        mcpServer,
+                                                        connectionStatus,
+                                                    ) && (
+                                                        <Tooltip
+                                                            label="Re-test connection"
+                                                            withArrow
+                                                            withinPortal
                                                         >
-                                                            {sharingPolicyLabel}
-                                                        </Badge>
-                                                    </Tooltip>
-                                                )}
+                                                            <ActionIcon
+                                                                type="button"
+                                                                variant="subtle"
+                                                                color="gray"
+                                                                size="sm"
+                                                                loading={
+                                                                    isRetesting
+                                                                }
+                                                                disabled={
+                                                                    isRetesting ||
+                                                                    isPersistingSelection
+                                                                }
+                                                                onClick={(
+                                                                    event,
+                                                                ) => {
+                                                                    event.stopPropagation();
+                                                                    void handleRetestMcpServerConnection(
+                                                                        mcpServer.uuid,
+                                                                    );
+                                                                }}
+                                                            >
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconRefresh
+                                                                    }
+                                                                />
+                                                            </ActionIcon>
+                                                        </Tooltip>
+                                                    )}
                                                 {mcpServer.authType ===
                                                     'oauth' &&
                                                     shouldShowMcpOAuthPrimaryAction(
@@ -1274,6 +1481,7 @@ export const AiAgentMcpServersInput = ({
                                                     connectionStatus,
                                                     isConnecting,
                                                     isDisconnecting,
+                                                    isRetesting,
                                                     isExpanded,
                                                 )}
                                             </Group>
@@ -1369,6 +1577,12 @@ export const AiAgentMcpServersInput = ({
                 onClose={createMcpServerModalHandlers.close}
                 onSubmit={handleCreateMcpServer}
                 isLoading={isCreatingMcpServer || isPersistingSelection}
+            />
+            <UpdateMcpServerTokenModal
+                mcpServer={editingTokenMcpServer}
+                isLoading={isUpdatingToken}
+                onClose={() => setEditingTokenMcpServer(null)}
+                onSubmit={handleUpdateMcpToken}
             />
             <AttachMcpServersModal
                 opened={isAttachMcpServersModalOpen}

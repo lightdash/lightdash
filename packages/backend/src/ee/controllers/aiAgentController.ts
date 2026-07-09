@@ -61,6 +61,7 @@ import {
     ApiSuccessEmpty,
     ApiUpdateAiAgent,
     ApiUpdateAiAgentMcpServerToolsRequest,
+    ApiUpdateAiMcpServerCredentialBody,
     ApiUpdateEvaluationRequest,
     ApiUpdateUserAgentPreferences,
     ApiUpdateUserAgentPreferencesResponse,
@@ -235,6 +236,34 @@ export class AiAgentController extends BaseController {
                 projectUuid,
                 body,
             ),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/mcpServers/{mcpServerUuid}/credential')
+    @OperationId('updateMcpServerBearerCredential')
+    async updateMcpServerBearerCredential(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() mcpServerUuid: string,
+        @Body() body: ApiUpdateAiMcpServerCredentialBody,
+    ): Promise<ApiAiMcpServerResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await this.getAiAgentService().updateMcpServerBearerCredential(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    mcpServerUuid,
+                    body,
+                ),
         };
     }
 

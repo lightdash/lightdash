@@ -24,6 +24,7 @@ import {
     AiDuplicateSlackPromptError,
     AiMcpCredentialScope,
     AiMcpGithubAvailability,
+    AiMcpServer,
     AiMetricQueryWithFilters,
     AiModelOption,
     AiPromptContext,
@@ -47,6 +48,7 @@ import {
     ApiCreateEvaluationRequest,
     ApiUpdateAiAgent,
     ApiUpdateAiAgentMcpServerToolsRequest,
+    ApiUpdateAiMcpServerCredentialBody,
     ApiUpdateEvaluationRequest,
     ApiUpdateUserAgentPreferences,
     assertUnreachable,
@@ -358,6 +360,8 @@ const ALLOWED_AGENT_AVATAR_MIME_TYPES = new Set([
 // wrong" even though the backend job completes and opens the PR. 15s sits
 // comfortably under the usual 30-60s idle timeouts.
 const STREAM_KEEPALIVE_INTERVAL_MS = 15_000;
+
+const MAX_MCP_BEARER_TOKEN_LENGTH = 8192;
 
 type EmbedAiAgentRuntimeOptions = {
     embedSpaceUuid: string;
@@ -3065,16 +3069,29 @@ export class AiAgentService extends BaseService {
         await this.assertCanManageMcpServers(user, projectUuid);
 
         try {
-            return await this.discoverMcpServerTools({
+            const tools = await this.discoverMcpServerTools({
                 projectUuid,
                 mcpServerUuid,
                 actorUserUuid: user.userUuid,
             });
+            await this.aiAgentModel.updateMcpServerRuntimeState({
+                serverUuid: mcpServerUuid,
+                connectionStatus: 'connected',
+                error: null,
+                actorUserUuid: user.userUuid,
+            });
+            return tools;
         } catch (error) {
+            const message =
+                error instanceof Error ? error.message : String(error);
+            await this.aiAgentModel.updateMcpServerRuntimeState({
+                serverUuid: mcpServerUuid,
+                connectionStatus: 'error',
+                error: message,
+                actorUserUuid: user.userUuid,
+            });
             throw new ParameterError(
-                `We couldn't refresh this MCP server's tools. Check the connection and authentication settings, then try again. Details: ${
-                    error instanceof Error ? error.message : String(error)
-                }`,
+                `We couldn't refresh this MCP server's tools. Check the connection and authentication settings, then try again. Details: ${message}`,
             );
         }
     }
@@ -3233,6 +3250,14 @@ export class AiAgentService extends BaseService {
                         'Bearer MCP servers require a bearer token',
                     );
                 }
+                if (
+                    body.credentials.bearerToken.trim().length >
+                    MAX_MCP_BEARER_TOKEN_LENGTH
+                ) {
+                    throw new ParameterError(
+                        `Bearer token must be at most ${MAX_MCP_BEARER_TOKEN_LENGTH} characters`,
+                    );
+                }
                 if (allowOAuthCredentialSharing) {
                     throw new ParameterError(
                         'OAuth credential sharing is only allowed for auth type "oauth"',
@@ -3318,6 +3343,89 @@ export class AiAgentService extends BaseService {
         }
 
         return server;
+    }
+
+    public async updateMcpServerBearerCredential(
+        user: SessionUser,
+        projectUuid: string,
+        mcpServerUuid: string,
+        body: ApiUpdateAiMcpServerCredentialBody,
+    ): Promise<AiMcpServer> {
+        await this.assertCanManageMcpServers(user, projectUuid);
+
+        const server = await this.getProjectMcpServerOrThrow(
+            projectUuid,
+            mcpServerUuid,
+        );
+        if (server.authType !== 'bearer') {
+            throw new ParameterError(
+                'Only bearer-token MCP servers support updating the token',
+            );
+        }
+
+        const bearerToken = body.bearerToken.trim();
+        if (!bearerToken) {
+            throw new ParameterError('A bearer token is required');
+        }
+        if (bearerToken.length > MAX_MCP_BEARER_TOKEN_LENGTH) {
+            throw new ParameterError(
+                `Bearer token must be at most ${MAX_MCP_BEARER_TOKEN_LENGTH} characters`,
+            );
+        }
+
+        let mcpConnectionMetadata: { iconUrl: string | null };
+        try {
+            mcpConnectionMetadata =
+                await this.aiAgentMcpRuntimeClient.testConnection({
+                    name: server.name,
+                    url: server.url,
+                    authType: 'bearer',
+                    bearerToken,
+                    onUncaughtError: (error) => {
+                        Logger.error(
+                            `[AiAgent][MCP][${server.name}] Uncaught MCP client error while validating updated token`,
+                            error,
+                        );
+                    },
+                });
+        } catch (error) {
+            throw new ParameterError(
+                `We couldn't connect to this MCP server with that token. Check the token and its access, then try again. Details: ${
+                    error instanceof Error ? error.message : String(error)
+                }`,
+            );
+        }
+
+        await this.aiAgentModel.upsertCredential({
+            serverUuid: mcpServerUuid,
+            scope: 'shared',
+            credentials: { type: 'bearer', bearerToken },
+            actorUserUuid: user.userUuid,
+        });
+        await this.aiAgentModel.updateMcpServerRuntimeState({
+            serverUuid: mcpServerUuid,
+            connectionStatus: 'connected',
+            error: null,
+            iconUrl: mcpConnectionMetadata.iconUrl,
+            actorUserUuid: user.userUuid,
+        });
+
+        await this.discoverMcpServerTools({
+            projectUuid,
+            mcpServerUuid,
+            actorUserUuid: user.userUuid,
+        }).catch((error) => {
+            Logger.error(
+                `[AiAgent][MCP][${server.name}] Failed to discover tools after token update`,
+                error,
+            );
+        });
+
+        const updated = await this.aiAgentModel.getMcpServer(mcpServerUuid);
+        if (!updated) {
+            throw new NotFoundError('MCP server not found');
+        }
+        return updated;
     }
 
     /**
