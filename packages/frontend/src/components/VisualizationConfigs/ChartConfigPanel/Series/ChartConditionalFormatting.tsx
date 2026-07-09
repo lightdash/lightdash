@@ -235,6 +235,8 @@ const ChartConditionalFormattingItem: FC<ItemProps> = ({
 type Props = {
     colorPalette: string[];
     fields: FilterableItem[];
+    // When true, all rules share a single target field (stacked charts)
+    enforceSingleTarget: boolean;
     conditionalFormattings: ConditionalFormattingConfig[];
     onSetConditionalFormattings: (
         configs: ConditionalFormattingConfig[],
@@ -244,6 +246,7 @@ type Props = {
 export const ChartConditionalFormatting: FC<Props> = ({
     colorPalette,
     fields,
+    enforceSingleTarget,
     conditionalFormattings,
     onSetConditionalFormattings,
 }) => {
@@ -292,10 +295,14 @@ export const ChartConditionalFormatting: FC<Props> = ({
     );
 
     const handleAdd = useCallback(() => {
+        // With a single shared target, new rules follow the existing one
+        const sharedTarget = enforceSingleTarget
+            ? supportedConfigs[0]?.target
+            : undefined;
         const defaultField = fields[0];
-        const fieldTarget = defaultField
-            ? { fieldId: getItemId(defaultField) }
-            : null;
+        const fieldTarget =
+            sharedTarget ??
+            (defaultField ? { fieldId: getItemId(defaultField) } : null);
         setSupportedConfigs(
             produce(supportedConfigs, (draft) => {
                 draft.push(
@@ -310,6 +317,7 @@ export const ChartConditionalFormatting: FC<Props> = ({
     }, [
         addNewItem,
         colorPalette,
+        enforceSingleTarget,
         fields,
         setSupportedConfigs,
         supportedConfigs,
@@ -332,13 +340,24 @@ export const ChartConditionalFormatting: FC<Props> = ({
             index: number,
             newConfig: ConditionalFormattingConfigWithSingleColor,
         ) => {
+            const targetChanged =
+                newConfig.target?.fieldId !==
+                supportedConfigs[index]?.target?.fieldId;
             setSupportedConfigs(
                 produce(supportedConfigs, (draft) => {
                     draft[index] = newConfig;
+                    // Single shared target: retarget every rule together
+                    if (enforceSingleTarget && targetChanged) {
+                        draft.forEach((config, configIndex) => {
+                            if (configIndex !== index) {
+                                config.target = newConfig.target;
+                            }
+                        });
+                    }
                 }),
             );
         },
-        [setSupportedConfigs, supportedConfigs],
+        [enforceSingleTarget, setSupportedConfigs, supportedConfigs],
     );
 
     return (

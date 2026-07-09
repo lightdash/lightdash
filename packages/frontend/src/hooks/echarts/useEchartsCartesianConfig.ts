@@ -60,6 +60,7 @@ import {
     valueFormatter,
     XAxisSortType,
     type CartesianChart,
+    type ConditionalFormattingConfig,
     type CustomDimension,
     type EChartsSeries,
     type EchartsLegend,
@@ -2896,6 +2897,74 @@ export const transformStack100ByValueAxis = <T extends Record<string, unknown>>(
     return { transformedResults, originalValues };
 };
 
+/**
+ * Apply conditional formatting colors to stacked bar series, using raw row
+ * values for 100%-stack series via a color callback.
+ */
+export const applyConditionalFormattingToStackedSeries = ({
+    seriesList,
+    rawRows,
+    itemsMap,
+    conditionalFormattings,
+}: {
+    seriesList: EChartsSeries[];
+    rawRows: Record<string, unknown>[];
+    itemsMap: ItemsMap;
+    conditionalFormattings: ConditionalFormattingConfig[];
+}): EChartsSeries[] =>
+    seriesList.map((series) => {
+        if (series.type !== CartesianSeriesType.BAR || !series.stack) {
+            return series;
+        }
+
+        if (Array.isArray(series.data)) {
+            const data = series.data.map((item, rowIndex) => {
+                const conditionalColor = getCartesianConditionalFormattingColor(
+                    {
+                        itemsMap,
+                        conditionalFormattings,
+                        rowValues: rawRows[rowIndex] ?? {},
+                        series,
+                    },
+                );
+                if (!conditionalColor) return item;
+                const baseItem =
+                    item !== null && typeof item === 'object' && 'value' in item
+                        ? (item as {
+                              value: unknown;
+                              itemStyle?: Record<string, unknown>;
+                          })
+                        : { value: item, itemStyle: undefined };
+                return {
+                    ...baseItem,
+                    itemStyle: {
+                        ...(baseItem.itemStyle ?? {}),
+                        color: conditionalColor,
+                    },
+                };
+            });
+            return { ...series, data };
+        }
+
+        // Series colors are always assigned upstream; keep the type narrow
+        const fallbackColor = series.color;
+        if (!fallbackColor) return series;
+
+        return {
+            ...series,
+            itemStyle: {
+                ...(series.itemStyle ?? {}),
+                color: (params: { dataIndex: number }) =>
+                    getCartesianConditionalFormattingColor({
+                        itemsMap,
+                        conditionalFormattings,
+                        rowValues: rawRows[params.dataIndex] ?? {},
+                        series,
+                    }) ?? fallbackColor,
+            },
+        };
+    });
+
 // To hack the stack totals in echarts we need to create a fake series with the value 0 and display the total in the label
 export const getStackTotalSeries = (
     rows: Record<string, unknown>[],
@@ -3337,13 +3406,13 @@ const useEchartsCartesianConfig = (
             !hasCustomColorsStacking;
         // Applies per bar series on all-bar charts: each config routes to its
         // target field, so multi-metric charts color each metric's bars
-        // independently
+        // independently. Stacked series are handled downstream after stack
+        // decoration.
         const shouldApplyConditionalFormatting =
             series.length > 0 &&
             barSeries.length === series.length &&
             !pivotDimensions?.length &&
             !isColorByCategory &&
-            !hasCustomColorsStacking &&
             Boolean(conditionalFormattings?.length);
 
         const seriesColors = series.map((serie) => getSeriesColor(serie));
@@ -3397,7 +3466,10 @@ const useEchartsCartesianConfig = (
                         }),
                     };
 
-                    if (shouldApplyConditionalFormatting) {
+                    if (
+                        shouldApplyConditionalFormatting &&
+                        getValidStack(serie) === undefined
+                    ) {
                         return {
                             ...barConfig,
                             colorBy: 'data' as const,
@@ -3803,6 +3875,27 @@ const useEchartsCartesianConfig = (
                   )
                 : stackedSeriesWithColorAssignments;
 
+        // Runs before stack totals are appended so the synthetic total
+        // series stays untouched
+        const conditionalFormattings =
+            validCartesianConfig?.conditionalFormattings;
+        const shouldApplyStackConditionalFormatting =
+            Boolean(conditionalFormattings?.length) &&
+            !pivotDimensions?.length &&
+            stackedSeriesWithColorAssignments.every(
+                (s) => s.type === CartesianSeriesType.BAR,
+            );
+
+        const seriesWithStackConditionalFormatting =
+            shouldApplyStackConditionalFormatting && conditionalFormattings
+                ? applyConditionalFormattingToStackedSeries({
+                      seriesList: seriesWithRoundedStacks,
+                      rawRows: paddedSortedResults,
+                      itemsMap,
+                      conditionalFormattings,
+                  })
+                : seriesWithRoundedStacks;
+
         // User-configured value-axis maxes; the value axis config lives in
         // eChartsConfig.yAxis for both orientations (flipped charts apply it
         // to the echarts x axis).
@@ -3815,10 +3908,10 @@ const useEchartsCartesianConfig = (
         });
 
         return [
-            ...seriesWithRoundedStacks,
+            ...seriesWithStackConditionalFormatting,
             ...getStackTotalSeries(
                 paddedSortedResults,
-                seriesWithRoundedStacks,
+                seriesWithStackConditionalFormatting,
                 itemsMap,
                 validCartesianConfig?.layout.flipAxes,
                 validCartesianConfigLegend,
@@ -3833,6 +3926,8 @@ const useEchartsCartesianConfig = (
         paddedSortedResults,
         dynamicRadius,
         itemsMap,
+        pivotDimensions,
+        validCartesianConfig?.conditionalFormattings,
         validCartesianConfig?.layout?.stack,
         validCartesianConfig?.layout?.flipAxes,
         validCartesianConfig?.layout.connectNulls,

@@ -1,12 +1,15 @@
 import {
     CartesianSeriesType,
+    createConditionalFormattingConfigWithSingleColor,
     DimensionType,
     FieldType,
+    FilterOperator,
     TimeFrames,
     transformToPercentageStacking,
     type Dimension,
     type EChartsSeries,
     type Field,
+    type ItemsMap,
     type ResultRow,
     type Series,
 } from '@lightdash/common';
@@ -15,6 +18,7 @@ import timezonePlugin from 'dayjs/plugin/timezone';
 import utcPlugin from 'dayjs/plugin/utc';
 import { describe, expect, test, vi } from 'vitest';
 import {
+    applyConditionalFormattingToStackedSeries,
     applyLegendPlacementToGrid,
     filterSeriesWithNoData,
     getAxisDefaultMaxValue,
@@ -2367,5 +2371,153 @@ describe('relocateMarkLinesToVisibleSeries (PROD-7119)', () => {
 
         expect(result).toBe(series);
         expect(markLineData(result[1])).toHaveLength(0);
+    });
+});
+
+describe('applyConditionalFormattingToStackedSeries', () => {
+    const revenueField = {
+        compiledSql: '',
+        tablesReferences: [],
+        fieldType: FieldType.DIMENSION,
+        hidden: false,
+        label: 'Revenue',
+        name: 'revenue',
+        table: 'orders',
+        tableLabel: 'Orders',
+        sql: '',
+        type: DimensionType.NUMBER,
+    } as ItemsMap[string];
+    const costField = {
+        ...revenueField,
+        label: 'Cost',
+        name: 'cost',
+    } as ItemsMap[string];
+    const itemsMap: ItemsMap = {
+        orders_revenue: revenueField,
+        orders_cost: costField,
+    };
+
+    const belowThresholdRed = (fieldId: string) => {
+        const config = createConditionalFormattingConfigWithSingleColor(
+            '#ff0000',
+            { fieldId },
+        );
+        config.rules = [
+            {
+                id: 'r1',
+                operator: FilterOperator.LESS_THAN,
+                values: [100],
+            },
+        ];
+        return config;
+    };
+
+    const rawRows = [
+        { orders_category: 'a', orders_revenue: 50, orders_cost: 50 },
+        { orders_category: 'b', orders_revenue: 150, orders_cost: 50 },
+    ];
+
+    const mkStackedSeries = (fieldId: string): EChartsSeries =>
+        ({
+            type: CartesianSeriesType.BAR,
+            stack: 'stack-all-series',
+            color: '#123456',
+            encode: {
+                x: 'orders_category',
+                y: fieldId,
+                yRef: { field: fieldId },
+            },
+        }) as unknown as EChartsSeries;
+
+    test('normal stacks: colors matching per-item data and preserves rounded-corner itemStyle', () => {
+        const series = {
+            ...mkStackedSeries('orders_revenue'),
+            data: [
+                {
+                    value: ['a', 50],
+                    itemStyle: { borderRadius: [4, 4, 0, 0] },
+                },
+                { value: ['b', 150] },
+            ],
+        };
+
+        const [result] = applyConditionalFormattingToStackedSeries({
+            seriesList: [series],
+            rawRows,
+            itemsMap,
+            conditionalFormattings: [belowThresholdRed('orders_revenue')],
+        });
+
+        expect(result.data).toEqual([
+            {
+                value: ['a', 50],
+                itemStyle: { borderRadius: [4, 4, 0, 0], color: '#ff0000' },
+            },
+            { value: ['b', 150] },
+        ]);
+    });
+
+    test('normal stacks: untargeted series in the stack stays untouched', () => {
+        const series = {
+            ...mkStackedSeries('orders_cost'),
+            data: [{ value: ['a', 50] }, { value: ['b', 50] }],
+        };
+
+        const [result] = applyConditionalFormattingToStackedSeries({
+            seriesList: [series],
+            rawRows,
+            itemsMap,
+            conditionalFormattings: [belowThresholdRed('orders_revenue')],
+        });
+
+        expect(result.data).toEqual([
+            { value: ['a', 50] },
+            { value: ['b', 50] },
+        ]);
+    });
+
+    test('100% stacks: dataset-bound series get a callback evaluating raw values', () => {
+        const series = mkStackedSeries('orders_revenue');
+
+        const [result] = applyConditionalFormattingToStackedSeries({
+            seriesList: [series],
+            // Simulates 100% mode: the dataset holds normalized percentages,
+            // but evaluation uses the raw rows by index
+            rawRows,
+            itemsMap,
+            conditionalFormattings: [belowThresholdRed('orders_revenue')],
+        });
+
+        const colorFn = (
+            result.itemStyle as {
+                color: (params: { dataIndex: number }) => string;
+            }
+        ).color;
+        expect(colorFn({ dataIndex: 0 })).toBe('#ff0000');
+        expect(colorFn({ dataIndex: 1 })).toBe('#123456');
+    });
+
+    test('passes through non-stacked and non-bar series', () => {
+        const flatBar = {
+            type: CartesianSeriesType.BAR,
+            color: '#123456',
+            encode: { yRef: { field: 'orders_revenue' } },
+        } as unknown as EChartsSeries;
+        const line = {
+            type: CartesianSeriesType.LINE,
+            stack: 'stack-all-series',
+            color: '#123456',
+            encode: { yRef: { field: 'orders_cost' } },
+        } as unknown as EChartsSeries;
+
+        const result = applyConditionalFormattingToStackedSeries({
+            seriesList: [flatBar, line],
+            rawRows,
+            itemsMap,
+            conditionalFormattings: [belowThresholdRed('orders_revenue')],
+        });
+
+        expect(result[0]).toBe(flatBar);
+        expect(result[1]).toBe(line);
     });
 });
