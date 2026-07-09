@@ -1168,14 +1168,12 @@ describe('useCartesianChartConfig', () => {
         };
 
         const { result } = renderHook(
-            ({ params }) =>
-                // @ts-expect-error partially mock params for hook
-                useCartesianChartConfig(params),
+            ({ params }) => useCartesianChartConfig(params),
             { initialProps: { params: multiMetricParams } },
         );
 
         expect(
-            result.current.validConfig.conditionalFormattings.map(
+            result.current.validConfig.conditionalFormattings?.map(
                 (config) => config.target?.fieldId,
             ),
         ).toEqual(['orders_total_order_amount', 'orders_total_order_amount']);
