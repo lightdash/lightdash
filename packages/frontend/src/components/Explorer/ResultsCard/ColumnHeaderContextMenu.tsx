@@ -19,7 +19,7 @@ import {
 } from '@lightdash/common';
 import { ActionIcon, Box, Group, Menu, Text } from '@mantine-8/core';
 import {
-    IconChevronDown,
+    IconDots,
     IconFilter,
     IconPencil,
     IconTimelineEvent,
@@ -410,8 +410,9 @@ const ColumnHeaderContextMenu: FC<HeaderProps> = ({ header }) => {
                                 variant="light"
                                 bg="transparent"
                                 color="ldGray.6"
+                                aria-label="Context menu"
                             >
-                                <MantineIcon icon={IconChevronDown} />
+                                <MantineIcon icon={IconDots} />
                             </ActionIcon>
                         </Menu.Target>
 
