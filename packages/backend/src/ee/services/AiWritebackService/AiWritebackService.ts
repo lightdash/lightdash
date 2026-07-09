@@ -1577,6 +1577,8 @@ export class AiWritebackService extends BaseService {
         if (!isUserWithOrg(args.user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
+        const project = await this.projectModel.get(args.projectUuid);
+        this.assertCanManageSourceCode(args.user, project, args.projectUuid);
         const runRow = await this.aiWritebackRunModel.create({
             organizationUuid: args.user.organizationUuid,
             projectUuid: args.projectUuid,
@@ -1594,6 +1596,8 @@ export class AiWritebackService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
+        const project = await this.projectModel.get(projectUuid);
+        this.assertCanManageSourceCode(user, project, projectUuid);
         const runRow = await this.aiWritebackRunModel.create({
             organizationUuid: user.organizationUuid,
             projectUuid,
@@ -1673,6 +1677,10 @@ export class AiWritebackService extends BaseService {
         ) {
             throw new ForbiddenError();
         }
+        await this.assertSourceCodeAccess({
+            user,
+            projectUuid: runRow.project_uuid,
+        });
         return {
             status: runRow.status,
             prUrl: runRow.pr_url,
@@ -2040,31 +2048,13 @@ export class AiWritebackService extends BaseService {
                         ),
                     },
                 );
-                tracker.completed({
-                    exitCode: agent.exitCode,
-                    hasChanges,
-                    prCreated: false,
-                    usage: agent.usage,
-                });
                 const crashPrUrl =
                     turn.existingRow?.pr_url ?? adoptedPr?.prUrl ?? null;
-                await persistRunReady(crashPrUrl);
-                return {
-                    output: sanitizedStdout,
-                    exitCode: agent.exitCode,
-                    prUrl: crashPrUrl,
-                    // The agent crashed before pushing changes, so any PR here
-                    // is a pre-existing one — never newly opened, and this turn
-                    // pushed no commit to pin to.
-                    prAction: crashPrUrl ? 'updated' : null,
-                    commitSha: null,
-                    additions: null,
-                    deletions: null,
-                    projectName: turn.projectName,
-                    repository,
-                    steps: stepLog,
-                    dbtSourceUuid: turn.projectDbtSourceUuid,
-                };
+                throw new Error(
+                    crashPrUrl
+                        ? `The coding agent exited with code ${agent.exitCode} before making any new changes. The pull request from an earlier turn (${crashPrUrl}) is unaffected.`
+                        : `The coding agent exited with code ${agent.exitCode} and no pull request was created.`,
+                );
             }
 
             const applied = await this.applyAgentChanges({

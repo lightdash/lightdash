@@ -1300,17 +1300,11 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         expect(allow).toContain('api.anthropic.com');
     });
 
-    it('skips the PR when the agent exits non-zero', async () => {
+    it('skips the PR and rejects when the agent exits non-zero', async () => {
         const sandbox = fakeSandbox(1, true);
         fakeSandboxProvider.create.mockResolvedValue(sandbox);
 
-        const result = await runService(sandbox);
-
-        expect(result).toMatchObject({
-            exitCode: 1,
-            prUrl: null,
-            prAction: null,
-        });
+        await expect(runService(sandbox)).rejects.toThrow('exited with code 1');
         expect(createPullRequest).not.toHaveBeenCalled();
         expect(fakeSandboxProvider.destroy).toHaveBeenCalledTimes(1);
     });
@@ -2613,12 +2607,20 @@ describe('AiWritebackService.closePullRequest (workstream provider)', () => {
 });
 
 describe('AiWritebackService.enqueueWriteback', () => {
-    const userWithOrg: SessionUser = {
-        userUuid: 'u1',
-        organizationUuid: ORG,
-        organizationName: 'Acme',
-        organizationCreatedAt: new Date(),
-        role: 'admin',
+    const userWithOrg = (canManage: boolean): SessionUser => {
+        const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
+        if (canManage) can('manage', 'SourceCode', { organizationUuid: ORG });
+        return {
+            userUuid: 'u1',
+            organizationUuid: ORG,
+            organizationName: 'Acme',
+            organizationCreatedAt: new Date(),
+            role: 'admin',
+            ability: build(),
+        } as AnyType;
+    };
+    const projectModel = {
+        get: vi.fn().mockResolvedValue({ organizationUuid: ORG }),
     } as AnyType;
 
     it('creates a pending run row and enqueues the pipeline job', async () => {
@@ -2629,10 +2631,14 @@ describe('AiWritebackService.enqueueWriteback', () => {
         const schedulerClient = {
             aiWritebackPipeline: vi.fn().mockResolvedValue({ jobId: '1' }),
         } as AnyType;
-        const service = buildService({ aiWritebackRunModel, schedulerClient });
+        const service = buildService({
+            aiWritebackRunModel,
+            schedulerClient,
+            projectModel,
+        });
 
         const result = await service.enqueueWriteback({
-            user: userWithOrg,
+            user: userWithOrg(true),
             projectUuid: 'proj-1',
             prompt: 'add a metric',
             source: 'mcp',
@@ -2669,10 +2675,11 @@ describe('AiWritebackService.enqueueWriteback', () => {
         const service = buildService({
             aiWritebackRunModel,
             schedulerClient: { aiWritebackPipeline: vi.fn() } as AnyType,
+            projectModel,
         });
 
         await service.enqueueWriteback({
-            user: userWithOrg,
+            user: userWithOrg(true),
             projectUuid: 'proj-1',
             prompt: 'add a metric',
             source: 'api',
@@ -2694,6 +2701,85 @@ describe('AiWritebackService.enqueueWriteback', () => {
                 source: 'api',
             }),
         ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('throws ForbiddenError before enqueuing when the user cannot manage source code', async () => {
+        const aiWritebackRunModel = { create: vi.fn() } as AnyType;
+        const schedulerClient = { aiWritebackPipeline: vi.fn() } as AnyType;
+        const service = buildService({
+            aiWritebackRunModel,
+            schedulerClient,
+            projectModel,
+        });
+
+        await expect(
+            service.enqueueWriteback({
+                user: userWithOrg(false),
+                projectUuid: 'proj-1',
+                prompt: 'add a metric',
+                source: 'mcp',
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(aiWritebackRunModel.create).not.toHaveBeenCalled();
+        expect(schedulerClient.aiWritebackPipeline).not.toHaveBeenCalled();
+    });
+});
+
+describe('AiWritebackService.createPendingRun', () => {
+    const userWithOrg = (canManage: boolean): SessionUser => {
+        const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
+        if (canManage) can('manage', 'SourceCode', { organizationUuid: ORG });
+        return {
+            userUuid: 'u1',
+            organizationUuid: ORG,
+            organizationName: 'Acme',
+            organizationCreatedAt: new Date(),
+            role: 'admin',
+            ability: build(),
+        } as AnyType;
+    };
+    const projectModel = {
+        get: vi.fn().mockResolvedValue({ organizationUuid: ORG }),
+    } as AnyType;
+
+    it('creates a pending run row', async () => {
+        const aiWritebackRunModel = {
+            create: vi
+                .fn()
+                .mockResolvedValue({ ai_writeback_run_uuid: 'run-1' }),
+        } as AnyType;
+        const service = buildService({ aiWritebackRunModel, projectModel });
+
+        const result = await service.createPendingRun({
+            user: userWithOrg(true),
+            projectUuid: 'proj-1',
+            aiThreadUuid: 'thread-1',
+            source: 'web',
+        });
+
+        expect(result).toEqual({ aiWritebackRunUuid: 'run-1' });
+        expect(aiWritebackRunModel.create).toHaveBeenCalledWith({
+            organizationUuid: ORG,
+            projectUuid: 'proj-1',
+            aiThreadUuid: 'thread-1',
+            createdByUserUuid: 'u1',
+            source: 'web',
+        });
+    });
+
+    it('throws ForbiddenError before creating a row when the user cannot manage source code', async () => {
+        const aiWritebackRunModel = { create: vi.fn() } as AnyType;
+        const service = buildService({ aiWritebackRunModel, projectModel });
+
+        await expect(
+            service.createPendingRun({
+                user: userWithOrg(false),
+                projectUuid: 'proj-1',
+                aiThreadUuid: 'thread-1',
+                source: 'web',
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(aiWritebackRunModel.create).not.toHaveBeenCalled();
     });
 });
 
@@ -2782,27 +2868,41 @@ describe('AiWritebackService.runPipeline', () => {
 });
 
 describe('AiWritebackService.getRunStatus', () => {
-    const userWithOrg: SessionUser = {
-        userUuid: 'u1',
-        organizationUuid: ORG,
-        organizationName: 'Acme',
-        organizationCreatedAt: new Date(),
-        role: 'admin',
-    } as AnyType;
+    const userWithOrg = (canView: boolean): SessionUser => {
+        const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
+        if (canView) can('manage', 'SourceCode', { organizationUuid: ORG });
+        return {
+            userUuid: 'u1',
+            organizationUuid: ORG,
+            organizationName: 'Acme',
+            organizationCreatedAt: new Date(),
+            role: 'admin',
+            ability: build(),
+        } as AnyType;
+    };
+
+    const runRow = (overrides: Record<string, AnyType> = {}) => ({
+        ai_writeback_run_uuid: 'run-1',
+        organization_uuid: ORG,
+        project_uuid: 'proj-1',
+        status: 'ready',
+        pr_url: 'https://github.com/acme/analytics/pull/1',
+        error_message: null,
+        ...overrides,
+    });
 
     it('returns the run status scoped to the caller organization', async () => {
         const aiWritebackRunModel = {
-            findByUuid: vi.fn().mockResolvedValue({
-                ai_writeback_run_uuid: 'run-1',
-                organization_uuid: ORG,
-                status: 'ready',
-                pr_url: 'https://github.com/acme/analytics/pull/1',
-                error_message: null,
-            }),
+            findByUuid: vi.fn().mockResolvedValue(runRow()),
         } as AnyType;
-        const service = buildService({ aiWritebackRunModel });
+        const service = buildService({
+            aiWritebackRunModel,
+            projectModel: {
+                get: vi.fn().mockResolvedValue({ organizationUuid: ORG }),
+            } as AnyType,
+        });
 
-        const result = await service.getRunStatus(userWithOrg, 'run-1');
+        const result = await service.getRunStatus(userWithOrg(true), 'run-1');
 
         expect(result).toEqual({
             status: 'ready',
@@ -2818,24 +2918,36 @@ describe('AiWritebackService.getRunStatus', () => {
         const service = buildService({ aiWritebackRunModel });
 
         await expect(
-            service.getRunStatus(userWithOrg, 'missing'),
+            service.getRunStatus(userWithOrg(true), 'missing'),
         ).rejects.toThrow('not found');
     });
 
     it('throws ForbiddenError when the run belongs to another organization', async () => {
         const aiWritebackRunModel = {
-            findByUuid: vi.fn().mockResolvedValue({
-                ai_writeback_run_uuid: 'run-1',
-                organization_uuid: 'org-2',
-                status: 'ready',
-                pr_url: null,
-                error_message: null,
-            }),
+            findByUuid: vi
+                .fn()
+                .mockResolvedValue(runRow({ organization_uuid: 'org-2' })),
         } as AnyType;
         const service = buildService({ aiWritebackRunModel });
 
         await expect(
-            service.getRunStatus(userWithOrg, 'run-1'),
+            service.getRunStatus(userWithOrg(true), 'run-1'),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    it("throws ForbiddenError when the caller lacks view access to the run's project", async () => {
+        const aiWritebackRunModel = {
+            findByUuid: vi.fn().mockResolvedValue(runRow()),
+        } as AnyType;
+        const service = buildService({
+            aiWritebackRunModel,
+            projectModel: {
+                get: vi.fn().mockResolvedValue({ organizationUuid: ORG }),
+            } as AnyType,
+        });
+
+        await expect(
+            service.getRunStatus(userWithOrg(false), 'run-1'),
         ).rejects.toThrow(ForbiddenError);
     });
 });

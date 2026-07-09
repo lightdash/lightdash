@@ -58393,7 +58393,7 @@ export function RegisterRoutes(app: Router) {
             in: 'path',
             name: 'aiWritebackRunUuid',
             required: true,
-            dataType: 'string',
+            ref: 'UUID',
         },
     };
     app.get(

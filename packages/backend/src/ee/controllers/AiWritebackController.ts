@@ -14,6 +14,7 @@ import {
     type ApiPullRequestDiffResponse,
     type ClosePullRequestRequestBody,
     type MergePullRequestRequestBody,
+    type UUID,
 } from '@lightdash/common';
 import {
     Body,
@@ -120,7 +121,7 @@ export class AiWritebackController extends BaseController {
     async getAiWritebackRunStatus(
         @Request() req: express.Request,
         @Path() projectUuid: string,
-        @Path() aiWritebackRunUuid: string,
+        @Path() aiWritebackRunUuid: UUID,
     ): Promise<ApiAiWritebackRunStatusResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
