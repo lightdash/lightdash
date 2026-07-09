@@ -7273,6 +7273,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 });
             await this.schedulerClient.aiAgentEditDbtProjectPipeline({
                 aiWritebackRunUuid,
+                aiThreadUuid: prompt.threadUuid,
                 organizationUuid,
                 projectUuid,
                 userUuid: user.userUuid,

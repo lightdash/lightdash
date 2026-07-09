@@ -43,6 +43,7 @@ const SLACK_PROMPT = {
 
 const PAYLOAD = {
     aiWritebackRunUuid: 'run-1',
+    aiThreadUuid: 'thread-1',
     organizationUuid: 'org-1',
     projectUuid: 'proj-1',
     userUuid: 'user-1',

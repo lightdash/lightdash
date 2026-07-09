@@ -82,6 +82,10 @@ export type AiWritebackPipelineJobPayload = TraceTaskBase & {
 
 export type AiAgentEditDbtProjectPipelineJobPayload = TraceTaskBase & {
     aiWritebackRunUuid: string;
+    // Serializes back-to-back edits in the same thread: the pipeline job runs on
+    // a per-thread graphile queue keyed by this, so a second edit waits for the
+    // first to finish instead of racing it into the workstream lock.
+    aiThreadUuid: string;
     promptUuid: string;
     isSlackPrompt: boolean;
     toolCallId: string;

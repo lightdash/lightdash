@@ -227,6 +227,10 @@ export class CommercialSchedulerClient extends SchedulerClient {
                 runAt: new Date(),
                 maxAttempts: 1,
                 jobKey: `ai-agent-edit-dbt-project:${payload.aiWritebackRunUuid}`,
+                // Run edits from the same thread one at a time, in order — a
+                // second edit queues behind the first rather than racing it into
+                // the "an edit is already in progress" workstream-lock rejection.
+                queueName: `ai-writeback-thread:${payload.aiThreadUuid}`,
             },
         );
         return { jobId };
