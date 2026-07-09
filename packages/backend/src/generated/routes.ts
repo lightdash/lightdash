@@ -5649,6 +5649,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                selected: { ref: 'Record_string.boolean_' },
                 placement: { ref: 'LegendPlacement' },
                 icon: {
                     dataType: 'union',

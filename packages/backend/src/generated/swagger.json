@@ -6289,6 +6289,10 @@
             },
             "EchartsLegend": {
                 "properties": {
+                    "selected": {
+                        "$ref": "#/components/schemas/Record_string.boolean_",
+                        "description": "Legend entries toggled off by name. Missing entries default to visible."
+                    },
                     "placement": {
                         "$ref": "#/components/schemas/LegendPlacement",
                         "description": "High-level placement preset. Overrides orient/top/right/bottom/left\nwhen set to an outside value."
