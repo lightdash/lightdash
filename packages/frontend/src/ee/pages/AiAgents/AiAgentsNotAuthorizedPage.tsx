@@ -20,7 +20,7 @@ const AiAgentsNotAuthorizedPage: FC = () => {
     const isEmbed = isEmbedAiAgentRoute();
 
     return (
-        <AiAgentPageLayout>
+        <AiAgentPageLayout isEmbed={isEmbed}>
             <Center h="80%">
                 <Stack align="center" maw="480px">
                     <Box pos="relative">
