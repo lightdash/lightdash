@@ -1115,7 +1115,6 @@ describe('useCartesianChartConfig', () => {
         expect(
             result.current.dirtyLayout?.categoryColorOverrides,
         ).toBeUndefined();
-        // Stacked bar charts support conditional formatting, so configs survive
         expect(result.current.validConfig.conditionalFormattings).toEqual(
             conditionalFormattings,
         );

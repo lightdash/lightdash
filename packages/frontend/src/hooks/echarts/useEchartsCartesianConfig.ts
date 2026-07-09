@@ -2898,12 +2898,8 @@ export const transformStack100ByValueAxis = <T extends Record<string, unknown>>(
 };
 
 /**
- * Apply conditional formatting to stacked bar series. Normal stacks carry
- * per-item data (from the rounded-corner transform) aligned 1:1 with the raw
- * rows, so matching segments get a concrete per-item fill color. 100% stacks
- * stay dataset-bound with normalized values, so they get a series-level
- * color callback that resolves the raw row by data index — either way rules
- * evaluate raw metric values, not normalized percentages.
+ * Apply conditional formatting colors to stacked bar series, using raw row
+ * values for 100%-stack series via a color callback.
  */
 export const applyConditionalFormattingToStackedSeries = ({
     seriesList,
@@ -3410,9 +3406,8 @@ const useEchartsCartesianConfig = (
             !hasCustomColorsStacking;
         // Applies per bar series on all-bar charts: each config routes to its
         // target field, so multi-metric charts color each metric's bars
-        // independently. Stacked series are handled downstream (their data
-        // shape changes after the stack decoration), so only non-stacked
-        // series get the series-level color callback here.
+        // independently. Stacked series are handled downstream after stack
+        // decoration.
         const shouldApplyConditionalFormatting =
             series.length > 0 &&
             barSeries.length === series.length &&
@@ -3880,9 +3875,8 @@ const useEchartsCartesianConfig = (
                   )
                 : stackedSeriesWithColorAssignments;
 
-        // Conditional formatting on stacked bars evaluates against the raw
-        // padded rows (not the 100%-stack ratios) and runs before the stack
-        // totals are appended so the synthetic total series stays untouched
+        // Runs before stack totals are appended so the synthetic total
+        // series stays untouched
         const conditionalFormattings =
             validCartesianConfig?.conditionalFormattings;
         const shouldApplyStackConditionalFormatting =

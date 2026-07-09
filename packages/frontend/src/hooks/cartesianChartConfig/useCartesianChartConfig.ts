@@ -1334,8 +1334,6 @@ const useCartesianChartConfig = ({
 
     // Repair configs whose target no longer exists on the chart (e.g. the
     // metric was swapped or removed) by pointing them at the first metric.
-    // Stacked charts additionally allow only a single target series, so all
-    // configs are coerced to the first config's target.
     useEffect(() => {
         if (!isConditionalFormattingEligible) return;
 

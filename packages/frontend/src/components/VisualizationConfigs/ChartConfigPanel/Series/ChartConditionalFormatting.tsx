@@ -235,8 +235,7 @@ const ChartConditionalFormattingItem: FC<ItemProps> = ({
 type Props = {
     colorPalette: string[];
     fields: FilterableItem[];
-    // Stacked charts allow a single target series, so target changes apply
-    // to every rule config
+    // When true, all rules share a single target field (stacked charts)
     enforceSingleTarget: boolean;
     conditionalFormattings: ConditionalFormattingConfig[];
     onSetConditionalFormattings: (
