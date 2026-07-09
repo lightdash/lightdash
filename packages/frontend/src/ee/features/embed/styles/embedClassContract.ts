@@ -28,6 +28,7 @@ export const EMBED_CLASS_CONTRACT = [
     'ld-dashboard-filter-dropdown', // portalled
     'ld-dashboard-date-zoom-dropdown', // portalled
     'ld-dashboard-parameter-dropdown', // portalled
+    'ld-dashboard-guided-setup', // overlay shown while filter rules are unmet
 ] as const satisfies readonly `ld-${EmbedSurface}-${string}`[];
 
 export type EmbedContractClassName = (typeof EMBED_CLASS_CONTRACT)[number];

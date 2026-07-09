@@ -9,6 +9,9 @@ import {
 
 const GROUP_DASHBOARD_NAME = 'e2e dashboard with filter requirement group';
 const SINGLE_DASHBOARD_NAME = 'e2e dashboard with single required filter';
+const GUIDED_DASHBOARD_NAME = 'e2e dashboard with guided filter setup';
+
+const GUIDED_SETUP_NOTE = 'Pick your region to keep this dashboard fast.';
 
 const CHART_NAME = 'How much revenue do we have per payment method?';
 
@@ -45,6 +48,7 @@ const orderStatusFilter = (
 const createDashboardWithFilters = (
     name: string,
     dimensionFilters: DashboardFilterRule[],
+    config?: CreateDashboard['config'],
 ): Cypress.Chainable<string> =>
     cy
         .request<ApiChartSummaryListResponse>(
@@ -80,6 +84,7 @@ const createDashboardWithFilters = (
                     tableCalculations: [],
                 },
                 tabs: [],
+                config,
             };
 
             return cy
@@ -105,6 +110,7 @@ describe('Dashboard filter required groups', () => {
         cy.deleteDashboardsByName([
             GROUP_DASHBOARD_NAME,
             SINGLE_DASHBOARD_NAME,
+            GUIDED_DASHBOARD_NAME,
         ]);
     });
 
@@ -122,9 +128,8 @@ describe('Dashboard filter required groups', () => {
             );
         });
 
-        // Locked: the banner lists the rule members as clickable name tags
-        cy.findByText('To load data, set these filters:').should('be.visible');
-        cy.findByText('at least one of').should('be.visible');
+        // Locked: an any-of rule qualifies for the guided setup card
+        cy.findByTestId('guided-filter-setup').should('be.visible');
 
         // Tiles show the locked skeleton placeholder: no chart rendered or loading
         cy.findAllByTestId('locked-tile-placeholder').should('exist');
@@ -134,6 +139,12 @@ describe('Dashboard filter required groups', () => {
         // No chart query ran while locked
         cy.get('@chartQuery.all').should('have.length', 0);
 
+        // The escape hatch dismisses the card; the yellow lock chips in the
+        // toolbar remain the only affordance
+        cy.findByText('Set filters in the toolbar instead').click();
+        cy.findByTestId('guided-filter-setup').should('not.exist');
+        cy.findAllByTestId('locked-tile-placeholder').should('exist');
+
         // Set a value on ONE member of the group via its filter pill
         cy.contains('button', 'Payment method').click();
         cy.findByPlaceholderText('Start typing to filter results').type(
@@ -142,11 +153,62 @@ describe('Dashboard filter required groups', () => {
         cy.findByRole('option', { name: 'credit_card' }).click();
         cy.contains('button', 'Apply').click({ force: true });
 
-        // Unlocked: banner gone, tile runs its query and renders
-        cy.contains('To load data').should('not.exist');
+        // Unlocked: tile runs its query and renders
         cy.wait('@chartQuery');
         cy.findAllByTestId('locked-tile-placeholder').should('have.length', 0);
         cy.findAllByText('Loading chart').should('have.length', 0);
+        cy.get('.echarts-for-react').should('exist');
+    });
+
+    it('completes setup through the guided card and unlocks live', () => {
+        cy.intercept('POST', '**/api/v2/projects/*/query/dashboard-chart').as(
+            'chartQuery',
+        );
+
+        createDashboardWithFilters(
+            GUIDED_DASHBOARD_NAME,
+            [
+                paymentMethodFilter({ required: true }),
+                orderStatusFilter({ requiredGroupId: 'g1' }),
+            ],
+            {
+                isDateZoomDisabled: false,
+                requiredFiltersNote: GUIDED_SETUP_NOTE,
+            },
+        ).then((dashboardUuid) => {
+            cy.visit(
+                `/projects/${SEED_PROJECT.project_uuid}/dashboards/${dashboardUuid}/view`,
+            );
+        });
+
+        // Two rules qualify for the card; the editor note is its subtitle
+        cy.findByTestId('guided-filter-setup').within(() => {
+            cy.findByText(GUIDED_SETUP_NOTE).should('be.visible');
+            cy.findByText('0 of 2 set').should('be.visible');
+
+            // Set the first rule (Payment method) from the card
+            cy.findAllByPlaceholderText('any value')
+                .first()
+                .type('credit_card');
+        });
+        // Autocomplete options render in a portal outside the card
+        cy.findByRole('option', { name: 'credit_card' }).click();
+
+        // The satisfied rule collapses to a summary line with a Change link
+        cy.findByTestId('guided-filter-setup').within(() => {
+            cy.findByText('1 of 2 set').should('be.visible');
+            cy.findByText('Change').should('be.visible');
+            cy.findByText('credit_card').should('be.visible');
+
+            // Set the second rule (Order status)
+            cy.findAllByPlaceholderText('any value').first().type('completed');
+        });
+        cy.findByRole('option', { name: 'Completed order' }).click();
+
+        // All rules met: the card unmounts and the dashboard loads live
+        cy.findByTestId('guided-filter-setup').should('not.exist');
+        cy.wait('@chartQuery');
+        cy.findAllByTestId('locked-tile-placeholder').should('have.length', 0);
         cy.get('.echarts-for-react').should('exist');
     });
 
@@ -163,11 +225,10 @@ describe('Dashboard filter required groups', () => {
             );
         });
 
-        // Locked with a plain name tag, no "at least one of" prefix
-        cy.findByText('To load data, set this filter:').should('be.visible');
-        cy.contains('at least one of').should('not.exist');
-
+        // A single one-filter rule stays lightweight: no guided card, just
+        // the yellow lock chip and locked tiles
         cy.findAllByTestId('locked-tile-placeholder').should('exist');
+        cy.findByTestId('guided-filter-setup').should('not.exist');
         cy.get('@chartQuery.all').should('have.length', 0);
 
         // Setting a value on the required filter unlocks the dashboard
@@ -178,7 +239,6 @@ describe('Dashboard filter required groups', () => {
         cy.findByRole('option', { name: 'credit_card' }).click();
         cy.contains('button', 'Apply').click({ force: true });
 
-        cy.contains('To load data').should('not.exist');
         cy.wait('@chartQuery');
         cy.findAllByTestId('locked-tile-placeholder').should('have.length', 0);
         cy.findAllByText('Loading chart').should('have.length', 0);

@@ -100,6 +100,9 @@ const Dashboard: FC = () => {
     const isAddFilterDisabled = useDashboardContext(
         (c) => c.isAddFilterDisabled,
     );
+    const requiredFiltersNote = useDashboardContext(
+        (c) => c.requiredFiltersNote,
+    );
     const areAllChartsLoaded = useDashboardTileStatusContext(
         (c) => c.areAllChartsLoaded,
     );
@@ -130,6 +133,12 @@ const Dashboard: FC = () => {
             isAddFilterDisabled
         );
     }, [dashboard, isAddFilterDisabled]);
+    const hasRequiredFiltersNoteChanged = useMemo(() => {
+        return (
+            (dashboard?.config?.requiredFiltersNote || undefined) !==
+            (requiredFiltersNote || undefined)
+        );
+    }, [dashboard, requiredFiltersNote]);
     const oldestCacheTime = useDashboardTileStatusContext(
         (c) => c.oldestCacheTime,
     );
@@ -836,6 +845,7 @@ const Dashboard: FC = () => {
                     ? defaultDateZoomGranularity
                     : dashboard.config?.defaultDateZoomGranularity,
                 dateZoomConfig: savedDateZoomConfig,
+                requiredFiltersNote: requiredFiltersNote || undefined,
             },
             parameters: dashboardParameters,
             ...(preserveVerification !== undefined
@@ -867,6 +877,7 @@ const Dashboard: FC = () => {
             haveTabsChanged ||
             hasDateZoomDisabledChanged ||
             hasAddFilterDisabledChanged ||
+            hasRequiredFiltersNoteChanged ||
             parametersHaveChanged ||
             havePinnedParametersChanged ||
             hasParameterOrderChanged ||

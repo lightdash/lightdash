@@ -1,0 +1,36 @@
+/* Layout for the card inside the standard Mantine Overlay; the overlay itself
+   (color, opacity, fixed, modal z-index) comes from the component */
+.overlay {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    overflow-y: auto;
+    padding: max(170px, 20vh) var(--mantine-spacing-md)
+        var(--mantine-spacing-xl);
+}
+
+.cardWrapper {
+    width: 420px;
+    max-width: 100%;
+    height: fit-content;
+}
+
+.eyebrow {
+    align-self: flex-start;
+    border: 1px solid alpha(var(--mantine-color-yellow-6), 0.35);
+    border-radius: 100px;
+    padding: 2px 10px;
+
+    @mixin light {
+        background-color: var(--mantine-color-yellow-0);
+        color: var(--mantine-color-yellow-9);
+    }
+    @mixin dark {
+        background-color: alpha(var(--mantine-color-yellow-9), 0.2);
+        color: var(--mantine-color-yellow-5);
+    }
+}
+
+.summaryRow {
+    min-height: 30px;
+}

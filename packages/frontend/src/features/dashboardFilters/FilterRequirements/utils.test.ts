@@ -10,6 +10,8 @@ import {
     getDashboardFilterRuleLabel,
     getFilterRequirementRules,
     getRequirementIneligibilityReason,
+    isRequirementRuleSatisfied,
+    shouldShowGuidedFilterSetup,
 } from './utils';
 
 const createRule = (
@@ -149,5 +151,62 @@ describe('getDashboardFilterRuleLabel', () => {
         expect(getDashboardFilterRuleLabel(createRule({ id: 'a' }), {})).toBe(
             'customers_first_name',
         );
+    });
+});
+
+describe('isRequirementRuleSatisfied', () => {
+    it('is unsatisfied while every member is disabled', () => {
+        expect(
+            isRequirementRuleSatisfied({
+                id: 'g1',
+                members: [createRule({ id: 'a' }), createRule({ id: 'b' })],
+            }),
+        ).toBe(false);
+    });
+
+    it('is satisfied when any member has a value', () => {
+        expect(
+            isRequirementRuleSatisfied({
+                id: 'g1',
+                members: [
+                    createRule({ id: 'a' }),
+                    createRule({ id: 'b', disabled: false, values: ['x'] }),
+                ],
+            }),
+        ).toBe(true);
+    });
+});
+
+describe('shouldShowGuidedFilterSetup', () => {
+    it('keeps the banner for a single one-filter rule', () => {
+        expect(
+            shouldShowGuidedFilterSetup([
+                { id: 'a', members: [createRule({ id: 'a' })] },
+            ]),
+        ).toBe(false);
+    });
+
+    it('shows the card for two rules', () => {
+        expect(
+            shouldShowGuidedFilterSetup([
+                { id: 'a', members: [createRule({ id: 'a' })] },
+                { id: 'b', members: [createRule({ id: 'b' })] },
+            ]),
+        ).toBe(true);
+    });
+
+    it('shows the card for a single any-of rule', () => {
+        expect(
+            shouldShowGuidedFilterSetup([
+                {
+                    id: 'g1',
+                    members: [createRule({ id: 'a' }), createRule({ id: 'b' })],
+                },
+            ]),
+        ).toBe(true);
+    });
+
+    it('does not show the card with no rules', () => {
+        expect(shouldShowGuidedFilterSetup([])).toBe(false);
     });
 });

@@ -3499,6 +3499,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                requiredFiltersNote: { dataType: 'string' },
                 dateZoomConfig: { ref: 'DateZoomConfig' },
                 defaultDateZoomGranularity: {
                     dataType: 'union',

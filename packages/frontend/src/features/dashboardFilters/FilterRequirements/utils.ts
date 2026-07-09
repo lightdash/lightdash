@@ -51,6 +51,24 @@ export const getFilterRequirementRules = (
 };
 
 /**
+ * A rule is satisfied when any member has a value; members are `disabled`
+ * until then, mirroring `getUnmetFilterRequirements`.
+ */
+export const isRequirementRuleSatisfied = (
+    rule: FilterRequirementRule,
+): boolean => rule.members.some((member) => !member.disabled);
+
+/**
+ * A single required filter is well served by the banner + chip popover; the
+ * guided setup card earns its place once the viewer has several rules (or an
+ * any-of choice) to work through.
+ */
+export const shouldShowGuidedFilterSetup = (
+    rules: FilterRequirementRule[],
+): boolean =>
+    rules.length >= 2 || rules.some((rule) => rule.members.length >= 2);
+
+/**
  * Why a dashboard filter can't be added to a filter rule; null when it is
  * eligible. Rule members must be valueless (disabled with no default),
  * matching the value stripping applied to required filters on dashboard save.

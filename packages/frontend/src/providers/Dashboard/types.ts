@@ -133,6 +133,8 @@ export type DashboardContextType = {
     setIsDateZoomDisabled: Dispatch<SetStateAction<boolean>>;
     isAddFilterDisabled: boolean;
     setIsAddFilterDisabled: Dispatch<SetStateAction<boolean>>;
+    requiredFiltersNote: string | undefined;
+    setRequiredFiltersNote: Dispatch<SetStateAction<string | undefined>>;
     setSavedParameters: Dispatch<SetStateAction<DashboardParameters>>;
     parametersHaveChanged: boolean;
     dashboardParameters: DashboardParameters;

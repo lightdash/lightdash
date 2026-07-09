@@ -11,6 +11,7 @@ import {
     Popover,
     Stack,
     Text,
+    Textarea,
 } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
 import { IconInfoCircle, IconPlus, IconTrash } from '@tabler/icons-react';
@@ -128,6 +129,12 @@ const FilterRequirementsButton: FC = () => {
     const [draftRuleIds, setDraftRuleIds] = useState<string[]>([]);
 
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
+    const requiredFiltersNote = useDashboardContext(
+        (c) => c.requiredFiltersNote,
+    );
+    const setRequiredFiltersNote = useDashboardContext(
+        (c) => c.setRequiredFiltersNote,
+    );
     const allFilterableFieldsMap = useDashboardContext(
         (c) => c.allFilterableFieldsMap,
     );
@@ -362,6 +369,22 @@ const FilterRequirementsButton: FC = () => {
                     >
                         {hasRuleRows ? 'Add another rule' : 'Add rule'}
                     </Button>
+                    {hasRuleRows && (
+                        <Textarea
+                            size="xs"
+                            label="Note for viewers"
+                            placeholder="Explain why these filters are required, e.g. pick your region to keep this dashboard fast"
+                            autosize
+                            minRows={2}
+                            maxRows={4}
+                            value={requiredFiltersNote ?? ''}
+                            onChange={(event) =>
+                                setRequiredFiltersNote(
+                                    event.currentTarget.value || undefined,
+                                )
+                            }
+                        />
+                    )}
                     {hasRuleRows && (
                         <Group gap={6} wrap="nowrap">
                             <MantineIcon

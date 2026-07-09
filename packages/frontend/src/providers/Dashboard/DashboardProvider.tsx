@@ -256,6 +256,16 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         }
     }, [dashboard]);
 
+    // Editor-authored note shown to viewers while filter rules are unmet
+    const [requiredFiltersNote, setRequiredFiltersNote] = useState<
+        string | undefined
+    >(undefined);
+    useEffect(() => {
+        if (dashboard?.config?.requiredFiltersNote !== undefined) {
+            setRequiredFiltersNote(dashboard.config.requiredFiltersNote);
+        }
+    }, [dashboard]);
+
     const [parameterDefinitions, setParameterDefinitions] =
         useState<ParameterDefinitions>({});
 
@@ -1712,6 +1722,8 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         setIsDateZoomDisabled,
         isAddFilterDisabled,
         setIsAddFilterDisabled,
+        requiredFiltersNote,
+        setRequiredFiltersNote,
         setSavedParameters,
         parametersHaveChanged,
         dashboardParameters: parameters,

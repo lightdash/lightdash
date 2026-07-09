@@ -5,7 +5,7 @@ import {
     type DashboardTile,
     type EmbedDashboard as EmbedDashboardType,
 } from '@lightdash/common';
-import { Button, Group, Tabs, TextInput } from '@mantine-8/core';
+import { Box, Button, Group, Overlay, Tabs, TextInput } from '@mantine-8/core';
 import { IconCheck, IconPencil, IconUnlink, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { Responsive, WidthProvider, type Layout } from 'react-grid-layout';
@@ -19,7 +19,12 @@ import SqlChartTile from '../../../../../components/DashboardTiles/DashboardSqlC
 import LockedTilePlaceholder from '../../../../../components/DashboardTiles/LockedTilePlaceholder';
 import TileBase from '../../../../../components/DashboardTiles/TileBase';
 import { FilterBarPopoversProvider } from '../../../../../features/dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
-import RequiredFiltersBanner from '../../../../../features/dashboardFilters/FilterRequirements/RequiredFiltersBanner';
+import GuidedFilterSetup from '../../../../../features/dashboardFilters/FilterRequirements/GuidedFilterSetup';
+import guidedSetupClasses from '../../../../../features/dashboardFilters/FilterRequirements/GuidedFilterSetup.module.css';
+import {
+    getFilterRequirementRules,
+    shouldShowGuidedFilterSetup,
+} from '../../../../../features/dashboardFilters/FilterRequirements/utils';
 import {
     convertLayoutToBaseCoordinates,
     GRID_CONTAINER_PADDING,
@@ -35,6 +40,7 @@ import {
 } from '../../../../../hooks/dashboard/useDashboard';
 import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
 import useEmbed from '../../../../providers/Embed/useEmbed';
+import { embedContractClass } from '../../styles/embedClassContract';
 import { useEmbedDashboard } from '../hooks';
 import EmbedDashboardChartTile from './EmbedDashboardChartTile';
 import EmbedDashboardHeader from './EmbedDashboardHeader';
@@ -375,18 +381,33 @@ const EmbedDashboard: FC<{
     );
 
     const hasUnmetFilterRequirements = unmetFilterRequirements.length > 0;
+
+    // Viewer-facing guided setup over the locked grid; dismissing it falls
+    // back to the banner until the next visit
+    const [isGuidedSetupDismissed, setIsGuidedSetupDismissed] = useState(false);
+    const embedDashboardFilters = useDashboardContext(
+        (c) => c.dashboardFilters,
+    );
+    const showGuidedSetup = useMemo(
+        () =>
+            !isEditMode &&
+            !isGuidedSetupDismissed &&
+            hasUnmetFilterRequirements &&
+            shouldShowGuidedFilterSetup(
+                getFilterRequirementRules(embedDashboardFilters),
+            ),
+        [
+            isEditMode,
+            isGuidedSetupDismissed,
+            hasUnmetFilterRequirements,
+            embedDashboardFilters,
+        ],
+    );
+
     const currentDashboardTiles = useMemo(
         () => dashboardTiles ?? dashboard?.tiles ?? [],
         [dashboard?.tiles, dashboardTiles],
     );
-    const hasChartTiles =
-        useMemo(
-            () =>
-                currentDashboardTiles.some(
-                    (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
-                ),
-            [currentDashboardTiles],
-        ) || false;
 
     // Ensure dashboard tabs are set in context
     useEffect(() => {
@@ -806,30 +827,56 @@ const EmbedDashboard: FC<{
                             }
                         />
                         {renderDashboardEditToolbar()}
-                        {hasUnmetFilterRequirements && !!hasChartTiles && (
-                            <RequiredFiltersBanner />
-                        )}
-                        <EmbedDashboardGrid
-                            filteredTiles={filteredTiles}
-                            layouts={layouts}
-                            dashboard={dashboard}
-                            projectUuid={projectUuid}
-                            paletteColors={dashboard.selectedPalette?.colors}
-                            paletteDarkColors={
-                                dashboard.selectedPalette?.darkColors
-                            }
-                            hasUnmetFilterRequirements={
-                                hasUnmetFilterRequirements
-                            }
-                            isTabEmpty={isTabEmpty}
-                            gridProps={gridProps}
-                            isEditMode={isEditMode}
-                            onLayoutChange={handleLayoutChange}
-                            onBreakpointChange={setCurrentCols}
-                            onDeleteTile={handleDeleteTile}
-                            onEditTile={handleEditTile}
-                            useDashboardEditorTileQueries={canWriteDashboard}
-                        />
+                        <Box pos="relative">
+                            {showGuidedSetup && (
+                                <Overlay
+                                    fixed
+                                    className={embedContractClass(
+                                        'ld-dashboard-guided-setup',
+                                        guidedSetupClasses.overlay,
+                                    )}
+                                    onClick={(event) => {
+                                        // Backdrop clicks only, like closeOnClickOutside on modals
+                                        if (
+                                            event.target === event.currentTarget
+                                        ) {
+                                            setIsGuidedSetupDismissed(true);
+                                        }
+                                    }}
+                                >
+                                    <GuidedFilterSetup
+                                        onDismiss={() =>
+                                            setIsGuidedSetupDismissed(true)
+                                        }
+                                    />
+                                </Overlay>
+                            )}
+                            <EmbedDashboardGrid
+                                filteredTiles={filteredTiles}
+                                layouts={layouts}
+                                dashboard={dashboard}
+                                projectUuid={projectUuid}
+                                paletteColors={
+                                    dashboard.selectedPalette?.colors
+                                }
+                                paletteDarkColors={
+                                    dashboard.selectedPalette?.darkColors
+                                }
+                                hasUnmetFilterRequirements={
+                                    hasUnmetFilterRequirements
+                                }
+                                isTabEmpty={isTabEmpty}
+                                gridProps={gridProps}
+                                isEditMode={isEditMode}
+                                onLayoutChange={handleLayoutChange}
+                                onBreakpointChange={setCurrentCols}
+                                onDeleteTile={handleDeleteTile}
+                                onEditTile={handleEditTile}
+                                useDashboardEditorTileQueries={
+                                    canWriteDashboard
+                                }
+                            />
+                        </Box>
                     </Tabs>
                 ) : (
                     <>
@@ -838,29 +885,55 @@ const EmbedDashboard: FC<{
                             projectUuid={projectUuid}
                         />
                         {renderDashboardEditToolbar()}
-                        {hasUnmetFilterRequirements && !!hasChartTiles && (
-                            <RequiredFiltersBanner />
-                        )}
-                        <EmbedDashboardGrid
-                            filteredTiles={filteredTiles}
-                            layouts={layouts}
-                            dashboard={dashboard}
-                            projectUuid={projectUuid}
-                            paletteColors={dashboard.selectedPalette?.colors}
-                            paletteDarkColors={
-                                dashboard.selectedPalette?.darkColors
-                            }
-                            hasUnmetFilterRequirements={
-                                hasUnmetFilterRequirements
-                            }
-                            gridProps={gridProps}
-                            isEditMode={isEditMode}
-                            onLayoutChange={handleLayoutChange}
-                            onBreakpointChange={setCurrentCols}
-                            onDeleteTile={handleDeleteTile}
-                            onEditTile={handleEditTile}
-                            useDashboardEditorTileQueries={canWriteDashboard}
-                        />
+                        <Box pos="relative">
+                            {showGuidedSetup && (
+                                <Overlay
+                                    fixed
+                                    className={embedContractClass(
+                                        'ld-dashboard-guided-setup',
+                                        guidedSetupClasses.overlay,
+                                    )}
+                                    onClick={(event) => {
+                                        // Backdrop clicks only, like closeOnClickOutside on modals
+                                        if (
+                                            event.target === event.currentTarget
+                                        ) {
+                                            setIsGuidedSetupDismissed(true);
+                                        }
+                                    }}
+                                >
+                                    <GuidedFilterSetup
+                                        onDismiss={() =>
+                                            setIsGuidedSetupDismissed(true)
+                                        }
+                                    />
+                                </Overlay>
+                            )}
+                            <EmbedDashboardGrid
+                                filteredTiles={filteredTiles}
+                                layouts={layouts}
+                                dashboard={dashboard}
+                                projectUuid={projectUuid}
+                                paletteColors={
+                                    dashboard.selectedPalette?.colors
+                                }
+                                paletteDarkColors={
+                                    dashboard.selectedPalette?.darkColors
+                                }
+                                hasUnmetFilterRequirements={
+                                    hasUnmetFilterRequirements
+                                }
+                                gridProps={gridProps}
+                                isEditMode={isEditMode}
+                                onLayoutChange={handleLayoutChange}
+                                onBreakpointChange={setCurrentCols}
+                                onDeleteTile={handleDeleteTile}
+                                onEditTile={handleEditTile}
+                                useDashboardEditorTileQueries={
+                                    canWriteDashboard
+                                }
+                            />
+                        </Box>
                     </>
                 )}
             </div>

@@ -3560,6 +3560,10 @@
             },
             "DashboardConfig": {
                 "properties": {
+                    "requiredFiltersNote": {
+                        "type": "string",
+                        "description": "Editor-authored note shown to viewers while filter rules are unmet"
+                    },
                     "dateZoomConfig": {
                         "$ref": "#/components/schemas/DateZoomConfig"
                     },
