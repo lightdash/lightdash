@@ -33,8 +33,7 @@ import {
     useAiRouterConfig,
     useUpsertAiRouterConfig,
 } from '../../../hooks/useAiRouter';
-import { AiModelAvailabilitySection } from './AiModelAvailabilitySection';
-import { AiProviderApiKeysCard } from './AiProviderApiKeysCard';
+import { AiProvidersCard } from './AiProvidersCard';
 import { AiRouterInstructionsCard } from './AiRouterInstructionsCard';
 import { ReviewNotificationsSettings } from './ReviewNotificationsSettings';
 
@@ -235,46 +234,28 @@ export const AiGeneralSettingsPage = () => {
                                     </Group>
                                 </>
                             )}
-
-                            {orgAiProviderKeysFlag.data?.enabled &&
-                                settings.isCopilotEnabled &&
-                                (settings.providerApiKeysSet.anthropic ||
-                                    settings.providerApiKeysSet.openai) &&
-                                settings.configurableModelOptions && (
-                                    <>
-                                        <Divider />
-                                        <AiModelAvailabilitySection
-                                            modelVisibility={
-                                                settings.modelVisibility ?? null
-                                            }
-                                            configurableModelOptions={
-                                                settings.configurableModelOptions
-                                            }
-                                            providerApiKeysSet={
-                                                settings.providerApiKeysSet
-                                            }
-                                            disabled={isUpdatingSettings}
-                                            onUpdate={(modelVisibility) =>
-                                                updateSettings({
-                                                    modelVisibility,
-                                                })
-                                            }
-                                        />
-                                    </>
-                                )}
                         </Stack>
                     </SettingsCard>
 
                     {orgAiProviderKeysFlag.data?.enabled &&
                         settings.isCopilotEnabled && (
-                            <AiProviderApiKeysCard
+                            <AiProvidersCard
                                 providerApiKeysSet={settings.providerApiKeysSet}
                                 providerApiKeyHints={
                                     settings.providerApiKeyHints
                                 }
+                                modelVisibility={
+                                    settings.modelVisibility ?? null
+                                }
+                                configurableModelOptions={
+                                    settings.configurableModelOptions ?? null
+                                }
                                 disabled={isUpdatingSettings}
-                                onUpdate={(providerApiKeys) =>
+                                onUpdateKeys={(providerApiKeys) =>
                                     updateSettings({ providerApiKeys })
+                                }
+                                onUpdateVisibility={(modelVisibility) =>
+                                    updateSettings({ modelVisibility })
                                 }
                             />
                         )}
