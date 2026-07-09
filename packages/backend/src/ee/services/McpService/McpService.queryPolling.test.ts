@@ -90,43 +90,57 @@ const user = {
 };
 
 const makeExplore = ({
+    name = 'orders',
     tags = [],
     metricTags,
     dimensionTags,
 }: {
+    name?: string;
     tags?: string[];
     metricTags?: string[];
     dimensionTags?: string[];
-} = {}) => ({
-    name: 'orders',
-    tags,
-    baseTable: 'orders',
-    joinedTables: [],
-    tables: {
-        orders: {
-            name: 'orders',
-            requiredAttributes: {},
-            anyAttributes: {},
-            dimensions: dimensionTags
-                ? {
-                      status: {
-                          name: 'status',
-                          table: 'orders',
-                          tags: dimensionTags,
-                      },
-                  }
-                : {},
-            metrics: {
-                orders_count: {
-                    name: 'orders_count',
-                    table: 'orders',
-                    tags: metricTags,
-                    tablesReferences: ['orders'],
+} = {}) => {
+    const exploreLabel = name === 'orders' ? 'Orders' : 'Payments';
+
+    return {
+        name,
+        label: exploreLabel,
+        tags,
+        aiHint: [name === 'orders' ? 'Order facts' : 'Payment facts'],
+        baseTable: name,
+        joinedTables: [],
+        tables: {
+            [name]: {
+                name,
+                label: exploreLabel,
+                description: `${exploreLabel} explore`,
+                requiredAttributes: {},
+                anyAttributes: {},
+                dimensions: dimensionTags
+                    ? {
+                          status: {
+                              name: 'status',
+                              label: 'Status',
+                              table: name,
+                              tags: dimensionTags,
+                              type: 'string',
+                          },
+                      }
+                    : {},
+                metrics: {
+                    orders_count: {
+                        name: 'orders_count',
+                        label: 'Orders Count',
+                        table: name,
+                        tags: metricTags,
+                        tablesReferences: [name],
+                        type: MetricType.COUNT,
+                    },
                 },
             },
         },
-    },
-});
+    };
+};
 
 const extra = {
     signal: new AbortController().signal,
@@ -207,6 +221,7 @@ const makeMcpService = ({
     verifiedContent = [],
     artifactVerifiedContent = [],
     runtimeErrors = {},
+    grepFieldsEnabled = false,
 }: {
     context?: {
         projectUuid: string;
@@ -233,6 +248,7 @@ const makeMcpService = ({
         findFields?: string;
         findFieldsByQuery?: Record<string, string>;
     };
+    grepFieldsEnabled?: boolean;
 } = {}) => {
     const asyncQueryService = {
         executeAsyncSqlQuery: vi.fn(),
@@ -371,6 +387,7 @@ const makeMcpService = ({
 
         const runtime = {
             listExplores: vi.fn(listScopedExplores),
+            getVerifiedFieldUsage: vi.fn(async () => new Map<string, number>()),
             getExplore: vi.fn(async ({ table }: { table: string }) => {
                 const scopedExplores = await listScopedExplores();
                 const explore = scopedExplores.find(
@@ -549,6 +566,16 @@ const makeMcpService = ({
         spaceService,
         userAttributesModel,
     } as unknown as ConstructorParameters<typeof McpService>[0]);
+
+    if (grepFieldsEnabled) {
+        mockRegisteredMcpTools.clear();
+        service.setupHandlers({
+            projectPinned: false,
+            aiWritebackEnabled: false,
+            grepFieldsEnabled: true,
+            mcpContentWritesEnabled: true,
+        });
+    }
 
     return {
         aiAgentService,
@@ -875,6 +902,125 @@ describe('MCP async query polling', () => {
         });
     });
 
+    it('registers grep_fields instead of legacy discovery tools when ai-grep-fields is enabled', async () => {
+        makeMcpService({ grepFieldsEnabled: true });
+
+        expect(() => getToolCallback(McpToolName.FIND_EXPLORES)).toThrow(
+            'Tool find_explores was not registered',
+        );
+        expect(() => getToolCallback(McpToolName.FIND_FIELDS)).toThrow(
+            'Tool find_fields was not registered',
+        );
+
+        const result = await getToolCallback(McpToolName.GREP_FIELDS)(
+            {
+                patterns: ['orders count'],
+                exploreName: null,
+            },
+            extra,
+        );
+
+        expect(result).toMatchObject({
+            content: [
+                expect.objectContaining({
+                    text: expect.stringContaining('"patterns"'),
+                }),
+            ],
+            structuredContent: {
+                exploreName: null,
+                patterns: [
+                    expect.objectContaining({
+                        pattern: 'orders count',
+                        status: 'matches',
+                        resultsByExplore: [
+                            expect.objectContaining({
+                                exploreName: 'orders',
+                            }),
+                        ],
+                    }),
+                ],
+            },
+        });
+    });
+
+    it('returns structured metadata content when ai-grep-fields is enabled', async () => {
+        makeMcpService({ grepFieldsEnabled: true });
+
+        const result = await getToolCallback(McpToolName.GET_METADATA)(
+            {
+                requests: [
+                    { type: 'explore', exploreIds: ['orders'] },
+                    {
+                        type: 'field',
+                        fields: [
+                            {
+                                exploreId: 'orders',
+                                fieldId: 'orders_orders_count',
+                            },
+                        ],
+                    },
+                ],
+            },
+            extra,
+        );
+
+        expect(result).toMatchObject({
+            content: [
+                expect.objectContaining({
+                    text: expect.stringContaining('"explores"'),
+                }),
+            ],
+            structuredContent: {
+                explores: [
+                    expect.objectContaining({
+                        exploreId: 'orders',
+                        status: 'found',
+                        baseTable: 'orders',
+                    }),
+                ],
+                fields: [
+                    expect.objectContaining({
+                        exploreId: 'orders',
+                        fieldId: 'orders_orders_count',
+                        status: 'found',
+                        kind: 'metric',
+                    }),
+                ],
+            },
+        });
+    });
+
+    it('lists only explores available to the active agent in grep_fields', async () => {
+        makeMcpService({
+            grepFieldsEnabled: true,
+            context: {
+                projectUuid,
+                projectName: 'Project',
+                agentUuid: 'agent-uuid',
+                agentName: 'Agent',
+                tags: null,
+            },
+            agent: {
+                uuid: 'agent-uuid',
+                name: 'Agent',
+                tags: ['ai'],
+                spaceAccess: [],
+            },
+            explores: {
+                orders: makeExplore({ tags: ['ai'] }),
+                payments: makeExplore({ name: 'payments', tags: ['finance'] }),
+            },
+        });
+
+        const result = await getToolCallback(McpToolName.GREP_FIELDS)(
+            { patterns: ['orders count'], exploreName: null },
+            extra,
+        );
+
+        expect(JSON.stringify(result)).toContain('orders');
+        expect(JSON.stringify(result)).not.toContain('payments');
+    });
+
     it('filters content by active agent space access', async () => {
         const allowedChart = makeChartSearchResult({
             name: 'Allowed Chart',
@@ -1043,7 +1189,7 @@ describe('MCP async query polling', () => {
             },
             explores: {
                 orders: makeExplore({ tags: ['ai'] }),
-                payments: makeExplore({ tags: ['finance'] }),
+                payments: makeExplore({ name: 'payments', tags: ['finance'] }),
             },
         });
 

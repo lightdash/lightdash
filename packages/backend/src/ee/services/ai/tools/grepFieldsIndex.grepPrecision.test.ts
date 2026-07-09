@@ -11,6 +11,7 @@ import {
     buildExploreIndex,
     buildFieldIndex,
     compileMatcher,
+    matchLocality,
     selectCandidateFields,
     summarizeRequiredFilters,
 } from './grepFieldsIndex';
@@ -210,6 +211,38 @@ describe('buildExploreIndex', () => {
         const matches = compileMatcher('comment');
         const hits = index.filter((e) => matches(e.haystack));
         expect(hits.map((e) => e.exploreName)).toEqual(['learner_reviews']);
+    });
+});
+
+describe('matchLocality', () => {
+    const [entry] = buildFieldIndex([
+        makeExplore({
+            name: 'orders',
+            fields: [
+                {
+                    name: 'channel',
+                    label: 'Channel',
+                    description: 'Current fulfilment status.',
+                },
+            ],
+        }),
+    ]);
+
+    it('labels the most-specific slice that fully matches', () => {
+        expect(matchLocality(entry, compileMatcher('channel'))).toBe('name');
+        expect(matchLocality(entry, compileMatcher('fulfilment'))).toBe(
+            'description',
+        );
+    });
+
+    it('labels a cross-slice match "mixed" instead of a slice it did not fully match', () => {
+        // "order" only in the name/id, "status" only in the description: the
+        // combined haystack matches but no single slice holds both terms, so the
+        // label must not claim name/description/hint — it reports "mixed", which
+        // also ranks lowest, keeping the label consistent with the sort order.
+        expect(matchLocality(entry, compileMatcher('order status'))).toBe(
+            'mixed',
+        );
     });
 });
 

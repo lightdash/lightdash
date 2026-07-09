@@ -203,6 +203,33 @@ export const compileMatcher = (
         );
 };
 
+/**
+ * Which slice of a field a pattern matched, most-specific first: name/label >
+ * description > hint. `mixed` means the pattern matched only across slices (no
+ * single slice holds every term, e.g. "order" in the name and "status" in the
+ * description) — so we never claim a specific slice the match didn't fully land
+ * in. Single source for both the display label and the match ranking, so the
+ * two can never disagree.
+ */
+export type MatchLocality = 'name' | 'description' | 'hint' | 'mixed';
+
+export const MATCH_LOCALITY_RANK: Record<MatchLocality, number> = {
+    name: 3,
+    description: 2,
+    hint: 1,
+    mixed: 0,
+};
+
+export const matchLocality = (
+    entry: FieldEntry,
+    matches: (haystack: string) => boolean,
+): MatchLocality => {
+    if (matches(entry.nameHaystack)) return 'name';
+    if (matches(entry.descHaystack)) return 'description';
+    if (matches(entry.hintHaystack)) return 'hint';
+    return 'mixed';
+};
+
 // Pure grammatical filler — dropped before the pre-grep so "what is our total
 // revenue by country" greps for revenue/country, not "what". Deliberately keeps
 // measure words (total, count, sum, average, value, top, …): in BI questions

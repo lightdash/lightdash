@@ -17,6 +17,7 @@ import {
     createToolRunSqlArgsSchema,
     editContentToolDefinition,
     Explore,
+    FeatureFlags,
     findContentToolDefinition,
     findExploresToolDefinition,
     findFieldsToolDefinition,
@@ -27,10 +28,12 @@ import {
     getItemLabelWithoutTableName,
     getItemMap,
     getLightdashVersionToolDefinition,
+    getMetadataToolDefinition,
     getQueryResultToolDefinition,
     getSlackAiEchartsConfig,
     getTotalFilterRules,
     getValidAiQueryLimit,
+    grepFieldsToolDefinition,
     ItemsMap,
     listAgentsToolDefinition,
     listContentToolDefinition,
@@ -111,14 +114,19 @@ import { VERSION } from '../../../version';
 import { DbMcpClientInfo } from '../../database/entities/mcpToolCall';
 import { McpToolCallModel } from '../../models/McpToolCallModel';
 import {
+    getMcpAnalystPrompt,
     getMcpAnalystPromptWithContext,
-    MCP_ANALYST_PROMPT,
 } from '../ai/prompts/mcpAnalyst';
 import { getCreateContent } from '../ai/tools/createContent';
 import { getEditContent } from '../ai/tools/editContent';
 import { getFindContent } from '../ai/tools/findContent';
 import { buildFindExploresStructuredContent } from '../ai/tools/findExplores';
 import { buildFindFieldsStructuredContent } from '../ai/tools/findFields';
+import { executeGetMetadata } from '../ai/tools/getMetadata';
+import {
+    executeGrepFields,
+    grepPatternsToSearchQuery,
+} from '../ai/tools/grepFields';
 import { getListContent } from '../ai/tools/listContent';
 import { getMcpListExplores } from '../ai/tools/mcpListExplores';
 import { getReadContent } from '../ai/tools/readContent';
@@ -151,6 +159,8 @@ export enum McpToolName {
     LIST_EXPLORES = 'list_explores',
     FIND_EXPLORES = 'find_explores',
     FIND_FIELDS = 'find_fields',
+    GREP_FIELDS = 'grep_fields',
+    GET_METADATA = 'get_metadata',
     FIND_CONTENT = 'find_content',
     LIST_CONTENT = 'list_content',
     READ_CONTENT = 'read_content',
@@ -184,6 +194,8 @@ const mcpGetLightdashVersionTool = getLightdashVersionToolDefinition.for('mcp');
 const mcpListExploresTool = listExploresToolDefinition.for('mcp');
 const mcpFindExploresTool = findExploresToolDefinition.for('mcp');
 const mcpFindFieldsTool = findFieldsToolDefinition.for('mcp');
+const mcpGrepFieldsTool = grepFieldsToolDefinition.for('mcp');
+const mcpGetMetadataTool = getMetadataToolDefinition.for('mcp');
 const mcpFindContentTool = findContentToolDefinition.for('mcp');
 const mcpListContentTool = listContentToolDefinition.for('mcp');
 const mcpReadContentTool = readContentToolDefinition.for('mcp');
@@ -1255,10 +1267,12 @@ export class McpService extends BaseService {
         options: {
             projectPinned: boolean;
             aiWritebackEnabled: boolean;
+            grepFieldsEnabled: boolean;
             mcpContentWritesEnabled: boolean;
         } = {
             projectPinned: false,
             aiWritebackEnabled: false,
+            grepFieldsEnabled: false,
             mcpContentWritesEnabled: true,
         },
     ): void {
@@ -1331,137 +1345,265 @@ export class McpService extends BaseService {
             },
         );
 
-        this.registerTrackedTool(
-            mcpFindExploresTool.name,
-            {
-                title: mcpFindExploresTool.title,
-                description: mcpFindExploresTool.description,
-                inputSchema: mcpFindExploresTool.inputSchema.shape,
-                outputSchema: mcpFindExploresTool.outputSchema.shape,
-                annotations: mcpFindExploresTool.annotations,
-            },
-            async (args, extra) => {
-                const ctx = getMcpContext(extra);
-                const { user } = McpService.getAccount(ctx);
+        if (options.grepFieldsEnabled) {
+            this.registerTrackedTool(
+                mcpGrepFieldsTool.name,
+                {
+                    title: mcpGrepFieldsTool.title,
+                    description: mcpGrepFieldsTool.description,
+                    inputSchema: mcpGrepFieldsTool.inputSchema.shape,
+                    outputSchema: mcpGrepFieldsTool.outputSchema.shape,
+                    annotations: mcpGrepFieldsTool.annotations,
+                },
+                async (args, extra) => {
+                    const ctx = getMcpContext(extra);
+                    const { user } = McpService.getAccount(ctx);
+                    const projectUuid = await this.resolveProjectUuid(ctx);
 
-                const projectUuid = await this.resolveProjectUuid(ctx);
+                    try {
+                        const toolsRuntime = await this.getToolsRuntime(
+                            ctx,
+                            projectUuid,
+                        );
+                        // Independent reads — fetch the explore list, the
+                        // verified-usage map, and the active agent context
+                        // together instead of serially.
+                        const [
+                            availableExplores,
+                            verifiedFieldUsage,
+                            metadata,
+                        ] = await Promise.all([
+                            toolsRuntime.listExplores(),
+                            toolsRuntime
+                                .getVerifiedFieldUsage()
+                                .catch(() => new Map<string, number>()),
+                            this.getActiveContextMetadata(ctx),
+                        ]);
+                        const [result, verifiedAnswerContext] =
+                            await Promise.all([
+                                executeGrepFields(args, {
+                                    availableExplores,
+                                    verifiedFieldUsage,
+                                    findExplores: async (findExploresArgs) =>
+                                        unwrapMcpRuntimeResult(
+                                            await toolsRuntime.findExplores(
+                                                findExploresArgs,
+                                            ),
+                                        ),
+                                }),
+                                metadata.agentUuid
+                                    ? this.aiAgentService.getRelevantVerifiedAnswerContextForAgent(
+                                          user,
+                                          {
+                                              projectUuid,
+                                              agentUuid: metadata.agentUuid,
+                                              searchQuery:
+                                                  grepPatternsToSearchQuery(
+                                                      args.patterns,
+                                                  ),
+                                          },
+                                      )
+                                    : { relevantVerifiedAnswers: [] },
+                            ]);
 
-                const toolsRuntime = await this.getToolsRuntime(
-                    ctx,
-                    projectUuid,
-                );
-                const runtimeResult = await toolsRuntime.findExplores({
-                    fieldSearchSize: 200,
-                    searchQuery: args.searchQuery,
-                });
-                if (runtimeResult.status === 'error') {
-                    return mcpFindExploresTool.result.error(
-                        `Error finding explores: ${getErrorMessage(runtimeResult.error)}`,
+                        const structuredContent = {
+                            ...result.structuredContent,
+                            ...(verifiedAnswerContext.relevantVerifiedAnswers
+                                .length > 0
+                                ? {
+                                      relevantVerifiedAnswers:
+                                          verifiedAnswerContext.relevantVerifiedAnswers,
+                                  }
+                                : {}),
+                        };
+
+                        return await this.buildScopedResponse(
+                            ctx,
+                            formatToolJsonOutput(structuredContent),
+                            structuredContent,
+                            projectUuid,
+                        );
+                    } catch (error) {
+                        return mcpGrepFieldsTool.result.error(
+                            `Error grepping fields: ${getErrorMessage(error)}`,
+                        );
+                    }
+                },
+            );
+
+            this.registerTrackedTool(
+                mcpGetMetadataTool.name,
+                {
+                    title: mcpGetMetadataTool.title,
+                    description: mcpGetMetadataTool.description,
+                    inputSchema: mcpGetMetadataTool.inputSchema.shape,
+                    outputSchema: mcpGetMetadataTool.outputSchema.shape,
+                    annotations: mcpGetMetadataTool.annotations,
+                },
+                async (args, extra) => {
+                    const ctx = getMcpContext(extra);
+                    const projectUuid = await this.resolveProjectUuid(ctx);
+
+                    try {
+                        const toolsRuntime = await this.getToolsRuntime(
+                            ctx,
+                            projectUuid,
+                        );
+                        const availableExplores =
+                            await toolsRuntime.listExplores();
+                        const result = executeGetMetadata(args, {
+                            availableExplores,
+                        });
+
+                        return await this.buildScopedResponse(
+                            ctx,
+                            formatToolJsonOutput(result.structuredContent),
+                            result.structuredContent,
+                            projectUuid,
+                        );
+                    } catch (error) {
+                        return mcpGetMetadataTool.result.error(
+                            `Error getting metadata: ${getErrorMessage(error)}`,
+                        );
+                    }
+                },
+            );
+        } else {
+            this.registerTrackedTool(
+                mcpFindExploresTool.name,
+                {
+                    title: mcpFindExploresTool.title,
+                    description: mcpFindExploresTool.description,
+                    inputSchema: mcpFindExploresTool.inputSchema.shape,
+                    outputSchema: mcpFindExploresTool.outputSchema.shape,
+                    annotations: mcpFindExploresTool.annotations,
+                },
+                async (args, extra) => {
+                    const ctx = getMcpContext(extra);
+                    const { user } = McpService.getAccount(ctx);
+
+                    const projectUuid = await this.resolveProjectUuid(ctx);
+
+                    const toolsRuntime = await this.getToolsRuntime(
+                        ctx,
+                        projectUuid,
                     );
-                }
+                    const runtimeResult = await toolsRuntime.findExplores({
+                        fieldSearchSize: 200,
+                        searchQuery: args.searchQuery,
+                    });
+                    if (runtimeResult.status === 'error') {
+                        return mcpFindExploresTool.result.error(
+                            `Error finding explores: ${getErrorMessage(runtimeResult.error)}`,
+                        );
+                    }
 
-                const { exploreSearchResults, topMatchingFields } =
-                    runtimeResult.data;
-                const structuredContent = buildFindExploresStructuredContent({
-                    searchQuery: args.searchQuery,
-                    exploreSearchResults,
-                    topMatchingFields,
-                    toolDescriptionMaxChars:
-                        this.lightdashConfig.ai.copilot.toolDescriptionMaxChars,
-                });
-                const resultText = formatToolJsonOutput(structuredContent);
-                const metadata = await this.getActiveContextMetadata(ctx);
+                    const { exploreSearchResults, topMatchingFields } =
+                        runtimeResult.data;
+                    const structuredContent =
+                        buildFindExploresStructuredContent({
+                            searchQuery: args.searchQuery,
+                            exploreSearchResults,
+                            topMatchingFields,
+                            toolDescriptionMaxChars:
+                                this.lightdashConfig.ai.copilot
+                                    .toolDescriptionMaxChars,
+                        });
+                    const resultText = formatToolJsonOutput(structuredContent);
+                    const metadata = await this.getActiveContextMetadata(ctx);
 
-                const verifiedAnswerContext = metadata.agentUuid
-                    ? await this.aiAgentService.getRelevantVerifiedAnswerContextForAgent(
-                          user,
-                          {
-                              projectUuid,
-                              agentUuid: metadata.agentUuid,
-                              searchQuery: args.searchQuery,
-                          },
-                      )
-                    : { relevantVerifiedAnswers: [] };
+                    const verifiedAnswerContext = metadata.agentUuid
+                        ? await this.aiAgentService.getRelevantVerifiedAnswerContextForAgent(
+                              user,
+                              {
+                                  projectUuid,
+                                  agentUuid: metadata.agentUuid,
+                                  searchQuery: args.searchQuery,
+                              },
+                          )
+                        : { relevantVerifiedAnswers: [] };
 
-                const verifiedAnswersText =
-                    verifiedAnswerContext.relevantVerifiedAnswers.length > 0
-                        ? `\n\n<verifiedAnswers count="${verifiedAnswerContext.relevantVerifiedAnswers.length}">\n${JSON.stringify(
-                              verifiedAnswerContext.relevantVerifiedAnswers,
-                              null,
-                              2,
-                          )}\n</verifiedAnswers>`
-                        : '';
+                    const verifiedAnswersText =
+                        verifiedAnswerContext.relevantVerifiedAnswers.length > 0
+                            ? `\n\n<verifiedAnswers count="${verifiedAnswerContext.relevantVerifiedAnswers.length}">\n${JSON.stringify(
+                                  verifiedAnswerContext.relevantVerifiedAnswers,
+                                  null,
+                                  2,
+                              )}\n</verifiedAnswers>`
+                            : '';
 
-                return this.buildScopedResponse(
-                    ctx,
-                    `${resultText}${verifiedAnswersText}`,
-                    {
-                        ...structuredContent,
-                        relevantVerifiedAnswers:
-                            verifiedAnswerContext.relevantVerifiedAnswers,
-                    },
-                    projectUuid,
-                );
-            },
-        );
-
-        this.registerTrackedTool(
-            mcpFindFieldsTool.name,
-            {
-                title: mcpFindFieldsTool.title,
-                description: mcpFindFieldsTool.description,
-                inputSchema: mcpFindFieldsTool.inputSchema.shape,
-                outputSchema: mcpFindFieldsTool.outputSchema.shape,
-                annotations: mcpFindFieldsTool.annotations,
-            },
-            async (args, extra) => {
-                const ctx = getMcpContext(extra);
-
-                const projectUuid = await this.resolveProjectUuid(ctx);
-
-                const toolsRuntime = await this.getToolsRuntime(
-                    ctx,
-                    projectUuid,
-                );
-                const exploreResult = await toolsRuntime.getExplore({
-                    table: args.table,
-                });
-                if (exploreResult.status === 'error') {
-                    return mcpFindFieldsTool.result.error(
-                        `Error finding fields: ${getErrorMessage(exploreResult.error)}`,
+                    return this.buildScopedResponse(
+                        ctx,
+                        `${resultText}${verifiedAnswersText}`,
+                        {
+                            ...structuredContent,
+                            relevantVerifiedAnswers:
+                                verifiedAnswerContext.relevantVerifiedAnswers,
+                        },
+                        projectUuid,
                     );
-                }
+                },
+            );
 
-                const runtimeResult = await toolsRuntime.findFields({
-                    table: args.table,
-                    fieldSearchQueries: args.fieldSearchQueries,
-                    page: args.page ?? 1,
-                    pageSize: 15,
-                    explore: exploreResult.data,
-                });
-                if (runtimeResult.status === 'error') {
-                    return mcpFindFieldsTool.result.error(
-                        `Error finding fields: ${getErrorMessage(runtimeResult.error)}`,
+            this.registerTrackedTool(
+                mcpFindFieldsTool.name,
+                {
+                    title: mcpFindFieldsTool.title,
+                    description: mcpFindFieldsTool.description,
+                    inputSchema: mcpFindFieldsTool.inputSchema.shape,
+                    outputSchema: mcpFindFieldsTool.outputSchema.shape,
+                    annotations: mcpFindFieldsTool.annotations,
+                },
+                async (args, extra) => {
+                    const ctx = getMcpContext(extra);
+
+                    const projectUuid = await this.resolveProjectUuid(ctx);
+
+                    const toolsRuntime = await this.getToolsRuntime(
+                        ctx,
+                        projectUuid,
                     );
-                }
+                    const exploreResult = await toolsRuntime.getExplore({
+                        table: args.table,
+                    });
+                    if (exploreResult.status === 'error') {
+                        return mcpFindFieldsTool.result.error(
+                            `Error finding fields: ${getErrorMessage(exploreResult.error)}`,
+                        );
+                    }
 
-                const fieldSearchQueryResults = runtimeResult.data;
+                    const runtimeResult = await toolsRuntime.findFields({
+                        table: args.table,
+                        fieldSearchQueries: args.fieldSearchQueries,
+                        page: args.page ?? 1,
+                        pageSize: 15,
+                        explore: exploreResult.data,
+                    });
+                    if (runtimeResult.status === 'error') {
+                        return mcpFindFieldsTool.result.error(
+                            `Error finding fields: ${getErrorMessage(runtimeResult.error)}`,
+                        );
+                    }
 
-                const structuredContent = buildFindFieldsStructuredContent({
-                    fieldSearchQueryResults,
-                    toolDescriptionMaxChars:
-                        this.lightdashConfig.ai.copilot.toolDescriptionMaxChars,
-                    explore: exploreResult.data,
-                });
+                    const fieldSearchQueryResults = runtimeResult.data;
 
-                return this.buildScopedResponse(
-                    ctx,
-                    formatToolJsonOutput(structuredContent),
-                    structuredContent,
-                    projectUuid,
-                );
-            },
-        );
+                    const structuredContent = buildFindFieldsStructuredContent({
+                        fieldSearchQueryResults,
+                        toolDescriptionMaxChars:
+                            this.lightdashConfig.ai.copilot
+                                .toolDescriptionMaxChars,
+                        explore: exploreResult.data,
+                    });
+
+                    return this.buildScopedResponse(
+                        ctx,
+                        formatToolJsonOutput(structuredContent),
+                        structuredContent,
+                        projectUuid,
+                    );
+                },
+            );
+        }
 
         this.registerTrackedTool(
             mcpFindContentTool.name,
@@ -2677,12 +2819,17 @@ export class McpService extends BaseService {
                             instruction: agent.context.instruction,
                             explores: agent.context.explores,
                             verifiedQuestions: agent.context.verifiedQuestions,
+                            enableGrepFields: options.grepFieldsEnabled,
                         });
                     } catch {
-                        promptText = MCP_ANALYST_PROMPT;
+                        promptText = getMcpAnalystPrompt({
+                            enableGrepFields: options.grepFieldsEnabled,
+                        });
                     }
                 } else {
-                    promptText = MCP_ANALYST_PROMPT;
+                    promptText = getMcpAnalystPrompt({
+                        enableGrepFields: options.grepFieldsEnabled,
+                    });
                 }
 
                 return {
@@ -2973,6 +3120,7 @@ export class McpService extends BaseService {
     public async createServer(options?: {
         projectPinned?: boolean;
         aiWritebackEnabled?: boolean;
+        grepFieldsEnabled?: boolean;
         mcpContentWritesEnabled?: boolean;
     }): Promise<McpServer> {
         const newServer = Sentry.wrapMcpServerWithSentry(
@@ -3007,6 +3155,7 @@ export class McpService extends BaseService {
         this.setupHandlers({
             projectPinned: options?.projectPinned ?? false,
             aiWritebackEnabled: options?.aiWritebackEnabled ?? false,
+            grepFieldsEnabled: options?.grepFieldsEnabled ?? false,
             mcpContentWritesEnabled: options?.mcpContentWritesEnabled ?? true,
         });
         this.mcpServer = originalServer;
@@ -3222,6 +3371,21 @@ export class McpService extends BaseService {
             aiCopilotFlag.enabled,
             user.organizationUuid,
         );
+    }
+
+    /**
+     * Whether MCP should expose the grep_fields/get_metadata discovery pair
+     * instead of the legacy find_explores/find_fields pair. Resolved per
+     * request so the MCP surface can dark-launch behind AiGrepFields.
+     */
+    public async isAiGrepFieldsEnabled(
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+    ): Promise<boolean> {
+        const flag = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.AiGrepFields,
+        });
+        return flag.enabled;
     }
 
     public async isMcpContentWritesEnabled(

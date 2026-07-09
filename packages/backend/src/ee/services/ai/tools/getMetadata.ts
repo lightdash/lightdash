@@ -4,8 +4,12 @@ import {
     isDimension,
     type CompiledField,
     type Explore,
+    type GetMetadataResult,
+    type ToolGetMetadataArgs,
 } from '@lightdash/common';
 import { tool } from 'ai';
+import { getExploreRequiredFilters } from '../utils/requiredFilters';
+import type { ExecuteStructuredToolResult } from '../utils/structuredToolResult';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import { summarizeRequiredFilters } from './grepFieldsIndex';
 
@@ -35,13 +39,18 @@ const FIELD_LIST_MAX = 120;
 // is the agent's ground truth for "does field X exist here" — search tools
 // (grep/FTS) are lossy, so the summary must not defer back to them for the
 // full list, or a search miss becomes unfalsifiable.
+const getVisibleFieldIds = (
+    fields: { table: string; name: string; hidden?: boolean }[],
+): string[] =>
+    fields
+        .filter((field) => !field.hidden)
+        .map((field) => `${field.table}_${field.name}`);
+
 const renderFieldList = (
     kind: 'dimensions' | 'metrics',
     fields: { table: string; name: string; hidden?: boolean }[],
 ): string => {
-    const ids = fields
-        .filter((f) => !f.hidden)
-        .map((f) => `${f.table}_${f.name}`);
+    const ids = getVisibleFieldIds(fields);
     if (ids.length === 0) return `  base ${kind}: none`;
     const shown = ids.slice(0, FIELD_LIST_MAX);
     const overflow =
@@ -60,7 +69,7 @@ const renderExplore = (explore: Explore): string => {
     const hint = flatHint(explore.aiHint);
     if (hint) lines.push(`  hint: ${collapse(hint)}`);
     lines.push(`  base table: ${explore.baseTable}`);
-    const joined = explore.joinedTables.map((j) => j.table);
+    const joined = explore.joinedTables.map((join) => join.table);
     if (joined.length > 0) {
         lines.push(
             `  joined tables (usable in queries, grep with exploreName="${explore.name}" to list their fields): ${joined.join(
@@ -131,6 +140,143 @@ const renderField = (
     return lines.join('\n');
 };
 
+const buildExploreStructuredResult = (
+    explore: Explore,
+): GetMetadataResult['explores'][number] => {
+    const baseTable = explore.tables[explore.baseTable];
+    const hint = flatHint(explore.aiHint);
+    const dimensionIds = getVisibleFieldIds(
+        Object.values(baseTable?.dimensions ?? {}),
+    );
+    const metricIds = getVisibleFieldIds(
+        Object.values(baseTable?.metrics ?? {}),
+    );
+    return {
+        exploreId: explore.name,
+        status: 'found',
+        label: explore.label,
+        description: baseTable?.description
+            ? collapse(baseTable.description)
+            : null,
+        hint: hint ? collapse(hint) : null,
+        baseTable: explore.baseTable,
+        joinedTables: explore.joinedTables.map((join) => join.table),
+        requiredFilters: getExploreRequiredFilters(explore),
+        baseDimensions: {
+            count: dimensionIds.length,
+            fieldIds: dimensionIds.slice(0, FIELD_LIST_MAX),
+        },
+        baseMetrics: {
+            count: metricIds.length,
+            fieldIds: metricIds.slice(0, FIELD_LIST_MAX),
+        },
+    };
+};
+
+const buildFieldStructuredResult = (
+    exploreId: string,
+    fieldId: string,
+    found: { field: CompiledField; isJoined: boolean },
+): GetMetadataResult['fields'][number] => {
+    const { field, isJoined } = found;
+    const hint = flatHint(field.aiHint);
+    return {
+        exploreId,
+        fieldId,
+        status: 'found',
+        kind: isDimension(field) ? 'dimension' : 'metric',
+        fieldType: String(field.type),
+        label: field.label,
+        filterType: getFilterTypeFromItemType(field.type),
+        isFromJoinedTable: isJoined,
+        joinedTableName: isJoined ? field.table : null,
+        caseSensitiveFilters:
+            isDimension(field) && field.type === 'string'
+                ? (field.caseSensitive ?? true)
+                : null,
+        description: field.description
+            ? collapse(field.description, FIELD_DESCRIPTION_MAX)
+            : null,
+        hint: hint ? collapse(hint, FIELD_DESCRIPTION_MAX) : null,
+    };
+};
+
+export const executeGetMetadata = (
+    { requests }: ToolGetMetadataArgs,
+    { availableExplores }: Dependencies,
+): ExecuteStructuredToolResult<GetMetadataResult> => {
+    const byName = new Map(
+        availableExplores.map((explore) => [explore.name, explore]),
+    );
+    const textBlocks: string[] = [];
+    const explores: GetMetadataResult['explores'] = [];
+    const fields: GetMetadataResult['fields'] = [];
+
+    for (const request of requests) {
+        if (request.type === 'explore') {
+            for (const exploreId of request.exploreIds) {
+                const explore = byName.get(exploreId);
+                if (!explore) {
+                    const error = `Explore "${exploreId}" not found or not available to this agent.`;
+                    textBlocks.push(error);
+                    explores.push({
+                        exploreId,
+                        status: 'not_found',
+                        error,
+                    });
+                } else {
+                    textBlocks.push(renderExplore(explore));
+                    explores.push(buildExploreStructuredResult(explore));
+                }
+            }
+        } else {
+            for (const { exploreId, fieldId } of request.fields) {
+                const explore = byName.get(exploreId);
+                if (!explore) {
+                    const error = `Explore "${exploreId}" not found, so field "${fieldId}" could not be resolved.`;
+                    textBlocks.push(error);
+                    fields.push({
+                        exploreId,
+                        fieldId,
+                        status: 'not_found',
+                        error,
+                    });
+                } else {
+                    const found = findField(explore, fieldId);
+                    if (!found) {
+                        const error = `Field "${fieldId}" not found in explore "${exploreId}".`;
+                        textBlocks.push(error);
+                        fields.push({
+                            exploreId,
+                            fieldId,
+                            status: 'not_found',
+                            error,
+                        });
+                    } else {
+                        textBlocks.push(renderField(exploreId, fieldId, found));
+                        fields.push(
+                            buildFieldStructuredResult(
+                                exploreId,
+                                fieldId,
+                                found,
+                            ),
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    return {
+        result: textBlocks.join('\n\n'),
+        metadata: { status: 'success' },
+        structuredContent: {
+            explores,
+            fields,
+        },
+    };
+};
+
 /**
  * Rich detail for explores/fields the agent already selected (typically from
  * grepFields). Reads only the cached explores passed in — no DB or warehouse —
@@ -138,45 +284,15 @@ const renderField = (
  * tables, required filters, filter types, case-sensitivity, hints) for exactly
  * the entities the agent asked about, in one batched call.
  */
-export const getGetMetadata = ({ availableExplores }: Dependencies) => {
-    const byName = new Map(availableExplores.map((e) => [e.name, e]));
-
-    return tool({
+export const getGetMetadata = (dependencies: Dependencies) =>
+    tool({
         ...toolDefinition,
-        execute: async ({ requests }) => {
+        execute: async (args) => {
             try {
-                const blocks: string[] = [];
-                for (const request of requests) {
-                    if (request.type === 'explore') {
-                        for (const exploreId of request.exploreIds) {
-                            const explore = byName.get(exploreId);
-                            blocks.push(
-                                explore
-                                    ? renderExplore(explore)
-                                    : `Explore "${exploreId}" not found or not available to this agent.`,
-                            );
-                        }
-                    } else {
-                        for (const { exploreId, fieldId } of request.fields) {
-                            const explore = byName.get(exploreId);
-                            if (!explore) {
-                                blocks.push(
-                                    `Explore "${exploreId}" not found, so field "${fieldId}" could not be resolved.`,
-                                );
-                            } else {
-                                const found = findField(explore, fieldId);
-                                blocks.push(
-                                    found
-                                        ? renderField(exploreId, fieldId, found)
-                                        : `Field "${fieldId}" not found in explore "${exploreId}".`,
-                                );
-                            }
-                        }
-                    }
-                }
+                const result = executeGetMetadata(args, dependencies);
                 return {
-                    result: blocks.join('\n\n'),
-                    metadata: { status: 'success' as const },
+                    result: result.result,
+                    metadata: result.metadata,
                 };
             } catch (error) {
                 return {
@@ -186,4 +302,3 @@ export const getGetMetadata = ({ availableExplores }: Dependencies) => {
             }
         },
     });
-};

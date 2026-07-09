@@ -142,6 +142,7 @@ import {
 import {
     GET_METADATA_DESCRIPTION,
     getMetadataInputSchema,
+    getMetadataResultSchema,
     toolGetMetadataOutputSchema,
 } from './toolGetMetadataArgs';
 import {
@@ -161,6 +162,7 @@ import {
 import {
     GREP_FIELDS_DESCRIPTION,
     grepFieldsInputSchema,
+    grepFieldsResultSchema,
     toolGrepFieldsOutputSchema,
 } from './toolGrepFieldsArgs';
 import {
@@ -562,32 +564,42 @@ export const discoverFieldsToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolDiscoverFieldsOutputSchema },
 });
 
-export const grepFieldsToolDefinition: ToolDefinitionWithoutMcpOutput<
+export const grepFieldsToolDefinition: ToolDefinitionWithMcpOutput<
     'grepFields',
     typeof grepFieldsInputSchema,
     typeof grepFieldsInputSchema,
-    typeof toolGrepFieldsOutputSchema
+    typeof toolGrepFieldsOutputSchema,
+    typeof grepFieldsResultSchema
 > = defineTool({
     name: 'grepFields',
     title: 'Search fields',
     description: GREP_FIELDS_DESCRIPTION,
-    availability: ['agent'],
+    availability: ['agent', 'mcp'],
     inputSchema: grepFieldsInputSchema,
     agent: { outputSchema: toolGrepFieldsOutputSchema },
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: grepFieldsResultSchema,
+    },
 });
 
-export const getMetadataToolDefinition: ToolDefinitionWithoutMcpOutput<
+export const getMetadataToolDefinition: ToolDefinitionWithMcpOutput<
     'getMetadata',
     typeof getMetadataInputSchema,
     typeof getMetadataInputSchema,
-    typeof toolGetMetadataOutputSchema
+    typeof toolGetMetadataOutputSchema,
+    typeof getMetadataResultSchema
 > = defineTool({
     name: 'getMetadata',
     title: 'Get metadata',
     description: GET_METADATA_DESCRIPTION,
-    availability: ['agent'],
+    availability: ['agent', 'mcp'],
     inputSchema: getMetadataInputSchema,
     agent: { outputSchema: toolGetMetadataOutputSchema },
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: getMetadataResultSchema,
+    },
 });
 
 export const generateDashboardToolDefinition: ToolDefinitionWithoutMcpOutput<
@@ -1234,7 +1246,7 @@ export const setProjectToolDefinition = defineTool({
     name: 'setProject',
     title: 'Set project',
     description:
-        'Set the active project for all subsequent MCP operations. Most tools (list_explores, find_fields, run_metric_query, etc.) require an active project. Setting a project clears any previously selected agent, since agents are scoped to a project. After setting a project, prefer route_agent to auto-select the best agent for each request; use list_agents and set_agent only for manual override.',
+        'Set the active project for all subsequent MCP operations. Most tools (list_explores, MCP schema-discovery tools, run_metric_query, etc.) require an active project. Setting a project clears any previously selected agent, since agents are scoped to a project. After setting a project, prefer route_agent to auto-select the best agent for each request; use list_agents and set_agent only for manual override.',
     availability: ['mcp'],
     inputSchema: z.object({
         projectUuid: z.string(),
@@ -1293,7 +1305,7 @@ export const setAgentToolDefinition = defineTool({
     name: 'setAgent',
     title: 'Set agent',
     description:
-        "Manually set the active AI agent for the active project. Prefer route_agent for default automatic selection; use this when you need to override that choice explicitly. Returns the agent's full context including: explores it has access to, space restrictions, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Use this context to guide subsequent tool calls — prefer the agent's explores when calling find_explores/find_fields, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
+        "Manually set the active AI agent for the active project. Prefer route_agent for default automatic selection; use this when you need to override that choice explicitly. Returns the agent's full context including: explores it has access to, space restrictions, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Use this context to guide subsequent tool calls — prefer the agent's explores when calling MCP schema-discovery tools, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
     availability: ['mcp'],
     inputSchema: z.object({
         agentUuid: z.string(),
@@ -1340,7 +1352,7 @@ export const listVerifiedContentToolDefinition: ToolDefinitionWithoutMcpOutput<
     name: 'listVerifiedContent',
     title: 'List verified content',
     description:
-        'List all verified charts and dashboards in the active project. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Requires an active project set via set_project. Each item includes contentType (chart or dashboard), contentUuid, name, description, space, view count, last update time, and verification metadata (who verified it and when); charts also include chartKind and exploreName. To learn the full structure of a verified item (dimensions, metrics, filters), drill into it with find_content or find_fields on its explore.',
+        'List all verified charts and dashboards in the active project. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Requires an active project set via set_project. Each item includes contentType (chart or dashboard), contentUuid, name, description, space, view count, last update time, and verification metadata (who verified it and when); charts also include chartKind and exploreName. To learn the full structure of a verified item (dimensions, metrics, filters), drill into it with find_content or MCP schema-discovery tools on its explore.',
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
     mcp: { annotations: readOnlyAnnotations },
