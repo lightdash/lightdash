@@ -17302,6 +17302,48 @@
                                             },
                                             {
                                                 "properties": {
+                                                    "dbtSourceOptions": {
+                                                        "items": {
+                                                            "properties": {
+                                                                "projectSubPath": {
+                                                                    "type": "string",
+                                                                    "nullable": true
+                                                                },
+                                                                "branch": {
+                                                                    "type": "string",
+                                                                    "nullable": true
+                                                                },
+                                                                "isPrimary": {
+                                                                    "type": "boolean"
+                                                                },
+                                                                "projectDbtSourceUuid": {
+                                                                    "type": "string"
+                                                                },
+                                                                "repository": {
+                                                                    "type": "string",
+                                                                    "nullable": true
+                                                                },
+                                                                "name": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "projectSubPath",
+                                                                "branch",
+                                                                "isPrimary",
+                                                                "projectDbtSourceUuid",
+                                                                "repository",
+                                                                "name"
+                                                            ],
+                                                            "type": "object"
+                                                        },
+                                                        "type": "array",
+                                                        "nullable": true
+                                                    },
+                                                    "needsDbtSourceSelection": {
+                                                        "type": "boolean",
+                                                        "nullable": true
+                                                    },
                                                     "previewUrl": {
                                                         "type": "string",
                                                         "nullable": true
