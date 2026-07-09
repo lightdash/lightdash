@@ -173,7 +173,10 @@ export const filterModelsForOrg = (
             const accessibleIds = byoProvider
                 ? overrides.keyAccessibleModelIds?.[byoProvider]
                 : null;
-            if (!accessibleIds || !keyGrantsModel(accessibleIds, preset.modelId))
+            if (
+                !accessibleIds ||
+                !keyGrantsModel(accessibleIds, preset.modelId)
+            )
                 return false;
         }
         if (!byoProvider) return true;

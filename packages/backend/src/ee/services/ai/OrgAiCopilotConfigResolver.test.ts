@@ -207,18 +207,24 @@ describe('OrgAiCopilotConfigResolver', () => {
                     'org-uuid',
                     { anthropic: { enabled: false } },
                 );
-            const remaining = filterModelsForOrg(getAvailableModels(baseConfig), {
-                modelVisibility: effective,
-                keyAccessibleModelIds: null,
-            });
+            const remaining = filterModelsForOrg(
+                getAvailableModels(baseConfig),
+                {
+                    modelVisibility: effective,
+                    keyAccessibleModelIds: null,
+                },
+            );
             expect(remaining).toHaveLength(0);
         });
 
         it('validating the raw submission (the old bug) would have left instance models', () => {
-            const remaining = filterModelsForOrg(getAvailableModels(baseConfig), {
-                modelVisibility: { anthropic: { enabled: false } },
-                keyAccessibleModelIds: null,
-            });
+            const remaining = filterModelsForOrg(
+                getAvailableModels(baseConfig),
+                {
+                    modelVisibility: { anthropic: { enabled: false } },
+                    keyAccessibleModelIds: null,
+                },
+            );
             expect(remaining.length).toBeGreaterThan(0);
         });
 
