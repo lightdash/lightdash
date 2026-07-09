@@ -121,7 +121,7 @@ const AddFilterButton: FC<Props> = ({
         unsavedFiltersTooltip === undefined ? (
             <Text fz="xs">
                 Only filters added in{' '}
-                <Text span fw={600}>
+                <Text span fz="xs" fw={600}>
                     'edit'
                 </Text>{' '}
                 mode will be saved
