@@ -125,6 +125,7 @@ const EmbedPreviewDashboardForm: FC<{
             dashboardFiltersInteractivity: {
                 enabled: FilterInteractivityValues.none,
                 hidden: false,
+                canAddFilters: false,
             },
             parameterInteractivity: {
                 enabled: false,
@@ -161,6 +162,9 @@ const EmbedPreviewDashboardForm: FC<{
                         hidden:
                             values.dashboardFiltersInteractivity?.hidden ??
                             false,
+                        canAddFilters:
+                            values.dashboardFiltersInteractivity
+                                ?.canAddFilters ?? false,
                         ...(values.dashboardFiltersInteractivity?.enabled ===
                         FilterInteractivityValues.some
                             ? {

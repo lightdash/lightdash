@@ -2537,6 +2537,9 @@
                     },
                     "dashboardFiltersInteractivity": {
                         "properties": {
+                            "canAddFilters": {
+                                "type": "boolean"
+                            },
                             "hidden": {
                                 "type": "boolean"
                             },
@@ -3827,6 +3830,9 @@
                                     },
                                     "dashboardFiltersInteractivity": {
                                         "properties": {
+                                            "canAddFilters": {
+                                                "type": "boolean"
+                                            },
                                             "hidden": {
                                                 "type": "boolean"
                                             },
