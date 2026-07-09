@@ -162,6 +162,25 @@ export class OrgAiCopilotConfigResolver {
     }
 
     /**
+     * Effective model visibility for a *submitted* payload — merges the implicit
+     * auto-hide (Anthropic-only key ⇒ OpenAI hidden) under the submission, the
+     * same way getOrgModelOverrides does for stored settings. Used to validate a
+     * save against what the selector will actually show, so an admin can't hide
+     * every model by disabling the one provider whose toggle isn't locked.
+     */
+    async resolveEffectiveModelVisibilityForOrg(
+        organizationUuid: string,
+        submitted: AiOrgModelVisibility | null,
+    ): Promise<AiOrgModelVisibility | null> {
+        const orgKeys =
+            await this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
+                organizationUuid,
+            );
+        if (!orgKeys) return submitted;
+        return resolveEffectiveModelVisibility(orgKeys, submitted);
+    }
+
+    /**
      * The model ids a provider API key can access (cached in the catalog).
      * Null on any failure so callers fail closed.
      */
