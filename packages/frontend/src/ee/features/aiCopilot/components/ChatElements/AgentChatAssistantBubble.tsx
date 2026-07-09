@@ -3,11 +3,9 @@ import {
     type AiAgentMessageAssistant,
     type AiAgentToolCall,
     type AiMcpServer,
-    isToolProposeChangeResult,
     isToolEditDbtProjectResult,
     isToolEditRepoResult,
     isToolSetupPreviewDeployResult,
-    type ToolProposeChangeArgs,
     type ToolEditDbtProjectOutput,
     type ToolEditRepoOutput,
 } from '@lightdash/common';
@@ -69,7 +67,6 @@ import { MessageModelIndicator } from './MessageModelIndicator';
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
 import { AiEditDbtProjectToolCall } from './ToolCalls/AiEditDbtProjectToolCall';
 import { AiEditRepoToolCall } from './ToolCalls/AiEditRepoToolCall';
-import { AiProposeChangeToolCall } from './ToolCalls/AiProposeChangeToolCall';
 import { ImproveContextToolCall } from './ToolCalls/ImproveContextToolCall';
 import {
     LiveActivityCard,
@@ -102,7 +99,6 @@ type StreamSegment = TextSegment | ToolGroup | SqlApprovalSegment;
 
 const HIDDEN_TOOL_NAMES = new Set<AiAgentToolName>([
     'improveContext',
-    'proposeChange',
     'generateHashes',
     'generateUuids',
 ]);
@@ -411,16 +407,6 @@ const AssistantBubbleContent: FC<{
             : '';
 
     const messageContent = baseMessageContent + referencedArtifactsMarkdown;
-
-    const proposeChangeToolCall = isStreaming
-        ? (streamingState?.toolCalls.find((t) => t.toolName === 'proposeChange')
-              ?.toolArgs as ToolProposeChangeArgs)
-        : (message.toolCalls.find((t) => t.toolName === 'proposeChange')
-              ?.toolArgs as ToolProposeChangeArgs); // TODO: fix message type, it's `object` now
-
-    const proposeChangeToolResult = message.toolResults.find(
-        isToolProposeChangeResult,
-    );
 
     // Writeback PR card metadata. The editDbtProject tool result instructs
     // the LLM not to print the PR URL inline (we surface it via a dedicated
@@ -838,17 +824,6 @@ const AssistantBubbleContent: FC<{
                         <TypingDots />
                     </Box>
                 )}
-            {proposeChangeToolCall && (
-                <AiProposeChangeToolCall
-                    change={proposeChangeToolCall.change}
-                    entityTableName={proposeChangeToolCall.entityTableName}
-                    projectUuid={projectUuid}
-                    agentUuid={agentUuid}
-                    threadUuid={message.threadUuid}
-                    promptUuid={message.uuid}
-                    toolResult={proposeChangeToolResult}
-                />
-            )}
             {editDbtProjectResult && (
                 <AiEditDbtProjectToolCall
                     metadata={editDbtProjectResult.metadata}

@@ -9,7 +9,6 @@ import type {
     KnexPaginatedData,
     ToolDashboardArgs,
     ToolName,
-    ToolProposeChangeOutput,
     ToolRunQueryArgs,
     ToolTableVizArgs,
     ToolTimeSeriesArgs,
@@ -709,11 +708,6 @@ export type AiAgentToolResult = AiAgentBaseToolResult &
     (
         | {
               toolType: 'built-in';
-              toolName: 'proposeChange';
-              metadata: ToolProposeChangeOutput['metadata'];
-          }
-        | {
-              toolType: 'built-in';
               toolName: Exclude<ToolName, 'proposeChange'>;
               metadata: AgentToolOutput['metadata'];
           }
@@ -951,12 +945,6 @@ export type ApiAppendInstructionRequest = {
 export type ApiAppendInstructionResponse = ApiSuccess<{
     updatedInstruction: string;
 }>;
-
-export type ApiRevertChangeRequest = {
-    changeUuid: string;
-};
-
-export type ApiRevertChangeResponse = ApiSuccessEmpty;
 
 export type AgentSummaryContext = {
     uuid: string;

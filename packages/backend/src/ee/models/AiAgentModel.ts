@@ -71,7 +71,6 @@ import {
     SlackPrompt,
     ToolName,
     ToolNameSchema,
-    toolProposeChangeOutputSchema,
     UnexpectedServerError,
     UpdateSlackResponse,
     UpdateSlackResponseTs,
@@ -5888,20 +5887,6 @@ export class AiAgentModel {
         }
 
         switch (parsedToolName.data) {
-            case 'proposeChange':
-                return {
-                    uuid: row.ai_agent_tool_result_uuid,
-                    promptUuid: row.ai_prompt_uuid,
-                    toolCallId: row.tool_call_id,
-                    toolType: 'built-in',
-                    toolName: parsedToolName.data,
-                    result: row.result,
-                    metadata:
-                        toolProposeChangeOutputSchema.shape.metadata.parse(
-                            row.metadata,
-                        ),
-                    createdAt: row.created_at,
-                };
             default:
                 return {
                     uuid: row.ai_agent_tool_result_uuid,

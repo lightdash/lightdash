@@ -296,7 +296,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getProjectContextModel<ProjectContextModel>(),
                     aiAgentDocumentModel:
                         models.getAiAgentDocumentModel<AiAgentDocumentModel>(),
-                    changesetModel: models.getChangesetModel(),
                     featureFlagService: repository.getFeatureFlagService(),
                     previewDeploySetupService:
                         repository.getPreviewDeploySetupService<PreviewDeploySetupService>(),
@@ -318,7 +317,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getAiAgentDocumentModel<AiAgentDocumentModel>(),
                     projectContextModel:
                         models.getProjectContextModel<ProjectContextModel>(),
-                    changesetModel: models.getChangesetModel(),
                     catalogModel: models.getCatalogModel(),
                     contentVerificationModel:
                         models.getContentVerificationModel(),

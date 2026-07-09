@@ -42,7 +42,6 @@ export * from './toolFindFieldsArgs';
 export * from './toolImproveContextArgs';
 export * from './toolListProjectsArgs';
 export * from './toolListWarehouseTablesArgs';
-export * from './toolProposeChangeArgs';
 export * from './toolRunContentQueryArgs';
 export * from './toolRunMetricQueryArgs';
 export * from './toolRunQueryArgs';

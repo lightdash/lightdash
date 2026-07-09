@@ -39,7 +39,6 @@ import {
 import * as JsonPatch from 'fast-json-patch';
 import Logger from '../../../logging/logger';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
-import { ChangesetModel } from '../../../models/ChangesetModel';
 import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
 import { JobModel } from '../../../models/JobModel/JobModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
@@ -246,7 +245,6 @@ type AiAgentToolsServiceDependencies = {
     aiAgentContentValidation: AiAgentContentValidation;
     projectContextModel: ProjectContextModel;
     aiAgentDocumentModel: AiAgentDocumentModel;
-    changesetModel: ChangesetModel;
     featureFlagService: FeatureFlagService;
     previewDeploySetupService: PreviewDeploySetupService;
     shareService: ShareService;

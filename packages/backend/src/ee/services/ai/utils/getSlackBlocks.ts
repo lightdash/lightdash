@@ -10,7 +10,6 @@ import {
     getItemMap,
     getWebAiChartConfig,
     isToolEditDbtProjectResult,
-    isToolProposeChangeResult,
     isToolSetupPreviewDeployResult,
     parseVizConfig,
     SlackPrompt,
@@ -178,7 +177,6 @@ const TOOL_TASK_TITLES: Record<string, string> = {
     generateDashboard: 'Creating dashboard',
     createContent: 'Saving content',
     editContent: 'Updating content',
-    proposeChange: 'Drafting semantic-layer change',
     editDbtProject: 'Opening dbt project PR',
     editRepo: 'Opening repository PR',
     setupPreviewDeploy: 'Preparing preview deploy',
@@ -899,60 +897,6 @@ export function getDeepLinkBlocks(
                 type: 'mrkdwn',
                 text: `📊 <${siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${agentUuid}/threads/${slackPrompt.threadUuid}|View Dashboard in Lightdash ⚡️>`,
             },
-        },
-    ];
-}
-
-export function getProposeChangeBlocks(
-    slackPrompt: SlackPrompt,
-    siteUrl: string,
-    toolResults?: AiAgentToolResult[],
-): (Block | KnownBlock)[] {
-    if (!toolResults || toolResults.length === 0) {
-        return [];
-    }
-
-    const proposeChangeResults = toolResults.filter(isToolProposeChangeResult);
-
-    if (proposeChangeResults.length === 0) {
-        return [];
-    }
-
-    const [successes, failures] = partition(
-        proposeChangeResults,
-        (r) => r.metadata.status === 'success',
-    );
-
-    return [
-        {
-            type: 'divider',
-        },
-        {
-            type: 'context',
-            elements: [
-                ...successes.map((success) => ({
-                    type: 'plain_text' as const,
-                    text: `✅ ${success.result}`,
-                })),
-                ...failures.map((failure) => ({
-                    type: 'plain_text' as const,
-                    text: `❌ ${failure.result}`,
-                })),
-            ],
-        },
-        {
-            type: 'actions',
-            elements: [
-                {
-                    type: 'button',
-                    url: `${siteUrl}/generalSettings/projectManagement/${slackPrompt.projectUuid}/changesets`,
-                    action_id: 'actions.view_changesets_button_click',
-                    text: {
-                        type: 'plain_text',
-                        text: 'View Changeset',
-                    },
-                },
-            ],
         },
     ];
 }

@@ -73,7 +73,6 @@ export const summarizeToolCall = (toolName: string, input: AnyType) => {
         case 'getProjectInfo':
             return 'Reading project details';
         case 'editDbtProject':
-        case 'proposeChange':
             return 'Preparing change proposal';
         case 'editRepo':
             return 'Editing repository';

@@ -2,7 +2,7 @@ import {
     ApiChangesetsResponseTSOACompat,
     ApiErrorPayload,
     ApiGetChangeResponseTSOACompat,
-    ApiRevertChangeResponse,
+    ApiSuccessEmpty,
 } from '@lightdash/common';
 import {
     Get,
@@ -86,7 +86,7 @@ export class ChangesetController extends BaseController {
         @Path() projectUuid: string,
         @Path() changeUuid: string,
         @Request() req: express.Request,
-    ): Promise<ApiRevertChangeResponse> {
+    ): Promise<ApiSuccessEmpty> {
         await this.services
             .getChangesetService()
             .revertChange(req.account!, projectUuid, changeUuid);
@@ -108,7 +108,7 @@ export class ChangesetController extends BaseController {
     async revertAllChanges(
         @Path() projectUuid: string,
         @Request() req: express.Request,
-    ): Promise<ApiRevertChangeResponse> {
+    ): Promise<ApiSuccessEmpty> {
         await this.services
             .getChangesetService()
             .revertAllChanges(req.account!, projectUuid);
