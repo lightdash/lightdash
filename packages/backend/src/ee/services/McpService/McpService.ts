@@ -55,6 +55,7 @@ import {
     readSkillResourceToolDefinition,
     readSkillToolDefinition,
     renderChartToolDefinition,
+    resolveUrlToolDefinition,
     routeAgentToolDefinition,
     runAiWritebackToolDefinition,
     runQueryToolDefinition,
@@ -131,6 +132,7 @@ import {
 import { getListContent } from '../ai/tools/listContent';
 import { getMcpListExplores } from '../ai/tools/mcpListExplores';
 import { getReadContent } from '../ai/tools/readContent';
+import { getResolveUrl } from '../ai/tools/resolveUrl';
 import { validateRunQueryTool } from '../ai/tools/runQuery';
 import { getSearchFieldValues } from '../ai/tools/searchFieldValues';
 import { formatToolJsonOutput } from '../ai/tools/toolOutputFormat';
@@ -165,6 +167,7 @@ export enum McpToolName {
     FIND_CONTENT = 'find_content',
     LIST_CONTENT = 'list_content',
     READ_CONTENT = 'read_content',
+    RESOLVE_URL = 'resolve_url',
     CREATE_CONTENT = 'create_content',
     EDIT_CONTENT = 'edit_content',
     LIST_PROJECTS = 'list_projects',
@@ -203,6 +206,7 @@ const mcpGetMetadataTool = getMetadataToolDefinition.for('mcp');
 const mcpFindContentTool = findContentToolDefinition.for('mcp');
 const mcpListContentTool = listContentToolDefinition.for('mcp');
 const mcpReadContentTool = readContentToolDefinition.for('mcp');
+const mcpResolveUrlTool = resolveUrlToolDefinition.for('mcp');
 const mcpCreateContentTool = createContentToolDefinition.for('mcp');
 const mcpEditContentTool = editContentToolDefinition.for('mcp');
 const mcpListProjectsTool = mcpListProjectsToolDefinition.for('mcp');
@@ -1744,6 +1748,40 @@ export class McpService extends BaseService {
                     readContent: toolsRuntime.readContent,
                 });
                 const result = await readContentTool.execute!(argsWithProject, {
+                    toolCallId: '',
+                    messages: [],
+                });
+
+                return this.buildScopedResponse(
+                    ctx,
+                    await McpService.streamToolResult(result),
+                    undefined,
+                    projectUuid,
+                );
+            },
+        );
+
+        this.registerTrackedTool(
+            mcpResolveUrlTool.name,
+            {
+                title: mcpResolveUrlTool.title,
+                description: mcpResolveUrlTool.description,
+                inputSchema: mcpResolveUrlTool.inputSchema.shape,
+                annotations: mcpResolveUrlTool.annotations,
+            },
+            async (args, extra) => {
+                const ctx = getMcpContext(extra);
+                const projectUuid = await this.resolveProjectUuid(ctx);
+
+                const toolsRuntime = await this.getToolsRuntime(
+                    ctx,
+                    projectUuid,
+                );
+
+                const resolveUrlTool = getResolveUrl({
+                    resolveUrl: toolsRuntime.resolveUrl,
+                });
+                const result = await resolveUrlTool.execute!(args, {
                     toolCallId: '',
                     messages: [],
                 });

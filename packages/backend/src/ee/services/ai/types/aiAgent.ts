@@ -49,6 +49,7 @@ import {
     ReadContentFn,
     ReadPinnedThreadFn,
     RecordSqlApprovalFn,
+    ResolveUrlFn,
     RunAsyncQueryFn,
     RunSavedChartQueryFn,
     RunSqlJobFn,
@@ -182,6 +183,7 @@ export type AiAgentDependencies = {
     listContent: ListContentFn;
     findContent: FindContentFn;
     readContent: ReadContentFn;
+    resolveUrl: ResolveUrlFn;
     editContent: EditContentFn;
     createContent: CreateContentFn;
     validateContent: ValidateContentFn;

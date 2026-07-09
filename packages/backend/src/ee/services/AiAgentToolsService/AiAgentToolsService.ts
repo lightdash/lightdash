@@ -59,6 +59,7 @@ import { SavedChartService } from '../../../services/SavedChartsService/SavedCha
 import { SearchService } from '../../../services/SearchService/SearchService';
 import { ShareService } from '../../../services/ShareService/ShareService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
+import { matchShareUrlNanoid } from '../../../services/UnfurlService/UnfurlService';
 import {
     doesExploreMatchRequiredAttributes,
     getFilteredExplore,
@@ -92,6 +93,7 @@ import {
     ListWarehouseTablesFn,
     LoadAgentSkillFn,
     ReadContentFn,
+    ResolveUrlFn,
     RunAsyncQueryFn,
     RunSavedChartQueryFn,
     RunSqlJobFn,
@@ -183,6 +185,7 @@ export type AiAgentToolsRuntime = {
     listContent: ListContentFn;
     getDashboardCharts: GetDashboardChartsFn;
     readContent: ReadContentFn;
+    resolveUrl: ResolveUrlFn;
     editContent: EditContentFn;
     createContent: CreateContentFn;
     validateContent: ValidateContentFn;
@@ -297,6 +300,8 @@ export class AiAgentToolsService extends BaseService {
 
     private readonly previewDeploySetupService: PreviewDeploySetupService;
 
+    private readonly shareService: ShareService;
+
     private readonly lightdashConfig: AiAgentToolsServiceDependencies['lightdashConfig'];
 
     private readonly builtInSkills: BuiltInSkillsClient;
@@ -354,6 +359,7 @@ export class AiAgentToolsService extends BaseService {
         aiAgentDocumentModel,
         featureFlagService,
         previewDeploySetupService,
+        shareService,
         lightdashConfig,
     }: AiAgentToolsServiceDependencies) {
         super();
@@ -378,6 +384,7 @@ export class AiAgentToolsService extends BaseService {
         this.aiAgentDocumentModel = aiAgentDocumentModel;
         this.featureFlagService = featureFlagService;
         this.previewDeploySetupService = previewDeploySetupService;
+        this.shareService = shareService;
         this.lightdashConfig = lightdashConfig;
     }
 
@@ -512,6 +519,7 @@ export class AiAgentToolsService extends BaseService {
             getDashboardCharts: (args) =>
                 this.getDashboardCharts(context, args),
             readContent: (args) => this.readContent(context, args),
+            resolveUrl: (args) => this.resolveUrl(context, args),
             editContent: (args) => this.editContent(context, args),
             createContent: (args) => this.createContent(context, args),
             validateContent: (args) => this.validateContent(args),
@@ -1351,6 +1359,51 @@ export class AiAgentToolsService extends BaseService {
                     default:
                         return assertUnreachable(type, 'Invalid content type');
                 }
+            },
+        );
+    }
+
+    private resolveUrl(
+        context: AiAgentToolsRuntimeContext,
+        { url }: Parameters<ResolveUrlFn>[0],
+    ): ReturnType<ResolveUrlFn> {
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(context)}.resolveUrl`,
+            { url },
+            async () => {
+                const siteOrigin = new URL(this.lightdashConfig.siteUrl).origin;
+                if (/^https?:\/\//i.test(url)) {
+                    let origin: string;
+                    try {
+                        origin = new URL(url).origin;
+                    } catch {
+                        throw new ParameterError(`"${url}" is not a valid URL`);
+                    }
+                    if (origin !== siteOrigin) {
+                        throw new ParameterError(
+                            `"${url}" does not belong to this Lightdash instance (${siteOrigin}), so it cannot be resolved`,
+                        );
+                    }
+                }
+
+                const shareNanoid = matchShareUrlNanoid(url);
+                if (shareNanoid === null) {
+                    return { isShareLink: false };
+                }
+
+                // Resolving through ShareService enforces the caller's org
+                // membership before revealing the destination.
+                const share = await this.shareService.getShareUrl(
+                    context.account,
+                    shareNanoid,
+                );
+                return {
+                    isShareLink: true,
+                    url: new URL(
+                        `${share.path}${share.params}`,
+                        this.lightdashConfig.siteUrl,
+                    ).href,
+                };
             },
         );
     }

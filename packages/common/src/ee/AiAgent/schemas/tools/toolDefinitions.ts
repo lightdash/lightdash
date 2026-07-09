@@ -230,6 +230,11 @@ import {
     toolReadPinnedThreadOutputSchema,
 } from './toolReadPinnedThreadArgs';
 import {
+    TOOL_RESOLVE_URL_DESCRIPTION,
+    toolResolveUrlArgsSchema,
+    toolResolveUrlOutputSchema,
+} from './toolResolveUrlArgs';
+import {
     TOOL_RUN_CONTENT_QUERY_DESCRIPTION,
     toolRunContentQueryArgsSchema,
     toolRunContentQueryOutputSchema,
@@ -690,6 +695,24 @@ export const readContentToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolReadContentOutputSchema },
     mcp: {
         name: 'read_content',
+        annotations: readOnlyAnnotations,
+    },
+});
+
+export const resolveUrlToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'resolveUrl',
+    typeof toolResolveUrlArgsSchema,
+    typeof toolResolveUrlArgsSchema,
+    typeof toolResolveUrlOutputSchema
+> = defineTool({
+    name: 'resolveUrl',
+    title: 'Resolve URL',
+    description: TOOL_RESOLVE_URL_DESCRIPTION,
+    availability: ['agent', 'mcp'],
+    inputSchema: toolResolveUrlArgsSchema,
+    agent: { outputSchema: toolResolveUrlOutputSchema },
+    mcp: {
+        name: 'resolve_url',
         annotations: readOnlyAnnotations,
     },
 });
@@ -1415,6 +1438,7 @@ type AgentToolDefinitionsByName = {
     generateUuids: typeof generateUuidsToolDefinition;
     getDashboardCharts: typeof getDashboardChartsToolDefinition;
     readContent: typeof readContentToolDefinition;
+    resolveUrl: typeof resolveUrlToolDefinition;
     editContent: typeof editContentToolDefinition;
     createContent: typeof createContentToolDefinition;
     runContentQuery: typeof runContentQueryToolDefinition;
@@ -1466,6 +1490,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     generateUuids: generateUuidsToolDefinition,
     getDashboardCharts: getDashboardChartsToolDefinition,
     readContent: readContentToolDefinition,
+    resolveUrl: resolveUrlToolDefinition,
     editContent: editContentToolDefinition,
     createContent: createContentToolDefinition,
     runContentQuery: runContentQueryToolDefinition,
@@ -1519,6 +1544,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     generateUuidsToolDefinition,
     getDashboardChartsToolDefinition,
     readContentToolDefinition,
+    resolveUrlToolDefinition,
     editContentToolDefinition,
     createContentToolDefinition,
     runContentQueryToolDefinition,
