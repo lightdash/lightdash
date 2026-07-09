@@ -769,6 +769,7 @@ const createOptimisticMessages = (
             referencedArtifacts: null,
             modelConfig: null,
             tokenUsage: null,
+            providerKeySource: null,
         },
     ];
 };

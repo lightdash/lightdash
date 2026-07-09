@@ -7905,6 +7905,30 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             provider: prompt.modelConfig?.modelProvider as AnyType,
         });
 
+        // Record which key this turn runs on (org BYOK vs Lightdash default) so
+        // the UI can show it. Resolve against the provider getModel actually
+        // used — the explicit request provider, else the (possibly BYO-switched)
+        // config default. Best-effort: never block generation on this write.
+        const usedProvider =
+            prompt.modelConfig?.modelProvider ?? copilotConfig.defaultProvider;
+        void this.orgAiCopilotConfigResolver
+            .resolveProviderKeySource(
+                promptProject.organizationUuid,
+                usedProvider,
+            )
+            .then((providerKeySource) =>
+                this.aiAgentModel.updatePromptProviderKeySource({
+                    promptUuid: prompt.promptUuid,
+                    providerKeySource,
+                }),
+            )
+            .catch((error) => {
+                Logger.error(
+                    'Failed to record AI agent provider key source',
+                    error,
+                );
+            });
+
         // editProjectContext is scoped to review-remediation work threads, so a
         // normal chat never exposes it. Resolve from the thread (not just the
         // explicit option) so user-driven follow-ups in the workspace — where

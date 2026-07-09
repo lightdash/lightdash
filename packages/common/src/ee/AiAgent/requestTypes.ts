@@ -20,6 +20,15 @@ export type AiAgentModelConfig = {
 };
 
 /**
+ * Which API key produced a response:
+ * - `byok`: the organization's own (bring-your-own) provider API key
+ * - `default`: Lightdash's instance/default provider API key
+ */
+export const AI_AGENT_PROVIDER_KEY_SOURCES = ['byok', 'default'] as const;
+export type AiAgentProviderKeySource =
+    (typeof AI_AGENT_PROVIDER_KEY_SOURCES)[number];
+
+/**
  * Runtime state captured at pin time for a chart context. When a user pins a
  * chart from a dashboard view, these are the dashboard-level overrides that
  * were applied to the chart on screen at that moment.

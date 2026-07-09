@@ -884,6 +884,7 @@ const makeThread = (scenario: ThreadScenario): AiAgentThread => {
                 reasoning: true,
             },
             tokenUsage: null,
+            providerKeySource: null,
         };
     });
 

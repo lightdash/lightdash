@@ -372,6 +372,69 @@ describe('OrgAiCopilotConfigResolver', () => {
         });
     });
 
+    describe('resolveProviderKeySource', () => {
+        it('is default without an organization uuid', async () => {
+            const resolver = makeResolver({ flagEnabled: true });
+            expect(
+                await resolver.resolveProviderKeySource(null, 'openai'),
+            ).toBe('default');
+        });
+
+        it('is default for a non-BYO provider even with a key set', async () => {
+            const resolver = makeResolver({
+                flagEnabled: true,
+                orgKeys: { openai: 'org-openai-key' },
+            });
+            expect(
+                await resolver.resolveProviderKeySource('org-uuid', 'azure'),
+            ).toBe('default');
+        });
+
+        it('is default for a provider the instance does not configure', async () => {
+            // baseConfig only configures openai, so anthropic can never be BYO.
+            const resolver = makeResolver({
+                flagEnabled: true,
+                orgKeys: { anthropic: 'org-anthropic-key' },
+            });
+            expect(
+                await resolver.resolveProviderKeySource(
+                    'org-uuid',
+                    'anthropic',
+                ),
+            ).toBe('default');
+        });
+
+        it('is default when the feature flag is off', async () => {
+            const resolver = makeResolver({
+                flagEnabled: false,
+                orgKeys: { openai: 'org-openai-key' },
+            });
+            expect(
+                await resolver.resolveProviderKeySource('org-uuid', 'openai'),
+            ).toBe('default');
+        });
+
+        it('is default when the org has no key for the provider', async () => {
+            const resolver = makeResolver({
+                flagEnabled: true,
+                orgKeys: null,
+            });
+            expect(
+                await resolver.resolveProviderKeySource('org-uuid', 'openai'),
+            ).toBe('default');
+        });
+
+        it('is byok when the org supplied a key for an instance-configured BYO provider', async () => {
+            const resolver = makeResolver({
+                flagEnabled: true,
+                orgKeys: { openai: 'org-openai-key' },
+            });
+            expect(
+                await resolver.resolveProviderKeySource('org-uuid', 'openai'),
+            ).toBe('byok');
+        });
+    });
+
     describe('getReviewJudgeAvailability', () => {
         const none = { hasActiveByoKey: false, canJudgeOnByoKey: false };
 
