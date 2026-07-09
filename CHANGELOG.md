@@ -1,3 +1,12 @@
+# [0.3352.0](https://github.com/lightdash/lightdash/compare/0.3351.0...0.3352.0) (2026-07-09)
+
+
+### Features
+
+* **mcp:** assign session ids to group tool calls ([#25328](https://github.com/lightdash/lightdash/issues/25328)) ([9417a7f](https://github.com/lightdash/lightdash/commit/9417a7fda3fb3e185de442e491dbdb9ea1262504))
+* **mcp:** group activity table tool calls by session ([#25334](https://github.com/lightdash/lightdash/issues/25334)) ([d3a789e](https://github.com/lightdash/lightdash/commit/d3a789e156163cbc191860d5b38246b1e0221965)), closes [#25328](https://github.com/lightdash/lightdash/issues/25328) [#25335](https://github.com/lightdash/lightdash/issues/25335)
+* **mcp:** server-side session segmentation for activity grouping ([#25335](https://github.com/lightdash/lightdash/issues/25335)) ([52b709a](https://github.com/lightdash/lightdash/commit/52b709a76bae8e9e06c39f0ebb9c5f826a2379ac)), closes [#25334](https://github.com/lightdash/lightdash/issues/25334)
+
 # [0.3351.0](https://github.com/lightdash/lightdash/compare/0.3350.0...0.3351.0) (2026-07-09)
 
 
