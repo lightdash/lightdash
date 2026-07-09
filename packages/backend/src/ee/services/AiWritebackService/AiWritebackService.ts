@@ -4,6 +4,7 @@ import {
     FeatureFlags,
     ForbiddenError,
     getErrorMessage,
+    isAiWritebackRunInProgress,
     isGitProjectType,
     isUserWithOrg,
     MissingConfigError,
@@ -15,7 +16,9 @@ import {
     SupportedDbtVersions,
     WarehouseTypes,
     type AiWritebackDbtSourceOption,
+    type AiWritebackPipelineJobPayload,
     type AiWritebackRunResult,
+    type AiWritebackRunStatus,
     type AiWritebackStep,
     type ClosePullRequestResult,
     type DbtProjectConfig,
@@ -49,17 +52,20 @@ import type { GitlabAppInstallationsModel } from '../../../models/GitlabAppInsta
 import type { ProjectDbtSourcesModel } from '../../../models/ProjectDbtSourcesModel';
 import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type { PullRequestsModel } from '../../../models/PullRequestsModel';
+import type { UserModel } from '../../../models/UserModel';
 import type PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
 import { BaseService } from '../../../services/BaseService';
 import type { CiService } from '../../../services/CiService/CiService';
 import type { GithubAppService } from '../../../services/GithubAppService/GithubAppService';
 import type { ProjectService } from '../../../services/ProjectService/ProjectService';
+import type { AiWritebackRunModel } from '../../models/AiWritebackRunModel';
 import type {
     AiWritebackThreadModel,
     AiWritebackThreadWithPrUrl,
     ResumableWritebackThread,
 } from '../../models/AiWritebackThreadModel';
 import type { SandboxRegistryModel } from '../../models/SandboxRegistryModel';
+import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import {
     createSandboxManager,
     S3SnapshotStore,
@@ -153,6 +159,14 @@ const WRITEBACK_WORKSPACE: PersistentWorkspace = {
     exclude: ['node_modules'],
 };
 
+// A run only lingers non-terminal past the pipeline job's own 30-min timeout
+// when the worker died before it could be finalized. Sweep well beyond that
+// hard timeout so an in-flight or just-timing-out run is never falsely errored.
+const STALE_RUN_THRESHOLD_MINUTES = 45;
+
+const STALE_RUN_ERROR_MESSAGE =
+    'This change stopped unexpectedly before it finished, most likely because the server restarted mid-run. Please ask again to retry.';
+
 // Maps the applied-changes outcome to the PR action surfaced to the user: a
 // fresh PR is 'opened', a resumed thread or adopted pasted-link PR is
 // 'updated', and no PR touched is null.
@@ -199,11 +213,14 @@ type AiWritebackServiceDeps = {
     githubAppService: GithubAppService;
     gitlabAppInstallationsModel: GitlabAppInstallationsModel;
     aiWritebackThreadModel: AiWritebackThreadModel;
+    aiWritebackRunModel: AiWritebackRunModel;
     sandboxRegistryModel: SandboxRegistryModel;
     pullRequestsModel: PullRequestsModel;
     prometheusMetrics?: PrometheusMetrics;
     ciService: CiService;
     projectService: ProjectService;
+    userModel: UserModel;
+    schedulerClient: CommercialSchedulerClient;
 };
 
 /** One repository in the source-code read union, plus the token that reads it. */
@@ -384,20 +401,10 @@ export class AiWritebackService extends BaseService {
 
     private readonly aiWritebackThreadModel: AiWritebackThreadModel;
 
+    private readonly aiWritebackRunModel: AiWritebackRunModel;
+
     private readonly sandboxRegistryModel: SandboxRegistryModel;
 
-    // In-flight WORKSTREAM lock keys, so a second concurrent turn on the same
-    // workstream (one sandbox + one PR) is rejected rather than racing the first.
-    // Distinct workstreams — different PRs, even on the same repo — run in
-    // parallel. SINGLE-INSTANCE, BEST-EFFORT ONLY: this is an in-process Set, so a
-    // horizontally-scaled backend relies on the chat UI serializing turns per
-    // thread. The partial unique index is keyed on (ai_thread_uuid,
-    // pull_request_uuid) — it does NOT prevent two concurrent fresh turns for the
-    // same (thread, repo) on different pods from each opening a distinct PR (each
-    // gets a different pull_request_uuid, so both inserts satisfy the index). The
-    // worst case is a benign duplicate PR (no data loss / security hole); a DB
-    // advisory lock or a (thread, target_repo) unique is the cross-pod fix (H1).
-    // Cleared in the run's finally.
     private readonly inFlightWorkstreams = new Set<string>();
 
     // Count of in-flight coding-agent turns per thread, so the per-workstream
@@ -420,6 +427,10 @@ export class AiWritebackService extends BaseService {
 
     private readonly projectService: ProjectService;
 
+    private readonly userModel: UserModel;
+
+    private readonly schedulerClient: CommercialSchedulerClient;
+
     /** Memoized sandbox provider (e2b | docker), selected by SANDBOX_PROVIDER. */
     private sandboxManager: SandboxManager | undefined;
 
@@ -433,11 +444,14 @@ export class AiWritebackService extends BaseService {
         githubAppService,
         gitlabAppInstallationsModel,
         aiWritebackThreadModel,
+        aiWritebackRunModel,
         sandboxRegistryModel,
         pullRequestsModel,
         prometheusMetrics,
         ciService,
         projectService,
+        userModel,
+        schedulerClient,
     }: AiWritebackServiceDeps) {
         super({ serviceName: 'AiWritebackService' });
         this.lightdashConfig = lightdashConfig;
@@ -446,12 +460,15 @@ export class AiWritebackService extends BaseService {
         this.projectDbtSourcesModel = projectDbtSourcesModel;
         this.featureFlagModel = featureFlagModel;
         this.aiWritebackThreadModel = aiWritebackThreadModel;
+        this.aiWritebackRunModel = aiWritebackRunModel;
         this.sandboxRegistryModel = sandboxRegistryModel;
         this.pullRequestsModel = pullRequestsModel;
         this.prometheusMetrics = prometheusMetrics;
         this.githubAppService = githubAppService;
         this.ciService = ciService;
         this.projectService = projectService;
+        this.userModel = userModel;
+        this.schedulerClient = schedulerClient;
         this.githubProvider = new GithubProvider({
             githubAppInstallationsModel,
             githubAppService,
@@ -1389,6 +1406,11 @@ export class AiWritebackService extends BaseService {
         return Math.round(performance.now() - start);
     }
 
+    private static truncateEnd(text: string, maxLength: number): string {
+        if (text.length <= maxLength) return text;
+        return `...[truncated ${text.length - maxLength} chars]...${text.slice(-maxLength)}`;
+    }
+
     private async createSandbox(
         organizationUuid: string,
         projectUuid: string,
@@ -1554,6 +1576,165 @@ export class AiWritebackService extends BaseService {
         return this.runCodingAgent(args, this.dbtWritebackConfig());
     }
 
+    async createPendingRun(args: {
+        user: SessionUser;
+        projectUuid: string;
+        aiThreadUuid: string | undefined;
+        source: AiWritebackSource;
+        // The chat tool call this run fulfils, so a stuck-run sweep can un-stick
+        // its card and not only the run row. Null for non-chat callers.
+        promptUuid: string | null;
+        toolCallId: string | null;
+    }): Promise<{ aiWritebackRunUuid: string }> {
+        if (!isUserWithOrg(args.user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const project = await this.projectModel.get(args.projectUuid);
+        this.assertCanManageSourceCode(args.user, project, args.projectUuid);
+        const runRow = await this.aiWritebackRunModel.create({
+            organizationUuid: args.user.organizationUuid,
+            projectUuid: args.projectUuid,
+            aiThreadUuid: args.aiThreadUuid ?? null,
+            createdByUserUuid: args.user.userUuid,
+            source: args.source,
+            promptUuid: args.promptUuid,
+            toolCallId: args.toolCallId,
+        });
+        return { aiWritebackRunUuid: runRow.ai_writeback_run_uuid };
+    }
+
+    async enqueueWriteback(
+        args: Omit<AiWritebackRunArgs, 'onProgress' | 'aiWritebackRunUuid'>,
+    ): Promise<{ aiWritebackRunUuid: string }> {
+        const { user, projectUuid, aiThreadUuid, source } = args;
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const project = await this.projectModel.get(projectUuid);
+        this.assertCanManageSourceCode(user, project, projectUuid);
+        const runRow = await this.aiWritebackRunModel.create({
+            organizationUuid: user.organizationUuid,
+            projectUuid,
+            aiThreadUuid: aiThreadUuid ?? null,
+            createdByUserUuid: user.userUuid,
+            source,
+            promptUuid: null,
+            toolCallId: null,
+        });
+        await this.schedulerClient.aiWritebackPipeline({
+            aiWritebackRunUuid: runRow.ai_writeback_run_uuid,
+            organizationUuid: user.organizationUuid,
+            projectUuid,
+            userUuid: user.userUuid,
+            prompt: args.prompt,
+            aiThreadUuid: args.aiThreadUuid,
+            dbtSourceUuid: args.dbtSourceUuid,
+            prUrl: args.prUrl,
+            startNewPullRequest: args.startNewPullRequest,
+            source,
+        });
+        return { aiWritebackRunUuid: runRow.ai_writeback_run_uuid };
+    }
+
+    async runPipeline(payload: AiWritebackPipelineJobPayload): Promise<void> {
+        const { aiWritebackRunUuid, organizationUuid, userUuid } = payload;
+        const runRow =
+            await this.aiWritebackRunModel.findByUuid(aiWritebackRunUuid);
+        if (!runRow || !isAiWritebackRunInProgress(runRow.status)) {
+            this.logger.info(
+                `AiWriteback: pipeline skipped — run ${aiWritebackRunUuid} is ${
+                    runRow?.status ?? 'missing'
+                }`,
+            );
+            return;
+        }
+        const user = await this.userModel.findSessionUserAndOrgByUuid(
+            userUuid,
+            organizationUuid,
+        );
+        await this.run({
+            user,
+            projectUuid: payload.projectUuid,
+            prompt: payload.prompt,
+            aiThreadUuid: payload.aiThreadUuid,
+            dbtSourceUuid: payload.dbtSourceUuid,
+            prUrl: payload.prUrl,
+            startNewPullRequest: payload.startNewPullRequest,
+            source: payload.source,
+            aiWritebackRunUuid,
+        });
+    }
+
+    async markRunError(
+        aiWritebackRunUuid: string,
+        message: string,
+    ): Promise<boolean> {
+        return this.aiWritebackRunModel.markError(aiWritebackRunUuid, message);
+    }
+
+    /**
+     * Out-of-band recovery for runs orphaned by a dead worker: mark every
+     * run stuck non-terminal past the stale threshold as errored, and return
+     * their chat-tool-call linkage so the caller can also fail the chat card
+     * (which reflects the tool-result row, not the run row). In-process
+     * failures and the job timeout already finalize their own runs; this only
+     * catches the case where neither could run because the process itself died.
+     */
+    async sweepStaleRuns(): Promise<
+        Array<{
+            aiWritebackRunUuid: string;
+            promptUuid: string | null;
+            toolCallId: string | null;
+        }>
+    > {
+        const swept = await this.aiWritebackRunModel.markStaleRunsAsError(
+            STALE_RUN_THRESHOLD_MINUTES,
+            STALE_RUN_ERROR_MESSAGE,
+        );
+        if (swept.length > 0) {
+            this.logger.warn(
+                `AiWriteback: swept ${swept.length} stale run(s) stuck non-terminal for over ${STALE_RUN_THRESHOLD_MINUTES}m (worker likely died mid-run)`,
+            );
+        }
+        return swept.map((row) => ({
+            aiWritebackRunUuid: row.ai_writeback_run_uuid,
+            promptUuid: row.prompt_uuid,
+            toolCallId: row.tool_call_id,
+        }));
+    }
+
+    async getRunStatus(
+        user: SessionUser,
+        aiWritebackRunUuid: string,
+    ): Promise<{
+        status: AiWritebackRunStatus;
+        prUrl: string | null;
+        errorMessage: string | null;
+    }> {
+        const runRow =
+            await this.aiWritebackRunModel.findByUuid(aiWritebackRunUuid);
+        if (!runRow) {
+            throw new NotFoundError(
+                `Writeback run ${aiWritebackRunUuid} not found`,
+            );
+        }
+        if (
+            !isUserWithOrg(user) ||
+            runRow.organization_uuid !== user.organizationUuid
+        ) {
+            throw new ForbiddenError();
+        }
+        await this.assertSourceCodeAccess({
+            user,
+            projectUuid: runRow.project_uuid,
+        });
+        return {
+            status: runRow.status,
+            prUrl: runRow.pr_url,
+            errorMessage: runRow.error_message,
+        };
+    }
+
     /**
      * Shared coding-agent core: sandbox lifecycle, network lockdown, the agent
      * invocation + stream parsing, the signed-commit → PR pipeline, timeouts,
@@ -1576,8 +1757,73 @@ export class AiWritebackService extends BaseService {
             source,
             dbtSourceUuid,
             onProgress,
+            aiWritebackRunUuid,
         } = args;
         const runStartedAt = performance.now();
+        const persistStage = (stage: AiWritebackFailureStage): void => {
+            if (!aiWritebackRunUuid) return;
+            this.aiWritebackRunModel
+                .updateStageIfInProgress(aiWritebackRunUuid, stage)
+                .catch((error: unknown) => {
+                    this.logger.warn(
+                        `AiWriteback: failed to persist run stage — ignoring: ${getErrorMessage(error)}`,
+                    );
+                });
+        };
+        const persistTerminalStatus = async (
+            write: () => Promise<boolean>,
+            label: string,
+        ): Promise<boolean> => {
+            if (!aiWritebackRunUuid) return true;
+            const maxAttempts = 3;
+            for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+                try {
+                    // eslint-disable-next-line no-await-in-loop
+                    return await write();
+                } catch (error) {
+                    if (attempt === maxAttempts) {
+                        this.logger.warn(
+                            `AiWriteback: failed to persist ${label} after ${maxAttempts} attempts — reporting to Sentry: ${getErrorMessage(error)}`,
+                        );
+                        Sentry.captureException(error, {
+                            tags: {
+                                errorType:
+                                    'AiWritebackPersistTerminalStatusFailed',
+                                label,
+                            },
+                            extra: { aiWritebackRunUuid },
+                        });
+                        return true;
+                    }
+                    // eslint-disable-next-line no-await-in-loop
+                    await new Promise((resolve) => {
+                        setTimeout(resolve, 200 * attempt);
+                    });
+                }
+            }
+            return true;
+        };
+        const persistRunReady = (finalPrUrl: string | null): Promise<boolean> =>
+            persistTerminalStatus(
+                () =>
+                    this.aiWritebackRunModel.markReady(aiWritebackRunUuid!, {
+                        branchName: null,
+                        prUrl: finalPrUrl,
+                    }),
+                'run ready status',
+            );
+        const persistRunFailed = (error: unknown): Promise<boolean> =>
+            persistTerminalStatus(
+                () =>
+                    this.aiWritebackRunModel.markError(
+                        aiWritebackRunUuid!,
+                        AiWritebackService.truncateEnd(
+                            getErrorMessage(error),
+                            4000,
+                        ),
+                    ),
+                'run error status',
+            );
 
         // Ordered, structured log of every step (stages + per-file actions),
         // persisted as the writeback step rows so the post-reload view matches
@@ -1606,19 +1852,43 @@ export class AiWritebackService extends BaseService {
             reportProgress(text);
         };
 
-        const prepared = await this.prepareTurn({
-            user,
-            projectUuid,
-            prompt,
-            aiThreadUuid,
-            source,
-            dbtSourceUuid,
-            featureFlag: config.featureFlag,
-            mode: config.mode,
-            repoTarget: args.repoTarget,
-            prUrl,
-            startNewPullRequest,
-        });
+        // Mark the run as picked up by a worker (pending → 'install') before any
+        // real work, so the stale sweeper can tell a run a worker is actively
+        // running from one not yet started by any worker (which stays 'pending'
+        // and must never be swept). Best-effort: a mark failure only risks a
+        // rare dying run staying 'pending' and unswept — no worse than before
+        // this guard existed.
+        if (aiWritebackRunUuid) {
+            await this.aiWritebackRunModel
+                .updateStageIfInProgress(aiWritebackRunUuid, 'install')
+                .catch((error: unknown) => {
+                    this.logger.warn(
+                        `AiWriteback: failed to mark run started — ${getErrorMessage(
+                            error,
+                        )}`,
+                    );
+                });
+        }
+
+        let prepared: PreparedTurn;
+        try {
+            prepared = await this.prepareTurn({
+                user,
+                projectUuid,
+                prompt,
+                aiThreadUuid,
+                source,
+                dbtSourceUuid,
+                featureFlag: config.featureFlag,
+                mode: config.mode,
+                repoTarget: args.repoTarget,
+                prUrl,
+                startNewPullRequest,
+            });
+        } catch (error) {
+            await persistRunFailed(error);
+            throw error;
+        }
 
         // The project has more than one dbt source and the prompt didn't pin a
         // single one down. Ask the caller to choose before spending a sandbox —
@@ -1631,6 +1901,11 @@ export class AiWritebackService extends BaseService {
                 aiThreadUuid: aiThreadUuid ?? null,
                 optionCount: prepared.options.length,
             });
+            await persistRunFailed(
+                new Error(
+                    `This project has more than one dbt source; re-run naming one of: ${prepared.options.map((o) => o.name).join(', ')}`,
+                ),
+            );
             return AiWritebackService.buildDbtSourceSelectionResult(
                 prepared.projectName,
                 prepared.options,
@@ -1657,7 +1932,16 @@ export class AiWritebackService extends BaseService {
         // tracking so a rejection neither starts analytics nor enters the finally
         // that clears the winner's slot.
         const lockKey = workstreamLockKey(aiThreadUuid, turn, repository);
-        this.assertTurnSlotAvailable(aiThreadUuid, lockKey, turn.existingRow);
+        try {
+            this.assertTurnSlotAvailable(
+                aiThreadUuid,
+                lockKey,
+                turn.existingRow,
+            );
+        } catch (error) {
+            await persistRunFailed(error);
+            throw error;
+        }
 
         const tracker = this.startTracking({ user, projectUuid, turn });
 
@@ -1681,6 +1965,7 @@ export class AiWritebackService extends BaseService {
             );
             failureStage = stage;
             stageStartedAt = now;
+            persistStage(stage);
             // Stages can opt out of progress reporting by returning null
             // from progressTextForStage when their label would duplicate
             // the parent tool's heading or otherwise add no signal.
@@ -1708,11 +1993,13 @@ export class AiWritebackService extends BaseService {
             : null;
         if (lockKey && !workstreamLock) {
             this.releaseTurnSlot(aiThreadUuid, lockKey);
-            throw new ParameterError(
+            const lockBusyError = new ParameterError(
                 turn.existingRow
                     ? 'An edit is already in progress for this pull request (possibly on another server instance). Please wait for it to finish before making another change.'
                     : 'An edit is already in progress for this repository (possibly on another server instance). Please wait for it to finish before making another change.',
             );
+            await persistRunFailed(lockBusyError);
+            throw lockBusyError;
         }
         try {
             const installation = await turn.provider.resolveInstallation(
@@ -1826,30 +2113,13 @@ export class AiWritebackService extends BaseService {
                         ),
                     },
                 );
-                tracker.completed({
-                    exitCode: agent.exitCode,
-                    hasChanges,
-                    prCreated: false,
-                    usage: agent.usage,
-                });
                 const crashPrUrl =
                     turn.existingRow?.pr_url ?? adoptedPr?.prUrl ?? null;
-                return {
-                    output: sanitizedStdout,
-                    exitCode: agent.exitCode,
-                    prUrl: crashPrUrl,
-                    // The agent crashed before pushing changes, so any PR here
-                    // is a pre-existing one — never newly opened, and this turn
-                    // pushed no commit to pin to.
-                    prAction: crashPrUrl ? 'updated' : null,
-                    commitSha: null,
-                    additions: null,
-                    deletions: null,
-                    projectName: turn.projectName,
-                    repository,
-                    steps: stepLog,
-                    dbtSourceUuid: turn.projectDbtSourceUuid,
-                };
+                throw new Error(
+                    crashPrUrl
+                        ? `The coding agent exited with code ${agent.exitCode} before making any new changes. The pull request from an earlier turn (${crashPrUrl}) is unaffected.`
+                        : `The coding agent exited with code ${agent.exitCode} and no pull request was created.`,
+                );
             }
 
             const applied = await this.applyAgentChanges({
@@ -1898,6 +2168,7 @@ export class AiWritebackService extends BaseService {
                 performance.now() - runStartedAt,
                 'success',
             );
+            await persistRunReady(applied.prUrl);
 
             return {
                 output: sanitizedStdout,
@@ -1940,6 +2211,7 @@ export class AiWritebackService extends BaseService {
                 },
             });
             tracker.failed(failureStage, error);
+            await persistRunFailed(error);
             throw error;
         } finally {
             this.releaseTurnSlot(aiThreadUuid, lockKey);

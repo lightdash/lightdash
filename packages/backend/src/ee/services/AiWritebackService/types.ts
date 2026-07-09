@@ -1,5 +1,6 @@
 import { type FeatureFlags } from '@lightdash/common';
 import type {
+    AiWritebackSource,
     PullRequestProvider,
     SessionUser,
     SupportedDbtVersions,
@@ -247,13 +248,7 @@ export type AppliedChanges = {
     deletions: number | null;
 };
 
-export type AiWritebackSource =
-    | 'slack'
-    | 'web'
-    | 'mcp'
-    | 'api'
-    | 'admin_review'
-    | 'changeset';
+export type { AiWritebackSource };
 
 export type AgentToolCall = {
     name: string;
@@ -367,4 +362,5 @@ export type AiWritebackRunArgs = {
      * progress live (the Slack agent updates its "Thinking…" message).
      */
     onProgress?: (message: string) => void;
+    aiWritebackRunUuid?: string;
 };

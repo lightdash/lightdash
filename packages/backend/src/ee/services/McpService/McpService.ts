@@ -22,6 +22,7 @@ import {
     findExploresToolDefinition,
     findFieldsToolDefinition,
     ForbiddenError,
+    getAiWritebackStatusToolDefinition,
     getCurrentAgentToolDefinition,
     getCurrentProjectToolDefinition,
     getErrorMessage,
@@ -181,6 +182,7 @@ export enum McpToolName {
     SEARCH_FIELD_VALUES = 'search_field_values',
     LIST_VERIFIED_CONTENT = 'list_verified_content',
     RUN_AI_WRITEBACK = 'run_ai_writeback',
+    GET_AI_WRITEBACK_STATUS = 'get_ai_writeback_status',
     LIST_SKILLS = 'list_skills',
     READ_SKILL = 'read_skill',
     READ_SKILL_RESOURCE = 'read_skill_resource',
@@ -190,6 +192,8 @@ export enum McpToolName {
 const MCP_SKILLS_EXTENSION_NAME = 'io.modelcontextprotocol/skills';
 
 const mcpRunAiWritebackTool = runAiWritebackToolDefinition.for('mcp');
+const mcpGetAiWritebackStatusTool =
+    getAiWritebackStatusToolDefinition.for('mcp');
 const mcpGetLightdashVersionTool = getLightdashVersionToolDefinition.for('mcp');
 const mcpListExploresTool = listExploresToolDefinition.for('mcp');
 const mcpFindExploresTool = findExploresToolDefinition.for('mcp');
@@ -1128,44 +1132,18 @@ export class McpService extends BaseService {
                 const projectUuid = await this.resolveProjectUuid(ctx);
 
                 try {
-                    const result = await this.aiWritebackService.run({
-                        user,
-                        projectUuid,
-                        prompt: args.prompt,
-                        source: 'mcp',
-                    });
-
-                    let summary: string;
-                    if (result.needsDbtSourceSelection) {
-                        // The project has several dbt sources and the prompt
-                        // didn't name one. Surface the choices by name/repo and
-                        // ask the agent to re-run naming the source in the prompt
-                        // — no id round-trip. No PR was opened.
-                        const choices = (result.dbtSourceOptions ?? [])
-                            .map(
-                                (option) =>
-                                    `- ${option.name}${
-                                        option.repository
-                                            ? ` (${option.repository})`
-                                            : ''
-                                    }${option.isPrimary ? ' [primary]' : ''}`,
-                            )
-                            .join('\n');
-                        summary = `This project has more than one dbt source, so I couldn't tell which one to change. Ask again and name the source in your request (e.g. "In jaffle-2, ..."). Available sources:\n${choices}`;
-                    } else {
-                        summary = result.prUrl
-                            ? `AI writeback complete. Pull request opened: ${result.prUrl}`
-                            : 'AI writeback complete. The agent made no file changes, so no pull request was opened.';
-                    }
+                    const { aiWritebackRunUuid } =
+                        await this.aiWritebackService.enqueueWriteback({
+                            user,
+                            projectUuid,
+                            prompt: args.prompt,
+                            source: 'mcp',
+                        });
 
                     return await this.buildScopedResponse(
                         ctx,
-                        `${summary}\n\n${result.output}`,
-                        {
-                            output: result.output,
-                            exitCode: result.exitCode,
-                            prUrl: result.prUrl,
-                        },
+                        `Started AI writeback (run ${aiWritebackRunUuid}). This can take several minutes — call get_ai_writeback_status with this id to check progress and get the pull request URL once it's ready.`,
+                        { aiWritebackRunUuid },
                         projectUuid,
                     );
                 } catch (e) {
@@ -1178,7 +1156,67 @@ export class McpService extends BaseService {
                         content: [
                             {
                                 type: 'text' as const,
-                                text: `Error running AI writeback: ${errorMessage}`,
+                                text: `Error starting AI writeback: ${errorMessage}`,
+                            },
+                        ],
+                        isError: true,
+                    };
+                }
+            },
+        );
+    }
+
+    private registerGetAiWritebackStatusTool(): void {
+        this.registerTrackedTool(
+            mcpGetAiWritebackStatusTool.name,
+            {
+                title: mcpGetAiWritebackStatusTool.title,
+                description: mcpGetAiWritebackStatusTool.description,
+                inputSchema: mcpGetAiWritebackStatusTool.inputSchema.shape,
+                outputSchema: mcpGetAiWritebackStatusTool.outputSchema.shape,
+                annotations: mcpGetAiWritebackStatusTool.annotations,
+            },
+            async (args, extra) => {
+                const ctx = getMcpContext(extra);
+
+                const { user } = McpService.getAccount(ctx);
+                const projectUuid = await this.resolveProjectUuid(ctx);
+
+                try {
+                    const { status, prUrl, errorMessage } =
+                        await this.aiWritebackService.getRunStatus(
+                            user,
+                            args.aiWritebackRunUuid,
+                        );
+
+                    let summary: string;
+                    if (status === 'ready') {
+                        summary = prUrl
+                            ? `AI writeback complete. Pull request opened: ${prUrl}`
+                            : 'AI writeback complete. The agent made no file changes, so no pull request was opened.';
+                    } else if (status === 'error') {
+                        summary = `AI writeback failed: ${errorMessage ?? 'unknown error'}`;
+                    } else {
+                        summary = `AI writeback still running (stage: ${status}). Check back in 10-15 seconds.`;
+                    }
+
+                    return await this.buildScopedResponse(
+                        ctx,
+                        summary,
+                        { status, prUrl, errorMessage },
+                        projectUuid,
+                    );
+                } catch (e) {
+                    const errorMessage =
+                        e instanceof Error ? e.message : String(e);
+                    this.logger.error(
+                        `[McpService] Error in get_ai_writeback_status tool: ${errorMessage}`,
+                    );
+                    return {
+                        content: [
+                            {
+                                type: 'text' as const,
+                                text: `Error getting AI writeback status: ${errorMessage}`,
                             },
                         ],
                         isError: true,
@@ -2787,6 +2825,7 @@ export class McpService extends BaseService {
         // (mcpRouter.ts) and passed through createServer.
         if (options.aiWritebackEnabled) {
             this.registerRunAiWritebackTool();
+            this.registerGetAiWritebackStatusTool();
         }
 
         this.mcpServer.registerPrompt(

@@ -505,13 +505,9 @@ export type EditDbtProjectFn = (args: {
     /** Open a new PR instead of continuing the thread's existing one. */
     startNewPullRequest: boolean | null;
     progressId?: string;
-}) => Promise<
-    AiWritebackRunResult & {
-        previewDeployConfigured: boolean | null;
-        /** Server-side preview built from the PR's head branch; null when unsupported or failed. */
-        previewUrl: string | null;
-    }
->;
+}) => Promise<{
+    aiWritebackRunUuid: string;
+}>;
 
 // Applies a structured project-context entry to lightdash.project_context.yml
 // via the deterministic GitHub-API merge (no sandbox) and opens/updates a PR.

@@ -33,6 +33,7 @@ import { AiAgentReviewClassifierModel } from './models/AiAgentReviewClassifierMo
 import { AiAgentReviewNotificationModel } from './models/AiAgentReviewNotificationModel';
 import { AiOrganizationSettingsModel } from './models/AiOrganizationSettingsModel';
 import { AiRouterModel } from './models/AiRouterModel';
+import { AiWritebackRunModel } from './models/AiWritebackRunModel';
 import { AiWritebackThreadModel } from './models/AiWritebackThreadModel';
 import { CommercialFeatureFlagModel } from './models/CommercialFeatureFlagModel';
 import { CommercialSlackAuthenticationModel } from './models/CommercialSlackAuthenticationModel';
@@ -134,6 +135,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 models,
                 repository,
                 prometheusMetrics,
+                clients,
             }) =>
                 new AiWritebackService({
                     lightdashConfig: context.lightdashConfig,
@@ -148,12 +150,17 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getGitlabAppInstallationsModel(),
                     aiWritebackThreadModel:
                         models.getAiWritebackThreadModel<AiWritebackThreadModel>(),
+                    aiWritebackRunModel:
+                        models.getAiWritebackRunModel<AiWritebackRunModel>(),
                     sandboxRegistryModel:
                         models.getSandboxRegistryModel<SandboxRegistryModel>(),
                     pullRequestsModel: models.getPullRequestsModel(),
                     prometheusMetrics,
                     ciService: repository.getCiService(),
                     projectService: repository.getProjectService(),
+                    userModel: models.getUserModel(),
+                    schedulerClient:
+                        clients.getSchedulerClient() as CommercialSchedulerClient,
                 }),
             previewDeploySetupService: ({ context, models }) =>
                 new PreviewDeploySetupService({
@@ -837,6 +844,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new AiAgentDocumentModel({ database }),
             aiWritebackThreadModel: ({ database }) =>
                 new AiWritebackThreadModel({ database }),
+            aiWritebackRunModel: ({ database }) =>
+                new AiWritebackRunModel({ database }),
             sandboxRegistryModel: ({ database }) =>
                 new SandboxRegistryModel({ database }),
             projectCiStatusModel: ({ database }) =>
@@ -911,6 +920,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 schedulerAiAugmentation:
                     context.serviceRepository.getSchedulerAiAugmentationService<SchedulerAiAugmentationService>(),
                 aiAgentService: context.serviceRepository.getAiAgentService(),
+                aiWritebackService:
+                    context.serviceRepository.getAiWritebackService<AiWritebackService>(),
                 catalogService: context.serviceRepository.getCatalogService(),
                 encryptionUtil: context.utils.getEncryptionUtil(),
                 msTeamsClient: context.clients.getMsTeamsClient(),

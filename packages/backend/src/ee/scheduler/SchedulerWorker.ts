@@ -23,6 +23,7 @@ import { AiAgentAdminService } from '../services/AiAgentAdminService';
 import { AiAgentReviewClassifierService } from '../services/AiAgentReviewClassifierService';
 import { type AiAgentReviewNotificationService } from '../services/AiAgentReviewNotificationService';
 import { AiAgentService } from '../services/AiAgentService/AiAgentService';
+import type { AiWritebackService } from '../services/AiWritebackService/AiWritebackService';
 import { AppGenerateService } from '../services/AppGenerateService/AppGenerateService';
 import type { EmbedService } from '../services/EmbedService/EmbedService';
 import { ManagedAgentService } from '../services/ManagedAgentService/ManagedAgentService';
@@ -35,9 +36,11 @@ const AI_AGENT_REVIEW_REMEDIATION_RUN_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 const AI_AGENT_REVIEW_CLASSIFIER_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
 const AI_AGENT_REVIEW_WRITEBACK_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const APP_GENERATE_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
+const AI_WRITEBACK_TIMEOUT_MS = 30 * 60 * 1000;
 
 type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     aiAgentService: AiAgentService;
+    aiWritebackService: AiWritebackService;
     aiAgentReviewClassifierService: AiAgentReviewClassifierService;
     aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
     aiAgentReviewNotificationModel: AiAgentReviewNotificationModel;
@@ -54,6 +57,8 @@ type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
 
 export class CommercialSchedulerWorker extends SchedulerWorker {
     protected readonly aiAgentService: AiAgentService;
+
+    protected readonly aiWritebackService: AiWritebackService;
 
     protected readonly aiAgentReviewClassifierService: AiAgentReviewClassifierService;
 
@@ -82,6 +87,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
     constructor(args: CommercialSchedulerWorkerArguments) {
         super(args);
         this.aiAgentService = args.aiAgentService;
+        this.aiWritebackService = args.aiWritebackService;
         this.aiAgentReviewClassifierService =
             args.aiAgentReviewClassifierService;
         this.aiAgentReviewClassifierModel = args.aiAgentReviewClassifierModel;
@@ -104,6 +110,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
             ...super.getCronItems(),
             {
                 task: EE_SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS,
+                pattern: '*/2 * * * *', // Every 2 minutes
+                options: {
+                    backfillPeriod: 5 * 60 * 1000, // 5 min
+                    maxAttempts: 1,
+                },
+            },
+            {
+                task: EE_SCHEDULER_TASKS.SWEEP_STALE_AI_WRITEBACK_RUNS,
                 pattern: '*/2 * * * *', // Every 2 minutes
                 options: {
                     backfillPeriod: 5 * 60 * 1000, // 5 min
@@ -466,8 +480,92 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     },
                 );
             },
+            [EE_SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        EE_SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.aiWritebackService.runPipeline(payload);
+                        },
+                    ),
+                    helpers.job,
+                    AI_WRITEBACK_TIMEOUT_MS,
+                    async (_job, e) => {
+                        await this.aiWritebackService.markRunError(
+                            payload.aiWritebackRunUuid,
+                            getErrorMessage(e),
+                        );
+                    },
+                );
+            },
+            [EE_SCHEDULER_TASKS.AI_AGENT_EDIT_DBT_PROJECT_PIPELINE]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        EE_SCHEDULER_TASKS.AI_AGENT_EDIT_DBT_PROJECT_PIPELINE,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.aiAgentService.runEditDbtProjectPipeline(
+                                payload,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    AI_WRITEBACK_TIMEOUT_MS,
+                    async (_job, e) => {
+                        const runMarkedError =
+                            await this.aiWritebackService.markRunError(
+                                payload.aiWritebackRunUuid,
+                                getErrorMessage(e),
+                            );
+                        if (runMarkedError) {
+                            await this.aiAgentService.markEditDbtProjectToolResultError(
+                                payload.promptUuid,
+                                payload.toolCallId,
+                                `Error running AI writeback: ${getErrorMessage(e)}`,
+                            );
+                        }
+                    },
+                );
+            },
             [EE_SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: async () => {
                 await this.appGenerateService.sweepStaleLocks();
+            },
+            [EE_SCHEDULER_TASKS.SWEEP_STALE_AI_WRITEBACK_RUNS]: async () => {
+                const swept = await this.aiWritebackService.sweepStaleRuns();
+                // A chat run's card reflects the tool-result row, not the run
+                // row, so marking the run errored alone would leave it stuck on
+                // "Working on the change". Fail the card too — mirrors the
+                // dual-recovery the pipeline's timeout callback already does.
+                const chatRuns = swept.filter(
+                    (run) => run.promptUuid && run.toolCallId,
+                );
+                for (const run of chatRuns) {
+                    try {
+                        // eslint-disable-next-line no-await-in-loop
+                        await this.aiAgentService.markEditDbtProjectToolResultError(
+                            run.promptUuid!,
+                            run.toolCallId!,
+                            'Error running AI writeback: the run stopped unexpectedly before it finished.',
+                        );
+                    } catch (error) {
+                        Logger.warn(
+                            `Failed to fail stale writeback tool-result card for run ${run.aiWritebackRunUuid}: ${getErrorMessage(
+                                error,
+                            )}`,
+                        );
+                    }
+                }
             },
             [EE_SCHEDULER_TASKS.SEND_REVIEW_NOTIFICATION]: async (payload) => {
                 await sendReviewNotification({

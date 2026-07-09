@@ -1,10 +1,12 @@
 import {
+    AiAgentEditDbtProjectPipelineJobPayload,
     AiAgentEvalRunJobPayload,
     AiAgentReviewClassifierJobPayload,
     AiAgentReviewRemediationCompileJobPayload,
     AiAgentReviewRemediationPreviewJobPayload,
     AiAgentReviewRemediationRunJobPayload,
     AiAgentReviewWritebackJobPayload,
+    AiWritebackPipelineJobPayload,
     AppBuildFromSourceJobPayload,
     AppGeneratePipelineJobPayload,
     EE_SCHEDULER_TASKS,
@@ -195,6 +197,40 @@ export class CommercialSchedulerClient extends SchedulerClient {
                 runAt: new Date(),
                 maxAttempts: 2,
                 jobKey: `app-build:${payload.appUuid}:${payload.version}`,
+            },
+        );
+        return { jobId };
+    }
+
+    async aiWritebackPipeline(payload: AiWritebackPipelineJobPayload) {
+        const graphileClient = await this.graphileUtils;
+        const { id: jobId } = await graphileClient.addJob(
+            EE_SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE,
+            payload,
+            {
+                runAt: new Date(),
+                maxAttempts: 1,
+                jobKey: `ai-writeback:${payload.aiWritebackRunUuid}`,
+            },
+        );
+        return { jobId };
+    }
+
+    async aiAgentEditDbtProjectPipeline(
+        payload: AiAgentEditDbtProjectPipelineJobPayload,
+    ) {
+        const graphileClient = await this.graphileUtils;
+        const { id: jobId } = await graphileClient.addJob(
+            EE_SCHEDULER_TASKS.AI_AGENT_EDIT_DBT_PROJECT_PIPELINE,
+            payload,
+            {
+                runAt: new Date(),
+                maxAttempts: 1,
+                jobKey: `ai-agent-edit-dbt-project:${payload.aiWritebackRunUuid}`,
+                // Run edits from the same thread one at a time, in order — a
+                // second edit queues behind the first rather than racing it into
+                // the "an edit is already in progress" workstream-lock rejection.
+                queueName: `ai-writeback-thread:${payload.aiThreadUuid}`,
             },
         );
         return { jobId };

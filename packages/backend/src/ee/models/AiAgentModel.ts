@@ -6289,6 +6289,35 @@ export class AiAgentModel {
             });
     }
 
+    async updateToolResult(
+        promptUuid: string,
+        toolCallId: string,
+        data: { result: string; metadata: AgentToolOutput['metadata'] },
+    ): Promise<void> {
+        await this.database(AiAgentToolResultTableName)
+            .where({
+                ai_prompt_uuid: promptUuid,
+                tool_call_id: toolCallId,
+            })
+            .update({
+                result: data.result,
+                metadata: data.metadata,
+            });
+    }
+
+    async hasToolResult(
+        promptUuid: string,
+        toolCallId: string,
+    ): Promise<boolean> {
+        const row = await this.database(AiAgentToolResultTableName)
+            .where({
+                ai_prompt_uuid: promptUuid,
+                tool_call_id: toolCallId,
+            })
+            .first();
+        return row !== undefined;
+    }
+
     async createArtifact(
         data: {
             threadUuid: string;

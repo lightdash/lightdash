@@ -84,12 +84,24 @@ export const summarizeToolCall = (toolName: string, input: AnyType) => {
     }
 };
 
+export const isPendingToolResult = (output: AnyType) =>
+    Boolean(output) &&
+    typeof output === 'object' &&
+    typeof output.metadata === 'object' &&
+    Boolean(output.metadata) &&
+    output.metadata.status === 'pending';
+
 export const summarizeToolResult = (toolName: string, output: AnyType) => {
     if (!output || typeof output !== 'object') return `Finished ${toolName}`;
     const metadataStatus =
         typeof output.metadata === 'object' && output.metadata
             ? output.metadata.status
             : undefined;
+    if (metadataStatus === 'pending') {
+        return (
+            summarizeToolCall(toolName, undefined) ?? `Running ${toolName}...`
+        );
+    }
     if (typeof metadataStatus === 'string' && metadataStatus !== 'success') {
         if (toolName === 'runSql') {
             return 'Skipped restricted SQL; used table metadata instead';
