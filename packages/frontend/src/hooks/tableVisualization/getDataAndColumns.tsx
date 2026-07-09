@@ -229,7 +229,7 @@ const getDataAndColumns = ({
                     cell: (info) => getFormattedValueCell(info, parameters),
 
                     footer: () => {
-                        if (totals?.[itemId]) {
+                        if (totals?.[itemId] !== undefined) {
                             return formatItemValue(
                                 item,
                                 totals[itemId],

@@ -686,7 +686,7 @@ export const useColumns = (): TableColumn[] => {
                         );
                     },
                     footer: () => {
-                        if (totals?.[fieldId]) {
+                        if (totals?.[fieldId] !== undefined) {
                             return formatItemValue(
                                 item,
                                 totals[fieldId],
