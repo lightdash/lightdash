@@ -22,7 +22,7 @@
         "cypress-file-upload": "5.0.8",
         "cypress-split": "1.24.29",
         "dayjs": "1.11.10",
-        "js-yaml": "4.2.0"
+        "js-yaml": "4.3.0"
     },
     "devDependencies": {
         "typescript": "npm:@typescript/typescript6@6.0.1",
