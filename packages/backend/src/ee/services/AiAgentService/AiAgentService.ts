@@ -71,6 +71,7 @@ import {
     getWebAiChartConfig,
     GITHUB_MCP_SERVER_NAME,
     GITHUB_MCP_SERVER_URL,
+    hasAiAgentAccessToSpace,
     InsufficientGitPermissionsError,
     isAiWritebackRunInProgress,
     isGitProjectType,
@@ -1455,10 +1456,7 @@ export class AiAgentService extends BaseService {
         agent: AiAgent,
         spaceUuid: string,
     ) {
-        if (
-            agent.spaceAccess.length > 0 &&
-            !agent.spaceAccess.includes(spaceUuid)
-        ) {
+        if (!hasAiAgentAccessToSpace(agent, spaceUuid)) {
             throw new ForbiddenError(
                 'AI agent is not available in the embedded space',
             );
@@ -1505,8 +1503,7 @@ export class AiAgentService extends BaseService {
         return agents.filter(
             (agent) =>
                 agent.uuid === tokenAgentUuid &&
-                (agent.spaceAccess.length === 0 ||
-                    agent.spaceAccess.includes(spaceUuid)),
+                hasAiAgentAccessToSpace(agent, spaceUuid),
         );
     }
 

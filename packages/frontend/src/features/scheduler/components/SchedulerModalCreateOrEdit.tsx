@@ -26,6 +26,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import DocumentationHelpButton from '../../../components/DocumentationHelpButton';
 import { useAiAgentButtonVisibility } from '../../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import { useSavedQuery } from '../../../hooks/useSavedQuery';
 import { useSchedulerFormModal } from '../hooks/useSchedulerFormModal';
 import {
     getVisibleSections,
@@ -114,6 +115,17 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
         initialFormValues,
     });
 
+    // The AI agent selector filters by the delivered content's space. For
+    // dashboards the space comes with the form-modal's dashboard query; for
+    // charts we fetch the chart here (alerts have no AI section, so skip).
+    const { data: savedChart } = useSavedQuery({
+        uuidOrSlug: isChart && !isThresholdAlert ? resourceUuid : undefined,
+        projectUuid,
+    });
+    const resourceSpaceUuid = isChart
+        ? savedChart?.spaceUuid
+        : dashboard?.spaceUuid;
+
     const sections = useMemo(
         () =>
             getVisibleSections({
@@ -185,7 +197,13 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
             case 'message':
                 return <SchedulerMessageSection />;
             case 'ai':
-                return <SchedulerFormAiInput projectUuid={projectUuid} bare />;
+                return (
+                    <SchedulerFormAiInput
+                        projectUuid={projectUuid}
+                        resourceSpaceUuid={resourceSpaceUuid}
+                        bare
+                    />
+                );
             case 'alert':
                 return (
                     <SchedulerAlertSection
