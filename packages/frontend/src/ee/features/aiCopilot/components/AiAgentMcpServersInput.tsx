@@ -139,15 +139,6 @@ const getMcpOAuthSharingPolicyLabel = (
             : 'Personal sign-in only'
         : null;
 
-const getMcpOAuthSharingPolicyTooltip = (
-    mcpServer: Pick<AiMcpServer, 'authType' | 'allowOAuthCredentialSharing'>,
-) =>
-    mcpServer.authType === 'oauth'
-        ? mcpServer.allowOAuthCredentialSharing
-            ? 'This MCP can use a shared project sign-in or each person can sign in with their own account.'
-            : 'This MCP only supports personal sign-in. Each person must connect their own account.'
-        : null;
-
 const getMcpOAuthConnectionSummary = (
     mcpServer: Pick<
         AiMcpServer,
@@ -1322,12 +1313,6 @@ export const AiAgentMcpServersInput = ({
                                         allowOAuthCredentialSharing:
                                             mcpServer.allowOAuthCredentialSharing,
                                     });
-                                const sharingPolicyTooltip =
-                                    getMcpOAuthSharingPolicyTooltip({
-                                        authType: mcpServer.authType,
-                                        allowOAuthCredentialSharing:
-                                            mcpServer.allowOAuthCredentialSharing,
-                                    });
 
                                 return (
                                     <Paper
@@ -1377,6 +1362,18 @@ export const AiAgentMcpServersInput = ({
                                                             )}
                                                         </Text>
                                                     )}
+                                                    <Text
+                                                        size="sm"
+                                                        c="dimmed"
+                                                        fw={450}
+                                                    >
+                                                        {getMcpAuthTypeLabel(
+                                                            mcpServer.authType,
+                                                        )}
+                                                        {sharingPolicyLabel
+                                                            ? ` · ${sharingPolicyLabel}`
+                                                            : ''}
+                                                    </Text>
                                                     {mcpServer.error && (
                                                         <Text
                                                             size="xs"
@@ -1392,14 +1389,6 @@ export const AiAgentMcpServersInput = ({
                                                 align="center"
                                                 wrap="nowrap"
                                             >
-                                                <Badge
-                                                    variant="default"
-                                                    color="gray"
-                                                >
-                                                    {getMcpAuthTypeLabel(
-                                                        mcpServer.authType,
-                                                    )}
-                                                </Badge>
                                                 <Badge
                                                     variant="light"
                                                     color={getMcpConnectionStatusColor(
@@ -1454,22 +1443,6 @@ export const AiAgentMcpServersInput = ({
                                                             </ActionIcon>
                                                         </Tooltip>
                                                     )}
-                                                {sharingPolicyLabel && (
-                                                    <Tooltip
-                                                        label={
-                                                            sharingPolicyTooltip
-                                                        }
-                                                        withArrow
-                                                        withinPortal
-                                                    >
-                                                        <Badge
-                                                            variant="default"
-                                                            color="gray"
-                                                        >
-                                                            {sharingPolicyLabel}
-                                                        </Badge>
-                                                    </Tooltip>
-                                                )}
                                                 {mcpServer.authType ===
                                                     'oauth' &&
                                                     shouldShowMcpOAuthPrimaryAction(
