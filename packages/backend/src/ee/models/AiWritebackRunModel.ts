@@ -102,19 +102,6 @@ export class AiWritebackRunModel {
         return updatedRows > 0;
     }
 
-    async setBranchName(
-        aiWritebackRunUuid: string,
-        branchName: string,
-    ): Promise<void> {
-        await this.database<AiWritebackRunTable>(AiWritebackRunTableName)
-            .where('ai_writeback_run_uuid', aiWritebackRunUuid)
-            .whereNotIn('status', [...AI_WRITEBACK_RUN_TERMINAL_STATUSES])
-            .update({
-                branch_name: branchName,
-                updated_at: this.database.fn.now() as unknown as Date,
-            });
-    }
-
     /**
      * Atomically mark every actively-running run whose last update predates the
      * threshold as errored, returning the rows it changed. A run only lingers in

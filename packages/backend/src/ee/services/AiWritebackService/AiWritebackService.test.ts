@@ -127,7 +127,6 @@ const buildService = (overrides: Record<string, AnyType> = {}) =>
             updateStageIfInProgress: vi.fn().mockResolvedValue(undefined),
             markReady: vi.fn().mockResolvedValue(true),
             markError: vi.fn().mockResolvedValue(true),
-            setBranchName: vi.fn().mockResolvedValue(undefined),
         } as AnyType,
         userModel: { findSessionUserAndOrgByUuid: vi.fn() } as AnyType,
         schedulerClient: { aiWritebackPipeline: vi.fn() } as AnyType,
@@ -1100,7 +1099,6 @@ describe('AiWritebackService dbt source targeting', () => {
                 updateStageIfInProgress,
                 markReady: vi.fn().mockResolvedValue(true),
                 markError: vi.fn().mockResolvedValue(true),
-                setBranchName: vi.fn().mockResolvedValue(undefined),
             } as AnyType,
         });
         const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
