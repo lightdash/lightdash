@@ -8,6 +8,7 @@ import {
     isNumericItem,
     isTableCalculation,
     itemsInMetricQuery,
+    QueryHistoryStatus,
     type ColumnProperties,
     type ConditionalFormattingConfig,
     type ConditionalFormattingMinMaxMap,
@@ -223,14 +224,21 @@ const useTableConfig = (
     }, [dimensions.length, numUnpivotedDimensions]);
 
     const projectUuid = useProjectUuid();
+    // Only request totals once the initial query has succeeded — a queryUuid can
+    // exist for a query that errored, and totals against that are meaningless.
+    const isInitialQueryReady =
+        resultsData?.queryStatus === QueryHistoryStatus.READY;
     const canFetchAsyncTotals =
-        !!resultsData?.queryUuid && !!tableChartConfig?.showColumnCalculation;
-    const { data: asyncTotals } = useAsyncCalculateTotal({
-        projectUuid,
-        sourceQueryUuid: resultsData?.queryUuid,
-        enabled: canFetchAsyncTotals,
-        invalidateCache,
-    });
+        isInitialQueryReady &&
+        !!resultsData?.queryUuid &&
+        !!tableChartConfig?.showColumnCalculation;
+    const { data: asyncTotals, isFetching: isCalculatingColumnTotals } =
+        useAsyncCalculateTotal({
+            projectUuid,
+            sourceQueryUuid: resultsData?.queryUuid,
+            enabled: canFetchAsyncTotals,
+            invalidateCache,
+        });
 
     // Index dimension field ids the warehouse row-total query groups by — the
     // worker keys each rendered row's total by these. Row totals are exclusively
@@ -244,26 +252,29 @@ const useTableConfig = (
             : [indexColumn.reference];
     }, [resultsData?.pivotDetails?.indexColumn]);
     const canFetchAsyncRowTotals =
+        isInitialQueryReady &&
         !!resultsData?.queryUuid &&
         !!tableChartConfig?.showRowCalculation &&
         !!resultsData?.pivotDetails;
-    const { data: asyncRowTotals } = useAsyncCalculateRowTotal({
-        projectUuid,
-        sourceQueryUuid: resultsData?.queryUuid,
-        indexFieldIds: rowTotalIndexFieldIds,
-        enabled: canFetchAsyncRowTotals,
-        invalidateCache,
-    });
+    const { data: asyncRowTotals, isFetching: isCalculatingRowTotals } =
+        useAsyncCalculateRowTotal({
+            projectUuid,
+            sourceQueryUuid: resultsData?.queryUuid,
+            indexFieldIds: rowTotalIndexFieldIds,
+            enabled: canFetchAsyncRowTotals,
+            invalidateCache,
+        });
 
-    const { data: groupedSubtotals } = useAsyncCalculateSubtotals({
-        projectUuid,
-        sourceQueryUuid: resultsData?.queryUuid,
-        dimensions: resultsData?.metricQuery?.dimensions,
-        columnOrder,
-        pivotDimensions,
-        enabled: showSubtotals && canUseSubtotals,
-        invalidateCache,
-    });
+    const { data: groupedSubtotals, isFetching: isCalculatingSubtotals } =
+        useAsyncCalculateSubtotals({
+            projectUuid,
+            sourceQueryUuid: resultsData?.queryUuid,
+            dimensions: resultsData?.metricQuery?.dimensions,
+            columnOrder,
+            pivotDimensions,
+            enabled: isInitialQueryReady && showSubtotals && canUseSubtotals,
+            invalidateCache,
+        });
 
     const columns = useMemo(() => {
         if (!selectedItemIds || !itemsMap) {
@@ -284,7 +295,9 @@ const useTableConfig = (
             getColumnWidth,
             columnOrder,
             totals: asyncTotals,
+            totalsLoading: isCalculatingColumnTotals,
             groupedSubtotals,
+            subtotalsLoading: isCalculatingSubtotals,
             parameters,
         });
     }, [
@@ -298,7 +311,9 @@ const useTableConfig = (
         getColumnWidth,
         getFieldLabelOverride,
         asyncTotals,
+        isCalculatingColumnTotals,
         groupedSubtotals,
+        isCalculatingSubtotals,
         parameters,
     ]);
     const worker = useWorker(createWorker);
@@ -687,6 +702,9 @@ const useTableConfig = (
             isPivotResultStale,
             canUseSubtotals,
             groupedSubtotals,
+            isCalculatingColumnTotals,
+            isCalculatingRowTotals,
+            isCalculatingSubtotals,
             rowLimit,
             setRowLimit,
         }),
@@ -731,6 +749,9 @@ const useTableConfig = (
             isPivotResultStale,
             canUseSubtotals,
             groupedSubtotals,
+            isCalculatingColumnTotals,
+            isCalculatingRowTotals,
+            isCalculatingSubtotals,
             rowLimit,
             setRowLimit,
         ],

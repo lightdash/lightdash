@@ -28,7 +28,13 @@ import {
     type SortField,
 } from '@lightdash/common';
 import { Box, Menu, type BoxProps } from '@mantine-8/core';
-import { Button, Group, useMantineColorScheme, Text } from '@mantine/core';
+import {
+    Button,
+    Group,
+    Skeleton,
+    Text,
+    useMantineColorScheme,
+} from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import {
     flexRender,
@@ -171,6 +177,12 @@ type PivotTableProps = BoxProps & // TODO: remove this
          * `showSubtotals` is true (subtotals always group).
          */
         showRowGrouping?: boolean;
+        /** Column-total footer cells render a loading skeleton while their async query is in flight. */
+        isColumnTotalsLoading?: boolean;
+        /** Row-total cells render a loading skeleton while their async query is in flight. */
+        isRowTotalsLoading?: boolean;
+        /** Subtotal cells render a loading skeleton while their async query is in flight. */
+        isSubtotalsLoading?: boolean;
         columnProperties?: Record<string, ColumnProperties>;
         isMinimal: boolean;
         isDashboard?: boolean;
@@ -202,6 +214,9 @@ const PivotTable: FC<PivotTableProps> = ({
     showSubtotals = false,
     showSubtotalsExpanded = false,
     showRowGrouping = false,
+    isColumnTotalsLoading = false,
+    isRowTotalsLoading = false,
+    isSubtotalsLoading = false,
     columnProperties = {},
     isMinimal = false,
     isDashboard = false,
@@ -545,6 +560,20 @@ const PivotTable: FC<PivotTableProps> = ({
                                     return null;
                                 }
 
+                                if (
+                                    subtotalValue === undefined &&
+                                    isSubtotalsLoading &&
+                                    isNumericItem(item)
+                                ) {
+                                    return (
+                                        <Skeleton
+                                            height={16}
+                                            width="min(60%, 50px)"
+                                            ml="auto"
+                                        />
+                                    );
+                                }
+
                                 return (
                                     <Text span fw={600}>
                                         {formatItemValue(
@@ -580,6 +609,7 @@ const PivotTable: FC<PivotTableProps> = ({
         frozenLayout,
         rowNumberWidth,
         parameters,
+        isSubtotalsLoading,
     ]);
 
     // Minimum table width so auto columns don't get squeezed to zero
@@ -2038,7 +2068,14 @@ const PivotTable: FC<PivotTableProps> = ({
                                                 )
                                             )
                                         ) : cell.getIsPlaceholder() ||
-                                          isBlankMergeDataCell ? null : (
+                                          isBlankMergeDataCell ? null : isRowTotal &&
+                                          isRowTotalsLoading ? (
+                                            <Skeleton
+                                                height={16}
+                                                width="min(60%, 50px)"
+                                                ml="auto"
+                                            />
+                                        ) : (
                                             flexRender(
                                                 cell.column.columnDef.cell,
                                                 cell.getContext(),
@@ -2177,6 +2214,18 @@ const PivotTable: FC<PivotTableProps> = ({
                                             )}
                                         >
                                             {value.formatted}
+                                        </Table.CellHead>
+                                    ) : isColumnTotalsLoading ? (
+                                        <Table.CellHead
+                                            key={`column-total-${totalRowIndex}-${totalColIndex}`}
+                                            withAlignRight
+                                            isMinimal={isMinimal}
+                                        >
+                                            <Skeleton
+                                                height={16}
+                                                width="min(60%, 50px)"
+                                                ml="auto"
+                                            />
                                         </Table.CellHead>
                                     ) : (
                                         <Table.Cell
