@@ -63,8 +63,9 @@ type GrepFieldsContext = {
     requiredFiltersByExplore: Map<string, FindExploresRequiredFilter[]>;
 };
 
-// Turn the regex patterns into a plain-keyword query for the FTS fallback.
-const toFtsQuery = (patterns: string[]): string =>
+// Turn the regex patterns into a plain-keyword query, used for the FTS
+// fallback and as the search text for verified-answer relevance lookups.
+export const grepPatternsToSearchQuery = (patterns: string[]): string =>
     patterns
         .join(' ')
         .replace(/[|()\\^$.*+?[\]{}]/g, ' ')
@@ -448,7 +449,7 @@ const runGrepFields = async (
         );
         const fts = await findExplores({
             fieldSearchSize: 25,
-            searchQuery: toFtsQuery(patterns),
+            searchQuery: grepPatternsToSearchQuery(patterns),
         });
         ftsFields = (fts.topMatchingFields ?? []).filter(
             (field) =>

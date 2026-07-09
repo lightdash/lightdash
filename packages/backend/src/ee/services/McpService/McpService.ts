@@ -123,7 +123,10 @@ import { getFindContent } from '../ai/tools/findContent';
 import { buildFindExploresStructuredContent } from '../ai/tools/findExplores';
 import { buildFindFieldsStructuredContent } from '../ai/tools/findFields';
 import { executeGetMetadata } from '../ai/tools/getMetadata';
-import { executeGrepFields } from '../ai/tools/grepFields';
+import {
+    executeGrepFields,
+    grepPatternsToSearchQuery,
+} from '../ai/tools/grepFields';
 import { getListContent } from '../ai/tools/listContent';
 import { getMcpListExplores } from '../ai/tools/mcpListExplores';
 import { getReadContent } from '../ai/tools/readContent';
@@ -1354,6 +1357,7 @@ export class McpService extends BaseService {
                 },
                 async (args, extra) => {
                     const ctx = getMcpContext(extra);
+                    const { user } = McpService.getAccount(ctx);
                     const projectUuid = await this.resolveProjectUuid(ctx);
 
                     try {
@@ -1361,30 +1365,62 @@ export class McpService extends BaseService {
                             ctx,
                             projectUuid,
                         );
-                        // Independent reads — fetch the explore list and the
-                        // verified-usage map together instead of serially.
-                        const [availableExplores, verifiedFieldUsage] =
-                            await Promise.all([
-                                toolsRuntime.listExplores(),
-                                toolsRuntime
-                                    .getVerifiedFieldUsage()
-                                    .catch(() => new Map<string, number>()),
-                            ]);
-                        const result = await executeGrepFields(args, {
+                        // Independent reads — fetch the explore list, the
+                        // verified-usage map, and the active agent context
+                        // together instead of serially.
+                        const [
                             availableExplores,
                             verifiedFieldUsage,
-                            findExplores: async (findExploresArgs) =>
-                                unwrapMcpRuntimeResult(
-                                    await toolsRuntime.findExplores(
-                                        findExploresArgs,
-                                    ),
-                                ),
-                        });
+                            metadata,
+                        ] = await Promise.all([
+                            toolsRuntime.listExplores(),
+                            toolsRuntime
+                                .getVerifiedFieldUsage()
+                                .catch(() => new Map<string, number>()),
+                            this.getActiveContextMetadata(ctx),
+                        ]);
+                        const [result, verifiedAnswerContext] =
+                            await Promise.all([
+                                executeGrepFields(args, {
+                                    availableExplores,
+                                    verifiedFieldUsage,
+                                    findExplores: async (findExploresArgs) =>
+                                        unwrapMcpRuntimeResult(
+                                            await toolsRuntime.findExplores(
+                                                findExploresArgs,
+                                            ),
+                                        ),
+                                }),
+                                metadata.agentUuid
+                                    ? this.aiAgentService.getRelevantVerifiedAnswerContextForAgent(
+                                          user,
+                                          {
+                                              projectUuid,
+                                              agentUuid: metadata.agentUuid,
+                                              searchQuery:
+                                                  grepPatternsToSearchQuery(
+                                                      args.patterns,
+                                                  ),
+                                          },
+                                      )
+                                    : { relevantVerifiedAnswers: [] },
+                            ]);
+
+                        const structuredContent = {
+                            ...result.structuredContent,
+                            ...(verifiedAnswerContext.relevantVerifiedAnswers
+                                .length > 0
+                                ? {
+                                      relevantVerifiedAnswers:
+                                          verifiedAnswerContext.relevantVerifiedAnswers,
+                                  }
+                                : {}),
+                        };
 
                         return await this.buildScopedResponse(
                             ctx,
-                            formatToolJsonOutput(result.structuredContent),
-                            result.structuredContent,
+                            formatToolJsonOutput(structuredContent),
+                            structuredContent,
                             projectUuid,
                         );
                     } catch (error) {
@@ -1464,13 +1500,15 @@ export class McpService extends BaseService {
 
                     const { exploreSearchResults, topMatchingFields } =
                         runtimeResult.data;
-                    const structuredContent = buildFindExploresStructuredContent({
-                        searchQuery: args.searchQuery,
-                        exploreSearchResults,
-                        topMatchingFields,
-                        toolDescriptionMaxChars:
-                            this.lightdashConfig.ai.copilot.toolDescriptionMaxChars,
-                    });
+                    const structuredContent =
+                        buildFindExploresStructuredContent({
+                            searchQuery: args.searchQuery,
+                            exploreSearchResults,
+                            topMatchingFields,
+                            toolDescriptionMaxChars:
+                                this.lightdashConfig.ai.copilot
+                                    .toolDescriptionMaxChars,
+                        });
                     const resultText = formatToolJsonOutput(structuredContent);
                     const metadata = await this.getActiveContextMetadata(ctx);
 
@@ -1552,7 +1590,8 @@ export class McpService extends BaseService {
                     const structuredContent = buildFindFieldsStructuredContent({
                         fieldSearchQueryResults,
                         toolDescriptionMaxChars:
-                            this.lightdashConfig.ai.copilot.toolDescriptionMaxChars,
+                            this.lightdashConfig.ai.copilot
+                                .toolDescriptionMaxChars,
                         explore: exploreResult.data,
                     });
 

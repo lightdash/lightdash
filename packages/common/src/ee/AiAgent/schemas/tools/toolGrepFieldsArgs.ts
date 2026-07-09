@@ -2,7 +2,10 @@ import { z } from 'zod';
 import { type ToolDescriptionContext } from '../defineTool';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { toolNameFor } from './discoveryToolNames';
-import { findExploresRequiredFilterSchema } from './toolFindExploresArgs';
+import {
+    findExploresRelevantVerifiedAnswerSchema,
+    findExploresRequiredFilterSchema,
+} from './toolFindExploresArgs';
 
 export const GREP_FIELDS_DESCRIPTION = ({
     runtime,
@@ -104,6 +107,9 @@ export const grepFieldsResultSchema = z.object({
     exploreName: z.string().nullable(),
     patterns: z.array(grepFieldsPatternResultSchema),
     fuzzyMatches: z.array(grepFieldsFuzzyMatchSchema),
+    relevantVerifiedAnswers: z
+        .array(findExploresRelevantVerifiedAnswerSchema)
+        .optional(),
 });
 
 export const toolGrepFieldsOutputSchema = z.object({
