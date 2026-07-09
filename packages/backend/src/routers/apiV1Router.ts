@@ -41,7 +41,6 @@ import { UserModel } from '../models/UserModel';
 import { aiAgentMcpServerRouter } from './aiAgentMcpServerRouter';
 import { dashboardRouter } from './dashboardRouter';
 import { headlessBrowserRouter } from './headlessBrowser';
-import { inviteLinksRouter } from './inviteLinksRouter';
 import { jobsRouter } from './jobsRouter';
 import mcpRouter from './mcpRouter';
 import oauthRouter from './oauthRouter';
@@ -876,7 +875,6 @@ apiV1Router.get('/logout', (req, res, next) => {
 });
 
 apiV1Router.use('/saved', savedChartRouter);
-apiV1Router.use('/invite-links', inviteLinksRouter);
 apiV1Router.use('/org', organizationRouter);
 apiV1Router.use('/user', userRouter);
 apiV1Router.use('/projects/:projectUuid', aiAgentMcpServerRouter);

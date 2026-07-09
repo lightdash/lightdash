@@ -944,9 +944,15 @@ export type InviteLink = {
     userUuid: string;
     email: string;
 };
-export type CreateInviteLink = Pick<InviteLink, 'expiresAt' | 'email'> & {
+export type CreateInviteLink = {
     email: string;
+    expiresAt?: Date;
     role?: OrganizationMemberRole;
+};
+
+export type ApiInviteLinkResponse = {
+    status: 'ok';
+    results: InviteLink;
 };
 
 export type ApiCreateProjectResults = {
