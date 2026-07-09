@@ -22,6 +22,8 @@ import {
     MetricType,
     PartitionColumn,
     PartitionType,
+    sanitizeQueryTagKey,
+    sanitizeQueryTagValue,
     SupportedDbtAdapter,
     TimeIntervalUnit,
     WarehouseConnectionError,
@@ -220,6 +222,8 @@ export class BigquerySqlBuilder extends WarehouseBaseSqlBuilder {
 }
 
 export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryCredentials> {
+    private static readonly MAX_LABELS = 64;
+
     client: BigQuery;
 
     constructor(credentials: CreateBigqueryCredentials) {
@@ -268,32 +272,33 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         labels?: Record<string, string>,
     ): Record<string, string> | undefined {
         if (!labels) return undefined;
+        const entries = Object.entries(labels);
+        const orderedEntries = [
+            ...entries.filter(([key]) => !key.startsWith('user_attribute_')),
+            ...entries.filter(([key]) => key.startsWith('user_attribute_')),
+        ];
         return Object.fromEntries(
-            Object.entries(labels).map(([key, value]) => {
-                const safeKey = typeof key === 'string' ? key : String(key);
-                let safeValue: string;
-                if (typeof value === 'string') {
-                    safeValue = value;
-                } else if (value === null || value === undefined) {
-                    safeValue = '';
-                } else {
-                    console.warn(
-                        'BigqueryWarehouseClient.sanitizeLabelsWithValues: coerced non-string label value',
-                        { key: safeKey, valueType: typeof value },
-                    );
-                    safeValue = String(value);
-                }
-                return [
-                    safeKey
-                        .toLowerCase()
-                        .replace(/[^a-z0-9_-]/g, '_')
-                        .substring(0, 60) || 'empty_key',
-                    safeValue
-                        .toLowerCase()
-                        .replace(/[^a-z0-9_-]/g, '_')
-                        .substring(0, 60) || 'empty_value',
-                ];
-            }),
+            orderedEntries
+                .slice(0, BigqueryWarehouseClient.MAX_LABELS)
+                .map(([key, value]) => {
+                    const safeKey = typeof key === 'string' ? key : String(key);
+                    let safeValue: string;
+                    if (typeof value === 'string') {
+                        safeValue = value;
+                    } else if (value === null || value === undefined) {
+                        safeValue = '';
+                    } else {
+                        console.warn(
+                            'BigqueryWarehouseClient.sanitizeLabelsWithValues: coerced non-string label value',
+                            { key: safeKey, valueType: typeof value },
+                        );
+                        safeValue = String(value);
+                    }
+                    return [
+                        sanitizeQueryTagKey(safeKey),
+                        sanitizeQueryTagValue(safeValue),
+                    ];
+                }),
         );
     }
 

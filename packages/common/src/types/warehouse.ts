@@ -5,8 +5,16 @@ import { type SupportedDbtAdapter } from './dbt';
 import { type DimensionType, type Metric } from './field';
 import { type CreateWarehouseCredentials } from './projects';
 import type { WarehouseQueryMetadata } from './queryHistory';
+import { type UserAttributeValueMap } from './userAttributes';
 
-export type RunQueryTags = {
+const MAX_USER_ATTRIBUTE_QUERY_TAGS = 20;
+const MAX_QUERY_TAG_KEY_LENGTH = 60;
+const MAX_QUERY_TAG_VALUE_LENGTH = 60;
+const USER_ATTRIBUTE_QUERY_TAG_PREFIX = 'user_attribute_';
+
+export type UserAttributeQueryTag = `user_attribute_${string}`;
+
+export type RunQueryTags = Record<UserAttributeQueryTag, string> & {
     project_uuid?: string;
     user_uuid?: string;
     organization_uuid?: string;
@@ -20,6 +28,53 @@ export type RunQueryTags = {
     explore_name?: string;
     query_context: QueryExecutionContext;
 };
+
+const sanitizeQueryTagString = (
+    value: string,
+    fallback: string,
+    maxLength: number,
+) =>
+    value
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]/g, '_')
+        .substring(0, maxLength) || fallback;
+
+export const sanitizeQueryTagKey = (key: string): string =>
+    sanitizeQueryTagString(key, 'empty_key', MAX_QUERY_TAG_KEY_LENGTH);
+
+export const sanitizeQueryTagValue = (value: string): string =>
+    sanitizeQueryTagString(value, 'empty_value', MAX_QUERY_TAG_VALUE_LENGTH);
+
+export const getUserAttributeQueryTags = (
+    userAttributes: UserAttributeValueMap,
+): Record<UserAttributeQueryTag, string> =>
+    Object.fromEntries(
+        Object.entries(userAttributes).reduce<
+            [UserAttributeQueryTag, string][]
+        >((acc, [name, values]) => {
+            if (acc.length >= MAX_USER_ATTRIBUTE_QUERY_TAGS) {
+                return acc;
+            }
+
+            const tagName = sanitizeQueryTagKey(
+                `${USER_ATTRIBUTE_QUERY_TAG_PREFIX}${name}`,
+            );
+            const value = values
+                .map((attribute) => attribute.trim())
+                .filter(Boolean)
+                .join(',')
+                .trim();
+            if (value) {
+                acc.push([
+                    tagName as UserAttributeQueryTag,
+                    sanitizeQueryTagValue(value),
+                ]);
+            }
+
+            return acc;
+        }, []),
+    ) as Record<UserAttributeQueryTag, string>;
 
 export type WarehouseTableSchema = {
     [column: string]: DimensionType;

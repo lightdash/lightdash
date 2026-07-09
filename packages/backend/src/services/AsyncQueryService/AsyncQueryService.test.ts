@@ -1376,6 +1376,9 @@ describe('AsyncQueryService', () => {
             expect(enqueuePreAggregateSpy).toHaveBeenCalledTimes(1);
             expect(enqueuePreAggregateSpy).toHaveBeenCalledWith({
                 queryUuid: 'test-query-uuid',
+                queryTags: {
+                    query_context: QueryExecutionContext.EXPLORE,
+                },
             });
             expect(service.queryHistoryModel.update).toHaveBeenCalledWith(
                 'test-query-uuid',
@@ -1457,6 +1460,9 @@ describe('AsyncQueryService', () => {
             expect(enqueueWarehouseSpy).toHaveBeenCalledTimes(1);
             expect(enqueueWarehouseSpy).toHaveBeenCalledWith({
                 queryUuid: 'test-query-uuid',
+                queryTags: {
+                    query_context: QueryExecutionContext.EXPLORE,
+                },
             });
             expect(runAsyncSpy).not.toHaveBeenCalled();
         });
