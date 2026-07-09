@@ -483,12 +483,12 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({ form, level }) => {
                             c={form.errors.scopes ? 'red' : 'default'}
                             fz="sm"
                         >
-                            Select at least one scope for this role
+                            Select at least one permission for this role
                         </Text>
                     </Stack>
 
                     <TextInput
-                        placeholder="Search scopes by name or group..."
+                        placeholder="Search permissions by name or group..."
                         w={300}
                         leftSection={
                             <MantineIcon icon={IconSearch} size="sm" />
@@ -499,7 +499,11 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({ form, level }) => {
                 </Group>
                 <Group justify="space-between">
                     <Text fz="sm" c="dimmed">
-                        {selectedCount} of {totalScopes} scopes selected
+                        {selectedCount} of {totalScopes}{' '}
+                        <Text span fw={600} inherit>
+                            {level}
+                        </Text>{' '}
+                        permissions selected
                     </Text>
                     <Group gap="xs">
                         <Button
@@ -525,7 +529,7 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({ form, level }) => {
             {filteredScopes.length === 0 ? (
                 <Paper p="xl" style={{ flexShrink: 0 }}>
                     <Text ta="center" fz="sm">
-                        No scopes found matching your search.
+                        No permissions found matching your search.
                     </Text>
                 </Paper>
             ) : (
@@ -584,7 +588,7 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({ form, level }) => {
                                 />
                             ) : (
                                 <Text ta="center" c="dimmed" fz="sm">
-                                    Select a group to view its scopes
+                                    Select a group to view its permissions
                                 </Text>
                             )}
                         </Flex>
