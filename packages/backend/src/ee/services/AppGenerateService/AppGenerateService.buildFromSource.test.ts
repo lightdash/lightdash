@@ -58,6 +58,10 @@ const makePayload = (): AppBuildFromSourceJobPayload => ({
 
 const REGISTRY_HOSTS = ['registry.npmjs.org'];
 
+// Sentinel copilot config the mocked resolver returns and createSandbox is
+// asserted to receive — verifies the org-resolved config is threaded through.
+const COPILOT_CONFIG = { sentinel: 'copilot' } as never;
+
 const CUSTOM_DEPS: AppVersionDependencies = {
     custom: [{ name: 'react-query', version: '^5.0.0' }],
     lockfileHash: 'abc123',
@@ -106,7 +110,9 @@ function buildService(
         promoteService: {} as never,
         externalConnectionModel: {} as never,
         sandboxRegistryModel: {} as never,
-        orgAiCopilotConfigResolver: {} as never,
+        orgAiCopilotConfigResolver: {
+            getClaudeCodeConfig: vi.fn().mockResolvedValue(COPILOT_CONFIG),
+        } as never,
     });
 
     const service = raw as unknown as ServiceWithPrivates;
@@ -210,6 +216,7 @@ describe('AppGenerateService.runBuildFromSourcePipeline', () => {
                 'app-uuid-1',
                 'org-uuid-1',
                 'proj-uuid-1',
+                COPILOT_CONFIG,
                 [],
             );
             // No dep restore or install should have happened
@@ -230,6 +237,7 @@ describe('AppGenerateService.runBuildFromSourcePipeline', () => {
                 'app-uuid-1',
                 'org-uuid-1',
                 'proj-uuid-1',
+                COPILOT_CONFIG,
                 REGISTRY_HOSTS,
             );
 
