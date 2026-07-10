@@ -2,6 +2,7 @@ import {
     AdminNotificationPayload,
     AdminNotificationType,
     CreateProjectMember,
+    EmailSenderIdentity,
     getErrorMessage,
     InviteLink,
     MissingConfigError,
@@ -226,6 +227,22 @@ export default class EmailClient {
             hostPath: '/linkedin.png',
         },
     ] as const;
+
+    /**
+     * Translates a resolved per-organization sender identity (email
+     * whitelabelling) into nodemailer `from` / `replyTo` overrides. A null
+     * identity — or a null `from` within it — leaves the instance default From
+     * untouched.
+     */
+    private static senderMailFields(
+        sender?: EmailSenderIdentity | null,
+    ): Pick<Mail.Options, 'from' | 'replyTo'> {
+        if (!sender) return {};
+        return {
+            ...(sender.from ? { from: sender.from } : {}),
+            ...(sender.replyTo ? { replyTo: sender.replyTo } : {}),
+        };
+    }
 
     private async sendEmail(
         options: Mail.Options & EmailTemplate,
@@ -671,6 +688,7 @@ export default class EmailClient {
         expirationDays?: number,
         deliveryType: string = 'Scheduled delivery',
         imageBuffer?: Buffer,
+        sender?: EmailSenderIdentity | null,
     ) {
         const useCidImage =
             this.lightdashConfig.smtp?.inlineImageCid === true &&
@@ -703,6 +721,7 @@ export default class EmailClient {
         }
 
         return this.sendEmail({
+            ...EmailClient.senderMailFields(sender),
             to: recipient,
             subject,
             template: 'imageNotification',
@@ -745,6 +764,7 @@ export default class EmailClient {
         expirationDays?: number,
         asAttachment?: boolean,
         format?: SchedulerFormat,
+        sender?: EmailSenderIdentity | null,
     ) {
         const csvUrl = attachment.path;
         const attachments =
@@ -755,6 +775,7 @@ export default class EmailClient {
                 : undefined;
 
         return this.sendEmail({
+            ...EmailClient.senderMailFields(sender),
             to: recipient,
             subject,
             template: 'chartCsvNotification',
@@ -802,6 +823,7 @@ export default class EmailClient {
         asAttachment?: boolean,
         format?: SchedulerFormat,
         failures?: PartialFailure[],
+        sender?: EmailSenderIdentity | null,
     ) {
         const csvUrls = attachments.filter(
             (attachment) => !attachment.truncated,
@@ -827,6 +849,7 @@ export default class EmailClient {
             csvUrls.length === 0 && failures && failures.length > 0;
 
         return this.sendEmail({
+            ...EmailClient.senderMailFields(sender),
             to: recipient,
             subject,
             template: 'dashboardCsvNotification',

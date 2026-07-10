@@ -32,6 +32,7 @@ import { CsvService } from './CsvService/CsvService';
 import { DashboardService } from './DashboardService/DashboardService';
 import { DeployService } from './DeployService';
 import { DownloadFileService } from './DownloadFileService/DownloadFileService';
+import { EmailWhitelabelService } from './EmailWhitelabelService/EmailWhitelabelService';
 import { FavoritesService } from './FavoritesService/FavoritesService';
 import { FeatureFlagService } from './FeatureFlag/FeatureFlagService';
 import { FunnelService } from './FunnelService/FunnelService';
@@ -109,6 +110,7 @@ interface ServiceManifest {
     organizationSettingsService: OrganizationSettingsService;
     organizationSsoService: OrganizationSsoService;
     organizationDomainVerificationService: OrganizationDomainVerificationService;
+    emailWhitelabelService: EmailWhitelabelService;
     organizationAccessService: OrganizationAccessService;
     preAggregateMaterializationService: PreAggregateMaterializationService;
     persistentDownloadFileService: PersistentDownloadFileService;
@@ -653,6 +655,22 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     organizationDomainVerificationModel:
                         this.models.getOrganizationDomainVerificationModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    emailClient: this.clients.getEmailClient(),
+                }),
+        );
+    }
+
+    public getEmailWhitelabelService(): EmailWhitelabelService {
+        return this.getService(
+            'emailWhitelabelService',
+            () =>
+                new EmailWhitelabelService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    organizationEmailDomainModel:
+                        this.models.getOrganizationEmailDomainModel(),
+                    organizationMemberProfileModel:
+                        this.models.getOrganizationMemberProfileModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     emailClient: this.clients.getEmailClient(),
                 }),

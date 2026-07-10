@@ -221,6 +221,7 @@ export class HealthService extends BaseService {
                 },
             },
             hasEmailClient: !!this.lightdashConfig.smtp,
+            hasEmailWhitelabel: !!this.lightdashConfig.postmark.accountToken,
             hasHeadlessBrowser:
                 this.lightdashConfig.headlessBrowser?.host !== undefined,
             hasExtendedUsageAnalytics:

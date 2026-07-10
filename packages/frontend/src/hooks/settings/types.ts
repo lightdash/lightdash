@@ -45,6 +45,7 @@ export type SettingsContext = {
     isCustomRolesEnabled: boolean | undefined;
     isProLimitsEnabled: boolean;
     isSsoOrganizationSettingsEnabled: boolean;
+    isEmailWhitelabelEnabled: boolean;
     isScimTokenManagementEnabled: FeatureFlag | undefined;
     isServiceAccountsEnabled: boolean;
     isAiCopilotEnabledOrTrial: boolean;

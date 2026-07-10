@@ -39,6 +39,7 @@ import AllowedDomainsPanel from '../components/UserSettings/AllowedDomainsPanel'
 import AppearanceSettingsPanel from '../components/UserSettings/AppearanceSettingsPanel';
 import DefaultProjectPanel from '../components/UserSettings/DefaultProjectPanel';
 import { DeleteOrganizationPanel } from '../components/UserSettings/DeleteOrganizationPanel';
+import EmailWhitelabelPanel from '../components/UserSettings/EmailWhitelabel/EmailWhitelabelPanel';
 import ExportingPanel from '../components/UserSettings/ExportingPanel';
 import GithubSettingsPanel from '../components/UserSettings/GithubSettingsPanel';
 import GithubUserSettingsPanel from '../components/UserSettings/GithubUserSettingsPanel';
@@ -155,6 +156,7 @@ const Settings: FC = () => {
         isCustomRolesEnabled,
         isProLimitsEnabled,
         isSsoOrganizationSettingsEnabled,
+        isEmailWhitelabelEnabled,
         isServiceAccountsEnabled,
         allowPasswordAuthentication,
         hasSocialLogin,
@@ -521,6 +523,16 @@ const Settings: FC = () => {
 
         if (
             user?.ability.can('manage', 'Organization') &&
+            isEmailWhitelabelEnabled
+        ) {
+            allowedRoutes.push({
+                path: '/emailWhitelabel',
+                element: <EmailWhitelabelPanel />,
+            });
+        }
+
+        if (
+            user?.ability.can('manage', 'Organization') &&
             isSsoOrganizationSettingsEnabled
         ) {
             allowedRoutes.push({
@@ -682,6 +694,7 @@ const Settings: FC = () => {
         dataAppsFlag?.enabled,
         isProLimitsEnabled,
         isSsoOrganizationSettingsEnabled,
+        isEmailWhitelabelEnabled,
         isLeaveOrganizationEnabled,
         isAiCopilotEnabledOrTrial,
         shouldShowAiAgentReviews,

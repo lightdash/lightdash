@@ -88,6 +88,15 @@ export const useSettingsContext = (): SettingsContext => {
     const isSsoOrganizationSettingsEnabled =
         ssoOrganizationSettingsFlag?.enabled ?? false;
 
+    const { data: emailWhitelabelFlag } = useServerFeatureFlag(
+        FeatureFlags.EmailWhitelabel,
+    );
+    // Instance must be configured for whitelabelling (health) AND the org must
+    // have the feature flag.
+    const isEmailWhitelabelEnabled =
+        (health?.hasEmailWhitelabel ?? false) &&
+        (emailWhitelabelFlag?.enabled ?? false);
+
     const {
         data: organization,
         isInitialLoading: isOrganizationLoading,
@@ -167,6 +176,7 @@ export const useSettingsContext = (): SettingsContext => {
         isCustomRolesEnabled,
         isProLimitsEnabled,
         isSsoOrganizationSettingsEnabled,
+        isEmailWhitelabelEnabled,
         isScimTokenManagementEnabled,
         isServiceAccountsEnabled,
         isAiCopilotEnabledOrTrial,
