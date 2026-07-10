@@ -142,7 +142,43 @@ function jsxSourceLocVitePlugin() {
 }
 
 export default defineConfig(({ mode }) => {
-    const env = loadEnv(mode, process.cwd(), 'VITE_');
+    // Load VITE_* (inlined into the browser bundle) AND the preview-only
+    // LIGHTDASH_PREVIEW_API_KEY (stays server-side — never inlined, since
+    // envPrefix defaults to 'VITE_'). `lightdash apps preview` writes the real
+    // credential as the latter and only a non-secret sentinel as
+    // VITE_LIGHTDASH_API_KEY, so no usable credential reaches the page.
+    const env = loadEnv(mode, process.cwd(), ['VITE_', 'LIGHTDASH_PREVIEW_']);
+    const previewApiKey = env.LIGHTDASH_PREVIEW_API_KEY;
+    const lightdashUrl =
+        env.VITE_LIGHTDASH_URL || 'https://app.lightdash.cloud';
+
+    let lightdashOrigin = '';
+    try {
+        lightdashOrigin = new URL(lightdashUrl).origin;
+    } catch {
+        lightdashOrigin = '';
+    }
+
+    // Dev-server CSP that emulates the deployed app policy for the vectors that
+    // matter for credential/data theft: network egress is locked to same-origin
+    // (the /api proxy) plus the Lightdash origin. script-src/style-src stay
+    // permissive because Vite's dev runtime needs inline + eval — so this is
+    // NOT a full stand-in for the deployed CSP (the app page after upload is
+    // the final check), but it does block exfiltration channels in preview.
+    const previewCsp = [
+        `default-src 'none'`,
+        `script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:`,
+        `style-src 'self' 'unsafe-inline'`,
+        `connect-src 'self' ${lightdashOrigin}`.trim(),
+        `img-src 'self' data: blob:`,
+        `font-src 'self' data:`,
+        `worker-src 'self' blob:`,
+        `child-src 'self' blob:`,
+        `object-src 'none'`,
+        `base-uri 'self'`,
+        `form-action 'self'`,
+        `frame-ancestors 'self'`,
+    ].join('; ');
 
     return {
         plugins: [jsxSourceLocVitePlugin(), react()],
@@ -153,12 +189,25 @@ export default defineConfig(({ mode }) => {
             },
         },
         server: {
+            headers: { 'Content-Security-Policy': previewCsp },
             proxy: {
                 '/api': {
-                    target:
-                        env.VITE_LIGHTDASH_URL || 'https://app.lightdash.cloud',
+                    target: lightdashUrl,
                     changeOrigin: true,
                     secure: true,
+                    // Inject the real credential server-side: the browser only
+                    // ever sends a sentinel, and this overrides it before the
+                    // request leaves the dev server. Keeps the API key out of
+                    // the page entirely.
+                    configure: (proxy) => {
+                        if (!previewApiKey) return;
+                        proxy.on('proxyReq', (proxyReq) => {
+                            proxyReq.setHeader(
+                                'authorization',
+                                `ApiKey ${previewApiKey}`,
+                            );
+                        });
+                    },
                 },
             },
         },

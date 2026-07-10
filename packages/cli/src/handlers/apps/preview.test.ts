@@ -6,6 +6,7 @@ import { writeBundleToDir } from './appCodeFiles';
 import {
     assertNodeModulesPresent,
     buildPreviewEnv,
+    PREVIEW_API_KEY_SENTINEL,
     projectNotFoundMessage,
     resolvePreviewTarget,
 } from './preview';
@@ -25,7 +26,7 @@ const previewBundle: DataAppCode = {
 };
 
 describe('buildPreviewEnv', () => {
-    it('renders the three VITE vars exactly, with trailing newline', () => {
+    it('keeps the real key server-side and inlines only a sentinel', () => {
         expect(
             buildPreviewEnv({
                 serverUrl: 'http://localhost:3000',
@@ -34,9 +35,25 @@ describe('buildPreviewEnv', () => {
             }),
         ).toBe(
             'VITE_LIGHTDASH_URL=http://localhost:3000\n' +
-                'VITE_LIGHTDASH_API_KEY=ldpat_abc\n' +
-                'VITE_LIGHTDASH_PROJECT_UUID=proj-uuid-1\n',
+                `VITE_LIGHTDASH_API_KEY=${PREVIEW_API_KEY_SENTINEL}\n` +
+                'VITE_LIGHTDASH_PROJECT_UUID=proj-uuid-1\n' +
+                'LIGHTDASH_PREVIEW_API_KEY=ldpat_abc\n',
         );
+    });
+
+    it('never inlines the real key into a VITE_ (browser) var', () => {
+        const env = buildPreviewEnv({
+            serverUrl: 'http://localhost:3000',
+            apiKey: 'ldpat_secret',
+            projectUuid: 'p',
+        });
+        // The real key must only appear on the non-VITE, server-only line.
+        for (const line of env.split('\n')) {
+            if (line.startsWith('VITE_')) {
+                expect(line).not.toContain('ldpat_secret');
+            }
+        }
+        expect(env).toContain('LIGHTDASH_PREVIEW_API_KEY=ldpat_secret\n');
     });
 
     it('strips a trailing slash from the server url', () => {

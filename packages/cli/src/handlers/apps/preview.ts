@@ -8,16 +8,28 @@ import * as styles from '../../styles';
 import { checkLightdashVersion } from '../dbt/apiClient';
 import { readManifestFromDir } from './appCodeFiles';
 
+// Non-secret placeholder inlined into the browser in place of the real key.
+// The vite proxy overrides the Authorization header with the real credential
+// (LIGHTDASH_PREVIEW_API_KEY) server-side, so this value never authenticates.
+export const PREVIEW_API_KEY_SENTINEL = 'preview-proxy-injected';
+
 export const buildPreviewEnv = (args: {
     serverUrl: string;
     apiKey: string;
     projectUuid: string;
 }): string => {
     const baseUrl = args.serverUrl.replace(/\/+$/, '');
+    // The real credential goes into LIGHTDASH_PREVIEW_API_KEY, which the vite
+    // dev server reads server-side and injects into proxied /api requests — it
+    // is never inlined into the browser bundle (only VITE_* vars are). The
+    // browser gets a non-secret sentinel so the SDK still builds a client and
+    // sends a well-formed (but useless) Authorization header the proxy
+    // overrides. Result: no usable API key ever reaches the page.
     return [
         `VITE_LIGHTDASH_URL=${baseUrl}`,
-        `VITE_LIGHTDASH_API_KEY=${args.apiKey}`,
+        `VITE_LIGHTDASH_API_KEY=${PREVIEW_API_KEY_SENTINEL}`,
         `VITE_LIGHTDASH_PROJECT_UUID=${args.projectUuid}`,
+        `LIGHTDASH_PREVIEW_API_KEY=${args.apiKey}`,
         '',
     ].join('\n');
 };
