@@ -150,9 +150,7 @@ describe('Dashboard filter required groups', () => {
 
         // Set a value on ONE member of the group via its filter pill
         cy.contains('button', 'Payment method').click();
-        cy.findByPlaceholderText('Start typing to filter results').type(
-            'credit_card',
-        );
+        cy.findByPlaceholderText('any value').type('credit_card');
         cy.findByRole('option', { name: 'credit_card' }).click();
         cy.contains('button', 'Apply').click({ force: true });
 
@@ -169,6 +167,11 @@ describe('Dashboard filter required groups', () => {
     it('completes setup through the guided card and unlocks live', () => {
         cy.intercept('POST', '**/api/v2/projects/*/query/dashboard-chart').as(
             'chartQuery',
+        );
+        // The card's focused autocomplete is disabled while its initial
+        // field-values search is in flight; wait for it before typing
+        cy.intercept('POST', '**/field/payments_payment_method/search').as(
+            'paymentValuesSearch',
         );
 
         createDashboardWithFilters(
@@ -188,6 +191,7 @@ describe('Dashboard filter required groups', () => {
         });
 
         // Two rules qualify for the card; the editor note is its subtitle
+        cy.wait('@paymentValuesSearch');
         cy.findByTestId('guided-filter-setup').within(() => {
             cy.findByText(GUIDED_SETUP_NOTE).should('be.visible');
             cy.findByText('0 of 2 set').should('be.visible');
@@ -195,6 +199,7 @@ describe('Dashboard filter required groups', () => {
             // Set the first rule (Payment method) from the card
             cy.findAllByPlaceholderText('any value')
                 .first()
+                .should('be.enabled')
                 .type('credit_card');
         });
         // Autocomplete options render in a portal outside the card
@@ -204,12 +209,18 @@ describe('Dashboard filter required groups', () => {
         cy.findByTestId('guided-filter-setup').within(() => {
             cy.findByText('1 of 2 set').should('be.visible');
             cy.findByText('Change').should('be.visible');
-            cy.findByText('credit_card').should('be.visible');
+            // Both the summary line and the tag input render the value
+            cy.findAllByText('credit_card').first().should('be.visible');
 
-            // Set the second rule (Order status)
-            cy.findAllByPlaceholderText('any value').first().type('completed');
+            // Open the second rule's input (Order status); its field values
+            // load on focus, so pick from the option list instead of typing
+            cy.findAllByPlaceholderText('any value').first().click();
         });
-        cy.findByRole('option', { name: 'Completed order' }).click();
+        // Autocomplete options render in a portal outside the card
+        cy.findByRole('option', {
+            name: 'Completed order',
+            timeout: 15000,
+        }).click();
 
         // All rules met: the card unmounts and the dashboard loads live
         cy.findByTestId('guided-filter-setup').should('not.exist');
@@ -221,7 +232,7 @@ describe('Dashboard filter required groups', () => {
         cy.get('.echarts-for-react').should('exist');
     });
 
-    it('locks a dashboard with a singleton required filter without the guided card', () => {
+    it('locks a dashboard with a singleton required filter and shows the guided card', () => {
         cy.intercept('POST', '**/api/v2/projects/*/query/dashboard-chart').as(
             'chartQuery',
         );
@@ -234,11 +245,12 @@ describe('Dashboard filter required groups', () => {
             );
         });
 
-        // A single one-filter rule stays lightweight: no guided card, just
-        // the yellow required chip and blocked tiles. The chip unlock flow
-        // is covered by the group test above.
+        // A required filter is a one-member rule, so it also qualifies for
+        // the guided card. Tiles stay blocked and no chart query runs. The
+        // chip unlock flow is covered by the group test above.
         cy.findAllByTestId('unmet-requirements-placeholder').should('exist');
-        cy.findByTestId('guided-filter-setup').should('not.exist');
+        cy.findByTestId('guided-filter-setup').should('be.visible');
+        cy.findByText('0 of 1 set').should('be.visible');
         cy.get('@chartQuery.all').should('have.length', 0);
     });
 });
