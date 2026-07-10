@@ -1834,7 +1834,7 @@ describe('getUnmetFilterRequirements', () => {
         expect(getUnmetFilterRequirements(filters)).toEqual([]);
     });
 
-    test('a valueless rule with both required and requiredGroupId is an unmet single and a group member', () => {
+    test('a rule with both required and requiredGroupId is a single, not a group member', () => {
         const both = createRule('a', {
             required: true,
             requiredGroupId: 'g1',
@@ -1845,12 +1845,27 @@ describe('getUnmetFilterRequirements', () => {
             disabled: true,
         });
 
+        // `required` wins: the dual-flag rule is excluded from its group
         const unmetGroupFilters = toDashboardFilters({
             dimensions: [both, memberB],
         });
         expect(getUnmetFilterRequirements(unmetGroupFilters)).toEqual([
             { type: 'single', filter: both },
-            { type: 'group', groupId: 'g1', filters: [both, memberB] },
+            { type: 'group', groupId: 'g1', filters: [memberB] },
+        ]);
+
+        // A value on the dual-flag rule satisfies its single, not the group
+        const satisfiedSingle = createRule('a', {
+            required: true,
+            requiredGroupId: 'g1',
+            disabled: false,
+            values: ['x'],
+        });
+        const satisfiedSingleFilters = toDashboardFilters({
+            dimensions: [satisfiedSingle, memberB],
+        });
+        expect(getUnmetFilterRequirements(satisfiedSingleFilters)).toEqual([
+            { type: 'group', groupId: 'g1', filters: [memberB] },
         ]);
 
         // Group satisfied by the other member, but the required single remains unmet

@@ -1,0 +1,16 @@
+/* The card renders its own Paper; the modal content is just a transparent
+   shell so the standard Modal positioning/scrolling applies to the card */
+.content {
+    background-color: transparent;
+    box-shadow: none;
+}
+
+.cardWrapper {
+    width: 420px;
+    max-width: 100%;
+    height: fit-content;
+}
+
+.summaryRow {
+    min-height: 30px;
+}

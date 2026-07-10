@@ -1544,6 +1544,60 @@ export type UnmetFilterRequirement =
     | { type: 'single'; filter: DashboardFilterRule }
     | { type: 'group'; groupId: string; filters: DashboardFilterRule[] };
 
+export type FilterRequirementRule = {
+    type: 'single' | 'group';
+    /**
+     * `requiredGroupId` for shared rules; the filter's own id for one-member
+     * rules expressed via `required: true`.
+     */
+    id: string;
+    members: DashboardFilterRule[];
+};
+
+/**
+ * Unified view of filter requirements: every requirement is a rule, a set of
+ * filters where at least one must be set. `required: true` is a one-member
+ * rule; filters sharing a `requiredGroupId` form one rule. Rules are returned
+ * in first-appearance order (dimensions before metrics). `required` wins when
+ * hand-authored JSON sets both flags on the same filter.
+ */
+export const getFilterRequirementRules = (
+    dashboardFilters: Pick<DashboardFilters, 'dimensions' | 'metrics'>,
+): FilterRequirementRule[] => {
+    const filterRules = [
+        ...dashboardFilters.dimensions,
+        ...dashboardFilters.metrics,
+    ];
+
+    const rules: FilterRequirementRule[] = [];
+    const groupRulesById = new Map<string, FilterRequirementRule>();
+    filterRules.forEach((filterRule) => {
+        if (filterRule.required) {
+            rules.push({
+                type: 'single',
+                id: filterRule.id,
+                members: [filterRule],
+            });
+            return;
+        }
+        if (!filterRule.requiredGroupId) return;
+
+        const existingRule = groupRulesById.get(filterRule.requiredGroupId);
+        if (existingRule) {
+            existingRule.members.push(filterRule);
+            return;
+        }
+        const rule: FilterRequirementRule = {
+            type: 'group',
+            id: filterRule.requiredGroupId,
+            members: [filterRule],
+        };
+        groupRulesById.set(filterRule.requiredGroupId, rule);
+        rules.push(rule);
+    });
+    return rules;
+};
+
 /**
  * A rule only satisfies a requirement when it actually filters the query:
  * disabled rules and enabled rules with a value-requiring operator and no
@@ -1554,35 +1608,24 @@ export const isValuelessDashboardFilterRule = (
     rule: DashboardFilterRule,
 ): boolean => rule.disabled === true || isEmptyDashboardFilterRule(rule);
 
+/** A rule is satisfied when any member actually filters the query */
+export const isRequirementRuleSatisfied = (
+    rule: FilterRequirementRule,
+): boolean =>
+    rule.members.some((member) => !isValuelessDashboardFilterRule(member));
+
 /**
- * Unmet requirements over dimensions + metrics: valueless `required` rules as
- * singles (even when also in a group), then groups whose members are all
- * valueless, in first-appearance order.
+ * Unmet requirements over dimensions + metrics, derived from
+ * `getFilterRequirementRules` so the dashboard lock and the requirement UIs
+ * share a single rule derivation.
  */
 export const getUnmetFilterRequirements = (
     dashboardFilters: DashboardFilters,
-): UnmetFilterRequirement[] => {
-    const rules = [...dashboardFilters.dimensions, ...dashboardFilters.metrics];
-
-    const unmetSingles = rules
-        .filter((rule) => rule.required && isValuelessDashboardFilterRule(rule))
-        .map<UnmetFilterRequirement>((filter) => ({ type: 'single', filter }));
-
-    const groups = new Map<string, DashboardFilterRule[]>();
-    rules.forEach((rule) => {
-        if (!rule.requiredGroupId) return;
-        const members = groups.get(rule.requiredGroupId) ?? [];
-        members.push(rule);
-        groups.set(rule.requiredGroupId, members);
-    });
-
-    const unmetGroups = [...groups.entries()]
-        .filter(([, members]) => members.every(isValuelessDashboardFilterRule))
-        .map<UnmetFilterRequirement>(([groupId, filters]) => ({
-            type: 'group',
-            groupId,
-            filters,
-        }));
-
-    return [...unmetSingles, ...unmetGroups];
-};
+): UnmetFilterRequirement[] =>
+    getFilterRequirementRules(dashboardFilters)
+        .filter((rule) => !isRequirementRuleSatisfied(rule))
+        .map<UnmetFilterRequirement>((rule) =>
+            rule.type === 'single'
+                ? { type: 'single', filter: rule.members[0] }
+                : { type: 'group', groupId: rule.id, filters: rule.members },
+        );
