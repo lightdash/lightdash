@@ -291,6 +291,7 @@ export const lightdashConfigMock: LightdashConfig = {
         browserEndpoint: 'ws://headless-browser:3000',
         maxScreenshotRetries: 5,
         retryBaseDelayMs: 3000,
+        screenshotTimeoutMs: 180000,
     },
     contentAsCode: {
         maxDownloads: 100,

@@ -69,7 +69,6 @@ import { traceSpan } from '../../tracing/tracing';
 import { BaseService } from '../BaseService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 
-const RESPONSE_TIMEOUT_MS = 180000;
 const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const uuidRegex = new RegExp(uuid, 'g');
 const nanoid = '[\\w-]{21}';
@@ -332,6 +331,8 @@ export class UnfurlService extends BaseService {
 
     spacePermissionService: SpacePermissionService;
 
+    private readonly screenshotTimeoutMs: number;
+
     constructor({
         lightdashConfig,
         dashboardModel,
@@ -363,6 +364,8 @@ export class UnfurlService extends BaseService {
         this.analytics = analytics;
         this.slackAuthenticationModel = slackAuthenticationModel;
         this.spacePermissionService = spacePermissionService;
+        this.screenshotTimeoutMs =
+            lightdashConfig.headlessBrowser.screenshotTimeoutMs;
     }
 
     async getPreviewSignedUrl(previewId: string): Promise<string> {
@@ -1435,7 +1438,8 @@ export class UnfurlService extends BaseService {
                                             `#loom-loaded-${id}`,
                                             {
                                                 state: 'attached',
-                                                timeout: RESPONSE_TIMEOUT_MS,
+                                                timeout:
+                                                    this.screenshotTimeoutMs,
                                             },
                                         ),
                                 );
@@ -1582,7 +1586,7 @@ export class UnfurlService extends BaseService {
                                 SCREENSHOT_SELECTORS.READY_INDICATOR,
                                 {
                                     state: 'attached',
-                                    timeout: RESPONSE_TIMEOUT_MS,
+                                    timeout: this.screenshotTimeoutMs,
                                 },
                             );
                             this.logger.info(
@@ -1757,7 +1761,7 @@ export class UnfurlService extends BaseService {
 
                     const fullPage = await page.locator(finalSelector);
                     const fullPageSize = await fullPage?.boundingBox({
-                        timeout: RESPONSE_TIMEOUT_MS,
+                        timeout: this.screenshotTimeoutMs,
                     });
 
                     if (
@@ -1840,7 +1844,7 @@ export class UnfurlService extends BaseService {
                         ) {
                             await page.locator(finalSelector).screenshot({
                                 animations: 'disabled',
-                                timeout: RESPONSE_TIMEOUT_MS,
+                                timeout: this.screenshotTimeoutMs,
                             });
                         } else {
                             await page.screenshot({
@@ -1863,7 +1867,7 @@ export class UnfurlService extends BaseService {
                             .screenshot({
                                 path,
                                 animations: 'disabled',
-                                timeout: RESPONSE_TIMEOUT_MS,
+                                timeout: this.screenshotTimeoutMs,
                             });
                     } else if (lightdashPage === LightdashPage.APP) {
                         // Leave the iframe at the initial tall viewport and
@@ -1873,7 +1877,7 @@ export class UnfurlService extends BaseService {
                         const iframeBox = await page
                             .locator('iframe')
                             .first()
-                            .boundingBox({ timeout: RESPONSE_TIMEOUT_MS });
+                            .boundingBox({ timeout: this.screenshotTimeoutMs });
 
                         if (iframeBox) {
                             const clipWidth = Math.max(
@@ -2042,7 +2046,7 @@ export class UnfurlService extends BaseService {
                             imageBuffer = await page.screenshot({
                                 path,
                                 animations: 'disabled',
-                                timeout: RESPONSE_TIMEOUT_MS,
+                                timeout: this.screenshotTimeoutMs,
                                 clip: {
                                     x: iframeBox.x,
                                     y: iframeBox.y,
@@ -2057,7 +2061,7 @@ export class UnfurlService extends BaseService {
                                 .screenshot({
                                     path,
                                     animations: 'disabled',
-                                    timeout: RESPONSE_TIMEOUT_MS,
+                                    timeout: this.screenshotTimeoutMs,
                                 });
                         }
                     } else {

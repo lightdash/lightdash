@@ -1584,6 +1584,10 @@ export type HeadlessBrowserConfig = {
     browserEndpoint: string;
     maxScreenshotRetries: number;
     retryBaseDelayMs: number;
+    // How long to wait for page content (tiles/charts) to be ready before
+    // screenshotting. The browser container's own session timeout (browserless
+    // TIMEOUT env) must be >= this value or it becomes the binding limit.
+    screenshotTimeoutMs: number;
 };
 export type S3Config = {
     region: string;
@@ -2655,6 +2659,10 @@ export const parseConfig = (): LightdashConfig => {
             browserEndpoint,
             maxScreenshotRetries: parseInt(
                 process.env.HEADLESS_BROWSER_MAX_SCREENSHOT_RETRIES || '5',
+                10,
+            ),
+            screenshotTimeoutMs: parseInt(
+                process.env.HEADLESS_BROWSER_SCREENSHOT_TIMEOUT_MS || '180000',
                 10,
             ),
             retryBaseDelayMs: parseInt(

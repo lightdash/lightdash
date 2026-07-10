@@ -648,6 +648,17 @@ describe('process.env.LIGHTDASH_IFRAME_EMBEDDING_DOMAINS', () => {
                 config.headlessBrowser.internalLightdashHostIgnoreHttpsErrors,
             ).toBe(false);
         });
+
+        test('screenshotTimeoutMs defaults to 180000', () => {
+            const config = parseConfig();
+            expect(config.headlessBrowser.screenshotTimeoutMs).toBe(180000);
+        });
+
+        test('screenshotTimeoutMs is overridden by HEADLESS_BROWSER_SCREENSHOT_TIMEOUT_MS', () => {
+            process.env.HEADLESS_BROWSER_SCREENSHOT_TIMEOUT_MS = '360000';
+            const config = parseConfig();
+            expect(config.headlessBrowser.screenshotTimeoutMs).toBe(360000);
+        });
     });
 
     describe('environment variables for API tokens', () => {
