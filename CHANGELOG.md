@@ -1,3 +1,11 @@
+## [0.3363.1](https://github.com/lightdash/lightdash/compare/0.3363.0...0.3363.1) (2026-07-10)
+
+
+### Bug Fixes
+
+* add --include-apps to cli upload ([#25412](https://github.com/lightdash/lightdash/issues/25412)) ([217a555](https://github.com/lightdash/lightdash/commit/217a555c8fcf7cfdacef88187f6216f3543c8050))
+* **ai:** run data-apps sandbox on a BYO org's own Anthropic key ([#25345](https://github.com/lightdash/lightdash/issues/25345)) ([60adac2](https://github.com/lightdash/lightdash/commit/60adac2e10b9709659299266a2d51140cc8ec83b))
+
 # [0.3363.0](https://github.com/lightdash/lightdash/compare/0.3362.0...0.3363.0) (2026-07-10)
 
 
