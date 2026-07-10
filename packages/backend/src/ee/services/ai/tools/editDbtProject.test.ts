@@ -13,9 +13,8 @@ type EditDbtProjectOutput = {
 const executeEditDbtProject = (
     tool: EditDbtProjectTool,
     args: Partial<{
-        prompt: string | null;
+        prompt: string;
         prUrl: string | null;
-        fromActiveChangeset: boolean;
         startNewPullRequest: boolean | null;
     }> = {},
 ) =>
@@ -23,7 +22,6 @@ const executeEditDbtProject = (
         {
             prompt: 'fix the descriptions',
             prUrl: null,
-            fromActiveChangeset: false,
             startNewPullRequest: false,
             ...args,
         },
@@ -88,18 +86,13 @@ describe('getEditDbtProject', () => {
         expect(output.result).not.toContain('run-1');
     });
 
-    it('reports an enqueue-time failure (e.g. no active changeset) as an error result', async () => {
+    it('reports an enqueue-time failure as an error result', async () => {
         const editDbtProject = vi
             .fn()
-            .mockRejectedValue(
-                new Error(
-                    'There are no changes to write back for this project',
-                ),
-            );
+            .mockRejectedValue(new Error('Unable to enqueue writeback'));
 
         const output = await executeEditDbtProject(
             getEditDbtProject({ editDbtProject }),
-            { fromActiveChangeset: true, prompt: null },
         );
 
         expect(output.metadata?.status).toBe('error');

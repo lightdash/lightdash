@@ -16620,7 +16620,7 @@
                 ],
                 "type": "object"
             },
-            "Exclude_ToolName.proposeChange_": {
+            "Exclude_ToolName.never_": {
                 "type": "string",
                 "enum": [
                     "generateDashboard",
@@ -16645,6 +16645,7 @@
                     "findCharts",
                     "getDashboardCharts",
                     "readContent",
+                    "resolveUrl",
                     "editContent",
                     "createContent",
                     "runContentQuery",
@@ -16684,100 +16685,6 @@
                                 "properties": {
                                     "metadata": {
                                         "anyOf": [
-                                            {
-                                                "properties": {
-                                                    "userFeedback": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "accepted",
-                                                            "rejected"
-                                                        ]
-                                                    },
-                                                    "changeUuid": {
-                                                        "type": "string"
-                                                    },
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": ["success"],
-                                                        "nullable": false
-                                                    }
-                                                },
-                                                "required": [
-                                                    "changeUuid",
-                                                    "status"
-                                                ],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": ["error"],
-                                                        "nullable": false
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            }
-                                        ]
-                                    },
-                                    "toolName": {
-                                        "type": "string",
-                                        "enum": ["proposeChange"],
-                                        "nullable": false
-                                    },
-                                    "toolType": {
-                                        "type": "string",
-                                        "enum": ["built-in"],
-                                        "nullable": false
-                                    }
-                                },
-                                "required": [
-                                    "metadata",
-                                    "toolName",
-                                    "toolType"
-                                ],
-                                "type": "object"
-                            },
-                            {
-                                "properties": {
-                                    "metadata": {
-                                        "anyOf": [
-                                            {
-                                                "properties": {
-                                                    "userFeedback": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "accepted",
-                                                            "rejected"
-                                                        ]
-                                                    },
-                                                    "changeUuid": {
-                                                        "type": "string"
-                                                    },
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": ["success"],
-                                                        "nullable": false
-                                                    }
-                                                },
-                                                "required": [
-                                                    "changeUuid",
-                                                    "status"
-                                                ],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": ["error"],
-                                                        "nullable": false
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
                                             {
                                                 "properties": {
                                                     "status": {
@@ -17055,6 +16962,17 @@
                                                     "status",
                                                     "name"
                                                 ],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": ["error"],
+                                                        "nullable": false
+                                                    }
+                                                },
+                                                "required": ["status"],
                                                 "type": "object"
                                             },
                                             {
@@ -17558,10 +17476,10 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "timeout",
                                                             "error",
                                                             "rejected",
-                                                            "success"
+                                                            "success",
+                                                            "timeout"
                                                         ]
                                                     }
                                                 },
@@ -17643,7 +17561,7 @@
                                         ]
                                     },
                                     "toolName": {
-                                        "$ref": "#/components/schemas/Exclude_ToolName.proposeChange_"
+                                        "$ref": "#/components/schemas/Exclude_ToolName.never_"
                                     },
                                     "toolType": {
                                         "type": "string",
@@ -19425,18 +19343,6 @@
                     }
                 },
                 "required": ["instruction"],
-                "type": "object"
-            },
-            "ApiRevertChangeResponse": {
-                "$ref": "#/components/schemas/ApiSuccessEmpty"
-            },
-            "ApiRevertChangeRequest": {
-                "properties": {
-                    "changeUuid": {
-                        "type": "string"
-                    }
-                },
-                "required": ["changeUuid"],
                 "type": "object"
             },
             "PreAggregateDailyStatResult": {
@@ -44625,7 +44531,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3355.0",
+        "version": "0.3361.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -50223,78 +50129,6 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ApiAppendInstructionRequest"
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/messages/{promptUuid}/revert-change": {
-            "post": {
-                "operationId": "revertChange",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiRevertChangeResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "agentUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "threadUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "path",
-                        "name": "promptUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/ApiRevertChangeRequest"
                             }
                         }
                     }
@@ -70220,7 +70054,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiRevertChangeResponse"
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
                                 }
                             }
                         }
@@ -70269,7 +70103,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiRevertChangeResponse"
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
                                 }
                             }
                         }

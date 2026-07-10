@@ -58,7 +58,6 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     improveContext: 'improve_context',
     listProjects: 'list_projects',
     getProjectInfo: 'get_project_info',
-    proposeChange: 'propose_change',
     editDbtProject: 'edit_dbt_project',
     editProjectContext: 'edit_project_context',
     editRepo: 'edit_repo',

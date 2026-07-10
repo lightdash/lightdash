@@ -12774,15 +12774,9 @@ const models: TsoaRoute.Models = {
                         {
                             dataType: 'nestedObjectLiteral',
                             nestedProperties: {
-                                clientSecret: {
-                                    dataType: 'string',
-                                },
-                                clientId: {
-                                    dataType: 'string',
-                                },
-                                bearerToken: {
-                                    dataType: 'string',
-                                },
+                                clientSecret: { dataType: 'string' },
+                                clientId: { dataType: 'string' },
+                                bearerToken: { dataType: 'string' },
                             },
                         },
                         { dataType: 'enum', enums: [null] },
@@ -14986,7 +14980,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'Exclude_ToolName.proposeChange_': {
+    'Exclude_ToolName.never_': {
         dataType: 'refAlias',
         type: {
             dataType: 'union',
@@ -15013,6 +15007,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['findCharts'] },
                 { dataType: 'enum', enums: ['getDashboardCharts'] },
                 { dataType: 'enum', enums: ['readContent'] },
+                { dataType: 'enum', enums: ['resolveUrl'] },
                 { dataType: 'enum', enums: ['editContent'] },
                 { dataType: 'enum', enums: ['createContent'] },
                 { dataType: 'enum', enums: ['runContentQuery'] },
@@ -15058,109 +15053,6 @@ const models: TsoaRoute.Models = {
                                 metadata: {
                                     dataType: 'union',
                                     subSchemas: [
-                                        {
-                                            dataType: 'nestedObjectLiteral',
-                                            nestedProperties: {
-                                                userFeedback: {
-                                                    dataType: 'union',
-                                                    subSchemas: [
-                                                        {
-                                                            dataType: 'enum',
-                                                            enums: ['accepted'],
-                                                        },
-                                                        {
-                                                            dataType: 'enum',
-                                                            enums: ['rejected'],
-                                                        },
-                                                        {
-                                                            dataType:
-                                                                'undefined',
-                                                        },
-                                                    ],
-                                                },
-                                                changeUuid: {
-                                                    dataType: 'string',
-                                                    required: true,
-                                                },
-                                                status: {
-                                                    dataType: 'enum',
-                                                    enums: ['success'],
-                                                    required: true,
-                                                },
-                                            },
-                                        },
-                                        {
-                                            dataType: 'nestedObjectLiteral',
-                                            nestedProperties: {
-                                                status: {
-                                                    dataType: 'enum',
-                                                    enums: ['error'],
-                                                    required: true,
-                                                },
-                                            },
-                                        },
-                                    ],
-                                    required: true,
-                                },
-                                toolName: {
-                                    dataType: 'enum',
-                                    enums: ['proposeChange'],
-                                    required: true,
-                                },
-                                toolType: {
-                                    dataType: 'enum',
-                                    enums: ['built-in'],
-                                    required: true,
-                                },
-                            },
-                        },
-                        {
-                            dataType: 'nestedObjectLiteral',
-                            nestedProperties: {
-                                metadata: {
-                                    dataType: 'union',
-                                    subSchemas: [
-                                        {
-                                            dataType: 'nestedObjectLiteral',
-                                            nestedProperties: {
-                                                userFeedback: {
-                                                    dataType: 'union',
-                                                    subSchemas: [
-                                                        {
-                                                            dataType: 'enum',
-                                                            enums: ['accepted'],
-                                                        },
-                                                        {
-                                                            dataType: 'enum',
-                                                            enums: ['rejected'],
-                                                        },
-                                                        {
-                                                            dataType:
-                                                                'undefined',
-                                                        },
-                                                    ],
-                                                },
-                                                changeUuid: {
-                                                    dataType: 'string',
-                                                    required: true,
-                                                },
-                                                status: {
-                                                    dataType: 'enum',
-                                                    enums: ['success'],
-                                                    required: true,
-                                                },
-                                            },
-                                        },
-                                        {
-                                            dataType: 'nestedObjectLiteral',
-                                            nestedProperties: {
-                                                status: {
-                                                    dataType: 'enum',
-                                                    enums: ['error'],
-                                                    required: true,
-                                                },
-                                            },
-                                        },
                                         {
                                             dataType: 'nestedObjectLiteral',
                                             nestedProperties: {
@@ -16880,10 +16772,6 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['timeout'],
-                                                        },
-                                                        {
-                                                            dataType: 'enum',
                                                             enums: ['error'],
                                                         },
                                                         {
@@ -16893,6 +16781,10 @@ const models: TsoaRoute.Models = {
                                                         {
                                                             dataType: 'enum',
                                                             enums: ['success'],
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: ['timeout'],
                                                         },
                                                     ],
                                                     required: true,
@@ -17160,7 +17052,7 @@ const models: TsoaRoute.Models = {
                                     required: true,
                                 },
                                 toolName: {
-                                    ref: 'Exclude_ToolName.proposeChange_',
+                                    ref: 'Exclude_ToolName.never_',
                                     required: true,
                                 },
                                 toolType: {
@@ -19026,22 +18918,6 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 instruction: { dataType: 'string', required: true },
-            },
-            validators: {},
-        },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiRevertChangeResponse: {
-        dataType: 'refAlias',
-        type: { ref: 'ApiSuccessEmpty', validators: {} },
-    },
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    ApiRevertChangeRequest: {
-        dataType: 'refAlias',
-        type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                changeUuid: { dataType: 'string', required: true },
             },
             validators: {},
         },
@@ -56779,89 +56655,6 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'appendInstruction',
-                    controller,
-                    response,
-                    next,
-                    validatedArgs,
-                    successStatus: 200,
-                });
-            } catch (err) {
-                return next(err);
-            }
-        },
-    );
-    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    const argsAiAgentController_revertChange: Record<
-        string,
-        TsoaRoute.ParameterSchema
-    > = {
-        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
-        projectUuid: {
-            in: 'path',
-            name: 'projectUuid',
-            required: true,
-            dataType: 'string',
-        },
-        agentUuid: {
-            in: 'path',
-            name: 'agentUuid',
-            required: true,
-            dataType: 'string',
-        },
-        threadUuid: {
-            in: 'path',
-            name: 'threadUuid',
-            required: true,
-            dataType: 'string',
-        },
-        promptUuid: {
-            in: 'path',
-            name: 'promptUuid',
-            required: true,
-            dataType: 'string',
-        },
-        body: {
-            in: 'body',
-            name: 'body',
-            required: true,
-            ref: 'ApiRevertChangeRequest',
-        },
-    };
-    app.post(
-        '/api/v1/projects/:projectUuid/aiAgents/:agentUuid/threads/:threadUuid/messages/:promptUuid/revert-change',
-        ...fetchMiddlewares<RequestHandler>(AiAgentController),
-        ...fetchMiddlewares<RequestHandler>(
-            AiAgentController.prototype.revertChange,
-        ),
-
-        async function AiAgentController_revertChange(
-            request: ExRequest,
-            response: ExResponse,
-            next: any,
-        ) {
-            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-
-            let validatedArgs: any[] = [];
-            try {
-                validatedArgs = templateService.getValidatedArgs({
-                    args: argsAiAgentController_revertChange,
-                    request,
-                    response,
-                });
-
-                const container: IocContainer =
-                    typeof iocContainer === 'function'
-                        ? (iocContainer as IocContainerFactory)(request)
-                        : iocContainer;
-
-                const controller: any =
-                    await container.get<AiAgentController>(AiAgentController);
-                if (typeof controller['setStatus'] === 'function') {
-                    controller.setStatus(undefined);
-                }
-
-                await templateService.apiHandler({
-                    methodName: 'revertChange',
                     controller,
                     response,
                     next,

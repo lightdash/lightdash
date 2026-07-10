@@ -71,7 +71,6 @@ import {
     SlackPrompt,
     ToolName,
     ToolNameSchema,
-    toolProposeChangeOutputSchema,
     UnexpectedServerError,
     UpdateSlackResponse,
     UpdateSlackResponseTs,
@@ -307,8 +306,8 @@ const normalizeToolName = (toolName: string): string =>
     LEGACY_TOOL_NAME_ALIASES[toolName] ?? toolName;
 
 // Rows whose tool name is neither a current/legacy built-in nor an MCP tool
-// (e.g. a tool removed without an alias) are dropped by the read paths rather
-// than failing the whole thread read.
+// (such as the intentionally omitted removed proposeChange tool) are dropped
+// by the read paths rather than failing the whole thread read.
 const isParseableToolName = (toolName: string): boolean =>
     isAiAgentToolName(normalizeToolName(toolName));
 
@@ -5888,20 +5887,6 @@ export class AiAgentModel {
         }
 
         switch (parsedToolName.data) {
-            case 'proposeChange':
-                return {
-                    uuid: row.ai_agent_tool_result_uuid,
-                    promptUuid: row.ai_prompt_uuid,
-                    toolCallId: row.tool_call_id,
-                    toolType: 'built-in',
-                    toolName: parsedToolName.data,
-                    result: row.result,
-                    metadata:
-                        toolProposeChangeOutputSchema.shape.metadata.parse(
-                            row.metadata,
-                        ),
-                    createdAt: row.created_at,
-                };
             default:
                 return {
                     uuid: row.ai_agent_tool_result_uuid,

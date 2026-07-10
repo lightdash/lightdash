@@ -11,20 +11,14 @@ export const TOOL_EDIT_DBT_PROJECT_DESCRIPTION = [
 export const toolEditDbtProjectArgsSchema = z.object({
     prompt: z
         .string()
-        .nullable()
         .describe(
-            'A focused, self-contained natural-language instruction describing exactly which files in the dbt project to change and how. The change is applied in a fresh sandbox that does not see this conversation, so include every detail it needs (model name, file path hints, the literal change to make). Do not include preamble or pleasantries. Pass null only when fromActiveChangeset is true, in which case this is ignored.',
+            'A focused, self-contained natural-language instruction describing exactly which files in the dbt project to change and how. The change is applied in a fresh sandbox that does not see this conversation, so include every detail it needs (model name, file path hints, the literal change to make). Do not include preamble or pleasantries.',
         ),
     prUrl: z
         .string()
         .nullable()
         .describe(
             "To UPDATE a specific existing pull request instead of opening a new one, put its full URL here (e.g. 'https://github.com/owner/repo/pull/123'). The PR must belong to this project's own dbt repository. Use this both for a PR the user pasted AND to target one of several pull requests this conversation has already opened (get the URL from listWorkstreams or a previous editDbtProject result). Otherwise pass null.",
-        ),
-    fromActiveChangeset: z
-        .boolean()
-        .describe(
-            'Set to true when the user asks to write back, apply, or open a pull request FROM their changeset(s) — e.g. "create a PR from my changesets". The server then reads the project\'s active changeset and builds the writeback instructions deterministically from its structured changes, ignoring `prompt` (pass null). Leave false for ordinary free-text writeback requests where you compose `prompt` yourself.',
         ),
     startNewPullRequest: z
         .boolean()

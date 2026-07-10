@@ -166,7 +166,6 @@ const makeService = ({
         aiAgentContentValidation,
         projectContextModel: {},
         aiAgentDocumentModel: {},
-        changesetModel: {},
         featureFlagService: {},
         previewDeploySetupService: {},
         shareService: {},

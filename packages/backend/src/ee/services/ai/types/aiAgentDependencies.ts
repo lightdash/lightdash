@@ -503,9 +503,8 @@ export type LoadAgentSkillFn = (
 ) => Promise<AiAgentSkill | undefined>;
 
 export type EditDbtProjectFn = (args: {
-    prompt: string | null;
+    prompt: string;
     prUrl: string | null;
-    fromActiveChangeset: boolean;
     /** Open a new PR instead of continuing the thread's existing one. */
     startNewPullRequest: boolean | null;
     progressId?: string;

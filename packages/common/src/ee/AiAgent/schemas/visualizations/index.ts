@@ -39,7 +39,6 @@ export const ToolNameSchema = z.enum([
     'getProjectInfo',
     'loadSkill',
     'loadProjectContext',
-    'proposeChange',
     'editDbtProject',
     'editProjectContext',
     'editRepo',

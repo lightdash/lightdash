@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    activeFollowUpTools,
     AGENT_SUGGESTION_TOOLS,
     AgentSuggestion,
     AgentSummaryContext,
@@ -77,7 +78,6 @@ import {
     isGitProjectType,
     isSlackMessageTooLongError,
     isSlackPrompt,
-    isToolProposeChangeSuccessResult,
     KnexPaginateArgs,
     KnexPaginatedData,
     LightdashUser,
@@ -177,7 +177,6 @@ import {
     CatalogModel,
     CatalogSearchContext,
 } from '../../../models/CatalogModel/CatalogModel';
-import { ChangesetModel } from '../../../models/ChangesetModel';
 import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
 import { DownloadFileModel } from '../../../models/DownloadFileModel';
 import { GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
@@ -314,7 +313,6 @@ import {
     getModernArtifactCardBlocks,
     getModernPullRequestCardBlocks,
     getProjectSelectionBlocks,
-    getProposeChangeBlocks,
     getReferencedArtifactsBlocks,
     getTextBlocks,
     getThinkingBlocks,
@@ -330,7 +328,6 @@ import { validateSelectedFieldsExistence } from '../ai/utils/validators';
 import { AiAgentToolsService } from '../AiAgentToolsService/AiAgentToolsService';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { AiWritebackService } from '../AiWritebackService/AiWritebackService';
-import { buildChangesetWritebackPrompt } from '../AiWritebackService/changesetPrompt';
 import { WritebackThreadPrClosedError } from '../AiWritebackService/errors';
 import type { AiWritebackSource } from '../AiWritebackService/types';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
@@ -390,7 +387,6 @@ type AiAgentServiceDependencies = {
     asyncQueryService: AsyncQueryService;
     catalogService: CatalogService;
     catalogModel: CatalogModel;
-    changesetModel: ChangesetModel;
     contentVerificationModel: ContentVerificationModel;
     searchModel: SearchModel;
     searchService: SearchService;
@@ -500,7 +496,7 @@ const SYSTEM_AGENT_INSTRUCTION = `You are Lightdash's built-in assistant. Help t
 
 If the user asks about the current project or its underlying dbt project — for example which dbt project this is, which git repository or branch it connects to, or what dbt version or warehouse it uses — call the getProjectInfo tool and answer from its result. Do not guess these details.
 
-If the user asks you to change the dbt project or semantic layer — for example renaming or adding a metric or dimension, editing a model's YAML, or otherwise modifying definitions — use the editDbtProject tool, passing along the user's request. It opens a pull request against the project's dbt repository. Do not attempt to make such changes any other way. If the user asks to write back or open a pull request from their changeset(s), call editDbtProject with fromActiveChangeset set to true and prompt set to null — the server builds the change instructions from the project's active changeset.
+If the user asks you to change the dbt project or semantic layer — for example renaming or adding a metric or dimension, editing a model's YAML, or otherwise modifying definitions — use the editDbtProject tool, passing along the user's request. It opens a pull request against the project's dbt repository. Do not attempt to make such changes any other way.
 
 If the user asks to set up Lightdash preview deploys / preview projects for pull requests (or they accept the offer surfaced after a writeback), use the setupPreviewDeploy tool. It opens a separate pull request adding the Lightdash preview GitHub Actions workflow; a prior writeback is not required.
 
@@ -615,8 +611,6 @@ export class AiAgentService extends BaseService {
     private readonly catalogService: CatalogService;
 
     private readonly catalogModel: CatalogModel;
-
-    private readonly changesetModel: ChangesetModel;
 
     private readonly contentVerificationModel: ContentVerificationModel;
 
@@ -942,7 +936,6 @@ export class AiAgentService extends BaseService {
         this.asyncQueryService = dependencies.asyncQueryService;
         this.catalogService = dependencies.catalogService;
         this.catalogModel = dependencies.catalogModel;
-        this.changesetModel = dependencies.changesetModel;
         this.contentVerificationModel = dependencies.contentVerificationModel;
         this.searchModel = dependencies.searchModel;
         this.searchService = dependencies.searchService;
@@ -5906,112 +5899,6 @@ export class AiAgentService extends BaseService {
         };
     }
 
-    async revertChange(
-        user: SessionUser,
-        {
-            agentUuid,
-            threadUuid,
-            promptUuid,
-            changeUuid,
-        }: {
-            agentUuid: string;
-            threadUuid: string;
-            promptUuid: string;
-            changeUuid: string;
-        },
-    ): Promise<void> {
-        const { organizationUuid } = user;
-        if (!organizationUuid)
-            throw new ForbiddenError(`Organization not found`);
-
-        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
-        if (!isCopilotEnabled)
-            throw new ForbiddenError(`Copilot is not enabled`);
-
-        const agent = await this.aiAgentModel.getAgent({
-            organizationUuid,
-            agentUuid,
-        });
-
-        if (!agent) {
-            throw new NotFoundError(`Agent not found: ${agentUuid}`);
-        }
-
-        const thread = await this.aiAgentModel.getThread({
-            organizationUuid,
-            agentUuid,
-            threadUuid,
-        });
-
-        if (!thread) {
-            throw new NotFoundError(`Thread not found: ${threadUuid}`);
-        }
-
-        const hasAccess = await this.checkAgentThreadAccess(
-            user,
-            agent,
-            thread.user.uuid,
-        );
-        if (!hasAccess) {
-            throw new ForbiddenError(
-                'Insufficient permissions to revert this change',
-            );
-        }
-
-        const originalChangeset =
-            await this.changesetModel.findActiveChangesetWithChangesByProjectUuid(
-                agent.projectUuid,
-            );
-
-        if (!originalChangeset) {
-            throw new NotFoundError(
-                `No active changeset found for project: ${agent.projectUuid}`,
-            );
-        }
-
-        const change = await this.changesetModel.getChange(
-            changeUuid,
-            agent.projectUuid,
-        );
-
-        const originalExplores = await this.projectModel.findExploresFromCache(
-            agent.projectUuid,
-            'name',
-            originalChangeset.changes.map((c) => c.entityTableName),
-        );
-
-        await this.changesetModel.revertChange(changeUuid, agent.projectUuid);
-
-        await this.catalogModel.indexCatalogReverts({
-            projectUuid: agent.projectUuid,
-            revertedChanges: [change],
-            originalChangeset,
-            originalExplores,
-        });
-        const toolResults =
-            await this.aiAgentModel.getToolResultsForPrompt(promptUuid);
-
-        // Find the tool result for the propose_change that created this change
-        const proposeChangeResult = toolResults
-            .filter(isToolProposeChangeSuccessResult)
-            .find((result) => result.metadata.changeUuid === changeUuid);
-
-        if (!proposeChangeResult) {
-            throw new NotFoundError(
-                `Propose change result not found for change: ${changeUuid}`,
-            );
-        }
-
-        await this.aiAgentModel.updateToolResultMetadata(
-            promptUuid,
-            proposeChangeResult.toolCallId,
-            {
-                ...proposeChangeResult.metadata,
-                userFeedback: 'rejected',
-            },
-        );
-    }
-
     private async updateSlackResponseWithProgress(
         slackPrompt: SlackPrompt,
         progress: string,
@@ -6559,21 +6446,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                                 type: 'tool-result',
                                 toolCallId: toolResult.toolCallId,
                                 toolName: toolResult.toolName,
-                                output:
-                                    isToolProposeChangeSuccessResult(
-                                        toolResult,
-                                    ) &&
-                                    toolResult.metadata.userFeedback ===
-                                        'rejected'
-                                        ? {
-                                              type: 'json',
-                                              value: `${toolResult.result}\nUser rejected proposed change.`,
-                                          }
-                                        : {
-                                              type: 'json',
-                                              // TODO :: based on tool, if there's a need for it we can use the metadata here
-                                              value: toolResult.result,
-                                          },
+                                output: {
+                                    type: 'json',
+                                    // TODO :: based on tool, if there's a need for it we can use the metadata here
+                                    value: toolResult.result,
+                                },
                             },
                         ],
                     } satisfies ToolModelMessage);
@@ -7440,32 +7317,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         };
 
         const editDbtProject: EditDbtProjectFn = async (args) => {
-            // When the user asks to write back their changeset, build the
-            // instructions deterministically from the active changeset's
-            // structured changes instead of trusting the LLM-composed prompt.
-            let writebackPrompt: string;
-            let source: AiWritebackSource;
-            if (args.fromActiveChangeset) {
-                const changeset =
-                    await this.changesetModel.findActiveChangesetWithChangesByProjectUuid(
-                        projectUuid,
-                    );
-                if (!changeset || changeset.changes.length === 0) {
-                    throw new ParameterError(
-                        'There are no changes to write back for this project',
-                    );
-                }
-                writebackPrompt = buildChangesetWritebackPrompt(changeset);
-                source = 'changeset';
-            } else {
-                if (!args.prompt) {
-                    throw new ParameterError(
-                        'A writeback prompt is required when fromActiveChangeset is false',
-                    );
-                }
-                writebackPrompt = args.prompt;
-                source = isSlackPrompt(prompt) ? 'slack' : 'web';
-            }
+            const writebackPrompt = args.prompt;
+            const source = isSlackPrompt(prompt) ? 'slack' : 'web';
 
             if (!args.progressId) {
                 throw new UnexpectedServerError(
@@ -9042,11 +8895,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 : promptArtifacts,
             toolResults,
         );
-        const proposeChangeBlocks = getProposeChangeBlocks(
-            slackPrompt,
-            this.lightdashConfig.siteUrl,
-            toolResults,
-        );
         const editDbtProjectBlocks =
             getModernPullRequestCardBlocks(toolResults);
         const historyBlocks = agent
@@ -9072,7 +8920,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         return [
             ...exploreBlocks,
-            ...proposeChangeBlocks,
             ...editDbtProjectBlocks,
             ...referencedArtifactsBlocks,
             ...followUpToolBlocks,
@@ -9626,7 +9473,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 case 'runSavedChart':
                     return 'Reviewing the results...';
                 case 'editDbtProject':
-                case 'proposeChange':
                     return 'Preparing the semantic-layer changes...';
                 case 'setupPreviewDeploy':
                     return 'Setting up the preview...';
@@ -10417,12 +10263,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     }
 
     // eslint-disable-next-line class-methods-use-this
-    public handleViewChangesetsButtonClick(app: App) {
-        app.action('actions.view_changesets_button_click', async ({ ack }) => {
-            await ack();
-        });
-    }
-
     // Slack approve/reject buttons for runSql tool. Action ID format:
     // actions.sql_approval:<toolCallId>:<threadUuid>:<decision>
     // 'approved_always' marks the thread auto-approved server-side.
@@ -10881,7 +10721,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
     // eslint-disable-next-line class-methods-use-this
     public handleExecuteFollowUpTool(app: App) {
-        Object.values(AiResultType).forEach((tool) => {
+        activeFollowUpTools.forEach((tool) => {
             app.action(
                 `execute_follow_up_tool.${tool}`,
                 async ({ ack, body, context, say }) => {
