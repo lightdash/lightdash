@@ -1489,7 +1489,9 @@ export class AiAgentModel {
         trx?: Knex;
     }): Promise<AiMcpCredential | undefined> {
         const trx = args.trx ?? this.database;
-        const rows = await trx(AiMcpServerCredentialTableName)
+        const rows: DbAiMcpServerCredential[] = await trx(
+            AiMcpServerCredentialTableName,
+        )
             .select<DbAiMcpServerCredential[]>({
                 ai_mcp_server_credential_uuid: `${AiMcpServerCredentialTableName}.ai_mcp_server_credential_uuid`,
                 ai_mcp_server_uuid: `${AiMcpServerCredentialTableName}.ai_mcp_server_uuid`,
