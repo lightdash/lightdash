@@ -200,6 +200,7 @@ import {
     ExecuteAsyncSqlQueryArgs,
     isExecuteAsyncDashboardSqlChartByUuid,
     isExecuteAsyncSqlChartByUuid,
+    type CommonAsyncQueryArgs,
     type DownloadAsyncQueryResultsArgs,
     type ExecuteAsyncDashboardChartQueryArgs,
     type ExecuteAsyncDashboardSqlChartArgs,
@@ -279,6 +280,36 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
 
 type ResolvedWarehouseCredentials = CreateWarehouseCredentials & {
     userWarehouseCredentialsUuid: string | undefined;
+};
+
+/**
+ * Args for the async execute seam. Query/context data (explore, metric query,
+ * fields, pivot, timezones, parameters, access controls) is read off the
+ * composer — only orchestration inputs travel as args.
+ */
+type ExecuteAsyncQueryArgs = Pick<
+    CommonAsyncQueryArgs,
+    'account' | 'projectUuid' | 'invalidateCache' | 'context'
+> & {
+    queryTags: RunQueryTags;
+    // Saved chart (metric or SQL) the query was executed from, for analytics attribution
+    chart?: { uuid: string };
+    // Single SQL seam: metric paths pass a QueryComposer, SQL-chart
+    // paths a SqlQueryComposer — getSql() owns pivot wrapping for both.
+    queryComposer: QueryComposer;
+    originalColumns?: ResultColumns;
+    routingTarget?: PreAggregationRoutingDecision['target'];
+    preAggregationRoute?: PreAggregationRoute;
+    warehouseCredentials: ResolvedWarehouseCredentials;
+    // Preloaded org from the caller (e.g. saved chart) to skip a redundant getSummary
+    organizationUuid?: string;
+};
+
+type PreparedAsyncQueryArgs = Omit<
+    ExecuteAsyncQueryArgs,
+    'organizationUuid'
+> & {
+    isPreviewProject: boolean;
 };
 
 export class AsyncQueryService extends ProjectService {
@@ -3285,8 +3316,11 @@ export class AsyncQueryService extends ProjectService {
 
     private static addUserAttributeQueryTags(
         queryTags: RunQueryTags,
-        userAccessControls: UserAccessControls,
+        userAccessControls: UserAccessControls | undefined,
     ): RunQueryTags {
+        if (!userAccessControls) {
+            return queryTags;
+        }
         return {
             ...queryTags,
             ...getUserAttributeQueryTags(userAccessControls.userAttributes),
@@ -3475,7 +3509,7 @@ export class AsyncQueryService extends ProjectService {
         preloadedUserAccessControls?: UserAccessControls;
         preloadedProjectParameters?: DbProjectParameter[];
         preloadedProjectTimezone?: string;
-    }) {
+    }): Promise<QueryComposer> {
         assertIsAccountWithOrg(account);
 
         const resolvedUserAccessControls =
@@ -3515,7 +3549,7 @@ export class AsyncQueryService extends ProjectService {
             preloadedProjectTimezone,
         });
 
-        const queryComposer = ProjectService._createQueryComposer({
+        return ProjectService._createQueryComposer({
             metricQuery,
             explore,
             warehouseSqlBuilder,
@@ -3532,59 +3566,8 @@ export class AsyncQueryService extends ProjectService {
             useTimezoneAwareDateTrunc,
             columnTimezone,
             applyDateZoomToFilters,
-        });
-
-        const fullQuery = queryComposer.compile();
-        const effectiveMetricQuery = queryComposer.getMetricQuery();
-        const effectivePivotConfiguration =
-            queryComposer.getPivotConfiguration();
-
-        const resolvedMetricOverrides =
-            getMetricOverridesWithPopInheritance(metricQuery);
-
-        const fieldsWithOverrides: ItemsMap = Object.fromEntries(
-            Object.entries(fullQuery.fields).map(([key, value]) => {
-                // Check for metric or dimension overrides. PoP metric overrides
-                // are inherited from their base metric by the shared util above.
-                const override =
-                    resolvedMetricOverrides[key] ||
-                    metricQuery.dimensionOverrides?.[key];
-                if (override) {
-                    const { formatOptions } = override;
-
-                    if (formatOptions) {
-                        return [
-                            key,
-                            {
-                                ...value,
-                                ...getFieldFormatOverrideProps(formatOptions),
-                            },
-                        ];
-                    }
-                }
-                return [key, value];
-            }),
-        );
-
-        const responseMetricQuery = effectiveMetricQuery;
-
-        return {
-            queryComposer,
-            fields: fieldsWithOverrides,
-            warnings: fullQuery.warnings,
-            parameterReferences: Array.from(fullQuery.parameterReferences),
-            missingParameterReferences: Array.from(
-                fullQuery.missingParameterReferences,
-            ),
-            usedParameters: fullQuery.usedParameters,
-            responseMetricQuery,
-            effectivePivotConfiguration,
-            userAccessControls: { userAttributes, intrinsicUserAttributes },
-            availableParameterDefinitions,
-            resolvedTimezone,
             displayTimezone,
-            useTimezoneAwareDateTrunc,
-        };
+        });
     }
 
     private async assertOrganizationNotBlocked(
@@ -3598,28 +3581,7 @@ export class AsyncQueryService extends ProjectService {
     }
 
     private async executePreparedAsyncQuery(
-        // TODO: remove metric query, fields, etc from args once they are no longer needed in the database
-        args: ExecuteAsyncMetricQueryArgs & {
-            queryTags: RunQueryTags;
-            explore: Explore;
-            isPreviewProject: boolean;
-            // Saved chart (metric or SQL) the query was executed from, for analytics attribution
-            chart?: { uuid: string };
-            fields: ItemsMap;
-            // Single SQL seam: metric paths pass a QueryComposer, SQL-chart
-            // paths a SqlQueryComposer — getSql() owns pivot wrapping for both.
-            queryComposer: QueryComposer;
-            originalColumns?: ResultColumns;
-            missingParameterReferences: string[];
-            timezone?: string;
-            displayTimezone: string | null;
-            useTimezoneAwareDateTrunc: boolean;
-            routingTarget?: PreAggregationRoutingDecision['target'];
-            preAggregationRoute?: PreAggregationRoute;
-            userAccessControls?: UserAccessControls;
-            availableParameterDefinitions?: ParameterDefinitions;
-            warehouseCredentials: ResolvedWarehouseCredentials;
-        },
+        args: PreparedAsyncQueryArgs,
         requestParameters: ExecuteAsyncQueryRequestParams,
         organizationUuid: string,
     ): Promise<ExecuteAsyncQueryReturn> {
@@ -3632,30 +3594,29 @@ export class AsyncQueryService extends ProjectService {
                     account,
                     projectUuid,
                     context,
-                    dateZoom,
                     queryTags,
-                    explore,
                     chart,
                     isPreviewProject,
                     queryComposer,
-                    metricQuery,
-                    fields: fieldsMap,
                     originalColumns,
-                    missingParameterReferences,
-                    pivotConfiguration,
-                    parameters,
-                    timezone,
-                    displayTimezone,
-                    useTimezoneAwareDateTrunc,
                     routingTarget,
                     preAggregationRoute,
-                    userAccessControls,
-                    availableParameterDefinitions,
                     warehouseCredentials,
                 } = args;
 
                 try {
                     assertIsAccountWithOrg(account);
+
+                    const explore = queryComposer.getExplore();
+                    const metricQuery = queryComposer.getMetricQuery();
+                    const fieldsMap = queryComposer.getFields();
+                    const pivotConfiguration =
+                        queryComposer.getPivotConfiguration();
+                    const missingParameterReferences =
+                        queryComposer.getMissingParameterReferences();
+                    const dateZoom = queryComposer.getDateZoom();
+                    const timezone = queryComposer.getTimezone();
+                    const displayTimezone = queryComposer.getDisplayTimezone();
 
                     const warehouseCredentialsType = warehouseCredentials.type;
                     const warehouseCredentialsOverrides: RunAsyncWarehouseQueryArgs['warehouseCredentialsOverrides'] =
@@ -3938,16 +3899,19 @@ export class AsyncQueryService extends ProjectService {
                             metricQuery,
                             timezone: timezone ?? 'UTC',
                             dateZoom,
-                            parameters,
+                            parameters: queryComposer.getParameters(),
                             routingTarget: routingTarget ?? 'warehouse',
                             preAggregationRoute,
                             fieldsMap,
                             pivotConfiguration,
                             startOfWeek: warehouseCredentials.startOfWeek,
-                            userAccessControls,
-                            availableParameterDefinitions,
+                            userAccessControls:
+                                queryComposer.getUserAccessControls(),
+                            availableParameterDefinitions:
+                                queryComposer.getAvailableParameterDefinitions(),
                             queryUuid: queryHistoryUuid,
-                            useTimezoneAwareDateTrunc,
+                            useTimezoneAwareDateTrunc:
+                                queryComposer.getUseTimezoneAwareDateTrunc(),
                         });
                     const resolveMs = Date.now() - resolveStart;
 
@@ -4194,27 +4158,7 @@ export class AsyncQueryService extends ProjectService {
     }
 
     private async executeAsyncQuery(
-        // TODO: remove metric query, fields, etc from args once they are no longer needed in the database
-        args: ExecuteAsyncMetricQueryArgs & {
-            queryTags: RunQueryTags;
-            explore: Explore;
-            // Saved chart (metric or SQL) the query was executed from, for analytics attribution
-            chart?: { uuid: string };
-            fields: ItemsMap;
-            queryComposer: QueryComposer;
-            originalColumns?: ResultColumns;
-            missingParameterReferences: string[];
-            timezone?: string;
-            displayTimezone: string | null;
-            useTimezoneAwareDateTrunc: boolean;
-            routingTarget?: PreAggregationRoutingDecision['target'];
-            preAggregationRoute?: PreAggregationRoute;
-            userAccessControls?: UserAccessControls;
-            availableParameterDefinitions?: ParameterDefinitions;
-            warehouseCredentials: ResolvedWarehouseCredentials;
-            // Preloaded org from the caller (e.g. saved chart) to skip a redundant getSummary
-            organizationUuid?: string;
-        },
+        args: ExecuteAsyncQueryArgs,
         requestParameters: ExecuteAsyncQueryRequestParams,
     ): Promise<ExecuteAsyncQueryReturn> {
         assertIsAccountWithOrg(args.account);
@@ -4226,6 +4170,7 @@ export class AsyncQueryService extends ProjectService {
             args.organizationUuid ?? projectSummary.organizationUuid;
         // Preview project queries are excluded from the usage event stream
         const isPreviewProject = projectSummary.type === ProjectType.PREVIEW;
+        const exploreName = args.queryComposer.getExplore().name;
         const auditedAbility = this.createAuditedAbility(args.account);
         const isForbidden =
             auditedAbility.cannot(
@@ -4240,9 +4185,9 @@ export class AsyncQueryService extends ProjectService {
                 subject('Explore', {
                     organizationUuid,
                     projectUuid: args.projectUuid,
-                    exploreNames: [args.explore.name],
+                    exploreNames: [exploreName],
                     metadata: {
-                        exploreName: args.explore.name,
+                        exploreName,
                     },
                 }),
             );
@@ -4417,21 +4362,7 @@ export class AsyncQueryService extends ProjectService {
         );
 
         const prepareStart = Date.now();
-        const {
-            queryComposer,
-            fields,
-            warnings,
-            parameterReferences,
-            missingParameterReferences,
-            usedParameters,
-            responseMetricQuery,
-            effectivePivotConfiguration,
-            userAccessControls,
-            availableParameterDefinitions,
-            resolvedTimezone,
-            displayTimezone,
-            useTimezoneAwareDateTrunc,
-        } = await this.prepareMetricQueryAsyncQueryArgs({
+        const queryComposer = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery,
             dateZoom,
@@ -4448,14 +4379,15 @@ export class AsyncQueryService extends ProjectService {
             preloadedProjectParameters: projectParameters,
             preloadedProjectTimezone: projectTimezone,
         });
+        const fields = queryComposer.getFields();
         const prepareMs = Date.now() - prepareStart;
 
-        const effectiveMetricQuery = responseMetricQuery;
+        const effectiveMetricQuery = queryComposer.getMetricQuery();
 
         const queryTagsWithUserAttributes =
             AsyncQueryService.addUserAttributeQueryTags(
                 queryTags,
-                userAccessControls,
+                queryComposer.getUserAccessControls(),
             );
 
         const requestParameters: ExecuteAsyncMetricQueryRequestParams = {
@@ -4486,29 +4418,17 @@ export class AsyncQueryService extends ProjectService {
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 account,
-                metricQuery: effectiveMetricQuery,
                 projectUuid,
                 organizationUuid,
-                explore,
                 context,
                 queryTags: queryTagsWithUserAttributes,
-                dateZoom,
                 invalidateCache,
-                parameters: combinedParameters,
-                fields,
                 queryComposer,
                 originalColumns: undefined,
-                missingParameterReferences,
-                timezone: resolvedTimezone,
-                displayTimezone,
-                useTimezoneAwareDateTrunc,
-                pivotConfiguration: effectivePivotConfiguration,
                 warehouseCredentials,
                 routingTarget: routingDecision.target,
                 ...(routingDecision.target === 'pre_aggregate' && {
                     preAggregationRoute: routingDecision.route,
-                    userAccessControls,
-                    availableParameterDefinitions,
                 }),
             },
             requestParameters,
@@ -4520,12 +4440,12 @@ export class AsyncQueryService extends ProjectService {
                 ...cacheMetadata,
                 preAggregate: routingDecision.preAggregateMetadata,
             },
-            metricQuery: responseMetricQuery,
+            metricQuery: effectiveMetricQuery,
             fields,
-            warnings,
-            parameterReferences,
-            usedParametersValues: usedParameters,
-            resolvedTimezone: displayTimezone,
+            warnings: queryComposer.getWarnings(),
+            parameterReferences: queryComposer.getParameterReferences(),
+            usedParametersValues: queryComposer.getUsedParameters(),
+            resolvedTimezone: queryComposer.getDisplayTimezone(),
         };
     }
 
@@ -4668,15 +4588,7 @@ export class AsyncQueryService extends ProjectService {
             parameters,
         );
 
-        const {
-            queryComposer,
-            fields,
-            missingParameterReferences,
-            userAccessControls,
-            resolvedTimezone,
-            displayTimezone,
-            useTimezoneAwareDateTrunc,
-        } = await this.prepareMetricQueryAsyncQueryArgs({
+        const queryComposer = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery,
             explore,
@@ -4690,7 +4602,7 @@ export class AsyncQueryService extends ProjectService {
         const queryTagsWithUserAttributes =
             AsyncQueryService.addUserAttributeQueryTags(
                 baseQueryTags,
-                userAccessControls,
+                queryComposer.getUserAccessControls(),
             );
 
         const requestParameters: ExecuteAsyncFieldValueSearchRequestParams = {
@@ -4707,21 +4619,13 @@ export class AsyncQueryService extends ProjectService {
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 account,
-                metricQuery,
                 projectUuid,
                 organizationUuid,
-                explore,
                 context,
                 queryTags: queryTagsWithUserAttributes,
                 invalidateCache: invalidateCache || forceRefresh,
-                parameters: combinedParameters,
-                fields,
                 queryComposer,
                 originalColumns: undefined,
-                missingParameterReferences,
-                timezone: resolvedTimezone,
-                displayTimezone,
-                useTimezoneAwareDateTrunc,
                 warehouseCredentials,
                 routingTarget: 'warehouse',
             },
@@ -4966,20 +4870,7 @@ export class AsyncQueryService extends ProjectService {
               )
             : undefined;
 
-        const {
-            queryComposer,
-            fields: fieldsWithOverrides,
-            warnings,
-            parameterReferences,
-            missingParameterReferences,
-            usedParameters,
-            responseMetricQuery,
-            userAccessControls,
-            availableParameterDefinitions,
-            resolvedTimezone,
-            displayTimezone,
-            useTimezoneAwareDateTrunc,
-        } = await this.prepareMetricQueryAsyncQueryArgs({
+        const queryComposer = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery: metricQueryWithLimit,
             explore,
@@ -4991,6 +4882,7 @@ export class AsyncQueryService extends ProjectService {
             columnTimezone: getColumnTimezone(warehouseCredentials),
             preloadedUserAccessControls,
         });
+        const fieldsWithOverrides = queryComposer.getFields();
 
         const routingDecision = this.getPreAggregationRoutingDecision({
             metricQuery: metricQueryWithLimit,
@@ -5032,7 +4924,7 @@ export class AsyncQueryService extends ProjectService {
         const queryTagsWithUserAttributes =
             AsyncQueryService.addUserAttributeQueryTags(
                 queryTags,
-                userAccessControls,
+                queryComposer.getUserAccessControls(),
             );
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
@@ -5040,27 +4932,16 @@ export class AsyncQueryService extends ProjectService {
                 account,
                 projectUuid,
                 organizationUuid: savedChartOrganizationUuid,
-                explore,
                 chart: { uuid: savedChart.uuid },
                 context,
                 queryTags: queryTagsWithUserAttributes,
                 invalidateCache,
-                metricQuery: metricQueryWithLimit,
-                parameters: combinedParameters,
-                fields: fieldsWithOverrides,
                 queryComposer,
                 originalColumns: undefined,
-                missingParameterReferences,
-                timezone: resolvedTimezone,
-                displayTimezone,
-                useTimezoneAwareDateTrunc,
-                pivotConfiguration,
                 warehouseCredentials,
                 routingTarget: routingDecision.target,
                 ...(routingDecision.target === 'pre_aggregate' && {
                     preAggregationRoute: routingDecision.route,
-                    userAccessControls,
-                    availableParameterDefinitions,
                 }),
             },
             requestParameters,
@@ -5072,12 +4953,12 @@ export class AsyncQueryService extends ProjectService {
                 ...cacheMetadata,
                 preAggregate: routingDecision.preAggregateMetadata,
             },
-            metricQuery: responseMetricQuery,
+            metricQuery: queryComposer.getMetricQuery(),
             fields: fieldsWithOverrides,
-            warnings,
-            parameterReferences,
-            usedParametersValues: usedParameters,
-            resolvedTimezone: displayTimezone,
+            warnings: queryComposer.getWarnings(),
+            parameterReferences: queryComposer.getParameterReferences(),
+            usedParametersValues: queryComposer.getUsedParameters(),
+            resolvedTimezone: queryComposer.getDisplayTimezone(),
         };
     }
 
@@ -5434,19 +5315,7 @@ export class AsyncQueryService extends ProjectService {
               )
             : undefined;
 
-        const {
-            queryComposer,
-            fields: fieldsWithOverrides,
-            parameterReferences,
-            missingParameterReferences,
-            usedParameters,
-            responseMetricQuery,
-            userAccessControls: queryUserAccessControls,
-            availableParameterDefinitions,
-            resolvedTimezone,
-            displayTimezone,
-            useTimezoneAwareDateTrunc,
-        } = await this.prepareMetricQueryAsyncQueryArgs({
+        const queryComposer = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery: metricQueryWithLimit,
             explore,
@@ -5462,6 +5331,8 @@ export class AsyncQueryService extends ProjectService {
             preloadedProjectParameters: projectParameters,
             preloadedProjectTimezone: projectTimezone,
         });
+        const fieldsWithOverrides = queryComposer.getFields();
+        const parameterReferences = queryComposer.getParameterReferences();
 
         const routingDecision = this.getPreAggregationRoutingDecision({
             metricQuery: metricQueryWithLimit,
@@ -5504,7 +5375,7 @@ export class AsyncQueryService extends ProjectService {
         const queryTagsWithUserAttributes =
             AsyncQueryService.addUserAttributeQueryTags(
                 baseQueryTags,
-                queryUserAccessControls,
+                queryComposer.getUserAccessControls(),
             );
 
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
@@ -5512,28 +5383,16 @@ export class AsyncQueryService extends ProjectService {
                 account,
                 projectUuid,
                 organizationUuid,
-                explore,
                 chart: { uuid: savedChart.uuid },
-                metricQuery: metricQueryWithLimit,
                 context,
                 queryTags: queryTagsWithUserAttributes,
                 invalidateCache,
-                dateZoom,
-                parameters: combinedParameters,
-                fields: fieldsWithOverrides,
                 queryComposer,
                 originalColumns: undefined,
-                missingParameterReferences,
-                timezone: resolvedTimezone,
-                displayTimezone,
-                useTimezoneAwareDateTrunc,
-                pivotConfiguration,
                 warehouseCredentials,
                 routingTarget: routingDecision.target,
                 ...(routingDecision.target === 'pre_aggregate' && {
                     preAggregationRoute: routingDecision.route,
-                    userAccessControls: queryUserAccessControls,
-                    availableParameterDefinitions,
                 }),
             },
             requestParameters,
@@ -5546,17 +5405,17 @@ export class AsyncQueryService extends ProjectService {
                 preAggregate: routingDecision.preAggregateMetadata,
             },
             appliedDashboardFilters,
-            metricQuery: responseMetricQuery,
+            metricQuery: queryComposer.getMetricQuery(),
             fields: fieldsWithOverrides,
             parameterReferences,
-            usedParametersValues: usedParameters,
+            usedParametersValues: queryComposer.getUsedParameters(),
             // In effect when a date dimension was overridden, or a grain is selected and
             // the chart references a reserved date-zoom parameter.
             dateZoomApplied:
                 dateZoomApplied ||
                 (!!dateZoom?.granularity &&
                     hasReservedParameterReference(parameterReferences)),
-            resolvedTimezone: displayTimezone,
+            resolvedTimezone: queryComposer.getDisplayTimezone(),
         };
     }
 
@@ -5807,19 +5666,7 @@ export class AsyncQueryService extends ProjectService {
             maxLimit,
         );
 
-        const {
-            queryComposer,
-            fields,
-            warnings,
-            parameterReferences,
-            missingParameterReferences,
-            usedParameters,
-            responseMetricQuery,
-            userAccessControls,
-            resolvedTimezone,
-            displayTimezone,
-            useTimezoneAwareDateTrunc,
-        } = await this.prepareMetricQueryAsyncQueryArgs({
+        const queryComposer = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery: underlyingDataMetricQueryWithLimit,
             explore,
@@ -5836,28 +5683,20 @@ export class AsyncQueryService extends ProjectService {
         const queryTagsWithUserAttributes =
             AsyncQueryService.addUserAttributeQueryTags(
                 baseQueryTags,
-                userAccessControls,
+                queryComposer.getUserAccessControls(),
             );
 
         const { queryUuid: underlyingDataQueryUuid, cacheMetadata } =
             await this.executeAsyncQuery(
                 {
                     account,
-                    metricQuery: underlyingDataMetricQueryWithLimit,
                     projectUuid,
                     organizationUuid,
-                    explore,
                     context,
                     queryTags: queryTagsWithUserAttributes,
                     invalidateCache,
-                    dateZoom,
-                    fields,
                     queryComposer,
                     originalColumns: undefined,
-                    missingParameterReferences,
-                    timezone: resolvedTimezone,
-                    displayTimezone,
-                    useTimezoneAwareDateTrunc,
                     warehouseCredentials,
                 },
                 requestParameters,
@@ -5866,12 +5705,12 @@ export class AsyncQueryService extends ProjectService {
         return {
             queryUuid: underlyingDataQueryUuid,
             cacheMetadata,
-            metricQuery: responseMetricQuery,
-            fields,
-            warnings,
-            parameterReferences,
-            usedParametersValues: usedParameters,
-            resolvedTimezone: displayTimezone,
+            metricQuery: queryComposer.getMetricQuery(),
+            fields: queryComposer.getFields(),
+            warnings: queryComposer.getWarnings(),
+            parameterReferences: queryComposer.getParameterReferences(),
+            usedParametersValues: queryComposer.getUsedParameters(),
+            resolvedTimezone: queryComposer.getDisplayTimezone(),
         };
     }
 
@@ -5911,12 +5750,9 @@ export class AsyncQueryService extends ProjectService {
             warehouseConnection,
             warehouseCredentials,
             queryTags,
-            metricQuery,
-            virtualView,
             queryComposer,
             originalColumns,
             parameterReferences,
-            missingParameterReferences,
             usedParameters,
         } = await this.prepareSqlChartAsyncQueryArgs({
             account,
@@ -5937,17 +5773,10 @@ export class AsyncQueryService extends ProjectService {
                 account,
                 projectUuid,
                 organizationUuid,
-                explore: virtualView,
                 queryTags,
-                metricQuery,
                 context,
-                fields: getItemMap(virtualView),
                 queryComposer,
                 originalColumns,
-                missingParameterReferences,
-                pivotConfiguration,
-                displayTimezone: null,
-                useTimezoneAwareDateTrunc: false,
                 warehouseCredentials,
             },
             {
@@ -6232,12 +6061,9 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials,
             queryTags,
             metricQuery,
-            virtualView,
-            pivotConfiguration,
             queryComposer,
             originalColumns,
             parameterReferences,
-            missingParameterReferences,
             usedParameters,
         } = await this.prepareSqlChartAsyncQueryArgs({
             account,
@@ -6259,18 +6085,11 @@ export class AsyncQueryService extends ProjectService {
                 account,
                 projectUuid,
                 organizationUuid: sqlChart.organization.organizationUuid,
-                explore: virtualView,
                 chart: { uuid: sqlChart.savedSqlUuid },
                 queryTags,
-                metricQuery,
                 context,
-                fields: getItemMap(virtualView),
                 queryComposer,
                 originalColumns,
-                missingParameterReferences,
-                pivotConfiguration,
-                displayTimezone: null,
-                useTimezoneAwareDateTrunc: false,
                 warehouseCredentials,
             },
             {
@@ -6384,13 +6203,10 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials,
             queryTags,
             metricQuery,
-            virtualView,
-            pivotConfiguration,
             queryComposer,
             appliedDashboardFilters,
             originalColumns,
             parameterReferences,
-            missingParameterReferences,
             usedParameters,
         } = await this.prepareSqlChartAsyncQueryArgs({
             account,
@@ -6416,18 +6232,11 @@ export class AsyncQueryService extends ProjectService {
                 account,
                 projectUuid,
                 organizationUuid: savedChart.organization.organizationUuid,
-                explore: virtualView,
                 chart: { uuid: savedChart.savedSqlUuid },
                 queryTags,
-                metricQuery,
                 context,
-                fields: getItemMap(virtualView),
                 queryComposer,
                 originalColumns,
-                missingParameterReferences,
-                pivotConfiguration,
-                displayTimezone: null,
-                useTimezoneAwareDateTrunc: false,
                 warehouseCredentials,
             },
             {
@@ -6768,16 +6577,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials.startOfWeek,
         );
 
-        const {
-            queryComposer,
-            fields,
-            missingParameterReferences,
-            userAccessControls: resolvedUserAccessControls,
-            availableParameterDefinitions,
-            resolvedTimezone,
-            displayTimezone,
-            useTimezoneAwareDateTrunc,
-        } = await this.prepareMetricQueryAsyncQueryArgs({
+        const queryComposer = await this.prepareMetricQueryAsyncQueryArgs({
             account,
             metricQuery,
             dateZoom,
@@ -6788,6 +6588,7 @@ export class AsyncQueryService extends ProjectService {
             materializationRole: userAccessControls,
             columnTimezone: getColumnTimezone(warehouseCredentials),
         });
+        const fields = queryComposer.getFields();
 
         const routingDecision = this.getPreAggregationRoutingDecision({
             metricQuery,
@@ -6806,7 +6607,7 @@ export class AsyncQueryService extends ProjectService {
         const queryTagsWithUserAttributes =
             AsyncQueryService.addUserAttributeQueryTags(
                 queryTags,
-                resolvedUserAccessControls,
+                queryComposer.getUserAccessControls(),
             );
 
         const { queryUuid, cacheMetadata } =
@@ -6815,26 +6616,15 @@ export class AsyncQueryService extends ProjectService {
                     account,
                     projectUuid,
                     isPreviewProject: await this.isProjectPreview(projectUuid),
-                    explore,
-                    metricQuery,
                     context,
                     queryTags: queryTagsWithUserAttributes,
                     invalidateCache,
-                    dateZoom,
-                    parameters,
-                    fields,
                     queryComposer,
                     originalColumns: undefined,
-                    missingParameterReferences,
-                    timezone: resolvedTimezone,
-                    displayTimezone,
-                    useTimezoneAwareDateTrunc,
                     warehouseCredentials,
                     routingTarget: routingDecision.target,
                     ...(routingDecision.target === 'pre_aggregate' && {
                         preAggregationRoute: routingDecision.route,
-                        userAccessControls: resolvedUserAccessControls,
-                        availableParameterDefinitions,
                     }),
                 },
                 {

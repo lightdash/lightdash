@@ -47,6 +47,8 @@ const sql = composer.getSql({ columnLimit }); // PivotQueryBuilder-wrapped when 
 
 `compile()` delegates to a protected `computeCompiled()` template-method seam (memoized). Subclasses override `computeCompiled()` to build the base `CompiledQuery` from different inputs; the pivot pipeline (`getSql`) is inherited unchanged.
 
+**Getter surface.** The composer is the single carrier of query/context data through the async execute seam — `AsyncQueryService.executePreparedAsyncQuery` reads everything (explore, metric query, fields, pivot, timezones, parameters, access controls) off `get*()` getters instead of loose args. Non-obvious ones: `getFields()` applies metric/dimension format overrides from the **source** query, `getParameters()` returns the raw combined values (not the reserved-merged compile variant), and `getDisplayTimezone()` is a context carry (not a compile input) that SQL charts pin to `null`.
+
 **Totals mode.** Set `totalConfiguration: { kind, subtotalDimensions }` on the
 definition to build a totals query. The composer collapses the source
 `metricQuery` + `pivotConfiguration` into the requested grain

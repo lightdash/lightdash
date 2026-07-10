@@ -4078,6 +4078,7 @@ export class ProjectService extends BaseService {
         useTimezoneAwareDateTrunc,
         columnTimezone,
         applyDateZoomToFilters,
+        displayTimezone,
     }: {
         metricQuery: MetricQuery;
         explore: Explore;
@@ -4104,6 +4105,11 @@ export class ProjectService extends BaseService {
          * Only safe on the underlying-data path where filters are solely click-filters.
          */
         applyDateZoomToFilters?: boolean;
+        /**
+         * Flag-gated timezone echoed to clients and persisted with the query.
+         * Only the async execute path needs it; compile-only callers omit it.
+         */
+        displayTimezone?: string | null;
     }): QueryComposer {
         return new QueryComposer(
             { metricQuery, pivotConfiguration, totalConfiguration },
@@ -4122,6 +4128,7 @@ export class ProjectService extends BaseService {
                 useTimezoneAwareDateTrunc,
                 columnTimezone,
                 applyDateZoomToFilters,
+                displayTimezone,
             },
         );
     }

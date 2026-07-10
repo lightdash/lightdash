@@ -22,6 +22,11 @@ import {
     VizIndexType,
     WarehouseClient,
     WarehouseTypes,
+    type Explore,
+    type ItemsMap,
+    type MetricQuery,
+    type ParameterDefinitions,
+    type UserAccessControls,
 } from '@lightdash/common';
 import type { SshTunnel } from '@lightdash/warehouses';
 import ExecutionContext from 'node-execution-context';
@@ -147,6 +152,49 @@ const warehouseCredentialsMock = {
     ...warehouseClientMock.credentials,
     userWarehouseCredentialsUuid: undefined,
 };
+
+// Execute reads query/context data off the composer — mock the getter surface
+const createQueryComposerMock = ({
+    sql = 'SELECT * FROM test',
+    explore = validExplore,
+    metricQuery = metricQueryMock,
+    fields = {},
+    missingParameterReferences = [],
+    timezone = undefined,
+    displayTimezone = null,
+    useTimezoneAwareDateTrunc = false,
+    userAccessControls = undefined,
+    availableParameterDefinitions = undefined,
+}: {
+    sql?: string;
+    explore?: Explore;
+    metricQuery?: MetricQuery;
+    fields?: ItemsMap;
+    missingParameterReferences?: string[];
+    timezone?: string;
+    displayTimezone?: string | null;
+    useTimezoneAwareDateTrunc?: boolean;
+    userAccessControls?: UserAccessControls;
+    availableParameterDefinitions?: ParameterDefinitions;
+} = {}) =>
+    ({
+        getSql: () => sql,
+        getExplore: () => explore,
+        getMetricQuery: () => metricQuery,
+        getPivotConfiguration: () => undefined,
+        getFields: () => fields,
+        getMissingParameterReferences: () => missingParameterReferences,
+        getParameterReferences: () => [],
+        getWarnings: () => [],
+        getUsedParameters: () => ({}),
+        getParameters: () => undefined,
+        getDateZoom: () => undefined,
+        getTimezone: () => timezone,
+        getDisplayTimezone: () => displayTimezone,
+        getUseTimezoneAwareDateTrunc: () => useTimezoneAwareDateTrunc,
+        getUserAccessControls: () => userAccessControls,
+        getAvailableParameterDefinitions: () => availableParameterDefinitions,
+    }) as unknown as QueryComposer;
 
 const projectModel = {
     getWithSensitiveFields: vi.fn(async () => projectWithSensitiveFields),
@@ -548,21 +596,12 @@ describe('AsyncQueryService', () => {
                 {
                     account: sessionAccount,
                     projectUuid,
-                    metricQuery: metricQueryMock,
                     context: QueryExecutionContext.EXPLORE,
-                    dateZoom: undefined,
                     queryTags: {
                         query_context: QueryExecutionContext.EXPLORE,
                     },
-                    explore: validExplore,
                     invalidateCache: false,
-                    queryComposer: {
-                        getSql: () => 'SELECT * FROM test',
-                    } as unknown as QueryComposer,
-                    fields: {},
-                    missingParameterReferences: [],
-                    displayTimezone: null,
-                    useTimezoneAwareDateTrunc: false,
+                    queryComposer: createQueryComposerMock(),
                     warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock },
@@ -645,21 +684,12 @@ describe('AsyncQueryService', () => {
                 {
                     account: sessionAccount,
                     projectUuid,
-                    metricQuery: metricQueryMock,
                     context: QueryExecutionContext.EXPLORE,
-                    dateZoom: undefined,
                     queryTags: {
                         query_context: QueryExecutionContext.EXPLORE,
                     },
-                    explore: validExplore,
                     invalidateCache: false,
-                    queryComposer: {
-                        getSql: () => 'SELECT * FROM test',
-                    } as unknown as QueryComposer,
-                    fields: {},
-                    missingParameterReferences: [],
-                    displayTimezone: null,
-                    useTimezoneAwareDateTrunc: false,
+                    queryComposer: createQueryComposerMock(),
                     warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock },
@@ -749,26 +779,20 @@ describe('AsyncQueryService', () => {
                 {
                     account: sessionAccount,
                     projectUuid,
-                    metricQuery: metricQueryMock,
                     context: QueryExecutionContext.EXPLORE,
-                    dateZoom: undefined,
                     queryTags: {
                         query_context: QueryExecutionContext.EXPLORE,
                     },
-                    explore: validExplore,
                     invalidateCache: false,
-                    queryComposer: {
-                        getSql: () => 'SELECT * FROM test',
-                    } as unknown as QueryComposer,
-                    fields: {},
-                    missingParameterReferences: [],
                     // Resolved tz is set (project has query_timezone) but
                     // the gating flag is off — SQL was built without a
                     // timezone-aware DATE_TRUNC, so the persisted snapshot
                     // must not carry the resolved value either.
-                    timezone: 'Asia/Tokyo',
-                    displayTimezone: null,
-                    useTimezoneAwareDateTrunc: false,
+                    queryComposer: createQueryComposerMock({
+                        timezone: 'Asia/Tokyo',
+                        displayTimezone: null,
+                        useTimezoneAwareDateTrunc: false,
+                    }),
                     warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock },
@@ -809,22 +833,16 @@ describe('AsyncQueryService', () => {
                 {
                     account: sessionAccount,
                     projectUuid,
-                    metricQuery: metricQueryMock,
                     context: QueryExecutionContext.EXPLORE,
-                    dateZoom: undefined,
                     queryTags: {
                         query_context: QueryExecutionContext.EXPLORE,
                     },
-                    explore: validExplore,
                     invalidateCache: false,
-                    queryComposer: {
-                        getSql: () => 'SELECT * FROM test',
-                    } as unknown as QueryComposer,
-                    fields: {},
-                    missingParameterReferences: [],
-                    timezone: 'Asia/Tokyo',
-                    displayTimezone: 'Asia/Tokyo',
-                    useTimezoneAwareDateTrunc: true,
+                    queryComposer: createQueryComposerMock({
+                        timezone: 'Asia/Tokyo',
+                        displayTimezone: 'Asia/Tokyo',
+                        useTimezoneAwareDateTrunc: true,
+                    }),
                     warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock },
@@ -871,21 +889,12 @@ describe('AsyncQueryService', () => {
                 {
                     account: sessionAccount,
                     projectUuid,
-                    metricQuery: metricQueryMock,
                     context: QueryExecutionContext.EXPLORE,
-                    dateZoom: undefined,
                     queryTags: {
                         query_context: QueryExecutionContext.EXPLORE,
                     },
-                    explore: validExplore,
                     invalidateCache: true,
-                    queryComposer: {
-                        getSql: () => 'SELECT * FROM test',
-                    } as unknown as QueryComposer,
-                    fields: {},
-                    missingParameterReferences: [],
-                    displayTimezone: null,
-                    useTimezoneAwareDateTrunc: false,
+                    queryComposer: createQueryComposerMock(),
                     warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock },
@@ -963,21 +972,12 @@ describe('AsyncQueryService', () => {
                 {
                     account: sessionAccount,
                     projectUuid,
-                    metricQuery: metricQueryMock,
                     context: QueryExecutionContext.EXPLORE,
-                    dateZoom: undefined,
                     queryTags: {
                         query_context: QueryExecutionContext.EXPLORE,
                     },
-                    explore: validExplore,
                     invalidateCache: false,
-                    queryComposer: {
-                        getSql: () => 'SELECT * FROM test',
-                    } as unknown as QueryComposer,
-                    fields: {},
-                    missingParameterReferences: [],
-                    displayTimezone: null,
-                    useTimezoneAwareDateTrunc: false,
+                    queryComposer: createQueryComposerMock(),
                     warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock, invalidateCache: true },
@@ -1029,21 +1029,12 @@ describe('AsyncQueryService', () => {
                 {
                     account: sessionAccount,
                     projectUuid,
-                    metricQuery: metricQueryMock,
                     context: QueryExecutionContext.EXPLORE,
-                    dateZoom: undefined,
                     queryTags: {
                         query_context: QueryExecutionContext.EXPLORE,
                     },
-                    explore: validExplore,
                     invalidateCache: false,
-                    queryComposer: {
-                        getSql: () => 'SELECT * FROM test',
-                    } as unknown as QueryComposer,
-                    fields: {},
-                    missingParameterReferences: [],
-                    displayTimezone: null,
-                    useTimezoneAwareDateTrunc: false,
+                    queryComposer: createQueryComposerMock(),
                     warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock },
@@ -1124,25 +1115,18 @@ describe('AsyncQueryService', () => {
                 {
                     account: sessionAccount,
                     projectUuid,
-                    metricQuery: metricQueryMock,
                     context: QueryExecutionContext.EXPLORE,
-                    dateZoom: undefined,
                     queryTags: {
                         query_context: QueryExecutionContext.EXPLORE,
                     },
-                    explore: validExplore,
                     invalidateCache: false,
-                    queryComposer: {
-                        getSql: () =>
-                            'SELECT * FROM test WHERE param = {{ missing_param }}',
-                    } as unknown as QueryComposer,
-                    fields: {},
-                    missingParameterReferences: [
-                        'missing_param',
-                        'another_missing_param',
-                    ],
-                    displayTimezone: null,
-                    useTimezoneAwareDateTrunc: false,
+                    queryComposer: createQueryComposerMock({
+                        sql: 'SELECT * FROM test WHERE param = {{ missing_param }}',
+                        missingParameterReferences: [
+                            'missing_param',
+                            'another_missing_param',
+                        ],
+                    }),
                     warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock },
@@ -1200,31 +1184,23 @@ describe('AsyncQueryService', () => {
                 {
                     account: sessionAccount,
                     projectUuid,
-                    metricQuery: metricQueryMock,
                     context: QueryExecutionContext.EXPLORE,
-                    dateZoom: undefined,
                     queryTags: {
                         query_context: QueryExecutionContext.EXPLORE,
                     },
-                    explore: validExplore,
                     invalidateCache: false,
-                    queryComposer: {
-                        getSql: () => 'SELECT * FROM test',
-                    } as unknown as QueryComposer,
-                    fields: {},
-                    missingParameterReferences: [],
+                    queryComposer: createQueryComposerMock({
+                        userAccessControls: {
+                            userAttributes: {},
+                            intrinsicUserAttributes: {},
+                        },
+                        availableParameterDefinitions: {},
+                    }),
                     preAggregationRoute: {
                         sourceExploreName: metricQueryMock.exploreName,
                         preAggregateName: 'orders_daily',
                         mode: 'opportunistic',
                     },
-                    userAccessControls: {
-                        userAttributes: {},
-                        intrinsicUserAttributes: {},
-                    },
-                    availableParameterDefinitions: {},
-                    displayTimezone: null,
-                    useTimezoneAwareDateTrunc: false,
                     warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock },
@@ -1274,33 +1250,27 @@ describe('AsyncQueryService', () => {
                 {
                     account: sessionAccount,
                     projectUuid,
-                    metricQuery: {
-                        ...metricQueryMock,
-                        exploreName: preAggregateExplore.name,
-                    },
                     context: QueryExecutionContext.EXPLORE,
-                    dateZoom: undefined,
                     queryTags: {
                         query_context: QueryExecutionContext.EXPLORE,
                     },
-                    explore: preAggregateExplore,
                     invalidateCache: false,
-                    queryComposer: {
-                        getSql: () => 'SELECT * FROM test',
-                    } as unknown as QueryComposer,
-                    fields: {},
-                    missingParameterReferences: [],
+                    queryComposer: createQueryComposerMock({
+                        explore: preAggregateExplore,
+                        metricQuery: {
+                            ...metricQueryMock,
+                            exploreName: preAggregateExplore.name,
+                        },
+                        userAccessControls: {
+                            userAttributes: {},
+                            intrinsicUserAttributes: {},
+                        },
+                        availableParameterDefinitions: {},
+                    }),
                     preAggregationRoute: {
                         ...preAggregateExplore.preAggregateSource!,
                         mode: 'required',
                     },
-                    userAccessControls: {
-                        userAttributes: {},
-                        intrinsicUserAttributes: {},
-                    },
-                    availableParameterDefinitions: {},
-                    displayTimezone: null,
-                    useTimezoneAwareDateTrunc: false,
                     warehouseCredentials: warehouseCredentialsMock,
                 },
                 {
@@ -1360,33 +1330,28 @@ describe('AsyncQueryService', () => {
                 {
                     account: sessionAccount,
                     projectUuid,
-                    metricQuery: {
-                        ...metricQueryMock,
-                        exploreName: preAggregateExplore.name,
-                    },
                     context: QueryExecutionContext.EXPLORE,
-                    dateZoom: undefined,
                     queryTags: {
                         query_context: QueryExecutionContext.EXPLORE,
                     },
-                    explore: preAggregateExplore,
                     invalidateCache: false,
-                    queryComposer: {
-                        getSql: () => 'SELECT * FROM warehouse',
-                    } as unknown as QueryComposer,
-                    fields: {},
-                    missingParameterReferences: [],
+                    queryComposer: createQueryComposerMock({
+                        sql: 'SELECT * FROM warehouse',
+                        explore: preAggregateExplore,
+                        metricQuery: {
+                            ...metricQueryMock,
+                            exploreName: preAggregateExplore.name,
+                        },
+                        userAccessControls: {
+                            userAttributes: {},
+                            intrinsicUserAttributes: {},
+                        },
+                        availableParameterDefinitions: {},
+                    }),
                     preAggregationRoute: {
                         ...preAggregateExplore.preAggregateSource!,
                         mode: 'required',
                     },
-                    userAccessControls: {
-                        userAttributes: {},
-                        intrinsicUserAttributes: {},
-                    },
-                    availableParameterDefinitions: {},
-                    displayTimezone: null,
-                    useTimezoneAwareDateTrunc: false,
                     warehouseCredentials: warehouseCredentialsMock,
                 },
                 {
@@ -1452,31 +1417,24 @@ describe('AsyncQueryService', () => {
                 {
                     account: sessionAccount,
                     projectUuid,
-                    metricQuery: metricQueryMock,
                     context: QueryExecutionContext.EXPLORE,
-                    dateZoom: undefined,
                     queryTags: {
                         query_context: QueryExecutionContext.EXPLORE,
                     },
-                    explore: validExplore,
                     invalidateCache: false,
-                    queryComposer: {
-                        getSql: () => 'SELECT * FROM warehouse',
-                    } as unknown as QueryComposer,
-                    fields: {},
-                    missingParameterReferences: [],
+                    queryComposer: createQueryComposerMock({
+                        sql: 'SELECT * FROM warehouse',
+                        userAccessControls: {
+                            userAttributes: {},
+                            intrinsicUserAttributes: {},
+                        },
+                        availableParameterDefinitions: {},
+                    }),
                     preAggregationRoute: {
                         sourceExploreName: metricQueryMock.exploreName,
                         preAggregateName: 'orders_daily',
                         mode: 'opportunistic',
                     },
-                    userAccessControls: {
-                        userAttributes: {},
-                        intrinsicUserAttributes: {},
-                    },
-                    availableParameterDefinitions: {},
-                    displayTimezone: null,
-                    useTimezoneAwareDateTrunc: false,
                     warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock },
@@ -1512,22 +1470,15 @@ describe('AsyncQueryService', () => {
             service.combineParameters = vi.fn().mockResolvedValue(undefined);
             (service as AnyType).prepareMetricQueryAsyncQueryArgs = vi
                 .fn()
-                .mockResolvedValue({
-                    queryComposer: {
-                        getSql: () => 'SELECT * FROM test',
-                    } as unknown as QueryComposer,
-                    fields: {},
-                    warnings: [],
-                    parameterReferences: [],
-                    missingParameterReferences: [],
-                    usedParameters: {},
-                    responseMetricQuery: metricQueryMock,
-                    userAccessControls: {
-                        userAttributes: {},
-                        intrinsicUserAttributes: {},
-                    },
-                    availableParameterDefinitions: {},
-                });
+                .mockResolvedValue(
+                    createQueryComposerMock({
+                        userAccessControls: {
+                            userAttributes: {},
+                            intrinsicUserAttributes: {},
+                        },
+                        availableParameterDefinitions: {},
+                    }),
+                );
             service['executeAsyncQuery'] = vi.fn().mockResolvedValue({
                 queryUuid: 'queryUuid',
                 cacheMetadata: {
@@ -1617,25 +1568,21 @@ describe('AsyncQueryService', () => {
             service.combineParameters = vi.fn().mockResolvedValue(undefined);
             (service as AnyType).prepareMetricQueryAsyncQueryArgs = vi
                 .fn()
-                .mockResolvedValue({
-                    queryComposer: {
-                        getSql: () => 'SELECT * FROM duckdb_preagg',
-                    } as unknown as QueryComposer,
-                    fields: {},
-                    warnings: [],
-                    parameterReferences: [],
-                    missingParameterReferences: [],
-                    usedParameters: {},
-                    responseMetricQuery: {
-                        ...metricQueryMock,
-                        exploreName: preAggregateExplore.name,
-                    },
-                    userAccessControls: {
-                        userAttributes: {},
-                        intrinsicUserAttributes: {},
-                    },
-                    availableParameterDefinitions: {},
-                });
+                .mockResolvedValue(
+                    createQueryComposerMock({
+                        sql: 'SELECT * FROM duckdb_preagg',
+                        explore: preAggregateExplore,
+                        metricQuery: {
+                            ...metricQueryMock,
+                            exploreName: preAggregateExplore.name,
+                        },
+                        userAccessControls: {
+                            userAttributes: {},
+                            intrinsicUserAttributes: {},
+                        },
+                        availableParameterDefinitions: {},
+                    }),
+                );
             service['executeAsyncQuery'] = vi.fn().mockResolvedValue({
                 queryUuid: 'queryUuid',
                 cacheMetadata: {
@@ -2792,22 +2739,13 @@ describe('AsyncQueryService', () => {
                 {
                     account: sessionAccount,
                     projectUuid,
-                    metricQuery: metricQueryMock,
                     context: QueryExecutionContext.SQL_RUNNER,
-                    dateZoom: undefined,
                     queryTags: {
                         query_context: QueryExecutionContext.SQL_RUNNER,
                     },
-                    explore: validExplore,
                     invalidateCache: false,
-                    queryComposer: {
-                        getSql: () => 'SELECT * FROM test',
-                    } as unknown as QueryComposer,
-                    fields: {},
+                    queryComposer: createQueryComposerMock(),
                     originalColumns: mockOriginalColumns,
-                    missingParameterReferences: [],
-                    displayTimezone: null,
-                    useTimezoneAwareDateTrunc: false,
                     warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock },
@@ -3769,22 +3707,16 @@ describe('AsyncQueryService', () => {
                 .fn()
                 .mockResolvedValue({ fields: {} });
 
-            const prepareSpy = vi.fn().mockResolvedValue({
-                queryComposer: {
-                    getSql: () => 'SELECT 1',
-                } as unknown as QueryComposer,
-                fields: {},
-                warnings: [],
-                parameterReferences: [],
-                missingParameterReferences: [],
-                usedParameters: {},
-                responseMetricQuery: metricQueryMock,
-                userAccessControls: {
-                    userAttributes: {},
-                    intrinsicUserAttributes: {},
-                },
-                availableParameterDefinitions: {},
-            });
+            const prepareSpy = vi.fn().mockResolvedValue(
+                createQueryComposerMock({
+                    sql: 'SELECT 1',
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                    availableParameterDefinitions: {},
+                }),
+            );
             (service as AnyType).prepareMetricQueryAsyncQueryArgs = prepareSpy;
 
             service['executeAsyncQuery'] = vi.fn().mockResolvedValue({
@@ -3881,22 +3813,16 @@ describe('AsyncQueryService', () => {
             (service as AnyType).getMetricQueryFields = vi
                 .fn()
                 .mockResolvedValue({ fields: {} });
-            const prepareSpy = vi.fn().mockResolvedValue({
-                queryComposer: {
-                    getSql: () => 'SELECT 1',
-                } as unknown as QueryComposer,
-                fields: {},
-                warnings: [],
-                parameterReferences: [],
-                missingParameterReferences: [],
-                usedParameters: {},
-                responseMetricQuery: metricQueryMock,
-                userAccessControls: {
-                    userAttributes: {},
-                    intrinsicUserAttributes: {},
-                },
-                availableParameterDefinitions: {},
-            });
+            const prepareSpy = vi.fn().mockResolvedValue(
+                createQueryComposerMock({
+                    sql: 'SELECT 1',
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                    availableParameterDefinitions: {},
+                }),
+            );
             (service as AnyType).prepareMetricQueryAsyncQueryArgs = prepareSpy;
             service['executeAsyncQuery'] = vi.fn().mockResolvedValue({
                 queryUuid: 'queryUuid',
@@ -3964,22 +3890,16 @@ describe('AsyncQueryService', () => {
             (service as AnyType).getMetricQueryFields = vi
                 .fn()
                 .mockResolvedValue({ fields: {} });
-            const prepareSpy = vi.fn().mockResolvedValue({
-                queryComposer: {
-                    getSql: () => 'SELECT 1',
-                } as unknown as QueryComposer,
-                fields: {},
-                warnings: [],
-                parameterReferences: [],
-                missingParameterReferences: [],
-                usedParameters: {},
-                responseMetricQuery: metricQueryMock,
-                userAccessControls: {
-                    userAttributes: {},
-                    intrinsicUserAttributes: {},
-                },
-                availableParameterDefinitions: {},
-            });
+            const prepareSpy = vi.fn().mockResolvedValue(
+                createQueryComposerMock({
+                    sql: 'SELECT 1',
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                    availableParameterDefinitions: {},
+                }),
+            );
             (service as AnyType).prepareMetricQueryAsyncQueryArgs = prepareSpy;
             service['executeAsyncQuery'] = vi.fn().mockResolvedValue({
                 queryUuid: 'queryUuid',
