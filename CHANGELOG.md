@@ -1,3 +1,10 @@
+## [0.3354.1](https://github.com/lightdash/lightdash/compare/0.3354.0...0.3354.1) (2026-07-10)
+
+
+### Bug Fixes
+
+* avoid repeated MCP auth prompts ([#25372](https://github.com/lightdash/lightdash/issues/25372)) ([3be33c1](https://github.com/lightdash/lightdash/commit/3be33c110c89f5c1d882bfec48f8eb673c034d4e)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.3354.0](https://github.com/lightdash/lightdash/compare/0.3353.0...0.3354.0) (2026-07-10)
 
 
