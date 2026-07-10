@@ -1,6 +1,11 @@
-import { AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES } from '@lightdash/common';
+import {
+    AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES,
+    assertUnreachable,
+    type AiAgentDocumentSummary,
+} from '@lightdash/common';
 import {
     ActionIcon,
+    Badge,
     Box,
     Button,
     Center,
@@ -27,6 +32,9 @@ import { useCallback, useMemo, useState } from 'react';
 import { EmptyState } from '../../../../components/common/EmptyState';
 import EmptyStateLoader from '../../../../components/common/EmptyStateLoader';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import MantineModal, {
+    type MantineModalProps,
+} from '../../../../components/common/MantineModal';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { formatFileSize } from '../../../../utils/formatters';
 import {
@@ -70,6 +78,44 @@ type PendingUpload = {
     sizeBytes: number;
 };
 
+type PendingAction =
+    | { type: 'delete'; document: AiAgentDocumentSummary }
+    | { type: 'enableFullContext'; document: AiAgentDocumentSummary };
+
+const getPendingActionModalConfig = (
+    action: PendingAction,
+): Pick<
+    MantineModalProps,
+    | 'confirmLabel'
+    | 'description'
+    | 'resourceLabel'
+    | 'resourceType'
+    | 'title'
+    | 'variant'
+> => {
+    switch (action.type) {
+        case 'delete':
+            return {
+                title: 'Delete knowledge document',
+                variant: 'delete',
+                resourceType: 'knowledge document',
+                resourceLabel: action.document.name,
+            };
+        case 'enableFullContext':
+            return {
+                title: 'Always include in context?',
+                description: `The full content of “${action.document.name}” will be added to every prompt. This uses more tokens and may increase response time.`,
+                confirmLabel: 'Always include',
+                variant: 'default',
+            };
+        default:
+            return assertUnreachable(
+                action,
+                'Unknown knowledge document action',
+            );
+    }
+};
+
 type Props = {
     agentUuid: string;
     projectUuid: string;
@@ -89,6 +135,9 @@ export const AiAgentKnowledgeFilesSection = ({
 
     const [pendingUploads, setPendingUploads] = useState<PendingUpload[]>([]);
     const [selectedId, setSelectedId] = useState<string | null>(null);
+    const [pendingAction, setPendingAction] = useState<PendingAction | null>(
+        null,
+    );
 
     const effectiveSelectedId = useMemo(() => {
         if (selectedId && pendingUploads.some((p) => p.tempId === selectedId)) {
@@ -186,6 +235,50 @@ export const AiAgentKnowledgeFilesSection = ({
         },
         [createDocument, showToastError],
     );
+
+    const handleConfirmAction = useCallback(async () => {
+        if (!pendingAction) return;
+
+        try {
+            switch (pendingAction.type) {
+                case 'delete':
+                    await deleteDocument.mutateAsync(
+                        pendingAction.document.uuid,
+                    );
+                    break;
+                case 'enableFullContext':
+                    await updateDocument.mutateAsync({
+                        documentUuid: pendingAction.document.uuid,
+                        body: { alwaysIncludeInContext: true },
+                    });
+                    break;
+                default:
+                    assertUnreachable(
+                        pendingAction,
+                        'Unknown knowledge document action',
+                    );
+            }
+            setPendingAction(null);
+        } catch {
+            // The mutation hook shows the error; keep the modal open for retry.
+        }
+    }, [deleteDocument, pendingAction, updateDocument]);
+
+    const pendingActionLoading = useMemo(() => {
+        if (!pendingAction) return false;
+
+        switch (pendingAction.type) {
+            case 'delete':
+                return deleteDocument.isLoading;
+            case 'enableFullContext':
+                return updateDocument.isLoading;
+            default:
+                return assertUnreachable(
+                    pendingAction,
+                    'Unknown knowledge document action',
+                );
+        }
+    }, [deleteDocument.isLoading, pendingAction, updateDocument.isLoading]);
 
     const isEmpty =
         !isLoading && pendingUploads.length === 0 && documents.length === 0;
@@ -288,6 +381,11 @@ export const AiAgentKnowledgeFilesSection = ({
                                                 NAME
                                             </Text>
                                         </Table.Th>
+                                        <Table.Th w={130} px="md">
+                                            <Text size="xs" c="dimmed" fw={600}>
+                                                CONTEXT
+                                            </Text>
+                                        </Table.Th>
                                         <Table.Th w={100} ta="right" px="lg">
                                             <Text size="xs" c="dimmed" fw={600}>
                                                 SIZE
@@ -312,6 +410,11 @@ export const AiAgentKnowledgeFilesSection = ({
                                                     </Text>
                                                 </Skeleton>
                                             ),
+                                            contextIndicator: (
+                                                <Text size="sm" c="dimmed">
+                                                    —
+                                                </Text>
+                                            ),
                                         })),
                                         ...documents.map((doc) => ({
                                             id: doc.uuid,
@@ -325,6 +428,22 @@ export const AiAgentKnowledgeFilesSection = ({
                                                 >
                                                     {doc.summary.description}
                                                 </Text>
+                                            ),
+                                            contextIndicator: (
+                                                <Badge
+                                                    size="xs"
+                                                    variant="light"
+                                                    color={
+                                                        doc.alwaysIncludeInContext
+                                                            ? 'violet'
+                                                            : 'gray'
+                                                    }
+                                                    tt="none"
+                                                >
+                                                    {doc.alwaysIncludeInContext
+                                                        ? 'Always included'
+                                                        : 'On demand'}
+                                                </Badge>
                                             ),
                                         })),
                                     ].map((row) => {
@@ -379,6 +498,9 @@ export const AiAgentKnowledgeFilesSection = ({
                                                             </Stack>
                                                         </Group>
                                                     </UnstyledButton>
+                                                </Table.Td>
+                                                <Table.Td px="md">
+                                                    {row.contextIndicator}
                                                 </Table.Td>
                                                 <Table.Td ta="right" pr="md">
                                                     <Text size="sm" c="dimmed">
@@ -440,9 +562,11 @@ export const AiAgentKnowledgeFilesSection = ({
                                                             selectedDocument.uuid
                                                     }
                                                     onClick={() =>
-                                                        deleteDocument.mutate(
-                                                            selectedDocument.uuid,
-                                                        )
+                                                        setPendingAction({
+                                                            type: 'delete',
+                                                            document:
+                                                                selectedDocument,
+                                                        })
                                                     }
                                                 >
                                                     <MantineIcon
@@ -462,17 +586,25 @@ export const AiAgentKnowledgeFilesSection = ({
                                                 selectedDocument.alwaysIncludeInContext
                                             }
                                             disabled={updateDocument.isLoading}
-                                            onChange={(event) =>
+                                            onChange={(event) => {
+                                                if (
+                                                    event.currentTarget.checked
+                                                ) {
+                                                    setPendingAction({
+                                                        type: 'enableFullContext',
+                                                        document:
+                                                            selectedDocument,
+                                                    });
+                                                    return;
+                                                }
                                                 updateDocument.mutate({
                                                     documentUuid:
                                                         selectedDocument.uuid,
                                                     body: {
-                                                        alwaysIncludeInContext:
-                                                            event.currentTarget
-                                                                .checked,
+                                                        alwaysIncludeInContext: false,
                                                     },
-                                                })
-                                            }
+                                                });
+                                            }}
                                         />
                                     )}
 
@@ -535,6 +667,19 @@ export const AiAgentKnowledgeFilesSection = ({
                     </Group>
                 )}
             </Paper>
+            {pendingAction && (
+                <MantineModal
+                    opened
+                    onClose={() => {
+                        if (!pendingActionLoading) setPendingAction(null);
+                    }}
+                    {...getPendingActionModalConfig(pendingAction)}
+                    onConfirm={handleConfirmAction}
+                    confirmLoading={pendingActionLoading}
+                    cancelDisabled={pendingActionLoading}
+                    withCloseButton={!pendingActionLoading}
+                />
+            )}
         </Stack>
     );
 };
