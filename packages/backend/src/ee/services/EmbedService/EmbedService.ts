@@ -98,6 +98,7 @@ import { SpacePermissionService } from '../../../services/SpaceService/SpacePerm
 import { getFilteredExplore } from '../../../services/UserAttributesService/UserAttributeUtils';
 import { wrapSentryTransaction } from '../../../utils';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
+import { QueryComposer } from '../../../utils/QueryBuilder/QueryComposer';
 import { SubtotalsCalculator } from '../../../utils/SubtotalsCalculator';
 import { EmbedDashboardViewed, EmbedQueryViewed } from '../../analytics';
 import { EmbedModel } from '../../models/EmbedModel';
@@ -1049,23 +1050,25 @@ export class EmbedService extends BaseService {
             filteredExplore,
         );
 
-        const compiledQuery = await ProjectService._compileQuery({
-            metricQuery,
-            explore: filteredExplore,
-            warehouseSqlBuilder: warehouseClient,
-            intrinsicUserAttributes,
-            userAttributes,
-            timezone,
-            dateZoom: dateZoomGranularity
-                ? {
-                      granularity: dateZoomGranularity,
-                  }
-                : undefined,
-            parameters: combinedParameters,
-            availableParameterDefinitions,
-            useTimezoneAwareDateTrunc,
-            columnTimezone: getColumnTimezone(warehouseClient.credentials),
-        });
+        const compiledQuery = new QueryComposer(
+            { metricQuery },
+            {
+                explore: filteredExplore,
+                warehouseSqlBuilder: warehouseClient,
+                intrinsicUserAttributes,
+                userAttributes,
+                timezone,
+                dateZoom: dateZoomGranularity
+                    ? {
+                          granularity: dateZoomGranularity,
+                      }
+                    : undefined,
+                parameters: combinedParameters,
+                availableParameterDefinitions,
+                useTimezoneAwareDateTrunc,
+                columnTimezone: getColumnTimezone(warehouseClient.credentials),
+            },
+        ).compile();
 
         const results =
             await this.projectService.getResultsFromCacheOrWarehouse({

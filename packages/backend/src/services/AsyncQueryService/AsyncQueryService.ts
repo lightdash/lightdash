@@ -153,7 +153,7 @@ import {
 import { updateExploreWithDateZoom } from '../../utils/QueryBuilder/dateZoom';
 import { safeReplaceParametersWithSqlBuilder } from '../../utils/QueryBuilder/parameters';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
-import type { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
+import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import {
     SQL_QUERY_MOCK_EXPLORER_NAME,
     SqlQueryComposer,
@@ -3503,7 +3503,7 @@ export class AsyncQueryService extends ProjectService {
         /**
          * Opt-in: rewrite WHERE filter LHS to use the zoom-grain dimension
          * for the filter that targets the zoom-rewritten field. Only the
-         * underlying-data path sets this (PROD-880). See `_compileQuery` doc.
+         * underlying-data path sets this (PROD-880).
          */
         applyDateZoomToFilters?: boolean;
         preloadedUserAccessControls?: UserAccessControls;
@@ -3549,25 +3549,25 @@ export class AsyncQueryService extends ProjectService {
             preloadedProjectTimezone,
         });
 
-        return ProjectService._createQueryComposer({
-            metricQuery,
-            explore,
-            warehouseSqlBuilder,
-            intrinsicUserAttributes,
-            userAttributes,
-            timezone: resolvedTimezone,
-            dateZoom,
-            // ! TODO: Should validate the parameters to make sure they are valid from the options
-            parameters,
-            availableParameterDefinitions,
-            pivotConfiguration,
-            totalConfiguration,
-            pivotDimensions: pivotDimensions ?? metricQuery.pivotDimensions,
-            useTimezoneAwareDateTrunc,
-            columnTimezone,
-            applyDateZoomToFilters,
-            displayTimezone,
-        });
+        return new QueryComposer(
+            { metricQuery, pivotConfiguration, totalConfiguration },
+            {
+                explore,
+                warehouseSqlBuilder,
+                intrinsicUserAttributes,
+                userAttributes,
+                timezone: resolvedTimezone,
+                availableParameterDefinitions,
+                // ! TODO: Should validate the parameters to make sure they are valid from the options
+                parameters,
+                dateZoom,
+                pivotDimensions: pivotDimensions ?? metricQuery.pivotDimensions,
+                useTimezoneAwareDateTrunc,
+                columnTimezone,
+                applyDateZoomToFilters,
+                displayTimezone,
+            },
+        );
     }
 
     private async assertOrganizationNotBlocked(
@@ -4215,6 +4215,12 @@ export class AsyncQueryService extends ProjectService {
             materializationRole,
         } = args;
         assertIsAccountWithOrg(account);
+
+        if (args.totalConfiguration && args.dashboardFilters) {
+            throw new UnexpectedServerError(
+                'totalConfiguration and dashboardFilters are mutually exclusive',
+            );
+        }
 
         if (
             materializationRole !== undefined &&

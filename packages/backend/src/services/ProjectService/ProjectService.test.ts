@@ -66,6 +66,7 @@ import {
     METRIC_QUERY,
     warehouseClientMock,
 } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
+import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { UserService } from '../UserService';
@@ -2798,18 +2799,20 @@ describe('ProjectService', () => {
     });
 });
 
-describe('ProjectService._compileQuery reserved parameters', () => {
+describe('QueryComposer reserved parameters', () => {
     it('resolves date_zoom to the else branch when no date zoom is applied', async () => {
-        const compiled = await ProjectService._compileQuery({
-            metricQuery: metricQueryReservedParameterDimension,
-            explore: exploreWithReservedParameterDimension,
-            warehouseSqlBuilder: warehouseClientMock,
-            intrinsicUserAttributes: {},
-            userAttributes: {},
-            timezone: 'UTC',
-            parameters: {},
-            availableParameterDefinitions: {},
-        });
+        const compiled = new QueryComposer(
+            { metricQuery: metricQueryReservedParameterDimension },
+            {
+                explore: exploreWithReservedParameterDimension,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: {},
+                userAttributes: {},
+                timezone: 'UTC',
+                parameters: {},
+                availableParameterDefinitions: {},
+            },
+        ).compile();
 
         expect(compiled.query).toContain("'other'");
         expect(compiled.query).not.toContain("'weekly'");
@@ -2819,18 +2822,20 @@ describe('ProjectService._compileQuery reserved parameters', () => {
 
     it('lets a user parameter named date_zoom win over the reserved value', async () => {
         // With no date zoom the reserved value is ''; a user date_zoom of 'week' must win.
-        const compiled = await ProjectService._compileQuery({
-            metricQuery: metricQueryReservedParameterDimension,
-            explore: exploreWithReservedParameterDimension,
-            warehouseSqlBuilder: warehouseClientMock,
-            intrinsicUserAttributes: {},
-            userAttributes: {},
-            timezone: 'UTC',
-            parameters: { date_zoom: 'week' },
-            availableParameterDefinitions: {
-                date_zoom: { label: 'My date zoom' },
+        const compiled = new QueryComposer(
+            { metricQuery: metricQueryReservedParameterDimension },
+            {
+                explore: exploreWithReservedParameterDimension,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: {},
+                userAttributes: {},
+                timezone: 'UTC',
+                parameters: { date_zoom: 'week' },
+                availableParameterDefinitions: {
+                    date_zoom: { label: 'My date zoom' },
+                },
             },
-        });
+        ).compile();
 
         expect(compiled.query).toContain("'weekly'");
         expect(compiled.query).not.toContain("'other'");

@@ -14,6 +14,24 @@ The service follows a two-phase pattern:
 2. **Poll**: Call `getAsyncQueryResults` with the `queryUuid` to fetch paginated results.
 
 The QueryController exposes these operations via REST endpoints at `/api/v2/projects/{projectUuid}/query/`.
+
+**Prepare/execute seam.** Metric execution prepares a `QueryComposer`; SQL
+runner, saved SQL chart, and dashboard SQL-chart execution prepare a
+`SqlQueryComposer`. The prepared args carry that composer plus orchestration
+data such as credentials and routing metadata. They do not duplicate explore,
+query, fields, pivot, timezone, parameter, or access-control state.
+
+`executePreparedAsyncQuery` reads those values through the composer getters,
+and `getSql({ columnLimit })` is the only SQL-generation seam for both metric
+and SQL-chart paths. Keep new query context on the composer and expose a getter
+when execution needs it; do not add parallel loose fields to
+`PreparedAsyncQueryArgs`. Construct composers directly at their preparation
+sites rather than adding a service-level factory.
+
+For metric queries, `totalConfiguration` is reserved for calculate-total
+replays and is mutually exclusive with `dashboardFilters`.
+`executeAsyncMetricQuery` rejects calls that set both before composer
+preparation.
 </howToUse>
 
 <codeExample>
@@ -87,6 +105,12 @@ sequenceDiagram
 **Fire-and-Forget Execution:**
 The `executeAsyncQuery` method starts warehouse queries using `void this.runAsyncWarehouseQuery(...)`. Errors are caught internally and logged, not thrown to the caller.
 
+**Composer ownership:**
+`QueryComposer` owns metric compilation, totals collapse, and optional pivot SQL
+wrapping. `SqlQueryComposer` owns virtual-view/user-SQL wrapping and inherits the
+same pivot seam. Once preparation returns a composer, downstream execution must
+read query context from it rather than recomputing or carrying a second copy.
+
 **Streaming Results to S3:**
 During execution, `runAsyncWarehouseQuery` creates an upload stream via `resultsStorageClient.createUploadStream()`. The warehouse client's `executeAsyncQuery` receives a `write` callback that streams rows as JSONL directly to S3 as they arrive from the warehouse.
 
@@ -122,6 +146,8 @@ Results are paginated (default 500 rows, max 5000). Use `page` and `pageSize` pa
 <links>
 @packages/backend/src/controllers/v2/QueryController.ts - REST API endpoints
 @packages/backend/src/services/AsyncQueryService/types.ts - Type definitions for all execute args
+@packages/backend/src/utils/QueryBuilder/QueryComposer.ts - Metric-query preparation and SQL facade
+@packages/backend/src/utils/QueryBuilder/SqlQueryComposer.ts - SQL-chart preparation and SQL facade
 @packages/backend/src/models/QueryHistoryModel/QueryHistoryModel.ts - Query state persistence
 @packages/backend/src/clients/ResultsFileStorageClients/S3ResultsFileStorageClient.ts - S3 streaming client
 </links>
