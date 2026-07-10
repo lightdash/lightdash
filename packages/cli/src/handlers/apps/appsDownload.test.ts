@@ -1,13 +1,20 @@
-import { type DataAppCodeDownload } from '@lightdash/common';
+import {
+    LightdashError,
+    ParameterError,
+    type DataAppCodeDownload,
+} from '@lightdash/common';
 import {
     appsDownloadSummary,
     capListedApps,
+    classifyAppDownloadError,
     classifyAppUpload,
     computeUpsertedTotal,
+    DEFAULT_APPS_LIMIT,
     ensureDownloadedAppContext,
     manifestRetargetHint,
-    MAX_INCLUDE_APPS,
+    resolveAppsLimit,
     selectAppsToDownload,
+    shouldFallBackToSpaceScopedListing,
     shouldWarnAllSkipped,
 } from './appsDownload';
 
@@ -66,19 +73,87 @@ describe('selectAppsToDownload', () => {
 });
 
 describe('capListedApps', () => {
-    it('keeps all listed apps when under the cap', () => {
-        expect(capListedApps(['a', 'b', 'c'])).toEqual({
+    it('keeps all listed apps when under the limit', () => {
+        expect(capListedApps(['a', 'b', 'c'], 5)).toEqual({
             appUuids: ['a', 'b', 'c'],
             truncatedCount: 0,
         });
     });
 
-    it(`caps listed apps at ${MAX_INCLUDE_APPS} and reports the truncated count`, () => {
+    it('caps listed apps at the given limit and reports the truncated count', () => {
         const listed = Array.from({ length: 12 }, (_, i) => `uuid-${i}`);
-        const result = capListedApps(listed);
-        expect(result.appUuids).toHaveLength(MAX_INCLUDE_APPS);
-        expect(result.appUuids).toEqual(listed.slice(0, MAX_INCLUDE_APPS));
+        const result = capListedApps(listed, 10);
+        expect(result.appUuids).toHaveLength(10);
+        expect(result.appUuids).toEqual(listed.slice(0, 10));
         expect(result.truncatedCount).toBe(2);
+    });
+
+    it('reports no truncation when exactly at the limit', () => {
+        expect(capListedApps(['a', 'b'], 2)).toEqual({
+            appUuids: ['a', 'b'],
+            truncatedCount: 0,
+        });
+    });
+});
+
+describe('resolveAppsLimit', () => {
+    it('defaults to DEFAULT_APPS_LIMIT when the flag is not passed', () => {
+        expect(DEFAULT_APPS_LIMIT).toBe(50);
+        expect(resolveAppsLimit(undefined, true)).toEqual({
+            limit: DEFAULT_APPS_LIMIT,
+            noEffectWarning: null,
+        });
+    });
+
+    it('does not warn when the flag is not passed, even without --include-apps', () => {
+        expect(resolveAppsLimit(undefined, false)).toEqual({
+            limit: DEFAULT_APPS_LIMIT,
+            noEffectWarning: null,
+        });
+    });
+
+    it('parses an explicit limit', () => {
+        expect(resolveAppsLimit('200', true)).toEqual({
+            limit: 200,
+            noEffectWarning: null,
+        });
+    });
+
+    it('warns (but succeeds) when passed without --include-apps', () => {
+        const result = resolveAppsLimit('5', false);
+        expect(result.limit).toBe(5);
+        expect(result.noEffectWarning).toContain('--include-apps');
+    });
+
+    it.each(['0', '-5', 'abc', '1.5', ''])(
+        'rejects %p as a ParameterError',
+        (raw) => {
+            expect(() => resolveAppsLimit(raw, true)).toThrow(ParameterError);
+        },
+    );
+});
+
+describe('shouldFallBackToSpaceScopedListing', () => {
+    const makeError = (statusCode: number) =>
+        new LightdashError({
+            message: 'x',
+            name: 'TestError',
+            statusCode,
+            data: {},
+        });
+
+    it('falls back when the listing endpoint 404s (older server)', () => {
+        expect(shouldFallBackToSpaceScopedListing(makeError(404))).toBe(true);
+    });
+
+    it('propagates 403 (data apps disabled) instead of falling back', () => {
+        expect(shouldFallBackToSpaceScopedListing(makeError(403))).toBe(false);
+    });
+
+    it('propagates non-Lightdash errors', () => {
+        expect(shouldFallBackToSpaceScopedListing(new Error('boom'))).toBe(
+            false,
+        );
     });
 });
 
@@ -181,12 +256,66 @@ describe('manifestRetargetHint', () => {
     });
 });
 
+describe('classifyAppDownloadError', () => {
+    const make404 = (message: string) =>
+        new LightdashError({
+            message,
+            name: 'NotFoundError',
+            statusCode: 404,
+            data: {},
+        });
+
+    it('skips apps that have no built version yet', () => {
+        expect(
+            classifyAppDownloadError(
+                make404('Data app has no ready version yet: uuid-a'),
+            ),
+        ).toEqual({ kind: 'skip-not-built' });
+    });
+
+    it('passes the server message through for other 404s', () => {
+        expect(classifyAppDownloadError(make404('App not found'))).toEqual({
+            kind: 'fail',
+            message: 'App not found',
+        });
+    });
+
+    it('falls back to a canned explanation only when a 404 has no server message', () => {
+        const outcome = classifyAppDownloadError(make404(''));
+        expect(outcome.kind).toBe('fail');
+        if (outcome.kind === 'fail') {
+            expect(outcome.message).toContain('data apps');
+        }
+    });
+
+    it('passes the server message through for non-404 Lightdash errors', () => {
+        const err = new LightdashError({
+            message: 'Data apps are not enabled',
+            name: 'ForbiddenError',
+            statusCode: 403,
+            data: {},
+        });
+        expect(classifyAppDownloadError(err)).toEqual({
+            kind: 'fail',
+            message: 'Data apps are not enabled',
+        });
+    });
+
+    it('fails with the error message for plain errors', () => {
+        expect(classifyAppDownloadError(new Error('boom'))).toEqual({
+            kind: 'fail',
+            message: 'boom',
+        });
+    });
+});
+
 describe('appsDownloadSummary', () => {
     it('reports success when all apps downloaded', () => {
-        const summary = appsDownloadSummary(2, 2, [], '/tmp/x/apps');
+        const summary = appsDownloadSummary(2, 2, [], '/tmp/x/apps', 0);
         expect(summary.ok).toBe(true);
         expect(summary.message).toContain('Downloaded 2 of 2 data app(s)');
         expect(summary.message).toContain('/tmp/x/apps');
+        expect(summary.message).not.toContain('skipped');
         expect(summary.failureLines).toEqual([]);
     });
 
@@ -196,6 +325,7 @@ describe('appsDownloadSummary', () => {
             1,
             [{ appUuid: 'uuid-a', message: 'server exploded' }],
             '/tmp/x/apps',
+            0,
         );
         expect(summary.ok).toBe(false);
         expect(summary.message).toContain('Downloaded 0 of 1 data app(s)');
@@ -203,5 +333,27 @@ describe('appsDownloadSummary', () => {
         expect(summary.failureLines).toHaveLength(1);
         expect(summary.failureLines[0]).toContain('uuid-a');
         expect(summary.failureLines[0]).toContain('server exploded');
+    });
+
+    it('excludes skipped apps from the attempted count and stays ok', () => {
+        const summary = appsDownloadSummary(41, 50, [], '/tmp/x/apps', 9);
+        expect(summary.ok).toBe(true);
+        expect(summary.message).toContain('Downloaded 41 of 41 data app(s)');
+        expect(summary.message).toContain('9 skipped: no built version');
+        expect(summary.failureLines).toEqual([]);
+    });
+
+    it('reports skips and failures together', () => {
+        const summary = appsDownloadSummary(
+            1,
+            3,
+            [{ appUuid: 'uuid-a', message: 'server exploded' }],
+            '/tmp/x/apps',
+            1,
+        );
+        expect(summary.ok).toBe(false);
+        expect(summary.message).toContain('Downloaded 1 of 2 data app(s)');
+        expect(summary.message).toContain('1 skipped: no built version');
+        expect(summary.message).toContain('1 failed');
     });
 });
