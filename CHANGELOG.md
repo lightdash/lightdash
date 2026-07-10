@@ -1,3 +1,16 @@
+# [0.3359.0](https://github.com/lightdash/lightdash/compare/0.3358.1...0.3359.0) (2026-07-10)
+
+
+### Bug Fixes
+
+* undici short timeout for data apps in azure ([#25396](https://github.com/lightdash/lightdash/issues/25396)) ([4605ea0](https://github.com/lightdash/lightdash/commit/4605ea08324ca05161ecc32a00f3bd790e960f2f))
+
+
+### Features
+
+* **backend:** per-org gate for data-app custom dependencies [GLITCH-558] ([#25385](https://github.com/lightdash/lightdash/issues/25385)) ([e600623](https://github.com/lightdash/lightdash/commit/e600623a369bee8512490da307f8d7f59bcf1fc7))
+* metric catalog on embed ([#25378](https://github.com/lightdash/lightdash/issues/25378)) ([451d94d](https://github.com/lightdash/lightdash/commit/451d94da6b29273079bd0ffef939b16b27c6333e))
+
 ## [0.3358.1](https://github.com/lightdash/lightdash/compare/0.3358.0...0.3358.1) (2026-07-10)
 
 
