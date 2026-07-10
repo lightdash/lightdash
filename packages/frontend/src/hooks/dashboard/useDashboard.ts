@@ -1,5 +1,6 @@
 import {
     formatDate,
+    SchedulerFormat,
     type ApiError,
     type ApiJobScheduledResponse,
     type CreateDashboard,
@@ -110,18 +111,6 @@ const postEmbedDashboardsAvailableFilters = async (
         body: JSON.stringify(savedChartUuidsAndTileUuids),
     });
 
-const exportDashboard = async (
-    id: string,
-    gridWidth: number | undefined,
-    queryFilters: string,
-    selectedTabs: string[] | null,
-) =>
-    lightdashApi<string>({
-        url: `/dashboards/${id}/export`,
-        method: 'POST',
-        body: JSON.stringify({ queryFilters, gridWidth, selectedTabs }),
-    });
-
 export const useDashboardsAvailableFilters = (
     savedChartUuidsAndTileUuids: SavedChartsInfoForDashboardAvailableFilters,
     projectUuid?: string,
@@ -218,62 +207,6 @@ export const useDashboardVersionRefresh = (
             }
         },
     });
-};
-
-export const useExportDashboard = () => {
-    const { showToastSuccess, showToastApiError, showToastInfo } = useToaster();
-    return useMutation<
-        string,
-        ApiError,
-        {
-            dashboard: Dashboard;
-            gridWidth: number | undefined;
-            queryFilters: string;
-            isPreview?: boolean;
-            selectedTabs: string[] | null;
-        }
-    >(
-        (data) =>
-            exportDashboard(
-                data.dashboard.uuid,
-                data.gridWidth,
-                data.queryFilters,
-                data.selectedTabs,
-            ),
-        {
-            mutationKey: ['export_dashboard'],
-            onMutate: (data) => {
-                showToastInfo({
-                    key: 'dashboard_export_toast',
-                    title: data.isPreview
-                        ? `Generating preview for ${data.dashboard.name}`
-                        : `${data.dashboard.name} is being exported. This might take a few seconds.`,
-                    autoClose: false,
-                    loading: true,
-                });
-            },
-            onSuccess: async (url, data) => {
-                if (url) {
-                    if (!data.isPreview) window.open(url, '_blank');
-                    showToastSuccess({
-                        key: 'dashboard_export_toast',
-                        title: data.isPreview
-                            ? 'Success!'
-                            : `Success! ${data.dashboard.name} was exported.`,
-                    });
-                }
-            },
-            onError: ({ error }, data) => {
-                showToastApiError({
-                    key: 'dashboard_export_toast',
-                    title: data.isPreview
-                        ? `Failed to generate preview for ${data.dashboard.name}`
-                        : `Failed to export ${data.dashboard.name}`,
-                    apiError: error,
-                });
-            },
-        },
-    );
 };
 
 const exportDashboardContent = async (
@@ -398,6 +331,81 @@ export const useExportDashboardContent = () => {
                     title: `Failed to export ${data.dashboard.name}`,
                     apiError: error,
                 });
+            },
+        },
+    );
+};
+
+// Preview generation goes through the async EXPORT_CONTENT job instead of the
+// synchronous export endpoint, so heavy dashboards don't hold an HTTP request
+// open until the gateway times out.
+export const useExportDashboardContentPreview = () => {
+    const {
+        showToastInfo,
+        showToastSuccess,
+        showToastError,
+        showToastApiError,
+    } = useToaster();
+
+    return useMutation<
+        string,
+        ApiError | Error,
+        {
+            dashboard: Dashboard;
+            dashboardFilters?: DashboardFilters;
+            dateZoomGranularity?: DateGranularity | string;
+            customViewportWidth?: number;
+            selectedTabs?: string[] | null;
+        }
+    >(
+        async (data) => {
+            const job = await exportDashboardContent(data.dashboard.uuid, {
+                format: SchedulerFormat.IMAGE,
+                options: {},
+                dashboardFilters: data.dashboardFilters,
+                dateZoomGranularity: data.dateZoomGranularity,
+                customViewportWidth: data.customViewportWidth,
+                selectedTabs: data.selectedTabs,
+            });
+            const details = (await pollJobStatus(
+                job.jobId,
+            )) as DashboardContentExportDetails | null;
+            if (!details?.url) {
+                throw new Error('Preview generation returned no image');
+            }
+            return details.url;
+        },
+        {
+            mutationKey: ['export_dashboard_preview'],
+            onMutate: (data) => {
+                showToastInfo({
+                    key: 'dashboard_export_toast',
+                    title: `Generating preview for ${data.dashboard.name}`,
+                    autoClose: false,
+                    loading: true,
+                });
+            },
+            onSuccess: () => {
+                showToastSuccess({
+                    key: 'dashboard_export_toast',
+                    title: 'Success!',
+                });
+            },
+            onError: (error, data) => {
+                const title = `Failed to generate preview for ${data.dashboard.name}`;
+                if ('error' in error) {
+                    showToastApiError({
+                        key: 'dashboard_export_toast',
+                        title,
+                        apiError: error.error,
+                    });
+                } else {
+                    showToastError({
+                        key: 'dashboard_export_toast',
+                        title,
+                        subtitle: error.message,
+                    });
+                }
             },
         },
     );

@@ -2141,6 +2141,7 @@ export class UnfurlService extends BaseService {
                             context,
                             contextId,
                             selectedTabs,
+                            sendNowSchedulerDashboardFilters,
                             sendNowSchedulerFilters,
                             sendNowSchedulerParameters,
                             outputFormat,
