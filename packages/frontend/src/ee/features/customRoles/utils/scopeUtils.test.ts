@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+    filterScopesByDependencyStatus,
+    getScopeDependencyStatus,
     getScopeDependencyStatusCounts,
     getScopeDependencies,
     getScopeNamesWithDependencies,
+    getScopesByGroup,
 } from './scopeUtils';
 
 describe('getScopeDependencies', () => {
@@ -36,6 +39,72 @@ describe('getScopeNamesWithDependencies', () => {
             'view:SavedChart',
             'view:Space',
         ]);
+    });
+});
+
+describe('getScopeDependencyStatus', () => {
+    it('classifies scopes with all dependencies selected as full', () => {
+        expect(
+            getScopeDependencyStatus('manage:Dashboard', {
+                'view:Project': true,
+                'view:SavedChart': true,
+                'view:Space': true,
+            }),
+        ).toBe('full');
+    });
+
+    it('classifies scopes with some dependencies selected as partial', () => {
+        expect(
+            getScopeDependencyStatus('manage:Dashboard', {
+                'view:Project': true,
+            }),
+        ).toBe('partial');
+    });
+
+    it('classifies scopes with no dependencies selected as empty', () => {
+        expect(getScopeDependencyStatus('manage:Dashboard', {})).toBe('empty');
+    });
+
+    it('classifies scopes without dependencies as full', () => {
+        expect(getScopeDependencyStatus('view:Project', {})).toBe('full');
+    });
+});
+
+describe('filterScopesByDependencyStatus', () => {
+    const groupedScopes = getScopesByGroup(true, 'project');
+
+    it('returns only selected scopes matching the requested status', () => {
+        const filtered = filterScopesByDependencyStatus(
+            groupedScopes,
+            {
+                'manage:Dashboard': true,
+                'create:Job': true,
+                'view:Project': true,
+            },
+            'partial',
+        );
+
+        expect(
+            filtered.flatMap((group) => group.scopes.map(({ name }) => name)),
+        ).toEqual(['manage:Dashboard', 'create:Job']);
+    });
+
+    it('drops groups without a matching scope', () => {
+        expect(
+            filterScopesByDependencyStatus(
+                groupedScopes,
+                { 'view:Project': true },
+                'empty',
+            ),
+        ).toEqual([]);
+    });
+
+    it('returns the existing groups when no status is requested', () => {
+        expect(
+            filterScopesByDependencyStatus(groupedScopes, {
+                'view:Project': true,
+            }),
+        ).toBe(groupedScopes);
     });
 });
 
