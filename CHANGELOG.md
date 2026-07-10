@@ -1,3 +1,16 @@
+# [0.3357.0](https://github.com/lightdash/lightdash/compare/0.3356.1...0.3357.0) (2026-07-10)
+
+
+### Bug Fixes
+
+* **ai:** open Slack explore links with the generated chart type ([#25391](https://github.com/lightdash/lightdash/issues/25391)) ([2d1f29a](https://github.com/lightdash/lightdash/commit/2d1f29aea6f8277f2d5962db45fad61b28055c09))
+* use static MCP OAuth callback ([#25294](https://github.com/lightdash/lightdash/issues/25294)) ([0d363cb](https://github.com/lightdash/lightdash/commit/0d363cbb7cc78676c63fd359760dac4c89ee6e62))
+
+
+### Features
+
+* support MCP OAuth client credentials ([#25302](https://github.com/lightdash/lightdash/issues/25302)) ([c27e66e](https://github.com/lightdash/lightdash/commit/c27e66e1f5414652b1c1bf7449b9c61926082eb3))
+
 ## [0.3356.1](https://github.com/lightdash/lightdash/compare/0.3356.0...0.3356.1) (2026-07-10)
 
 
