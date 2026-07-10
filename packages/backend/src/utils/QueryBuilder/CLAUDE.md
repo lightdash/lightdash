@@ -1,6 +1,6 @@
 <summary>
 SQL generation and transformation utilities for Lightdash queries.
-One facade: QueryComposer (orchestrates context prep + the builders below to own metric SQL generation end-to-end).
+Facade: QueryComposer (orchestrates context prep + the builders below to own metric SQL generation end-to-end) and its subclass SqlQueryComposer (folds SQL charts into the same facade — wraps user-written SQL instead of compiling a metric query, sharing one getSql() pivot seam).
 Four builders: MetricQueryBuilder (metrics/dimensions with joins), PivotQueryBuilder (flat → pivot table with row/column indexes), SqlQueryBuilder (SQL charts with filtering), TotalQueryBuilder (source query → grand/row/column/subtotal query transform).
 PivotQueryBuilder does NOT pivot data — it generates SQL that tags each row with `row_index` and `column_index` metadata via DENSE_RANK(). The actual pivoting happens downstream in AsyncQueryService.runQueryAndTransformRows.
 
@@ -35,6 +35,32 @@ const composer = new QueryComposer(
 
 const compiled = composer.compile(); // memoized CompiledQuery (base SQL, fields, warnings, params)
 const sql = composer.getSql({ columnLimit }); // PivotQueryBuilder-wrapped when pivotConfiguration is set, else base
+```
+
+`compile()` delegates to a protected `computeCompiled()` template-method seam (memoized). Subclasses override `computeCompiled()` to build the base `CompiledQuery` from different inputs; the pivot pipeline (`getSql`) is inherited unchanged.
+
+**SqlQueryComposer** — the facade for SQL charts (`extends QueryComposer`). SQL charts run user-written SQL rather than compiling a metric query, so this builds everything from raw inputs — the virtual view (`createVirtualView`) from the discovered columns, the wrapping `SqlQueryBuilder` (reference map + dialect config off the warehouse client), a mock `MetricQuery` metadata carrier, and (on the dashboard path) the applied dashboard filters/sorts — then overrides `computeCompiled()` to shape the wrapped user SQL into a `CompiledQuery`. Because `getSql()` is inherited, a request/config `pivotConfiguration` flows through the same seam as metric queries. Used by `AsyncQueryService.prepareSqlChartAsyncQueryArgs` for all three SQL execute paths (raw SQL runner, saved SQL chart, dashboard SQL chart).
+
+```typescript
+import { SqlQueryComposer } from './SqlQueryComposer';
+
+const composer = new SqlQueryComposer({
+    userSql, // user SQL with user attributes already replaced
+    columns, // discovered via a LIMIT 1 probe query
+    warehouseClient,
+    pivotConfiguration, // request-supplied (SQL runner) or derived from chart config
+    limit,
+    parameters,
+    dashboardFilters, // dashboard SQL-chart path only
+    tileUuid,
+    dashboardSorts,
+});
+
+const compiled = composer.compile(); // wrapped user SQL as base CompiledQuery
+const sql = composer.getSql({ columnLimit }); // pivot-wrapped when pivotConfiguration is set
+const metricQuery = composer.getMetricQuery(); // mock metadata carrier (echoed to the client)
+const virtualView = composer.getExplore();
+const appliedDashboardFilters = composer.getAppliedDashboardFilters();
 ```
 
 **MetricQueryBuilder** — builds the base SQL from an Explore + MetricQuery (dimensions, metrics, filters, joins, table calculations). Handles fan-out protection via CTEs and period-over-period comparisons. Usually driven via `QueryComposer` rather than constructed directly.
@@ -144,6 +170,7 @@ graph TD
 <links>
 
 - @/packages/backend/src/utils/QueryBuilder/QueryComposer.ts — Facade that owns metric SQL generation end-to-end
+- @/packages/backend/src/utils/QueryBuilder/SqlQueryComposer.ts — SQL-chart subclass of the facade (wraps user SQL)
 - @/packages/backend/src/services/AsyncQueryService/AsyncQueryService.ts — Query execution and pivot result streaming
 - @/packages/backend/src/utils/QueryBuilder/PivotQueryBuilder.test.ts — PivotQueryBuilder tests (all CTE paths)
 - @/packages/backend/src/utils/QueryBuilder/MetricQueryBuilder.test.ts — MetricQueryBuilder tests

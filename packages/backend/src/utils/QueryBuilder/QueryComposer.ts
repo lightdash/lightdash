@@ -24,21 +24,26 @@ export type QueryComposerDefinition = {
     pivotConfiguration: PivotConfiguration | undefined;
 };
 
-/** Raw inputs the composer needs to prepare context and build SQL. */
+/**
+ * Raw inputs the composer needs to prepare context and build SQL. Only
+ * `explore` and `warehouseSqlBuilder` are always needed; the rest drive the
+ * metric-compile path and are optional so SQL charts (which override
+ * `computeCompiled`) can omit them.
+ */
 export type QueryComposerContext = {
     explore: Explore;
     warehouseSqlBuilder: WarehouseSqlBuilder;
-    intrinsicUserAttributes: IntrinsicUserAttributes;
-    userAttributes: UserAttributeValueMap;
-    timezone: string;
-    availableParameterDefinitions: ParameterDefinitions;
-    parameters: ParametersValuesMap | undefined;
-    dateZoom: DateZoom | undefined;
-    pivotDimensions: string[] | undefined;
-    continueOnError: boolean | undefined;
-    useTimezoneAwareDateTrunc: boolean | undefined;
-    columnTimezone: string | undefined;
-    applyDateZoomToFilters: boolean | undefined;
+    intrinsicUserAttributes?: IntrinsicUserAttributes;
+    userAttributes?: UserAttributeValueMap;
+    timezone?: string;
+    availableParameterDefinitions?: ParameterDefinitions;
+    parameters?: ParametersValuesMap;
+    dateZoom?: DateZoom;
+    pivotDimensions?: string[];
+    continueOnError?: boolean;
+    useTimezoneAwareDateTrunc?: boolean;
+    columnTimezone?: string;
+    applyDateZoomToFilters?: boolean;
 };
 
 /**
@@ -48,11 +53,11 @@ export type QueryComposerContext = {
  * PivotQueryBuilder — it does not generate SQL itself.
  */
 export class QueryComposer {
-    private readonly definition: QueryComposerDefinition;
+    protected readonly definition: QueryComposerDefinition;
 
-    private readonly context: QueryComposerContext;
+    protected readonly context: QueryComposerContext;
 
-    private compiledQuery: CompiledQuery | undefined;
+    protected compiledQuery: CompiledQuery | undefined;
 
     constructor(
         definition: QueryComposerDefinition,
@@ -62,20 +67,30 @@ export class QueryComposer {
         this.context = context;
     }
 
-    /** Compile the metric query to base SQL. Memoized. */
+    /** Compile to base SQL, memoized. Delegates to the overridable seam. */
     compile(): CompiledQuery {
         if (this.compiledQuery) {
             return this.compiledQuery;
         }
+        this.compiledQuery = this.computeCompiled();
+        return this.compiledQuery;
+    }
 
+    /**
+     * Produce the base CompiledQuery. Subclasses override this to compile from
+     * different inputs (e.g. SQL charts wrap user SQL instead of a metric query).
+     */
+    protected computeCompiled(): CompiledQuery {
         const { metricQuery, pivotConfiguration } = this.definition;
         const {
             explore,
             warehouseSqlBuilder,
-            intrinsicUserAttributes,
-            userAttributes,
-            timezone,
-            availableParameterDefinitions,
+            // Always supplied on the metric-compile path; defaulted so the
+            // optional context type stays satisfied.
+            intrinsicUserAttributes = {},
+            userAttributes = {},
+            timezone = '',
+            availableParameterDefinitions = {},
             parameters,
             dateZoom,
             pivotDimensions,
@@ -141,12 +156,9 @@ export class QueryComposer {
             columnTimezone,
         });
 
-        this.compiledQuery = wrapSentryTransactionSync(
-            'QueryBuilder.buildQuery',
-            {},
-            () => queryBuilder.compileQuery(),
+        return wrapSentryTransactionSync('QueryBuilder.buildQuery', {}, () =>
+            queryBuilder.compileQuery(),
         );
-        return this.compiledQuery;
     }
 
     /**
@@ -169,5 +181,18 @@ export class QueryComposer {
             compiledQuery.fields,
         );
         return pivotQueryBuilder.toSql({ columnLimit });
+    }
+
+    /** The explore the query runs against. */
+    getExplore(): Explore {
+        return this.context.explore;
+    }
+
+    getMetricQuery(): MetricQuery {
+        return this.definition.metricQuery;
+    }
+
+    getPivotConfiguration(): PivotConfiguration | undefined {
+        return this.definition.pivotConfiguration;
     }
 }

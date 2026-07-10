@@ -16,8 +16,6 @@ import {
     CalculateSubtotalsFromQuery,
     CalculateTotalFromQuery,
     CompiledDimension,
-    convertFieldRefToFieldId,
-    createVirtualView as createVirtualViewObject,
     CreateWarehouseCredentials,
     CustomSqlQueryForbiddenError,
     DashboardFilters,
@@ -42,7 +40,6 @@ import {
     getAvailableFilterFieldIds,
     getColumnTimezone,
     getDashboardFilterRulesForTables,
-    getDashboardFilterRulesForTileAndReferences,
     getDateZoomFromRequestParameters,
     getDimensions,
     getDimensionsWithValidParameters,
@@ -129,7 +126,6 @@ import { SshTunnel, warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
 import { createInterface } from 'readline';
 import { Readable, Writable } from 'stream';
-import { v4 as uuidv4 } from 'uuid';
 import { DownloadCsv } from '../../analytics/LightdashAnalytics';
 import { transformAndExportResults } from '../../clients/Aws/transformAndExportResults';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
@@ -158,9 +154,9 @@ import { updateExploreWithDateZoom } from '../../utils/QueryBuilder/dateZoom';
 import { safeReplaceParametersWithSqlBuilder } from '../../utils/QueryBuilder/parameters';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
 import {
-    ReferenceMap,
-    SqlQueryBuilder,
-} from '../../utils/QueryBuilder/SqlQueryBuilder';
+    SQL_QUERY_MOCK_EXPLORER_NAME,
+    SqlQueryComposer,
+} from '../../utils/QueryBuilder/SqlQueryComposer';
 import { TotalQueryBuilder } from '../../utils/QueryBuilder/TotalQueryBuilder';
 import {
     applyLimitToSqlQuery,
@@ -219,8 +215,6 @@ import {
     type RunAsyncWarehouseQueryArgs,
     type ScheduleDownloadAsyncQueryResultsArgs,
 } from './types';
-
-const SQL_QUERY_MOCK_EXPLORER_NAME = 'sql_query_explorer';
 
 // NULL pivot keys collide with the unsuffixed base column when joined
 // (`[null].join('_') === ''`). Wrapped in `<>` so it strips cleanly via
@@ -5939,6 +5933,7 @@ export class AsyncQueryService extends ProjectService {
             sql,
             limit,
             parameters: combinedParameters,
+            pivotConfiguration,
         });
 
         // Disconnect the ssh tunnel to avoid leaking connections, another client is created in the scheduler task
@@ -5993,6 +5988,7 @@ export class AsyncQueryService extends ProjectService {
         limit,
         tileUuid,
         parameters,
+        pivotConfiguration,
         chartUuid,
         dashboardUuid,
     }: {
@@ -6007,6 +6003,7 @@ export class AsyncQueryService extends ProjectService {
         limit?: number;
         tileUuid?: string;
         parameters?: ParametersValuesMap;
+        pivotConfiguration?: PivotConfiguration;
         chartUuid?: string;
         dashboardUuid?: string;
     }) {
@@ -6144,132 +6141,35 @@ export class AsyncQueryService extends ProjectService {
             return acc;
         }, {} as ResultColumns);
 
-        // ! VizColumns, virtualView, dimensions and query are not needed for SQL queries since we pass just sql the to `executeAsyncQuery`
-        // ! We keep them here for backwards compatibility until we remove them as a required argument
-        const vizColumns = columns.map((col) => ({
-            reference: col.name,
-            type: col.type,
-        }));
-
-        const virtualView = createVirtualViewObject(
-            SQL_QUERY_MOCK_EXPLORER_NAME,
-            sqlWithUserAttributes,
-            vizColumns,
-            warehouseConnection.warehouseClient,
-        );
-
-        const dimensions = Object.values(
-            virtualView.tables[virtualView.baseTable].dimensions,
-        ).map((d) => convertFieldRefToFieldId(d.name, virtualView.name));
-
-        const pivotConfiguration =
-            config && !isVizTableConfig(config) && config.fieldConfig
+        // Pivot comes from the request (SQL runner) or the chart config
+        // (saved/dashboard SQL charts).
+        const resolvedPivotConfiguration: PivotConfiguration | undefined =
+            pivotConfiguration ??
+            (config && !isVizTableConfig(config) && config.fieldConfig
                 ? {
                       indexColumn: config.fieldConfig.x,
                       valuesColumns: config.fieldConfig.y,
                       groupByColumns: config.fieldConfig.groupBy,
                       sortBy: config.fieldConfig.sortBy,
                   }
-                : undefined;
+                : undefined);
 
-        let metricQuery: MetricQuery = {
-            exploreName: virtualView.name,
-            dimensions,
-            metrics: [],
-            filters: {},
-            tableCalculations: [],
-            sorts: [],
-            customDimensions: [],
-            additionalMetrics: [],
-            limit: limit ?? 500,
-        };
-
-        const fieldQuoteChar =
-            warehouseConnection.warehouseClient.getFieldQuoteChar();
-
-        // Create a referenceMap from vizColumns
-        const referenceMap: ReferenceMap = {};
-        vizColumns.forEach((col) => {
-            referenceMap[col.reference] = {
-                type: col.type,
-                sql: `${fieldQuoteChar}${col.reference}${fieldQuoteChar}`,
-            };
+        const composer = new SqlQueryComposer({
+            userSql: sqlWithUserAttributes,
+            columns,
+            warehouseClient: warehouseConnection.warehouseClient,
+            pivotConfiguration: resolvedPivotConfiguration,
+            limit,
+            parameters,
+            dashboardFilters,
+            tileUuid,
+            dashboardSorts,
         });
-
-        let appliedDashboardFilters: DashboardFilters | undefined;
-        if (dashboardFilters && tileUuid) {
-            appliedDashboardFilters = {
-                dimensions: getDashboardFilterRulesForTileAndReferences(
-                    tileUuid,
-                    Object.keys(referenceMap),
-                    dashboardFilters.dimensions,
-                ),
-                metrics: [],
-                tableCalculations: [],
-            };
-
-            // This override isn't used for anything at the moment since sql charts don't support filters, but it's here for future use
-            metricQuery = {
-                ...addDashboardFiltersToMetricQuery(
-                    metricQuery,
-                    appliedDashboardFilters,
-                    virtualView,
-                ),
-            };
-        }
-        if (dashboardSorts) {
-            metricQuery = {
-                ...metricQuery,
-                sorts:
-                    dashboardSorts && dashboardSorts.length > 0
-                        ? dashboardSorts
-                        : [],
-            };
-        }
-
-        // Select all vizColumns
-        const selectColumns = vizColumns.map((col) => col.reference);
-
-        // Create and return the SqlQueryBuilder instance
-        const queryBuilder = new SqlQueryBuilder(
-            {
-                referenceMap,
-                select: selectColumns,
-                from: { name: 'sql_query', sql: sqlWithUserAttributes },
-                filters: appliedDashboardFilters
-                    ? {
-                          id: uuidv4(),
-                          and: appliedDashboardFilters.dimensions,
-                      }
-                    : undefined,
-                parameters,
-                limit,
-            },
-            {
-                fieldQuoteChar,
-                stringQuoteChar:
-                    warehouseConnection.warehouseClient.getStringQuoteChar(),
-                escapeStringQuoteChar:
-                    warehouseConnection.warehouseClient.getEscapeStringQuoteChar(),
-                startOfWeek:
-                    warehouseConnection.warehouseClient.getStartOfWeek(),
-                adapterType:
-                    warehouseConnection.warehouseClient.getAdapterType(),
-                escapeString:
-                    warehouseConnection.warehouseClient.escapeString.bind(
-                        warehouseConnection.warehouseClient,
-                    ),
-            },
-        );
         const durationQueryBuilding =
             performance.now() - sectionStartQueryBuilding;
+
         const sectionStartSqlGeneration = performance.now();
-        const {
-            sql: replacedSql,
-            parameterReferences,
-            missingParameterReferences,
-            usedParameters,
-        } = queryBuilder.getSqlAndReferences();
+        const compiled = composer.compile();
         const durationSqlGeneration =
             performance.now() - sectionStartSqlGeneration;
 
@@ -6293,18 +6193,20 @@ export class AsyncQueryService extends ProjectService {
         );
 
         return {
-            metricQuery,
-            pivotConfiguration,
-            virtualView,
+            metricQuery: composer.getMetricQuery(),
+            pivotConfiguration: composer.getPivotConfiguration(),
+            virtualView: composer.getExplore(),
             queryTags,
             warehouseConnection,
             warehouseCredentials,
-            sql: replacedSql,
-            parameterReferences: Array.from(parameterReferences),
-            missingParameterReferences: Array.from(missingParameterReferences),
-            appliedDashboardFilters,
+            sql: compiled.query,
+            parameterReferences: Array.from(compiled.parameterReferences),
+            missingParameterReferences: Array.from(
+                compiled.missingParameterReferences,
+            ),
+            appliedDashboardFilters: composer.getAppliedDashboardFilters(),
             originalColumns,
-            usedParameters,
+            usedParameters: compiled.usedParameters,
         };
     }
 
