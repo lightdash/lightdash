@@ -413,6 +413,12 @@ export const applyOrganizationMemberStaticAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
 
+        // Adding custom npm dependencies is a supply-chain capability gated
+        // above ordinary data-app management — admins only by default.
+        can('manage', 'DataAppDependency', {
+            organizationUuid: member.organizationUuid,
+        });
+
         can('manage', 'ExternalConnection', {
             organizationUuid: member.organizationUuid,
         });

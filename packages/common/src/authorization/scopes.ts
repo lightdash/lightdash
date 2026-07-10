@@ -1276,6 +1276,15 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'manage:DataAppDependency',
+        description:
+            'Add or change custom npm dependencies in data apps (supply-chain capability; admin-only by default)',
+        isEnterprise: false,
+        group: ScopeGroup.AI,
+        dependencies: [{ name: 'manage:DataApp' }],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'manage:DataApp@space',
         description:
             'Create, edit, and delete data apps in spaces where you have editor or admin access',
