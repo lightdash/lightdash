@@ -187,6 +187,7 @@
         "sshpk": "1.18.0",
         "sucrase": "3.35.1",
         "tar-stream": "3.1.8",
+        "undici": "6.27.0",
         "uuid": "11.1.1",
         "vitest": "4.1.6",
         "winston": "3.13.0",
