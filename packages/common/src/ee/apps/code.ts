@@ -166,6 +166,57 @@ function validateLockfileTarballHosts(
     }
 }
 
+export type LockfilePackage = { name: string; version: string };
+
+/**
+ * Splits a pnpm lockfile package key (`name@version`, optionally scoped and/or
+ * with a `(peer@x)` suffix) into name + version. Returns null for anything
+ * that doesn't parse — e.g. link:/file: entries that carry no registry version.
+ */
+export function parseLockfilePackageKey(key: string): LockfilePackage | null {
+    // Drop the peer-dependency suffix pnpm appends, e.g. `(react@19.0.0)`.
+    const base = key.replace(/\(.*\)$/, '');
+    const at = base.lastIndexOf('@');
+    // `@` at position 0 = a scope-only string with no version.
+    if (at <= 0) return null;
+    const name = base.slice(0, at);
+    const version = base.slice(at + 1);
+    if (!name || !version || version.includes('/')) return null;
+    return { name, version };
+}
+
+/**
+ * Extracts every resolved package (direct AND transitive) from a pnpm
+ * lockfile's `packages:` section as { name, version } pairs. Pure/structural —
+ * used by backend guards that check declared deps against registry metadata or
+ * advisory feeds. Returns [] when the lockfile can't be parsed.
+ */
+export function extractLockfilePackages(lockfile: string): LockfilePackage[] {
+    let parsed: unknown;
+    try {
+        parsed = parseYaml(lockfile);
+    } catch {
+        return [];
+    }
+    if (!parsed || typeof parsed !== 'object') return [];
+    const { packages } = parsed as Record<string, unknown>;
+    if (!packages || typeof packages !== 'object') return [];
+
+    const seen = new Set<string>();
+    const out: LockfilePackage[] = [];
+    for (const key of Object.keys(packages)) {
+        const pkg = parseLockfilePackageKey(key);
+        if (pkg) {
+            const dedupeKey = `${pkg.name}@${pkg.version}`;
+            if (!seen.has(dedupeKey)) {
+                seen.add(dedupeKey);
+                out.push(pkg);
+            }
+        }
+    }
+    return out;
+}
+
 /**
  * Returns `packageJson` with its `scripts` replaced by the trusted template
  * scripts. The build sandbox runs `pnpm build` against this file, and download

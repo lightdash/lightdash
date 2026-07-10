@@ -16880,6 +16880,10 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
+                                                            enums: ['timeout'],
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
                                                             enums: ['error'],
                                                         },
                                                         {
@@ -16889,10 +16893,6 @@ const models: TsoaRoute.Models = {
                                                         {
                                                             dataType: 'enum',
                                                             enums: ['success'],
-                                                        },
-                                                        {
-                                                            dataType: 'enum',
-                                                            enums: ['timeout'],
                                                         },
                                                     ],
                                                     required: true,

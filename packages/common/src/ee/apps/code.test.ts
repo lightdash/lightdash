@@ -1,7 +1,9 @@
 import {
     currentDataAppCodeVersion,
+    extractLockfilePackages,
     MAX_DECLARED_DEPENDENCIES,
     MAX_LOCKFILE_BYTES,
+    parseLockfilePackageKey,
     sanitizeAppPackageJsonScripts,
     validateDataAppCode,
     validateDataAppDependencies,
@@ -475,6 +477,61 @@ describe('sanitizeAppPackageJsonScripts', () => {
         expect(sanitizeAppPackageJsonScripts('not-json', templateScripts)).toBe(
             'not-json',
         );
+    });
+});
+
+describe('parseLockfilePackageKey', () => {
+    it.each([
+        [
+            'canvas-confetti@1.9.4',
+            { name: 'canvas-confetti', version: '1.9.4' },
+        ],
+        ['@scope/pkg@1.2.3', { name: '@scope/pkg', version: '1.2.3' }],
+        [
+            'react-dom@19.0.0(react@19.0.0)',
+            { name: 'react-dom', version: '19.0.0' },
+        ],
+        [
+            '@scope/pkg@1.2.3(peer@2.0.0)',
+            { name: '@scope/pkg', version: '1.2.3' },
+        ],
+    ])('parses %s', (key, expected) => {
+        expect(parseLockfilePackageKey(key)).toEqual(expected);
+    });
+
+    it.each(['@scope-only', 'no-version', 'foo@link:../foo'])(
+        'returns null for non-registry key %s',
+        (key) => {
+            expect(parseLockfilePackageKey(key)).toBeNull();
+        },
+    );
+});
+
+describe('extractLockfilePackages', () => {
+    it('returns every resolved package from the packages section, de-duped', () => {
+        const lockfile = [
+            "lockfileVersion: '9.0'",
+            'packages:',
+            '  canvas-confetti@1.9.4:',
+            '    resolution: {integrity: sha512-aaa}',
+            '  react@19.0.0:',
+            '    resolution: {integrity: sha512-bbb}',
+            '  react@19.0.0(react-dom@19.0.0):',
+            '    resolution: {integrity: sha512-bbb}',
+            "  '@scope/pkg@2.1.0':",
+            '    resolution: {integrity: sha512-ccc}',
+            '',
+        ].join('\n');
+        expect(extractLockfilePackages(lockfile)).toEqual([
+            { name: 'canvas-confetti', version: '1.9.4' },
+            { name: 'react', version: '19.0.0' },
+            { name: '@scope/pkg', version: '2.1.0' },
+        ]);
+    });
+
+    it('returns [] for unparseable or package-less lockfiles', () => {
+        expect(extractLockfilePackages('{{ not yaml')).toEqual([]);
+        expect(extractLockfilePackages("lockfileVersion: '9.0'\n")).toEqual([]);
     });
 });
 
