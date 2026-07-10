@@ -1,3 +1,11 @@
+# [0.3356.0](https://github.com/lightdash/lightdash/compare/0.3355.0...0.3356.0) (2026-07-10)
+
+
+### Features
+
+* confirm BYOK API keys are in use on the AI providers settings card ([#25352](https://github.com/lightdash/lightdash/issues/25352)) ([47c81d9](https://github.com/lightdash/lightdash/commit/47c81d952bc91dabc10482c9990629c265ee6704)), closes [/linear.app/lightdash/issue/PROD-8764/indicate-which-api-key-a-byok-ai-agent-is-using#agent-session-cbba26c0](https://github.com//linear.app/lightdash/issue/PROD-8764/indicate-which-api-key-a-byok-ai-agent-is-using/issues/agent-session-cbba26c0)
+* **email:** whitelabel report emails from customer's own domain (cloud) ([#25268](https://github.com/lightdash/lightdash/issues/25268)) ([842bfbe](https://github.com/lightdash/lightdash/commit/842bfbe6e8f6a62c6a6d206c6d2c81792446fdb5)), closes [/linear.app/lightdash/issue/PROD-8732/email-whitelabel-send-report-emails-from-customers-own-domain-cloud#agent-session-555bb0](https://github.com//linear.app/lightdash/issue/PROD-8732/email-whitelabel-send-report-emails-from-customers-own-domain-cloud/issues/agent-session-555bb0)
+
 # [0.3355.0](https://github.com/lightdash/lightdash/compare/0.3354.1...0.3355.0) (2026-07-10)
 
 
