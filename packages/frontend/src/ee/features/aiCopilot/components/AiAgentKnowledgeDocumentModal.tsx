@@ -26,6 +26,7 @@ import MantineModal from '../../../../components/common/MantineModal';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { formatFileSize } from '../../../../utils/formatters';
 import {
+    markdownSanitizeRehypePlugins,
     mdEditorComponents,
     rehypeRemoveHeaderLinks,
     useMdEditorStyle,
@@ -199,6 +200,7 @@ const LoadedDocumentModal = ({
                             source={form.values.content}
                             style={markdownStyle}
                             components={mdEditorComponents}
+                            rehypePlugins={markdownSanitizeRehypePlugins}
                             rehypeRewrite={rehypeRemoveHeaderLinks}
                             remarkPlugins={MARKDOWN_REMARK_PLUGINS}
                         />
@@ -234,6 +236,8 @@ const LoadedDocumentModal = ({
                                 preview="live"
                                 previewOptions={{
                                     components: mdEditorComponents,
+                                    rehypePlugins:
+                                        markdownSanitizeRehypePlugins,
                                     rehypeRewrite: rehypeRemoveHeaderLinks,
                                     remarkPlugins: MARKDOWN_REMARK_PLUGINS,
                                 }}
