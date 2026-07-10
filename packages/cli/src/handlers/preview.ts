@@ -2,6 +2,7 @@ import * as core from '@actions/core';
 import {
     CreateProjectTableConfiguration,
     getErrorMessage,
+    PreviewExpiresAt,
     Project,
     ProjectType,
 } from '@lightdash/common';
@@ -115,6 +116,36 @@ const projectUrl = async (project: Project): Promise<URL> => {
     throw new Error(
         'Missing server url. Make sure you login before running other commands.',
     );
+};
+
+const updatePreviewExpiration = async (
+    projectUuid: string,
+    expiresIn: string | undefined,
+): Promise<void> => {
+    try {
+        const { expiresAt } = await lightdashApi<PreviewExpiresAt>({
+            method: 'PATCH',
+            url: `/api/v1/projects/${projectUuid}/preview-expiration`,
+            body: JSON.stringify({
+                expiresInHours: expiresIn ? parseInt(expiresIn, 10) : undefined,
+            }),
+        });
+        console.error(
+            `${styles.success(
+                '✔',
+            )}   Preview expiration extended until ${new Date(
+                expiresAt,
+            ).toLocaleString()}`,
+        );
+    } catch (e) {
+        // Non-critical: keep the preview update working against older servers
+        const message = `Could not update preview expiration: ${getErrorMessage(e)}`;
+        if (expiresIn) {
+            console.error(styles.warning(message));
+        } else {
+            GlobalState.debug(`> ${message}`);
+        }
+    }
 };
 
 const getPreviewProject = async (name: string) => {
@@ -471,6 +502,14 @@ export const startPreviewHandler = async (
                 name: options.name,
             },
         });
+
+        // Re-running start-preview confirms the preview is still in use,
+        // so refresh its expiration (uses the upstream default when
+        // --expires-in is not set)
+        await updatePreviewExpiration(
+            previewProject.projectUuid,
+            options.expiresIn,
+        );
 
         // Update
         options.disableTimestampConversion =
