@@ -212,7 +212,7 @@ export type FilterDashboardToRule = DashboardFilterRule & {
 
 export type DashboardFilterRuleOverride = Omit<
     DashboardFilterRule,
-    'tileTargets' | 'lockedTabUuids'
+    'tileTargets' | 'lockedTabUuids' | 'required' | 'requiredGroupId'
 >;
 
 export type DateFilterSettings = {
@@ -444,25 +444,61 @@ export const applyDimensionOverrides = (
                 appliedOverrideIds.add(override.id);
                 return {
                     ...override,
-                    // The saved dashboard owns identity, tile targeting and lock
-                    // state; the override only carries value/operator. Forcing the
-                    // id re-homes a field-matched override onto the saved filter.
+                    // The saved dashboard owns identity, tile targeting, lock
+                    // state and requirement flags; the override only carries
+                    // value/operator. Forcing the id re-homes a field-matched
+                    // override onto the saved filter.
                     id: dimension.id,
                     tileTargets: dimension.tileTargets,
                     lockedTabUuids: dimension.lockedTabUuids,
+                    required: dimension.required,
+                    requiredGroupId: dimension.requiredGroupId,
                 };
             }
             return dimension;
         },
     );
 
-    // Append overrides that matched no saved filter by id or field.
-    const newDimensions = overrideArray.filter(
-        (o) => !savedIds.has(o.id) && !appliedOverrideIds.has(o.id),
-    );
+    // Append overrides that matched no saved filter by id or field. Strip
+    // requirement flags: like the matched branch above, overrides cannot
+    // assert requirement metadata, so a stale or crafted rule can't inject
+    // a required filter or satisfy a group.
+    const newDimensions = overrideArray
+        .filter((o) => !savedIds.has(o.id) && !appliedOverrideIds.has(o.id))
+        .map((o) => ({
+            ...o,
+            required: undefined,
+            requiredGroupId: undefined,
+        }));
     overriddenDimensions.push(...newDimensions);
 
     return overriddenDimensions;
+};
+
+export const applyMetricOverrides = (
+    dashboardFilters: DashboardFilters,
+    overrides: DashboardFilters | DashboardFilterRule[],
+) => {
+    const overrideArray =
+        overrides instanceof Array ? overrides : overrides.metrics;
+
+    // Match by id only; unmatched metric overrides are never appended.
+    return dashboardFilters.metrics.map((metric) => {
+        const override = overrideArray.find((o) => o.id === metric.id);
+        if (override) {
+            return {
+                ...override,
+                // Same ownership contract as applyDimensionOverrides: the
+                // saved dashboard owns tile targeting, lock state and
+                // requirement flags; the override only carries value/operator.
+                tileTargets: metric.tileTargets,
+                lockedTabUuids: metric.lockedTabUuids,
+                required: metric.required,
+                requiredGroupId: metric.requiredGroupId,
+            };
+        }
+        return metric;
+    });
 };
 
 export const isDashboardFilterRule = (
