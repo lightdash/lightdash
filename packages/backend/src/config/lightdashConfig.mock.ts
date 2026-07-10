@@ -419,6 +419,9 @@ export const lightdashConfigMock: LightdashConfig = {
         dependencyRegistryHosts: ['registry.npmjs.org'],
         dependencyInstallTimeoutMs: 120_000,
         dependencyMinReleaseAgeDays: 0,
+        // Off in the test fixture (real default is `true`) so tests never make
+        // a live OSV call.
+        dependencyMalwareCheckEnabled: false,
     },
     enabledFeatureFlags: new Set<string>(),
     disabledFeatureFlags: new Set<string>(),

@@ -104,3 +104,91 @@ export async function assertDependenciesMeetMinReleaseAge(args: {
         }
     }
 }
+
+const OSV_BATCH_URL = 'https://api.osv.dev/v1/querybatch';
+const OSV_TIMEOUT_MS = 15_000;
+const OSV_MAX_BYTES = 4 * 1024 * 1024;
+// OSV IDs from the malicious-packages database are prefixed `MAL-`. Matching on
+// this prefix targets known-malicious packages specifically, rather than every
+// package that merely has a CVE (which would reject most of the ecosystem).
+const OSV_MALWARE_ID_PREFIX = 'MAL-';
+
+export type OsvBatchFetch = (body: string) => Promise<RegistryFetchResult>;
+
+const defaultOsvFetch: OsvBatchFetch = (body) =>
+    secureFetch(OSV_BATCH_URL, {
+        method: 'POST',
+        body,
+        headers: { 'Content-Type': 'application/json' },
+        timeoutMs: OSV_TIMEOUT_MS,
+        maxResponseBytes: OSV_MAX_BYTES,
+        allowedContentTypes: ['application/json'],
+    });
+
+type OsvBatchResponse = {
+    results?: Array<{ vulns?: Array<{ id?: string }> }>;
+};
+
+/**
+ * Rejects the upload if any resolved package (direct or transitive) matches a
+ * known-malicious advisory in the OSV malicious-packages feed. Supply-chain
+ * attacks usually arrive through a transitive dependency, so this checks the
+ * whole lockfile, not just the packages the author added directly.
+ *
+ * Opt-in via `enabled` (default off → no OSV round-trip). Fails CLOSED: if OSV
+ * can't be reached or returns an unexpected shape, the upload is rejected so a
+ * malicious package can't slip through on an API hiccup.
+ */
+export async function assertDependenciesHaveNoKnownMalware(args: {
+    packages: LockfilePackage[];
+    enabled: boolean;
+    fetchImpl?: OsvBatchFetch;
+}): Promise<void> {
+    const { packages, enabled } = args;
+    if (!enabled || packages.length === 0) return;
+
+    const fetchImpl = args.fetchImpl ?? defaultOsvFetch;
+    const queries = packages.map((p) => ({
+        package: { ecosystem: 'npm', name: p.name },
+        version: p.version,
+    }));
+
+    let results: NonNullable<OsvBatchResponse['results']>;
+    try {
+        const res = await fetchImpl(JSON.stringify({ queries }));
+        if (res.status !== 200 || res.truncated) {
+            throw new Error(`OSV status ${res.status}`);
+        }
+        const parsed = JSON.parse(res.bodyText) as OsvBatchResponse;
+        results = parsed.results ?? [];
+        // OSV returns results 1:1 with queries. A short/misaligned array would
+        // leave tail packages unscreened — fail closed rather than skip them.
+        if (results.length !== packages.length) {
+            throw new Error(
+                `OSV returned ${results.length} results for ${packages.length} queries`,
+            );
+        }
+    } catch {
+        throw new ParameterError(
+            'Could not screen the declared dependencies against the malware feed (OSV returned an unexpected response). This instance requires that check (LIGHTDASH_APP_DEPENDENCY_MALWARE_CHECK_ENABLED); try again shortly.',
+        );
+    }
+
+    const flagged: string[] = [];
+    results.forEach((result, index) => {
+        const isMalicious = (result?.vulns ?? []).some((v) =>
+            v.id?.startsWith(OSV_MALWARE_ID_PREFIX),
+        );
+        if (isMalicious && packages[index]) {
+            flagged.push(`${packages[index].name}@${packages[index].version}`);
+        }
+    });
+
+    if (flagged.length > 0) {
+        throw new ParameterError(
+            `Upload blocked: ${flagged.length} package(s) flagged as malicious by the OSV feed — ${flagged.join(
+                ', ',
+            )}. Remove or replace them and re-upload.`,
+        );
+    }
+}
