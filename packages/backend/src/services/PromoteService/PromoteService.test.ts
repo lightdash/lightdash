@@ -1302,6 +1302,7 @@ describe('PromoteService promoting and mutating changes', () => {
         const changes = await service.getPromoteDashboardDiff(
             userWithPromotePermissions,
             dashboardWithOnlySqlTile.uuid,
+            { projectUuid: promotedDashboardWithSqlTile.projectUuid },
         );
 
         expect(changes.sqlCharts).toEqual([
@@ -1383,9 +1384,136 @@ describe('PromoteService promoting and mutating changes', () => {
             service.getPromoteDashboardDiff(
                 userWithoutPromotePermissions,
                 dashboardWithoutTiles.uuid,
+                { projectUuid: promotedDashboard.projectUuid },
             ),
         ).rejects.toThrow(
             /You do not have the right access permissions on the origin space and dashboard/,
+        );
+    });
+
+    test('getPromoteDashboardDiff rejects an unscoped slug matching multiple dashboards', async () => {
+        (dashboardModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [
+                { uuid: 'dashboard-uuid-1' },
+                { uuid: 'dashboard-uuid-2' },
+            ],
+        );
+
+        await expect(
+            service.getPromoteDashboardDiff(
+                userWithPromotePermissions,
+                'duplicated-slug',
+            ),
+        ).rejects.toThrow(/Multiple dashboards match slug 'duplicated-slug'/);
+
+        expect(dashboardModel.find).toHaveBeenCalledWith({
+            slug: 'duplicated-slug',
+            organizationUuid: user.organizationUuid,
+        });
+        expect(dashboardModel.getByIdOrSlug).not.toHaveBeenCalled();
+    });
+
+    test('getPromoteDashboardDiff throws not found for an unscoped slug with no matches', async () => {
+        (dashboardModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [],
+        );
+
+        await expect(
+            service.getPromoteDashboardDiff(
+                userWithPromotePermissions,
+                'unknown-slug',
+            ),
+        ).rejects.toThrow(/Dashboard not found/);
+    });
+
+    test('getPromoteDashboardDiff resolves an unscoped slug that is unique within the organization', async () => {
+        const dashboardWithoutTiles = {
+            ...promotedDashboard.dashboard,
+            tiles: [],
+        };
+
+        (dashboardModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [{ uuid: dashboardWithoutTiles.uuid }],
+        );
+        (
+            dashboardModel.getByIdOrSlug as import('vitest').Mock
+        ).mockImplementationOnce(async () => dashboardWithoutTiles);
+        (dashboardModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [existingUpstreamDashboard.dashboard],
+        );
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [existingUpstreamDashboard.space],
+        );
+
+        await expect(
+            service.getPromoteDashboardDiff(
+                userWithAbilities([{ subject: 'Project', action: ['view'] }]),
+                dashboardWithoutTiles.slug,
+            ),
+        ).rejects.toThrow(
+            /You do not have the right access permissions on the origin space and dashboard/,
+        );
+
+        expect(dashboardModel.getByIdOrSlug).toHaveBeenCalledWith(
+            dashboardWithoutTiles.uuid,
+        );
+    });
+
+    test('getPromoteDashboardDiff scopes slug resolution when projectUuid is provided', async () => {
+        const dashboardWithoutTiles = {
+            ...promotedDashboard.dashboard,
+            tiles: [],
+        };
+
+        (
+            dashboardModel.getByIdOrSlug as import('vitest').Mock
+        ).mockImplementationOnce(async () => dashboardWithoutTiles);
+        (dashboardModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [existingUpstreamDashboard.dashboard],
+        );
+        (spaceModel.find as import('vitest').Mock).mockImplementationOnce(
+            async () => [existingUpstreamDashboard.space],
+        );
+
+        await expect(
+            service.getPromoteDashboardDiff(
+                userWithAbilities([{ subject: 'Project', action: ['view'] }]),
+                dashboardWithoutTiles.slug,
+                { projectUuid: promotedDashboard.projectUuid },
+            ),
+        ).rejects.toThrow(
+            /You do not have the right access permissions on the origin space and dashboard/,
+        );
+
+        expect(dashboardModel.getByIdOrSlug).toHaveBeenCalledWith(
+            dashboardWithoutTiles.slug,
+            { projectUuid: promotedDashboard.projectUuid },
+        );
+    });
+
+    test('getPromoteDashboardDiff error mentions dashboard when project has no upstream', async () => {
+        const dashboardWithoutTiles = {
+            ...promotedDashboard.dashboard,
+            tiles: [],
+        };
+
+        (
+            dashboardModel.getByIdOrSlug as import('vitest').Mock
+        ).mockImplementationOnce(async () => dashboardWithoutTiles);
+        (
+            projectModel.getSummary as import('vitest').Mock
+        ).mockImplementationOnce(async () => ({
+            upstreamProjectUuid: undefined,
+        }));
+
+        await expect(
+            service.getPromoteDashboardDiff(
+                userWithPromotePermissions,
+                dashboardWithoutTiles.uuid,
+                { projectUuid: promotedDashboard.projectUuid },
+            ),
+        ).rejects.toThrow(
+            /This dashboard's project does not have an upstream project/,
         );
     });
 });

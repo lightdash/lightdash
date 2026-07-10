@@ -79191,6 +79191,7 @@ export function RegisterRoutes(app: Router) {
             ref: 'UuidOrSlug',
         },
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: { in: 'query', name: 'projectUuid', ref: 'UUID' },
     };
     app.post(
         '/api/v1/dashboards/:dashboardUuidOrSlug/promote',
@@ -79252,6 +79253,7 @@ export function RegisterRoutes(app: Router) {
             ref: 'UuidOrSlug',
         },
         req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: { in: 'query', name: 'projectUuid', ref: 'UUID' },
     };
     app.get(
         '/api/v1/dashboards/:dashboardUuidOrSlug/promoteDiff',

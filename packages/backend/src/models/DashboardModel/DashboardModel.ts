@@ -718,8 +718,10 @@ export class DashboardModel {
         slug,
         slugs,
         projectUuid,
+        organizationUuid,
     }: {
         projectUuid?: string;
+        organizationUuid?: string;
         slug?: string;
         slugs?: string[];
     }): Promise<
@@ -738,7 +740,7 @@ export class DashboardModel {
             )
             .whereNull(`${DashboardsTableName}.deleted_at`);
 
-        if (projectUuid) {
+        if (projectUuid || organizationUuid) {
             void query
                 .innerJoin(SpaceTableName, function spaceJoin() {
                     this.on(
@@ -751,8 +753,24 @@ export class DashboardModel {
                     'projects',
                     `${SpaceTableName}.project_id`,
                     'projects.project_id',
+                );
+        }
+
+        if (projectUuid) {
+            void query.where('projects.project_uuid', projectUuid);
+        }
+
+        if (organizationUuid) {
+            void query
+                .leftJoin(
+                    OrganizationTableName,
+                    `${OrganizationTableName}.organization_id`,
+                    'projects.organization_id',
                 )
-                .where('projects.project_uuid', projectUuid);
+                .where(
+                    `${OrganizationTableName}.organization_uuid`,
+                    organizationUuid,
+                );
         }
 
         if (slug) {
