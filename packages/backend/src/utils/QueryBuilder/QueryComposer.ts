@@ -1,4 +1,6 @@
 import {
+    getFieldFormatOverrideProps,
+    getMetricOverridesWithPopInheritance,
     mergeReservedDefinitions,
     mergeReservedValues,
     resolveReservedParameterValues,
@@ -10,6 +12,8 @@ import {
     type ParameterDefinitions,
     type ParametersValuesMap,
     type PivotConfiguration,
+    type QueryWarning,
+    type UserAccessControls,
     type UserAttributeValueMap,
     type WarehouseSqlBuilder,
 } from '@lightdash/common';
@@ -67,6 +71,11 @@ export type QueryComposerContext = {
     useTimezoneAwareDateTrunc?: boolean;
     columnTimezone?: string;
     applyDateZoomToFilters?: boolean;
+    /**
+     * Flag-gated timezone echoed to clients and persisted with the query.
+     * Not a compile input — `timezone` drives SQL. SQL charts set it to null.
+     */
+    displayTimezone?: string | null;
 };
 
 /**
@@ -139,6 +148,91 @@ export class QueryComposer {
     /** The effective (totals-collapsed) pivot configuration, if any. */
     getPivotConfiguration(): PivotConfiguration | undefined {
         return this.getEffectiveDefinition().pivotConfiguration;
+    }
+
+    /**
+     * Compiled fields with metric/dimension format overrides applied.
+     * Overrides live on the source query; PoP metric overrides inherit from
+     * their base metric.
+     */
+    getFields(): ItemsMap {
+        const { fields } = this.compile();
+        const sourceMetricQuery = this.definition.metricQuery;
+        const resolvedMetricOverrides =
+            getMetricOverridesWithPopInheritance(sourceMetricQuery);
+
+        return Object.fromEntries(
+            Object.entries(fields).map(([key, value]) => {
+                const override =
+                    resolvedMetricOverrides[key] ||
+                    sourceMetricQuery.dimensionOverrides?.[key];
+                const formatOptions = override?.formatOptions;
+                if (formatOptions) {
+                    return [
+                        key,
+                        {
+                            ...value,
+                            ...getFieldFormatOverrideProps(formatOptions),
+                        },
+                    ];
+                }
+                return [key, value];
+            }),
+        );
+    }
+
+    /** Resolved timezone the SQL was compiled with. */
+    getTimezone(): string | undefined {
+        return this.context.timezone;
+    }
+
+    /** Flag-gated timezone echoed to clients and persisted with the query. */
+    getDisplayTimezone(): string | null {
+        return this.context.displayTimezone ?? null;
+    }
+
+    getDateZoom(): DateZoom | undefined {
+        return this.context.dateZoom;
+    }
+
+    /** Raw combined parameter values (not the reserved-merged compile variant). */
+    getParameters(): ParametersValuesMap | undefined {
+        return this.context.parameters;
+    }
+
+    getUserAccessControls(): UserAccessControls | undefined {
+        const { userAttributes, intrinsicUserAttributes } = this.context;
+        if (
+            userAttributes === undefined ||
+            intrinsicUserAttributes === undefined
+        ) {
+            return undefined;
+        }
+        return { userAttributes, intrinsicUserAttributes };
+    }
+
+    getAvailableParameterDefinitions(): ParameterDefinitions | undefined {
+        return this.context.availableParameterDefinitions;
+    }
+
+    getUseTimezoneAwareDateTrunc(): boolean {
+        return this.context.useTimezoneAwareDateTrunc ?? false;
+    }
+
+    getWarnings(): QueryWarning[] {
+        return this.compile().warnings;
+    }
+
+    getUsedParameters(): ParametersValuesMap {
+        return this.compile().usedParameters;
+    }
+
+    getParameterReferences(): string[] {
+        return Array.from(this.compile().parameterReferences);
+    }
+
+    getMissingParameterReferences(): string[] {
+        return Array.from(this.compile().missingParameterReferences);
     }
 
     /** Compile to base SQL, memoized. Delegates to the overridable seam. */

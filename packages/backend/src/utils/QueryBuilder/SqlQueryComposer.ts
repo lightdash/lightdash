@@ -54,7 +54,7 @@ export class SqlQueryComposer extends QueryComposer {
         const built = SqlQueryComposer.build(args);
         // SQL charts override computeCompiled, so only the explore and warehouse
         // builder (used by the inherited getSql) are needed — the metric-compile
-        // context fields are omitted.
+        // context fields are omitted. SQL charts have no display timezone.
         super(
             {
                 metricQuery: built.metricQuery,
@@ -63,6 +63,8 @@ export class SqlQueryComposer extends QueryComposer {
             {
                 explore: built.virtualView,
                 warehouseSqlBuilder: args.warehouseClient,
+                parameters: args.parameters,
+                displayTimezone: null,
             },
         );
         this.sqlQueryBuilder = built.sqlQueryBuilder;

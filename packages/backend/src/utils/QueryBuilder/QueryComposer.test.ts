@@ -1,4 +1,5 @@
 import {
+    CustomFormatType,
     MetricQuery,
     PivotConfiguration,
     SortByDirection,
@@ -103,6 +104,58 @@ describe('QueryComposer', () => {
         // The pivot SQL wraps (and therefore differs from) the base query.
         expect(sql).not.toBe(composer.compile().query);
         expect(sql).toMatchSnapshot();
+    });
+
+    describe('getters', () => {
+        it('combines user access controls only when both attribute maps are in context', () => {
+            const withAttributes = new QueryComposer(
+                { metricQuery: METRIC_QUERY },
+                CONTEXT,
+            );
+            expect(withAttributes.getUserAccessControls()).toEqual({
+                userAttributes: {},
+                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            });
+
+            const withoutAttributes = new QueryComposer(
+                { metricQuery: METRIC_QUERY },
+                {
+                    explore: EXPLORE,
+                    warehouseSqlBuilder: warehouseClientMock,
+                },
+            );
+            expect(withoutAttributes.getUserAccessControls()).toBeUndefined();
+        });
+
+        it('applies metric format overrides from the source query in getFields', () => {
+            const composer = new QueryComposer(
+                {
+                    metricQuery: {
+                        ...METRIC_QUERY,
+                        metricOverrides: {
+                            table1_metric1: {
+                                formatOptions: {
+                                    type: CustomFormatType.PERCENT,
+                                    round: 1,
+                                },
+                            },
+                        },
+                    },
+                },
+                CONTEXT,
+            );
+
+            const fields = composer.getFields();
+            const baseFields = composer.compile().fields;
+
+            expect(fields.table1_metric1).toEqual({
+                ...baseFields.table1_metric1,
+                format: '#,##0.0%',
+                separator: undefined,
+            });
+            // Fields without an override pass through untouched.
+            expect(fields.table1_dim1).toEqual(baseFields.table1_dim1);
+        });
     });
 
     describe('totalConfiguration', () => {
