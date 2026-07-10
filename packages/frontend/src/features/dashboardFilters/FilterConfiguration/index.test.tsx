@@ -15,6 +15,24 @@ vi.mock('../../../providers/Dashboard/useDashboardTileStatusContext', () => ({
     default: vi.fn((selector) => selector({ sqlChartTilesMetadata: {} })),
 }));
 
+// Filter requirements UI is feature-flagged; tests exercise the flag-on UX
+const mockDashboardContext = vi.hoisted(() => ({
+    current: {
+        dashboardFilters: {
+            dimensions: [] as DashboardFilterRule[],
+            metrics: [] as DashboardFilterRule[],
+            tableCalculations: [],
+        },
+        allFilterableFieldsMap: {},
+        allFilterableMetricsMap: {},
+        isFilterRequirementsEnabled: true,
+    },
+}));
+
+vi.mock('../../../providers/Dashboard/useDashboardContext', () => ({
+    default: vi.fn((selector) => selector(mockDashboardContext.current)),
+}));
+
 vi.mock('../../../components/common/Filters/useFiltersContext', () => ({
     default: vi.fn(() => ({
         projectUuid: 'test-project-uuid',
@@ -69,6 +87,11 @@ const anyValueRule: DashboardFilterRule = {
 describe('FilterConfiguration', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        mockDashboardContext.current.dashboardFilters = {
+            dimensions: [],
+            metrics: [],
+            tableCalculations: [],
+        };
     });
 
     it('saves a value typed into the input when Apply is clicked without pressing Enter', async () => {
@@ -140,5 +163,67 @@ describe('FilterConfiguration', () => {
         expect(
             screen.getByRole('button', { name: 'Single value' }),
         ).toBeVisible();
+    });
+
+    it('keeps the required toggle on and lists rule siblings for a rule member', () => {
+        const memberRule: DashboardFilterRule = {
+            ...anyValueRule,
+            requiredGroupId: 'group-1',
+        };
+        const otherMemberRule: DashboardFilterRule = {
+            id: 'filter-2',
+            target: {
+                fieldId: 'customers_last_name',
+                tableName: 'customers',
+            },
+            operator: FilterOperator.EQUALS,
+            values: [],
+            disabled: true,
+            label: 'Last name',
+            requiredGroupId: 'group-1',
+        };
+        mockDashboardContext.current.dashboardFilters.dimensions = [
+            memberRule,
+            otherMemberRule,
+        ];
+
+        renderWithProviders(
+            <FilterConfiguration
+                isEditMode
+                tiles={[]}
+                tabs={[]}
+                availableTileFilters={{}}
+                field={mockField}
+                defaultFilterRule={memberRule}
+                originalFilterRule={memberRule}
+                onSave={vi.fn()}
+            />,
+        );
+
+        const requiredSwitch = screen.getByLabelText('Required');
+        expect(requiredSwitch).toBeEnabled();
+        expect(requiredSwitch).toBeChecked();
+        expect(screen.getByText(/Shares a rule/)).toBeInTheDocument();
+        expect(screen.getByText('Last name')).toBeInTheDocument();
+    });
+
+    it('shows an enabled unchecked required toggle when the filter is not part of a rule', () => {
+        renderWithProviders(
+            <FilterConfiguration
+                isEditMode
+                tiles={[]}
+                tabs={[]}
+                availableTileFilters={{}}
+                field={mockField}
+                defaultFilterRule={anyValueRule}
+                originalFilterRule={anyValueRule}
+                onSave={vi.fn()}
+            />,
+        );
+
+        const requiredSwitch = screen.getByLabelText('Required');
+        expect(requiredSwitch).toBeEnabled();
+        expect(requiredSwitch).not.toBeChecked();
+        expect(screen.getByText('Required')).toBeInTheDocument();
     });
 });
