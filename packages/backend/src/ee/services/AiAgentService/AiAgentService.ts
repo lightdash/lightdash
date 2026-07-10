@@ -7801,6 +7801,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             prompt: SlackPrompt;
             stream: false;
             canManageAgent: boolean;
+            threadMessages: Awaited<
+                ReturnType<AiAgentModel['getThreadMessages']>
+            >;
             enableSqlMode?: boolean;
             autoApproveSql?: boolean;
             toolHints?: string[];
@@ -7840,6 +7843,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             | {
                   prompt: SlackPrompt;
                   stream: false;
+                  threadMessages: Awaited<
+                      ReturnType<AiAgentModel['getThreadMessages']>
+                  >;
               }
             | {
                   prompt: AiWebAppPrompt;
@@ -8295,7 +8301,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     this.lightdashConfig.ai.copilot.debugLoggingEnabled,
             });
 
-        if (isSlackPrompt(prompt) && hasTrustedPromptUserIdentity) {
+        if (
+            isSlackPrompt(prompt) &&
+            hasTrustedPromptUserIdentity &&
+            'threadMessages' in options &&
+            options.threadMessages.length <= 1
+        ) {
             void this.postSlackMcpOAuthLoginMessages({
                 user,
                 prompt,
@@ -9673,6 +9684,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     prompt: slackPrompt,
                     stream: false,
                     canManageAgent,
+                    threadMessages,
                     enableSqlMode: true,
                     onSlackStepProgress: appendTaskUpdate,
                 },
