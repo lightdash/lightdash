@@ -127,6 +127,9 @@ function buildService(
             customDependenciesEnabled: opts.customDependenciesEnabled ?? true,
             dependencyRegistryHosts: ['registry.npmjs.org'],
             dependencyMinReleaseAgeDays: 0,
+            // Off in these gate-focused tests so no upload attempts a real
+            // OSV call; the malware guard has its own unit tests.
+            dependencyMalwareCheckEnabled: false,
         },
     };
 

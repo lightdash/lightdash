@@ -1786,6 +1786,22 @@ export type AppRuntimeConfig = {
      * `minimum-release-age=3d` npm policy.
      */
     dependencyMinReleaseAgeDays: number;
+    /**
+     * When true, every resolved package in a custom-dependency upload's
+     * lockfile (direct + transitive) is checked against the OSV
+     * malicious-packages feed at upload time; known-malicious versions are
+     * rejected. Only runs for uploads that already passed the custom-deps
+     * gates, so orgs not using custom deps are unaffected.
+     *
+     * Env var `LIGHTDASH_APP_DEPENDENCY_MALWARE_CHECK_ENABLED`; defaults to
+     * `true`. It is precise (matches only OSV `MAL-` advisories, so
+     * near-zero false positives), which is why it is the one dependency guard
+     * that defaults on. The check FAILS CLOSED — if OSV can't be reached the
+     * upload is rejected — so an instance whose backend has no egress to
+     * `api.osv.dev` (air-gapped, or during an OSV outage) must set this to
+     * `false` to keep uploading custom-dependency apps.
+     */
+    dependencyMalwareCheckEnabled: boolean;
 };
 
 export type IntercomConfig = {
@@ -2136,6 +2152,9 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             getIntegerFromEnvironmentVariable(
                 'LIGHTDASH_APP_DEPENDENCY_MIN_RELEASE_AGE_DAYS',
             ) ?? 0,
+        dependencyMalwareCheckEnabled:
+            process.env.LIGHTDASH_APP_DEPENDENCY_MALWARE_CHECK_ENABLED !==
+            'false',
     };
 };
 

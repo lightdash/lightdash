@@ -1,7 +1,9 @@
 import { ParameterError } from '@lightdash/common';
 import {
+    assertDependenciesHaveNoKnownMalware,
     assertDependenciesMeetMinReleaseAge,
     registryPackumentUrl,
+    type OsvBatchFetch,
     type RegistryFetch,
 } from './dependencyGuards';
 
@@ -157,5 +159,126 @@ describe('assertDependenciesMeetMinReleaseAge', () => {
             fetchImpl: fetchImpl as unknown as RegistryFetch,
         });
         expect(fetchImpl).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('assertDependenciesHaveNoKnownMalware', () => {
+    const okResponse =
+        (count: number): OsvBatchFetch =>
+        async () => ({
+            status: 200,
+            bodyText: JSON.stringify({
+                results: Array.from({ length: count }, () => ({})),
+            }),
+            truncated: false,
+        });
+
+    it('is a no-op when disabled', async () => {
+        const fetchImpl = vi.fn();
+        await assertDependenciesHaveNoKnownMalware({
+            enabled: false,
+            packages: [{ name: 'deck.gl', version: '9.3.5' }],
+            fetchImpl: fetchImpl as unknown as OsvBatchFetch,
+        });
+        expect(fetchImpl).not.toHaveBeenCalled();
+    });
+
+    it('is a no-op when there are no packages', async () => {
+        const fetchImpl = vi.fn();
+        await assertDependenciesHaveNoKnownMalware({
+            enabled: true,
+            packages: [],
+            fetchImpl: fetchImpl as unknown as OsvBatchFetch,
+        });
+        expect(fetchImpl).not.toHaveBeenCalled();
+    });
+
+    it('accepts packages with no malicious advisories', async () => {
+        await assertDependenciesHaveNoKnownMalware({
+            enabled: true,
+            packages: [
+                { name: 'deck.gl', version: '9.3.5' },
+                { name: 'react', version: '19.0.0' },
+            ],
+            fetchImpl: okResponse(2),
+        });
+    });
+
+    it('ignores non-malware advisories (e.g. a plain CVE)', async () => {
+        await assertDependenciesHaveNoKnownMalware({
+            enabled: true,
+            packages: [{ name: 'lodash', version: '4.17.20' }],
+            fetchImpl: async () => ({
+                status: 200,
+                bodyText: JSON.stringify({
+                    results: [{ vulns: [{ id: 'GHSA-xxxx-yyyy-zzzz' }] }],
+                }),
+                truncated: false,
+            }),
+        });
+    });
+
+    it('rejects a package flagged MAL- by OSV, naming it', async () => {
+        await expect(
+            assertDependenciesHaveNoKnownMalware({
+                enabled: true,
+                packages: [
+                    { name: 'good-pkg', version: '1.0.0' },
+                    { name: 'evil-pkg', version: '6.6.6' },
+                ],
+                fetchImpl: async () => ({
+                    status: 200,
+                    bodyText: JSON.stringify({
+                        results: [{}, { vulns: [{ id: 'MAL-2026-0001' }] }],
+                    }),
+                    truncated: false,
+                }),
+            }),
+        ).rejects.toThrow(/evil-pkg@6\.6\.6/);
+    });
+
+    it('fails closed when OSV is unreachable', async () => {
+        await expect(
+            assertDependenciesHaveNoKnownMalware({
+                enabled: true,
+                packages: [{ name: 'deck.gl', version: '9.3.5' }],
+                fetchImpl: async () => {
+                    throw new Error('network down');
+                },
+            }),
+        ).rejects.toThrow(ParameterError);
+    });
+
+    it('fails closed on a truncated OSV response', async () => {
+        await expect(
+            assertDependenciesHaveNoKnownMalware({
+                enabled: true,
+                packages: [{ name: 'deck.gl', version: '9.3.5' }],
+                fetchImpl: async () => ({
+                    status: 200,
+                    bodyText: '{"results":[',
+                    truncated: true,
+                }),
+            }),
+        ).rejects.toThrow(/malware feed/i);
+    });
+
+    it('fails closed when OSV returns fewer results than queries', async () => {
+        await expect(
+            assertDependenciesHaveNoKnownMalware({
+                enabled: true,
+                packages: [
+                    { name: 'a', version: '1.0.0' },
+                    { name: 'b', version: '2.0.0' },
+                ],
+                // One result for two queries — the tail package would go
+                // unscreened if the length weren't guarded.
+                fetchImpl: async () => ({
+                    status: 200,
+                    bodyText: JSON.stringify({ results: [{}] }),
+                    truncated: false,
+                }),
+            }),
+        ).rejects.toThrow(/malware feed/i);
     });
 });

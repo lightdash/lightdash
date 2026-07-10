@@ -153,7 +153,10 @@ import {
     ZERO_CLAUDE_USAGE,
     type ClaudeGenerationUsage,
 } from './ClaudeStreamProcessor';
-import { assertDependenciesMeetMinReleaseAge } from './dependencyGuards';
+import {
+    assertDependenciesHaveNoKnownMalware,
+    assertDependenciesMeetMinReleaseAge,
+} from './dependencyGuards';
 import {
     copyDesignIntoSandbox,
     type DesignSandboxCopyResult,
@@ -7354,10 +7357,13 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 // via LIGHTDASH_APP_DEPENDENCY_MIN_RELEASE_AGE_DAYS): reject
                 // custom packages whose resolved version is too freshly
                 // published to trust.
+                const lockfilePackages = extractLockfilePackages(
+                    code.dependencies.lockfile,
+                );
                 await assertDependenciesMeetMinReleaseAge({
-                    packages: extractLockfilePackages(
-                        code.dependencies.lockfile,
-                    ).filter((p) => customDeps[p.name] !== undefined),
+                    packages: lockfilePackages.filter(
+                        (p) => customDeps[p.name] !== undefined,
+                    ),
                     minReleaseAgeDays:
                         this.lightdashConfig.appRuntime
                             .dependencyMinReleaseAgeDays,
@@ -7365,6 +7371,15 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                         this.lightdashConfig.appRuntime
                             .dependencyRegistryHosts[0] ?? 'registry.npmjs.org',
                     now: Date.now(),
+                });
+                // Malware screen over the WHOLE resolved tree (transitive
+                // included) — supply-chain attacks usually arrive through a
+                // transitive dep, not the package the author added directly.
+                await assertDependenciesHaveNoKnownMalware({
+                    packages: lockfilePackages,
+                    enabled:
+                        this.lightdashConfig.appRuntime
+                            .dependencyMalwareCheckEnabled,
                 });
                 dependencySummary = {
                     custom: Object.entries(customDeps).map(
