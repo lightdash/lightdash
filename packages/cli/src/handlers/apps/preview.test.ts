@@ -5,7 +5,8 @@ import * as path from 'path';
 import { writeBundleToDir } from './appCodeFiles';
 import {
     assertNodeModulesPresent,
-    buildPreviewEnv,
+    assertScaffoldingSupportsPreviewProxy,
+    buildPreviewChildEnv,
     PREVIEW_API_KEY_SENTINEL,
     projectNotFoundMessage,
     resolvePreviewTarget,
@@ -25,44 +26,59 @@ const previewBundle: DataAppCode = {
     files: [],
 };
 
-describe('buildPreviewEnv', () => {
-    it('keeps the real key server-side and inlines only a sentinel', () => {
-        expect(
-            buildPreviewEnv({
-                serverUrl: 'http://localhost:3000',
-                apiKey: 'ldpat_abc',
-                projectUuid: 'proj-uuid-1',
-            }),
-        ).toBe(
-            'VITE_LIGHTDASH_URL=http://localhost:3000\n' +
-                `VITE_LIGHTDASH_API_KEY=${PREVIEW_API_KEY_SENTINEL}\n` +
-                'VITE_LIGHTDASH_PROJECT_UUID=proj-uuid-1\n' +
-                'LIGHTDASH_PREVIEW_API_KEY=ldpat_abc\n',
-        );
-    });
-
-    it('never inlines the real key into a VITE_ (browser) var', () => {
-        const env = buildPreviewEnv({
+describe('buildPreviewChildEnv', () => {
+    it('contains no credential — only the sentinel, proxy address, and nonce', () => {
+        const env = buildPreviewChildEnv({
             serverUrl: 'http://localhost:3000',
-            apiKey: 'ldpat_secret',
-            projectUuid: 'p',
+            projectUuid: 'proj-uuid-1',
+            proxyPort: 45678,
+            proxyNonce: 'nonce-abc',
         });
-        // The real key must only appear on the non-VITE, server-only line.
-        for (const line of env.split('\n')) {
-            if (line.startsWith('VITE_')) {
-                expect(line).not.toContain('ldpat_secret');
-            }
+        expect(env).toEqual({
+            VITE_LIGHTDASH_URL: 'http://localhost:3000',
+            VITE_LIGHTDASH_API_KEY: PREVIEW_API_KEY_SENTINEL,
+            VITE_LIGHTDASH_PROJECT_UUID: 'proj-uuid-1',
+            LIGHTDASH_PREVIEW_PROXY_TARGET: 'http://127.0.0.1:45678',
+            LIGHTDASH_PREVIEW_PROXY_NONCE: 'nonce-abc',
+        });
+        // Nothing that reaches the vite process may hold an ldpat/ldsvc value.
+        for (const value of Object.values(env)) {
+            expect(value).not.toMatch(/^ld(pat|svc)_/);
         }
-        expect(env).toContain('LIGHTDASH_PREVIEW_API_KEY=ldpat_secret\n');
     });
 
     it('strips a trailing slash from the server url', () => {
-        const env = buildPreviewEnv({
+        const env = buildPreviewChildEnv({
             serverUrl: 'http://localhost:3000/',
-            apiKey: 'k',
             projectUuid: 'p',
+            proxyPort: 1,
+            proxyNonce: 'n',
         });
-        expect(env).toContain('VITE_LIGHTDASH_URL=http://localhost:3000\n');
+        expect(env.VITE_LIGHTDASH_URL).toBe('http://localhost:3000');
+    });
+});
+
+describe('assertScaffoldingSupportsPreviewProxy', () => {
+    it('passes when vite.config.js reads the proxy target', async () => {
+        const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-prev-'));
+        await fs.writeFile(
+            path.join(dir, 'vite.config.js'),
+            'const t = env.LIGHTDASH_PREVIEW_PROXY_TARGET;',
+        );
+        await expect(
+            assertScaffoldingSupportsPreviewProxy(dir),
+        ).resolves.toBeUndefined();
+    });
+
+    it('rejects pre-proxy scaffolding with a re-download instruction', async () => {
+        const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ld-prev-'));
+        await fs.writeFile(
+            path.join(dir, 'vite.config.js'),
+            'const k = env.LIGHTDASH_PREVIEW_API_KEY;',
+        );
+        await expect(
+            assertScaffoldingSupportsPreviewProxy(dir),
+        ).rejects.toThrow(/Re-download the app/);
     });
 });
 

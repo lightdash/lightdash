@@ -143,12 +143,16 @@ function jsxSourceLocVitePlugin() {
 
 export default defineConfig(({ mode }) => {
     // Load VITE_* (inlined into the browser bundle) AND the preview-only
-    // LIGHTDASH_PREVIEW_API_KEY (stays server-side — never inlined, since
-    // envPrefix defaults to 'VITE_'). `lightdash apps preview` writes the real
-    // credential as the latter and only a non-secret sentinel as
-    // VITE_LIGHTDASH_API_KEY, so no usable credential reaches the page.
+    // LIGHTDASH_PREVIEW_PROXY_* vars (stay server-side — never inlined, since
+    // envPrefix defaults to 'VITE_'). `lightdash apps preview` starts a
+    // loopback proxy that holds the real credential and enforces the data-app
+    // SDK route allowlist; this dev server only ever learns the proxy's
+    // address and a run-scoped nonce. The browser gets a non-secret sentinel
+    // as VITE_LIGHTDASH_API_KEY, so no usable credential reaches the page —
+    // or this process.
     const env = loadEnv(mode, process.cwd(), ['VITE_', 'LIGHTDASH_PREVIEW_']);
-    const previewApiKey = env.LIGHTDASH_PREVIEW_API_KEY;
+    const previewProxyTarget = env.LIGHTDASH_PREVIEW_PROXY_TARGET;
+    const previewProxyNonce = env.LIGHTDASH_PREVIEW_PROXY_NONCE;
     const lightdashUrl =
         env.VITE_LIGHTDASH_URL || 'https://app.lightdash.cloud';
 
@@ -192,19 +196,21 @@ export default defineConfig(({ mode }) => {
             headers: { 'Content-Security-Policy': previewCsp },
             proxy: {
                 '/api': {
-                    target: lightdashUrl,
+                    // Under `lightdash apps preview`, /api goes to the CLI's
+                    // loopback proxy, which checks the route against the
+                    // data-app SDK allowlist and attaches the credential
+                    // before forwarding to Lightdash. Without the CLI (bare
+                    // `pnpm dev`) requests go to the instance uncredentialed
+                    // and fail with 401 — preview requires the CLI command.
+                    target: previewProxyTarget || lightdashUrl,
                     changeOrigin: true,
                     secure: true,
-                    // Inject the real credential server-side: the browser only
-                    // ever sends a sentinel, and this overrides it before the
-                    // request leaves the dev server. Keeps the API key out of
-                    // the page entirely.
                     configure: (proxy) => {
-                        if (!previewApiKey) return;
+                        if (!previewProxyNonce) return;
                         proxy.on('proxyReq', (proxyReq) => {
                             proxyReq.setHeader(
-                                'authorization',
-                                `ApiKey ${previewApiKey}`,
+                                'x-lightdash-preview-nonce',
+                                previewProxyNonce,
                             );
                         });
                     },
