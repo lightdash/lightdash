@@ -1,3 +1,4 @@
+import { Agent, type Dispatcher } from 'undici';
 import { SandboxCommandError, SandboxTimeoutError } from './errors';
 import { shQuote } from './gitOverCommands';
 import {
@@ -46,6 +47,18 @@ const buildCommandLine = (command: string, options?: RunOptions): string => {
  */
 const EXEC_PATH = '/executeShellCommand';
 const FILES_PATH = '/files';
+
+/**
+ * The exec endpoint is buffered: response headers arrive only when the shell
+ * command completes, so undici's default 300s headersTimeout kills any longer
+ * run with `fetch failed`. This dispatcher disables undici's own clocks and is
+ * used ONLY for exec calls that are already bounded by the caller's
+ * AbortController — unbounded calls keep undici's defaults as a safety net.
+ */
+export const bufferedExecDispatcher = new Agent({
+    headersTimeout: 0,
+    bodyTimeout: 0,
+});
 
 interface ExecResponse {
     stdout: string;
@@ -125,17 +138,20 @@ export class AzureSandboxExecChannel {
         url: string,
         init: RequestInit,
         signal?: AbortSignal,
+        dispatcher?: Dispatcher,
     ): Promise<Response> {
         const attempt = async (forceRefresh: boolean): Promise<Response> => {
             const token = await this.authToken(forceRefresh);
-            return fetch(url, {
+            const requestInit: RequestInit & { dispatcher?: Dispatcher } = {
                 ...init,
+                dispatcher,
                 signal: signal ?? null,
                 headers: {
                     ...init.headers,
                     authorization: `Bearer ${token}`,
                 },
-            });
+            };
+            return fetch(url, requestInit);
         };
         const response = await attempt(false);
         if (response.status === 401 || response.status === 403) {
@@ -170,6 +186,7 @@ export class AzureSandboxExecChannel {
                         }),
                     },
                     controller.signal,
+                    abortAfterMs ? bufferedExecDispatcher : undefined,
                 );
                 if (!response.ok) {
                     throw new SandboxCommandError(
