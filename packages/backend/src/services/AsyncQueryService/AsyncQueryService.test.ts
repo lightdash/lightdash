@@ -67,6 +67,7 @@ import type { WarehouseAvailableTablesModel } from '../../models/WarehouseAvaila
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import type { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
+import type { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CacheHitCacheResult, MissCacheResult } from '../CacheService/types';
@@ -555,7 +556,7 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
-                    sql: 'SELECT * FROM test',
+                    sqlSource: { type: 'rawSql', sql: 'SELECT * FROM test' },
                     fields: {},
                     missingParameterReferences: [],
                     displayTimezone: null,
@@ -650,7 +651,7 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
-                    sql: 'SELECT * FROM test',
+                    sqlSource: { type: 'rawSql', sql: 'SELECT * FROM test' },
                     fields: {},
                     missingParameterReferences: [],
                     displayTimezone: null,
@@ -752,7 +753,7 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
-                    sql: 'SELECT * FROM test',
+                    sqlSource: { type: 'rawSql', sql: 'SELECT * FROM test' },
                     fields: {},
                     missingParameterReferences: [],
                     // Resolved tz is set (project has query_timezone) but
@@ -810,7 +811,7 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
-                    sql: 'SELECT * FROM test',
+                    sqlSource: { type: 'rawSql', sql: 'SELECT * FROM test' },
                     fields: {},
                     missingParameterReferences: [],
                     timezone: 'Asia/Tokyo',
@@ -870,7 +871,7 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: true,
-                    sql: 'SELECT * FROM test',
+                    sqlSource: { type: 'rawSql', sql: 'SELECT * FROM test' },
                     fields: {},
                     missingParameterReferences: [],
                     displayTimezone: null,
@@ -960,7 +961,7 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
-                    sql: 'SELECT * FROM test',
+                    sqlSource: { type: 'rawSql', sql: 'SELECT * FROM test' },
                     fields: {},
                     missingParameterReferences: [],
                     displayTimezone: null,
@@ -1024,7 +1025,7 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
-                    sql: 'SELECT * FROM test',
+                    sqlSource: { type: 'rawSql', sql: 'SELECT * FROM test' },
                     fields: {},
                     missingParameterReferences: [],
                     displayTimezone: null,
@@ -1117,7 +1118,10 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
-                    sql: 'SELECT * FROM test WHERE param = {{ missing_param }}',
+                    sqlSource: {
+                        type: 'rawSql',
+                        sql: 'SELECT * FROM test WHERE param = {{ missing_param }}',
+                    },
                     fields: {},
                     missingParameterReferences: [
                         'missing_param',
@@ -1190,7 +1194,7 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
-                    sql: 'SELECT * FROM test',
+                    sqlSource: { type: 'rawSql', sql: 'SELECT * FROM test' },
                     fields: {},
                     missingParameterReferences: [],
                     preAggregationRoute: {
@@ -1265,7 +1269,7 @@ describe('AsyncQueryService', () => {
                     },
                     explore: preAggregateExplore,
                     invalidateCache: false,
-                    sql: 'SELECT * FROM test',
+                    sqlSource: { type: 'rawSql', sql: 'SELECT * FROM test' },
                     fields: {},
                     missingParameterReferences: [],
                     preAggregationRoute: {
@@ -1349,7 +1353,10 @@ describe('AsyncQueryService', () => {
                     },
                     explore: preAggregateExplore,
                     invalidateCache: false,
-                    sql: 'SELECT * FROM warehouse',
+                    sqlSource: {
+                        type: 'rawSql',
+                        sql: 'SELECT * FROM warehouse',
+                    },
                     fields: {},
                     missingParameterReferences: [],
                     preAggregationRoute: {
@@ -1436,7 +1443,10 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
-                    sql: 'SELECT * FROM warehouse',
+                    sqlSource: {
+                        type: 'rawSql',
+                        sql: 'SELECT * FROM warehouse',
+                    },
                     fields: {},
                     missingParameterReferences: [],
                     preAggregationRoute: {
@@ -1487,7 +1497,9 @@ describe('AsyncQueryService', () => {
             (service as AnyType).prepareMetricQueryAsyncQueryArgs = vi
                 .fn()
                 .mockResolvedValue({
-                    sql: 'SELECT * FROM test',
+                    queryComposer: {
+                        getSql: () => 'SELECT * FROM test',
+                    } as unknown as QueryComposer,
                     fields: {},
                     warnings: [],
                     parameterReferences: [],
@@ -1590,7 +1602,9 @@ describe('AsyncQueryService', () => {
             (service as AnyType).prepareMetricQueryAsyncQueryArgs = vi
                 .fn()
                 .mockResolvedValue({
-                    sql: 'SELECT * FROM duckdb_preagg',
+                    queryComposer: {
+                        getSql: () => 'SELECT * FROM duckdb_preagg',
+                    } as unknown as QueryComposer,
                     fields: {},
                     warnings: [],
                     parameterReferences: [],
@@ -2770,7 +2784,7 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
-                    sql: 'SELECT * FROM test',
+                    sqlSource: { type: 'rawSql', sql: 'SELECT * FROM test' },
                     fields: {},
                     originalColumns: mockOriginalColumns,
                     missingParameterReferences: [],
@@ -3068,24 +3082,16 @@ describe('AsyncQueryService', () => {
             });
 
             expect(service.getUserAttributes).not.toHaveBeenCalled();
-            expect(service['executeAsyncQuery']).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    sql: expect.stringContaining("'EMEA', 'APAC'"),
-                }),
-                expect.any(Object),
-            );
-            expect(service['executeAsyncQuery']).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    sql: expect.stringContaining('materialize@acme.com'),
-                }),
-                expect.any(Object),
-            );
-            expect(service['executeAsyncQuery']).not.toHaveBeenCalledWith(
-                expect.objectContaining({
-                    sql: expect.stringContaining('viewer-region'),
-                }),
-                expect.any(Object),
-            );
+            const executeArgs = (
+                service['executeAsyncQuery'] as import('vitest').Mock
+            ).mock.calls[0][0];
+            expect(executeArgs.sqlSource.type).toBe('metricQuery');
+            const executedSql = executeArgs.sqlSource.queryComposer.getSql({
+                columnLimit: lightdashConfigMock.pivotTable.maxColumnLimit,
+            });
+            expect(executedSql).toContain("'EMEA', 'APAC'");
+            expect(executedSql).toContain('materialize@acme.com');
+            expect(executedSql).not.toContain('viewer-region');
         });
 
         it('fails closed when materializationRole is supplied outside materialization context', async () => {
@@ -3747,7 +3753,9 @@ describe('AsyncQueryService', () => {
                 .mockResolvedValue({ fields: {} });
 
             const prepareSpy = vi.fn().mockResolvedValue({
-                sql: 'SELECT 1',
+                queryComposer: {
+                    getSql: () => 'SELECT 1',
+                } as unknown as QueryComposer,
                 fields: {},
                 warnings: [],
                 parameterReferences: [],
@@ -3857,7 +3865,9 @@ describe('AsyncQueryService', () => {
                 .fn()
                 .mockResolvedValue({ fields: {} });
             const prepareSpy = vi.fn().mockResolvedValue({
-                sql: 'SELECT 1',
+                queryComposer: {
+                    getSql: () => 'SELECT 1',
+                } as unknown as QueryComposer,
                 fields: {},
                 warnings: [],
                 parameterReferences: [],
@@ -3938,7 +3948,9 @@ describe('AsyncQueryService', () => {
                 .fn()
                 .mockResolvedValue({ fields: {} });
             const prepareSpy = vi.fn().mockResolvedValue({
-                sql: 'SELECT 1',
+                queryComposer: {
+                    getSql: () => 'SELECT 1',
+                } as unknown as QueryComposer,
                 fields: {},
                 warnings: [],
                 parameterReferences: [],
@@ -4003,6 +4015,230 @@ describe('AsyncQueryService', () => {
             expect(mergedJson).toContain('chart-value');
             // …the out-of-explore rule is dropped without failing the run.
             expect(mergedJson).not.toContain('customers_segment');
+        });
+    });
+
+    // The async worker executes the persisted compiled_sql verbatim, so the
+    // SQL each path stores via queryHistoryModel.create IS the executed SQL.
+    describe('metric execution routes SQL through QueryComposer.getSql', () => {
+        const userAccessControls = {
+            userAttributes: {},
+            intrinsicUserAttributes: {},
+        };
+
+        const fullyAuthorizedAccount = {
+            ...sessionAccount,
+            user: {
+                ...sessionAccount.user,
+                ability: new Ability<PossibleAbilities>([
+                    { subject: 'Project', action: ['view'] },
+                    { subject: 'Explore', action: ['manage'] },
+                    { subject: 'SavedChart', action: ['view'] },
+                    { subject: 'UnderlyingData', action: ['view'] },
+                ]),
+            },
+        } as unknown as Account;
+
+        const setupService = (overrides: Partial<AsyncQueryService> = {}) => {
+            const service = getMockedAsyncQueryService(
+                lightdashConfigMock,
+                overrides,
+            );
+            service.getExploreWithUserAccessControls = vi
+                .fn()
+                .mockResolvedValue({
+                    explore: validExplore,
+                    userAccessControls,
+                });
+            (service as AnyType).getWarehouseCredentials = vi
+                .fn()
+                .mockResolvedValue(warehouseCredentialsMock);
+            service.combineParameters = vi.fn().mockResolvedValue({});
+            service.findResultsCache = vi.fn().mockResolvedValue({
+                cacheHit: false,
+                updatedAt: undefined,
+                expiresAt: undefined,
+            });
+            service.runAsyncWarehouseQuery = vi
+                .fn()
+                .mockResolvedValue(undefined);
+            return service;
+        };
+
+        const getPersistedSql = (service: AsyncQueryService): string => {
+            const createMock = service.queryHistoryModel
+                .create as import('vitest').Mock;
+            expect(createMock).toHaveBeenCalledTimes(1);
+            return createMock.mock.calls[0][1].compiledSql;
+        };
+
+        const savedChartForComposerTests = {
+            uuid: 'savedChartUuid',
+            name: 'Composer chart',
+            organizationUuid: projectSummary.organizationUuid,
+            projectUuid,
+            spaceUuid: 'spaceUuid',
+            tableName: validExplore.name,
+            metricQuery: metricQueryMock,
+            parameters: undefined,
+            pivotConfig: undefined,
+            chartConfig: { type: ChartType.BIG_NUMBER },
+        };
+
+        it('persists composer SQL for executeAsyncMetricQuery (flat)', async () => {
+            const service = setupService();
+
+            await service.executeAsyncMetricQuery({
+                account: sessionAccount,
+                projectUuid,
+                metricQuery: metricQueryMock,
+                context: QueryExecutionContext.EXPLORE,
+            });
+
+            const sql = getPersistedSql(service);
+            expect(sql).not.toContain('pivot_query');
+            expect(sql).toMatchSnapshot();
+        });
+
+        it('persists PivotQueryBuilder-wrapped SQL for executeAsyncMetricQuery with a pivotConfiguration', async () => {
+            const service = setupService();
+
+            await service.executeAsyncMetricQuery({
+                account: sessionAccount,
+                projectUuid,
+                metricQuery: {
+                    ...metricQueryMock,
+                    dimensions: ['a_dim1', 'b_dim1'],
+                },
+                context: QueryExecutionContext.EXPLORE,
+                pivotConfiguration: {
+                    indexColumn: {
+                        reference: 'a_dim1',
+                        type: VizIndexType.CATEGORY,
+                    },
+                    valuesColumns: [
+                        {
+                            reference: 'a_met1',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
+                    ],
+                    groupByColumns: [{ reference: 'b_dim1' }],
+                    sortBy: undefined,
+                },
+            });
+
+            const sql = getPersistedSql(service);
+            expect(sql).toContain('row_index');
+            expect(sql).toContain('column_index');
+            expect(sql).toMatchSnapshot();
+        });
+
+        it('persists composer SQL for executeAsyncSavedChartQuery', async () => {
+            const service = setupService({
+                savedChartModel: {
+                    get: vi.fn(async () => savedChartForComposerTests),
+                } as unknown as SavedChartModel,
+                analyticsModel: {
+                    addChartViewEvent: vi.fn(async () => {}),
+                } as unknown as AnalyticsModel,
+            });
+
+            await service.executeAsyncSavedChartQuery({
+                account: fullyAuthorizedAccount,
+                projectUuid,
+                chartUuid: savedChartForComposerTests.uuid,
+                versionUuid: undefined,
+                context: QueryExecutionContext.CHART,
+                invalidateCache: false,
+                limit: undefined,
+                parameters: undefined,
+                pivotResults: false,
+                filterOverrides: undefined,
+            });
+
+            expect(getPersistedSql(service)).toMatchSnapshot();
+        });
+
+        it('persists composer SQL for executeAsyncDashboardChartQuery', async () => {
+            const service = setupService({
+                savedChartModel: {
+                    get: vi.fn(async () => savedChartForComposerTests),
+                } as unknown as SavedChartModel,
+                analyticsModel: {
+                    addChartViewEvent: vi.fn(async () => {}),
+                } as unknown as AnalyticsModel,
+                spaceModel: {
+                    getSpaceSummary: vi.fn(async () => ({
+                        uuid: 'spaceUuid',
+                        organizationUuid: projectSummary.organizationUuid,
+                        isPrivate: false,
+                    })),
+                } as unknown as SpaceModel,
+                dashboardModel: {
+                    getDashboardParametersByIdOrSlug: vi.fn(async () => []),
+                } as unknown as DashboardModel,
+            });
+
+            await service.executeAsyncDashboardChartQuery({
+                account: fullyAuthorizedAccount,
+                projectUuid,
+                chartUuid: savedChartForComposerTests.uuid,
+                tileUuid: 'tileUuid',
+                dashboardUuid: 'dashboardUuid',
+                dashboardFilters: {
+                    dimensions: [],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                dashboardSorts: [],
+                context: QueryExecutionContext.DASHBOARD,
+                invalidateCache: false,
+            });
+
+            expect(getPersistedSql(service)).toMatchSnapshot();
+        });
+
+        it('persists composer SQL for executeAsyncUnderlyingDataQuery', async () => {
+            const service = setupService({
+                queryHistoryModel: {
+                    create: vi.fn(async () => ({ queryUuid: 'queryUuid' })),
+                    get: vi.fn(async () => ({
+                        metricQuery: metricQueryMock,
+                        fields: {
+                            a_dim1: validExplore.tables.a.dimensions.dim1,
+                        },
+                    })),
+                    update: vi.fn(),
+                    updateStatusToError: vi.fn(async () => 1),
+                } as unknown as QueryHistoryModel,
+            });
+
+            await service.executeAsyncUnderlyingDataQuery({
+                account: fullyAuthorizedAccount,
+                projectUuid,
+                underlyingDataSourceQueryUuid: 'sourceQueryUuid',
+                filters: {},
+                underlyingDataItemId: undefined,
+                context: QueryExecutionContext.VIEW_UNDERLYING_DATA,
+                invalidateCache: false,
+            });
+
+            expect(getPersistedSql(service)).toMatchSnapshot();
+        });
+
+        it('persists composer SQL for executeAsyncFieldValueSearch', async () => {
+            const service = setupService();
+
+            await service.executeAsyncFieldValueSearch({
+                account: fullyAuthorizedAccount,
+                projectUuid,
+                table: validExplore.name,
+                fieldId: 'a_dim1',
+                search: 'val',
+                context: QueryExecutionContext.FILTER_AUTOCOMPLETE,
+            });
+
+            expect(getPersistedSql(service)).toMatchSnapshot();
         });
     });
 });

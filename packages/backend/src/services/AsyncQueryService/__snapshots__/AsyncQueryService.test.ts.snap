@@ -1,0 +1,87 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`AsyncQueryService > metric execution routes SQL through QueryComposer.getSql > persists PivotQueryBuilder-wrapped SQL for executeAsyncMetricQuery with a pivotConfiguration 1`] = `
+"WITH original_query AS (WITH metrics AS ( SELECT AS "a_dim1", AS "b_dim1", AS "a_met1" FROM test.table AS "a" LEFT OUTER JOIN public.b AS "b" ON ("a".dim1) = ("b".dim1) GROUP BY 1,2 ) SELECT *, 1 AS "tc" FROM metrics ORDER BY "a_met1" DESC),
+group_by_query AS (SELECT "b_dim1", "a_dim1", sum("a_met1") AS "a_met1_sum" FROM original_query group by "b_dim1", "a_dim1"),
+pivot_query AS (SELECT g."a_dim1" AS "a_dim1", g."b_dim1" AS "b_dim1", g."a_met1_sum" AS "a_met1_sum", DENSE_RANK() OVER (ORDER BY g."a_dim1" ASC) AS "row_index", DENSE_RANK() OVER (ORDER BY g."b_dim1" ASC) AS "column_index" FROM group_by_query g),
+filtered_rows AS (SELECT * FROM pivot_query WHERE "row_index" <= 501)
+SELECT "a_dim1", "b_dim1", "a_met1_sum", "row_index", "column_index", total_columns FROM (SELECT p.*, SUM(CASE WHEN p."__grp_rn" = 1 THEN 1 ELSE 0 END) OVER () AS total_columns FROM (SELECT f.*, ROW_NUMBER() OVER (PARTITION BY "b_dim1" ORDER BY "b_dim1") AS "__grp_rn" FROM filtered_rows f) p) pivoted order by "row_index", "column_index""
+`;
+
+exports[`AsyncQueryService > metric execution routes SQL through QueryComposer.getSql > persists composer SQL for executeAsyncDashboardChartQuery 1`] = `
+"WITH metrics AS (
+SELECT
+   AS "a_dim1",
+   AS "a_met1"
+FROM test.table AS "a"
+
+GROUP BY 1
+)
+SELECT
+  *,
+  1 AS "tc"
+FROM metrics
+ORDER BY "a_met1" DESC
+LIMIT 501"
+`;
+
+exports[`AsyncQueryService > metric execution routes SQL through QueryComposer.getSql > persists composer SQL for executeAsyncFieldValueSearch 1`] = `
+"SELECT
+   AS "a_dim1"
+FROM test.table AS "a"
+
+WHERE ((
+  UPPER() LIKE UPPER('%val%')
+) AND (
+  () IS NOT NULL
+))
+GROUP BY 1
+ORDER BY "a_dim1"
+LIMIT 50"
+`;
+
+exports[`AsyncQueryService > metric execution routes SQL through QueryComposer.getSql > persists composer SQL for executeAsyncMetricQuery (flat) 1`] = `
+"WITH metrics AS (
+SELECT
+   AS "a_dim1",
+   AS "a_met1"
+FROM test.table AS "a"
+
+GROUP BY 1
+)
+SELECT
+  *,
+  1 AS "tc"
+FROM metrics
+ORDER BY "a_met1" DESC
+LIMIT 501"
+`;
+
+exports[`AsyncQueryService > metric execution routes SQL through QueryComposer.getSql > persists composer SQL for executeAsyncSavedChartQuery 1`] = `
+"WITH metrics AS (
+SELECT
+   AS "a_dim1",
+   AS "a_met1"
+FROM test.table AS "a"
+
+GROUP BY 1
+)
+SELECT
+  *,
+  1 AS "tc"
+FROM metrics
+ORDER BY "a_met1" DESC
+LIMIT 501"
+`;
+
+exports[`AsyncQueryService > metric execution routes SQL through QueryComposer.getSql > persists composer SQL for executeAsyncUnderlyingDataQuery 1`] = `
+"SELECT
+   AS "a_dim1",
+   AS "b_dim1"
+FROM test.table AS "a"
+LEFT OUTER JOIN public.b AS "b"
+  ON ("a".dim1) = ("b".dim1)
+GROUP BY 1,2
+ORDER BY "a_dim1"
+LIMIT 500"
+`;

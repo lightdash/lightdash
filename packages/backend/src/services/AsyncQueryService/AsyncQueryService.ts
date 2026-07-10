@@ -199,6 +199,7 @@ import {
     ExecuteAsyncSqlQueryArgs,
     isExecuteAsyncDashboardSqlChartByUuid,
     isExecuteAsyncSqlChartByUuid,
+    type AsyncQuerySqlSource,
     type DownloadAsyncQueryResultsArgs,
     type ExecuteAsyncDashboardChartQueryArgs,
     type ExecuteAsyncDashboardSqlChartArgs,
@@ -3568,7 +3569,7 @@ export class AsyncQueryService extends ProjectService {
         const responseMetricQuery = effectiveMetricQuery;
 
         return {
-            sql: fullQuery.query,
+            queryComposer,
             fields: fieldsWithOverrides,
             warnings: fullQuery.warnings,
             parameterReferences: Array.from(fullQuery.parameterReferences),
@@ -3605,7 +3606,7 @@ export class AsyncQueryService extends ProjectService {
             // Saved chart (metric or SQL) the query was executed from, for analytics attribution
             chart?: { uuid: string };
             fields: ItemsMap;
-            sql: string; // SQL generated from metric query or provided by user
+            sqlSource: AsyncQuerySqlSource;
             originalColumns?: ResultColumns;
             missingParameterReferences: string[];
             timezone?: string;
@@ -3634,7 +3635,7 @@ export class AsyncQueryService extends ProjectService {
                     explore,
                     chart,
                     isPreviewProject,
-                    sql: compiledQuery,
+                    sqlSource,
                     metricQuery,
                     fields: fieldsMap,
                     originalColumns,
@@ -3687,28 +3688,43 @@ export class AsyncQueryService extends ProjectService {
                         );
                     }
 
-                    const warehouseSqlBuilder = warehouseSqlBuilderFromType(
-                        warehouseCredentialsType,
-                        warehouseCredentials.startOfWeek,
-                    );
-
-                    let pivotedQuery = null;
-                    if (pivotConfiguration) {
-                        const pivotQueryBuilder = new PivotQueryBuilder(
-                            compiledQuery,
-                            pivotConfiguration,
-                            warehouseSqlBuilder,
-                            args.metricQuery.limit,
-                            args.fields,
-                        );
-
-                        pivotedQuery = pivotQueryBuilder.toSql({
-                            columnLimit:
-                                this.lightdashConfig.pivotTable.maxColumnLimit,
-                        });
+                    let query: string;
+                    switch (sqlSource.type) {
+                        case 'metricQuery':
+                            query = sqlSource.queryComposer.getSql({
+                                columnLimit:
+                                    this.lightdashConfig.pivotTable
+                                        .maxColumnLimit,
+                            });
+                            break;
+                        case 'rawSql':
+                            // SQL-chart paths still wrap the raw string here
+                            // until they migrate onto the composer seam.
+                            if (pivotConfiguration) {
+                                query = new PivotQueryBuilder(
+                                    sqlSource.sql,
+                                    pivotConfiguration,
+                                    warehouseSqlBuilderFromType(
+                                        warehouseCredentialsType,
+                                        warehouseCredentials.startOfWeek,
+                                    ),
+                                    metricQuery.limit,
+                                    fieldsMap,
+                                ).toSql({
+                                    columnLimit:
+                                        this.lightdashConfig.pivotTable
+                                            .maxColumnLimit,
+                                });
+                            } else {
+                                query = sqlSource.sql;
+                            }
+                            break;
+                        default:
+                            query = assertUnreachable(
+                                sqlSource,
+                                'Unknown sqlSource',
+                            );
                     }
-
-                    const query = pivotedQuery || compiledQuery;
                     span.setAttribute('generatedSql', query);
 
                     const onboardingRecord =
@@ -4216,7 +4232,7 @@ export class AsyncQueryService extends ProjectService {
             // Saved chart (metric or SQL) the query was executed from, for analytics attribution
             chart?: { uuid: string };
             fields: ItemsMap;
-            sql: string; // SQL generated from metric query or provided by user
+            sqlSource: AsyncQuerySqlSource;
             originalColumns?: ResultColumns;
             missingParameterReferences: string[];
             timezone?: string;
@@ -4433,7 +4449,7 @@ export class AsyncQueryService extends ProjectService {
 
         const prepareStart = Date.now();
         const {
-            sql,
+            queryComposer,
             fields,
             warnings,
             parameterReferences,
@@ -4511,7 +4527,7 @@ export class AsyncQueryService extends ProjectService {
                 invalidateCache,
                 parameters: combinedParameters,
                 fields,
-                sql,
+                sqlSource: { type: 'metricQuery', queryComposer },
                 originalColumns: undefined,
                 missingParameterReferences,
                 timezone: resolvedTimezone,
@@ -4684,7 +4700,7 @@ export class AsyncQueryService extends ProjectService {
         );
 
         const {
-            sql,
+            queryComposer,
             fields,
             missingParameterReferences,
             userAccessControls,
@@ -4731,7 +4747,7 @@ export class AsyncQueryService extends ProjectService {
                 invalidateCache: invalidateCache || forceRefresh,
                 parameters: combinedParameters,
                 fields,
-                sql,
+                sqlSource: { type: 'metricQuery', queryComposer },
                 originalColumns: undefined,
                 missingParameterReferences,
                 timezone: resolvedTimezone,
@@ -4982,7 +4998,7 @@ export class AsyncQueryService extends ProjectService {
             : undefined;
 
         const {
-            sql,
+            queryComposer,
             fields: fieldsWithOverrides,
             warnings,
             parameterReferences,
@@ -5063,7 +5079,7 @@ export class AsyncQueryService extends ProjectService {
                 metricQuery: metricQueryWithLimit,
                 parameters: combinedParameters,
                 fields: fieldsWithOverrides,
-                sql,
+                sqlSource: { type: 'metricQuery', queryComposer },
                 originalColumns: undefined,
                 missingParameterReferences,
                 timezone: resolvedTimezone,
@@ -5450,7 +5466,7 @@ export class AsyncQueryService extends ProjectService {
             : undefined;
 
         const {
-            sql,
+            queryComposer,
             fields: fieldsWithOverrides,
             parameterReferences,
             missingParameterReferences,
@@ -5536,7 +5552,7 @@ export class AsyncQueryService extends ProjectService {
                 dateZoom,
                 parameters: combinedParameters,
                 fields: fieldsWithOverrides,
-                sql,
+                sqlSource: { type: 'metricQuery', queryComposer },
                 originalColumns: undefined,
                 missingParameterReferences,
                 timezone: resolvedTimezone,
@@ -5823,7 +5839,7 @@ export class AsyncQueryService extends ProjectService {
         );
 
         const {
-            sql,
+            queryComposer,
             fields,
             warnings,
             parameterReferences,
@@ -5867,7 +5883,7 @@ export class AsyncQueryService extends ProjectService {
                     invalidateCache,
                     dateZoom,
                     fields,
-                    sql,
+                    sqlSource: { type: 'metricQuery', queryComposer },
                     originalColumns: undefined,
                     missingParameterReferences,
                     timezone: resolvedTimezone,
@@ -5957,7 +5973,7 @@ export class AsyncQueryService extends ProjectService {
                 metricQuery,
                 context,
                 fields: getItemMap(virtualView),
-                sql: sqlWithParams,
+                sqlSource: { type: 'rawSql', sql: sqlWithParams },
                 originalColumns,
                 missingParameterReferences,
                 pivotConfiguration,
@@ -6280,7 +6296,7 @@ export class AsyncQueryService extends ProjectService {
                 metricQuery,
                 context,
                 fields: getItemMap(virtualView),
-                sql,
+                sqlSource: { type: 'rawSql', sql },
                 originalColumns,
                 missingParameterReferences,
                 pivotConfiguration,
@@ -6437,7 +6453,7 @@ export class AsyncQueryService extends ProjectService {
                 metricQuery,
                 context,
                 fields: getItemMap(virtualView),
-                sql,
+                sqlSource: { type: 'rawSql', sql },
                 originalColumns,
                 missingParameterReferences,
                 pivotConfiguration,
@@ -6784,7 +6800,7 @@ export class AsyncQueryService extends ProjectService {
         );
 
         const {
-            sql,
+            queryComposer,
             fields,
             missingParameterReferences,
             userAccessControls: resolvedUserAccessControls,
@@ -6838,7 +6854,7 @@ export class AsyncQueryService extends ProjectService {
                     dateZoom,
                     parameters,
                     fields,
-                    sql,
+                    sqlSource: { type: 'metricQuery', queryComposer },
                     originalColumns: undefined,
                     missingParameterReferences,
                     timezone: resolvedTimezone,
