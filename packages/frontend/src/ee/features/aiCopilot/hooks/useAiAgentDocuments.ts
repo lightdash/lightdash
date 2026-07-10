@@ -1,7 +1,7 @@
 import type {
     ApiAiAgentDocumentResponse,
     ApiAiAgentDocumentSummaryListResponse,
-    ApiCreateAiAgentDocument,
+    ApiCreateAgentDocument,
     ApiError,
     ApiSuccessEmpty,
 } from '@lightdash/common';
@@ -16,52 +16,69 @@ import useToaster from '../../../../hooks/toaster/useToaster';
 
 const AI_AGENT_DOCUMENTS_KEY = 'aiAgentDocuments';
 
-const listDocuments = async () =>
+const documentsUrl = (projectUuid: string, agentUuid: string) =>
+    `/projects/${projectUuid}/aiAgents/${agentUuid}/documents`;
+
+const listDocuments = async (projectUuid: string, agentUuid: string) =>
     lightdashApi<ApiAiAgentDocumentSummaryListResponse['results']>({
         version: 'v1',
-        url: `/aiAgents/documents`,
+        url: documentsUrl(projectUuid, agentUuid),
         method: 'GET',
         body: undefined,
     });
 
-const createDocument = async (body: ApiCreateAiAgentDocument) =>
+const createDocument = async (
+    projectUuid: string,
+    agentUuid: string,
+    body: ApiCreateAgentDocument,
+) =>
     lightdashApi<ApiAiAgentDocumentResponse['results']>({
         version: 'v1',
-        url: `/aiAgents/documents`,
+        url: documentsUrl(projectUuid, agentUuid),
         method: 'POST',
         body: JSON.stringify(body),
     });
 
-const deleteDocument = async (documentUuid: string) =>
+const deleteDocument = async (
+    projectUuid: string,
+    agentUuid: string,
+    documentUuid: string,
+) =>
     lightdashApi<ApiSuccessEmpty['results']>({
         version: 'v1',
-        url: `/aiAgents/documents/${documentUuid}`,
+        url: `${documentsUrl(projectUuid, agentUuid)}/${documentUuid}`,
         method: 'DELETE',
         body: undefined,
     });
 
 export const useAiAgentDocuments = (
+    projectUuid: string,
+    agentUuid: string,
     options?: UseQueryOptions<
         ApiAiAgentDocumentSummaryListResponse['results'],
         ApiError
     >,
 ) =>
     useQuery<ApiAiAgentDocumentSummaryListResponse['results'], ApiError>({
-        queryKey: [AI_AGENT_DOCUMENTS_KEY],
-        queryFn: listDocuments,
+        queryKey: [AI_AGENT_DOCUMENTS_KEY, projectUuid, agentUuid],
+        queryFn: () => listDocuments(projectUuid, agentUuid),
         ...options,
     });
 
-export const useCreateAiAgentDocument = () => {
+export const useCreateAiAgentDocument = (
+    projectUuid: string,
+    agentUuid: string,
+) => {
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     return useMutation<
         ApiAiAgentDocumentResponse['results'],
         ApiError,
-        ApiCreateAiAgentDocument
+        ApiCreateAgentDocument
     >({
-        mutationFn: createDocument,
+        mutationFn: (body) => createDocument(projectUuid, agentUuid, body),
         onSuccess: async () => {
+            // Org level documents appear under every agent, so invalidate them all
             await queryClient.invalidateQueries({
                 queryKey: [AI_AGENT_DOCUMENTS_KEY],
             });
@@ -75,12 +92,17 @@ export const useCreateAiAgentDocument = () => {
     });
 };
 
-export const useDeleteAiAgentDocument = () => {
+export const useDeleteAiAgentDocument = (
+    projectUuid: string,
+    agentUuid: string,
+) => {
     const queryClient = useQueryClient();
     const { showToastApiError } = useToaster();
     return useMutation<ApiSuccessEmpty['results'], ApiError, string>({
-        mutationFn: deleteDocument,
+        mutationFn: (documentUuid) =>
+            deleteDocument(projectUuid, agentUuid, documentUuid),
         onSuccess: async () => {
+            // Org level documents appear under every agent, so invalidate them all
             await queryClient.invalidateQueries({
                 queryKey: [AI_AGENT_DOCUMENTS_KEY],
             });

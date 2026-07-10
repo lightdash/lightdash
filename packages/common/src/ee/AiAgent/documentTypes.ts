@@ -38,19 +38,32 @@ export type AiAgentDocumentContent = Pick<
     content: string;
 };
 
+/**
+ * Body of POST /api/v1/aiAgents/documents. Both scope fields are deprecated:
+ * scope now comes from the agent-scoped route path. Once they are removed this
+ * endpoint only creates organization level documents.
+ */
 export type ApiCreateAiAgentDocument = {
     name: string;
     originalFilename: string;
     mimeType: string;
     content: string;
+    /**
+     * @deprecated Use POST /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/documents, which takes the project from the path
+     */
     projectUuid?: string | null;
+    /**
+     * @deprecated Use POST /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/documents, which takes the agent from the path
+     */
     agentAccess?: string[];
 };
 
-export type ApiUpdateAiAgentDocument = {
-    name?: string;
-    projectUuid?: string | null;
-    agentAccess?: string[];
+/** Body of POST /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/documents. */
+export type ApiCreateAgentDocument = {
+    name: string;
+    originalFilename: string;
+    mimeType: string;
+    content: string;
 };
 
 export type ApiAiAgentDocumentResponse = {

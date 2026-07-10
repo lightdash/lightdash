@@ -72,6 +72,9 @@ export class AiAgentDocumentModel {
         return row ? mapRowToDocument(row) : undefined;
     }
 
+    /**
+     * @deprecated Serves the deprecated organization-wide routes. Use findAllForAgent.
+     */
     async findAllForOrganization(args: {
         organizationUuid: string;
         projectUuid?: string | null;
@@ -99,6 +102,9 @@ export class AiAgentDocumentModel {
         return rows.map(mapRowToSummary);
     }
 
+    /**
+     * @deprecated Serves the deprecated organization-wide routes. Use findAccessibleForAgent.
+     */
     async find(uuid: string): Promise<AiAgentDocument | undefined> {
         const row = await this.baseSelect()
             .where(`${AiAgentDocumentTableName}.ai_agent_document_uuid`, uuid)
@@ -106,6 +112,9 @@ export class AiAgentDocumentModel {
         return row ? mapRowToDocument(row) : undefined;
     }
 
+    /**
+     * @deprecated Serves the deprecated organization-wide routes. Use findAccessibleForAgent.
+     */
     async get(uuid: string): Promise<AiAgentDocument> {
         const doc = await this.find(uuid);
         if (!doc) {
@@ -178,20 +187,12 @@ export class AiAgentDocumentModel {
 
     private static agentAccessSubquery(qb: Knex, agentUuid: string) {
         return qb.raw(
-            `(
-                NOT EXISTS (
-                    SELECT 1 FROM ?? AS access
-                    WHERE access.ai_agent_document_uuid = ??.ai_agent_document_uuid
-                )
-                OR EXISTS (
-                    SELECT 1 FROM ?? AS access
-                    WHERE access.ai_agent_document_uuid = ??.ai_agent_document_uuid
-                      AND access.ai_agent_uuid = ?
-                )
+            `EXISTS (
+                SELECT 1 FROM ?? AS access
+                WHERE access.ai_agent_document_uuid = ??.ai_agent_document_uuid
+                  AND access.ai_agent_uuid = ?
             )`,
             [
-                AiAgentDocumentAccessTableName,
-                AiAgentDocumentTableName,
                 AiAgentDocumentAccessTableName,
                 AiAgentDocumentTableName,
                 agentUuid,
@@ -199,46 +200,105 @@ export class AiAgentDocumentModel {
         );
     }
 
+    private static noAgentAccessSubquery(qb: Knex) {
+        return qb.raw(
+            `NOT EXISTS (
+                SELECT 1 FROM ?? AS access
+                WHERE access.ai_agent_document_uuid = ??.ai_agent_document_uuid
+            )`,
+            [AiAgentDocumentAccessTableName, AiAgentDocumentTableName],
+        );
+    }
+
+    /**
+     * A document is org level, and so reaches every agent, only when it has no
+     * project and no grants. Access rows always restrict; having none is not a
+     * wildcard, so a project document nobody was granted reaches no agent.
+     */
+    private static agentScope(
+        qb: Knex,
+        agentUuid: string,
+        projectUuid: string | null,
+    ) {
+        return (builder: Knex.QueryBuilder) => {
+            void builder.where((orgLevel) => {
+                void orgLevel
+                    .whereNull(`${AiAgentDocumentTableName}.project_uuid`)
+                    .andWhere(AiAgentDocumentModel.noAgentAccessSubquery(qb));
+            });
+            void builder.orWhere((granted) => {
+                void granted
+                    .where(
+                        AiAgentDocumentModel.agentAccessSubquery(qb, agentUuid),
+                    )
+                    .andWhere((inScope) => {
+                        void inScope.whereNull(
+                            `${AiAgentDocumentTableName}.project_uuid`,
+                        );
+                        if (projectUuid) {
+                            void inScope.orWhere(
+                                `${AiAgentDocumentTableName}.project_uuid`,
+                                projectUuid,
+                            );
+                        }
+                    });
+            });
+        };
+    }
+
     async findAllForAgent(args: {
         organizationUuid: string;
         agentUuid: string;
         projectUuid: string | null;
     }): Promise<AiAgentDocumentSummary[]> {
-        const query = this.baseSelect()
+        const rows = await this.baseSelect()
             .where(
                 `${AiAgentDocumentTableName}.organization_uuid`,
                 args.organizationUuid,
             )
             .andWhere(
-                AiAgentDocumentModel.agentAccessSubquery(
+                AiAgentDocumentModel.agentScope(
                     this.database,
                     args.agentUuid,
+                    args.projectUuid,
                 ),
-            );
+            )
+            .orderBy(`${AiAgentDocumentTableName}.created_at`, 'desc');
 
-        if (args.projectUuid) {
-            void query.andWhere((builder) => {
-                void builder
-                    .whereNull(`${AiAgentDocumentTableName}.project_uuid`)
-                    .orWhere(
-                        `${AiAgentDocumentTableName}.project_uuid`,
-                        args.projectUuid!,
-                    );
-            });
-        } else {
-            void query.whereNull(`${AiAgentDocumentTableName}.project_uuid`);
-        }
-
-        const rows = await query.orderBy(
-            `${AiAgentDocumentTableName}.created_at`,
-            'desc',
-        );
         return rows.map(mapRowToSummary);
+    }
+
+    async findAccessibleForAgent(args: {
+        organizationUuid: string;
+        agentUuid: string;
+        projectUuid: string | null;
+        documentUuid: string;
+    }): Promise<AiAgentDocument | undefined> {
+        const row = await this.baseSelect()
+            .where(
+                `${AiAgentDocumentTableName}.ai_agent_document_uuid`,
+                args.documentUuid,
+            )
+            .andWhere(
+                `${AiAgentDocumentTableName}.organization_uuid`,
+                args.organizationUuid,
+            )
+            .andWhere(
+                AiAgentDocumentModel.agentScope(
+                    this.database,
+                    args.agentUuid,
+                    args.projectUuid,
+                ),
+            )
+            .first();
+
+        return row ? mapRowToDocument(row) : undefined;
     }
 
     async getContentForAgent(args: {
         organizationUuid: string;
         agentUuid: string;
+        projectUuid: string | null;
         documentUuid: string;
     }): Promise<AiAgentDocumentContent | undefined> {
         const row = await this.database(AiAgentDocumentTableName)
@@ -257,9 +317,10 @@ export class AiAgentDocumentModel {
                 args.organizationUuid,
             )
             .andWhere(
-                AiAgentDocumentModel.agentAccessSubquery(
+                AiAgentDocumentModel.agentScope(
                     this.database,
                     args.agentUuid,
+                    args.projectUuid,
                 ),
             )
             .first();

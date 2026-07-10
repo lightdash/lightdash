@@ -2054,6 +2054,7 @@ export class AiAgentToolsService extends BaseService {
                     await this.aiAgentDocumentModel.getContentForAgent({
                         organizationUuid: context.organizationUuid,
                         agentUuid: context.agentUuid,
+                        projectUuid: context.projectUuid,
                         documentUuid: args.documentUuid,
                     });
                 if (!content) {
