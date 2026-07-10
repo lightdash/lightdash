@@ -1,3 +1,10 @@
+# [0.3355.0](https://github.com/lightdash/lightdash/compare/0.3354.1...0.3355.0) (2026-07-10)
+
+
+### Features
+
+* **backend:** add totals support to QueryComposer and migrate calculate-total path ([#25379](https://github.com/lightdash/lightdash/issues/25379)) ([3380f95](https://github.com/lightdash/lightdash/commit/3380f9542ff9f5833cfb0d0f7fd7521abcdf2b78))
+
 ## [0.3354.1](https://github.com/lightdash/lightdash/compare/0.3354.0...0.3354.1) (2026-07-10)
 
 

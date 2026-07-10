@@ -1,4 +1,5 @@
 import {
+    MetricQuery,
     PivotConfiguration,
     SortByDirection,
     VizAggregationOptions,
@@ -11,7 +12,11 @@ import {
     QUERY_BUILDER_UTC_TIMEZONE,
     warehouseClientMock,
 } from './MetricQueryBuilder.mock';
-import { QueryComposer, QueryComposerContext } from './QueryComposer';
+import {
+    QueryComposer,
+    QueryComposerContext,
+    TotalConfiguration,
+} from './QueryComposer';
 
 const CONTEXT: QueryComposerContext = {
     explore: EXPLORE,
@@ -23,6 +28,7 @@ const CONTEXT: QueryComposerContext = {
     parameters: {},
     dateZoom: undefined,
     pivotDimensions: undefined,
+    pivotItemsMap: undefined,
     continueOnError: undefined,
     useTimezoneAwareDateTrunc: undefined,
     columnTimezone: undefined,
@@ -38,6 +44,30 @@ const PIVOT_CONFIGURATION: PivotConfiguration = {
         },
     ],
     groupByColumns: undefined,
+    sortBy: [{ reference: 'table1_dim1', direction: SortByDirection.ASC }],
+};
+
+// Pivoted source: index on table1_dim1, pivot (groupBy) on table1_shared,
+// value on table1_metric1. Supports every totals grain.
+const TOTALS_SOURCE_METRIC_QUERY: MetricQuery = {
+    exploreName: 'table1',
+    dimensions: ['table1_dim1', 'table1_shared'],
+    metrics: ['table1_metric1'],
+    filters: {},
+    sorts: [{ fieldId: 'table1_dim1', descending: false }],
+    limit: 500,
+    tableCalculations: [],
+};
+
+const TOTALS_SOURCE_PIVOT_CONFIGURATION: PivotConfiguration = {
+    indexColumn: { reference: 'table1_dim1', type: VizIndexType.CATEGORY },
+    valuesColumns: [
+        {
+            reference: 'table1_metric1',
+            aggregation: VizAggregationOptions.SUM,
+        },
+    ],
+    groupByColumns: [{ reference: 'table1_shared' }],
     sortBy: [{ reference: 'table1_dim1', direction: SortByDirection.ASC }],
 };
 
@@ -73,5 +103,30 @@ describe('QueryComposer', () => {
         // The pivot SQL wraps (and therefore differs from) the base query.
         expect(sql).not.toBe(composer.compile().query);
         expect(sql).toMatchSnapshot();
+    });
+
+    describe('totalConfiguration', () => {
+        const CASES: Array<TotalConfiguration> = [
+            { kind: 'grandTotal', subtotalDimensions: undefined },
+            { kind: 'columnTotal', subtotalDimensions: undefined },
+            { kind: 'rowTotal', subtotalDimensions: undefined },
+            { kind: 'columnSubtotal', subtotalDimensions: ['table1_dim1'] },
+        ];
+
+        it.each(CASES)(
+            'collapses the source query into the totals grain for kind "$kind"',
+            ({ kind, subtotalDimensions }) => {
+                const composer = new QueryComposer(
+                    {
+                        metricQuery: TOTALS_SOURCE_METRIC_QUERY,
+                        pivotConfiguration: TOTALS_SOURCE_PIVOT_CONFIGURATION,
+                        totalConfiguration: { kind, subtotalDimensions },
+                    },
+                    CONTEXT,
+                );
+
+                expect(composer.getSql({ columnLimit: 100 })).toMatchSnapshot();
+            },
+        );
     });
 });

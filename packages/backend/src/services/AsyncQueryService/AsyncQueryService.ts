@@ -3432,6 +3432,7 @@ export class AsyncQueryService extends ProjectService {
         parameters,
         projectUuid,
         pivotConfiguration,
+        totalConfiguration,
         pivotDimensions,
         userAttributeOverrides,
         materializationRole,
@@ -3450,6 +3451,7 @@ export class AsyncQueryService extends ProjectService {
         | 'projectUuid'
         | 'userAttributeOverrides'
         | 'materializationRole'
+        | 'totalConfiguration'
     > & {
         warehouseSqlBuilder: WarehouseSqlBuilder;
         explore: Explore;
@@ -3512,7 +3514,7 @@ export class AsyncQueryService extends ProjectService {
             preloadedProjectTimezone,
         });
 
-        const fullQuery = await ProjectService._compileQuery({
+        const queryComposer = ProjectService._createQueryComposer({
             metricQuery,
             explore,
             warehouseSqlBuilder,
@@ -3524,11 +3526,17 @@ export class AsyncQueryService extends ProjectService {
             parameters,
             availableParameterDefinitions,
             pivotConfiguration,
+            totalConfiguration,
             pivotDimensions: pivotDimensions ?? metricQuery.pivotDimensions,
             useTimezoneAwareDateTrunc,
             columnTimezone,
             applyDateZoomToFilters,
         });
+
+        const fullQuery = queryComposer.compile();
+        const effectiveMetricQuery = queryComposer.getMetricQuery();
+        const effectivePivotConfiguration =
+            queryComposer.getPivotConfiguration();
 
         const resolvedMetricOverrides =
             getMetricOverridesWithPopInheritance(metricQuery);
@@ -3557,7 +3565,7 @@ export class AsyncQueryService extends ProjectService {
             }),
         );
 
-        const responseMetricQuery = metricQuery;
+        const responseMetricQuery = effectiveMetricQuery;
 
         return {
             sql: fullQuery.query,
@@ -3569,6 +3577,7 @@ export class AsyncQueryService extends ProjectService {
             ),
             usedParameters: fullQuery.usedParameters,
             responseMetricQuery,
+            effectivePivotConfiguration,
             userAccessControls: { userAttributes, intrinsicUserAttributes },
             availableParameterDefinitions,
             resolvedTimezone,
@@ -4329,6 +4338,7 @@ export class AsyncQueryService extends ProjectService {
             userAttributeOverrides,
             materializationRole,
             dashboardFilters,
+            totalConfiguration,
         }: ExecuteAsyncMetricQueryArgs,
         organizationUuid: string,
     ): Promise<ApiExecuteAsyncMetricQueryResults> {
@@ -4430,6 +4440,7 @@ export class AsyncQueryService extends ProjectService {
             missingParameterReferences,
             usedParameters,
             responseMetricQuery,
+            effectivePivotConfiguration,
             userAccessControls,
             availableParameterDefinitions,
             resolvedTimezone,
@@ -4444,6 +4455,7 @@ export class AsyncQueryService extends ProjectService {
             parameters: combinedParameters,
             projectUuid,
             pivotConfiguration,
+            totalConfiguration,
             userAttributeOverrides,
             materializationRole,
             columnTimezone: getColumnTimezone(warehouseCredentials),
@@ -4453,6 +4465,8 @@ export class AsyncQueryService extends ProjectService {
         });
         const prepareMs = Date.now() - prepareStart;
 
+        const effectiveMetricQuery = responseMetricQuery;
+
         const queryTagsWithUserAttributes =
             AsyncQueryService.addUserAttributeQueryTags(
                 queryTags,
@@ -4461,13 +4475,13 @@ export class AsyncQueryService extends ProjectService {
 
         const requestParameters: ExecuteAsyncMetricQueryRequestParams = {
             context,
-            query: metricQuery,
+            query: effectiveMetricQuery,
             parameters: combinedParameters,
             dateZoom,
         };
 
         const routingDecision = this.getPreAggregationRoutingDecision({
-            metricQuery,
+            metricQuery: effectiveMetricQuery,
             explore,
             context,
             forceWarehouse: usePreAggregateCache === false,
@@ -4487,7 +4501,7 @@ export class AsyncQueryService extends ProjectService {
         const { queryUuid, cacheMetadata } = await this.executeAsyncQuery(
             {
                 account,
-                metricQuery,
+                metricQuery: effectiveMetricQuery,
                 projectUuid,
                 organizationUuid,
                 explore,
@@ -4503,7 +4517,7 @@ export class AsyncQueryService extends ProjectService {
                 timezone: resolvedTimezone,
                 displayTimezone,
                 useTimezoneAwareDateTrunc,
-                pivotConfiguration,
+                pivotConfiguration: effectivePivotConfiguration,
                 warehouseCredentials,
                 routingTarget: routingDecision.target,
                 ...(routingDecision.target === 'pre_aggregate' && {
@@ -4561,13 +4575,6 @@ export class AsyncQueryService extends ProjectService {
             this.projectModel.getSummary(projectUuid),
         ]);
 
-        const { metricQuery, pivotConfiguration } = new TotalQueryBuilder({
-            metricQuery: source.metricQuery,
-            pivotConfiguration: source.pivotConfiguration,
-            kind,
-            subtotalDimensions,
-        }).compileQuery();
-
         // Reuse the source's parameter values so the totals query sees the
         // same parameter context as the original. The execution path
         // re-combines these against project defaults.
@@ -4586,8 +4593,9 @@ export class AsyncQueryService extends ProjectService {
                 account,
                 projectUuid,
                 context: QueryExecutionContext.CALCULATE_TOTAL,
-                metricQuery,
-                pivotConfiguration,
+                metricQuery: source.metricQuery,
+                pivotConfiguration: source.pivotConfiguration ?? undefined,
+                totalConfiguration: { kind, subtotalDimensions },
                 parameters: sourceParameters,
                 dateZoom: sourceDateZoom,
                 invalidateCache,

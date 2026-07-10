@@ -15,7 +15,11 @@ This file covers SQL generation only. For the end-to-end pivot pipeline (config 
 import { QueryComposer } from './QueryComposer';
 
 const composer = new QueryComposer(
-    { metricQuery, pivotConfiguration }, // pivotConfiguration: undefined for a flat query
+    {
+        metricQuery,
+        pivotConfiguration, // undefined for a flat query
+        totalConfiguration, // undefined unless building a totals query (see below)
+    },
     {
         explore,
         warehouseSqlBuilder,
@@ -26,6 +30,10 @@ const composer = new QueryComposer(
         parameters,
         dateZoom,
         pivotDimensions,
+        // pivotItemsMap overrides the itemsMap the pivot resolves against
+        // (defaults to the freshly compiled fields) — pre-agg passes the
+        // source query's persisted fields.
+        pivotItemsMap,
         continueOnError,
         useTimezoneAwareDateTrunc,
         columnTimezone,
@@ -38,6 +46,17 @@ const sql = composer.getSql({ columnLimit }); // PivotQueryBuilder-wrapped when 
 ```
 
 `compile()` delegates to a protected `computeCompiled()` template-method seam (memoized). Subclasses override `computeCompiled()` to build the base `CompiledQuery` from different inputs; the pivot pipeline (`getSql`) is inherited unchanged.
+
+**Totals mode.** Set `totalConfiguration: { kind, subtotalDimensions }` on the
+definition to build a totals query. The composer collapses the source
+`metricQuery` + `pivotConfiguration` into the requested grain
+(`grandTotal`/`columnTotal`/`rowTotal`/`columnSubtotal`) via `TotalQueryBuilder`
+before compiling. `getMetricQuery()` / `getPivotConfiguration()` return the
+**effective (collapsed)** query, so routing / request echo / response use it
+rather than the source. Date zoom stays inert here — it targets the source
+query's dimensions, which the collapsed totals query typically no longer selects.
+This is what the calculate-total path (`executeAsyncCalculateTotalFromQueryHistory`)
+uses instead of hand-collapsing at the call site.
 
 **SqlQueryComposer** — the facade for SQL charts (`extends QueryComposer`). SQL charts run user-written SQL rather than compiling a metric query, so this builds everything from raw inputs — the virtual view (`createVirtualView`) from the discovered columns, the wrapping `SqlQueryBuilder` (reference map + dialect config off the warehouse client), a mock `MetricQuery` metadata carrier, and (on the dashboard path) the applied dashboard filters/sorts — then overrides `computeCompiled()` to shape the wrapped user SQL into a `CompiledQuery`. Because `getSql()` is inherited, a request/config `pivotConfiguration` flows through the same seam as metric queries. Used by `AsyncQueryService.prepareSqlChartAsyncQueryArgs` for all three SQL execute paths (raw SQL runner, saved SQL chart, dashboard SQL chart).
 
