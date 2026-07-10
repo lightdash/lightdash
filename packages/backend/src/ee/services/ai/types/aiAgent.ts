@@ -1,6 +1,6 @@
 import {
     AiAgent,
-    AiAgentDocumentSummary,
+    AiAgentDocumentContext,
     AiMcpServer,
     AiMcpServerConnectionStatus,
     AiWritebackAttribution,
@@ -99,7 +99,7 @@ export type AiAgentRequestingUser = {
 export type AiAgentArgs = AnyAiModel & {
     agentSettings: AiAgent;
     requestingUser: AiAgentRequestingUser | null;
-    knowledgeDocuments: AiAgentDocumentSummary[];
+    knowledgeDocuments: AiAgentDocumentContext[];
     projectContext: ProjectContextEntry[];
     // Whether the project_context feature is on for this turn (Control = off).
     projectContextEnabled: boolean;

@@ -4,6 +4,7 @@ import type {
     ApiCreateAgentDocument,
     ApiError,
     ApiSuccessEmpty,
+    ApiUpdateAgentDocument,
 } from '@lightdash/common';
 import {
     useMutation,
@@ -36,6 +37,19 @@ const createDocument = async (
         version: 'v1',
         url: documentsUrl(projectUuid, agentUuid),
         method: 'POST',
+        body: JSON.stringify(body),
+    });
+
+const updateDocument = async (
+    projectUuid: string,
+    agentUuid: string,
+    documentUuid: string,
+    body: ApiUpdateAgentDocument,
+) =>
+    lightdashApi<ApiSuccessEmpty['results']>({
+        version: 'v1',
+        url: `${documentsUrl(projectUuid, agentUuid)}/${documentUuid}`,
+        method: 'PATCH',
         body: JSON.stringify(body),
     });
 
@@ -86,6 +100,33 @@ export const useCreateAiAgentDocument = (
         onError: ({ error }) => {
             showToastApiError({
                 title: 'Failed to upload document',
+                apiError: error,
+            });
+        },
+    });
+};
+
+export const useUpdateAiAgentDocument = (
+    projectUuid: string,
+    agentUuid: string,
+) => {
+    const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
+    return useMutation<
+        ApiSuccessEmpty['results'],
+        ApiError,
+        { documentUuid: string; body: ApiUpdateAgentDocument }
+    >({
+        mutationFn: ({ documentUuid, body }) =>
+            updateDocument(projectUuid, agentUuid, documentUuid, body),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries({
+                queryKey: [AI_AGENT_DOCUMENTS_KEY],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to update document',
                 apiError: error,
             });
         },

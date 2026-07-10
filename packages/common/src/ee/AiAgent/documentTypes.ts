@@ -20,6 +20,7 @@ export type AiAgentDocument = {
     originalFilename: string;
     mimeType: string;
     contentSizeBytes: number;
+    alwaysIncludeInContext: boolean;
     summary: AiAgentDocumentStructuredSummary;
     storageKey: string;
     agentAccess: string[];
@@ -30,6 +31,10 @@ export type AiAgentDocument = {
 };
 
 export type AiAgentDocumentSummary = Omit<AiAgentDocument, 'storageKey'>;
+
+export type AiAgentDocumentContext = AiAgentDocumentSummary & {
+    content: string | null;
+};
 
 export type AiAgentDocumentContent = Pick<
     AiAgentDocument,
@@ -64,6 +69,10 @@ export type ApiCreateAgentDocument = {
     originalFilename: string;
     mimeType: string;
     content: string;
+};
+
+export type ApiUpdateAgentDocument = {
+    alwaysIncludeInContext: boolean;
 };
 
 export type ApiAiAgentDocumentResponse = {

@@ -10,6 +10,7 @@ import {
     ScrollArea,
     Skeleton,
     Stack,
+    Switch,
     Table,
     Text,
     Title,
@@ -32,6 +33,7 @@ import {
     useAiAgentDocuments,
     useCreateAiAgentDocument,
     useDeleteAiAgentDocument,
+    useUpdateAiAgentDocument,
 } from '../hooks/useAiAgentDocuments';
 import { AiAgentDocumentRelevanceCard } from './AiAgentDocumentRelevanceCard';
 import { AiAgentIcon } from './AiAgentIcon';
@@ -80,6 +82,7 @@ export const AiAgentKnowledgeFilesSection = ({
     const { data, isLoading } = useAiAgentDocuments(projectUuid, agentUuid);
     const createDocument = useCreateAiAgentDocument(projectUuid, agentUuid);
     const deleteDocument = useDeleteAiAgentDocument(projectUuid, agentUuid);
+    const updateDocument = useUpdateAiAgentDocument(projectUuid, agentUuid);
     const { showToastError } = useToaster();
 
     const documents = useMemo(() => data ?? [], [data]);
@@ -195,9 +198,9 @@ export const AiAgentKnowledgeFilesSection = ({
                         Knowledge documents
                     </Title>
                     <Text c="dimmed" size="xs">
-                        Reference documents the agent retrieves from when
-                        answering. A short summary is generated for each file so
-                        the agent knows when to use it.
+                        Reference documents can be retrieved when relevant or
+                        always included in the agent context. A short summary is
+                        generated for each file.
                     </Text>
                 </Box>
                 {!isEmpty && (
@@ -449,6 +452,29 @@ export const AiAgentKnowledgeFilesSection = ({
                                             </Tooltip>
                                         )}
                                     </Group>
+
+                                    {selectedDocument && (
+                                        <Switch
+                                            size="xs"
+                                            label="Always include in context"
+                                            description="Adds the full document to every prompt. Uses more tokens."
+                                            checked={
+                                                selectedDocument.alwaysIncludeInContext
+                                            }
+                                            disabled={updateDocument.isLoading}
+                                            onChange={(event) =>
+                                                updateDocument.mutate({
+                                                    documentUuid:
+                                                        selectedDocument.uuid,
+                                                    body: {
+                                                        alwaysIncludeInContext:
+                                                            event.currentTarget
+                                                                .checked,
+                                                    },
+                                                })
+                                            }
+                                        />
+                                    )}
 
                                     <Group gap={6}>
                                         <AiAgentIcon size={14} />

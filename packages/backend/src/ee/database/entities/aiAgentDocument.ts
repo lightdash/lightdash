@@ -12,6 +12,7 @@ export type DbAiAgentDocument = {
     mime_type: string;
     content: string | null;
     content_size_bytes: number;
+    always_include_in_context: boolean;
     summary: AiAgentDocumentStructuredSummary;
     storage_key: string;
     created_by_user_uuid: string | null;

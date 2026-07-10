@@ -8000,7 +8000,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const agentSettings = await this.getAgentSettings(user, prompt);
         const knowledgeDocuments =
-            await this.aiAgentDocumentModel.findAllForAgent({
+            await this.aiAgentDocumentModel.findAllContextForAgent({
                 organizationUuid: user.organizationUuid,
                 agentUuid: agentSettings.uuid,
                 projectUuid: prompt.projectUuid,
