@@ -5256,6 +5256,8 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                     'ready',
                     user.userUuid,
                     resources,
+                    undefined,
+                    sourceVersion.viz_schema ?? undefined,
                 );
                 await this.appModel.syncPromotedApp(targetAppUuid, metadata);
             } else {
@@ -5270,6 +5272,8 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                     { version: targetVersion, prompt },
                     'ready',
                     resources,
+                    undefined,
+                    sourceVersion.viz_schema ?? undefined,
                 );
                 await this.appModel.setUpstreamAppUuid(
                     sourceApp.app_id,
@@ -5520,6 +5524,8 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 { version: newVersion, prompt: duplicatePrompt },
                 'ready',
                 resources,
+                undefined,
+                sourceVersion.viz_schema ?? undefined,
             );
             await this.linkResolvedExternalConnections(
                 newAppUuid,
@@ -5765,6 +5771,8 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 { version: newVersion, prompt },
                 'ready',
                 resources,
+                undefined,
+                sourceVersion.viz_schema ?? undefined,
             );
             // Link back to the upstream app so a later promote updates it
             // instead of creating a duplicate.
@@ -7192,6 +7200,11 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             name: app.name,
             description: app.description,
             template: app.template,
+            // Only viz versions carry a schema; omit the key entirely otherwise
+            // so non-viz manifests stay unchanged.
+            ...(versionRow?.viz_schema
+                ? { vizSchema: versionRow.viz_schema }
+                : {}),
             downloadedAt: new Date().toISOString(),
         });
 
@@ -7380,6 +7393,23 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         }
 
         const organizationUuid = await this.getProjectOrgUuid(projectUuid);
+
+        // Validate the round-tripped viz schema up front and fail loud: the
+        // build-from-source pipeline has no generation run to re-emit it, so
+        // silently dropping a bad one would unlist the viz from the picker.
+        let manifestVizSchema: DataAppVizSchema | undefined;
+        if (code.manifest.vizSchema !== undefined) {
+            const parsed = dataAppVizSchema.safeParse(code.manifest.vizSchema);
+            if (!parsed.success) {
+                const issues = parsed.error.issues
+                    .map((i) => `${i.path.join('.')}: ${i.message}`)
+                    .join('; ');
+                throw new ParameterError(
+                    `Invalid vizSchema in the app manifest (${issues}). Re-download the app or fix lightdash-app.yml.`,
+                );
+            }
+            manifestVizSchema = parsed.data;
+        }
 
         const trackUploadRejected = (
             reason: DataAppUploadRejectedEvent['properties']['reason'],
@@ -7601,6 +7631,10 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 user.userUuid,
                 AppGenerateService.buildCopiedResources(null),
                 dependencySummary,
+                // The target app's stored template governs, not the manifest's
+                existingApp.template === DATA_APP_VIZ_TEMPLATE
+                    ? manifestVizSchema
+                    : undefined,
             );
         } else {
             this.assertDataAppAbility(
@@ -7639,6 +7673,9 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 'pending',
                 AppGenerateService.buildCopiedResources(null),
                 dependencySummary,
+                code.manifest.template === DATA_APP_VIZ_TEMPLATE
+                    ? manifestVizSchema
+                    : undefined,
             );
             newAppUuid = app.app_id;
         }

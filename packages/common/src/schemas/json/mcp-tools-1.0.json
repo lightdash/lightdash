@@ -775,7 +775,7 @@
                 "idempotentHint": true,
                 "readOnlyHint": true
             },
-            "description": "Tool: get_metadata\n\nPurpose:\nGet the full metadata for specific explores and/or fields that you already know the IDs of (typically from grep_fields). grep_fields is lean — it tells you WHICH fields exist; get_metadata gives you the DETAIL you need to build a correct query: an explore's joined tables and table filters, and a field's filter type, case-sensitivity, hints, and whether it comes from a joined table.\n\nCall this AFTER grep_fields, once you have narrowed down to the explore(s) and field(s) you intend to use, and BEFORE render_chart. You can ask for several explores and several fields across explores in a SINGLE call — batch everything you need at once instead of one request per item.\n\nEach entry in `requests` is one of:\n- `{ \"type\": \"explore\", \"exploreIds\": [\"orders\", \"customers\"] }` — full metadata for those explores (joined tables, table filters, field counts).\n- `{ \"type\": \"field\", \"fields\": [{ \"exploreId\": \"orders\", \"fieldId\": \"orders_status\" }] }` — full metadata for those specific fields.\n",
+            "description": "Tool: get_metadata\n\nPurpose:\nGet the full metadata for specific explores and/or fields that you already know the IDs of (typically from grep_fields). grep_fields is lean — it tells you WHICH fields exist; get_metadata gives you the DETAIL you need to build a correct query: an explore's joined tables and table filters, and a field's filter type, case-sensitivity, resolved default time dimension, hints, and whether it comes from a joined table.\n\nCall this AFTER grep_fields, once you have narrowed down to the explore(s) and field(s) you intend to use, and BEFORE render_chart. You can ask for several explores and several fields across explores in a SINGLE call — batch everything you need at once instead of one request per item.\n\nEach entry in `requests` is one of:\n- `{ \"type\": \"explore\", \"exploreIds\": [\"orders\", \"customers\"] }` — full metadata for those explores (joined tables, table filters, field counts).\n- `{ \"type\": \"field\", \"fields\": [{ \"exploreId\": \"orders\", \"fieldId\": \"orders_status\" }] }` — full metadata for those specific fields.\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
@@ -1003,6 +1003,12 @@
                                         "caseSensitiveFilters": {
                                             "type": ["boolean", "null"]
                                         },
+                                        "defaultTimeDimension": {
+                                            "type": ["string", "null"]
+                                        },
+                                        "defaultTimeDimensionGranularity": {
+                                            "type": ["string", "null"]
+                                        },
                                         "description": {
                                             "type": ["string", "null"]
                                         },
@@ -1050,6 +1056,8 @@
                                         "isFromJoinedTable",
                                         "joinedTableName",
                                         "caseSensitiveFilters",
+                                        "defaultTimeDimension",
+                                        "defaultTimeDimensionGranularity",
                                         "description",
                                         "hint"
                                     ],
@@ -1393,6 +1401,18 @@
                                                 "items": {
                                                     "additionalProperties": false,
                                                     "properties": {
+                                                        "defaultTimeDimension": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "defaultTimeDimensionGranularity": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
                                                         "description": {
                                                             "type": [
                                                                 "string",
@@ -1453,6 +1473,8 @@
                                                         "label",
                                                         "description",
                                                         "hint",
+                                                        "defaultTimeDimension",
+                                                        "defaultTimeDimensionGranularity",
                                                         "usageInVerifiedCharts",
                                                         "matchLocality"
                                                     ],

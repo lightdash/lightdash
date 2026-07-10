@@ -57,6 +57,24 @@ const makeCode = (files?: DataAppCode['files']): DataAppCode => ({
     ],
 });
 
+const VIZ_SCHEMA = {
+    fields: [
+        {
+            name: 'category',
+            label: 'Category',
+            type: 'dimension' as const,
+            required: true,
+        },
+        {
+            name: 'value',
+            label: 'Value',
+            type: 'metric' as const,
+            required: true,
+        },
+    ],
+    configOptions: [],
+};
+
 const makeDeps = (
     customDeps: Record<string, string> = {},
     opts: { sdkVersion?: string; lockfile?: string } = {},
@@ -224,6 +242,7 @@ describe('AppGenerateService.importAppCode', () => {
             'pending',
             expect.any(Object),
             undefined, // no declared dependencies
+            undefined, // no viz schema
         );
 
         // S3 PutObjectCommand sent for source.tar
@@ -295,6 +314,7 @@ describe('AppGenerateService.importAppCode', () => {
             USER_UUID,
             expect.any(Object),
             undefined, // no declared dependencies
+            undefined, // no viz schema
         );
 
         // scheduler enqueued with version 5 and project org, not user's org
@@ -454,6 +474,119 @@ describe('AppGenerateService.importAppCode', () => {
         } as ImportAppCodeRequestBody);
 
         expect(appModel.updateApp).not.toHaveBeenCalled();
+    });
+
+    it('create mode: persists the manifest vizSchema for a data_app_viz upload', async () => {
+        const { service, appModel } = buildService();
+
+        appModel.findApp.mockResolvedValue(undefined);
+
+        const code = makeCode();
+        code.manifest.template = 'data_app_viz';
+        code.manifest.vizSchema = VIZ_SCHEMA;
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code,
+        } as ImportAppCodeRequestBody);
+
+        expect(appModel.createWithVersion).toHaveBeenCalledWith(
+            expect.objectContaining({ template: 'data_app_viz' }),
+            { version: 1, prompt: '' },
+            'pending',
+            expect.any(Object),
+            undefined, // no declared dependencies
+            VIZ_SCHEMA,
+        );
+    });
+
+    it('append mode: persists the manifest vizSchema when the target app is a data_app_viz', async () => {
+        const { service, appModel } = buildService();
+
+        const existingApp = {
+            app_id: EXISTING_APP_UUID,
+            project_uuid: PROJECT_UUID,
+            space_uuid: null,
+            created_by_user_uuid: USER_UUID,
+            organization_uuid: PROJECT_ORG_UUID,
+            name: 'Test App',
+            description: 'A test app',
+            template: 'data_app_viz',
+        };
+        appModel.findApp.mockResolvedValue(existingApp);
+        appModel.getLatestVersion.mockResolvedValue({ version: 4 });
+
+        const code = makeCode();
+        code.manifest.template = 'data_app_viz';
+        code.manifest.vizSchema = VIZ_SCHEMA;
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code,
+            targetAppUuid: EXISTING_APP_UUID,
+        } as ImportAppCodeRequestBody);
+
+        expect(appModel.createVersion).toHaveBeenCalledWith(
+            EXISTING_APP_UUID,
+            { version: 5, prompt: '' },
+            'pending',
+            USER_UUID,
+            expect.any(Object),
+            undefined, // no declared dependencies
+            VIZ_SCHEMA,
+        );
+    });
+
+    it('throws ParameterError when the manifest vizSchema is invalid', async () => {
+        const { service, appModel, schedulerClient } = buildService();
+
+        appModel.findApp.mockResolvedValue(undefined);
+
+        const code = makeCode();
+        code.manifest.template = 'data_app_viz';
+        code.manifest.vizSchema = {
+            // empty field name violates the schema contract
+            fields: [
+                { name: '', label: 'X', type: 'dimension', required: true },
+            ],
+            configOptions: [],
+        } as never;
+
+        await expect(
+            service.importAppCode(makeUser(), PROJECT_UUID, {
+                code,
+            } as ImportAppCodeRequestBody),
+        ).rejects.toThrow(ParameterError);
+
+        await expect(
+            service.importAppCode(makeUser(), PROJECT_UUID, {
+                code,
+            } as ImportAppCodeRequestBody),
+        ).rejects.toThrow('vizSchema');
+
+        // must not create or enqueue
+        expect(appModel.createWithVersion).not.toHaveBeenCalled();
+        expect(schedulerClient.appBuildFromSource).not.toHaveBeenCalled();
+    });
+
+    it('ignores a manifest vizSchema when the upload is not a data_app_viz', async () => {
+        const { service, appModel } = buildService();
+
+        appModel.findApp.mockResolvedValue(undefined);
+
+        const code = makeCode();
+        code.manifest.vizSchema = VIZ_SCHEMA; // template stays null
+
+        await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code,
+        } as ImportAppCodeRequestBody);
+
+        expect(appModel.createWithVersion).toHaveBeenCalledWith(
+            expect.objectContaining({ template: null }),
+            { version: 1, prompt: '' },
+            'pending',
+            expect.any(Object),
+            undefined, // no declared dependencies
+            undefined, // vizSchema not persisted for non-viz apps
+        );
     });
 
     it('throws ParameterError when custom deps are present but customDependenciesEnabled is false', async () => {

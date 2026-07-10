@@ -1,4 +1,5 @@
 import {
+    computeCustomDependencies,
     currentDataAppCodeVersion,
     extractLockfilePackages,
     MAX_DECLARED_DEPENDENCIES,
@@ -114,6 +115,45 @@ const makeDeps = (
     }),
     lockfile: 'lockfileVersion: 9.0\nreact@19.2.5:\n  react-dom@19.2.5:\n',
     ...overrides,
+});
+
+// Lockfile-free custom-set computation: used by the CLI on upload when the
+// folder has the scaffold package.json but no pnpm-lock.yaml.
+describe('computeCustomDependencies', () => {
+    it('returns an empty set when declared deps match the template baseline', () => {
+        const packageJson = JSON.stringify({
+            dependencies: { react: '19.2.5', 'react-dom': '19.2.5' },
+        });
+        expect(computeCustomDependencies(packageJson, TEMPLATE_DEPS)).toEqual(
+            {},
+        );
+    });
+
+    it('returns new packages and version overrides', () => {
+        const packageJson = JSON.stringify({
+            dependencies: { react: '18.3.1', 'my-chart-lib': '^3.0.0' },
+        });
+        expect(computeCustomDependencies(packageJson, TEMPLATE_DEPS)).toEqual({
+            react: '18.3.1',
+            'my-chart-lib': '^3.0.0',
+        });
+    });
+
+    it('throws on a non-registry spec', () => {
+        const packageJson = JSON.stringify({
+            dependencies: { evil: 'github:attacker/evil' },
+        });
+        expect(() =>
+            computeCustomDependencies(packageJson, TEMPLATE_DEPS),
+        ).toThrow(/not a registry semver spec/);
+    });
+
+    it('throws when packageJson has no dependencies object', () => {
+        const packageJson = JSON.stringify({ name: 'app' });
+        expect(() =>
+            computeCustomDependencies(packageJson, TEMPLATE_DEPS),
+        ).toThrow(/"dependencies" object/);
+    });
 });
 
 describe('validateDataAppDependencies', () => {

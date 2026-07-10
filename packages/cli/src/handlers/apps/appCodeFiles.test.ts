@@ -335,11 +335,15 @@ describe('readDependenciesFromDir', () => {
         expect(result?.lockfile).toBe(LOCKFILE_CONTENT);
     });
 
-    it('throws when package.json exists but pnpm-lock.yaml is absent', async () => {
+    // The download scaffold always writes package.json but never a lockfile,
+    // so this state is every freshly downloaded template-only app — it must
+    // read back cleanly, not throw.
+    it('returns the package.json with a null lockfile when pnpm-lock.yaml is absent', async () => {
         await fs.writeFile(path.join(dir, 'package.json'), makePackageJson());
-        await expect(readDependenciesFromDir(dir)).rejects.toThrow(
-            /pnpm-lock\.yaml/,
-        );
+        const result = await readDependenciesFromDir(dir);
+        expect(result).not.toBeNull();
+        expect(result?.packageJson).toBe(makePackageJson());
+        expect(result?.lockfile).toBeNull();
     });
 
     it('throws when pnpm-lock.yaml exists but package.json is absent', async () => {
