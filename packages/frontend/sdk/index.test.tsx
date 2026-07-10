@@ -1,4 +1,4 @@
-import { render, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -139,6 +139,7 @@ import { FilterOperator } from '@lightdash/common';
 import {
     AiAgent,
     Dashboard,
+    DashboardDelivery,
     MetricsCatalog,
     createLightdashApiClient,
 } from './index';
@@ -442,6 +443,65 @@ describe('SDK metrics catalog', () => {
         });
 
         expect(mockNavigate).not.toHaveBeenCalled();
+    });
+});
+
+describe('SDK dashboard delivery', () => {
+    afterEach(() => {
+        vi.unstubAllGlobals();
+    });
+
+    it('queues a report for a recipient preset in the embed token', async () => {
+        const token = [
+            btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' })),
+            btoa(
+                JSON.stringify({
+                    content: {
+                        type: 'dashboard',
+                        projectUuid: 'test-project-uuid',
+                        dashboardUuid: 'test-dashboard-uuid',
+                        scheduledDeliveryRecipients: ['viewer@example.com'],
+                    },
+                }),
+            ),
+            'signature',
+        ].join('.');
+        const fetchMock = vi.fn().mockResolvedValue(
+            new Response(
+                JSON.stringify({
+                    status: 'ok',
+                    results: { jobId: 'job-uuid' },
+                }),
+                { status: 200 },
+            ),
+        );
+        vi.stubGlobal('fetch', fetchMock);
+
+        render(
+            <DashboardDelivery
+                token={token}
+                instanceUrl="https://example.lightdash.cloud"
+            />,
+        );
+
+        fireEvent.click(
+            await screen.findByRole('button', { name: 'Send report' }),
+        );
+
+        await screen.findByText('Report queued for viewer@example.com');
+        expect(fetchMock).toHaveBeenCalledWith(
+            new URL(
+                'https://example.lightdash.cloud/api/v1/embed/test-project-uuid/dashboard/send',
+            ),
+            expect.objectContaining({
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'lightdash-embed-token': token,
+                },
+                body: JSON.stringify({ recipient: 'viewer@example.com' }),
+            }),
+        );
     });
 });
 

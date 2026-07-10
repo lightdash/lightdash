@@ -17,6 +17,7 @@ import {
     CommonEmbedJwtContent,
     CreateEmbedJwt,
     CreateEmbedRequestBody,
+    CreateSchedulerAndTargets,
     Dashboard,
     DashboardAvailableFilters,
     DashboardFilters,
@@ -30,12 +31,14 @@ import {
     FieldValueSearchResult,
     ForbiddenError,
     GetEmbedDashboardRequest,
+    isDashboardContent,
     Item,
     MetricQueryResponse,
     OrganizationColorPalette,
     ParametersValuesMap,
     SavedChart,
     SavedChartsInfoForDashboardAvailableFilters,
+    SchedulerFormat,
     SortField,
     UpdateEmbed,
 } from '@lightdash/common';
@@ -55,6 +58,7 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
+import { getAccountWriteContext } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
     getDeprecatedRouteMiddleware,
@@ -261,6 +265,68 @@ export class EmbedController extends BaseController {
                 req.account,
                 { paletteUuid: body?.paletteUuid },
             ),
+        };
+    }
+
+    @SuccessResponse('200', 'Success')
+    @Post('/dashboard/send')
+    @OperationId('sendEmbedDashboardDelivery')
+    async sendEmbedDashboardDelivery(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: { recipient: string },
+    ): Promise<{
+        status: 'ok';
+        results: { jobId: string };
+    }> {
+        this.setStatus(200);
+        assertEmbeddedAuth(req.account);
+
+        const tokenContent = req.account.authentication.data.content;
+        if (!isDashboardContent(tokenContent)) {
+            throw new ForbiddenError('Not authorized for dashboard content');
+        }
+
+        const recipients = tokenContent.scheduledDeliveryRecipients ?? [];
+        if (!recipients.includes(body.recipient)) {
+            throw new ForbiddenError('Delivery destination is not allowed');
+        }
+
+        const { dashboardUuid } = req.account.access.content;
+        if (!dashboardUuid) {
+            throw new ForbiddenError('Dashboard is not available');
+        }
+
+        const { user } = getAccountWriteContext(req.account);
+        if (user.serviceAccount) {
+            throw new ForbiddenError(
+                'Dashboard deliveries require writeActions.userUuid',
+            );
+        }
+
+        const scheduler = {
+            name: 'Embedded dashboard delivery',
+            format: SchedulerFormat.IMAGE,
+            cron: '0 0 1 1 *',
+            timezone: 'UTC',
+            savedChartUuid: null,
+            dashboardUuid,
+            savedSqlUuid: null,
+            appUuid: null,
+            appName: null,
+            projectUuid,
+            options: { withPdf: false },
+            enabled: true,
+            includeLinks: false,
+            targets: [{ recipient: body.recipient }],
+            createdBy: user.userUuid,
+        } satisfies CreateSchedulerAndTargets;
+
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSchedulerService()
+                .sendScheduler(user, scheduler),
         };
     }
 

@@ -2,10 +2,12 @@ import '@mantine-8/core/styles.css';
 import {
     FilterOperator,
     getErrorMessage,
+    JWT_HEADER_NAME,
     type EmbedDashboard as EmbedDashboardType,
     type LanguageMap,
     type SavedChart,
 } from '@lightdash/common';
+import { Button, Select, Stack, Text } from '@mantine-8/core';
 import { ModalsProvider } from '@mantine/modals';
 import {
     useEffect,
@@ -133,6 +135,7 @@ const useEmbedTokenContext = (
     const [tokenContext, setTokenContext] = useState<{
         token: string;
         projectUuid: string;
+        scheduledDeliveryRecipients: string[];
     } | null>(null);
 
     useEffect(() => {
@@ -158,6 +161,16 @@ const useEmbedTokenContext = (
                         setTokenContext({
                             token: tokenToDecode,
                             projectUuid: payload.content.projectUuid,
+                            scheduledDeliveryRecipients: Array.isArray(
+                                payload.content.scheduledDeliveryRecipients,
+                            )
+                                ? payload.content.scheduledDeliveryRecipients.filter(
+                                      (
+                                          recipient: unknown,
+                                      ): recipient is string =>
+                                          typeof recipient === 'string',
+                                  )
+                                : [],
                         });
                     }
                 } else {
@@ -366,6 +379,121 @@ const Dashboard: FC<DashboardProps> = ({
                 />
             </EmbedProvider>
         </SdkProviders>
+    );
+};
+
+type DashboardDeliveryProps = Pick<
+    BaseProps,
+    'instanceUrl' | 'theme' | 'token'
+>;
+
+const DashboardDeliveryContent: FC<{
+    instanceUrl: string;
+    projectUuid: string;
+    recipients: string[];
+    token: string;
+}> = ({ instanceUrl, projectUuid, recipients, token }) => {
+    const [recipient, setRecipient] = useState<string | null>(
+        recipients[0] ?? null,
+    );
+    const [isSending, setIsSending] = useState(false);
+    const [message, setMessage] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+
+    const sendReport = async () => {
+        if (!recipient) return;
+
+        setIsSending(true);
+        setMessage(null);
+        setError(null);
+
+        try {
+            const baseUrl = instanceUrl.endsWith('/')
+                ? instanceUrl
+                : `${instanceUrl}/`;
+            const response = await fetch(
+                new URL(`api/v1/embed/${projectUuid}/dashboard/send`, baseUrl),
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        [JWT_HEADER_NAME]: token,
+                    },
+                    body: JSON.stringify({ recipient }),
+                },
+            );
+
+            if (!response.ok) {
+                throw new Error(getErrorMessage(await response.json()));
+            }
+
+            setMessage(`Report queued for ${recipient}`);
+        } catch (sendError) {
+            setError(getErrorMessage(sendError));
+        } finally {
+            setIsSending(false);
+        }
+    };
+
+    if (!recipient) {
+        return <Text size="sm">No delivery destinations configured.</Text>;
+    }
+
+    return (
+        <Stack gap="xs">
+            {recipients.length > 1 ? (
+                <Select
+                    label="Destination"
+                    data={recipients}
+                    value={recipient}
+                    onChange={setRecipient}
+                />
+            ) : (
+                <Text size="sm">Send to {recipient}</Text>
+            )}
+            <Button loading={isSending} onClick={() => void sendReport()}>
+                Send report
+            </Button>
+            {message ? (
+                <Text c="green" size="sm">
+                    {message}
+                </Text>
+            ) : null}
+            {error ? (
+                <Text c="red" size="sm">
+                    {error}
+                </Text>
+            ) : null}
+        </Stack>
+    );
+};
+
+const DashboardDelivery: FC<DashboardDeliveryProps> = ({
+    instanceUrl,
+    theme,
+    token,
+}) => {
+    const tokenContext = useEmbedTokenContext(instanceUrl, token);
+
+    if (!tokenContext) return null;
+
+    return (
+        <MantineProvider
+            withGlobalStyles
+            withNormalizeCSS
+            withCSSVariables
+            notificationsLimit={0}
+            forceColorScheme={theme}
+        >
+            <Mantine8Provider forceColorScheme={theme}>
+                <DashboardDeliveryContent
+                    instanceUrl={instanceUrl}
+                    projectUuid={tokenContext.projectUuid}
+                    recipients={tokenContext.scheduledDeliveryRecipients}
+                    token={tokenContext.token}
+                />
+            </Mantine8Provider>
+        </MantineProvider>
     );
 };
 
@@ -788,6 +916,7 @@ const MetricsCatalog: FC<MetricsCatalogProps> = ({
 const Lightdash = {
     AiAgent,
     Dashboard,
+    DashboardDelivery,
     DashboardBuilder,
     MetricsCatalog,
     Explore,
@@ -803,6 +932,7 @@ export {
     AiAgent,
     Chart,
     Dashboard,
+    DashboardDelivery,
     DashboardBuilder,
     Explore,
     MetricsCatalog,
@@ -820,6 +950,7 @@ export type {
     LightdashSdkApiAuth,
     ListAiAgentThreadsOptions,
     ListContentOptions,
+    DashboardDeliveryProps,
 };
 // ts-unused-exports:disable-next-line
 export default Lightdash;

@@ -212,9 +212,12 @@ async function main() {
                 isPreview: false,
                 canDateZoom: false,
                 canExportPagePdf: false,
+                scheduledDeliveryRecipients: [
+                    process.env.DELIVERY_EMAIL || 'demo@lightdash.com',
+                ],
             },
             writeActions: {
-                ...writeActor,
+                userUuid: user.user_uuid,
                 spaceUuid,
             },
             user: {

@@ -3,6 +3,7 @@ import type { EmbedConfigState } from '../hooks/useEmbedConfig';
 import { AiAgentExamplePage } from './AiAgentExamplePage';
 import { ContentCatalogExamplePage } from './ContentCatalogExamplePage';
 import { DashboardBuilderExamplePage } from './DashboardBuilderExamplePage';
+import { DashboardDeliveryExamplePage } from './DashboardDeliveryExamplePage';
 import { FiltersExamplePage } from './FiltersExamplePage';
 import { I18nExamplePage } from './I18nExamplePage';
 import { MetricsCatalogExamplePage } from './MetricsCatalogExamplePage';
@@ -19,6 +20,16 @@ export type ExampleDefinition = {
 };
 
 export const examples: ExampleDefinition[] = [
+    {
+        slug: 'dashboard-delivery',
+        path: '/examples/dashboard-delivery',
+        title: 'Dashboard delivery demo',
+        description:
+            'Send a dashboard report to an email destination preset in the embed token.',
+        sourcePath:
+            'packages/sdk-test-app/src/examples/DashboardDeliveryExamplePage.tsx',
+        component: DashboardDeliveryExamplePage,
+    },
     {
         slug: 'ai-agent',
         path: '/examples/ai-agent',
