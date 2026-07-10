@@ -7404,6 +7404,7 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
   "generateUuids",
   "getDashboardCharts",
   "readContent",
+  "resolveUrl",
   "editContent",
   "createContent",
   "runContentQuery",

@@ -57,6 +57,8 @@ export const summarizeToolCall = (toolName: string, input: AnyType) => {
                 quoted(readString(input, ['contentUuid', 'slug'])) ??
                 'Reading content'
             );
+        case 'resolveUrl':
+            return quoted(readString(input, ['url'])) ?? 'Resolving link';
         case 'describeWarehouseTable':
             return (
                 quoted(readString(input, ['table', 'tableName'])) ??

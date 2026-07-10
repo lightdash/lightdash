@@ -168,6 +168,7 @@ const TOOL_TASK_TITLES: Record<string, string> = {
     describeWarehouseTable: 'Inspecting table',
     findContent: 'Searching saved content',
     readContent: 'Reading saved content',
+    resolveUrl: 'Resolving link',
     getDashboardCharts: 'Reading dashboard',
     runContentQuery: 'Running saved-content query',
     runSavedChart: 'Running saved chart',

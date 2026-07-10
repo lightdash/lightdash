@@ -34,6 +34,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     findCharts: 'find_charts',
     getDashboardCharts: 'get_dashboard_charts',
     readContent: 'read_content',
+    resolveUrl: 'resolve_url',
     editContent: 'edit_content',
     createContent: 'create_content',
     generateTableVizConfig: 'table',

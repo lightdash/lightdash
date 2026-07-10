@@ -357,6 +357,7 @@ export const ToolCallDescription: FC<{
         case 'setupPreviewDeploy':
         case 'runSavedChart':
         case 'readPinnedThread':
+        case 'resolveUrl':
             return <> </>;
         default:
             return assertUnreachable(toolName, `Unknown tool name ${toolName}`);

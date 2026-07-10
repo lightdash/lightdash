@@ -74,6 +74,10 @@ const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const uuidRegex = new RegExp(uuid, 'g');
 const nanoid = '[\\w-]{21}';
 const nanoidRegex = new RegExp(nanoid);
+const shareUrlRegex = new RegExp(`/share/(${nanoid})`);
+
+export const matchShareUrlNanoid = (url: string): string | null =>
+    url.match(shareUrlRegex)?.[1] ?? null;
 const createQueryEndpointRegex = /\/query/;
 // Matches /query/{uuid} but NOT /query/{uuid}/results (SQL chart endpoint)
 const paginatedQueryEndpointRegex = new RegExp(`/query/${uuid}(?!/results)`);
@@ -2209,8 +2213,7 @@ export class UnfurlService extends BaseService {
     }
 
     async parseUrl(linkUrl: string): Promise<ParsedUrl> {
-        const shareUrl = new RegExp(`/share/${nanoid}`);
-        const url = linkUrl.match(shareUrl)
+        const url = matchShareUrlNanoid(linkUrl)
             ? await this.getSharedUrl(linkUrl)
             : linkUrl;
 

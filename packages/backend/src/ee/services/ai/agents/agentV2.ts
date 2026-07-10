@@ -58,6 +58,7 @@ import { getLoadProjectContext } from '../tools/loadProjectContext';
 import { getLoadSkill } from '../tools/loadSkill';
 import { getReadContent } from '../tools/readContent';
 import { getReadPinnedThread } from '../tools/readPinnedThread';
+import { getResolveUrl } from '../tools/resolveUrl';
 import { getRunContentQuery } from '../tools/runContentQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
@@ -390,6 +391,10 @@ export const getAgentTools = (
         readContent: dependencies.readContent,
     });
 
+    const resolveUrl = getResolveUrl({
+        resolveUrl: dependencies.resolveUrl,
+    });
+
     const generateVisualization = getGenerateVisualization({
         updateProgress: dependencies.updateProgress,
         runAsyncQuery: dependencies.runAsyncQuery,
@@ -602,6 +607,7 @@ export const getAgentTools = (
         listKnowledgeDocuments,
         getKnowledgeDocumentContent,
         readPinnedThread,
+        resolveUrl,
         ...(enableContentTools
             ? {
                   readContent,

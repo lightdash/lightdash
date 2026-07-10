@@ -22,6 +22,7 @@ export * from './toolClosePullRequestArgs';
 export * from './toolGetPullRequestDiffArgs';
 export * from './toolSetupPreviewDeployArgs';
 export * from './toolReadContentArgs';
+export * from './toolResolveUrlArgs';
 export * from './mcpToolListExploresArgs';
 export * from './toolDashboardArgs';
 export * from './toolDashboardV2Args';

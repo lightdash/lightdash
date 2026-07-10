@@ -790,6 +790,43 @@ Usage tips:
       "agentName": null,
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true,
+      },
+      "description": "Tool: resolveUrl
+
+Purpose:
+Expands a Lightdash share short-link into the full URL it redirects to. Share links are opaque — this tool is the only way to see what they point at.
+
+When to use:
+- ONLY for URLs whose path is "/share/<id>" (e.g. "<host>/share/aBcD1234..."). Nothing else is a share link.
+- NEVER call this for any other URL. A URL like "/projects/<uuid>/saved/<uuid>" or "/projects/<uuid>/dashboards/<uuid>" already contains its identifiers — read them directly from the path and go straight to the appropriate tool.
+
+Usage tips:
+- Read the identifiers (project uuid, chart or dashboard uuid, explore name) from the expanded URL, then use other tools (e.g. readContent) to fetch the content.
+- URLs that don't belong to this Lightdash instance cannot be resolved.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "url": {
+            "description": "The Lightdash URL to resolve, exactly as provided.",
+            "minLength": 1,
+            "type": "string",
+          },
+        },
+        "required": [
+          "url",
+        ],
+        "type": "object",
+      },
+      "name": "resolve_url",
+      "title": "Resolve URL",
+    },
+    {
+      "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
         "idempotentHint": false,
         "readOnlyHint": false,
       },
@@ -7482,6 +7519,7 @@ exports[`MCP tool contracts > matches the shared MCP tool definition names snaps
   "grep_fields",
   "get_metadata",
   "read_content",
+  "resolve_url",
   "edit_content",
   "create_content",
   "list_content",

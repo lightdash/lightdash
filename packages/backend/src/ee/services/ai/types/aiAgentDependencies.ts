@@ -274,6 +274,10 @@ export type ReadContentFn = (args: {
       }
 >;
 
+export type ResolveUrlFn = (args: {
+    url: string;
+}) => Promise<{ isShareLink: true; url: string } | { isShareLink: false }>;
+
 export type EditContentFn = (args: {
     slug: string;
     type: 'dashboard' | 'chart';
