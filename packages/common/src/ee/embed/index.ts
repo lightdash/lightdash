@@ -181,6 +181,11 @@ export const EmbedJwtSchema = z
                 canExplore: z.boolean().optional(),
             }),
             z.object({
+                type: z.literal('metricsCatalog'),
+                projectUuid: z.string().optional(),
+                canExplore: z.boolean().optional(),
+            }),
+            z.object({
                 type: z.literal('apiAccess'),
                 projectUuid: z.string().optional(),
                 serviceAccountUserUuid: z.string().uuid(),
@@ -270,6 +275,12 @@ export type EmbedJwtContentAiAgent = {
     canExplore?: boolean;
 };
 
+export type EmbedJwtContentMetricsCatalog = {
+    type: 'metricsCatalog';
+    projectUuid?: string;
+    canExplore?: boolean;
+};
+
 export type EmbedJwtContentApiAccess = {
     type: 'apiAccess';
     projectUuid?: string;
@@ -283,6 +294,7 @@ export type CreateEmbedJwt = {
         | EmbedJwtContentChart
         | EmbedJwtContentDataApp
         | EmbedJwtContentAiAgent
+        | EmbedJwtContentMetricsCatalog
         | EmbedJwtContentApiAccess;
     writeActions?: EmbedWriteActions;
     userAttributes?: { [key: string]: string };

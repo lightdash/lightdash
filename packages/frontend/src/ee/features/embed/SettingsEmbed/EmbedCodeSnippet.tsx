@@ -1259,6 +1259,8 @@ const getBackendCodeSnippet = (
             mode === 'iframe'
                 ? aiAgentIframeCodeTemplates[language]
                 : aiAgentSdkCodeTemplates[language];
+    } else if (data.content.type === 'metricsCatalog') {
+        return '';
     } else {
         codeTemplate =
             mode === 'iframe'
@@ -1557,6 +1559,7 @@ export const EmbeddedAiAgent = ({ embedJwt }: EmbeddedAiAgentProps) => {
     );
 };
 `;
+        case 'metricsCatalog':
         case 'dataApp':
         case 'apiAccess':
             return '';

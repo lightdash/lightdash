@@ -257,6 +257,22 @@ describe('EmbedService', () => {
                 explores: [],
             });
         });
+
+        test('resolves standalone metrics catalog content', async () => {
+            const content = await service.getContentUuidFromJwt(
+                {
+                    content: { type: 'metricsCatalog' },
+                    exp: Date.now() / 1000 + 3600,
+                },
+                mockProjectUuid,
+            );
+            expect(content).toEqual({
+                dashboardUuid: undefined,
+                chartUuids: [],
+                type: 'metricsCatalog',
+                explores: [],
+            });
+        });
     });
 
     describe('getEmbedWriteUser', () => {

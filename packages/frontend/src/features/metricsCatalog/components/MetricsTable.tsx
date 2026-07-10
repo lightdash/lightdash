@@ -65,9 +65,13 @@ import SavedTreesContainer from './SavedTrees/SavedTreesContainer';
 
 type MetricsTableProps = {
     metricCatalogView: MetricCatalogView;
+    isEmbed: boolean;
 };
 
-export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
+export const MetricsTable: FC<MetricsTableProps> = ({
+    metricCatalogView,
+    isEmbed,
+}) => {
     const { track } = useTracking();
     const dispatch = useAppDispatch();
     const theme = useMantineTheme();
@@ -259,9 +263,11 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                 boxShadow: theme.shadows.subtle,
                 display: 'flex',
                 flexDirection: 'column' as const,
+                height: isEmbed ? '100%' : undefined,
+                minHeight: isEmbed ? 0 : undefined,
             },
         }),
-        [theme],
+        [isEmbed, theme],
     );
 
     const flatData = useMemo(
@@ -358,8 +364,8 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
         mantineTableContainerProps: {
             ref: tableContainerRef,
             sx: {
-                maxHeight: 'calc(100dvh - 350px)',
-                minHeight: 600,
+                maxHeight: isEmbed ? 'none' : 'calc(100dvh - 350px)',
+                minHeight: isEmbed ? 0 : 600,
                 display: 'flex',
                 flexDirection: 'column',
             },

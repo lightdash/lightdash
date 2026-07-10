@@ -5,6 +5,7 @@ import { ContentCatalogExamplePage } from './ContentCatalogExamplePage';
 import { DashboardBuilderExamplePage } from './DashboardBuilderExamplePage';
 import { FiltersExamplePage } from './FiltersExamplePage';
 import { I18nExamplePage } from './I18nExamplePage';
+import { MetricsCatalogExamplePage } from './MetricsCatalogExamplePage';
 import { PaletteUuidExamplePage } from './PaletteUuidExamplePage';
 import { ThemeExamplePage } from './ThemeExamplePage';
 
@@ -26,6 +27,16 @@ export const examples: ExampleDefinition[] = [
             'Embed an AI agent using an AI-agent embed token scoped to the configured write space.',
         sourcePath: 'packages/sdk-test-app/src/examples/AiAgentExamplePage.tsx',
         component: AiAgentExamplePage,
+    },
+    {
+        slug: 'metrics-catalog',
+        path: '/examples/metrics-catalog',
+        title: 'Metrics catalog demo',
+        description:
+            'Browse embedded metrics, preview a metric, and continue into Explore without leaving the host app.',
+        sourcePath:
+            'packages/sdk-test-app/src/examples/MetricsCatalogExamplePage.tsx',
+        component: MetricsCatalogExamplePage,
     },
     {
         slug: 'content-catalog',

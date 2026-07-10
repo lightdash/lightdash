@@ -1,6 +1,7 @@
 import {
     type AnonymousAccount,
     type CreateEmbedJwt,
+    type CreateSavedChartVersion,
     type LanguageMap,
     type SavedChart,
 } from '@lightdash/common';
@@ -16,6 +17,8 @@ export type InMemoryEmbed = {
 };
 
 export type EmbedMode = 'sdk' | 'direct';
+
+export type EmbedExploreChart = SavedChart | CreateSavedChartVersion;
 
 export interface EmbedContext {
     // The JWT token used to authenticate the user
@@ -35,13 +38,13 @@ export interface EmbedContext {
     // Powers localization of the dashboard
     languageMap?: LanguageMap;
     // The function to call when the user clicks "Explore from here"
-    onExplore?: (options: { chart: SavedChart }) => void;
+    onExplore?: (options: { chart: EmbedExploreChart }) => void;
     // Localization function
     t: (input: string) => string | undefined;
     // The function to call when the user clicks "Back to dashboard" from an Explore
     onBackToDashboard?: () => void;
     // The chart that the user is exploring
-    savedChart?: SavedChart;
+    savedChart?: EmbedExploreChart;
     // The UUID of the saved query being viewed in an embedded Chart
     savedQueryUuid?: string;
     // The UUID of the data app being viewed in a standalone embedded App

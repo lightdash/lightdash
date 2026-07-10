@@ -2716,6 +2716,23 @@
                 "required": ["agentUuid", "type"],
                 "type": "object"
             },
+            "EmbedJwtContentMetricsCatalog": {
+                "properties": {
+                    "canExplore": {
+                        "type": "boolean"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["metricsCatalog"],
+                        "nullable": false
+                    }
+                },
+                "required": ["type"],
+                "type": "object"
+            },
             "EmbedJwtContentApiAccess": {
                 "properties": {
                     "serviceAccountUserUuid": {
@@ -2798,6 +2815,9 @@
                             },
                             {
                                 "$ref": "#/components/schemas/EmbedJwtContentAiAgent"
+                            },
+                            {
+                                "$ref": "#/components/schemas/EmbedJwtContentMetricsCatalog"
                             },
                             {
                                 "$ref": "#/components/schemas/EmbedJwtContentApiAccess"

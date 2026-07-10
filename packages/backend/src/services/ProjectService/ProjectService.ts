@@ -9129,7 +9129,7 @@ export class ProjectService extends BaseService {
         await this.tagsModel.update(tagUuid, tagUpdate);
     }
 
-    async getTags(user: SessionUser, projectUuid: string) {
+    async getTags(user: Account, projectUuid: string) {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
