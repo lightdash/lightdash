@@ -30,12 +30,14 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../../../components/common/PolymorphicGroupButton';
 import {
     filterScopes,
+    filterScopesByDependencyStatus,
     formatScopeName,
     getScopeDependencies,
     getScopeNamesWithDependencies,
     getScopesByGroup,
     isGroupFullySelected,
     isGroupPartiallySelected,
+    type DependencyStatus,
     type GroupedScopes,
 } from '../../utils/scopeUtils';
 import { type RoleFormValues } from '../types';
@@ -44,6 +46,7 @@ import styles from './ScopeSelector.module.css';
 type ScopeSelectorProps = {
     form: UseFormReturnType<RoleFormValues>;
     level: RoleLevel;
+    dependencyStatus?: DependencyStatus;
 };
 
 const getDependencyStatusIcon = (
@@ -381,7 +384,11 @@ const ScopePanel: FC<{
     );
 };
 
-export const ScopeSelector: FC<ScopeSelectorProps> = ({ form, level }) => {
+export const ScopeSelector: FC<ScopeSelectorProps> = ({
+    form,
+    level,
+    dependencyStatus,
+}) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearchTerm] = useDebouncedValue(searchTerm, 300);
     // Store the selected group's key, not the object. The group objects are
@@ -396,9 +403,19 @@ export const ScopeSelector: FC<ScopeSelectorProps> = ({ form, level }) => {
         [level],
     );
 
+    const dependencyFilteredScopes = useMemo(
+        () =>
+            filterScopesByDependencyStatus(
+                allGroupedScopes,
+                form.values.scopes || {},
+                dependencyStatus,
+            ),
+        [allGroupedScopes, dependencyStatus, form.values.scopes],
+    );
+
     const filteredScopes = useMemo(
-        () => filterScopes(allGroupedScopes, debouncedSearchTerm),
-        [allGroupedScopes, debouncedSearchTerm],
+        () => filterScopes(dependencyFilteredScopes, debouncedSearchTerm),
+        [dependencyFilteredScopes, debouncedSearchTerm],
     );
 
     const effectiveSelectedGroup = useMemo(() => {

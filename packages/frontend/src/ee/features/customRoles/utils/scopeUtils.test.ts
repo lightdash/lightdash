@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+    filterScopesByDependencyStatus,
     getScopeDependencyStatusCounts,
     getScopeDependencies,
     getScopeNamesWithDependencies,
+    getScopesByGroup,
+    type DependencyStatus,
 } from './scopeUtils';
 
 describe('getScopeDependencies', () => {
@@ -36,6 +39,37 @@ describe('getScopeNamesWithDependencies', () => {
             'view:SavedChart',
             'view:Space',
         ]);
+    });
+});
+
+describe('filterScopesByDependencyStatus', () => {
+    const groupedScopes = getScopesByGroup(true, 'project');
+    const scopes = {
+        'manage:Dashboard': true,
+        'create:Job': true,
+        'view:Project': true,
+    };
+    const getScopeNames = (status: DependencyStatus) =>
+        filterScopesByDependencyStatus(groupedScopes, scopes, status)
+            .flatMap((group) => group.scopes)
+            .map((scope) => scope.name);
+
+    it('filters scopes with all dependencies selected', () => {
+        expect(getScopeNames('full')).toEqual(['view:Project']);
+    });
+
+    it('filters scopes with some dependencies selected', () => {
+        expect(getScopeNames('partial')).toEqual([
+            'manage:Dashboard',
+            'create:Job',
+        ]);
+    });
+
+    it('filters scopes with no dependencies selected', () => {
+        expect(getScopeNames('empty')).toEqual([]);
+        expect(filterScopesByDependencyStatus(groupedScopes, scopes)).toBe(
+            groupedScopes,
+        );
     });
 });
 

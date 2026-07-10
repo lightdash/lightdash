@@ -113,6 +113,25 @@ export const getScopeNamesWithDependencies = (scopeName: string): string[] => [
     ...getScopeDependencies(scopeName).map((dependency) => dependency.name),
 ];
 
+const getScopeDependencyStatus = (
+    scopeName: string,
+    scopes: Record<string, boolean>,
+): DependencyStatus => {
+    const dependencies = getScopeDependencies(scopeName);
+    const selectedDependencyCount = dependencies.filter(
+        (dependency) => scopes[dependency.name],
+    ).length;
+
+    if (
+        dependencies.length === 0 ||
+        selectedDependencyCount === dependencies.length
+    ) {
+        return 'full';
+    }
+
+    return selectedDependencyCount === 0 ? 'empty' : 'partial';
+};
+
 export const getScopeDependencyStatusCounts = ({
     isEnterprise = true,
     level,
@@ -133,28 +152,33 @@ export const getScopeDependencyStatusCounts = ({
         .filter((scope) => selectedScopeNames.has(scope.name))
         .reduce<DependencyStatusCounts>(
             (acc, scope) => {
-                const dependencies = getScopeDependencies(scope.name);
+                const status = getScopeDependencyStatus(scope.name, scopes);
 
-                if (dependencies.length === 0) {
-                    return { ...acc, full: acc.full + 1 };
-                }
-
-                const selectedDependencyCount = dependencies.filter(
-                    (dependency) => scopes[dependency.name],
-                ).length;
-
-                if (selectedDependencyCount === dependencies.length) {
-                    return { ...acc, full: acc.full + 1 };
-                }
-
-                if (selectedDependencyCount === 0) {
-                    return { ...acc, empty: acc.empty + 1 };
-                }
-
-                return { ...acc, partial: acc.partial + 1 };
+                return { ...acc, [status]: acc[status] + 1 };
             },
             { full: 0, partial: 0, empty: 0 },
         );
+};
+
+export const filterScopesByDependencyStatus = (
+    groupedScopes: GroupedScopes[],
+    scopes: Record<string, boolean>,
+    status?: DependencyStatus,
+): GroupedScopes[] => {
+    if (!status) {
+        return groupedScopes;
+    }
+
+    return groupedScopes
+        .map((group) => ({
+            ...group,
+            scopes: group.scopes.filter(
+                (scope) =>
+                    scopes[scope.name] &&
+                    getScopeDependencyStatus(scope.name, scopes) === status,
+            ),
+        }))
+        .filter((group) => group.scopes.length > 0);
 };
 
 /**
