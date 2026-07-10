@@ -26,7 +26,6 @@ import { SettingsCard } from '../../../../../components/common/Settings/Settings
 import { validateRoleName, validateScopes } from '../../utils/roleValidation';
 import {
     getScopeDependencyStatusCounts,
-    getToggledDependencyStatus,
     type DependencyStatus,
 } from '../../utils/scopeUtils';
 import { ScopeSelector } from '../ScopeSelector';
@@ -205,7 +204,7 @@ export const RoleBuilder: FC<Props> = ({
     });
     const handleDependencyStatusClick = (status: DependencyStatus) => {
         setDependencyStatus((currentStatus) =>
-            getToggledDependencyStatus(currentStatus, status),
+            currentStatus === status ? undefined : status,
         );
     };
 

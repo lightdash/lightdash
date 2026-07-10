@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
     filterScopesByDependencyStatus,
-    getScopeDependencyStatus,
     getScopeDependencyStatusCounts,
     getScopeDependencies,
     getScopeNamesWithDependencies,
     getScopesByGroup,
-    getToggledDependencyStatus,
+    type DependencyStatus,
 } from './scopeUtils';
 
 describe('getScopeDependencies', () => {
@@ -43,86 +42,33 @@ describe('getScopeNamesWithDependencies', () => {
     });
 });
 
-describe('getScopeDependencyStatus', () => {
-    it('classifies scopes with all dependencies selected as full', () => {
-        expect(
-            getScopeDependencyStatus('manage:Dashboard', {
-                'view:Project': true,
-                'view:SavedChart': true,
-                'view:Space': true,
-            }),
-        ).toBe('full');
-    });
-
-    it('classifies scopes with some dependencies selected as partial', () => {
-        expect(
-            getScopeDependencyStatus('manage:Dashboard', {
-                'view:Project': true,
-            }),
-        ).toBe('partial');
-    });
-
-    it('classifies scopes with no dependencies selected as empty', () => {
-        expect(getScopeDependencyStatus('manage:Dashboard', {})).toBe('empty');
-    });
-
-    it('classifies scopes without dependencies as full', () => {
-        expect(getScopeDependencyStatus('view:Project', {})).toBe('full');
-    });
-});
-
 describe('filterScopesByDependencyStatus', () => {
     const groupedScopes = getScopesByGroup(true, 'project');
+    const scopes = {
+        'manage:Dashboard': true,
+        'create:Job': true,
+        'view:Project': true,
+    };
+    const getScopeNames = (status: DependencyStatus) =>
+        filterScopesByDependencyStatus(groupedScopes, scopes, status)
+            .flatMap((group) => group.scopes)
+            .map((scope) => scope.name);
 
-    it('returns only selected scopes matching the requested status', () => {
-        const filtered = filterScopesByDependencyStatus(
+    it('filters scopes with all dependencies selected', () => {
+        expect(getScopeNames('full')).toEqual(['view:Project']);
+    });
+
+    it('filters scopes with some dependencies selected', () => {
+        expect(getScopeNames('partial')).toEqual([
+            'manage:Dashboard',
+            'create:Job',
+        ]);
+    });
+
+    it('filters scopes with no dependencies selected', () => {
+        expect(getScopeNames('empty')).toEqual([]);
+        expect(filterScopesByDependencyStatus(groupedScopes, scopes)).toBe(
             groupedScopes,
-            {
-                'manage:Dashboard': true,
-                'create:Job': true,
-                'view:Project': true,
-            },
-            'partial',
-        );
-
-        expect(
-            filtered.flatMap((group) => group.scopes.map(({ name }) => name)),
-        ).toEqual(['manage:Dashboard', 'create:Job']);
-    });
-
-    it('drops groups without a matching scope', () => {
-        expect(
-            filterScopesByDependencyStatus(
-                groupedScopes,
-                { 'view:Project': true },
-                'empty',
-            ),
-        ).toEqual([]);
-    });
-
-    it('returns the existing groups when no status is requested', () => {
-        expect(
-            filterScopesByDependencyStatus(groupedScopes, {
-                'view:Project': true,
-            }),
-        ).toBe(groupedScopes);
-    });
-});
-
-describe('getToggledDependencyStatus', () => {
-    it('selects an inactive status', () => {
-        expect(getToggledDependencyStatus(undefined, 'partial')).toBe(
-            'partial',
-        );
-    });
-
-    it('switches to a different status', () => {
-        expect(getToggledDependencyStatus('full', 'empty')).toBe('empty');
-    });
-
-    it('clears the active status', () => {
-        expect(getToggledDependencyStatus('partial', 'partial')).toBe(
-            undefined,
         );
     });
 });

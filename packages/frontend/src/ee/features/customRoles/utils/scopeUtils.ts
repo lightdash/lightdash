@@ -32,12 +32,6 @@ export type DependencyStatus = 'full' | 'partial' | 'empty';
 
 export type DependencyStatusCounts = Record<DependencyStatus, number>;
 
-export const getToggledDependencyStatus = (
-    currentStatus: DependencyStatus | undefined,
-    selectedStatus: DependencyStatus,
-): DependencyStatus | undefined =>
-    currentStatus === selectedStatus ? undefined : selectedStatus;
-
 export const getScopesByGroup = (
     isEnterprise = false,
     level?: RoleLevel,
@@ -119,7 +113,7 @@ export const getScopeNamesWithDependencies = (scopeName: string): string[] => [
     ...getScopeDependencies(scopeName).map((dependency) => dependency.name),
 ];
 
-export const getScopeDependencyStatus = (
+const getScopeDependencyStatus = (
     scopeName: string,
     scopes: Record<string, boolean>,
 ): DependencyStatus => {
