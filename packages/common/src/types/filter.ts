@@ -191,6 +191,11 @@ export type DashboardFilterRule<
     label: undefined | string;
     singleValue?: boolean;
     /**
+     * Dashboard filters sharing a requiredGroupId form an "any-one required"
+     * group: the dashboard is locked until at least one member has a value.
+     */
+    requiredGroupId?: string;
+    /**
      * Tab UUIDs where this filter is locked. When the active tab is in this
      * list, viewers see the filter but cannot change it, and URL / embed
      * filter overrides targeting the same field are ignored on that tab.

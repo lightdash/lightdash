@@ -20,6 +20,7 @@ import {
     createFilterRuleFromField,
     createFilterRuleFromModelRequiredFilterRule,
     getDashboardFilterRulesForTileAndReferences,
+    getUnmetFilterRequirements,
     isEmptyDashboardFilterRule,
     isFilterRuleInQuery,
     overrideChartFilter,
@@ -1700,5 +1701,248 @@ describe('isEmptyDashboardFilterRule', () => {
                 values: ['some-value'],
             }),
         ).toBe(false);
+    });
+});
+
+describe('getUnmetFilterRequirements', () => {
+    const createRule = (
+        id: string,
+        overrides: Partial<DashboardFilterRule> = {},
+    ): DashboardFilterRule => ({
+        id,
+        label: undefined,
+        target: { fieldId: `${id}_field`, tableName: 'test' },
+        operator: FilterOperator.EQUALS,
+        values: [],
+        ...overrides,
+    });
+
+    const toDashboardFilters = (
+        partial: Partial<DashboardFilters>,
+    ): DashboardFilters => ({
+        dimensions: [],
+        metrics: [],
+        tableCalculations: [],
+        ...partial,
+    });
+
+    test('returns empty array when there are no filters', () => {
+        expect(getUnmetFilterRequirements(toDashboardFilters({}))).toEqual([]);
+    });
+
+    test('returns empty array when all requirements are satisfied', () => {
+        const filters = toDashboardFilters({
+            dimensions: [
+                createRule('a', {
+                    required: true,
+                    disabled: false,
+                    values: ['x'],
+                }),
+                createRule('b', {
+                    requiredGroupId: 'g1',
+                    disabled: false,
+                    values: ['y'],
+                }),
+                createRule('c'),
+            ],
+        });
+        expect(getUnmetFilterRequirements(filters)).toEqual([]);
+    });
+
+    test('returns a single entry for a required filter without a value', () => {
+        const required = createRule('a', { required: true, disabled: true });
+        const filters = toDashboardFilters({
+            dimensions: [required, createRule('b')],
+        });
+        expect(getUnmetFilterRequirements(filters)).toEqual([
+            { type: 'single', filter: required },
+        ]);
+    });
+
+    test('returns a group entry when every member is valueless', () => {
+        const memberA = createRule('a', {
+            requiredGroupId: 'g1',
+            disabled: true,
+        });
+        const memberB = createRule('b', {
+            requiredGroupId: 'g1',
+            disabled: true,
+        });
+        const filters = toDashboardFilters({ dimensions: [memberA, memberB] });
+        expect(getUnmetFilterRequirements(filters)).toEqual([
+            { type: 'group', groupId: 'g1', filters: [memberA, memberB] },
+        ]);
+    });
+
+    test('group is satisfied when at least one member has a value', () => {
+        const filters = toDashboardFilters({
+            dimensions: [
+                createRule('a', { requiredGroupId: 'g1', disabled: true }),
+                createRule('b', {
+                    requiredGroupId: 'g1',
+                    disabled: false,
+                    values: ['y'],
+                }),
+            ],
+        });
+        expect(getUnmetFilterRequirements(filters)).toEqual([]);
+    });
+
+    test('an enabled rule with a value-requiring operator and no values does not satisfy a requirement', () => {
+        const emptyRequired = createRule('a', {
+            required: true,
+            disabled: false,
+        });
+        const emptyMemberA = createRule('b', {
+            requiredGroupId: 'g1',
+            disabled: false,
+        });
+        const emptyMemberB = createRule('c', {
+            requiredGroupId: 'g1',
+            disabled: true,
+        });
+        const filters = toDashboardFilters({
+            dimensions: [emptyRequired, emptyMemberA, emptyMemberB],
+        });
+        expect(getUnmetFilterRequirements(filters)).toEqual([
+            { type: 'single', filter: emptyRequired },
+            {
+                type: 'group',
+                groupId: 'g1',
+                filters: [emptyMemberA, emptyMemberB],
+            },
+        ]);
+    });
+
+    test('an enabled rule with a value-less operator satisfies a requirement without values', () => {
+        const filters = toDashboardFilters({
+            dimensions: [
+                createRule('a', {
+                    required: true,
+                    disabled: false,
+                    operator: FilterOperator.NOT_NULL,
+                }),
+                createRule('b', { requiredGroupId: 'g1', disabled: true }),
+                createRule('c', {
+                    requiredGroupId: 'g1',
+                    disabled: false,
+                    operator: FilterOperator.IN_THE_CURRENT,
+                    settings: { unitOfTime: 'months' },
+                }),
+            ],
+        });
+        expect(getUnmetFilterRequirements(filters)).toEqual([]);
+    });
+
+    test('a valueless rule with both required and requiredGroupId is an unmet single and a group member', () => {
+        const both = createRule('a', {
+            required: true,
+            requiredGroupId: 'g1',
+            disabled: true,
+        });
+        const memberB = createRule('b', {
+            requiredGroupId: 'g1',
+            disabled: true,
+        });
+
+        const unmetGroupFilters = toDashboardFilters({
+            dimensions: [both, memberB],
+        });
+        expect(getUnmetFilterRequirements(unmetGroupFilters)).toEqual([
+            { type: 'single', filter: both },
+            { type: 'group', groupId: 'g1', filters: [both, memberB] },
+        ]);
+
+        // Group satisfied by the other member, but the required single remains unmet
+        const satisfiedGroupFilters = toDashboardFilters({
+            dimensions: [
+                both,
+                createRule('b', {
+                    requiredGroupId: 'g1',
+                    disabled: false,
+                    values: ['y'],
+                }),
+            ],
+        });
+        expect(getUnmetFilterRequirements(satisfiedGroupFilters)).toEqual([
+            { type: 'single', filter: both },
+        ]);
+    });
+
+    test('evaluates independent groups separately', () => {
+        const g2MemberA = createRule('c', {
+            requiredGroupId: 'g2',
+            disabled: true,
+        });
+        const g2MemberB = createRule('d', {
+            requiredGroupId: 'g2',
+            disabled: true,
+        });
+        const filters = toDashboardFilters({
+            dimensions: [
+                createRule('a', { requiredGroupId: 'g1', disabled: true }),
+                createRule('b', {
+                    requiredGroupId: 'g1',
+                    disabled: false,
+                    values: ['y'],
+                }),
+                g2MemberA,
+                g2MemberB,
+            ],
+        });
+        expect(getUnmetFilterRequirements(filters)).toEqual([
+            { type: 'group', groupId: 'g2', filters: [g2MemberA, g2MemberB] },
+        ]);
+    });
+
+    test('includes metric filters as group members', () => {
+        const dimensionMember = createRule('a', {
+            requiredGroupId: 'g1',
+            disabled: true,
+        });
+        const metricMember = createRule('b', {
+            requiredGroupId: 'g1',
+            disabled: true,
+        });
+        const filters = toDashboardFilters({
+            dimensions: [dimensionMember],
+            metrics: [metricMember],
+        });
+        expect(getUnmetFilterRequirements(filters)).toEqual([
+            {
+                type: 'group',
+                groupId: 'g1',
+                filters: [dimensionMember, metricMember],
+            },
+        ]);
+
+        // A metric member with a value satisfies the group
+        const satisfied = toDashboardFilters({
+            dimensions: [dimensionMember],
+            metrics: [
+                createRule('b', { requiredGroupId: 'g1', values: ['y'] }),
+            ],
+        });
+        expect(getUnmetFilterRequirements(satisfied)).toEqual([]);
+    });
+
+    test('ignores tableCalculations filters', () => {
+        const filters = toDashboardFilters({
+            tableCalculations: [
+                createRule('a', { required: true, disabled: true }),
+                createRule('b', { requiredGroupId: 'g1', disabled: true }),
+            ],
+        });
+        expect(getUnmetFilterRequirements(filters)).toEqual([]);
+    });
+
+    test('does not treat an empty-string requiredGroupId as a group', () => {
+        const filters = toDashboardFilters({
+            dimensions: [
+                createRule('a', { requiredGroupId: '', disabled: true }),
+                createRule('b', { requiredGroupId: '', disabled: true }),
+            ],
+        });
+        expect(getUnmetFilterRequirements(filters)).toEqual([]);
     });
 });

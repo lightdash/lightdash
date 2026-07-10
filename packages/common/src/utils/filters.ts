@@ -1539,3 +1539,50 @@ export const resetRequiredFilterRules = (
         [getFilterGroupItemsPropertyName(filterGroup)]: updatedItems,
     };
 };
+
+export type UnmetFilterRequirement =
+    | { type: 'single'; filter: DashboardFilterRule }
+    | { type: 'group'; groupId: string; filters: DashboardFilterRule[] };
+
+/**
+ * A rule only satisfies a requirement when it actually filters the query:
+ * disabled rules and enabled rules with a value-requiring operator and no
+ * values (e.g. a stale URL override) are both valueless. Value-less operators
+ * like `isNull` / `inTheCurrent` still filter.
+ */
+export const isValuelessDashboardFilterRule = (
+    rule: DashboardFilterRule,
+): boolean => rule.disabled === true || isEmptyDashboardFilterRule(rule);
+
+/**
+ * Unmet requirements over dimensions + metrics: valueless `required` rules as
+ * singles (even when also in a group), then groups whose members are all
+ * valueless, in first-appearance order.
+ */
+export const getUnmetFilterRequirements = (
+    dashboardFilters: DashboardFilters,
+): UnmetFilterRequirement[] => {
+    const rules = [...dashboardFilters.dimensions, ...dashboardFilters.metrics];
+
+    const unmetSingles = rules
+        .filter((rule) => rule.required && isValuelessDashboardFilterRule(rule))
+        .map<UnmetFilterRequirement>((filter) => ({ type: 'single', filter }));
+
+    const groups = new Map<string, DashboardFilterRule[]>();
+    rules.forEach((rule) => {
+        if (!rule.requiredGroupId) return;
+        const members = groups.get(rule.requiredGroupId) ?? [];
+        members.push(rule);
+        groups.set(rule.requiredGroupId, members);
+    });
+
+    const unmetGroups = [...groups.entries()]
+        .filter(([, members]) => members.every(isValuelessDashboardFilterRule))
+        .map<UnmetFilterRequirement>(([groupId, filters]) => ({
+            type: 'group',
+            groupId,
+            filters,
+        }));
+
+    return [...unmetSingles, ...unmetGroups];
+};
