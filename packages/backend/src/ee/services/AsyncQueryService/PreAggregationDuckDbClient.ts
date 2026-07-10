@@ -27,10 +27,9 @@ import Logger from '../../../logging/logger';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
 import { type PreAggregationRoute } from '../../../services/AsyncQueryService/types';
-import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { traceSpan } from '../../../tracing/tracing';
 import { wrapSentryTransaction } from '../../../utils';
-import { PivotQueryBuilder } from '../../../utils/QueryBuilder/PivotQueryBuilder';
+import { QueryComposer } from '../../../utils/QueryBuilder/QueryComposer';
 import { type PreAggregateModel } from '../../models/PreAggregateModel';
 import {
     getDuckdbPreAggregateSqlTable,
@@ -348,43 +347,43 @@ export class PreAggregationDuckDbClient {
             args.startOfWeek,
         );
 
-        const fullQuery = await traceSpan(
+        const queryComposer = new QueryComposer(
+            {
+                metricQuery: args.metricQuery,
+                pivotConfiguration: args.pivotConfiguration,
+            },
+            {
+                explore: patchedPreAggExplore,
+                warehouseSqlBuilder,
+                intrinsicUserAttributes:
+                    args.userAccessControls.intrinsicUserAttributes,
+                userAttributes: args.userAccessControls.userAttributes,
+                timezone: args.timezone,
+                availableParameterDefinitions:
+                    args.availableParameterDefinitions,
+                parameters: args.parameters,
+                dateZoom: args.dateZoom,
+                pivotDimensions: undefined,
+                // Pre-agg pivots against the source query's persisted fields,
+                // not the pre-agg explore's freshly compiled ones.
+                pivotItemsMap: args.fieldsMap,
+                continueOnError: undefined,
+                useTimezoneAwareDateTrunc: args.useTimezoneAwareDateTrunc,
+                columnTimezone: undefined,
+                applyDateZoomToFilters: undefined,
+            },
+        );
+
+        const query = traceSpan(
             {
                 op: 'function',
                 name: 'preagg.compileQuery',
             },
             () =>
-                ProjectService._compileQuery({
-                    metricQuery: args.metricQuery,
-                    explore: patchedPreAggExplore,
-                    warehouseSqlBuilder,
-                    intrinsicUserAttributes:
-                        args.userAccessControls.intrinsicUserAttributes,
-                    userAttributes: args.userAccessControls.userAttributes,
-                    timezone: args.timezone,
-                    dateZoom: args.dateZoom,
-                    parameters: args.parameters,
-                    availableParameterDefinitions:
-                        args.availableParameterDefinitions,
-                    pivotConfiguration: args.pivotConfiguration,
-                    useTimezoneAwareDateTrunc: args.useTimezoneAwareDateTrunc,
+                queryComposer.getSql({
+                    columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
                 }),
         );
-
-        let { query } = fullQuery;
-        if (args.pivotConfiguration) {
-            const pivotQueryBuilder = new PivotQueryBuilder(
-                fullQuery.query,
-                args.pivotConfiguration,
-                warehouseSqlBuilder,
-                args.metricQuery.limit,
-                args.fieldsMap,
-            );
-
-            query = pivotQueryBuilder.toSql({
-                columnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
-            });
-        }
 
         const warehouseClient = this.getOrCreateWarehouseClient();
 

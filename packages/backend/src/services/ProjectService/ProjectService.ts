@@ -4107,6 +4107,7 @@ export class ProjectService extends BaseService {
                 parameters,
                 dateZoom,
                 pivotDimensions,
+                pivotItemsMap: undefined,
                 continueOnError,
                 useTimezoneAwareDateTrunc,
                 columnTimezone,
@@ -4252,6 +4253,7 @@ export class ProjectService extends BaseService {
                 parameters: combinedParameters,
                 dateZoom: undefined,
                 pivotDimensions,
+                pivotItemsMap: undefined,
                 continueOnError: true, // Return SQL even with compilation errors for debugging
                 useTimezoneAwareDateTrunc,
                 columnTimezone: getColumnTimezone(warehouseCredentials),

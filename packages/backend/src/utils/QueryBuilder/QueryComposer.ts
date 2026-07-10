@@ -5,6 +5,7 @@ import {
     type DateZoom,
     type Explore,
     type IntrinsicUserAttributes,
+    type ItemsMap,
     type MetricQuery,
     type ParameterDefinitions,
     type ParametersValuesMap,
@@ -35,6 +36,12 @@ export type QueryComposerContext = {
     parameters: ParametersValuesMap | undefined;
     dateZoom: DateZoom | undefined;
     pivotDimensions: string[] | undefined;
+    /**
+     * itemsMap the pivot resolves field metadata against. Defaults to the
+     * freshly compiled fields when undefined; pre-agg supplies the source
+     * query's persisted fields instead.
+     */
+    pivotItemsMap: ItemsMap | undefined;
     continueOnError: boolean | undefined;
     useTimezoneAwareDateTrunc: boolean | undefined;
     columnTimezone: string | undefined;
@@ -166,7 +173,7 @@ export class QueryComposer {
             pivotConfiguration,
             this.context.warehouseSqlBuilder,
             metricQuery.limit,
-            compiledQuery.fields,
+            this.context.pivotItemsMap ?? compiledQuery.fields,
         );
         return pivotQueryBuilder.toSql({ columnLimit });
     }

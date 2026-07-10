@@ -2,17 +2,27 @@ import { DimensionType, type WarehouseClient } from '@lightdash/common';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
 import Logger from '../../../logging/logger';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
-import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import {
     metricQueryMock,
     preAggregateExplore,
 } from '../../../services/ProjectService/ProjectService.mock';
 import { warehouseClientMock } from '../../../utils/QueryBuilder/MetricQueryBuilder.mock';
+import { QueryComposer } from '../../../utils/QueryBuilder/QueryComposer';
 import { type PreAggregateModel } from '../../models/PreAggregateModel';
 import {
     PreAggregationDuckDbClient,
     PreAggregationDuckDbResolveReason,
 } from './PreAggregationDuckDbClient';
+
+vi.mock('../../../utils/QueryBuilder/QueryComposer', () => ({
+    QueryComposer: vi.fn(
+        function MockQueryComposer(this: { getSql: () => string }) {
+            this.getSql = vi.fn().mockReturnValue('SELECT * FROM test');
+        },
+    ),
+}));
+
+const QueryComposerMock = vi.mocked(QueryComposer);
 
 describe('PreAggregationDuckDbClient', () => {
     const getClient = ({
@@ -103,11 +113,12 @@ describe('PreAggregationDuckDbClient', () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.spyOn(ProjectService, '_compileQuery').mockResolvedValue({
-            query: 'SELECT * FROM test',
-        } as unknown as Awaited<
-            ReturnType<typeof ProjectService._compileQuery>
-        >);
+        QueryComposerMock.mockImplementation(function MockQueryComposer(this: {
+            getSql: () => string;
+        }) {
+            this.getSql = vi.fn().mockReturnValue('SELECT * FROM test');
+            return this;
+        } as unknown as () => QueryComposer);
     });
 
     afterEach(() => {
@@ -164,7 +175,8 @@ describe('PreAggregationDuckDbClient', () => {
             query: 'SELECT * FROM test',
             warehouseClient: warehouseClientMock,
         });
-        expect(ProjectService._compileQuery).toHaveBeenCalledWith(
+        expect(QueryComposerMock).toHaveBeenCalledWith(
+            expect.anything(),
             expect.objectContaining({
                 explore: expect.objectContaining({
                     name: '__preagg__valid_explore__rollup',
@@ -265,7 +277,8 @@ describe('PreAggregationDuckDbClient', () => {
 
         await client.resolve(baseResolveArgs);
 
-        expect(ProjectService._compileQuery).toHaveBeenCalledWith(
+        expect(QueryComposerMock).toHaveBeenCalledWith(
+            expect.anything(),
             expect.objectContaining({
                 explore: expect.objectContaining({
                     tables: expect.objectContaining({
@@ -305,7 +318,8 @@ describe('PreAggregationDuckDbClient', () => {
 
         await client.resolve(baseResolveArgs);
 
-        expect(ProjectService._compileQuery).toHaveBeenCalledWith(
+        expect(QueryComposerMock).toHaveBeenCalledWith(
+            expect.anything(),
             expect.objectContaining({
                 explore: expect.objectContaining({
                     tables: expect.objectContaining({
