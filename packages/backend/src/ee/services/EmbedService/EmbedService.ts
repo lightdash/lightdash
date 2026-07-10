@@ -217,6 +217,8 @@ export class EmbedService extends BaseService {
             urlPath = `/embed/${projectUuid}/app/${jwtData.content.appUuid}#${jwtToken}`;
         } else if (jwtData.content.type === 'aiAgent') {
             urlPath = `/embed/${projectUuid}/ai-agents/${jwtData.content.agentUuid}/threads#${jwtToken}`;
+        } else if (jwtData.content.type === 'metricsCatalog') {
+            urlPath = `/embed/${projectUuid}/metrics#${jwtToken}`;
         } else {
             urlPath = `/embed/${projectUuid}#${jwtToken}`;
         }
@@ -510,6 +512,15 @@ export class EmbedService extends BaseService {
                 type: 'aiAgent',
                 explores: [],
                 agentUuid: decodedToken.content.agentUuid,
+            };
+        }
+
+        if (decodedToken.content.type === 'metricsCatalog') {
+            return {
+                dashboardUuid: undefined,
+                chartUuids: [],
+                type: 'metricsCatalog',
+                explores: [],
             };
         }
 
@@ -1684,6 +1695,10 @@ export class EmbedService extends BaseService {
             case 'aiAgent':
                 throw new ForbiddenError(
                     'AI agent embeds cannot access saved charts',
+                );
+            case 'metricsCatalog':
+                throw new ForbiddenError(
+                    'Metrics catalog embeds cannot access saved charts',
                 );
             case 'apiAccess':
                 throw new ForbiddenError(

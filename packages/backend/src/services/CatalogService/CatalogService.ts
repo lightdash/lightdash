@@ -1,6 +1,8 @@
 import { subject } from '@casl/ability';
 import {
+    Account,
     ApiCatalogSearch,
+    assertRegisteredAccount,
     CatalogAnalytics,
     CatalogField,
     CatalogFilter,
@@ -27,6 +29,7 @@ import {
     hasIntersection,
     InlineErrorType,
     isExploreError,
+    isJwtUser,
     MetricWithAssociatedTimeDimension,
     NotFoundError,
     ParameterError,
@@ -140,6 +143,45 @@ export class CatalogService<
         this.tagsModel = tagsModel;
         this.changesetModel = changesetModel;
         this.spacePermissionService = spacePermissionService;
+    }
+
+    private assertJwtCanViewCatalog(
+        account: Account,
+        organizationUuid: string,
+        projectUuid: string,
+    ): void {
+        if (!isJwtUser(account)) return;
+
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('SpotlightTableConfig', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+    }
+
+    private async getUserAttributesForAccount(
+        account: Account,
+        organizationUuid: string,
+        projectUuid: string,
+    ): Promise<UserAttributeValueMap> {
+        this.assertJwtCanViewCatalog(account, organizationUuid, projectUuid);
+
+        if (isJwtUser(account)) {
+            return account.access.controls?.userAttributes ?? {};
+        }
+
+        assertRegisteredAccount(account);
+        return this.userAttributesModel.getAttributeValuesForOrgMember({
+            organizationUuid,
+            userUuid: account.user.userUuid,
+        });
     }
 
     private static async getCatalogFields(
@@ -921,7 +963,7 @@ export class CatalogService<
     }
 
     async getMetricsCatalog(
-        user: SessionUser,
+        user: Account,
         projectUuid: string,
         context: CatalogSearchContext,
         paginateArgs?: KnexPaginateArgs,
@@ -951,11 +993,11 @@ export class CatalogService<
             throw new ForbiddenError();
         }
 
-        const userAttributes =
-            await this.userAttributesModel.getAttributeValuesForOrgMember({
-                organizationUuid,
-                userUuid: user.userUuid,
-            });
+        const userAttributes = await this.getUserAttributesForAccount(
+            user,
+            organizationUuid,
+            projectUuid,
+        );
 
         const paginatedCatalog = await this.searchCatalog({
             projectUuid,
@@ -1155,7 +1197,7 @@ export class CatalogService<
         userAttributes,
         addDefaultTimeDimension = true,
     }: {
-        user: SessionUser;
+        user: Account;
         projectUuid: string;
         metrics: {
             tableName: string;
@@ -1183,10 +1225,11 @@ export class CatalogService<
 
         const userAttributesForOrgMember =
             userAttributes ??
-            (await this.userAttributesModel.getAttributeValuesForOrgMember({
+            (await this.getUserAttributesForAccount(
+                user,
                 organizationUuid,
-                userUuid: user.userUuid,
-            }));
+                projectUuid,
+            ));
 
         const explores = await this.projectModel.findExploresFromCache(
             projectUuid,
@@ -1284,7 +1327,7 @@ export class CatalogService<
     }
 
     async getMetric(
-        user: SessionUser,
+        user: Account,
         projectUuid: string,
         tableName: string,
         metricName: string,
@@ -1439,7 +1482,7 @@ export class CatalogService<
     }
 
     async getAllCatalogMetricsWithTimeDimensions(
-        user: SessionUser,
+        user: Account,
         projectUuid: string,
         context: CatalogSearchContext,
         tableName?: string,
@@ -1460,11 +1503,11 @@ export class CatalogService<
             throw new ForbiddenError();
         }
 
-        const userAttributes =
-            await this.userAttributesModel.getAttributeValuesForOrgMember({
-                organizationUuid,
-                userUuid: user.userUuid,
-            });
+        const userAttributes = await this.getUserAttributesForAccount(
+            user,
+            organizationUuid,
+            projectUuid,
+        );
 
         const allCatalogMetrics = await this.catalogModel.search({
             projectUuid,
@@ -1578,7 +1621,7 @@ export class CatalogService<
     }
 
     async getFilterDimensions(
-        user: SessionUser,
+        user: Account,
         projectUuid: string,
         tableName: string,
         context: CatalogSearchContext,
@@ -1605,11 +1648,11 @@ export class CatalogService<
             tableName,
         );
 
-        const userAttributes =
-            await this.userAttributesModel.getAttributeValuesForOrgMember({
-                organizationUuid,
-                userUuid: user.userUuid,
-            });
+        const userAttributes = await this.getUserAttributesForAccount(
+            user,
+            organizationUuid,
+            projectUuid,
+        );
 
         const catalogDimensions = await this.catalogModel.search({
             projectUuid,
@@ -1633,7 +1676,7 @@ export class CatalogService<
     }
 
     async getSegmentDimensions(
-        user: SessionUser,
+        user: Account,
         projectUuid: string,
         tableName: string,
         context: CatalogSearchContext,
@@ -1660,11 +1703,11 @@ export class CatalogService<
             tableName,
         );
 
-        const userAttributes =
-            await this.userAttributesModel.getAttributeValuesForOrgMember({
-                organizationUuid,
-                userUuid: user.userUuid,
-            });
+        const userAttributes = await this.getUserAttributesForAccount(
+            user,
+            organizationUuid,
+            projectUuid,
+        );
 
         const catalogDimensions = await this.catalogModel.search({
             projectUuid,
@@ -1752,7 +1795,7 @@ export class CatalogService<
     }
 
     async getMetricOwners(
-        user: SessionUser,
+        user: Account,
         projectUuid: string,
     ): Promise<CatalogOwner[]> {
         const { organizationUuid, name: projectName } =
@@ -1771,6 +1814,8 @@ export class CatalogService<
         ) {
             throw new ForbiddenError();
         }
+
+        this.assertJwtCanViewCatalog(user, organizationUuid, projectUuid);
 
         return this.catalogModel.getDistinctOwners(projectUuid);
     }

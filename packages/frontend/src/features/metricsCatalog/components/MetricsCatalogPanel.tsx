@@ -16,11 +16,12 @@ import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import RefreshDbtButton from '../../../components/RefreshDbtButton';
+import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import { useProject } from '../../../hooks/useProject';
+import { useAccount } from '../../../hooks/user/useAccount';
 import useSearchParams from '../../../hooks/useSearchParams';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import useActiveJob from '../../../providers/ActiveJob/useActiveJob';
-import useApp from '../../../providers/App/useApp';
 import { LearnMoreContent } from '../../../svgs/metricsCatalog';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { useIndexCatalogJob } from '../hooks/useIndexCatalogJob';
@@ -214,7 +215,9 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
     );
     const params = useParams<{ projectUuid: string }>();
     const { data: project } = useProject(projectUuid);
-    const { user } = useApp();
+    const { data: account } = useAccount();
+    const { embedToken } = useEmbed();
+    const isEmbed = !!embedToken;
 
     // Track active compile job
     const { activeJob } = useActiveJob();
@@ -370,57 +373,71 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
 
     useEffect(
         function handleAbilities() {
-            if (user.data) {
-                const canManageTags = user.data.ability.can(
+            if (account) {
+                const organizationUuidFromAccount =
+                    account.organization.organizationUuid;
+                const canManageTags = account.user.ability.can(
                     'manage',
                     subject('Tags', {
-                        organizationUuid: user.data.organizationUuid,
+                        organizationUuid: organizationUuidFromAccount,
                         projectUuid,
                     }),
                 );
 
                 const canRefreshCatalog =
-                    user.data.ability.can('manage', 'Job') ||
-                    user.data.ability.can('manage', 'CompileProject');
+                    !isEmbed &&
+                    (account.user.ability.can('manage', 'Job') ||
+                        account.user.ability.can('manage', 'CompileProject'));
 
-                const canManageExplore = user.data.ability.can(
+                const canViewExplore = account.user.ability.can(
+                    'view',
+                    subject('Explore', {
+                        organizationUuid: organizationUuidFromAccount,
+                        projectUuid,
+                    }),
+                );
+                const canManageExplore = account.user.ability.can(
                     'manage',
                     subject('Explore', {
-                        organizationUuid: user.data.organizationUuid,
+                        organizationUuid: organizationUuidFromAccount,
                         projectUuid,
                     }),
                 );
 
-                const canManageMetricsTree = user.data.ability.can(
-                    'manage',
-                    subject('MetricsTree', {
-                        organizationUuid: user.data.organizationUuid,
-                        projectUuid,
-                    }),
-                );
+                const canManageMetricsTree =
+                    !isEmbed &&
+                    account.user.ability.can(
+                        'manage',
+                        subject('MetricsTree', {
+                            organizationUuid: organizationUuidFromAccount,
+                            projectUuid,
+                        }),
+                    );
 
-                const canManageSpotlight = user.data.ability.can(
-                    'manage',
-                    subject('SpotlightTableConfig', {
-                        organizationUuid: user.data.organizationUuid,
-                        projectUuid,
-                    }),
-                );
+                const canManageSpotlight =
+                    !isEmbed &&
+                    account.user.ability.can(
+                        'manage',
+                        subject('SpotlightTableConfig', {
+                            organizationUuid: organizationUuidFromAccount,
+                            projectUuid,
+                        }),
+                    );
 
-                dispatch(setUser({ userUuid: user.data.userUuid }));
+                dispatch(setUser({ userUuid: account.user.id }));
 
                 dispatch(
                     setAbility({
                         canManageTags,
                         canRefreshCatalog,
-                        canManageExplore,
+                        canManageExplore: canManageExplore || canViewExplore,
                         canManageMetricsTree,
                         canManageSpotlight,
                     }),
                 );
             }
         },
-        [user.data, dispatch, projectUuid],
+        [account, dispatch, isEmbed, projectUuid],
     );
 
     useEffect(
@@ -450,8 +467,16 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
     };
 
     return (
-        <Stack w="100%" gap="xxl">
-            <Group position="apart">
+        <Stack
+            w="100%"
+            h={isEmbed ? '100%' : undefined}
+            mih={isEmbed ? 0 : undefined}
+            gap={isEmbed ? 0 : 'xxl'}
+        >
+            <Group
+                position="apart"
+                sx={{ display: isEmbed ? 'none' : undefined }}
+            >
                 <Box>
                     <Text c="ldGray.8" fw={600} size="xl">
                         Metrics Catalog
@@ -498,7 +523,10 @@ export const MetricsCatalogPanel: FC<MetricsCatalogPanelProps> = ({
                     <LearnMorePopover buttonStyles={headerButtonStyles} />
                 </Group>
             </Group>
-            <MetricsTable metricCatalogView={metricCatalogView} />
+            <MetricsTable
+                metricCatalogView={metricCatalogView}
+                isEmbed={isEmbed}
+            />
             <MetricChartUsageModal
                 opened={isMetricUsageModalOpen}
                 onClose={onCloseMetricUsageModal}

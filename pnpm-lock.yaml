@@ -1757,6 +1757,9 @@ importers:
       vite:
         specifier: 8.0.5
         version: 8.0.5(@emnapi/core@1.9.2)(@emnapi/runtime@1.11.1)(@types/node@24.3.1)(esbuild@0.27.7)(jiti@2.6.1)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3)
+      vite-plugin-svgr:
+        specifier: 4.5.0
+        version: 4.5.0(@typescript/typescript6@6.0.1)(rollup@4.60.2)(vite@8.0.5(@emnapi/core@1.9.2)(@emnapi/runtime@1.11.1)(@types/node@24.3.1)(esbuild@0.27.7)(jiti@2.6.1)(sugarss@5.0.1(postcss@8.5.10))(terser@5.46.1)(tsx@4.19.4)(yaml@2.8.3))
 
   packages/warehouses:
     dependencies:

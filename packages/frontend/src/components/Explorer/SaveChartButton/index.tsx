@@ -203,6 +203,7 @@ const SaveChartButton: FC<{
                         // Trigger metadata generation on mouse enter if available
                         onMouseEnter={() => {
                             if (savedChart) return;
+                            if (isEmbedded) return;
                             if (!isAmbientAiEnabled) return;
                             triggerMetadataGeneration();
                         }}

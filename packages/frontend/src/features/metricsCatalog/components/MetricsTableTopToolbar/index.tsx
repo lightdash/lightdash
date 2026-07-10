@@ -50,6 +50,7 @@ import { useLocation, useNavigate } from 'react-router';
 import { useDebounce } from 'react-use';
 import { type ContentTableInstance } from '../../../../components/common/ContentTable';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import useEmbed from '../../../../ee/providers/Embed/useEmbed';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { TotalMetricsDot } from '../../../../svgs/metricsCatalog';
 import { EventName } from '../../../../types/Events';
@@ -164,6 +165,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
         ...props
     }) => {
         const [search, setSearch] = useState(_search);
+        const { embedToken } = useEmbed();
 
         useDebounce(
             () => {
@@ -441,6 +443,11 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                     variant="transparent"
                                     size="xs"
                                     color="ldGray.5"
+                                    sx={{
+                                        display: embedToken
+                                            ? 'none'
+                                            : undefined,
+                                    }}
                                 >
                                     <MantineIcon icon={IconEye} />
                                 </ActionIcon>
@@ -573,6 +580,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                         w={1}
                         h={20}
                         sx={{
+                            display: embedToken ? 'none' : undefined,
                             alignSelf: 'center',
                             borderColor: '#DEE2E6',
                         }}
@@ -582,6 +590,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                         value={metricCatalogView}
                         styles={(theme) => ({
                             root: {
+                                display: embedToken ? 'none' : undefined,
                                 borderRadius: theme.radius.md,
                                 gap: theme.spacing.two,
                                 padding: theme.spacing.xxs,

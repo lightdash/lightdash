@@ -2692,6 +2692,23 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    EmbedJwtContentMetricsCatalog: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                canExplore: { dataType: 'boolean' },
+                projectUuid: { dataType: 'string' },
+                type: {
+                    dataType: 'enum',
+                    enums: ['metricsCatalog'],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     EmbedJwtContentApiAccess: {
         dataType: 'refAlias',
         type: {
@@ -2751,6 +2768,7 @@ const models: TsoaRoute.Models = {
                         { ref: 'EmbedJwtContentChart' },
                         { ref: 'EmbedJwtContentDataApp' },
                         { ref: 'EmbedJwtContentAiAgent' },
+                        { ref: 'EmbedJwtContentMetricsCatalog' },
                         { ref: 'EmbedJwtContentApiAccess' },
                     ],
                     required: true,

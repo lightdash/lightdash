@@ -1392,12 +1392,11 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiGetTagsResponse> {
-        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const results = await this.services
             .getProjectService()
-            .getTags(toSessionUser(req.account), projectUuid);
+            .getTags(req.account!, projectUuid);
 
         return {
             status: 'ok',

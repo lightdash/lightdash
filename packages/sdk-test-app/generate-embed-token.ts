@@ -250,6 +250,24 @@ async function main() {
                   aiAgent.ai_agent_uuid
               }/threads#${aiAgentToken}`
             : null;
+        const metricsCatalogPayload = {
+            content: {
+                type: 'metricsCatalog',
+                projectUuid,
+                canExplore: true,
+            },
+            writeActions: {
+                ...writeActor,
+                spaceUuid,
+            },
+            user: {
+                email: 'demo@lightdash.com',
+            },
+        };
+        const metricsCatalogToken = jwt.sign(metricsCatalogPayload, rawSecret, {
+            expiresIn: '24h',
+        });
+        const metricsCatalogEmbedUrl = `${LIGHTDASH_URL}/embed/${projectUuid}/metrics#${metricsCatalogToken}`;
 
         console.log(
             JSON.stringify(
@@ -261,6 +279,7 @@ async function main() {
                     aiAgentName: aiAgent?.name ?? null,
                     embedUrl,
                     aiAgentEmbedUrl,
+                    metricsCatalogEmbedUrl,
                 },
                 null,
                 2,
@@ -269,6 +288,9 @@ async function main() {
 
         console.log(`\nAdd to packages/sdk-test-app/.env.local:`);
         console.log(`VITE_EMBED_URL="${embedUrl}"`);
+        console.log(
+            `VITE_METRICS_CATALOG_EMBED_URL="${metricsCatalogEmbedUrl}"`,
+        );
         if (aiAgent) {
             console.log(`VITE_AI_AGENT_EMBED_URL="${aiAgentEmbedUrl}"`);
         }

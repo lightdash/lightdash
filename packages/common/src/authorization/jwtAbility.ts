@@ -173,6 +173,42 @@ const aiAgentAbilities: EmbeddedAbilityBuilder = ({
     return { embedUser, content, embed, builder, externalId };
 };
 
+const metricsCatalogAbilities: EmbeddedAbilityBuilder = ({
+    embedUser,
+    content,
+    embed,
+    externalId,
+    builder,
+}) => {
+    const { organization } = embed;
+    const { can } = builder;
+
+    can('view', 'Project', {
+        organizationUuid: organization.organizationUuid,
+        projectUuid: embed.projectUuid,
+    });
+    can('view', 'Tags', {
+        organizationUuid: organization.organizationUuid,
+        projectUuid: embed.projectUuid,
+    });
+    can('view', 'SpotlightTableConfig', {
+        organizationUuid: organization.organizationUuid,
+        projectUuid: embed.projectUuid,
+    });
+
+    if (
+        embedUser.content.type === 'metricsCatalog' &&
+        embedUser.content.canExplore
+    ) {
+        can('view', 'Explore', {
+            organizationUuid: organization.organizationUuid,
+            projectUuid: embed.projectUuid,
+        });
+    }
+
+    return { embedUser, content, embed, builder, externalId };
+};
+
 const exploreAbilities: EmbeddedAbilityBuilder = ({
     embedUser,
     content,
@@ -270,6 +306,8 @@ const dataAppTypeAbilities = [dataAppAbilities];
 
 const aiAgentTypeAbilities = [aiAgentAbilities];
 
+const metricsCatalogTypeAbilities = [metricsCatalogAbilities];
+
 const getEmbeddedAbilitiesForType = (
     type: EmbedContent['type'],
 ): EmbeddedAbilityBuilder[] => {
@@ -280,6 +318,8 @@ const getEmbeddedAbilitiesForType = (
             return dataAppTypeAbilities;
         case 'aiAgent':
             return aiAgentTypeAbilities;
+        case 'metricsCatalog':
+            return metricsCatalogTypeAbilities;
         case 'apiAccess':
             return [];
         case 'dashboard':

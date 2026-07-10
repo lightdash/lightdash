@@ -122,7 +122,11 @@ const ExplorerHeader: FC = memo(() => {
 
     const userCanManageCompileProject = ability.can('manage', 'CompileProject');
     const backButtonLabel =
-        content?.type === 'aiAgent' ? 'Back to AI' : 'Back to Dashboard';
+        content?.type === 'aiAgent'
+            ? 'Back to AI'
+            : content?.type === 'metricsCatalog'
+              ? 'Back to Metrics Catalog'
+              : 'Back to Dashboard';
 
     return (
         <Group justify="space-between">

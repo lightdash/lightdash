@@ -105,7 +105,7 @@ export class MetricsExplorerService extends BaseService {
         rollingDays?: number,
     ): Promise<MetricTotalResults> {
         const metric = await this.catalogService.getMetric(
-            user,
+            fromSession(user),
             projectUuid,
             exploreName,
             metricName,
@@ -338,7 +338,7 @@ export class MetricsExplorerService extends BaseService {
         rollingDays?: number,
     ) {
         const metric = await this.catalogService.getMetric(
-            user,
+            fromSession(user),
             projectUuid,
             exploreName,
             metricName,

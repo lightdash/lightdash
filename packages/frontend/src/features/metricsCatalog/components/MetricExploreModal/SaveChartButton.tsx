@@ -8,6 +8,7 @@ import {
     useAmbientAiEnabled,
     useGenerateChartMetadata,
 } from '../../../../ee/features/ambientAi';
+import useEmbed from '../../../../ee/providers/Embed/useEmbed';
 import { DEFAULT_EMPTY_EXPLORE_CONFIG } from '../../../../hooks/useExplorerRoute';
 
 type Props = {
@@ -26,6 +27,7 @@ export const SaveChartButton: FC<Props> = ({
     canSave,
 }) => {
     const isAmbientAiEnabled = useAmbientAiEnabled();
+    const { embedToken, writeActions } = useEmbed();
     const [isSaveChartModalOpen, setIsSaveChartModalOpen] = useState(false);
     const [isPendingOpen, setIsPendingOpen] = useState(false);
 
@@ -94,6 +96,9 @@ export const SaveChartButton: FC<Props> = ({
                     onClose={() => setIsSaveChartModalOpen(false)}
                     onConfirm={() => setIsSaveChartModalOpen(false)}
                     chartMetadata={generatedMetadata ?? undefined}
+                    forcedSpaceUuid={
+                        embedToken ? writeActions?.spaceUuid : undefined
+                    }
                 />
             )}
         </>

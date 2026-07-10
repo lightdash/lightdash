@@ -70,6 +70,20 @@ const COMMERCIAL_EMBED_ROUTES: RouteObject[] = [
                 },
             },
             {
+                path: '/embed/:projectUuid/metrics',
+                lazy: async () => {
+                    const { default: MetricsCatalog } =
+                        await import('../pages/MetricsCatalog');
+                    return {
+                        Component: () => (
+                            <TrackPage name={PageName.METRICS_CATALOG}>
+                                <MetricsCatalog />
+                            </TrackPage>
+                        ),
+                    };
+                },
+            },
+            {
                 path: '/embed/:projectUuid/explore/:exploreId',
                 lazy: async () => {
                     const { default: EmbedExplore } =

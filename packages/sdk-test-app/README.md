@@ -52,6 +52,7 @@ The examples currently include:
 
 - `AI agent demo`
 - `Content catalog hooks demo`
+- `Metrics catalog demo`
 - `Dashboard builder demo`
 - `I18n demo`
 - `Filters demo`
@@ -96,7 +97,8 @@ The script:
 - reads or creates the project's embedding secret in the `embedding` table
 - signs a 24 hour JWT for dashboard embed content
 - signs a separate 24 hour JWT for AI-agent embed content when it finds an agent in the dashboard project
-- prints `VITE_EMBED_URL="..."` and `VITE_AI_AGENT_EMBED_URL="..."` values for `packages/sdk-test-app/.env.local`
+- signs a 24 hour metrics-catalog JWT with Explore and chart creation enabled
+- prints `VITE_EMBED_URL="..."`, `VITE_METRICS_CATALOG_EMBED_URL="..."`, and `VITE_AI_AGENT_EMBED_URL="..."` values for `packages/sdk-test-app/.env.local`
 
 To target a specific agent, set `AI_AGENT_UUID` or `AI_AGENT_NAME` before
 running the generator.
