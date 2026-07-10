@@ -1,4 +1,5 @@
 export const AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES = 20 * 1024;
+export const AI_AGENT_DOCUMENT_MAX_NAME_LENGTH = 255;
 export const AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES = 5 * 1024 * 1024;
 
 export type AiAgentDocumentRelevance = 'high' | 'medium' | 'low' | 'none';
@@ -73,6 +74,11 @@ export type ApiCreateAgentDocument = {
 
 export type ApiUpdateAgentDocument = {
     alwaysIncludeInContext: boolean;
+};
+
+export type ApiUpdateAgentDocumentContent = {
+    name: string;
+    content: string;
 };
 
 export type ApiAiAgentDocumentResponse = {

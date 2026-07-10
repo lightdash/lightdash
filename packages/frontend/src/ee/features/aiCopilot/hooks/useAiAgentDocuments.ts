@@ -1,10 +1,12 @@
 import type {
+    ApiAiAgentDocumentContentResponse,
     ApiAiAgentDocumentResponse,
     ApiAiAgentDocumentSummaryListResponse,
     ApiCreateAgentDocument,
     ApiError,
     ApiSuccessEmpty,
     ApiUpdateAgentDocument,
+    ApiUpdateAgentDocumentContent,
 } from '@lightdash/common';
 import {
     useMutation,
@@ -37,6 +39,31 @@ const createDocument = async (
         version: 'v1',
         url: documentsUrl(projectUuid, agentUuid),
         method: 'POST',
+        body: JSON.stringify(body),
+    });
+
+const getDocumentContent = async (
+    projectUuid: string,
+    agentUuid: string,
+    documentUuid: string,
+) =>
+    lightdashApi<ApiAiAgentDocumentContentResponse['results']>({
+        version: 'v1',
+        url: `${documentsUrl(projectUuid, agentUuid)}/${documentUuid}/content`,
+        method: 'GET',
+        body: undefined,
+    });
+
+const updateDocumentContent = async (
+    projectUuid: string,
+    agentUuid: string,
+    documentUuid: string,
+    body: ApiUpdateAgentDocumentContent,
+) =>
+    lightdashApi<ApiAiAgentDocumentResponse['results']>({
+        version: 'v1',
+        url: `${documentsUrl(projectUuid, agentUuid)}/${documentUuid}/content`,
+        method: 'PATCH',
         body: JSON.stringify(body),
     });
 
@@ -100,6 +127,71 @@ export const useCreateAiAgentDocument = (
         onError: ({ error }) => {
             showToastApiError({
                 title: 'Failed to upload document',
+                apiError: error,
+            });
+        },
+    });
+};
+
+export const useAiAgentDocumentContent = (
+    projectUuid: string,
+    agentUuid: string,
+    documentUuid: string | null,
+    options?: UseQueryOptions<
+        ApiAiAgentDocumentContentResponse['results'],
+        ApiError
+    >,
+) =>
+    useQuery<ApiAiAgentDocumentContentResponse['results'], ApiError>({
+        queryKey: [
+            AI_AGENT_DOCUMENTS_KEY,
+            projectUuid,
+            agentUuid,
+            'content',
+            documentUuid,
+        ],
+        queryFn: () => {
+            if (!documentUuid) {
+                throw new Error('Document uuid is required');
+            }
+            return getDocumentContent(projectUuid, agentUuid, documentUuid);
+        },
+        enabled: documentUuid !== null,
+        ...options,
+    });
+
+export const useUpdateAiAgentDocumentContent = (
+    projectUuid: string,
+    agentUuid: string,
+) => {
+    const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
+    return useMutation<
+        ApiAiAgentDocumentResponse['results'],
+        ApiError,
+        { documentUuid: string; body: ApiUpdateAgentDocumentContent }
+    >({
+        mutationFn: ({ documentUuid, body }) =>
+            updateDocumentContent(projectUuid, agentUuid, documentUuid, body),
+        onSuccess: async (document) => {
+            await Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey: [AI_AGENT_DOCUMENTS_KEY],
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: [
+                        AI_AGENT_DOCUMENTS_KEY,
+                        projectUuid,
+                        agentUuid,
+                        'content',
+                        document.uuid,
+                    ],
+                }),
+            ]);
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to update document content',
                 apiError: error,
             });
         },

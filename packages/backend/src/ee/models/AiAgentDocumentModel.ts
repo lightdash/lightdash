@@ -369,6 +369,40 @@ export class AiAgentDocumentModel {
         };
     }
 
+    async updateContent(args: {
+        documentUuid: string;
+        organizationUuid: string;
+        name: string;
+        content: string;
+        summary: AiAgentDocumentStructuredSummary;
+        updatedByUserUuid: string;
+    }): Promise<AiAgentDocument> {
+        const updated = await this.database(AiAgentDocumentTableName)
+            .where('ai_agent_document_uuid', args.documentUuid)
+            .andWhere('organization_uuid', args.organizationUuid)
+            .update({
+                name: args.name,
+                content: args.content,
+                content_size_bytes: Buffer.byteLength(args.content, 'utf8'),
+                summary: args.summary,
+                updated_by_user_uuid: args.updatedByUserUuid,
+                updated_at: this.database.fn.now(),
+            });
+        if (updated === 0) {
+            throw new NotFoundError(
+                `AI agent document ${args.documentUuid} not found`,
+            );
+        }
+
+        const document = await this.findOnQb(args.documentUuid, this.database);
+        if (!document) {
+            throw new NotFoundError(
+                `AI agent document ${args.documentUuid} not found`,
+            );
+        }
+        return document;
+    }
+
     async updateAlwaysIncludeInContext(args: {
         documentUuid: string;
         alwaysIncludeInContext: boolean;

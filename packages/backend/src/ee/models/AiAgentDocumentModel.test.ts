@@ -151,6 +151,66 @@ describe('AiAgentDocumentModel agent scope', () => {
         });
     });
 
+    describe('updateContent', () => {
+        it('updates content within the owning organization and recomputes its byte size', async () => {
+            tracker.on.update(() => true).response(1);
+            tracker.on
+                .select(() => true)
+                .response([
+                    {
+                        ai_agent_document_uuid: DOCUMENT,
+                        organization_uuid: ORG,
+                        project_uuid: PROJECT,
+                        name: 'Updated metrics',
+                        original_filename: 'metrics.md',
+                        mime_type: 'text/markdown',
+                        content: '€',
+                        content_size_bytes: 3,
+                        always_include_in_context: false,
+                        summary: {
+                            description: 'Updated definitions',
+                            definedTerms: [],
+                            relatedExploreNames: [],
+                            useWhen: '',
+                            relevance: 'high',
+                            warning: null,
+                        },
+                        storage_key: 'storage-key',
+                        agent_access: [AGENT],
+                        created_by_user_uuid: null,
+                        updated_by_user_uuid: AGENT,
+                        created_at: new Date('2026-07-10T00:00:00Z'),
+                        updated_at: new Date('2026-07-10T01:00:00Z'),
+                    },
+                ]);
+
+            const document = await model.updateContent({
+                documentUuid: DOCUMENT,
+                organizationUuid: ORG,
+                name: 'Updated metrics',
+                content: '€',
+                summary: {
+                    description: 'Updated definitions',
+                    definedTerms: [],
+                    relatedExploreNames: [],
+                    useWhen: '',
+                    relevance: 'high',
+                    warning: null,
+                },
+                updatedByUserUuid: AGENT,
+            });
+
+            const [query] = tracker.history.update;
+            expect(normalize(query.sql)).toContain(
+                'where "ai_agent_document_uuid" = ? and "organization_uuid" = ?',
+            );
+            expect(query.bindings).toContain(DOCUMENT);
+            expect(query.bindings).toContain(ORG);
+            expect(query.bindings).toContain(3);
+            expect(document.contentSizeBytes).toBe(3);
+        });
+    });
+
     describe('updateAlwaysIncludeInContext', () => {
         it('updates only the selected document', async () => {
             tracker.on.update(() => true).response(1);
