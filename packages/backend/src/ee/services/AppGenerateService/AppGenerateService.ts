@@ -43,6 +43,7 @@ import {
     type AppGeneratePipelineJobPayload,
     type AppVersionChartResource,
     type AppVersionDependencies,
+    type AppVersionDependencyEntry,
     type AppVersionExternalConnectionResource,
     type AppVersionResources,
     type ChartReference,
@@ -83,7 +84,10 @@ import {
     emitAiUsage,
     languageModelUsageToTokens,
 } from '../../../analytics/aiUsage';
-import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
+import {
+    LightdashAnalytics,
+    type DataAppUploadRejectedEvent,
+} from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
 import { resolveS3Credentials } from '../../../clients/Aws/S3BaseClient';
 import { LightdashConfig } from '../../../config/parseConfig';
@@ -7200,6 +7204,21 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             };
         }
 
+        this.analytics.track({
+            event: 'data_app.downloaded',
+            userId: user.userUuid,
+            properties: {
+                organizationId: app.organization_uuid,
+                projectId: projectUuid,
+                appUuid,
+                version: resolvedVersion,
+                versionPinned: version !== undefined,
+                fileCount: files.length,
+                sourceBytes: tarBuffer.length,
+                hasCustomDependencies: dependencies !== undefined,
+            },
+        });
+
         return {
             manifest,
             files,
@@ -7334,6 +7353,40 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
 
         const organizationUuid = await this.getProjectOrgUuid(projectUuid);
 
+        const trackUploadRejected = (
+            reason: DataAppUploadRejectedEvent['properties']['reason'],
+            details: {
+                customDependencies?: AppVersionDependencyEntry[];
+                error?: unknown;
+            } = {},
+        ): void => {
+            this.analytics.track({
+                event: 'data_app.upload_rejected',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    targetAppUuid: body.targetAppUuid,
+                    reason,
+                    ...(details.customDependencies !== undefined
+                        ? {
+                              customDependencyCount:
+                                  details.customDependencies.length,
+                              customDependencies: details.customDependencies,
+                          }
+                        : {}),
+                    ...(details.error !== undefined
+                        ? {
+                              error: AppGenerateService.truncateEnd(
+                                  getErrorMessage(details.error),
+                                  500,
+                              ),
+                          }
+                        : {}),
+                },
+            });
+        };
+
         // Validate the declared dependency set against the template baseline.
         // An empty custom set is treated as no-dependencies (some CLIs attach
         // the template set redundantly) and nothing is stored.
@@ -7355,22 +7408,40 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                     },
                 ));
             } catch (err) {
+                trackUploadRejected('dependency_validation', { error: err });
                 throw new ParameterError(getErrorMessage(err));
             }
             if (Object.keys(customDeps).length > 0) {
+                const customDependencies: AppVersionDependencyEntry[] =
+                    Object.entries(customDeps).map(([name, version]) => ({
+                        name,
+                        version,
+                    }));
                 // Role gate: adding custom npm dependencies is a supply-chain
                 // capability, so it requires manage:DataAppDependency (admins
                 // only by default) — a level above the create/manage:DataApp
                 // needed to upload a template-only app. Checked before the
                 // instance/org gates so an unauthorized user gets a clear 403.
-                this.assertCanManageDataAppDependencies(
-                    user,
-                    organizationUuid,
-                    projectUuid,
-                );
+                try {
+                    this.assertCanManageDataAppDependencies(
+                        user,
+                        organizationUuid,
+                        projectUuid,
+                    );
+                } catch (err) {
+                    trackUploadRejected('insufficient_permissions', {
+                        customDependencies,
+                        error: err,
+                    });
+                    throw err;
+                }
                 if (
                     !this.lightdashConfig.appRuntime.customDependenciesEnabled
                 ) {
+                    trackUploadRejected(
+                        'custom_dependencies_disabled_instance',
+                        { customDependencies },
+                    );
                     throw new ParameterError(
                         'Custom app dependencies are disabled on this instance (LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED). Remove the added packages or ask an admin to enable them.',
                     );
@@ -7387,6 +7458,9 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                             FeatureFlags.EnableDataAppCustomDependencies,
                     });
                 if (!orgAllowsCustomDeps) {
+                    trackUploadRejected('custom_dependencies_disabled_org', {
+                        customDependencies,
+                    });
                     throw new ParameterError(
                         'Custom app dependencies are not enabled for your organization. Contact your Lightdash admin to request access.',
                     );
@@ -7398,31 +7472,46 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 const lockfilePackages = extractLockfilePackages(
                     code.dependencies.lockfile,
                 );
-                await assertDependenciesMeetMinReleaseAge({
-                    packages: lockfilePackages.filter(
-                        (p) => customDeps[p.name] !== undefined,
-                    ),
-                    minReleaseAgeDays:
-                        this.lightdashConfig.appRuntime
-                            .dependencyMinReleaseAgeDays,
-                    registryHost:
-                        this.lightdashConfig.appRuntime
-                            .dependencyRegistryHosts[0] ?? 'registry.npmjs.org',
-                    now: Date.now(),
-                });
+                try {
+                    await assertDependenciesMeetMinReleaseAge({
+                        packages: lockfilePackages.filter(
+                            (p) => customDeps[p.name] !== undefined,
+                        ),
+                        minReleaseAgeDays:
+                            this.lightdashConfig.appRuntime
+                                .dependencyMinReleaseAgeDays,
+                        registryHost:
+                            this.lightdashConfig.appRuntime
+                                .dependencyRegistryHosts[0] ??
+                            'registry.npmjs.org',
+                        now: Date.now(),
+                    });
+                } catch (err) {
+                    trackUploadRejected('min_release_age', {
+                        customDependencies,
+                        error: err,
+                    });
+                    throw err;
+                }
                 // Malware screen over the WHOLE resolved tree (transitive
                 // included) — supply-chain attacks usually arrive through a
                 // transitive dep, not the package the author added directly.
-                await assertDependenciesHaveNoKnownMalware({
-                    packages: lockfilePackages,
-                    enabled:
-                        this.lightdashConfig.appRuntime
-                            .dependencyMalwareCheckEnabled,
-                });
+                try {
+                    await assertDependenciesHaveNoKnownMalware({
+                        packages: lockfilePackages,
+                        enabled:
+                            this.lightdashConfig.appRuntime
+                                .dependencyMalwareCheckEnabled,
+                    });
+                } catch (err) {
+                    trackUploadRejected('malware', {
+                        customDependencies,
+                        error: err,
+                    });
+                    throw err;
+                }
                 dependencySummary = {
-                    custom: Object.entries(customDeps).map(
-                        ([name, version]) => ({ name, version }),
-                    ),
+                    custom: customDependencies,
                     lockfileHash: createHash('sha256')
                         .update(code.dependencies.lockfile)
                         .digest('hex'),
@@ -7601,6 +7690,27 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             projectUuid,
             organizationUuid,
             userUuid: user.userUuid,
+        });
+
+        this.analytics.track({
+            event: 'data_app.uploaded',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                appUuid: newAppUuid,
+                version: newVersion,
+                action,
+                template: code.manifest.template,
+                sourceFileCount: sourceFiles.length,
+                sourceBytes: sourceTar.length,
+                hasCustomDependencies: dependencySummary !== undefined,
+                customDependencyCount: dependencySummary?.custom.length ?? 0,
+                customDependencies: dependencySummary?.custom ?? [],
+                ...(dependencySummary !== undefined
+                    ? { lockfileHash: dependencySummary.lockfileHash }
+                    : {}),
+            },
         });
 
         return { appUuid: newAppUuid, version: newVersion, action };

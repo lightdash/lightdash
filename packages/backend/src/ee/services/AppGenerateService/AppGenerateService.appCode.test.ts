@@ -135,9 +135,11 @@ function buildService(
         },
     };
 
+    const analytics = { track: vi.fn() };
+
     const service = new AppGenerateService({
         lightdashConfig: lightdashConfig as never,
-        analytics: {} as never,
+        analytics: analytics as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
         appModel: appModel as never,
@@ -192,7 +194,7 @@ function buildService(
         });
     }
 
-    return { service, appModel, schedulerClient };
+    return { service, appModel, schedulerClient, analytics };
 }
 
 describe('AppGenerateService.importAppCode', () => {
@@ -202,7 +204,8 @@ describe('AppGenerateService.importAppCode', () => {
     });
 
     it('create mode: creates a new app with version 1 and enqueues build', async () => {
-        const { service, appModel, schedulerClient } = buildService();
+        const { service, appModel, schedulerClient, analytics } =
+            buildService();
 
         appModel.findApp.mockResolvedValue(undefined); // no existing app
 
@@ -242,6 +245,22 @@ describe('AppGenerateService.importAppCode', () => {
         expect(schedulerClient.appBuildFromSource).not.toHaveBeenCalledWith(
             expect.objectContaining({ organizationUuid: USER_ORG_UUID }),
         );
+
+        expect(analytics.track).toHaveBeenCalledWith({
+            event: 'data_app.uploaded',
+            userId: USER_UUID,
+            properties: expect.objectContaining({
+                organizationId: PROJECT_ORG_UUID,
+                projectId: PROJECT_UUID,
+                appUuid: NEW_APP_UUID,
+                version: 1,
+                action: 'create',
+                sourceFileCount: 2,
+                hasCustomDependencies: false,
+                customDependencyCount: 0,
+                customDependencies: [],
+            }),
+        });
     });
 
     it('append mode: appends version 5 when latest is 4 and enqueues build', async () => {
@@ -438,7 +457,7 @@ describe('AppGenerateService.importAppCode', () => {
     });
 
     it('throws ParameterError when custom deps are present but customDependenciesEnabled is false', async () => {
-        const { service, appModel } = buildService({
+        const { service, appModel, analytics } = buildService({
             customDependenciesEnabled: false,
         });
 
@@ -460,6 +479,21 @@ describe('AppGenerateService.importAppCode', () => {
                 code: codeWithCustomDep,
             } as ImportAppCodeRequestBody),
         ).rejects.toThrow('LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED');
+
+        expect(analytics.track).toHaveBeenCalledWith({
+            event: 'data_app.upload_rejected',
+            userId: USER_UUID,
+            properties: expect.objectContaining({
+                organizationId: PROJECT_ORG_UUID,
+                projectId: PROJECT_UUID,
+                reason: 'custom_dependencies_disabled_instance',
+                customDependencyCount: 1,
+                customDependencies: [{ name: 'deck.gl', version: '9.3.5' }],
+            }),
+        });
+        expect(analytics.track).not.toHaveBeenCalledWith(
+            expect.objectContaining({ event: 'data_app.uploaded' }),
+        );
     });
 
     it('accepts template-only upload when customDependenciesEnabled is false', async () => {
@@ -479,7 +513,7 @@ describe('AppGenerateService.importAppCode', () => {
     });
 
     it('rejects custom deps when the instance allows them but the org flag is off', async () => {
-        const { service, appModel } = buildService({
+        const { service, appModel, analytics } = buildService({
             customDependenciesEnabled: true,
             customDependenciesOrgEnabled: false,
         });
@@ -494,10 +528,19 @@ describe('AppGenerateService.importAppCode', () => {
                 },
             } as ImportAppCodeRequestBody),
         ).rejects.toThrow('not enabled for your organization');
+
+        expect(analytics.track).toHaveBeenCalledWith({
+            event: 'data_app.upload_rejected',
+            userId: USER_UUID,
+            properties: expect.objectContaining({
+                reason: 'custom_dependencies_disabled_org',
+                customDependencies: [{ name: 'deck.gl', version: '9.3.5' }],
+            }),
+        });
     });
 
     it('rejects custom deps for a user without manage:DataAppDependency (non-admin)', async () => {
-        const { service, appModel } = buildService({
+        const { service, appModel, analytics } = buildService({
             customDependenciesEnabled: true,
             customDependenciesOrgEnabled: true,
             canManageDataAppDependencies: false,
@@ -513,6 +556,15 @@ describe('AppGenerateService.importAppCode', () => {
                 },
             } as ImportAppCodeRequestBody),
         ).rejects.toThrow(ForbiddenError);
+
+        expect(analytics.track).toHaveBeenCalledWith({
+            event: 'data_app.upload_rejected',
+            userId: USER_UUID,
+            properties: expect.objectContaining({
+                reason: 'insufficient_permissions',
+                customDependencies: [{ name: 'deck.gl', version: '9.3.5' }],
+            }),
+        });
     });
 
     it('allows a template-only upload for a non-admin (no dep permission needed)', async () => {
@@ -532,7 +584,7 @@ describe('AppGenerateService.importAppCode', () => {
     });
 
     it('accepts custom deps when both the instance and org flag allow them', async () => {
-        const { service, appModel, schedulerClient } = buildService({
+        const { service, appModel, schedulerClient, analytics } = buildService({
             customDependenciesEnabled: true,
             customDependenciesOrgEnabled: true,
         });
@@ -548,6 +600,17 @@ describe('AppGenerateService.importAppCode', () => {
 
         expect(result.action).toBe('create');
         expect(schedulerClient.appBuildFromSource).toHaveBeenCalledOnce();
+
+        expect(analytics.track).toHaveBeenCalledWith({
+            event: 'data_app.uploaded',
+            userId: USER_UUID,
+            properties: expect.objectContaining({
+                hasCustomDependencies: true,
+                customDependencyCount: 1,
+                customDependencies: [{ name: 'deck.gl', version: '9.3.5' }],
+                lockfileHash: expect.any(String),
+            }),
+        });
     });
 
     it('create mode: source.tar contains only src/ entries when bundle has mixed files', async () => {

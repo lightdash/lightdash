@@ -147,6 +147,8 @@ function makeFakeS3(tarBuffer: Buffer, expectedVersion: number = VERSION) {
 
 // ── service factory ───────────────────────────────────────────────────────────
 
+const analyticsTrackSpy = vi.fn();
+
 function buildService(overrides: {
     appModel?: Record<string, unknown>;
     s3ClientOverride?: { client: never; bucket: string };
@@ -198,7 +200,7 @@ function buildService(overrides: {
         lightdashConfig: {
             appRuntime: { customDependenciesEnabled },
         } as never,
-        analytics: {} as never,
+        analytics: { track: analyticsTrackSpy } as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
         appModel: fullAppModel as never,
@@ -240,6 +242,7 @@ describe('AppGenerateService.getAppCode', () => {
 
     beforeEach(() => {
         vi.mocked(assertCanViewApp).mockResolvedValue(undefined);
+        analyticsTrackSpy.mockClear();
     });
 
     it('returns a DataAppCode with manifest and extracted source files for the latest ready version', async () => {
@@ -279,6 +282,21 @@ describe('AppGenerateService.getAppCode', () => {
         expect(Buffer.from(themeFile!.contentBase64, 'base64').toString()).toBe(
             'export const theme = {};',
         );
+
+        expect(analyticsTrackSpy).toHaveBeenCalledWith({
+            event: 'data_app.downloaded',
+            userId: fakeUser.userUuid,
+            properties: expect.objectContaining({
+                organizationId: ORG_UUID,
+                projectId: PROJECT_UUID,
+                appUuid: APP_UUID,
+                version: VERSION,
+                versionPinned: false,
+                fileCount: 2,
+                sourceBytes: expect.any(Number),
+                hasCustomDependencies: false,
+            }),
+        });
     });
 
     it('uses the provided version number instead of latest ready', async () => {
@@ -306,6 +324,16 @@ describe('AppGenerateService.getAppCode', () => {
         expect(result.manifest.version).toBe(EXPLICIT_VERSION);
         expect(appModel.getLatestReadyVersion).not.toHaveBeenCalled();
         expect(result.files).toHaveLength(2);
+
+        expect(analyticsTrackSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'data_app.downloaded',
+                properties: expect.objectContaining({
+                    version: EXPLICIT_VERSION,
+                    versionPinned: true,
+                }),
+            }),
+        );
     });
 
     it('refuses to download an app with custom deps when the kill-switch is off', async () => {
