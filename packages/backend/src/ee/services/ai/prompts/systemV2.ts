@@ -1,6 +1,5 @@
 import {
-    AiAgentDocumentStructuredSummary,
-    AiAgentDocumentSummary,
+    AiAgentDocumentContext,
     AiWritebackAttribution,
     Explore,
     WarehouseTypes,
@@ -27,10 +26,16 @@ import { SEARCH_SEMANTIC_LAYER_SECTION } from './systemV2SearchSemanticLayer';
 import { renderAvailableSkills } from './systemV2Skills';
 import { SYSTEM_PROMPT_TEMPLATE } from './systemV2Template';
 
+const escapeXmlText = (value: string): string =>
+    value
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;');
+
 export const getSystemPromptV2 = (args: {
     availableExplores: Explore[];
     availableSkills?: AiAgentSkillReference[];
-    knowledgeDocuments?: AiAgentDocumentSummary[];
+    knowledgeDocuments?: AiAgentDocumentContext[];
     hasProjectContext?: boolean;
     instructions?: string;
     agentName?: string;
@@ -84,7 +89,7 @@ export const getSystemPromptV2 = (args: {
         ? ''
         : '\n- You cannot execute raw SQL or add custom SQL expressions to a query.';
 
-    const renderKnowledgeDocument = (doc: AiAgentDocumentSummary): string => {
+    const renderKnowledgeDocument = (doc: AiAgentDocumentContext): string => {
         const { summary } = doc;
         const children: string[] = [
             xmlBuilder('description', null, summary.description),
@@ -109,12 +114,21 @@ export const getSystemPromptV2 = (args: {
         if (summary.warning) {
             children.push(xmlBuilder('warning', null, summary.warning));
         }
+        const fullContent = doc.content ?? '';
+        const hasFullContent =
+            doc.alwaysIncludeInContext && fullContent.length > 0;
+        if (hasFullContent) {
+            children.push(
+                xmlBuilder('full_content', null, escapeXmlText(fullContent)),
+            );
+        }
         return xmlBuilder(
             'knowledge_document',
             {
                 uuid: doc.uuid,
                 name: doc.name,
                 relevance: summary.relevance,
+                full_content_included: hasFullContent,
             },
             ...children,
         );

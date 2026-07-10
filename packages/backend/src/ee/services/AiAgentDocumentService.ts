@@ -7,6 +7,7 @@ import {
     AiAgentDocumentSummary,
     ApiCreateAgentDocument,
     ApiCreateAiAgentDocument,
+    ApiUpdateAgentDocument,
     CommercialFeatureFlags,
     Explore,
     ForbiddenError,
@@ -221,6 +222,43 @@ export class AiAgentDocumentService extends BaseService {
             projectUuid,
             agentUuids: [agentUuid],
             projectExplores,
+        });
+    }
+
+    async updateDocument(
+        user: SessionUser,
+        { projectUuid, agentUuid }: AiAgentDocumentScope,
+        documentUuid: string,
+        body: ApiUpdateAgentDocument,
+    ): Promise<void> {
+        const organizationUuid = assertOrganizationUuid(user);
+        await this.assertCopilotEnabled(user);
+        this.assertCanManageDocuments(user, organizationUuid, projectUuid);
+        await this.aiAgentService.getAgent(user, agentUuid, projectUuid);
+
+        const existing = await this.aiAgentDocumentModel.findAccessibleForAgent(
+            {
+                organizationUuid,
+                agentUuid,
+                projectUuid,
+                documentUuid,
+            },
+        );
+        if (!existing) {
+            throw new NotFoundError(
+                `AI agent document ${documentUuid} not found`,
+            );
+        }
+        this.assertCanManageDocuments(
+            user,
+            organizationUuid,
+            existing.projectUuid,
+        );
+
+        await this.aiAgentDocumentModel.updateAlwaysIncludeInContext({
+            documentUuid,
+            alwaysIncludeInContext: body.alwaysIncludeInContext,
+            updatedByUserUuid: user.userUuid,
         });
     }
 

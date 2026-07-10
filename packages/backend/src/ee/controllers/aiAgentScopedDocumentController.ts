@@ -4,6 +4,7 @@ import {
     ApiCreateAgentDocument,
     ApiErrorPayload,
     ApiSuccessEmpty,
+    ApiUpdateAgentDocument,
     assertRegisteredAccount,
     type UUID,
 } from '@lightdash/common';
@@ -13,6 +14,7 @@ import {
     Get,
     Middlewares,
     OperationId,
+    Patch,
     Path,
     Post,
     Request,
@@ -89,6 +91,39 @@ export class AiAgentScopedDocumentController extends BaseController {
                 { projectUuid, agentUuid },
                 body,
             ),
+        };
+    }
+
+    /**
+     * Choose whether the full knowledge document is included in every prompt.
+     * @summary Update agent document
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('/{documentUuid}')
+    @OperationId('updateAgentDocument')
+    async updateDocument(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() agentUuid: UUID,
+        @Path() documentUuid: UUID,
+        @Body() body: ApiUpdateAgentDocument,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.getService().updateDocument(
+            toSessionUser(req.account),
+            { projectUuid, agentUuid },
+            documentUuid,
+            body,
+        );
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 

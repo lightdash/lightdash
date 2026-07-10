@@ -1,6 +1,7 @@
 import {
     AiAgentDocument,
     AiAgentDocumentContent,
+    AiAgentDocumentContext,
     AiAgentDocumentStructuredSummary,
     AiAgentDocumentSummary,
     AlreadyExistsError,
@@ -26,6 +27,7 @@ const mapRowToDocument = (row: DbDocumentWithAccess): AiAgentDocument => ({
     originalFilename: row.original_filename,
     mimeType: row.mime_type,
     contentSizeBytes: row.content_size_bytes,
+    alwaysIncludeInContext: row.always_include_in_context,
     summary: row.summary,
     storageKey: row.storage_key,
     agentAccess: row.agent_access ?? [],
@@ -39,6 +41,13 @@ const mapRowToSummary = (row: DbDocumentWithAccess): AiAgentDocumentSummary => {
     const data = omit(mapRowToDocument(row), 'storageKey');
     return data;
 };
+
+const mapRowToContext = (
+    row: DbDocumentWithAccess,
+): AiAgentDocumentContext => ({
+    ...mapRowToSummary(row),
+    content: row.always_include_in_context ? row.content : null,
+});
 
 export class AiAgentDocumentModel {
     private readonly database: Knex;
@@ -157,6 +166,7 @@ export class AiAgentDocumentModel {
                     mime_type: args.mimeType,
                     content: args.content,
                     content_size_bytes: contentSizeBytes,
+                    always_include_in_context: false,
                     summary: args.summary,
                     storage_key: args.storageKey,
                     created_by_user_uuid: args.createdByUserUuid,
@@ -268,6 +278,28 @@ export class AiAgentDocumentModel {
         return rows.map(mapRowToSummary);
     }
 
+    async findAllContextForAgent(args: {
+        organizationUuid: string;
+        agentUuid: string;
+        projectUuid: string | null;
+    }): Promise<AiAgentDocumentContext[]> {
+        const rows = await this.baseSelect()
+            .where(
+                `${AiAgentDocumentTableName}.organization_uuid`,
+                args.organizationUuid,
+            )
+            .andWhere(
+                AiAgentDocumentModel.agentScope(
+                    this.database,
+                    args.agentUuid,
+                    args.projectUuid,
+                ),
+            )
+            .orderBy(`${AiAgentDocumentTableName}.created_at`, 'desc');
+
+        return rows.map(mapRowToContext);
+    }
+
     async findAccessibleForAgent(args: {
         organizationUuid: string;
         agentUuid: string;
@@ -335,6 +367,25 @@ export class AiAgentDocumentModel {
             mimeType: row.mime_type,
             content: row.content,
         };
+    }
+
+    async updateAlwaysIncludeInContext(args: {
+        documentUuid: string;
+        alwaysIncludeInContext: boolean;
+        updatedByUserUuid: string;
+    }): Promise<void> {
+        const updated = await this.database(AiAgentDocumentTableName)
+            .where('ai_agent_document_uuid', args.documentUuid)
+            .update({
+                always_include_in_context: args.alwaysIncludeInContext,
+                updated_by_user_uuid: args.updatedByUserUuid,
+                updated_at: this.database.fn.now(),
+            });
+        if (updated === 0) {
+            throw new NotFoundError(
+                `AI agent document ${args.documentUuid} not found`,
+            );
+        }
     }
 
     async delete(uuid: string): Promise<void> {

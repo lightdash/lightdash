@@ -96,6 +96,80 @@ describe('AiAgentDocumentModel agent scope', () => {
         });
     });
 
+    describe('findAllContextForAgent', () => {
+        it('only exposes content configured for every prompt', async () => {
+            const baseRow = {
+                ai_agent_document_uuid: DOCUMENT,
+                organization_uuid: ORG,
+                project_uuid: PROJECT,
+                name: 'Metrics',
+                original_filename: 'metrics.md',
+                mime_type: 'text/markdown',
+                content_size_bytes: 10,
+                summary: {
+                    description: 'Metric definitions',
+                    definedTerms: [],
+                    relatedExploreNames: [],
+                    useWhen: '',
+                    relevance: 'high',
+                    warning: null,
+                },
+                storage_key: 'storage-key',
+                agent_access: [AGENT],
+                created_by_user_uuid: null,
+                updated_by_user_uuid: null,
+                created_at: new Date('2026-07-10T00:00:00Z'),
+                updated_at: new Date('2026-07-10T00:00:00Z'),
+            };
+            tracker.on
+                .select(() => true)
+                .response([
+                    {
+                        ...baseRow,
+                        content: 'Always available',
+                        always_include_in_context: true,
+                    },
+                    {
+                        ...baseRow,
+                        ai_agent_document_uuid:
+                            '55555555-5555-4555-8555-555555555555',
+                        content: 'Retrieved only',
+                        always_include_in_context: false,
+                    },
+                ]);
+
+            const documents = await model.findAllContextForAgent({
+                organizationUuid: ORG,
+                agentUuid: AGENT,
+                projectUuid: PROJECT,
+            });
+
+            expect(documents.map(({ content }) => content)).toEqual([
+                'Always available',
+                null,
+            ]);
+        });
+    });
+
+    describe('updateAlwaysIncludeInContext', () => {
+        it('updates only the selected document', async () => {
+            tracker.on.update(() => true).response(1);
+
+            await model.updateAlwaysIncludeInContext({
+                documentUuid: DOCUMENT,
+                alwaysIncludeInContext: true,
+                updatedByUserUuid: AGENT,
+            });
+
+            const [query] = tracker.history.update;
+            expect(normalize(query.sql)).toContain(
+                'where "ai_agent_document_uuid" = ?',
+            );
+            expect(query.bindings).toContain(DOCUMENT);
+            expect(query.bindings).toContain(true);
+        });
+    });
+
     describe('shared predicate', () => {
         it('findAccessibleForAgent scopes by document, organization and agent', async () => {
             const { sql, bindings } = await capture(() =>
