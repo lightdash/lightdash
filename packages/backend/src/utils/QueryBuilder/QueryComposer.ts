@@ -41,27 +41,32 @@ export type QueryComposerDefinition = {
     totalConfiguration?: TotalConfiguration;
 };
 
-/** Raw inputs the composer needs to prepare context and build SQL. */
+/**
+ * Raw inputs the composer needs to prepare context and build SQL. Only
+ * `explore` and `warehouseSqlBuilder` are always needed; the rest drive the
+ * metric-compile path and are optional so SQL charts (which override
+ * `computeCompiled`) can omit them.
+ */
 export type QueryComposerContext = {
     explore: Explore;
     warehouseSqlBuilder: WarehouseSqlBuilder;
-    intrinsicUserAttributes: IntrinsicUserAttributes;
-    userAttributes: UserAttributeValueMap;
-    timezone: string;
-    availableParameterDefinitions: ParameterDefinitions;
-    parameters: ParametersValuesMap | undefined;
-    dateZoom: DateZoom | undefined;
-    pivotDimensions: string[] | undefined;
+    intrinsicUserAttributes?: IntrinsicUserAttributes;
+    userAttributes?: UserAttributeValueMap;
+    timezone?: string;
+    availableParameterDefinitions?: ParameterDefinitions;
+    parameters?: ParametersValuesMap;
+    dateZoom?: DateZoom;
+    pivotDimensions?: string[];
     /**
      * itemsMap the pivot resolves field metadata against. Defaults to the
      * freshly compiled fields when undefined; pre-agg supplies the source
      * query's persisted fields instead.
      */
-    pivotItemsMap: ItemsMap | undefined;
-    continueOnError: boolean | undefined;
-    useTimezoneAwareDateTrunc: boolean | undefined;
-    columnTimezone: string | undefined;
-    applyDateZoomToFilters: boolean | undefined;
+    pivotItemsMap?: ItemsMap;
+    continueOnError?: boolean;
+    useTimezoneAwareDateTrunc?: boolean;
+    columnTimezone?: string;
+    applyDateZoomToFilters?: boolean;
 };
 
 /**
@@ -71,11 +76,11 @@ export type QueryComposerContext = {
  * PivotQueryBuilder — it does not generate SQL itself.
  */
 export class QueryComposer {
-    private readonly definition: QueryComposerDefinition;
+    protected readonly definition: QueryComposerDefinition;
 
-    private readonly context: QueryComposerContext;
+    protected readonly context: QueryComposerContext;
 
-    private compiledQuery: CompiledQuery | undefined;
+    protected compiledQuery: CompiledQuery | undefined;
 
     private effectiveDefinition:
         | {
@@ -121,6 +126,11 @@ export class QueryComposer {
         return this.effectiveDefinition;
     }
 
+    /** The explore the query runs against. */
+    getExplore(): Explore {
+        return this.context.explore;
+    }
+
     /** The effective (totals-collapsed) metric query the composer compiles. */
     getMetricQuery(): MetricQuery {
         return this.getEffectiveDefinition().metricQuery;
@@ -131,12 +141,20 @@ export class QueryComposer {
         return this.getEffectiveDefinition().pivotConfiguration;
     }
 
-    /** Compile the metric query to base SQL. Memoized. */
+    /** Compile to base SQL, memoized. Delegates to the overridable seam. */
     compile(): CompiledQuery {
         if (this.compiledQuery) {
             return this.compiledQuery;
         }
+        this.compiledQuery = this.computeCompiled();
+        return this.compiledQuery;
+    }
 
+    /**
+     * Produce the base CompiledQuery. Subclasses override this to compile from
+     * different inputs (e.g. SQL charts wrap user SQL instead of a metric query).
+     */
+    protected computeCompiled(): CompiledQuery {
         const { metricQuery, pivotConfiguration } =
             this.getEffectiveDefinition();
         // Date zoom targets the source query's dimensions; it rewrites the
@@ -146,10 +164,12 @@ export class QueryComposer {
         const {
             explore,
             warehouseSqlBuilder,
-            intrinsicUserAttributes,
-            userAttributes,
-            timezone,
-            availableParameterDefinitions,
+            // Always supplied on the metric-compile path; defaulted so the
+            // optional context type stays satisfied.
+            intrinsicUserAttributes = {},
+            userAttributes = {},
+            timezone = '',
+            availableParameterDefinitions = {},
             parameters,
             dateZoom,
             pivotDimensions,
@@ -215,12 +235,9 @@ export class QueryComposer {
             columnTimezone,
         });
 
-        this.compiledQuery = wrapSentryTransactionSync(
-            'QueryBuilder.buildQuery',
-            {},
-            () => queryBuilder.compileQuery(),
+        return wrapSentryTransactionSync('QueryBuilder.buildQuery', {}, () =>
+            queryBuilder.compileQuery(),
         );
-        return this.compiledQuery;
     }
 
     /**
