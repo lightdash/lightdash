@@ -34,7 +34,9 @@ import {
     type AiRouterDecisionConfidence,
     type AiRouterRouteNextAction,
     type AiWritebackFailureStage,
+    type AppVersionDependencyEntry,
     type DataAppClaudeModel,
+    type DataAppTemplate,
     type PullRequestProvider,
 } from '@lightdash/common';
 import Analytics, {
@@ -1433,6 +1435,64 @@ export type DataAppPromotedEvent = BaseTrack & {
     };
 };
 
+export type DataAppDownloadedEvent = BaseTrack & {
+    event: 'data_app.downloaded';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        version: number;
+        // true when the caller pinned an explicit version rather than
+        // resolving to the latest ready one.
+        versionPinned: boolean;
+        fileCount: number;
+        sourceBytes: number;
+        hasCustomDependencies: boolean;
+    };
+};
+
+export type DataAppUploadedEvent = BaseTrack & {
+    event: 'data_app.uploaded';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        version: number;
+        action: 'create' | 'append';
+        template: Exclude<DataAppTemplate, 'custom'> | null;
+        sourceFileCount: number;
+        sourceBytes: number;
+        hasCustomDependencies: boolean;
+        // The version's full custom set (delta vs the template baseline),
+        // not just packages new since the previous version.
+        customDependencyCount: number;
+        customDependencies: AppVersionDependencyEntry[];
+        lockfileHash?: string;
+    };
+};
+
+export type DataAppUploadRejectedEvent = BaseTrack & {
+    event: 'data_app.upload_rejected';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        targetAppUuid?: string;
+        reason:
+            | 'dependency_validation'
+            | 'insufficient_permissions'
+            | 'custom_dependencies_disabled_instance'
+            | 'custom_dependencies_disabled_org'
+            | 'min_release_age'
+            | 'malware';
+        customDependencyCount?: number;
+        customDependencies?: AppVersionDependencyEntry[];
+        error?: string;
+    };
+};
+
 export type DataAppEvent =
     | DataAppCreatedEvent
     | DataAppIteratedEvent
@@ -1443,7 +1503,10 @@ export type DataAppEvent =
     | DataAppViewedEvent
     | DataAppVersionRestoredEvent
     | DataAppDuplicatedEvent
-    | DataAppPromotedEvent;
+    | DataAppPromotedEvent
+    | DataAppDownloadedEvent
+    | DataAppUploadedEvent
+    | DataAppUploadRejectedEvent;
 
 export type AiWritebackStartedEvent = BaseTrack & {
     event: 'ai_writeback.started';
