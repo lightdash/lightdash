@@ -6542,6 +6542,116 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         );
     }
 
+    // Final safety net over the fully-assembled history: any assistant
+    // `tool-call` with no following `tool-result` makes the provider reject the
+    // whole request (400 "tool_use ids were found without tool_result blocks").
+    // `buildToolCallTurnMessages` backfills prior-prompt orphans, but a blocked
+    // sibling on the *current* prompt (e.g. a guardrail-tripped runSql whose
+    // result never persisted) can still dangle. Backfill a synthetic result for
+    // every dangling call, EXCEPT the trailing approved-but-unexecuted call(s):
+    // the AI SDK only resumes tool-approval-responses found in the LAST message
+    // (see `collectToolApprovals`), so those must stay result-less to re-execute.
+    static backfillDanglingToolResults(
+        history: ModelMessage[],
+    ): ModelMessage[] {
+        const approvalIdToToolCallId = new Map<string, string>();
+        for (const message of history) {
+            if (
+                message.role === 'assistant' &&
+                typeof message.content !== 'string'
+            ) {
+                for (const part of message.content) {
+                    if (part.type === 'tool-approval-request') {
+                        approvalIdToToolCallId.set(
+                            part.approvalId,
+                            part.toolCallId,
+                        );
+                    }
+                }
+            }
+        }
+
+        // The resume input the SDK is about to execute: approval-responses in
+        // the last message whose tool-call it will run. Leave these dangling.
+        const pendingResumeToolCallIds = new Set<string>();
+        const lastMessage = history.at(-1);
+        if (lastMessage?.role === 'tool') {
+            for (const part of lastMessage.content) {
+                if (part.type === 'tool-approval-response') {
+                    const toolCallId = approvalIdToToolCallId.get(
+                        part.approvalId,
+                    );
+                    if (toolCallId) {
+                        pendingResumeToolCallIds.add(toolCallId);
+                    }
+                }
+            }
+        }
+
+        const resolvedToolCallIds = new Set<string>();
+        for (const message of history) {
+            if (message.role === 'tool') {
+                for (const part of message.content) {
+                    if (part.type === 'tool-result') {
+                        resolvedToolCallIds.add(part.toolCallId);
+                    }
+                }
+            }
+        }
+
+        const backfilled: ModelMessage[] = [];
+        for (let i = 0; i < history.length; i += 1) {
+            const message = history[i];
+            backfilled.push(message);
+
+            const danglingCalls =
+                message.role === 'assistant' &&
+                typeof message.content !== 'string'
+                    ? message.content.filter(
+                          (part): part is ToolCallPart =>
+                              part.type === 'tool-call' &&
+                              !resolvedToolCallIds.has(part.toolCallId) &&
+                              !pendingResumeToolCallIds.has(part.toolCallId),
+                      )
+                    : [];
+
+            if (danglingCalls.length > 0) {
+                // Keep an approval-response that belongs to this turn ahead of
+                // the synthetic result, mirroring buildToolCallTurnMessages.
+                const next = history[i + 1];
+                if (
+                    next?.role === 'tool' &&
+                    next.content.some(
+                        (part) => part.type === 'tool-approval-response',
+                    )
+                ) {
+                    backfilled.push(next);
+                    i += 1;
+                }
+
+                for (const part of danglingCalls) {
+                    backfilled.push({
+                        role: 'tool',
+                        content: [
+                            {
+                                type: 'tool-result',
+                                toolCallId: part.toolCallId,
+                                toolName: part.toolName,
+                                output: {
+                                    type: 'json',
+                                    value: 'Tool result unavailable.',
+                                },
+                            },
+                        ],
+                    } satisfies ToolModelMessage);
+                    resolvedToolCallIds.add(part.toolCallId);
+                }
+            }
+        }
+
+        return backfilled;
+    }
+
     async getChatHistoryFromThreadMessages(
         // TODO: move getThreadMessages to AiAgentModel and improve types
         // also, it should be called through a service method...
@@ -6662,7 +6772,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             }),
         );
 
-        const history = messagesWithToolCalls.flat();
+        const history = AiAgentService.backfillDanglingToolResults(
+            messagesWithToolCalls.flat(),
+        );
 
         if (!options.compaction) {
             if (history.length === 0) {
