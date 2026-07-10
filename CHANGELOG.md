@@ -1,3 +1,10 @@
+## [0.3358.1](https://github.com/lightdash/lightdash/compare/0.3358.0...0.3358.1) (2026-07-10)
+
+
+### Bug Fixes
+
+* rename MCP connection action ([#25394](https://github.com/lightdash/lightdash/issues/25394)) ([06539ba](https://github.com/lightdash/lightdash/commit/06539bae22858eabe81f0b17661db8c97fab8bb7))
+
 # [0.3358.0](https://github.com/lightdash/lightdash/compare/0.3357.0...0.3358.0) (2026-07-10)
 
 
