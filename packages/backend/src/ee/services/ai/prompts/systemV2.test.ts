@@ -79,6 +79,27 @@ describe('getSystemPromptV2 knowledge documents', () => {
         );
     });
 
+    test.each([null, ''])(
+        'does not claim unavailable full content is included: %s',
+        (documentContent) => {
+            const content = promptText({
+                availableExplores: [],
+                knowledgeDocuments: [
+                    {
+                        ...document,
+                        content: documentContent,
+                    },
+                ],
+            });
+            const knowledgeSection = content.slice(
+                content.indexOf('## Available knowledge documents'),
+            );
+
+            expect(knowledgeSection).toContain('full_content_included="false"');
+            expect(knowledgeSection).not.toContain('<full_content>');
+        },
+    );
+
     test('keeps full content inside its XML boundary', () => {
         const content = promptText({
             availableExplores: [],

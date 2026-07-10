@@ -114,9 +114,12 @@ export const getSystemPromptV2 = (args: {
         if (summary.warning) {
             children.push(xmlBuilder('warning', null, summary.warning));
         }
-        if (doc.alwaysIncludeInContext && doc.content) {
+        const fullContent = doc.content ?? '';
+        const hasFullContent =
+            doc.alwaysIncludeInContext && fullContent.length > 0;
+        if (hasFullContent) {
             children.push(
-                xmlBuilder('full_content', null, escapeXmlText(doc.content)),
+                xmlBuilder('full_content', null, escapeXmlText(fullContent)),
             );
         }
         return xmlBuilder(
@@ -125,7 +128,7 @@ export const getSystemPromptV2 = (args: {
                 uuid: doc.uuid,
                 name: doc.name,
                 relevance: summary.relevance,
-                full_content_included: doc.alwaysIncludeInContext,
+                full_content_included: hasFullContent,
             },
             ...children,
         );
