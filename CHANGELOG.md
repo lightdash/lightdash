@@ -1,3 +1,13 @@
+# [0.3363.0](https://github.com/lightdash/lightdash/compare/0.3362.0...0.3363.0) (2026-07-10)
+
+
+### Features
+
+* **frontend:** generate dashboard export/preview images via async job ([#25403](https://github.com/lightdash/lightdash/issues/25403)) ([d5c0838](https://github.com/lightdash/lightdash/commit/d5c0838c78af4c9110560c31979cd36ff6ac15c2))
+* gate data-app custom dependencies behind admin-only manage:DataAppDependency [GLITCH-558] ([#25400](https://github.com/lightdash/lightdash/issues/25400)) ([fc23ec9](https://github.com/lightdash/lightdash/commit/fc23ec991369b842da5740bcd62ff5f81e187baa))
+* **roles:** filter permissions by dependency status ([#25406](https://github.com/lightdash/lightdash/issues/25406)) ([17388a0](https://github.com/lightdash/lightdash/commit/17388a0a6d1fa52486e07261b13b1417f4f4ee12))
+* update preview expiration when start-preview runs on an existing preview ([#25390](https://github.com/lightdash/lightdash/issues/25390)) ([c0b8567](https://github.com/lightdash/lightdash/commit/c0b8567203a3ea7675f285b6295d089daf3b5ad5))
+
 # [0.3362.0](https://github.com/lightdash/lightdash/compare/0.3361.0...0.3362.0) (2026-07-10)
 
 
