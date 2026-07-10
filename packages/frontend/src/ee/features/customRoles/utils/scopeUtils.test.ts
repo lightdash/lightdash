@@ -6,6 +6,7 @@ import {
     getScopeDependencies,
     getScopeNamesWithDependencies,
     getScopesByGroup,
+    getToggledDependencyStatus,
 } from './scopeUtils';
 
 describe('getScopeDependencies', () => {
@@ -105,6 +106,24 @@ describe('filterScopesByDependencyStatus', () => {
                 'view:Project': true,
             }),
         ).toBe(groupedScopes);
+    });
+});
+
+describe('getToggledDependencyStatus', () => {
+    it('selects an inactive status', () => {
+        expect(getToggledDependencyStatus(undefined, 'partial')).toBe(
+            'partial',
+        );
+    });
+
+    it('switches to a different status', () => {
+        expect(getToggledDependencyStatus('full', 'empty')).toBe('empty');
+    });
+
+    it('clears the active status', () => {
+        expect(getToggledDependencyStatus('partial', 'partial')).toBe(
+            undefined,
+        );
     });
 });
 

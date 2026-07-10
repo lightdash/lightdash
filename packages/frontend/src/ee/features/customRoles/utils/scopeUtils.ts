@@ -32,6 +32,12 @@ export type DependencyStatus = 'full' | 'partial' | 'empty';
 
 export type DependencyStatusCounts = Record<DependencyStatus, number>;
 
+export const getToggledDependencyStatus = (
+    currentStatus: DependencyStatus | undefined,
+    selectedStatus: DependencyStatus,
+): DependencyStatus | undefined =>
+    currentStatus === selectedStatus ? undefined : selectedStatus;
+
 export const getScopesByGroup = (
     isEnterprise = false,
     level?: RoleLevel,

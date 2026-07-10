@@ -19,13 +19,14 @@ import {
     IconCircleXFilled,
     IconFolder,
 } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { type FC, useState } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SettingsCard } from '../../../../../components/common/Settings/SettingsCard';
 import { validateRoleName, validateScopes } from '../../utils/roleValidation';
 import {
     getScopeDependencyStatusCounts,
+    getToggledDependencyStatus,
     type DependencyStatus,
 } from '../../utils/scopeUtils';
 import { ScopeSelector } from '../ScopeSelector';
@@ -63,13 +64,29 @@ type Props = {
 };
 
 const dependencyStatusItems = [
-    { key: 'full', icon: IconCircleCheckFilled, color: 'green' },
-    { key: 'partial', icon: IconAlertTriangleFilled, color: 'yellow' },
-    { key: 'empty', icon: IconCircleXFilled, color: 'red' },
+    {
+        key: 'full',
+        icon: IconCircleCheckFilled,
+        color: 'green',
+        label: 'all dependencies selected',
+    },
+    {
+        key: 'partial',
+        icon: IconAlertTriangleFilled,
+        color: 'yellow',
+        label: 'some dependencies selected',
+    },
+    {
+        key: 'empty',
+        icon: IconCircleXFilled,
+        color: 'red',
+        label: 'no dependencies selected',
+    },
 ] as const satisfies Array<{
     key: DependencyStatus;
     icon: typeof IconCircleCheckFilled;
     color: string;
+    label: string;
 }>;
 
 const roleLevelOptions = [
@@ -129,6 +146,8 @@ export const RoleBuilder: FC<Props> = ({
             scopes: validateScopes,
         },
     });
+    const [dependencyStatus, setDependencyStatus] =
+        useState<DependencyStatus>();
 
     const handleSubmit = form.onSubmit((values) => {
         const scopeNames = Object.entries(values.scopes)
@@ -175,7 +194,7 @@ export const RoleBuilder: FC<Props> = ({
     const isLevelDisabled = isWorking || mode === 'edit' || levelLocked;
     const levelHint =
         mode === 'edit'
-            ? "Role scope can't be changed after creation."
+            ? "Role type can't be changed after creation."
             : levelLocked
               ? levelLockedHint
               : undefined;
@@ -184,6 +203,11 @@ export const RoleBuilder: FC<Props> = ({
         level: form.values.level,
         scopes: form.values.scopes || {},
     });
+    const handleDependencyStatusClick = (status: DependencyStatus) => {
+        setDependencyStatus((currentStatus) =>
+            getToggledDependencyStatus(currentStatus, status),
+        );
+    };
 
     return (
         <form onSubmit={handleSubmit} className={styles.container}>
@@ -193,7 +217,7 @@ export const RoleBuilder: FC<Props> = ({
                         <Stack gap="md">
                             <Stack gap="xs">
                                 <Stack gap="two">
-                                    <Input.Label>Role scope</Input.Label>
+                                    <Input.Label>Role type</Input.Label>
                                     <Text fz="sm" c="dimmed">
                                         Choose where this role can be assigned.
                                         This can't be changed after the role is
@@ -312,6 +336,7 @@ export const RoleBuilder: FC<Props> = ({
                             <ScopeSelector
                                 form={form}
                                 level={form.values.level}
+                                dependencyStatus={dependencyStatus}
                             />
                         </Box>
                         <Flex
@@ -321,18 +346,41 @@ export const RoleBuilder: FC<Props> = ({
                             className={styles.footer}
                         >
                             <Group gap={4}>
-                                {dependencyStatusItems.map((status) => (
-                                    <Group key={status.key} gap={4}>
-                                        <MantineIcon
-                                            icon={status.icon}
-                                            size={13}
-                                            color={status.color}
-                                        />
-                                        <Text fz="sm" c="dimmed">
-                                            {dependencyStatusCounts[status.key]}
-                                        </Text>
-                                    </Group>
-                                ))}
+                                {dependencyStatusItems.map((status) => {
+                                    const count =
+                                        dependencyStatusCounts[status.key];
+                                    const isSelected =
+                                        dependencyStatus === status.key;
+
+                                    return (
+                                        <UnstyledButton
+                                            key={status.key}
+                                            type="button"
+                                            className={
+                                                styles.dependencyStatusButton
+                                            }
+                                            data-selected={isSelected}
+                                            aria-label={`Show ${count} permissions with ${status.label}`}
+                                            aria-pressed={isSelected}
+                                            onClick={() =>
+                                                handleDependencyStatusClick(
+                                                    status.key,
+                                                )
+                                            }
+                                        >
+                                            <Group gap={4}>
+                                                <MantineIcon
+                                                    icon={status.icon}
+                                                    size={13}
+                                                    color={status.color}
+                                                />
+                                                <Text fz="sm" c="dimmed">
+                                                    {count}
+                                                </Text>
+                                            </Group>
+                                        </UnstyledButton>
+                                    );
+                                })}
                                 <Text fz="sm" c="dimmed">
                                     dependencies
                                 </Text>
