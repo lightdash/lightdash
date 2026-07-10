@@ -1,3 +1,10 @@
+## [0.3352.1](https://github.com/lightdash/lightdash/compare/0.3352.0...0.3352.1) (2026-07-10)
+
+
+### Bug Fixes
+
+* **agents:** scope knowledge documents to project and agent ([#25365](https://github.com/lightdash/lightdash/issues/25365)) ([efa70e2](https://github.com/lightdash/lightdash/commit/efa70e2a0ae274d3129b516dc787f04d139ce964))
+
 # [0.3352.0](https://github.com/lightdash/lightdash/compare/0.3351.0...0.3352.0) (2026-07-09)
 
 
