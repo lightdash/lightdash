@@ -9,7 +9,6 @@ import {
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { LightdashConfig } from '../../config/parseConfig';
 import { CatalogModel } from '../../models/CatalogModel/CatalogModel';
-import { ChangesetModel } from '../../models/ChangesetModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -86,7 +85,6 @@ const buildService = (overrides?: { catalogModel?: Partial<CatalogModel> }) => {
         savedChartModel: {} as SavedChartModel,
         spaceModel: {} as SpaceModel,
         tagsModel: {} as TagsModel,
-        changesetModel: {} as ChangesetModel,
         spacePermissionService: {} as SpacePermissionService,
     });
 

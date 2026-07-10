@@ -103,7 +103,6 @@ import {
     type ApiMetricsTreeLockResponse,
     type ApiUpdateMetricsTreeResponse,
 } from './catalog';
-import { type ApiGetChangeResponse } from './changeset';
 import {
     type CiChecks,
     type ClosePullRequestResult,
@@ -1171,7 +1170,6 @@ type ApiResults =
     | ApiCreateEvaluationResponse['results']
     | ApiAgentSuggestionsResponse['results']
     | ApiAppendInstructionResponse['results']
-    | ApiGetChangeResponse['results']
     | ApiAiOrganizationSettingsResponse['results']
     | ApiUpdateAiOrganizationSettingsResponse['results']
     | ApiAiReviewNotificationSettingsResponse['results']

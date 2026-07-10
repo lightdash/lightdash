@@ -22,7 +22,6 @@ import { AnalyticsService } from './AnalyticsService/AnalyticsService';
 import { AsyncQueryService } from './AsyncQueryService/AsyncQueryService';
 import { BaseService } from './BaseService';
 import { CatalogService } from './CatalogService/CatalogService';
-import { ChangesetService } from './ChangesetService';
 import { CiService } from './CiService/CiService';
 import { CoderService } from './CoderService/CoderService';
 import { CommentService } from './CommentService/CommentService';
@@ -174,7 +173,6 @@ interface ServiceManifest {
     mcpService: unknown;
     rolesService: RolesService;
     slackService: SlackService;
-    changesetService: ChangesetService;
     organizationWarehouseCredentialsService: unknown;
 }
 
@@ -1177,22 +1175,7 @@ export class ServiceRepository
                     savedChartModel: this.models.getSavedChartModel(),
                     spaceModel: this.models.getSpaceModel(),
                     tagsModel: this.models.getTagsModel(),
-                    changesetModel: this.models.getChangesetModel(),
                     spacePermissionService: this.getSpacePermissionService(),
-                }),
-        );
-    }
-
-    public getChangesetService(): ChangesetService {
-        return this.getService(
-            'changesetService',
-            () =>
-                new ChangesetService({
-                    changesetModel: this.models.getChangesetModel(),
-                    catalogModel: this.models.getCatalogModel(),
-                    projectModel: this.models.getProjectModel(),
-                    savedChartModel: this.models.getSavedChartModel(),
-                    dashboardModel: this.models.getDashboardModel(),
                 }),
         );
     }
