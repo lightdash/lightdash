@@ -7332,6 +7332,22 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                         'Custom app dependencies are disabled on this instance (LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED). Remove the added packages or ask an admin to enable them.',
                     );
                 }
+                // Per-org rollout gate, layered on the instance env gate: even
+                // when the instance allows custom deps, the org must be
+                // explicitly enabled. Only applies to uploading NEW custom-dep
+                // content — builds/downloads of already-approved sets stay
+                // gated by the env kill-switch alone.
+                const { enabled: orgAllowsCustomDeps } =
+                    await this.featureFlagModel.get({
+                        user,
+                        featureFlagId:
+                            FeatureFlags.EnableDataAppCustomDependencies,
+                    });
+                if (!orgAllowsCustomDeps) {
+                    throw new ParameterError(
+                        'Custom app dependencies are not enabled for your organization. Contact your Lightdash admin to request access.',
+                    );
+                }
                 dependencySummary = {
                     custom: Object.entries(customDeps).map(
                         ([name, version]) => ({ name, version }),
