@@ -23,6 +23,7 @@ const CONTEXT: QueryComposerContext = {
     parameters: {},
     dateZoom: undefined,
     pivotDimensions: undefined,
+    pivotItemsMap: undefined,
     continueOnError: undefined,
     useTimezoneAwareDateTrunc: undefined,
     columnTimezone: undefined,

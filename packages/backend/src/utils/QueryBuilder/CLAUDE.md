@@ -26,6 +26,10 @@ const composer = new QueryComposer(
         parameters,
         dateZoom,
         pivotDimensions,
+        // pivotItemsMap overrides the itemsMap the pivot resolves against
+        // (defaults to the freshly compiled fields) — pre-agg passes the
+        // source query's persisted fields.
+        pivotItemsMap,
         continueOnError,
         useTimezoneAwareDateTrunc,
         columnTimezone,
