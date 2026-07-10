@@ -1222,9 +1222,7 @@ export const AiAgentMcpServersInput = ({
                                     isPersistingSelection
                                 }
                             >
-                                {isRetesting
-                                    ? 'Re-testing...'
-                                    : 'Re-test connection'}
+                                {isRetesting ? 'Testing...' : 'Test connection'}
                             </Menu.Item>
                         )}
                         {mcpServer.hasCredentials &&
@@ -1504,7 +1502,7 @@ export const AiAgentMcpServersInput = ({
                                                         connectionStatus,
                                                     ) && (
                                                         <Tooltip
-                                                            label="Re-test connection"
+                                                            label="Test connection"
                                                             withArrow
                                                             withinPortal
                                                         >
