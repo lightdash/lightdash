@@ -179,16 +179,19 @@ const ProviderRow: FC<ProviderRowProps> = ({
 
             {locked && (
                 <Text c="dimmed" fz="xs">
-                    Hidden while your organization uses its own Anthropic key.
-                    Add your OpenAI API key to make OpenAI models available.
+                    Disabled while your organization uses its own Anthropic key
+                    — OpenAI models can&apos;t be selected, so AI agents never
+                    fall back to the instance&apos;s OpenAI key. Add your own
+                    OpenAI API key to make OpenAI models available.
                 </Text>
             )}
 
             {usesInstanceKey && (
                 <Text c="dimmed" fz="xs">
-                    {label} models currently run on the instance&apos;s default
-                    key. Add your organization&apos;s {label} key — or turn off
-                    availability above — to keep all AI usage on your own keys.
+                    AI agents using {label} models currently run on the
+                    instance&apos;s default key. Add your organization&apos;s{' '}
+                    {label} key — or turn off availability above — to keep all
+                    AI agent usage on your own keys.
                 </Text>
             )}
         </Stack>
@@ -268,14 +271,14 @@ export const AiProvidersCard: FC<AiProvidersCardProps> = ({
                     <Callout
                         variant="success"
                         icon={<MantineIcon icon={IconKey} size="lg" />}
-                        title={`All AI interactions use your organization's API ${
+                        title={`AI agents run on your organization's API ${
                             setKeyCount > 1 ? 'keys' : 'key'
                         }`}
                     >
-                        Agent responses and background AI tasks (thread titles,
-                        suggestions, summaries) run on the{' '}
+                        Agent responses and background agent tasks (thread
+                        titles, suggestions, summaries) use the{' '}
                         {setKeyCount > 1 ? 'keys' : 'key'} configured below —
-                        never on the instance&apos;s default keys.
+                        never the instance&apos;s default keys.
                     </Callout>
                 )}
                 {BYO_AI_PROVIDERS.map((provider, index) => (
