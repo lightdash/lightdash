@@ -1,3 +1,10 @@
+# [0.3358.0](https://github.com/lightdash/lightdash/compare/0.3357.0...0.3358.0) (2026-07-10)
+
+
+### Features
+
+* download all apps, add a limit option ([#25392](https://github.com/lightdash/lightdash/issues/25392)) ([1b6ab4e](https://github.com/lightdash/lightdash/commit/1b6ab4e12215d1f2f315c541a97d35e9517a0b56))
+
 # [0.3357.0](https://github.com/lightdash/lightdash/compare/0.3356.1...0.3357.0) (2026-07-10)
 
 
