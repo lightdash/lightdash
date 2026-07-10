@@ -1,3 +1,10 @@
+# [0.3354.0](https://github.com/lightdash/lightdash/compare/0.3353.0...0.3354.0) (2026-07-10)
+
+
+### Features
+
+* **ai:** confirm knowledge document actions ([#25371](https://github.com/lightdash/lightdash/issues/25371)) ([489c214](https://github.com/lightdash/lightdash/commit/489c214423698583dc4a622c830744190fee4ce9))
+
 # [0.3353.0](https://github.com/lightdash/lightdash/compare/0.3352.1...0.3353.0) (2026-07-10)
 
 
