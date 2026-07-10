@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     ParameterError,
     TooManyRequestsError,
     type DataAppCode,
@@ -74,7 +75,12 @@ const makeDeps = (
 
 const s3SendSpy = vi.fn().mockResolvedValue({});
 
-function buildService(opts: { customDependenciesEnabled?: boolean } = {}) {
+function buildService(
+    opts: {
+        customDependenciesEnabled?: boolean;
+        customDependenciesOrgEnabled?: boolean;
+    } = {},
+) {
     const appModel = {
         findApp: vi.fn(),
         getApp: vi.fn(),
@@ -93,7 +99,16 @@ function buildService(opts: { customDependenciesEnabled?: boolean } = {}) {
     };
 
     const featureFlagModel = {
-        get: vi.fn().mockResolvedValue({ enabled: true }),
+        get: vi.fn(async ({ featureFlagId }: { featureFlagId: string }) => {
+            if (
+                featureFlagId === FeatureFlags.EnableDataAppCustomDependencies
+            ) {
+                return {
+                    enabled: opts.customDependenciesOrgEnabled ?? true,
+                };
+            }
+            return { enabled: true };
+        }),
     };
 
     const projectModel = {
@@ -434,6 +449,43 @@ describe('AppGenerateService.importAppCode', () => {
         // Template-only = no custom deps above the baseline
         const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
             code: { ...makeCode(), dependencies: makeDeps() },
+        } as ImportAppCodeRequestBody);
+
+        expect(result.action).toBe('create');
+        expect(schedulerClient.appBuildFromSource).toHaveBeenCalledOnce();
+    });
+
+    it('rejects custom deps when the instance allows them but the org flag is off', async () => {
+        const { service, appModel } = buildService({
+            customDependenciesEnabled: true,
+            customDependenciesOrgEnabled: false,
+        });
+
+        appModel.findApp.mockResolvedValue(undefined);
+
+        await expect(
+            service.importAppCode(makeUser(), PROJECT_UUID, {
+                code: {
+                    ...makeCode(),
+                    dependencies: makeDeps({ 'deck.gl': '9.3.5' }),
+                },
+            } as ImportAppCodeRequestBody),
+        ).rejects.toThrow('not enabled for your organization');
+    });
+
+    it('accepts custom deps when both the instance and org flag allow them', async () => {
+        const { service, appModel, schedulerClient } = buildService({
+            customDependenciesEnabled: true,
+            customDependenciesOrgEnabled: true,
+        });
+
+        appModel.findApp.mockResolvedValue(undefined);
+
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: {
+                ...makeCode(),
+                dependencies: makeDeps({ 'deck.gl': '9.3.5' }),
+            },
         } as ImportAppCodeRequestBody);
 
         expect(result.action).toBe('create');
