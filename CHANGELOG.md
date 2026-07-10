@@ -1,3 +1,15 @@
+# [0.3361.0](https://github.com/lightdash/lightdash/compare/0.3360.0...0.3361.0) (2026-07-10)
+
+
+### Bug Fixes
+
+* track AI context tokens for compaction ([#25402](https://github.com/lightdash/lightdash/issues/25402)) ([b3b7fa9](https://github.com/lightdash/lightdash/commit/b3b7fa98823c91b20aa5d3eb413f9ae9f0348a8d))
+
+
+### Features
+
+* **ai-agents:** add resolveUrl tool so agents can follow share links ([#25358](https://github.com/lightdash/lightdash/issues/25358)) ([8095b6e](https://github.com/lightdash/lightdash/commit/8095b6e3b1f84e5b062b8758e0961d64ba3e7ce0))
+
 # [0.3360.0](https://github.com/lightdash/lightdash/compare/0.3359.0...0.3360.0) (2026-07-10)
 
 
