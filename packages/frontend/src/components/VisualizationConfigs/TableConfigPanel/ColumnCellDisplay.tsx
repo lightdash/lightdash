@@ -5,7 +5,7 @@ import {
     isNumericItem,
     type FilterableItem,
 } from '@lightdash/common';
-import { ActionIcon, Group, Stack, Text, Tooltip } from '@mantine-8/core';
+import { ActionIcon, Box, Group, Stack, Text, Tooltip } from '@mantine-8/core';
 import { IconEye, IconEyeOff, IconInfoCircle } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
@@ -75,6 +75,29 @@ export const ColumnCellDisplay: FC = () => {
                         const barColor =
                             chartConfig.columnProperties[fieldId]?.color ||
                             colorPalette[0];
+                        // Negative bars default to the positive color until set.
+                        const negativeBarColor =
+                            chartConfig.columnProperties[fieldId]
+                                ?.negativeColor || barColor;
+                        // Only offer a negative-bar color when the column
+                        // actually has negative values — otherwise the bars
+                        // never diverge and the swatch would do nothing.
+                        const hasNegativeValues =
+                            (chartConfig.minMaxMap?.[fieldId]?.min ?? 0) < 0;
+                        const showNegativeColor =
+                            isBarChart && hasNegativeValues;
+
+                        const positiveColorSelector = (
+                            <ColorSelector
+                                color={barColor}
+                                swatches={colorPalette}
+                                onColorChange={(color) => {
+                                    chartConfig.updateColumnProperty(fieldId, {
+                                        color,
+                                    });
+                                }}
+                            />
+                        );
 
                         return (
                             <Group
@@ -83,18 +106,45 @@ export const ColumnCellDisplay: FC = () => {
                                 justify="space-between"
                             >
                                 <Group gap="xs">
-                                    <ColorSelector
-                                        color={barColor}
-                                        swatches={colorPalette}
-                                        onColorChange={(color) => {
-                                            chartConfig.updateColumnProperty(
-                                                fieldId,
-                                                {
-                                                    color,
-                                                },
-                                            );
-                                        }}
-                                    />
+                                    {showNegativeColor ? (
+                                        <>
+                                            <Tooltip
+                                                label="Positive values"
+                                                variant="xs"
+                                                withinPortal
+                                                position="top"
+                                            >
+                                                <Box>
+                                                    {positiveColorSelector}
+                                                </Box>
+                                            </Tooltip>
+                                            <Tooltip
+                                                label="Negative values"
+                                                variant="xs"
+                                                withinPortal
+                                                position="top"
+                                            >
+                                                <Box>
+                                                    <ColorSelector
+                                                        color={negativeBarColor}
+                                                        swatches={colorPalette}
+                                                        onColorChange={(
+                                                            negativeColor,
+                                                        ) => {
+                                                            chartConfig.updateColumnProperty(
+                                                                fieldId,
+                                                                {
+                                                                    negativeColor,
+                                                                },
+                                                            );
+                                                        }}
+                                                    />
+                                                </Box>
+                                            </Tooltip>
+                                        </>
+                                    ) : (
+                                        positiveColorSelector
+                                    )}
                                     <Text size="sm">
                                         {'label' in field
                                             ? field.label
