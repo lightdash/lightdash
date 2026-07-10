@@ -106,7 +106,7 @@ const getPendingActionModalConfig = (
         case 'enableFullContext':
             return {
                 title: 'Always include in context?',
-                description: `The full content of “${action.document.name}” will be added to every prompt. This uses more tokens and may increase response time.`,
+                description: `The full content of “${action.document.name}” will be added to every session. This uses more tokens and may increase response time.`,
                 confirmLabel: 'Always include',
                 variant: 'default',
             };
@@ -605,7 +605,7 @@ export const AiAgentKnowledgeFilesSection = ({
                                         <Switch
                                             size="xs"
                                             label="Always include in context"
-                                            description="Adds the full document to every prompt. Uses more tokens."
+                                            description="Adds the full document to every session. Uses more tokens."
                                             checked={
                                                 selectedDocument.alwaysIncludeInContext
                                             }

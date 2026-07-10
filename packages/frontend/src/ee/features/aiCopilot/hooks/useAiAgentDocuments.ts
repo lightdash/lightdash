@@ -143,6 +143,7 @@ export const useAiAgentDocumentContent = (
     >,
 ) =>
     useQuery<ApiAiAgentDocumentContentResponse['results'], ApiError>({
+        ...options,
         queryKey: [
             AI_AGENT_DOCUMENTS_KEY,
             projectUuid,
@@ -156,8 +157,7 @@ export const useAiAgentDocumentContent = (
             }
             return getDocumentContent(projectUuid, agentUuid, documentUuid);
         },
-        enabled: documentUuid !== null,
-        ...options,
+        enabled: documentUuid !== null && (options?.enabled ?? true),
     });
 
 export const useUpdateAiAgentDocumentContent = (
