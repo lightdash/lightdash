@@ -1,3 +1,10 @@
+# [0.3353.0](https://github.com/lightdash/lightdash/compare/0.3352.1...0.3353.0) (2026-07-10)
+
+
+### Features
+
+* **ai:** toggle always include knowledge context ([#25370](https://github.com/lightdash/lightdash/issues/25370)) ([2faf517](https://github.com/lightdash/lightdash/commit/2faf517b5750cbf454e29e6ffcfbe1be01568244))
+
 ## [0.3352.1](https://github.com/lightdash/lightdash/compare/0.3352.0...0.3352.1) (2026-07-10)
 
 
