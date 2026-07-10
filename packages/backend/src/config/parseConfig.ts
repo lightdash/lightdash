@@ -1307,6 +1307,10 @@ export type LightdashConfig = {
         maxConnections: number | undefined;
         minConnections: number | undefined;
         allowMissingMigrations: boolean;
+        keepAlive: boolean;
+        keepAliveInitialDelayMillis: number;
+        connectionTimeoutMillis: number;
+        queryTimeoutMillis: number | undefined;
     };
     allowMultiOrgs: boolean;
     maxPayloadSize: string;
@@ -2349,6 +2353,18 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable('PGMINCONNECTIONS'),
             allowMissingMigrations:
                 process.env.ALLOW_MISSING_MIGRATIONS === 'true',
+            keepAlive: process.env.PGKEEPALIVE !== 'false',
+            keepAliveInitialDelayMillis:
+                getIntegerFromEnvironmentVariable(
+                    'PGKEEPALIVEINITIALDELAYMILLIS',
+                ) ?? 10000,
+            connectionTimeoutMillis:
+                getIntegerFromEnvironmentVariable(
+                    'PGCONNECTIONTIMEOUTMILLIS',
+                ) ?? 10000,
+            queryTimeoutMillis: getIntegerFromEnvironmentVariable(
+                'PGQUERYTIMEOUTMILLIS',
+            ),
         },
         auth: {
             pat: {

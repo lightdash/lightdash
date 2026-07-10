@@ -112,6 +112,10 @@ export const lightdashConfigMock: LightdashConfig = {
         maxConnections: undefined,
         minConnections: undefined,
         allowMissingMigrations: false,
+        keepAlive: true,
+        keepAliveInitialDelayMillis: 10000,
+        connectionTimeoutMillis: 10000,
+        queryTimeoutMillis: undefined,
     },
     intercom: {
         appId: '',
