@@ -63,29 +63,13 @@ type Props = {
 };
 
 const dependencyStatusItems = [
-    {
-        key: 'full',
-        icon: IconCircleCheckFilled,
-        color: 'green',
-        label: 'all dependencies selected',
-    },
-    {
-        key: 'partial',
-        icon: IconAlertTriangleFilled,
-        color: 'yellow',
-        label: 'some dependencies selected',
-    },
-    {
-        key: 'empty',
-        icon: IconCircleXFilled,
-        color: 'red',
-        label: 'no dependencies selected',
-    },
+    { key: 'full', icon: IconCircleCheckFilled, color: 'green' },
+    { key: 'partial', icon: IconAlertTriangleFilled, color: 'yellow' },
+    { key: 'empty', icon: IconCircleXFilled, color: 'red' },
 ] as const satisfies Array<{
     key: DependencyStatus;
     icon: typeof IconCircleCheckFilled;
     color: string;
-    label: string;
 }>;
 
 const roleLevelOptions = [
@@ -359,7 +343,7 @@ export const RoleBuilder: FC<Props> = ({
                                                 styles.dependencyStatusButton
                                             }
                                             data-selected={isSelected}
-                                            aria-label={`Show ${count} permissions with ${status.label}`}
+                                            aria-label={`Show ${count} permissions with ${status.key} dependency status`}
                                             aria-pressed={isSelected}
                                             onClick={() =>
                                                 handleDependencyStatusClick(
