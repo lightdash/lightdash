@@ -1,5 +1,6 @@
 import {
     FeatureFlags,
+    ForbiddenError,
     ParameterError,
     TooManyRequestsError,
     type DataAppCode,
@@ -79,6 +80,7 @@ function buildService(
     opts: {
         customDependenciesEnabled?: boolean;
         customDependenciesOrgEnabled?: boolean;
+        canManageDataAppDependencies?: boolean;
     } = {},
 ) {
     const appModel = {
@@ -173,6 +175,22 @@ function buildService(
         client: { send: s3SendSpy },
         bucket: 'test-bucket',
     });
+
+    // The DataAppDependency role gate resolves through createAuditedAbility
+    // (stubbed to allow everything above). Override just that check when a
+    // test needs a non-admin actor.
+    if (opts.canManageDataAppDependencies === false) {
+        vi.spyOn(
+            service as unknown as {
+                assertCanManageDataAppDependencies: () => void;
+            },
+            'assertCanManageDataAppDependencies',
+        ).mockImplementation(() => {
+            throw new ForbiddenError(
+                'You do not have permission to add custom dependencies to data apps. This requires an admin role.',
+            );
+        });
+    }
 
     return { service, appModel, schedulerClient };
 }
@@ -476,6 +494,41 @@ describe('AppGenerateService.importAppCode', () => {
                 },
             } as ImportAppCodeRequestBody),
         ).rejects.toThrow('not enabled for your organization');
+    });
+
+    it('rejects custom deps for a user without manage:DataAppDependency (non-admin)', async () => {
+        const { service, appModel } = buildService({
+            customDependenciesEnabled: true,
+            customDependenciesOrgEnabled: true,
+            canManageDataAppDependencies: false,
+        });
+
+        appModel.findApp.mockResolvedValue(undefined);
+
+        await expect(
+            service.importAppCode(makeUser(), PROJECT_UUID, {
+                code: {
+                    ...makeCode(),
+                    dependencies: makeDeps({ 'deck.gl': '9.3.5' }),
+                },
+            } as ImportAppCodeRequestBody),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('allows a template-only upload for a non-admin (no dep permission needed)', async () => {
+        const { service, appModel, schedulerClient } = buildService({
+            canManageDataAppDependencies: false,
+        });
+
+        appModel.findApp.mockResolvedValue(undefined);
+
+        // No custom deps → the dependency role gate is never reached.
+        const result = await service.importAppCode(makeUser(), PROJECT_UUID, {
+            code: { ...makeCode(), dependencies: makeDeps() },
+        } as ImportAppCodeRequestBody);
+
+        expect(result.action).toBe('create');
+        expect(schedulerClient.appBuildFromSource).toHaveBeenCalledOnce();
     });
 
     it('accepts custom deps when both the instance and org flag allow them', async () => {

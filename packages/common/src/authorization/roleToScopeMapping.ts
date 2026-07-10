@@ -156,6 +156,7 @@ const BASE_ROLE_SCOPES = {
     [ProjectMemberRole.ADMIN]: [
         // Admin-specific permissions
         'manage:DataApp',
+        'manage:DataAppDependency', // Add custom npm deps (supply-chain capability)
         'manage:ExternalConnection',
         'manage:OrganizationDesign',
         'delete:Project', // Any project

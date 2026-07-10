@@ -391,6 +391,32 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
+     * Adding custom npm dependencies to a data app is a supply-chain
+     * capability gated above ordinary data-app management (admins only by
+     * default), via the dedicated `manage:DataAppDependency` scope.
+     */
+    private assertCanManageDataAppDependencies(
+        user: SessionUser,
+        organizationUuid: string,
+        projectUuid: string,
+    ): void {
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('DataAppDependency', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to add custom dependencies to data apps. This requires an admin role.',
+            );
+        }
+    }
+
+    /**
      * Permission check for reading a data app.
      *
      * Apps can live in two modes:
@@ -7306,6 +7332,8 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             );
         }
 
+        const organizationUuid = await this.getProjectOrgUuid(projectUuid);
+
         // Validate the declared dependency set against the template baseline.
         // An empty custom set is treated as no-dependencies (some CLIs attach
         // the template set redundantly) and nothing is stored.
@@ -7330,6 +7358,16 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 throw new ParameterError(getErrorMessage(err));
             }
             if (Object.keys(customDeps).length > 0) {
+                // Role gate: adding custom npm dependencies is a supply-chain
+                // capability, so it requires manage:DataAppDependency (admins
+                // only by default) — a level above the create/manage:DataApp
+                // needed to upload a template-only app. Checked before the
+                // instance/org gates so an unauthorized user gets a clear 403.
+                this.assertCanManageDataAppDependencies(
+                    user,
+                    organizationUuid,
+                    projectUuid,
+                );
                 if (
                     !this.lightdashConfig.appRuntime.customDependenciesEnabled
                 ) {
@@ -7403,8 +7441,6 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         }
         const action: 'create' | 'append' =
             existingApp !== undefined ? 'append' : 'create';
-
-        const organizationUuid = await this.getProjectOrgUuid(projectUuid);
 
         const inProgressCount =
             await this.appModel.countInProgressVersionsForProject(projectUuid);
