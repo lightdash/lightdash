@@ -2,13 +2,15 @@ import {
     DimensionType,
     FieldType,
     FilterOperator,
+    MetricType,
     SupportedDbtAdapter,
+    TimeFrames,
     type Explore,
     type ModelRequiredFilterRule,
 } from '@lightdash/common';
 import { describe, expect, it, vi } from 'vitest';
 import type { FindExploresFn } from '../types/aiAgentDependencies';
-import { getGrepFields } from './grepFields';
+import { executeGrepFields, getGrepFields } from './grepFields';
 
 type FieldSpec = {
     name: string;
@@ -177,6 +179,62 @@ describe('grepFields table filters', () => {
             'suggested data_app_usage_role equals ["interactive_viewer"]',
         );
         expect(result).not.toContain('must be applied');
+    });
+});
+
+describe('grepFields default time dimensions', () => {
+    it('shows the metric resolved model-level defaultTimeDimension', async () => {
+        const explore = makeExplore({
+            name: 'orders',
+            fields: [{ name: 'created_at', label: 'Created at' }],
+        });
+        explore.tables.orders.defaultTimeDimension = {
+            field: 'created_at',
+            interval: TimeFrames.WEEK,
+        };
+        explore.tables.orders.metrics.revenue = {
+            fieldType: FieldType.METRIC,
+            type: MetricType.SUM,
+            name: 'revenue',
+            label: 'Revenue',
+            table: 'orders',
+            tableLabel: 'orders',
+            sql: 'SUM(${TABLE}.revenue)',
+            hidden: false,
+            compiledSql: 'SUM(orders.revenue)',
+            tablesReferences: ['orders'],
+        };
+        const tool = getGrepFields({
+            availableExplores: [explore],
+            findExplores: noFtsResults,
+            verifiedFieldUsage: new Map(),
+        });
+
+        const { result } = await execute(tool, {
+            patterns: ['revenue'],
+            exploreName: 'orders',
+        });
+
+        expect(result).toContain('default_time_dimension: orders_created_at');
+        expect(result).toContain(
+            'default_time_dimension_granularity: orders_created_at_week',
+        );
+
+        const structured = await executeGrepFields(
+            { patterns: ['revenue'], exploreName: 'orders' },
+            {
+                availableExplores: [explore],
+                findExplores: noFtsResults,
+                verifiedFieldUsage: new Map(),
+            },
+        );
+        expect(
+            structured.structuredContent.patterns[0]?.resultsByExplore[0]
+                ?.fields[0],
+        ).toMatchObject({
+            defaultTimeDimension: 'orders_created_at',
+            defaultTimeDimensionGranularity: 'orders_created_at_week',
+        });
     });
 });
 
