@@ -3,13 +3,18 @@ import {
     AiAgentMessageAssistantArtifact,
     AiAgentToolResult,
     AiArtifact,
+    ChartType,
     FollowUpTools,
     followUpToolsText,
+    getGroupByDimensions,
+    getItemMap,
+    getWebAiChartConfig,
     isToolEditDbtProjectResult,
     isToolProposeChangeResult,
     isToolSetupPreviewDeployResult,
     parseVizConfig,
     SlackPrompt,
+    type ChartConfig,
     type Explore,
 } from '@lightdash/common';
 import { Block, KnownBlock } from '@slack/bolt';
@@ -644,36 +649,69 @@ export async function getModernArtifactCardBlocks(
                     ...tableCalculationNames,
                 ];
 
+                const metricQueryWithSql = {
+                    ...vizConfig.metricQuery,
+                    additionalMetrics: additionalMetricsWithSql,
+                };
+
+                // Match the generated viz type in the explorer; fall back to
+                // table if the conversion fails so the link always works.
+                let chartConfig: ChartConfig = {
+                    type: ChartType.TABLE,
+                    config: {
+                        showColumnCalculation: false,
+                        showRowCalculation: false,
+                        showTableNames: true,
+                        showResultsTotal: false,
+                        showSubtotals: false,
+                        columns: {},
+                        hideRowNumbers: false,
+                        conditionalFormattings: [],
+                        metricsAsRows: false,
+                    },
+                };
+                let pivotConfig: { columns: string[] } | undefined;
+                try {
+                    const webAiChartConfig = getWebAiChartConfig({
+                        vizConfig: artifact.chartConfig,
+                        metricQuery: metricQueryWithSql,
+                        maxQueryLimit,
+                        fieldsMap: getItemMap(
+                            explore,
+                            additionalMetricsWithSql,
+                            vizConfig.metricQuery.tableCalculations,
+                        ),
+                    });
+                    if (webAiChartConfig.echartsConfig) {
+                        chartConfig = webAiChartConfig.echartsConfig;
+                    }
+                    const groupByDimensions =
+                        getGroupByDimensions(webAiChartConfig);
+                    pivotConfig = groupByDimensions?.length
+                        ? { columns: groupByDimensions }
+                        : undefined;
+                } catch {
+                    // keep the table fallback
+                }
+
                 const path = `/projects/${slackPrompt.projectUuid}/tables/${vizConfig.metricQuery.exploreName}`;
                 const params = `?create_saved_chart_version=${encodeURIComponent(
                     JSON.stringify({
                         tableName: vizConfig.metricQuery.exploreName,
-                        metricQuery: {
-                            ...vizConfig.metricQuery,
-                            additionalMetrics: additionalMetricsWithSql,
-                        },
+                        metricQuery: metricQueryWithSql,
                         tableConfig: {
                             columnOrder,
                         },
-                        chartConfig: {
-                            type: 'table',
-                            config: {
-                                showColumnCalculation: false,
-                                showRowCalculation: false,
-                                showTableNames: true,
-                                showResultsTotal: false,
-                                showSubtotals: false,
-                                columns: {},
-                                hideRowNumbers: false,
-                                conditionalFormattings: [],
-                                metricsAsRows: false,
-                            },
-                        },
+                        chartConfig,
+                        ...(pivotConfig ? { pivotConfig } : {}),
                     }),
                 )}`;
 
+                // Always link via a short /share URL — inlining the full chart
+                // state in the button URL exceeds Slack's URL length limits.
+                // If share creation fails, link the bare explore instead.
                 const exploreUrl = await createShareUrl(path, params).catch(
-                    () => `${siteUrl}${path}${params}`,
+                    () => `${siteUrl}${path}`,
                 );
 
                 const metricCount =
