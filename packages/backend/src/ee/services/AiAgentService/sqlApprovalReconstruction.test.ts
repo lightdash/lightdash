@@ -4,9 +4,7 @@ type Row = Parameters<
     typeof AiAgentService.buildToolCallTurnMessages
 >[0][number];
 
-type History = Parameters<
-    typeof AiAgentService.backfillDanglingToolResults
->[0];
+type History = Parameters<typeof AiAgentService.backfillDanglingToolResults>[0];
 
 const call = (toolCallId: string, sql: string) =>
     ({ toolCallId, toolName: 'runSql', toolArgs: { sql } }) as Row['toolCall'];
@@ -236,8 +234,7 @@ describe('AiAgentService SQL-approval history reconstruction', () => {
                 (m) =>
                     m.role === 'tool' &&
                     content(m).some(
-                        (p) =>
-                            p.type === 'tool-result' && p.toolCallId === 'C',
+                        (p) => p.type === 'tool-result' && p.toolCallId === 'C',
                     ),
             ),
         ).toBe(false);

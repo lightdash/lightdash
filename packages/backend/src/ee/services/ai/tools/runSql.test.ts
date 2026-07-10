@@ -231,9 +231,8 @@ describe('getRunSql', () => {
         });
 
         it('persists a success result for an approved query', async () => {
-            const { dependencies, output } = runNativeResume(
-                'select 1 as answer',
-            );
+            const { dependencies, output } =
+                runNativeResume('select 1 as answer');
 
             const resolved = await output;
             expect(resolved.metadata?.status).toBe('success');
