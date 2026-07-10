@@ -85,3 +85,11 @@ GROUP BY 1,2
 ORDER BY "a_dim1"
 LIMIT 500"
 `;
+
+exports[`AsyncQueryService > metric execution routes SQL through QueryComposer.getSql > persists pivot-wrapped SQL for executeAsyncSqlQuery with a pivotConfiguration 1`] = `
+"WITH original_query AS (SELECT status, region, COUNT(*) AS n FROM jaffle.orders GROUP BY 1, 2),
+group_by_query AS (SELECT "region", "status", sum("n") AS "n_sum" FROM original_query group by "region", "status"),
+pivot_query AS (SELECT g."status" AS "status", g."region" AS "region", g."n_sum" AS "n_sum", DENSE_RANK() OVER (ORDER BY g."status" ASC) AS "row_index", DENSE_RANK() OVER (ORDER BY g."region" ASC) AS "column_index" FROM group_by_query g),
+filtered_rows AS (SELECT * FROM pivot_query WHERE "row_index" <= 100)
+SELECT "status", "region", "n_sum", "row_index", "column_index", total_columns FROM (SELECT p.*, SUM(CASE WHEN p."__grp_rn" = 1 THEN 1 ELSE 0 END) OVER () AS total_columns FROM (SELECT f.*, ROW_NUMBER() OVER (PARTITION BY "region" ORDER BY "region") AS "__grp_rn" FROM filtered_rows f) p) pivoted order by "row_index", "column_index""
+`;

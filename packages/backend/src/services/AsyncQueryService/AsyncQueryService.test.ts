@@ -556,7 +556,9 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
-                    sqlSource: { type: 'rawSql', sql: 'SELECT * FROM test' },
+                    queryComposer: {
+                        getSql: () => 'SELECT * FROM test',
+                    } as unknown as QueryComposer,
                     fields: {},
                     missingParameterReferences: [],
                     displayTimezone: null,
@@ -651,7 +653,9 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
-                    sqlSource: { type: 'rawSql', sql: 'SELECT * FROM test' },
+                    queryComposer: {
+                        getSql: () => 'SELECT * FROM test',
+                    } as unknown as QueryComposer,
                     fields: {},
                     missingParameterReferences: [],
                     displayTimezone: null,
@@ -753,7 +757,9 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
-                    sqlSource: { type: 'rawSql', sql: 'SELECT * FROM test' },
+                    queryComposer: {
+                        getSql: () => 'SELECT * FROM test',
+                    } as unknown as QueryComposer,
                     fields: {},
                     missingParameterReferences: [],
                     // Resolved tz is set (project has query_timezone) but
@@ -811,7 +817,9 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
-                    sqlSource: { type: 'rawSql', sql: 'SELECT * FROM test' },
+                    queryComposer: {
+                        getSql: () => 'SELECT * FROM test',
+                    } as unknown as QueryComposer,
                     fields: {},
                     missingParameterReferences: [],
                     timezone: 'Asia/Tokyo',
@@ -871,7 +879,9 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: true,
-                    sqlSource: { type: 'rawSql', sql: 'SELECT * FROM test' },
+                    queryComposer: {
+                        getSql: () => 'SELECT * FROM test',
+                    } as unknown as QueryComposer,
                     fields: {},
                     missingParameterReferences: [],
                     displayTimezone: null,
@@ -961,7 +971,9 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
-                    sqlSource: { type: 'rawSql', sql: 'SELECT * FROM test' },
+                    queryComposer: {
+                        getSql: () => 'SELECT * FROM test',
+                    } as unknown as QueryComposer,
                     fields: {},
                     missingParameterReferences: [],
                     displayTimezone: null,
@@ -1025,7 +1037,9 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
-                    sqlSource: { type: 'rawSql', sql: 'SELECT * FROM test' },
+                    queryComposer: {
+                        getSql: () => 'SELECT * FROM test',
+                    } as unknown as QueryComposer,
                     fields: {},
                     missingParameterReferences: [],
                     displayTimezone: null,
@@ -1118,10 +1132,10 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
-                    sqlSource: {
-                        type: 'rawSql',
-                        sql: 'SELECT * FROM test WHERE param = {{ missing_param }}',
-                    },
+                    queryComposer: {
+                        getSql: () =>
+                            'SELECT * FROM test WHERE param = {{ missing_param }}',
+                    } as unknown as QueryComposer,
                     fields: {},
                     missingParameterReferences: [
                         'missing_param',
@@ -1194,7 +1208,9 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
-                    sqlSource: { type: 'rawSql', sql: 'SELECT * FROM test' },
+                    queryComposer: {
+                        getSql: () => 'SELECT * FROM test',
+                    } as unknown as QueryComposer,
                     fields: {},
                     missingParameterReferences: [],
                     preAggregationRoute: {
@@ -1269,7 +1285,9 @@ describe('AsyncQueryService', () => {
                     },
                     explore: preAggregateExplore,
                     invalidateCache: false,
-                    sqlSource: { type: 'rawSql', sql: 'SELECT * FROM test' },
+                    queryComposer: {
+                        getSql: () => 'SELECT * FROM test',
+                    } as unknown as QueryComposer,
                     fields: {},
                     missingParameterReferences: [],
                     preAggregationRoute: {
@@ -1353,10 +1371,9 @@ describe('AsyncQueryService', () => {
                     },
                     explore: preAggregateExplore,
                     invalidateCache: false,
-                    sqlSource: {
-                        type: 'rawSql',
-                        sql: 'SELECT * FROM warehouse',
-                    },
+                    queryComposer: {
+                        getSql: () => 'SELECT * FROM warehouse',
+                    } as unknown as QueryComposer,
                     fields: {},
                     missingParameterReferences: [],
                     preAggregationRoute: {
@@ -1443,10 +1460,9 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
-                    sqlSource: {
-                        type: 'rawSql',
-                        sql: 'SELECT * FROM warehouse',
-                    },
+                    queryComposer: {
+                        getSql: () => 'SELECT * FROM warehouse',
+                    } as unknown as QueryComposer,
                     fields: {},
                     missingParameterReferences: [],
                     preAggregationRoute: {
@@ -2784,7 +2800,9 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
-                    sqlSource: { type: 'rawSql', sql: 'SELECT * FROM test' },
+                    queryComposer: {
+                        getSql: () => 'SELECT * FROM test',
+                    } as unknown as QueryComposer,
                     fields: {},
                     originalColumns: mockOriginalColumns,
                     missingParameterReferences: [],
@@ -3085,8 +3103,7 @@ describe('AsyncQueryService', () => {
             const executeArgs = (
                 service['executeAsyncQuery'] as import('vitest').Mock
             ).mock.calls[0][0];
-            expect(executeArgs.sqlSource.type).toBe('metricQuery');
-            const executedSql = executeArgs.sqlSource.queryComposer.getSql({
+            const executedSql = executeArgs.queryComposer.getSql({
                 columnLimit: lightdashConfigMock.pivotTable.maxColumnLimit,
             });
             expect(executedSql).toContain("'EMEA', 'APAC'");
@@ -4224,6 +4241,59 @@ describe('AsyncQueryService', () => {
             });
 
             expect(getPersistedSql(service)).toMatchSnapshot();
+        });
+
+        it('persists pivot-wrapped SQL for executeAsyncSqlQuery with a pivotConfiguration', async () => {
+            const service = setupService();
+            service.getUserAttributes = vi.fn(async () => ({
+                userAttributes: {},
+                intrinsicUserAttributes: { email: 'test@example.com' },
+            }));
+            const mockWarehouseClient = {
+                ...warehouseClientMock,
+                streamQuery: vi.fn(async (_sql, callback) => {
+                    await callback({
+                        fields: {
+                            status: { type: DimensionType.STRING },
+                            region: { type: DimensionType.STRING },
+                            n: { type: DimensionType.NUMBER },
+                        },
+                        rows: [],
+                    });
+                }),
+            };
+            service._getWarehouseClient = vi.fn(async () => ({
+                warehouseClient: mockWarehouseClient,
+                sshTunnel: mockSshTunnel,
+                tunnelConnectMs: null,
+            }));
+
+            await service.executeAsyncSqlQuery({
+                account: sessionAccount,
+                projectUuid,
+                sql: 'SELECT status, region, COUNT(*) AS n FROM jaffle.orders GROUP BY 1, 2',
+                context: QueryExecutionContext.SQL_RUNNER,
+                limit: 100,
+                pivotConfiguration: {
+                    indexColumn: {
+                        reference: 'status',
+                        type: VizIndexType.CATEGORY,
+                    },
+                    valuesColumns: [
+                        {
+                            reference: 'n',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
+                    ],
+                    groupByColumns: [{ reference: 'region' }],
+                    sortBy: undefined,
+                },
+            });
+
+            const sql = getPersistedSql(service);
+            expect(sql).toContain('row_index');
+            expect(sql).toContain('column_index');
+            expect(sql).toMatchSnapshot();
         });
 
         it('persists composer SQL for executeAsyncFieldValueSearch', async () => {

@@ -23,19 +23,7 @@ import {
     type UserAttributeValueMap,
 } from '@lightdash/common';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
-import type {
-    QueryComposer,
-    TotalConfiguration,
-} from '../../utils/QueryBuilder/QueryComposer';
-
-/**
- * Where executePreparedAsyncQuery gets the final warehouse SQL. Metric paths
- * pass the composer (getSql() owns pivot wrapping); SQL-chart paths pass the
- * raw string until they migrate onto the composer seam.
- */
-export type AsyncQuerySqlSource =
-    | { type: 'metricQuery'; queryComposer: QueryComposer }
-    | { type: 'rawSql'; sql: string };
+import type { TotalConfiguration } from '../../utils/QueryBuilder/QueryComposer';
 
 export type CommonAsyncQueryArgs = {
     account: Account;
