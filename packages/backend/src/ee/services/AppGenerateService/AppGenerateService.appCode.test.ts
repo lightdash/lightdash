@@ -125,6 +125,8 @@ function buildService(
     const lightdashConfig = {
         appRuntime: {
             customDependenciesEnabled: opts.customDependenciesEnabled ?? true,
+            dependencyRegistryHosts: ['registry.npmjs.org'],
+            dependencyMinReleaseAgeDays: 0,
         },
     };
 

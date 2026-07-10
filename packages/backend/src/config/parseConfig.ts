@@ -1773,6 +1773,19 @@ export type AppRuntimeConfig = {
      * Vite build when a version has custom dependencies. Defaults to 2 minutes.
      */
     dependencyInstallTimeoutMs: number;
+    /**
+     * Minimum age (in days) a declared custom dependency's resolved version
+     * must have since publication, checked against npm registry metadata at
+     * upload time. Guards against freshly-published (potentially compromised)
+     * versions. Env var `LIGHTDASH_APP_DEPENDENCY_MIN_RELEASE_AGE_DAYS`.
+     *
+     * `0` (default) disables the check — deliberately off, matching the rest
+     * of the custom-dependencies feature, since enabling it adds registry
+     * round-trips and can block legitimate recent releases. When you do turn
+     * it on, `3` is a sensible starting point: it mirrors this repo's own
+     * `minimum-release-age=3d` npm policy.
+     */
+    dependencyMinReleaseAgeDays: number;
 };
 
 export type IntercomConfig = {
@@ -2119,6 +2132,10 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             getIntegerFromEnvironmentVariable(
                 'LIGHTDASH_APP_DEPENDENCY_INSTALL_TIMEOUT_MS',
             ) ?? 120_000,
+        dependencyMinReleaseAgeDays:
+            getIntegerFromEnvironmentVariable(
+                'LIGHTDASH_APP_DEPENDENCY_MIN_RELEASE_AGE_DAYS',
+            ) ?? 0,
     };
 };
 

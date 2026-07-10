@@ -19,6 +19,7 @@ import {
     dataAppVizJsonSchema,
     dataAppVizSchema,
     DEFAULT_DATA_APP_CLAUDE_MODEL,
+    extractLockfilePackages,
     FeatureFlags,
     ForbiddenError,
     formatPromptWithClarifications,
@@ -152,6 +153,7 @@ import {
     ZERO_CLAUDE_USAGE,
     type ClaudeGenerationUsage,
 } from './ClaudeStreamProcessor';
+import { assertDependenciesMeetMinReleaseAge } from './dependencyGuards';
 import {
     copyDesignIntoSandbox,
     type DesignSandboxCopyResult,
@@ -7348,6 +7350,22 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                         'Custom app dependencies are not enabled for your organization. Contact your Lightdash admin to request access.',
                     );
                 }
+                // Minimum-release-age guard (no-op unless the instance opts in
+                // via LIGHTDASH_APP_DEPENDENCY_MIN_RELEASE_AGE_DAYS): reject
+                // custom packages whose resolved version is too freshly
+                // published to trust.
+                await assertDependenciesMeetMinReleaseAge({
+                    packages: extractLockfilePackages(
+                        code.dependencies.lockfile,
+                    ).filter((p) => customDeps[p.name] !== undefined),
+                    minReleaseAgeDays:
+                        this.lightdashConfig.appRuntime
+                            .dependencyMinReleaseAgeDays,
+                    registryHost:
+                        this.lightdashConfig.appRuntime
+                            .dependencyRegistryHosts[0] ?? 'registry.npmjs.org',
+                    now: Date.now(),
+                });
                 dependencySummary = {
                     custom: Object.entries(customDeps).map(
                         ([name, version]) => ({ name, version }),

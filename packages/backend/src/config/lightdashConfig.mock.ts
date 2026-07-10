@@ -418,6 +418,7 @@ export const lightdashConfigMock: LightdashConfig = {
         e2bCodingAgentTemplateTag: '',
         dependencyRegistryHosts: ['registry.npmjs.org'],
         dependencyInstallTimeoutMs: 120_000,
+        dependencyMinReleaseAgeDays: 0,
     },
     enabledFeatureFlags: new Set<string>(),
     disabledFeatureFlags: new Set<string>(),
