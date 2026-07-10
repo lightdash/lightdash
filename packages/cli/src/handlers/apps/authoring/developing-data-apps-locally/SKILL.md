@@ -34,12 +34,13 @@ You are editing a Lightdash **data app** that was downloaded with the Lightdash 
 
 ## Preview locally against real data
 
-`lightdash apps preview` (run in this folder) starts a local dev server that renders the app against the Lightdash instance you are logged into, using your CLI credential. It writes `.env.local` (gitignored — contains your API key) and runs `pnpm dev`. Requires `pnpm install` to have succeeded; if it hasn't, skip preview and rely on the server rebuild.
+`lightdash apps preview` (run in this folder) starts a local dev server that renders the app against the Lightdash instance you are logged into, using your CLI credential. It writes `.env.local` (gitignored) and runs `pnpm dev`. Requires `pnpm install` to have succeeded; if it hasn't, skip preview and rely on the server rebuild.
 
-- Manual equivalent: write `VITE_LIGHTDASH_URL`, `VITE_LIGHTDASH_API_KEY`, `VITE_LIGHTDASH_PROJECT_UUID` into `.env.local` and run `pnpm dev`.
+- Your API key is kept **out of the browser**: `.env.local` stores it as `LIGHTDASH_PREVIEW_API_KEY` (read only by the vite dev server, which injects it into proxied `/api` requests). The browser sees only a non-secret sentinel. Do not add the real key to a `VITE_`-prefixed var — anything `VITE_*` is inlined into the page and readable by any code running there.
+- Manual equivalent: write `VITE_LIGHTDASH_URL`, `VITE_LIGHTDASH_PROJECT_UUID`, and `LIGHTDASH_PREVIEW_API_KEY` (not `VITE_`) into `.env.local`, then run `pnpm dev`.
 - Declared custom dependencies work in preview too — the dev server bundles whatever `pnpm install` put in `node_modules`, the same set the server installs on upload.
 - Preview shows **your** data under **your** permissions and user attributes — viewers of the deployed app may see different data. Do not treat preview as verification of viewer-specific behavior.
-- Preview does **not** apply the deployed Content-Security-Policy. A library that works in preview may still be blocked when deployed; the app page after upload is the final check.
+- The dev server applies a CSP that locks network egress to the Lightdash origin, but `script-src` stays permissive (vite needs it), so preview is **not** a full stand-in for the deployed Content-Security-Policy. A library that works in preview may still be blocked when deployed; the app page after upload is the final check.
 
 ## Project context (read-only reference)
 
