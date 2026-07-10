@@ -5,7 +5,7 @@ description: Use when editing a downloaded Lightdash data app on your machine �
 
 # Developing Lightdash Data Apps Locally
 
-You are editing a Lightdash **data app** that was downloaded with `lightdash download --apps`.
+You are editing a Lightdash **data app** that was downloaded with the Lightdash CLI (`lightdash download`).
 
 ## The only way to reach data is the SDK
 
@@ -22,7 +22,7 @@ You are editing a Lightdash **data app** that was downloaded with `lightdash dow
 
 1. Edit files under `src/` only.
 2. Optionally, `pnpm install` then `pnpm build` to check it compiles. This is an **optional local pre-check** — see below.
-3. `lightdash upload --apps` — the **server** rebuilds and serves the app. The server rebuild, not your local build, is what ships.
+3. `lightdash upload --apps <appUuid>` (the `appUuid` from this folder's `lightdash-app.yml`) — the **server** rebuilds and serves the app. The server rebuild, not your local build, is what ships.
 
 ## The local build is optional — never fight a failing install
 

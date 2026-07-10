@@ -1,11 +1,11 @@
 # {{APP_NAME}} — Lightdash data app (local copy)
 
-Downloaded with `lightdash download --apps`.
+Downloaded with the Lightdash CLI (`lightdash download`).
 
 ## Edit → build → upload
 1. Edit files under `src/`.
 2. Optionally, `pnpm install && pnpm build` to check it compiles locally. If install fails in your environment, skip it — the server build on upload is authoritative and surfaces errors on the app page. Don't change machine or registry config to force it.
-3. `lightdash upload --apps` — Lightdash rebuilds and serves the app.
+3. `lightdash upload --apps <appUuid>` (the `appUuid` from `lightdash-app.yml`) — Lightdash rebuilds and serves the app.
 
 ## What's read-only
 Most root config is read-only: `vite.config.js`, `tailwind.config.js`, `tsconfig.json`, etc. The server rebuilds against a trusted template, so local edits to those files don't change the deployed app.
