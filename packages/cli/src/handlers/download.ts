@@ -7,6 +7,7 @@ import {
     ApiContentResponse,
     ApiDashboardAsCodeListResponse,
     ApiDashboardValidationResponse,
+    ApiEmbedProjectAppsResponse,
     ApiImportAppCodeResponse,
     ApiSqlChartAsCodeListResponse,
     assertUnreachable,
@@ -55,11 +56,13 @@ import {
 import {
     appsDownloadSummary,
     capListedApps,
+    classifyAppDownloadError,
     classifyAppUpload,
     ensureDownloadedAppContext,
     manifestRetargetHint,
-    MAX_INCLUDE_APPS,
+    resolveAppsLimit,
     selectAppsToDownload,
+    shouldFallBackToSpaceScopedListing,
     shouldWarnAllSkipped,
     type AppDownloadFailure,
 } from './apps/appsDownload';
@@ -85,7 +88,8 @@ export type DownloadHandlerOptions = {
     charts: string[]; // These can be slugs, uuids or urls
     dashboards: string[]; // These can be slugs, uuids or urls
     apps: string[] | boolean | null; // download: string[] = specific UUIDs; upload: true = all app folders on disk; null/false/absent = skip
-    includeApps?: boolean; // download only: include the project's apps (space-scoped listing, capped)
+    includeApps?: boolean; // download only: include all of the project's apps, capped at --apps-limit
+    appsLimit?: string; // download only: cap for the --include-apps listing (default 50); raw string from commander
     createNew?: boolean; // upload only: always create a new app instead of updating the manifest's app
     force: boolean;
     path?: string; // New optional path parameter
@@ -847,10 +851,43 @@ export const downloadContent = async (
     return [total, [...new Set(chartSlugs)], allMetadataEntries, allSpaces];
 };
 
+// Space-scoped fallback listing for servers without the project-wide apps
+// endpoint; omits apps that were never added to a space.
+const listAppUuidsViaContentApi = async (
+    projectId: string,
+): Promise<string[]> => {
+    const listedAppUuids: string[] = [];
+    let page = 1;
+    let totalPageCount = 1;
+    do {
+        const contentResult = await lightdashApi<ApiContentResponse['results']>(
+            {
+                method: 'GET',
+                url: `/api/v2/content?projectUuids=${projectId}&contentTypes=data_app&page=${page}&pageSize=100`,
+                body: undefined,
+            },
+        );
+        listedAppUuids.push(
+            ...contentResult.data
+                .filter((item) => item.contentType === 'data_app')
+                .map((item) => item.uuid),
+        );
+        totalPageCount = contentResult.pagination?.totalPageCount ?? 1;
+        page += 1;
+    } while (page <= totalPageCount);
+    return listedAppUuids;
+};
+
 export const downloadHandler = async (
     options: DownloadHandlerOptions,
 ): Promise<void> => {
     GlobalState.setVerbose(options.verbose);
+
+    const { limit: appsLimit, noEffectWarning: appsLimitWarning } =
+        resolveAppsLimit(options.appsLimit, options.includeApps === true);
+    if (appsLimitWarning) {
+        GlobalState.log(styles.warning(appsLimitWarning));
+    }
 
     if (options.appsOnly) {
         const appsOnlySelection = selectAppsToDownload({
@@ -1073,39 +1110,36 @@ export const downloadHandler = async (
             if (appsSelection.mode === 'explicit') {
                 appUuidsToDownload = appsSelection.appUuids;
             } else {
-                // List all apps via content API (paginated)
+                // List every app in the project (includes apps not in any space)
                 spinner.start(`Listing data apps in project`);
-                const listedAppUuids: string[] = [];
-                let page = 1;
-                let totalPageCount = 1;
-
-                do {
-                    // eslint-disable-next-line no-await-in-loop
-                    const contentResult = await lightdashApi<
-                        ApiContentResponse['results']
+                let listedAppUuids: string[];
+                try {
+                    const projectApps = await lightdashApi<
+                        ApiEmbedProjectAppsResponse['results']
                     >({
                         method: 'GET',
-                        url: `/api/v2/content?projectUuids=${projectId}&contentTypes=data_app&page=${page}&pageSize=100`,
+                        url: `/api/v1/ee/projects/${projectId}/apps`,
                         body: undefined,
                     });
-
-                    listedAppUuids.push(
-                        ...contentResult.data
-                            .filter((item) => item.contentType === 'data_app')
-                            .map((item) => item.uuid),
+                    listedAppUuids = projectApps.map((app) => app.appUuid);
+                } catch (listErr) {
+                    if (!shouldFallBackToSpaceScopedListing(listErr)) {
+                        throw listErr;
+                    }
+                    GlobalState.log(
+                        styles.warning(
+                            'This server does not support project-wide app listing; only apps that are in a space will be included.',
+                        ),
                     );
-
-                    totalPageCount =
-                        contentResult.pagination?.totalPageCount ?? 1;
-                    page += 1;
-                } while (page <= totalPageCount);
+                    listedAppUuids = await listAppUuidsViaContentApi(projectId);
+                }
 
                 const { appUuids: cappedAppUuids, truncatedCount } =
-                    capListedApps(listedAppUuids);
+                    capListedApps(listedAppUuids, appsLimit);
                 if (truncatedCount > 0) {
                     GlobalState.log(
                         styles.warning(
-                            `--include-apps is capped at ${MAX_INCLUDE_APPS} apps (${listedAppUuids.length} found, ${truncatedCount} skipped). Pass --apps <uuids> to download specific apps.`,
+                            `Found ${listedAppUuids.length} data apps, downloading the first ${appsLimit}. Pass --apps-limit <n> to raise the cap.`,
                         ),
                     );
                 }
@@ -1127,6 +1161,7 @@ export const downloadHandler = async (
                 const appsDir = path.join(baseDir, 'apps');
                 const takenFolders = new Set<string>();
                 let appSuccessCount = 0;
+                let appSkippedNotBuiltCount = 0;
                 const appFailures: AppDownloadFailure[] = [];
 
                 for (const appUuid of appUuidsToDownload) {
@@ -1176,17 +1211,23 @@ export const downloadHandler = async (
                         await writeContextToDir(appDir, code.context);
                         appSuccessCount += 1;
                     } catch (appErr) {
-                        const message =
-                            appErr instanceof LightdashError &&
-                            appErr.statusCode === 404
-                                ? `Data apps are not enabled on this instance, or app ${appUuid} was not found.`
-                                : getErrorMessage(appErr);
-                        appFailures.push({ appUuid, message });
-                        GlobalState.log(
-                            styles.error(
-                                `Failed to download app ${appUuid}: ${message}`,
-                            ),
-                        );
+                        const outcome = classifyAppDownloadError(appErr);
+                        if (outcome.kind === 'skip-not-built') {
+                            appSkippedNotBuiltCount += 1;
+                            GlobalState.debug(
+                                `> Skipped app ${appUuid}: no built version to download`,
+                            );
+                        } else {
+                            appFailures.push({
+                                appUuid,
+                                message: outcome.message,
+                            });
+                            GlobalState.log(
+                                styles.error(
+                                    `Failed to download app ${appUuid}: ${outcome.message}`,
+                                ),
+                            );
+                        }
                     }
                 }
 
@@ -1195,6 +1236,7 @@ export const downloadHandler = async (
                     appUuidsToDownload.length,
                     appFailures,
                     appsDir,
+                    appSkippedNotBuiltCount,
                 );
                 if (summary.ok) {
                     spinner.succeed(summary.message);

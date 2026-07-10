@@ -767,8 +767,13 @@ program
     )
     .option(
         '--include-apps',
-        'Include the project\'s data apps (enterprise), capped at the first 10. Only lists apps that are in a space; use "--apps <uuids>" for the rest.',
+        "Include all of the project's data apps (enterprise), capped at --apps-limit (default: 50)",
         false,
+    )
+    .option(
+        '--apps-limit <number>',
+        'Maximum number of data apps downloaded by --include-apps (default: 50)',
+        undefined,
     )
     .option(
         '--apps-only',
