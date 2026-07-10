@@ -33,14 +33,57 @@ export type Config = {
     };
 };
 
+/** @internal Exported for filesystem-permission regression tests. */
+export const ensureConfigFilePermissions = async (
+    filePath: string,
+): Promise<void> => {
+    if (process.platform === 'win32') return;
+    await fs.chmod(path.dirname(filePath), 0o700);
+    try {
+        await fs.chmod(filePath, 0o600);
+    } catch (error: unknown) {
+        if (
+            !(
+                error instanceof Error &&
+                'code' in error &&
+                error.code === 'ENOENT'
+            )
+        ) {
+            throw error;
+        }
+    }
+};
+
+/** @internal Exported for filesystem-permission regression tests. */
+export const writeConfigToFile = async (
+    filePath: string,
+    config: Config,
+): Promise<void> => {
+    const directory = path.dirname(filePath);
+    await fs.mkdir(directory, { recursive: true, mode: 0o700 });
+    // Tighten an existing config before overwriting it. `mode` on writeFile
+    // only applies when it creates a new file.
+    await ensureConfigFilePermissions(filePath);
+    await fs.writeFile(filePath, yaml.dump(config), {
+        encoding: 'utf8',
+        mode: 0o600,
+    });
+
+    // `mode` only applies when mkdir/writeFile creates a path. Tighten
+    // existing CLI config paths as well; Windows does not implement POSIX
+    // permission bits, so leave ACL management to the OS there.
+    await ensureConfigFilePermissions(filePath);
+};
+
 const setConfig = async (config: Config) => {
-    await fs.mkdir(path.dirname(configFilePath), { recursive: true });
-    await fs.writeFile(configFilePath, yaml.dump(config), 'utf8');
+    await writeConfigToFile(configFilePath, config);
 };
 
 const getRawConfig = async (): Promise<Config> => {
     try {
-        const raw = yaml.load(await fs.readFile(configFilePath, 'utf8'));
+        await ensureConfigFilePermissions(configFilePath);
+        const contents = await fs.readFile(configFilePath, 'utf8');
+        const raw = yaml.load(contents);
         return raw as Config;
     } catch (e: unknown) {
         if (e instanceof Error && 'code' in e && e.code === 'ENOENT') {

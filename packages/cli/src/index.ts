@@ -1079,7 +1079,7 @@ const appsProgram = program
 appsProgram
     .command('preview [path]')
     .description(
-        'Preview a downloaded data app locally against a real Lightdash instance, authenticated as you. Writes .env.local and runs `pnpm dev`.',
+        'Preview a downloaded data app locally against a real Lightdash instance, authenticated as you. Your credential stays in the CLI, behind a local proxy limited to data-app SDK routes.',
     )
     .option(
         '--project <project uuid>',

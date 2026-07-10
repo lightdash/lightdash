@@ -1046,7 +1046,7 @@ Cross-project and cross-instance upload are both a plain **slug upsert** against
 ### Constraints & notes
 
 - **Enterprise-only** (`APP_RUNTIME_ENABLED`); the caller needs `view` / `create` / `manage:DataApp`.
-- **Declared dependencies:** apps can declare custom npm packages in their `package.json`. The CLI validates the declared set (registry-only specs, no git/file/url, up to 60 direct deps, `pnpm-lock.yaml` must be committed) and warns which packages will be installed in the build sandbox before uploading. Install scripts never run. The instance-level flag `LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED` (default `false` during rollout) gates this feature; when disabled, uploads with a non-empty custom dependency set are rejected at the API with a clear error, and builds/iterations of versions that already store custom deps refuse to run (template-only uploads are always accepted). The AI builder and in-app UI cannot change the dependency set — dependencies are declared by editing `package.json` and re-uploading. The dependency summary (name + version) is shown as a chip on the assistant bubble in the chat UI so the author can confirm what was installed.
+- **Declared dependencies:** apps can declare custom npm packages in their `package.json`. The CLI validates the declared set (registry-only specs, no git/file/url, up to 60 direct deps, `pnpm-lock.yaml` must be committed) and warns which packages will be installed in the build sandbox before uploading. Install scripts never run. Both the instance-level `LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED` setting and the per-organization `EnableDataAppCustomDependencies` feature flag must be enabled, and uploading custom dependencies requires `manage:DataAppDependency` (admin-only by default). Uploads are screened against the OSV malicious-packages feed; operators can also require a minimum package release age. Builds/iterations of versions that already store custom deps remain protected by the instance kill switch. Template-only uploads are unaffected. The AI builder and in-app UI cannot change the dependency set — dependencies are declared by editing `package.json` and re-uploading. The dependency summary (name + version) is shown as a chip on the assistant bubble in the chat UI so the author can confirm what was installed.
 - **Semantic-layer coupling:** a moved app's queries run against the **target project's** fields *by name*; fields missing in the target surface as in-app query errors, not upload failures.
 - **External connection links travel in the manifest.** `lightdash-app.yml` carries `externalConnections: [{alias, connectionSlug}]` — download emits the app's live links, upload resolves each slug in the target project and **reconciles** the app's links to match (`replaceAppLinks`: adds, repoints, and removes; an empty list unlinks everything; an absent key leaves links untouched for pre-field bundles). A slug missing in the target is skipped with a warning in the upload response (the CLI prints it) — the same warn-don't-fail stance as semantic-layer coupling. Aliases are validated (charset/length/dupes) and each resolved connection requires `manage:ExternalConnection`, both rejected before any app row is created. Under `--include-all`, connections upload before apps, so config + links move in one pass.
 - **Data app vizs round-trip their schema via the manifest.** A viz's declared schema (`app_versions.viz_schema`) exists only in the database — it is emitted as structured output during generation, never written into the source tree. So `lightdash-app.yml` carries a `vizSchema` field for `data_app_viz` apps, and upload validates it (fail-loud) and persists it on the new version. Without it the uploaded viz would never appear in the viz picker (the picker requires a non-null schema on the latest ready version). Bundles downloaded before this field existed re-upload without a schema — re-download from the source project to fix.
@@ -1070,12 +1070,13 @@ All scaffolding and context files are read-only reference — see [Upload is sou
 #### The local loop
 
 ```sh
-edit src/  →  pnpm install && pnpm build  →  lightdash upload --apps <slug>  →  server rebuilds
+edit src/  →  pnpm install && pnpm build  →  lightdash apps preview  →  lightdash upload --apps <slug>  →  server rebuilds
 ```
 
 1. Edit files under `src/`.
 2. Run `pnpm install && pnpm build` as a pre-flight compile check against the downloaded scaffolding.
-3. Upload with `lightdash upload --apps <slug>` — or `--include-apps` for every downloaded app folder (fire-and-forget, as in Phase 1). The server rebuilds in its trusted sandbox.
+3. Optionally run `lightdash apps preview` to test against real data using the current CLI login.
+4. Upload with `lightdash upload --apps <slug>` — or `--include-apps` for every downloaded app folder (fire-and-forget, as in Phase 1). The server rebuilds in its trusted sandbox.
 
 **The server's build is authoritative.** Your local build is a compile check only; the deployed app is always the server's output.
 
@@ -1091,10 +1092,31 @@ Only `src/` is sent on upload. Scaffolding files and `.lightdash/context/` are l
 
 If the org design linked to the app has more than **30 asset files**, the theme assets are skipped during download and a warning is printed; the theme instruction markdown is still written to `.lightdash/context/theme/`. An app whose theme was skipped may not build locally without those assets — the server-side rebuild is unaffected.
 
-#### Out of scope (Phase 3)
+#### Local preview against real data (Phase 3)
 
-- **Local preview against real data** — `pnpm build` is a compile check only, not a live data preview.
-- **Org-level custom-dependency toggle** — the `LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED` flag is instance-wide only; per-org control is not implemented.
+`lightdash apps preview [path]` starts the downloaded app's Vite server and connects its SDK to the project in
+`lightdash-app.yml` (override with `--project`). It pre-flights both the CLI credential and project before starting, so
+an expired login or an app downloaded from another instance fails with an actionable error instead of an in-app query
+failure. Bare `pnpm dev` has no authenticated data access.
+
+Preview does not copy or pass the durable CLI credential to the app. A loopback-only proxy injects the canonical PAT or
+service-account authorization header (plus configured reverse-proxy authorization) after enforcing the shared data-app
+SDK route allowlist and the selected project. Vite knows only the proxy address and a random per-run nonce; browser code
+gets a non-authenticating sentinel. The Vite child is started with a minimal environment so `LIGHTDASH_API_KEY` and
+unrelated parent-process secrets are not inherited. The dev CSP limits network requests to the local origin, forcing SDK
+API calls through that proxy. The deployed postMessage bridge enforces the same route and project boundary.
+
+This removes the credential from the app environment and browser; it does **not** turn local authoring into the
+production sandbox. Vite and the downloaded tooling execute as the local OS user, so malicious local code could read
+that user's files (including the existing CLI config), and the app is intentionally allowed to read query results. Only
+preview trusted source and dependencies. Preview also uses the developer's own permissions and user attributes, which
+may differ from a deployed viewer's. The production app remains the authoritative CSP/sandbox check.
+
+Current local-preview parity is the direct SDK transport: metric and saved-chart queries, polling, underlying data,
+downloads, and current-user lookup. Host-mediated capabilities are not emulated. In particular, external connections
+(`externalFetch`), data-app-viz row/field context, Google Sheets export, and product inspector/URL-state integration need
+the in-product postMessage host. Full host emulation should be implemented as a separate local iframe harness rather than
+expanding the credential proxy ad hoc.
 
 ---
 

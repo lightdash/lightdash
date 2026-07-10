@@ -9,7 +9,7 @@ You are editing a Lightdash **data app** that was downloaded with the Lightdash 
 
 ## The only way to reach data is the SDK
 
-- All data access goes through `@lightdash/query-sdk` (a postMessage bridge to Lightdash). There is **no** `fetch`, no REST calls, no other network access at runtime — anything else is blocked.
+- All app data access goes through `@lightdash/query-sdk`. Deployed apps use Lightdash's postMessage bridge; `lightdash apps preview` uses a loopback proxy restricted to the same SDK routes and project. Do not add direct `fetch` or REST calls.
 - For the SDK surface (query builder, `useLightdash`, filters, downloads), read the `lightdash-data-app` skill in this folder.
 
 ## External HTTP APIs go through linked connections
@@ -41,13 +41,16 @@ You are editing a Lightdash **data app** that was downloaded with the Lightdash 
 
 ## Preview locally against real data
 
-`lightdash apps preview` (run in this folder) starts a local dev server that renders the app against the Lightdash instance you are logged into, using your CLI credential. It writes `.env.local` (gitignored) and runs `pnpm dev`. Requires `pnpm install` to have succeeded; if it hasn't, skip preview and rely on the server rebuild.
+`lightdash apps preview` (run in this folder) starts a local dev server that renders the app against the Lightdash instance you are logged into, using your CLI credential. Requires `pnpm install` to have succeeded; if it hasn't, skip preview and rely on the server rebuild.
 
-- Your API key is kept **out of the browser**: `.env.local` stores it as `LIGHTDASH_PREVIEW_API_KEY` (read only by the vite dev server, which injects it into proxied `/api` requests). The browser sees only a non-secret sentinel. Do not add the real key to a `VITE_`-prefixed var — anything `VITE_*` is inlined into the page and readable by any code running there.
-- Manual equivalent: write `VITE_LIGHTDASH_URL`, `VITE_LIGHTDASH_PROJECT_UUID`, and `LIGHTDASH_PREVIEW_API_KEY` (not `VITE_`) into `.env.local`, then run `pnpm dev`.
+- Preview does not pass your API key to vite or browser code: the CLI holds it behind a loopback proxy that only forwards the SDK route allowlist (query execution, result polling, downloads, current user), pinned to this app's project. No credential is written to the app folder. Never put a real key in `.env.local` or any `VITE_`-prefixed var — anything `VITE_*` is inlined into the page and readable by any code running there.
+- There is no manual `pnpm dev` equivalent with data access — bare `pnpm dev` starts the page but API calls fail with 401. Always use `lightdash apps preview`.
+- An endpoint that works in preview but not when deployed means it is outside the data-app SDK surface — use the SDK, don't work around the proxy.
 - Declared custom dependencies work in preview too — the dev server bundles whatever `pnpm install` put in `node_modules`, the same set the server installs on upload.
 - Preview shows **your** data under **your** permissions and user attributes — viewers of the deployed app may see different data. Do not treat preview as verification of viewer-specific behavior.
-- The dev server applies a CSP that locks network egress to the Lightdash origin, but `script-src` stays permissive (vite needs it), so preview is **not** a full stand-in for the deployed Content-Security-Policy. A library that works in preview may still be blocked when deployed; the app page after upload is the final check.
+- Local preview keeps the credential out of the app environment/browser but is **not a sandbox**: vite and the downloaded tooling execute as your OS user, can read that user's files (including the existing CLI config), and the app can read the query results it requests. Only preview source and dependencies you trust.
+- The dev server applies a CSP that forces API traffic through its same-origin proxy, but `script-src` stays permissive (vite needs it), so preview is **not** a full stand-in for the deployed Content-Security-Policy. A library that works in preview may still be blocked when deployed; the app page after upload is the final check.
+- Host-mediated features are not emulated locally. External connections (`externalFetch`), data-app-viz row/field context, Google Sheets export, the product inspector, and product URL-state integration must be tested after upload.
 
 ## Project context (read-only reference)
 
