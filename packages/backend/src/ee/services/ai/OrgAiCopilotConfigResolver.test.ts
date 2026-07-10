@@ -174,6 +174,7 @@ describe('OrgAiCopilotConfigResolver', () => {
         orgKeys?: AiOrgProviderApiKeys | null;
         modelVisibility?: AiOrgModelVisibility | null;
         accessibleModelIds?: string[] | null;
+        instanceConfig?: CopilotConfig;
     };
 
     const makeResolver = ({
@@ -181,10 +182,11 @@ describe('OrgAiCopilotConfigResolver', () => {
         orgKeys = { openai: 'org-openai-key' },
         modelVisibility = null,
         accessibleModelIds = null,
+        instanceConfig = baseConfig,
     }: ResolverOptions) =>
         new OrgAiCopilotConfigResolver({
             lightdashConfig: {
-                ai: { copilot: baseConfig },
+                ai: { copilot: instanceConfig },
             } as LightdashConfig,
             aiOrganizationSettingsModel: {
                 findDecryptedProviderApiKeys: vi
@@ -225,6 +227,67 @@ describe('OrgAiCopilotConfigResolver', () => {
             flagEnabled: true,
         }).getCopilotConfig('org-uuid');
         expect(result.providers.openai?.apiKey).toBe('org-openai-key');
+    });
+
+    describe('getClaudeCodeConfig', () => {
+        it('returns the instance config unchanged without an organization uuid', async () => {
+            const result = await makeResolver({
+                flagEnabled: true,
+                instanceConfig: bothProvidersConfig,
+            }).getClaudeCodeConfig(null);
+            expect(result.defaultProvider).toBe('openai');
+            expect(result.providers.anthropic?.apiKey).toBe(
+                'instance-anthropic-key',
+            );
+        });
+
+        it('returns the instance config unchanged when the feature flag is off', async () => {
+            const result = await makeResolver({
+                flagEnabled: false,
+                orgKeys: { anthropic: 'org-anthropic-key' },
+                instanceConfig: bothProvidersConfig,
+            }).getClaudeCodeConfig('org-uuid');
+            expect(result.defaultProvider).toBe('openai');
+            expect(result.providers.anthropic?.apiKey).toBe(
+                'instance-anthropic-key',
+            );
+        });
+
+        it('returns the instance config unchanged when the org has no keys', async () => {
+            const result = await makeResolver({
+                flagEnabled: true,
+                orgKeys: null,
+                instanceConfig: bothProvidersConfig,
+            }).getClaudeCodeConfig('org-uuid');
+            expect(result.providers.anthropic?.apiKey).toBe(
+                'instance-anthropic-key',
+            );
+        });
+
+        it('runs a BYO org on its own Anthropic key and forces the Anthropic provider', async () => {
+            const result = await makeResolver({
+                flagEnabled: true,
+                orgKeys: { anthropic: 'org-anthropic-key' },
+                instanceConfig: bothProvidersConfig,
+            }).getClaudeCodeConfig('org-uuid');
+            expect(result.defaultProvider).toBe('anthropic');
+            expect(result.providers.anthropic?.apiKey).toBe(
+                'org-anthropic-key',
+            );
+        });
+
+        it('never leaks the instance Anthropic key to a BYO org that only keyed OpenAI', async () => {
+            const result = await makeResolver({
+                flagEnabled: true,
+                orgKeys: { openai: 'org-openai-key' },
+                instanceConfig: bothProvidersConfig,
+            }).getClaudeCodeConfig('org-uuid');
+            // Anthropic is stripped, so key resolution fails loudly rather than
+            // silently billing the instance — the sandbox can't run a Claude
+            // turn on the instance key.
+            expect(result.providers.anthropic).toBeUndefined();
+            expect(result.defaultProvider).toBe('anthropic');
+        });
     });
 
     describe('resolveEffectiveModelVisibilityForOrg', () => {

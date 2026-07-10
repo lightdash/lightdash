@@ -119,7 +119,10 @@ import { type ExternalConnectionModel } from '../../models/ExternalConnectionMod
 import type { SandboxRegistryModel } from '../../models/SandboxRegistryModel';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { getModel } from '../ai/models';
-import { OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
+import {
+    OrgAiCopilotConfigResolver,
+    type CopilotConfig,
+} from '../ai/OrgAiCopilotConfigResolver';
 import {
     getAiCallTelemetry,
     getLanguageModelAttribution,
@@ -492,8 +495,8 @@ export class AppGenerateService extends BaseService {
         );
     }
 
-    private getAnthropicApiKey(): string {
-        const key = this.lightdashConfig.ai.copilot.providers.anthropic?.apiKey;
+    private static getAnthropicApiKey(copilot: CopilotConfig): string {
+        const key = copilot.providers.anthropic?.apiKey;
         if (!key) {
             throw new MissingConfigError(
                 'Anthropic API key is not configured (ANTHROPIC_API_KEY)',
@@ -506,11 +509,14 @@ export class AppGenerateService extends BaseService {
      * Resolves the env vars passed to the `claude` CLI in the sandbox: the
      * Bedrock block (reusing the copilot's BEDROCK_* config) when configured,
      * otherwise the Anthropic API key. Throws MissingConfigError when neither
-     * is set.
+     * is set. `copilot` is the org-resolved config (BYO key when the org brings
+     * one), so a BYO org runs on its own key rather than the instance key.
      */
-    private getClaudeCodeEnv(): Record<string, string> {
-        return buildClaudeCodeEnv(this.lightdashConfig.ai.copilot, () =>
-            this.getAnthropicApiKey(),
+    private static getClaudeCodeEnv(
+        copilot: CopilotConfig,
+    ): Record<string, string> {
+        return buildClaudeCodeEnv(copilot, () =>
+            AppGenerateService.getAnthropicApiKey(copilot),
         );
     }
 
@@ -615,13 +621,16 @@ export class AppGenerateService extends BaseService {
         };
     }
 
-    private buildSandboxSpec(extraEgressHosts: string[] = []): SandboxSpec {
+    private buildSandboxSpec(
+        copilot: CopilotConfig,
+        extraEgressHosts: string[] = [],
+    ): SandboxSpec {
         return {
             templateRef: this.getSandboxTemplateRef(),
             timeoutMs: 60 * 60 * 1000,
             egress: {
                 allow: [
-                    ...claudeCodeAllowedHosts(this.lightdashConfig.ai.copilot),
+                    ...claudeCodeAllowedHosts(copilot),
                     ...extraEgressHosts,
                 ],
             },
@@ -1326,6 +1335,7 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         organizationUuid: string,
         projectUuid: string,
+        copilot: CopilotConfig,
         extraEgressHosts: string[] = [],
     ): Promise<{
         sandboxUuid: string;
@@ -1333,7 +1343,7 @@ export class AppGenerateService extends BaseService {
         durationMs: number;
     }> {
         const start = performance.now();
-        const spec = this.buildSandboxSpec(extraEgressHosts);
+        const spec = this.buildSandboxSpec(copilot, extraEgressHosts);
         this.logger.info(
             `App ${appUuid}: launching sandbox from template ${spec.templateRef} (provider=${this.lightdashConfig.appRuntime.sandboxProvider})`,
         );
@@ -1381,12 +1391,13 @@ export class AppGenerateService extends BaseService {
     private async resumeSandbox(
         sandboxUuid: string,
         appUuid: string,
+        copilot: CopilotConfig,
         extraEgressHosts: string[] = [],
     ): Promise<{ sandbox: SandboxHandle; durationMs: number }> {
         const start = performance.now();
         const sandbox = await this.getSandboxManager().resume({
             sandboxUuid,
-            spec: this.buildSandboxSpec(extraEgressHosts),
+            spec: this.buildSandboxSpec(copilot, extraEgressHosts),
         });
         const durationMs = AppGenerateService.elapsed(start);
         this.logger.info(
@@ -1540,6 +1551,7 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         s3Client: S3Client,
         bucket: string,
+        copilot: CopilotConfig,
         extraEgressHosts: string[] = [],
     ): Promise<{
         sandbox: SandboxHandle;
@@ -1555,6 +1567,7 @@ export class AppGenerateService extends BaseService {
                 const result = await this.resumeSandbox(
                     app.sandbox_id,
                     appUuid,
+                    copilot,
                     extraEgressHosts,
                 );
                 durations.resumeMs = result.durationMs;
@@ -1576,6 +1589,7 @@ export class AppGenerateService extends BaseService {
             appUuid,
             organizationUuid,
             projectUuid,
+            copilot,
             extraEgressHosts,
         );
         durations.sandboxMs = createResult.durationMs;
@@ -2899,10 +2913,14 @@ export class AppGenerateService extends BaseService {
         }
 
         let claudeCodeEnv: Record<string, string>;
+        let copilot: CopilotConfig;
         let s3Client: S3Client;
         let bucket: string;
         try {
-            claudeCodeEnv = this.getClaudeCodeEnv();
+            copilot = await this.orgAiCopilotConfigResolver.getClaudeCodeConfig(
+                payload.organizationUuid,
+            );
+            claudeCodeEnv = AppGenerateService.getClaudeCodeEnv(copilot);
             ({ client: s3Client, bucket } = this.getS3Client());
         } catch (error) {
             // Config errors (missing/incomplete provider, E2B, or S3 setup) carry
@@ -2971,6 +2989,7 @@ export class AppGenerateService extends BaseService {
                         projectUuid,
                         s3Client,
                         bucket,
+                        copilot,
                         registryHosts,
                     );
                     sandbox = acquired.sandbox;
@@ -2982,6 +3001,7 @@ export class AppGenerateService extends BaseService {
                         appUuid,
                         payload.organizationUuid,
                         projectUuid,
+                        copilot,
                         registryHosts,
                     );
                     sandbox = result.sandbox;
@@ -3037,6 +3057,7 @@ export class AppGenerateService extends BaseService {
                 const result = await this.resumeSandbox(
                     app.sandbox_id,
                     appUuid,
+                    copilot,
                     registryHosts,
                 );
                 sandbox = result.sandbox;
@@ -4692,9 +4713,14 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         if (app.sandbox_id) {
             let sandbox: SandboxHandle | null = null;
             try {
+                const copilot =
+                    await this.orgAiCopilotConfigResolver.getClaudeCodeConfig(
+                        app.organization_uuid,
+                    );
                 const resumed = await this.resumeSandbox(
                     app.sandbox_id,
                     appUuid,
+                    copilot,
                 );
                 sandbox = resumed.sandbox;
                 await this.resyncSandboxFromS3(
@@ -4713,6 +4739,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                     sandbox,
                     appUuid,
                     sourceVersion,
+                    copilot,
                 );
             } catch (error) {
                 // A half-synced sandbox would corrupt the next iteration —
@@ -4902,10 +4929,11 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         sandbox: SandboxHandle,
         appUuid: string,
         sourceVersion: number,
+        copilot: CopilotConfig,
     ): Promise<void> {
         let claudeCodeEnv: Record<string, string>;
         try {
-            claudeCodeEnv = this.getClaudeCodeEnv();
+            claudeCodeEnv = AppGenerateService.getClaudeCodeEnv(copilot);
         } catch (error) {
             this.logger.warn(
                 `App ${appUuid}: skipping restore FYI — ${getErrorMessage(error)}`,
@@ -7721,6 +7749,10 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     ): Promise<void> {
         const { appUuid, version, organizationUuid, projectUuid } = payload;
         const { client, bucket } = this.getS3Client();
+        const copilot =
+            await this.orgAiCopilotConfigResolver.getClaudeCodeConfig(
+                organizationUuid,
+            );
 
         // Look up the version's custom dependency set once — null means the
         // build uses the template set only (no install step).
@@ -7757,6 +7789,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 appUuid,
                 organizationUuid,
                 projectUuid,
+                copilot,
                 registryHosts,
             );
             sandbox = result.sandbox;

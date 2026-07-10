@@ -139,6 +139,41 @@ export class OrgAiCopilotConfigResolver {
     }
 
     /**
+     * Copilot config for the data-apps sandbox (the `claude` CLI). Claude Code
+     * supports only Anthropic and Bedrock, and Bedrock is instance infra (never
+     * BYO) — so a BYO org must run the sandbox on its own Anthropic key. This
+     * forces Anthropic and drops any instance Anthropic key the org didn't
+     * bring, so the sandbox can never silently fall back to the instance key (a
+     * billing + data-governance leak). With no usable org Anthropic key the
+     * config carries none and key resolution fails only where a Claude turn
+     * needs it — not for key-less sandbox work (dependency builds, restores).
+     * Non-BYO orgs get the instance config unchanged.
+     */
+    async getClaudeCodeConfig(
+        organizationUuid: string | null | undefined,
+    ): Promise<CopilotConfig> {
+        const base = this.lightdashConfig.ai.copilot;
+        if (!organizationUuid) return base;
+        if (!(await this.isEnabled(organizationUuid))) return base;
+        const orgKeys =
+            await this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
+                organizationUuid,
+            );
+        if (!orgKeys) return base;
+        const overlaid = overlayOrgProviderApiKeys(base, orgKeys);
+        return {
+            ...overlaid,
+            defaultProvider: 'anthropic',
+            providers: {
+                ...overlaid.providers,
+                anthropic: orgKeys.anthropic
+                    ? overlaid.providers.anthropic
+                    : undefined,
+            },
+        };
+    }
+
+    /**
      * Org overrides for model LISTINGS (visibility settings + which hidden
      * models the org's own Anthropic key unlocks). Both are null unless the
      * feature flag is on AND the org has at least one BYO key, so deleting
