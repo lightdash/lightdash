@@ -132,6 +132,7 @@ import {
     PreAggregateMatchMiss,
     PreAggregateMissReason,
     preAggregateUtils,
+    PreviewExpiresAt,
     Project,
     ProjectCatalog,
     ProjectContextEntry,
@@ -7418,6 +7419,51 @@ export class ProjectService extends BaseService {
         const persisted =
             await this.projectModel.getPreviewExpirationSettings(projectUuid);
         return { projectUuid, ...persisted };
+    }
+
+    async updatePreviewExpiresAt(
+        user: SessionUser,
+        projectUuid: string,
+        expiresInHours?: number,
+    ): Promise<PreviewExpiresAt> {
+        const project = await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'update',
+                subject('Project', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        if (project.type !== ProjectType.PREVIEW) {
+            throw new ParameterError(
+                'Expiration can only be updated on preview projects',
+            );
+        }
+        if (
+            expiresInHours !== undefined &&
+            (!Number.isInteger(expiresInHours) || expiresInHours < 1)
+        ) {
+            throw new ParameterError(
+                'expiresInHours must be a whole number of at least 1',
+            );
+        }
+        const expiresAt = await this.getPreviewExpiresAt(
+            ProjectType.PREVIEW,
+            project.upstreamProjectUuid,
+            expiresInHours,
+        );
+        if (expiresAt === null) {
+            throw new UnexpectedServerError(
+                'Failed to compute preview expiration',
+            );
+        }
+        await this.projectModel.updateExpiresAt(projectUuid, expiresAt);
+        return { projectUuid, expiresAt };
     }
 
     async getAvailableFiltersForSavedQuery(

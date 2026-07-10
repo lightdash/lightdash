@@ -33721,6 +33721,45 @@
                 ],
                 "type": "object"
             },
+            "PreviewExpiresAt": {
+                "properties": {
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["expiresAt", "projectUuid"],
+                "type": "object"
+            },
+            "ApiSuccess_PreviewExpiresAt_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/PreviewExpiresAt"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiPreviewExpiresAtResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_PreviewExpiresAt_"
+            },
+            "UpdatePreviewExpiresAt": {
+                "properties": {
+                    "expiresInHours": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "type": "object"
+            },
             "UpdateSchedulerSettings": {
                 "properties": {
                     "schedulerFailureContactOverride": {
@@ -61104,6 +61143,57 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/UpdatePreviewExpirationProjectSettings"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/preview-expiration": {
+            "patch": {
+                "operationId": "updatePreviewExpiresAt",
+                "responses": {
+                    "200": {
+                        "description": "Updated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiPreviewExpiresAtResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Update the expiration date of a preview project. The expiration is\nrecomputed from now, clamped to the upstream project's maximum preview\nexpiration. Omit expiresInHours to reset to the upstream default.",
+                "summary": "Update preview expiration",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdatePreviewExpiresAt"
                             }
                         }
                     }

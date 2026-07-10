@@ -80,6 +80,7 @@ type UpdateDbProject = Partial<
         | 'project_defaults'
         | 'color_palette_uuid'
         | 'table_groups'
+        | 'expires_at'
         | 'default_preview_expiration_hours'
         | 'max_preview_expiration_hours'
     >

@@ -13,6 +13,7 @@ import {
     ApiGetProjectGroupAccesses,
     ApiGetProjectMemberResponse,
     ApiPreviewExpirationProjectSettingsResponse,
+    ApiPreviewExpiresAtResponse,
     ApiProjectAccessListResponse,
     ApiProjectColorPaletteResponse,
     ApiProjectResponse,
@@ -60,6 +61,7 @@ import {
     type Tag,
     type UpdateMultipleDashboards,
     type UpdatePreviewExpirationProjectSettings,
+    type UpdatePreviewExpiresAt,
     type UpdateQueryTimezoneSettings,
     type UpdateSchedulerSettings,
 } from '@lightdash/common';
@@ -1153,6 +1155,39 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         return {
             status: 'ok',
             results: settings,
+        };
+    }
+
+    /**
+     * Update the expiration date of a preview project. The expiration is
+     * recomputed from now, clamped to the upstream project's maximum preview
+     * expiration. Omit expiresInHours to reset to the upstream default.
+     * @summary Update preview expiration
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Updated')
+    @Patch('{projectUuid}/preview-expiration')
+    @OperationId('updatePreviewExpiresAt')
+    async updatePreviewExpiresAt(
+        @Path() projectUuid: string,
+        @Body() body: UpdatePreviewExpiresAt,
+        @Request() req: express.Request,
+    ): Promise<ApiPreviewExpiresAtResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getProjectService()
+            .updatePreviewExpiresAt(
+                toSessionUser(req.account),
+                projectUuid,
+                body.expiresInHours,
+            );
+        return {
+            status: 'ok',
+            results,
         };
     }
 
