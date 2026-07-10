@@ -66867,6 +66867,15 @@
                         "schema": {
                             "$ref": "#/components/schemas/UuidOrSlug"
                         }
+                    },
+                    {
+                        "description": "project to resolve a slug in, required when the slug exists in multiple projects (e.g. preview projects)",
+                        "in": "query",
+                        "name": "projectUuid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
                     }
                 ]
             }
@@ -66908,6 +66917,15 @@
                         "required": true,
                         "schema": {
                             "$ref": "#/components/schemas/UuidOrSlug"
+                        }
+                    },
+                    {
+                        "description": "project to resolve a slug in, required when the slug exists in multiple projects (e.g. preview projects)",
+                        "in": "query",
+                        "name": "projectUuid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]
