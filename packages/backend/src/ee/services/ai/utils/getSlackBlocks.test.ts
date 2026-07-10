@@ -1,4 +1,9 @@
-import { DimensionType, FilterOperator, FilterType } from '@lightdash/common';
+import {
+    ChartType,
+    DimensionType,
+    FilterOperator,
+    FilterType,
+} from '@lightdash/common';
 import {
     buildFeedbackContextActions,
     buildSlackTaskUpdate,
@@ -8,6 +13,7 @@ import {
     getProjectSelectionBlocks,
     getSlackToolTitle,
 } from './getSlackBlocks';
+import { mockOrdersExplore } from './validationExplore.mock';
 
 describe('Slack AI agent blocks', () => {
     it('maps known tool names to readable task titles', () => {
@@ -778,6 +784,218 @@ describe('Slack AI agent blocks', () => {
             {
                 type: 'carousel',
                 elements: [{ type: 'card' }, { type: 'card' }],
+            },
+        ]);
+    });
+
+    it('opens the Explore link with the generated chart type instead of table', async () => {
+        const capturedShareParams: string[] = [];
+        const createShareUrl = async (path: string, params: string) => {
+            capturedShareParams.push(params);
+            return 'https://lightdash.example.com/share/chart';
+        };
+
+        const blocks = await getModernArtifactCardBlocks(
+            {
+                promptUuid: 'prompt-1',
+                projectUuid: 'project-1',
+                threadUuid: 'thread-1',
+            } as never,
+            'https://lightdash.example.com',
+            500,
+            createShareUrl,
+            async () => mockOrdersExplore,
+            'agent-1',
+            [
+                {
+                    artifactUuid: 'artifact-1',
+                    threadUuid: 'thread-1',
+                    promptUuid: 'prompt-1',
+                    artifactType: 'chart',
+                    savedQueryUuid: null,
+                    savedDashboardUuid: null,
+                    createdAt: new Date(),
+                    versionNumber: 1,
+                    versionUuid: 'version-1',
+                    title: 'Order count over time',
+                    description: null,
+                    dashboardConfig: null,
+                    versionCreatedAt: new Date(),
+                    verifiedByUserUuid: null,
+                    verifiedAt: null,
+                    chartConfig: {
+                        title: 'Order count over time',
+                        description: 'Order count by order date',
+                        queryConfig: {
+                            exploreName: 'test_explore',
+                            dimensions: ['orders_order_date'],
+                            metrics: ['orders_order_count'],
+                            sorts: [],
+                            limit: 500,
+                            customMetrics: [],
+                            tableCalculations: [],
+                            filters: null,
+                        },
+                        chartConfig: {
+                            groupBy: ['orders_product_category'],
+                            lineType: 'line',
+                            stackBars: null,
+                            xAxisType: 'time',
+                            xAxisLabel: 'Order date',
+                            yAxisLabel: 'Order count',
+                            yAxisMetrics: ['orders_order_count'],
+                            defaultVizType: 'line',
+                            xAxisDimension: 'orders_order_date',
+                            funnelDataInput: null,
+                            secondaryYAxisLabel: null,
+                            secondaryYAxisMetric: null,
+                        },
+                    },
+                },
+            ],
+            [],
+        );
+
+        expect(blocks).toHaveLength(1);
+        expect(capturedShareParams).toHaveLength(1);
+
+        const searchParams = new URLSearchParams(capturedShareParams[0]);
+        const exploreState = JSON.parse(
+            searchParams.get('create_saved_chart_version')!,
+        );
+
+        expect(exploreState.chartConfig.type).toBe(ChartType.CARTESIAN);
+        expect(exploreState.pivotConfig).toEqual({
+            columns: ['orders_product_category'],
+        });
+    });
+
+    it('falls back to a table explore link when the chart config cannot be converted', async () => {
+        const capturedShareParams: string[] = [];
+        const createShareUrl = async (path: string, params: string) => {
+            capturedShareParams.push(params);
+            return 'https://lightdash.example.com/share/chart';
+        };
+
+        const blocks = await getModernArtifactCardBlocks(
+            {
+                promptUuid: 'prompt-1',
+                projectUuid: 'project-1',
+                threadUuid: 'thread-1',
+            } as never,
+            'https://lightdash.example.com',
+            500,
+            createShareUrl,
+            // Broken explore: chart config conversion throws, table fallback kicks in
+            async () => ({}) as never,
+            'agent-1',
+            [
+                {
+                    artifactUuid: 'artifact-1',
+                    threadUuid: 'thread-1',
+                    promptUuid: 'prompt-1',
+                    artifactType: 'chart',
+                    savedQueryUuid: null,
+                    savedDashboardUuid: null,
+                    createdAt: new Date(),
+                    versionNumber: 1,
+                    versionUuid: 'version-1',
+                    title: 'Order count over time',
+                    description: null,
+                    dashboardConfig: null,
+                    versionCreatedAt: new Date(),
+                    verifiedByUserUuid: null,
+                    verifiedAt: null,
+                    chartConfig: {
+                        title: 'Order count over time',
+                        description: 'Order count by order date',
+                        queryConfig: {
+                            exploreName: 'orders',
+                            dimensions: ['orders_order_date'],
+                            metrics: ['orders_order_count'],
+                            sorts: [],
+                            limit: 500,
+                            customMetrics: [],
+                            tableCalculations: [],
+                            filters: null,
+                        },
+                        chartConfig: null,
+                    },
+                },
+            ],
+            [],
+        );
+
+        expect(blocks).toHaveLength(1);
+        const searchParams = new URLSearchParams(capturedShareParams[0]);
+        const exploreState = JSON.parse(
+            searchParams.get('create_saved_chart_version')!,
+        );
+
+        expect(exploreState.chartConfig.type).toBe(ChartType.TABLE);
+        expect(exploreState.pivotConfig).toBeUndefined();
+    });
+
+    it('links the bare explore when share URL creation fails, keeping the URL short for Slack', async () => {
+        const blocks = await getModernArtifactCardBlocks(
+            {
+                promptUuid: 'prompt-1',
+                projectUuid: 'project-1',
+                threadUuid: 'thread-1',
+            } as never,
+            'https://lightdash.example.com',
+            500,
+            async () => {
+                throw new Error('share service unavailable');
+            },
+            async () => mockOrdersExplore,
+            'agent-1',
+            [
+                {
+                    artifactUuid: 'artifact-1',
+                    threadUuid: 'thread-1',
+                    promptUuid: 'prompt-1',
+                    artifactType: 'chart',
+                    savedQueryUuid: null,
+                    savedDashboardUuid: null,
+                    createdAt: new Date(),
+                    versionNumber: 1,
+                    versionUuid: 'version-1',
+                    title: 'Order count over time',
+                    description: null,
+                    dashboardConfig: null,
+                    versionCreatedAt: new Date(),
+                    verifiedByUserUuid: null,
+                    verifiedAt: null,
+                    chartConfig: {
+                        title: 'Order count over time',
+                        description: 'Order count by order date',
+                        queryConfig: {
+                            exploreName: 'test_explore',
+                            dimensions: ['orders_order_date'],
+                            metrics: ['orders_order_count'],
+                            sorts: [],
+                            limit: 500,
+                            customMetrics: [],
+                            tableCalculations: [],
+                            filters: null,
+                        },
+                        chartConfig: null,
+                    },
+                },
+            ],
+            [],
+        );
+
+        expect(blocks).toMatchObject([
+            {
+                type: 'card',
+                actions: [
+                    {
+                        text: { text: 'Explore in Lightdash' },
+                        url: 'https://lightdash.example.com/projects/project-1/tables/test_explore',
+                    },
+                ],
             },
         ]);
     });
