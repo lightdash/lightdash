@@ -271,7 +271,10 @@ import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLi
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { CompiledQuery } from '../../utils/QueryBuilder/MetricQueryBuilder';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
-import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
+import {
+    QueryComposer,
+    TotalConfiguration,
+} from '../../utils/QueryBuilder/QueryComposer';
 import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
@@ -4057,7 +4060,7 @@ export class ProjectService extends BaseService {
         });
     }
 
-    static async _compileQuery({
+    static _createQueryComposer({
         metricQuery,
         explore,
         warehouseSqlBuilder,
@@ -4068,6 +4071,7 @@ export class ProjectService extends BaseService {
         parameters,
         availableParameterDefinitions,
         pivotConfiguration,
+        totalConfiguration,
         pivotDimensions,
         continueOnError,
         useTimezoneAwareDateTrunc,
@@ -4084,6 +4088,11 @@ export class ProjectService extends BaseService {
         parameters?: ParametersValuesMap;
         availableParameterDefinitions: ParameterDefinitions;
         pivotConfiguration?: PivotConfiguration;
+        /**
+         * When set, the composer collapses the source query into this totals
+         * grain before compiling (calculate-total path only).
+         */
+        totalConfiguration?: TotalConfiguration;
         pivotDimensions?: string[];
         continueOnError?: boolean;
         useTimezoneAwareDateTrunc?: boolean;
@@ -4094,9 +4103,9 @@ export class ProjectService extends BaseService {
          * Only safe on the underlying-data path where filters are solely click-filters.
          */
         applyDateZoomToFilters?: boolean;
-    }): Promise<CompiledQuery> {
+    }): QueryComposer {
         return new QueryComposer(
-            { metricQuery, pivotConfiguration },
+            { metricQuery, pivotConfiguration, totalConfiguration },
             {
                 explore,
                 warehouseSqlBuilder,
@@ -4112,7 +4121,13 @@ export class ProjectService extends BaseService {
                 columnTimezone,
                 applyDateZoomToFilters,
             },
-        ).compile();
+        );
+    }
+
+    static async _compileQuery(
+        args: Parameters<typeof ProjectService._createQueryComposer>[0],
+    ): Promise<CompiledQuery> {
+        return ProjectService._createQueryComposer(args).compile();
     }
 
     /**
