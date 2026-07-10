@@ -67,6 +67,7 @@ import type { WarehouseAvailableTablesModel } from '../../models/WarehouseAvaila
 import type { SchedulerClient } from '../../scheduler/SchedulerClient';
 import type { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { warehouseClientMock } from '../../utils/QueryBuilder/MetricQueryBuilder.mock';
+import type { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import type { ICacheService } from '../CacheService/ICacheService';
 import { CacheHitCacheResult, MissCacheResult } from '../CacheService/types';
@@ -555,7 +556,9 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
-                    sql: 'SELECT * FROM test',
+                    queryComposer: {
+                        getSql: () => 'SELECT * FROM test',
+                    } as unknown as QueryComposer,
                     fields: {},
                     missingParameterReferences: [],
                     displayTimezone: null,
@@ -650,7 +653,9 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
-                    sql: 'SELECT * FROM test',
+                    queryComposer: {
+                        getSql: () => 'SELECT * FROM test',
+                    } as unknown as QueryComposer,
                     fields: {},
                     missingParameterReferences: [],
                     displayTimezone: null,
@@ -752,7 +757,9 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
-                    sql: 'SELECT * FROM test',
+                    queryComposer: {
+                        getSql: () => 'SELECT * FROM test',
+                    } as unknown as QueryComposer,
                     fields: {},
                     missingParameterReferences: [],
                     // Resolved tz is set (project has query_timezone) but
@@ -810,7 +817,9 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
-                    sql: 'SELECT * FROM test',
+                    queryComposer: {
+                        getSql: () => 'SELECT * FROM test',
+                    } as unknown as QueryComposer,
                     fields: {},
                     missingParameterReferences: [],
                     timezone: 'Asia/Tokyo',
@@ -870,7 +879,9 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: true,
-                    sql: 'SELECT * FROM test',
+                    queryComposer: {
+                        getSql: () => 'SELECT * FROM test',
+                    } as unknown as QueryComposer,
                     fields: {},
                     missingParameterReferences: [],
                     displayTimezone: null,
@@ -960,7 +971,9 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
-                    sql: 'SELECT * FROM test',
+                    queryComposer: {
+                        getSql: () => 'SELECT * FROM test',
+                    } as unknown as QueryComposer,
                     fields: {},
                     missingParameterReferences: [],
                     displayTimezone: null,
@@ -1024,7 +1037,9 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
-                    sql: 'SELECT * FROM test',
+                    queryComposer: {
+                        getSql: () => 'SELECT * FROM test',
+                    } as unknown as QueryComposer,
                     fields: {},
                     missingParameterReferences: [],
                     displayTimezone: null,
@@ -1117,7 +1132,10 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
-                    sql: 'SELECT * FROM test WHERE param = {{ missing_param }}',
+                    queryComposer: {
+                        getSql: () =>
+                            'SELECT * FROM test WHERE param = {{ missing_param }}',
+                    } as unknown as QueryComposer,
                     fields: {},
                     missingParameterReferences: [
                         'missing_param',
@@ -1190,7 +1208,9 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
-                    sql: 'SELECT * FROM test',
+                    queryComposer: {
+                        getSql: () => 'SELECT * FROM test',
+                    } as unknown as QueryComposer,
                     fields: {},
                     missingParameterReferences: [],
                     preAggregationRoute: {
@@ -1265,7 +1285,9 @@ describe('AsyncQueryService', () => {
                     },
                     explore: preAggregateExplore,
                     invalidateCache: false,
-                    sql: 'SELECT * FROM test',
+                    queryComposer: {
+                        getSql: () => 'SELECT * FROM test',
+                    } as unknown as QueryComposer,
                     fields: {},
                     missingParameterReferences: [],
                     preAggregationRoute: {
@@ -1349,7 +1371,9 @@ describe('AsyncQueryService', () => {
                     },
                     explore: preAggregateExplore,
                     invalidateCache: false,
-                    sql: 'SELECT * FROM warehouse',
+                    queryComposer: {
+                        getSql: () => 'SELECT * FROM warehouse',
+                    } as unknown as QueryComposer,
                     fields: {},
                     missingParameterReferences: [],
                     preAggregationRoute: {
@@ -1436,7 +1460,9 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
-                    sql: 'SELECT * FROM warehouse',
+                    queryComposer: {
+                        getSql: () => 'SELECT * FROM warehouse',
+                    } as unknown as QueryComposer,
                     fields: {},
                     missingParameterReferences: [],
                     preAggregationRoute: {
@@ -1487,7 +1513,9 @@ describe('AsyncQueryService', () => {
             (service as AnyType).prepareMetricQueryAsyncQueryArgs = vi
                 .fn()
                 .mockResolvedValue({
-                    sql: 'SELECT * FROM test',
+                    queryComposer: {
+                        getSql: () => 'SELECT * FROM test',
+                    } as unknown as QueryComposer,
                     fields: {},
                     warnings: [],
                     parameterReferences: [],
@@ -1590,7 +1618,9 @@ describe('AsyncQueryService', () => {
             (service as AnyType).prepareMetricQueryAsyncQueryArgs = vi
                 .fn()
                 .mockResolvedValue({
-                    sql: 'SELECT * FROM duckdb_preagg',
+                    queryComposer: {
+                        getSql: () => 'SELECT * FROM duckdb_preagg',
+                    } as unknown as QueryComposer,
                     fields: {},
                     warnings: [],
                     parameterReferences: [],
@@ -2770,7 +2800,9 @@ describe('AsyncQueryService', () => {
                     },
                     explore: validExplore,
                     invalidateCache: false,
-                    sql: 'SELECT * FROM test',
+                    queryComposer: {
+                        getSql: () => 'SELECT * FROM test',
+                    } as unknown as QueryComposer,
                     fields: {},
                     originalColumns: mockOriginalColumns,
                     missingParameterReferences: [],
@@ -3068,24 +3100,15 @@ describe('AsyncQueryService', () => {
             });
 
             expect(service.getUserAttributes).not.toHaveBeenCalled();
-            expect(service['executeAsyncQuery']).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    sql: expect.stringContaining("'EMEA', 'APAC'"),
-                }),
-                expect.any(Object),
-            );
-            expect(service['executeAsyncQuery']).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    sql: expect.stringContaining('materialize@acme.com'),
-                }),
-                expect.any(Object),
-            );
-            expect(service['executeAsyncQuery']).not.toHaveBeenCalledWith(
-                expect.objectContaining({
-                    sql: expect.stringContaining('viewer-region'),
-                }),
-                expect.any(Object),
-            );
+            const executeArgs = (
+                service['executeAsyncQuery'] as import('vitest').Mock
+            ).mock.calls[0][0];
+            const executedSql = executeArgs.queryComposer.getSql({
+                columnLimit: lightdashConfigMock.pivotTable.maxColumnLimit,
+            });
+            expect(executedSql).toContain("'EMEA', 'APAC'");
+            expect(executedSql).toContain('materialize@acme.com');
+            expect(executedSql).not.toContain('viewer-region');
         });
 
         it('fails closed when materializationRole is supplied outside materialization context', async () => {
@@ -3747,7 +3770,9 @@ describe('AsyncQueryService', () => {
                 .mockResolvedValue({ fields: {} });
 
             const prepareSpy = vi.fn().mockResolvedValue({
-                sql: 'SELECT 1',
+                queryComposer: {
+                    getSql: () => 'SELECT 1',
+                } as unknown as QueryComposer,
                 fields: {},
                 warnings: [],
                 parameterReferences: [],
@@ -3857,7 +3882,9 @@ describe('AsyncQueryService', () => {
                 .fn()
                 .mockResolvedValue({ fields: {} });
             const prepareSpy = vi.fn().mockResolvedValue({
-                sql: 'SELECT 1',
+                queryComposer: {
+                    getSql: () => 'SELECT 1',
+                } as unknown as QueryComposer,
                 fields: {},
                 warnings: [],
                 parameterReferences: [],
@@ -3938,7 +3965,9 @@ describe('AsyncQueryService', () => {
                 .fn()
                 .mockResolvedValue({ fields: {} });
             const prepareSpy = vi.fn().mockResolvedValue({
-                sql: 'SELECT 1',
+                queryComposer: {
+                    getSql: () => 'SELECT 1',
+                } as unknown as QueryComposer,
                 fields: {},
                 warnings: [],
                 parameterReferences: [],
