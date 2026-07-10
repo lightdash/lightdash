@@ -15,7 +15,6 @@ import {
     AiAgentMessageAssistantArtifact,
     AiAgentMessageUser,
     AiAgentNotFoundError,
-    AiAgentProviderKeySource,
     AiAgentReasoning,
     AiAgentReviewItemSummary,
     AiAgentSummary,
@@ -3218,7 +3217,6 @@ export class AiAgentModel {
                     | 'saved_query_uuid'
                     | 'model_config'
                     | 'token_usage'
-                    | 'provider_key_source'
                     | 'hidden'
                 > &
                     Pick<DbUser, 'user_uuid'> &
@@ -3243,7 +3241,6 @@ export class AiAgentModel {
                 `${AiPromptTableName}.saved_query_uuid`,
                 `${AiPromptTableName}.model_config`,
                 `${AiPromptTableName}.token_usage`,
-                `${AiPromptTableName}.provider_key_source`,
                 `${AiPromptTableName}.hidden`,
                 `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
@@ -3349,7 +3346,6 @@ export class AiAgentModel {
                 referencedArtifacts: referencedArtifacts ?? null,
                 modelConfig: row.model_config,
                 tokenUsage: row.token_usage,
-                providerKeySource: row.provider_key_source,
                 toolCalls: toolCalls
                     .filter((tc) => isParseableToolName(tc.tool_name))
                     .map((tc) => this.parseToolCall(tc)),
@@ -3935,7 +3931,6 @@ export class AiAgentModel {
                     | 'saved_query_uuid'
                     | 'model_config'
                     | 'token_usage'
-                    | 'provider_key_source'
                     | 'hidden'
                 > &
                     Pick<DbUser, 'user_uuid'> &
@@ -3960,7 +3955,6 @@ export class AiAgentModel {
                 `${AiPromptTableName}.saved_query_uuid`,
                 `${AiPromptTableName}.model_config`,
                 `${AiPromptTableName}.token_usage`,
-                `${AiPromptTableName}.provider_key_source`,
                 `${AiPromptTableName}.hidden`,
                 `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
@@ -4106,7 +4100,6 @@ export class AiAgentModel {
                     referencedArtifacts,
                     modelConfig: row.model_config,
                     tokenUsage: row.token_usage,
-                    providerKeySource: row.provider_key_source,
                     toolCalls: toolCalls
                         .filter((tc) => isParseableToolName(tc.tool_name))
                         .map((tc) => this.parseToolCall(tc)),
@@ -4423,15 +4416,6 @@ export class AiAgentModel {
                 ai_prompt_uuid: data.promptUuid,
             })
             .returning('ai_prompt_uuid');
-    }
-
-    async updatePromptProviderKeySource(data: {
-        promptUuid: string;
-        providerKeySource: AiAgentProviderKeySource;
-    }) {
-        await this.database(AiPromptTableName)
-            .update({ provider_key_source: data.providerKeySource })
-            .where({ ai_prompt_uuid: data.promptUuid });
     }
 
     async createAiPromptInterrupt(data: {

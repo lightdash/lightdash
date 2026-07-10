@@ -1,8 +1,6 @@
 import {
     BYO_AI_PROVIDERS,
     FeatureFlags,
-    isByoAiProvider,
-    type AiAgentProviderKeySource,
     type AiOrgModelVisibility,
     type ByoAiProvider,
 } from '@lightdash/common';
@@ -138,30 +136,6 @@ export class OrgAiCopilotConfigResolver {
             );
         if (!orgKeys) return base;
         return overlayOrgProviderApiKeys(base, orgKeys);
-    }
-
-    /**
-     * Which API key a response on `provider` will be billed to: the org's own
-     * BYO key (`byok`) or the Lightdash instance key (`default`). Mirrors the
-     * gating in getCopilotConfig — a provider only resolves to `byok` when the
-     * feature flag is on, the org stored a key for that BYO provider, and the
-     * instance runs that provider (so the overlay actually applied it).
-     */
-    async resolveProviderKeySource(
-        organizationUuid: string | null | undefined,
-        provider: string,
-    ): Promise<AiAgentProviderKeySource> {
-        if (!organizationUuid) return 'default';
-        if (!isByoAiProvider(provider)) return 'default';
-        if (!this.lightdashConfig.ai.copilot.providers[provider]) {
-            return 'default';
-        }
-        if (!(await this.isEnabled(organizationUuid))) return 'default';
-        const orgKeys =
-            await this.aiOrganizationSettingsModel.findDecryptedProviderApiKeys(
-                organizationUuid,
-            );
-        return orgKeys?.[provider] ? 'byok' : 'default';
     }
 
     /**

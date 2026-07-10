@@ -18,7 +18,6 @@ import type {
 import { type AiEvalRunResultAssessment } from './aiEvalAssessment';
 import {
     type AiAgentModelConfig,
-    type AiAgentProviderKeySource,
     type AiPromptContext,
     type AiPromptContextInput,
     type AiPromptTokenUsage,
@@ -283,9 +282,6 @@ export type AiAgentMessageAssistant = {
     referencedArtifacts: AiAgentMessageAssistantArtifact[] | null;
     modelConfig: AiAgentModelConfig | null;
     tokenUsage: AiPromptTokenUsage | null;
-    // Which API key produced the response (org BYOK vs Lightdash default).
-    // Null for legacy responses recorded before this was tracked.
-    providerKeySource: AiAgentProviderKeySource | null;
 };
 
 export type AiAgentMessage<TUser extends AiAgentUser = AiAgentUser> =

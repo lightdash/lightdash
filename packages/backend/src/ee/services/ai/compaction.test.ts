@@ -91,7 +91,6 @@ describe('AI context compaction helpers', () => {
                 referencedArtifacts: null,
                 modelConfig: null,
                 tokenUsage: null,
-                providerKeySource: null,
             },
         ]);
 
