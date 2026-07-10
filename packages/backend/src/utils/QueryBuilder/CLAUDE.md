@@ -60,6 +60,12 @@ query's dimensions, which the collapsed totals query typically no longer selects
 This is what the calculate-total path (`executeAsyncCalculateTotalFromQueryHistory`)
 uses instead of hand-collapsing at the call site.
 
+`totalConfiguration` and `dashboardFilters` are mutually exclusive. Totals
+replay a query already persisted in query history; applying the source
+dashboard filters again would change its semantics. `AsyncQueryService` asserts
+this invariant at the `executeAsyncMetricQuery` entry point before preparing a
+composer.
+
 **SqlQueryComposer** — the facade for SQL charts (`extends QueryComposer`). SQL charts run user-written SQL rather than compiling a metric query, so this builds everything from raw inputs — the virtual view (`createVirtualView`) from the discovered columns, the wrapping `SqlQueryBuilder` (reference map + dialect config off the warehouse client), a mock `MetricQuery` metadata carrier, and (on the dashboard path) the applied dashboard filters/sorts — then overrides `computeCompiled()` to shape the wrapped user SQL into a `CompiledQuery`. Because `getSql()` is inherited, a request/config `pivotConfiguration` flows through the same seam as metric queries. Used by `AsyncQueryService.prepareSqlChartAsyncQueryArgs` for all three SQL execute paths (raw SQL runner, saved SQL chart, dashboard SQL chart).
 
 ```typescript
@@ -83,6 +89,17 @@ const metricQuery = composer.getMetricQuery(); // mock metadata carrier (echoed 
 const virtualView = composer.getExplore();
 const appliedDashboardFilters = composer.getAppliedDashboardFilters();
 ```
+
+**dateZoom util.** `updateExploreWithDateZoom` is the single explore-rewrite
+step used by `QueryComposer`. It takes the source explore/query, warehouse SQL
+builder, available parameter names, and optional `DateZoom`; then returns the
+effective explore plus `dateZoomApplied` and `dateZoomTargetFieldId` metadata.
+The rewrite changes the target date dimension's SQL to the selected grain while
+preserving the source explore for field lookup. By default it affects selected
+dimensions only. Set `applyDateZoomToFilters` only for the underlying-data path,
+where the matching click-filter must compile against the rewritten expression.
+Callers should pass `dateZoom` into the composer instead of invoking this util
+or mutating an explore themselves.
 
 **MetricQueryBuilder** — builds the base SQL from an Explore + MetricQuery (dimensions, metrics, filters, joins, table calculations). Handles fan-out protection via CTEs and period-over-period comparisons. Usually driven via `QueryComposer` rather than constructed directly.
 
@@ -192,6 +209,7 @@ graph TD
 
 - @/packages/backend/src/utils/QueryBuilder/QueryComposer.ts — Facade that owns metric SQL generation end-to-end
 - @/packages/backend/src/utils/QueryBuilder/SqlQueryComposer.ts — SQL-chart subclass of the facade (wraps user SQL)
+- @/packages/backend/src/utils/QueryBuilder/dateZoom.ts — Date-zoom explore rewrite used by QueryComposer
 - @/packages/backend/src/services/AsyncQueryService/AsyncQueryService.ts — Query execution and pivot result streaming
 - @/packages/backend/src/utils/QueryBuilder/PivotQueryBuilder.test.ts — PivotQueryBuilder tests (all CTE paths)
 - @/packages/backend/src/utils/QueryBuilder/MetricQueryBuilder.test.ts — MetricQueryBuilder tests

@@ -94,7 +94,6 @@ import {
     hasConnectionChanges,
     hasIntersection,
     hasWarehouseCredentials,
-    IntrinsicUserAttributes,
     isCartesianChartConfig,
     isDateItem,
     isExploreError,
@@ -191,7 +190,6 @@ import {
     type ParametersValuesMap,
     type RunQueryTags,
     type Tag,
-    type WarehouseSqlBuilder,
 } from '@lightdash/common';
 import {
     BigqueryWarehouseClient,
@@ -270,12 +268,8 @@ import { runWorkerThread, wrapSentryTransaction } from '../../utils';
 import { buildCacheHash, getCacheUserUuid } from '../../utils/cacheUtils';
 import { metricQueryWithLimit as applyMetricQueryLimit } from '../../utils/csvLimitUtils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
-import { CompiledQuery } from '../../utils/QueryBuilder/MetricQueryBuilder';
 import { PivotQueryBuilder } from '../../utils/QueryBuilder/PivotQueryBuilder';
-import {
-    QueryComposer,
-    TotalConfiguration,
-} from '../../utils/QueryBuilder/QueryComposer';
+import { QueryComposer } from '../../utils/QueryBuilder/QueryComposer';
 import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
@@ -4061,84 +4055,6 @@ export class ProjectService extends BaseService {
         });
     }
 
-    static _createQueryComposer({
-        metricQuery,
-        explore,
-        warehouseSqlBuilder,
-        intrinsicUserAttributes,
-        userAttributes,
-        timezone,
-        dateZoom,
-        parameters,
-        availableParameterDefinitions,
-        pivotConfiguration,
-        totalConfiguration,
-        pivotDimensions,
-        continueOnError,
-        useTimezoneAwareDateTrunc,
-        columnTimezone,
-        applyDateZoomToFilters,
-        displayTimezone,
-    }: {
-        metricQuery: MetricQuery;
-        explore: Explore;
-        warehouseSqlBuilder: WarehouseSqlBuilder;
-        intrinsicUserAttributes: IntrinsicUserAttributes;
-        userAttributes: UserAttributeValueMap;
-        timezone: string;
-        dateZoom?: DateZoom;
-        parameters?: ParametersValuesMap;
-        availableParameterDefinitions: ParameterDefinitions;
-        pivotConfiguration?: PivotConfiguration;
-        /**
-         * When set, the composer collapses the source query into this totals
-         * grain before compiling (calculate-total path only).
-         */
-        totalConfiguration?: TotalConfiguration;
-        pivotDimensions?: string[];
-        continueOnError?: boolean;
-        useTimezoneAwareDateTrunc?: boolean;
-        columnTimezone?: string;
-        /**
-         * When true, WHERE filter rules targeting the date-zoom dimension are
-         * compiled against the zoom-rewritten SQL (e.g. DATE_TRUNC('MONTH', ...)).
-         * Only safe on the underlying-data path where filters are solely click-filters.
-         */
-        applyDateZoomToFilters?: boolean;
-        /**
-         * Flag-gated timezone echoed to clients and persisted with the query.
-         * Only the async execute path needs it; compile-only callers omit it.
-         */
-        displayTimezone?: string | null;
-    }): QueryComposer {
-        return new QueryComposer(
-            { metricQuery, pivotConfiguration, totalConfiguration },
-            {
-                explore,
-                warehouseSqlBuilder,
-                intrinsicUserAttributes,
-                userAttributes,
-                timezone,
-                availableParameterDefinitions,
-                parameters,
-                dateZoom,
-                pivotDimensions,
-                pivotItemsMap: undefined,
-                continueOnError,
-                useTimezoneAwareDateTrunc,
-                columnTimezone,
-                applyDateZoomToFilters,
-                displayTimezone,
-            },
-        );
-    }
-
-    static async _compileQuery(
-        args: Parameters<typeof ProjectService._createQueryComposer>[0],
-    ): Promise<CompiledQuery> {
-        return ProjectService._createQueryComposer(args).compile();
-    }
-
     /**
      * Get all available parameter definitions for a project and explore
      * @param projectUuid - The UUID of the project
@@ -5289,22 +5205,25 @@ export class ProjectService extends BaseService {
                                 account.organization.organizationUuid,
                         });
 
-                    const fullQuery = await ProjectService._compileQuery({
-                        metricQuery: metricQueryWithLimit,
-                        explore,
-                        warehouseSqlBuilder: warehouseClient,
-                        intrinsicUserAttributes,
-                        userAttributes: mergedUserAttributes,
-                        timezone,
-                        dateZoom,
-                        parameters,
-                        availableParameterDefinitions,
-                        pivotDimensions: metricQueryWithLimit.pivotDimensions,
-                        useTimezoneAwareDateTrunc,
-                        columnTimezone: getColumnTimezone(
-                            warehouseClient.credentials,
-                        ),
-                    });
+                    const fullQuery = new QueryComposer(
+                        { metricQuery: metricQueryWithLimit },
+                        {
+                            explore,
+                            warehouseSqlBuilder: warehouseClient,
+                            intrinsicUserAttributes,
+                            userAttributes: mergedUserAttributes,
+                            timezone,
+                            dateZoom,
+                            parameters,
+                            availableParameterDefinitions,
+                            pivotDimensions:
+                                metricQueryWithLimit.pivotDimensions,
+                            useTimezoneAwareDateTrunc,
+                            columnTimezone: getColumnTimezone(
+                                warehouseClient.credentials,
+                            ),
+                        },
+                    ).compile();
 
                     const { query } = fullQuery;
 
@@ -5905,18 +5824,20 @@ export class ProjectService extends BaseService {
             userTimezone: user.timezone,
         });
 
-        const { query } = await ProjectService._compileQuery({
-            metricQuery,
-            explore,
-            warehouseSqlBuilder: warehouseClient,
-            intrinsicUserAttributes,
-            userAttributes: mergedUserAttributes,
-            timezone,
-            parameters: combinedParameters,
-            availableParameterDefinitions,
-            useTimezoneAwareDateTrunc,
-            columnTimezone: getColumnTimezone(warehouseClient.credentials),
-        });
+        const { query } = new QueryComposer(
+            { metricQuery },
+            {
+                explore,
+                warehouseSqlBuilder: warehouseClient,
+                intrinsicUserAttributes,
+                userAttributes: mergedUserAttributes,
+                timezone,
+                parameters: combinedParameters,
+                availableParameterDefinitions,
+                useTimezoneAwareDateTrunc,
+                columnTimezone: getColumnTimezone(warehouseClient.credentials),
+            },
+        ).compile();
 
         const isUserCacheEnabled =
             this.lightdashConfig.results.autocompleteEnabled && !!user.userUuid;
