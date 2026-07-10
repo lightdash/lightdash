@@ -84,7 +84,7 @@ describe('filterScopesByDependencyStatus', () => {
 Run:
 
 ```bash
-pnpm -F frontend test --run packages/frontend/src/ee/features/customRoles/utils/scopeUtils.test.ts
+pnpm -F frontend test --run src/ee/features/customRoles/utils/scopeUtils.test.ts
 ```
 
 Expected: FAIL because the two helpers are not exported.
@@ -289,7 +289,7 @@ git commit -m "feat: toggle dependency status filters"
 - [ ] **Step 1: Run the focused unit suite**
 
 ```bash
-pnpm -F frontend test --run packages/frontend/src/ee/features/customRoles/utils/scopeUtils.test.ts
+pnpm -F frontend test --run src/ee/features/customRoles/utils/scopeUtils.test.ts
 ```
 
 Expected: PASS.
@@ -312,4 +312,3 @@ git status --short
 ```
 
 Expected: no whitespace errors and no uncommitted files.
-
