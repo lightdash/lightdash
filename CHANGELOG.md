@@ -1,3 +1,10 @@
+# [0.3360.0](https://github.com/lightdash/lightdash/compare/0.3359.0...0.3360.0) (2026-07-10)
+
+
+### Features
+
+* **backend:** minimum release-age guard for data-app custom dependencies [GLITCH-558] ([#25386](https://github.com/lightdash/lightdash/issues/25386)) ([22b0623](https://github.com/lightdash/lightdash/commit/22b06235ec4acf232b14a0f93b39a3bfc054d577))
+
 # [0.3359.0](https://github.com/lightdash/lightdash/compare/0.3358.1...0.3359.0) (2026-07-10)
 
 
