@@ -196,13 +196,6 @@
     overflow: hidden;
 }
 
-.chipHidden {
-    opacity: 0;
-    grid-template-rows: 0fr;
-    transform: translateY(-6px);
-    pointer-events: none;
-}
-
 .chipTray {
     position: relative;
     z-index: 0;
@@ -225,10 +218,6 @@
 
 .chipTrayReserve {
     min-height: rem(50px);
-}
-
-.threadChipFlow {
-    margin-bottom: rem(8px);
 }
 
 .threadBelowControls {

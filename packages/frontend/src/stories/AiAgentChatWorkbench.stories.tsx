@@ -23,7 +23,10 @@ import type { ReactNode } from 'react';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router';
 import { AgentChatDisplay } from '../ee/features/aiCopilot/components/ChatElements/AgentChatDisplay';
-import { AgentSuggestionChips } from '../ee/features/aiCopilot/components/ChatElements/AgentSuggestionChips';
+import {
+    AgentRelatedQueries,
+    AgentSuggestionChips,
+} from '../ee/features/aiCopilot/components/ChatElements/AgentSuggestionChips';
 import { DotsLoader } from '../ee/features/aiCopilot/components/ChatElements/DotsLoader/DotsLoader';
 import { ReasoningHistoryRow } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/LiveActivityCard';
 import { LiveActivityCard } from '../ee/features/aiCopilot/components/ChatElements/ToolCalls/LiveActivityCard';
@@ -197,6 +200,45 @@ const suggestions: AgentSuggestion[] = [
         kind: 'navigate',
         label: 'Open Executive overview',
         url: `/projects/${projectUuid}/dashboards/dashboard-exec-overview`,
+    },
+];
+
+const relatedQuestionSuggestions: AgentSuggestion[] = [
+    {
+        kind: 'prompt',
+        label: 'Break down add-to-cart drop-off by browser type',
+        tool: 'generateVisualization',
+        defaults: {
+            explore: 'product_events',
+            dimensions: ['product_events.browser'],
+            metrics: ['product_events.unique_users'],
+            timeframe: null,
+        },
+    },
+    {
+        kind: 'prompt',
+        label: 'Show cart abandonment by referrer and device',
+        tool: 'generateVisualization',
+        defaults: {
+            explore: 'product_events',
+            dimensions: [
+                'product_events.referrer',
+                'product_events.device_type',
+            ],
+            metrics: ['product_events.unique_users'],
+            timeframe: null,
+        },
+    },
+    {
+        kind: 'prompt',
+        label: 'Compare conversion rates over the last 90 days',
+        tool: 'generateVisualization',
+        defaults: {
+            explore: 'product_events',
+            dimensions: ['product_events.event_date'],
+            metrics: ['product_events.unique_users'],
+            timeframe: 'last 90 days',
+        },
     },
 ];
 
@@ -1079,10 +1121,30 @@ const StreamingScenario = () => (
                         the chart.
                     </Text>
                 </Paper>
-                <AgentSuggestionChips
-                    chips={suggestions}
-                    align="left"
-                    showPromptAffordance
+            </Stack>
+        </Section>
+    </StorySurface>
+);
+
+const RelatedQuestionsScenario = () => (
+    <StorySurface>
+        <Section
+            title="Assistant answer ending"
+            description="Generated next steps stay attached to the answer instead of floating above the composer."
+        >
+            <Stack gap="md">
+                <Box>
+                    <Text size="sm" fw={600} mb={4}>
+                        Google drives the most conversion volume
+                    </Text>
+                    <Text size="sm" c="ldGray.7">
+                        Google produced 71 completed checkouts at a 2.8% overall
+                        conversion rate. Instagram and Email were the weakest
+                        sources at 1.8% and 1.9%.
+                    </Text>
+                </Box>
+                <AgentRelatedQueries
+                    chips={relatedQuestionSuggestions}
                     onChipClick={() => undefined}
                 />
             </Stack>
@@ -1193,6 +1255,10 @@ export const PinnedContext: Story = {
 
 export const Streaming: Story = {
     render: () => <StreamingScenario />,
+};
+
+export const RelatedQuestions: Story = {
+    render: () => <RelatedQuestionsScenario />,
 };
 
 export const ApprovalAndFailure: Story = {

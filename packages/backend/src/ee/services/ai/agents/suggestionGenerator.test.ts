@@ -40,7 +40,9 @@ describe('buildSuggestionSystemPrompt', () => {
             canManageContent: true,
         });
 
-        expect(postResponse).toContain('AFTER the agent has just replied');
+        expect(postResponse).toContain(
+            "directly after the agent's latest reply",
+        );
         expect(emptyState).toContain('starter "chips"');
     });
 });

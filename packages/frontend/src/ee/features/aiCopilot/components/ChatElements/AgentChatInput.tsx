@@ -16,6 +16,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import { useEditor, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { ModelSelector } from '../../../../../components/common/ModelSelector/ModelSelector';
@@ -31,7 +32,11 @@ import { useAiAgentThreadStreamQuery } from '../../streaming/useAiAgentThreadStr
 import { AgentSelector } from '../AgentSelector';
 import { type Agent } from '../AgentSelector/AgentSelectorUtils';
 import styles from './AgentChatInput.module.css';
-import { AgentSuggestionChips } from './AgentSuggestionChips';
+import { getAgentRelatedQueriesTargetId } from './agentRelatedQueriesTarget';
+import {
+    AgentRelatedQueries,
+    AgentSuggestionChips,
+} from './AgentSuggestionChips';
 import {
     createContentMentionExtension,
     extractContentMentionContext,
@@ -146,7 +151,6 @@ export const AgentChatInput = ({
     const onValueChangeRef = useRef(onValueChange);
     onValueChangeRef.current = onValueChange;
     const editorRef = useRef<Editor | null>(null);
-    const rootRef = useRef<HTMLDivElement | null>(null);
     const loadingRef = useRef(loading);
     loadingRef.current = loading;
     const disabledRef = useRef(disabled);
@@ -165,56 +169,10 @@ export const AgentChatInput = ({
     // `active` flag — which can read stale in the keydown vs async-items race.
     const contentMentionPopupOpenRef = useRef(false);
 
-    // Hide the chip strip while the user is scrolled away from the input.
-    // Reappears as they scroll back toward the bottom of the thread — chips
-    // are noise when reading history.
-    const [chipsNearBottom, setChipsNearBottom] = useState(true);
     const [hasRequestedInterrupt, setHasRequestedInterrupt] = useState(false);
     const threadStream = useAiAgentThreadStreamQuery(threadUuid ?? '');
     const interruptMutation = useInterruptAiAgentThreadMessageMutation();
     const steerMutation = useCreateAiAgentThreadMessageSteerMutation();
-    useEffect(() => {
-        const el = rootRef.current;
-        if (!el) return undefined;
-        let scrollEl: HTMLElement | null = el.parentElement;
-        while (scrollEl) {
-            const overflow = window.getComputedStyle(scrollEl).overflowY;
-            if (overflow === 'auto' || overflow === 'scroll') break;
-            scrollEl = scrollEl.parentElement;
-        }
-        if (!scrollEl) return undefined;
-        // Hysteresis: collapsing the chip strip changes scrollHeight, which
-        // can flip the threshold and cause a flicker loop. We hide once the
-        // user is past HIDE_PX and only re-show when they're back inside
-        // SHOW_PX — the gap absorbs the height change.
-        const HIDE_PX = 40;
-        const SHOW_PX = 8;
-        let raf: number | null = null;
-        const measure = () => {
-            raf = null;
-            if (!scrollEl) return;
-            const distance =
-                scrollEl.scrollHeight -
-                scrollEl.scrollTop -
-                scrollEl.clientHeight;
-            setChipsNearBottom((prev) => {
-                if (prev && distance > HIDE_PX) return false;
-                if (!prev && distance < SHOW_PX) return true;
-                return prev;
-            });
-        };
-        const onScroll = () => {
-            if (raf !== null) return;
-            raf = window.requestAnimationFrame(measure);
-        };
-        measure();
-        scrollEl.addEventListener('scroll', onScroll, { passive: true });
-        return () => {
-            if (raf !== null) window.cancelAnimationFrame(raf);
-            scrollEl?.removeEventListener('scroll', onScroll);
-        };
-    }, []);
-
     const { track } = useTracking();
 
     const showModelSelector =
@@ -247,6 +205,19 @@ export const AgentChatInput = ({
             : undefined,
         enabled: emptyStateMode || postResponseMode,
     });
+    const [relatedQueriesTarget, setRelatedQueriesTarget] =
+        useState<HTMLElement | null>(null);
+
+    useEffect(() => {
+        if (!postResponseMode || !threadUuid) {
+            setRelatedQueriesTarget(null);
+            return;
+        }
+
+        setRelatedQueriesTarget(
+            document.getElementById(getAgentRelatedQueriesTargetId(threadUuid)),
+        );
+    }, [postResponseMode, threadUuid]);
 
     const editor = useEditor({
         extensions: [
@@ -491,7 +462,7 @@ export const AgentChatInput = ({
     };
 
     const chipRow = useMemo(() => {
-        if (!emptyStateMode && !postResponseMode) return null;
+        if (!emptyStateMode) return null;
         if (suggestionsQuery.isError) return null;
         const chips = suggestionsQuery.data?.chips ?? [];
         if (chips.length === 0) return null;
@@ -500,19 +471,31 @@ export const AgentChatInput = ({
                 chips={chips}
                 onChipClick={handleChipClick}
                 onImpression={handleImpression}
-                align={isThreadInput ? 'left' : 'center'}
-                showPromptAffordance={isThreadInput}
+                align="center"
             />
         );
     }, [
         emptyStateMode,
-        postResponseMode,
         suggestionsQuery.isError,
         suggestionsQuery.data,
         handleChipClick,
         handleImpression,
-        isThreadInput,
     ]);
+    const relatedQueries = suggestionsQuery.data?.chips ?? [];
+    const relatedQueriesPortal =
+        postResponseMode &&
+        relatedQueriesTarget &&
+        !suggestionsQuery.isError &&
+        relatedQueries.length > 0
+            ? createPortal(
+                  <AgentRelatedQueries
+                      chips={relatedQueries}
+                      onChipClick={handleChipClick}
+                      onImpression={handleImpression}
+                  />,
+                  relatedQueriesTarget,
+              )
+            : null;
     const shouldReserveEmptyStateSuggestions =
         !isThreadInput &&
         emptyStateMode &&
@@ -524,9 +507,9 @@ export const AgentChatInput = ({
         (chipRow || reserve) && (
             <Box
                 className={`${styles.chipReveal} ${extraClassName} ${
-                    chipsNearBottom ? '' : styles.chipHidden
-                } ${!chipRow ? styles.chipReserved : ''}`}
-                aria-hidden={!chipsNearBottom || !chipRow}
+                    !chipRow ? styles.chipReserved : ''
+                }`}
+                aria-hidden={!chipRow}
             >
                 {chipRow ?? <Box className={styles.chipTrayReserve} />}
             </Box>
@@ -576,9 +559,8 @@ export const AgentChatInput = ({
                 className={`${styles.minimalContainer} ${
                     fullWidth ? styles.minimalContainerFullWidth : ''
                 }`}
-                ref={rootRef}
             >
-                {isThreadInput && renderChipRow(styles.threadChipFlow)}
+                {relatedQueriesPortal}
 
                 <Box className={styles.threadInputStack}>
                     <Box className={styles.minimalInputWrapper} pos="relative">
@@ -688,12 +670,11 @@ export const AgentChatInput = ({
 
     return (
         <Box
-            ref={rootRef}
             className={`${styles.container} ${
                 showDisabledBanner ? styles.disabledBannerVisible : ''
             }`}
         >
-            {isThreadInput && renderChipRow(styles.threadChipFlow)}
+            {relatedQueriesPortal}
 
             <Box className={styles.inputCard}>
                 <RichTextEditor

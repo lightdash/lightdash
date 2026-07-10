@@ -46,9 +46,9 @@ Tool guide (PROMPT chips):
 
 If the project has zero explores AND no verified questions AND no recent conversations, return three generic prompt chips that nudge the user to set up data.`;
 
-const POST_RESPONSE_PROMPT = `You write 2-5 chips that appear above the chat input AFTER the agent has just replied. Each chip is what the user is most likely to click NEXT in this conversation.
+const POST_RESPONSE_PROMPT = `You write 2-5 related questions that appear directly after the agent's latest reply. Each row is what the user is most likely to click NEXT in this conversation.
 
-Only emit chips with kind="prompt". Navigate chips are forbidden here — the user is already in this thread, so suggesting they jump elsewhere would interrupt the flow. Actions like "save as chart" are handled elsewhere. Every chip submits a new message to the agent when clicked.
+Only emit chips with kind="prompt". Navigate chips are forbidden here — the user is already in this thread, so suggesting they jump elsewhere would interrupt the flow. Actions like "save as chart" are handled elsewhere. Every related question submits a new message to the agent when clicked.
 
 Two modes:
 

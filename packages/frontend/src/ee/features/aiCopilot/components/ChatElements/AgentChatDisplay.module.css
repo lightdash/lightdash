@@ -9,3 +9,7 @@
         background-color: var(--mantine-color-dark-8);
     }
 }
+
+.relatedQueriesTarget:empty {
+    display: none;
+}

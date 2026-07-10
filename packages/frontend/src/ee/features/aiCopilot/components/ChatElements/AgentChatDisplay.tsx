@@ -22,6 +22,7 @@ import { AddToEvalModal } from '../Admin/AddToEvalModal';
 import { AssistantBubble } from './AgentChatAssistantBubble';
 import styles from './AgentChatDisplay.module.css';
 import { UserBubble } from './AgentChatUserBubble';
+import { getAgentRelatedQueriesTargetId } from './agentRelatedQueriesTarget';
 import ThreadScrollToBottom from './ScrollToBottom';
 import { ChatElementsUtils } from './utils';
 
@@ -202,6 +203,10 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                                     )}
                                 </Fragment>
                             ))}
+                        <Box
+                            id={getAgentRelatedQueriesTargetId(thread.uuid)}
+                            className={styles.relatedQueriesTarget}
+                        />
                     </Stack>
 
                     {enableAutoScroll && projectUuid && agentUuid ? (

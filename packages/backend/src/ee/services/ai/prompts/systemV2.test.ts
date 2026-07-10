@@ -13,6 +13,16 @@ const promptText = (args: Parameters<typeof getSystemPromptV2>[0]): string => {
     return typeof content === 'string' ? content : JSON.stringify(content);
 };
 
+describe('getSystemPromptV2 response ending', () => {
+    test('reserves follow-up suggestions for product-rendered related questions', () => {
+        const content = promptText({ availableExplores: [] });
+
+        expect(content).toContain('End with the answer');
+        expect(content).toContain('Do not write "Want me to..."');
+        expect(content).toContain('related questions separately');
+    });
+});
+
 describe('getSystemPromptV2 project context', () => {
     test('advertises the loadProjectContext tool when context exists', () => {
         const content = promptText({

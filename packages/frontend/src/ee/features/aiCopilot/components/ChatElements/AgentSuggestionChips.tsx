@@ -1,5 +1,5 @@
 import type { AgentSuggestion } from '@lightdash/common';
-import { Box, Button } from '@mantine-8/core';
+import { Box, Button, Text } from '@mantine-8/core';
 import { IconArrowUpRight } from '@tabler/icons-react';
 import { useEffect, useRef } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -31,6 +31,21 @@ const renderRightIcon = (
     return <MantineIcon icon={IconArrowUpRight} size={12} stroke={1.75} />;
 };
 
+const useSuggestionImpression = (
+    chips: AgentSuggestion[],
+    onImpression?: (chipCount: number) => void,
+) => {
+    const impressedRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        if (chips.length === 0) return;
+        const fingerprint = chips.map((chip, i) => chipKey(chip, i)).join('|');
+        if (impressedRef.current === fingerprint) return;
+        impressedRef.current = fingerprint;
+        onImpression?.(chips.length);
+    }, [chips, onImpression]);
+};
+
 export const AgentSuggestionChips = ({
     chips,
     onChipClick,
@@ -38,15 +53,7 @@ export const AgentSuggestionChips = ({
     align = 'center',
     showPromptAffordance = false,
 }: Props) => {
-    const impressedRef = useRef<string | null>(null);
-
-    useEffect(() => {
-        if (chips.length === 0) return;
-        const fingerprint = chips.map((c, i) => chipKey(c, i)).join('|');
-        if (impressedRef.current === fingerprint) return;
-        impressedRef.current = fingerprint;
-        onImpression?.(chips.length);
-    }, [chips, onImpression]);
+    useSuggestionImpression(chips, onImpression);
 
     if (chips.length === 0) return null;
 
@@ -75,6 +82,45 @@ export const AgentSuggestionChips = ({
                     </Button>
                 );
             })}
+        </Box>
+    );
+};
+
+export const AgentRelatedQueries = ({
+    chips,
+    onChipClick,
+    onImpression,
+}: Pick<Props, 'chips' | 'onChipClick' | 'onImpression'>) => {
+    useSuggestionImpression(chips, onImpression);
+
+    if (chips.length === 0) return null;
+
+    return (
+        <Box
+            component="section"
+            className={styles.relatedQueries}
+            aria-label="Related questions"
+        >
+            <Text className={styles.relatedQueriesLabel}>
+                Related questions
+            </Text>
+            <Box className={styles.relatedQueriesList}>
+                {chips.map((chip, index) => (
+                    <button
+                        type="button"
+                        key={chipKey(chip, index)}
+                        className={styles.relatedQuery}
+                        onClick={() => onChipClick(chip, index)}
+                    >
+                        <span>{chip.label}</span>
+                        <MantineIcon
+                            icon={IconArrowUpRight}
+                            size={12}
+                            stroke={1.75}
+                        />
+                    </button>
+                ))}
+            </Box>
         </Box>
     );
 };
