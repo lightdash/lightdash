@@ -49,6 +49,8 @@ import { GroupsController } from './../controllers/groupsController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { ImpersonationController } from './../controllers/impersonationController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { InviteLinksController } from './../controllers/inviteLinksController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { MetricsExplorerController } from './../controllers/metricsExplorerController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { NotificationsController } from './../controllers/notificationsController';
@@ -134,6 +136,8 @@ import { AiAgentAdminController } from './../ee/controllers/AiAgentAdminControll
 import { AiAgentController } from './../ee/controllers/aiAgentController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { AiAgentDocumentController } from './../ee/controllers/aiAgentDocumentController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { AiAgentScopedDocumentController } from './../ee/controllers/aiAgentScopedDocumentController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { AiController } from './../ee/controllers/aiController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -2538,6 +2542,7 @@ const models: TsoaRoute.Models = {
                 dashboardFiltersInteractivity: {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        canAddFilters: { dataType: 'boolean' },
                         hidden: { dataType: 'boolean' },
                         allowedFilters: {
                             dataType: 'union',
@@ -2678,6 +2683,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                canExplore: { dataType: 'boolean' },
                 agentUuid: { dataType: 'string', required: true },
                 projectUuid: { dataType: 'string' },
                 type: { dataType: 'enum', enums: ['aiAgent'], required: true },
@@ -3711,6 +3717,7 @@ const models: TsoaRoute.Models = {
                                 dashboardFiltersInteractivity: {
                                     dataType: 'nestedObjectLiteral',
                                     nestedProperties: {
+                                        canAddFilters: { dataType: 'boolean' },
                                         hidden: { dataType: 'boolean' },
                                         allowedFilters: {
                                             dataType: 'union',
@@ -5646,6 +5653,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                selected: { ref: 'Record_string.boolean_' },
                 placement: { ref: 'LegendPlacement' },
                 icon: {
                     dataType: 'union',
@@ -12226,6 +12234,7 @@ const models: TsoaRoute.Models = {
                 originalFilename: { dataType: 'string', required: true },
                 mimeType: { dataType: 'string', required: true },
                 contentSizeBytes: { dataType: 'double', required: true },
+                alwaysIncludeInContext: { dataType: 'boolean', required: true },
                 summary: {
                     ref: 'AiAgentDocumentStructuredSummary',
                     required: true,
@@ -12322,6 +12331,7 @@ const models: TsoaRoute.Models = {
                     ref: 'AiAgentDocumentStructuredSummary',
                     required: true,
                 },
+                alwaysIncludeInContext: { dataType: 'boolean', required: true },
                 contentSizeBytes: { dataType: 'double', required: true },
                 mimeType: { dataType: 'string', required: true },
                 originalFilename: { dataType: 'string', required: true },
@@ -12348,6 +12358,31 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 results: { ref: 'AiAgentDocument', required: true },
                 status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiCreateAgentDocument: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                content: { dataType: 'string', required: true },
+                mimeType: { dataType: 'string', required: true },
+                originalFilename: { dataType: 'string', required: true },
+                name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiUpdateAgentDocument: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                alwaysIncludeInContext: { dataType: 'boolean', required: true },
             },
             validators: {},
         },
@@ -12735,6 +12770,17 @@ const models: TsoaRoute.Models = {
                 authType: { ref: 'AiMcpServerAuthType', required: true },
                 url: { dataType: 'string', required: true },
                 name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiUpdateAiMcpServerCredentialBody: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                bearerToken: { dataType: 'string', required: true },
             },
             validators: {},
         },
@@ -16350,6 +16396,133 @@ const models: TsoaRoute.Models = {
                                         {
                                             dataType: 'nestedObjectLiteral',
                                             nestedProperties: {
+                                                aiWritebackRunUuid: {
+                                                    dataType: 'string',
+                                                    required: true,
+                                                },
+                                                status: {
+                                                    dataType: 'enum',
+                                                    enums: ['pending'],
+                                                    required: true,
+                                                },
+                                            },
+                                        },
+                                        {
+                                            dataType: 'nestedObjectLiteral',
+                                            nestedProperties: {
+                                                dbtSourceOptions: {
+                                                    dataType: 'union',
+                                                    subSchemas: [
+                                                        {
+                                                            dataType: 'array',
+                                                            array: {
+                                                                dataType:
+                                                                    'nestedObjectLiteral',
+                                                                nestedProperties:
+                                                                    {
+                                                                        projectSubPath:
+                                                                            {
+                                                                                dataType:
+                                                                                    'union',
+                                                                                subSchemas:
+                                                                                    [
+                                                                                        {
+                                                                                            dataType:
+                                                                                                'string',
+                                                                                        },
+                                                                                        {
+                                                                                            dataType:
+                                                                                                'enum',
+                                                                                            enums: [
+                                                                                                null,
+                                                                                            ],
+                                                                                        },
+                                                                                    ],
+                                                                                required: true,
+                                                                            },
+                                                                        branch: {
+                                                                            dataType:
+                                                                                'union',
+                                                                            subSchemas:
+                                                                                [
+                                                                                    {
+                                                                                        dataType:
+                                                                                            'string',
+                                                                                    },
+                                                                                    {
+                                                                                        dataType:
+                                                                                            'enum',
+                                                                                        enums: [
+                                                                                            null,
+                                                                                        ],
+                                                                                    },
+                                                                                ],
+                                                                            required: true,
+                                                                        },
+                                                                        isPrimary:
+                                                                            {
+                                                                                dataType:
+                                                                                    'boolean',
+                                                                                required: true,
+                                                                            },
+                                                                        projectDbtSourceUuid:
+                                                                            {
+                                                                                dataType:
+                                                                                    'string',
+                                                                                required: true,
+                                                                            },
+                                                                        repository:
+                                                                            {
+                                                                                dataType:
+                                                                                    'union',
+                                                                                subSchemas:
+                                                                                    [
+                                                                                        {
+                                                                                            dataType:
+                                                                                                'string',
+                                                                                        },
+                                                                                        {
+                                                                                            dataType:
+                                                                                                'enum',
+                                                                                            enums: [
+                                                                                                null,
+                                                                                            ],
+                                                                                        },
+                                                                                    ],
+                                                                                required: true,
+                                                                            },
+                                                                        name: {
+                                                                            dataType:
+                                                                                'string',
+                                                                            required: true,
+                                                                        },
+                                                                    },
+                                                            },
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: [null],
+                                                        },
+                                                        {
+                                                            dataType:
+                                                                'undefined',
+                                                        },
+                                                    ],
+                                                },
+                                                needsDbtSourceSelection: {
+                                                    dataType: 'union',
+                                                    subSchemas: [
+                                                        { dataType: 'boolean' },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: [null],
+                                                        },
+                                                        {
+                                                            dataType:
+                                                                'undefined',
+                                                        },
+                                                    ],
+                                                },
                                                 previewUrl: {
                                                     dataType: 'union',
                                                     subSchemas: [
@@ -22720,6 +22893,86 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiWritebackFailureStage: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['sandbox'] },
+                { dataType: 'enum', enums: ['install'] },
+                { dataType: 'enum', enums: ['clone'] },
+                { dataType: 'enum', enums: ['agent'] },
+                { dataType: 'enum', enums: ['commit'] },
+                { dataType: 'enum', enums: ['push'] },
+                { dataType: 'enum', enums: ['pull_request'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiWritebackRunStatus: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['pending'] },
+                { ref: 'AiWritebackFailureStage' },
+                {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['ready'] },
+                        { dataType: 'enum', enums: ['error'] },
+                    ],
+                },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiWritebackRunStatusResult: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                errorMessage: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                prUrl: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                status: { ref: 'AiWritebackRunStatus', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSuccess_AiWritebackRunStatusResult_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'AiWritebackRunStatusResult', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiAiWritebackRunStatusResponse: {
+        dataType: 'refAlias',
+        type: { ref: 'ApiSuccess_AiWritebackRunStatusResult_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ProjectCiStatus: {
         dataType: 'refAlias',
         type: {
@@ -23287,11 +23540,40 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    McpActivitySessionGroup: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                errorCount: { dataType: 'double', required: true },
+                callCount: { dataType: 'double', required: true },
+                key: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     McpActivityItem: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                sessionGroup: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'McpActivitySessionGroup' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                sessionId: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 protocolVersion: {
                     dataType: 'union',
                     subSchemas: [
@@ -25475,6 +25757,53 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiOrgProviderModelVisibility: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                allowedModels: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                },
+                enabled: { dataType: 'boolean', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Partial_Record_ByoAiProvider.AiOrgProviderModelVisibility__': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                anthropic: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AiOrgProviderModelVisibility' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                openai: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AiOrgProviderModelVisibility' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiOrgModelVisibility: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Partial_Record_ByoAiProvider.AiOrgProviderModelVisibility__',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiProviderApiKeysSet: {
         dataType: 'refAlias',
         type: {
@@ -25526,6 +25855,13 @@ const models: TsoaRoute.Models = {
                     ref: 'AiProviderApiKeysSet',
                     required: true,
                 },
+                modelVisibility: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AiOrgModelVisibility' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 defaultAiAgentModelConfig: {
                     dataType: 'union',
                     subSchemas: [
@@ -25551,6 +25887,20 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                aiAgentReviewsPausedByByok: { dataType: 'boolean' },
+                configurableModelOptions: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'AiModelOption',
+                            },
+                        },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 defaultAiAgentModelOptions: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'AiModelOption' },
@@ -25637,6 +25987,13 @@ const models: TsoaRoute.Models = {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 providerApiKeys: { ref: 'UpdateAiProviderApiKeys' },
+                modelVisibility: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'AiOrgModelVisibility' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                },
                 defaultAiAgentModelConfig: {
                     dataType: 'union',
                     subSchemas: [
@@ -30115,7 +30472,10 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['generateArtifactQuestion'] },
                 { dataType: 'enum', enums: ['appGeneratePipeline'] },
                 { dataType: 'enum', enums: ['appBuildFromSource'] },
+                { dataType: 'enum', enums: ['aiWritebackPipeline'] },
+                { dataType: 'enum', enums: ['aiAgentEditDbtProjectPipeline'] },
                 { dataType: 'enum', enums: ['sweepStaleAppLocks'] },
+                { dataType: 'enum', enums: ['sweepStaleAiWritebackRuns'] },
                 { dataType: 'enum', enums: ['cleanMcpToolCalls'] },
                 { dataType: 'enum', enums: ['handleScheduledDelivery'] },
                 { dataType: 'enum', enums: ['sendSlackNotification'] },
@@ -37671,6 +38031,47 @@ const models: TsoaRoute.Models = {
                 },
                 pivotQuery: { dataType: 'string' },
                 query: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    InviteLink: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                email: { dataType: 'string', required: true },
+                userUuid: { dataType: 'string', required: true },
+                organizationUuid: { dataType: 'string', required: true },
+                inviteUrl: { dataType: 'string', required: true },
+                inviteCode: { dataType: 'string', required: true },
+                expiresAt: { dataType: 'datetime', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiInviteLinkResponse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'InviteLink', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CreateInviteLink: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                role: { ref: 'OrganizationMemberRole' },
+                expiresAt: { dataType: 'datetime' },
+                email: { dataType: 'string', required: true },
             },
             validators: {},
         },
@@ -51500,6 +51901,298 @@ export function RegisterRoutes(app: Router) {
         },
     );
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAiAgentScopedDocumentController_listDocuments: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        agentUuid: {
+            in: 'path',
+            name: 'agentUuid',
+            required: true,
+            ref: 'UUID',
+        },
+    };
+    app.get(
+        '/api/v1/projects/:projectUuid/aiAgents/:agentUuid/documents',
+        ...fetchMiddlewares<RequestHandler>(AiAgentScopedDocumentController),
+        ...fetchMiddlewares<RequestHandler>(
+            AiAgentScopedDocumentController.prototype.listDocuments,
+        ),
+
+        async function AiAgentScopedDocumentController_listDocuments(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAiAgentScopedDocumentController_listDocuments,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AiAgentScopedDocumentController>(
+                        AiAgentScopedDocumentController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'listDocuments',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAiAgentScopedDocumentController_createDocument: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        agentUuid: {
+            in: 'path',
+            name: 'agentUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'ApiCreateAgentDocument',
+        },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/aiAgents/:agentUuid/documents',
+        ...fetchMiddlewares<RequestHandler>(AiAgentScopedDocumentController),
+        ...fetchMiddlewares<RequestHandler>(
+            AiAgentScopedDocumentController.prototype.createDocument,
+        ),
+
+        async function AiAgentScopedDocumentController_createDocument(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAiAgentScopedDocumentController_createDocument,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AiAgentScopedDocumentController>(
+                        AiAgentScopedDocumentController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'createDocument',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 201,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAiAgentScopedDocumentController_updateDocument: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        agentUuid: {
+            in: 'path',
+            name: 'agentUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        documentUuid: {
+            in: 'path',
+            name: 'documentUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'ApiUpdateAgentDocument',
+        },
+    };
+    app.patch(
+        '/api/v1/projects/:projectUuid/aiAgents/:agentUuid/documents/:documentUuid',
+        ...fetchMiddlewares<RequestHandler>(AiAgentScopedDocumentController),
+        ...fetchMiddlewares<RequestHandler>(
+            AiAgentScopedDocumentController.prototype.updateDocument,
+        ),
+
+        async function AiAgentScopedDocumentController_updateDocument(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAiAgentScopedDocumentController_updateDocument,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AiAgentScopedDocumentController>(
+                        AiAgentScopedDocumentController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'updateDocument',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAiAgentScopedDocumentController_deleteDocument: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        agentUuid: {
+            in: 'path',
+            name: 'agentUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        documentUuid: {
+            in: 'path',
+            name: 'documentUuid',
+            required: true,
+            ref: 'UUID',
+        },
+    };
+    app.delete(
+        '/api/v1/projects/:projectUuid/aiAgents/:agentUuid/documents/:documentUuid',
+        ...fetchMiddlewares<RequestHandler>(AiAgentScopedDocumentController),
+        ...fetchMiddlewares<RequestHandler>(
+            AiAgentScopedDocumentController.prototype.deleteDocument,
+        ),
+
+        async function AiAgentScopedDocumentController_deleteDocument(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAiAgentScopedDocumentController_deleteDocument,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AiAgentScopedDocumentController>(
+                        AiAgentScopedDocumentController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'deleteDocument',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     const argsAiAgentDocumentController_listDocuments: Record<
         string,
         TsoaRoute.ParameterSchema
@@ -52037,6 +52730,77 @@ export function RegisterRoutes(app: Router) {
                     next,
                     validatedArgs,
                     successStatus: 201,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAiAgentController_updateMcpServerBearerCredential: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        mcpServerUuid: {
+            in: 'path',
+            name: 'mcpServerUuid',
+            required: true,
+            dataType: 'string',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'ApiUpdateAiMcpServerCredentialBody',
+        },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/aiAgents/mcpServers/:mcpServerUuid/credential',
+        ...fetchMiddlewares<RequestHandler>(AiAgentController),
+        ...fetchMiddlewares<RequestHandler>(
+            AiAgentController.prototype.updateMcpServerBearerCredential,
+        ),
+
+        async function AiAgentController_updateMcpServerBearerCredential(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAiAgentController_updateMcpServerBearerCredential,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AiAgentController>(AiAgentController);
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'updateMcpServerBearerCredential',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
                 });
             } catch (err) {
                 return next(err);
@@ -58213,6 +58977,73 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'runAiWriteback',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAiWritebackController_getAiWritebackRunStatus: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            dataType: 'string',
+        },
+        aiWritebackRunUuid: {
+            in: 'path',
+            name: 'aiWritebackRunUuid',
+            required: true,
+            ref: 'UUID',
+        },
+    };
+    app.get(
+        '/api/v1/ee/projects/:projectUuid/ai-writeback/status/:aiWritebackRunUuid',
+        ...fetchMiddlewares<RequestHandler>(AiWritebackController),
+        ...fetchMiddlewares<RequestHandler>(
+            AiWritebackController.prototype.getAiWritebackRunStatus,
+        ),
+
+        async function AiWritebackController_getAiWritebackRunStatus(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAiWritebackController_getAiWritebackRunStatus,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AiWritebackController>(
+                        AiWritebackController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getAiWritebackRunStatus',
                     controller,
                     response,
                     next,
@@ -74505,6 +75336,182 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'compileMetricTotalQuery',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsInviteLinksController_getInviteLink: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        inviteLinkCode: {
+            in: 'path',
+            name: 'inviteLinkCode',
+            required: true,
+            dataType: 'string',
+        },
+    };
+    app.get(
+        '/api/v1/invite-links/:inviteLinkCode',
+        ...fetchMiddlewares<RequestHandler>(InviteLinksController),
+        ...fetchMiddlewares<RequestHandler>(
+            InviteLinksController.prototype.getInviteLink,
+        ),
+
+        async function InviteLinksController_getInviteLink(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsInviteLinksController_getInviteLink,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<InviteLinksController>(
+                        InviteLinksController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getInviteLink',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsInviteLinksController_createInviteLink: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'CreateInviteLink',
+        },
+    };
+    app.post(
+        '/api/v1/invite-links',
+        ...fetchMiddlewares<RequestHandler>(InviteLinksController),
+        ...fetchMiddlewares<RequestHandler>(
+            InviteLinksController.prototype.createInviteLink,
+        ),
+
+        async function InviteLinksController_createInviteLink(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsInviteLinksController_createInviteLink,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<InviteLinksController>(
+                        InviteLinksController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'createInviteLink',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 201,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsInviteLinksController_revokeAllInviteLinks: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.delete(
+        '/api/v1/invite-links',
+        ...fetchMiddlewares<RequestHandler>(InviteLinksController),
+        ...fetchMiddlewares<RequestHandler>(
+            InviteLinksController.prototype.revokeAllInviteLinks,
+        ),
+
+        async function InviteLinksController_revokeAllInviteLinks(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsInviteLinksController_revokeAllInviteLinks,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<InviteLinksController>(
+                        InviteLinksController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'revokeAllInviteLinks',
                     controller,
                     response,
                     next,

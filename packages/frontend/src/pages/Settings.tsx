@@ -39,6 +39,7 @@ import AllowedDomainsPanel from '../components/UserSettings/AllowedDomainsPanel'
 import AppearanceSettingsPanel from '../components/UserSettings/AppearanceSettingsPanel';
 import DefaultProjectPanel from '../components/UserSettings/DefaultProjectPanel';
 import { DeleteOrganizationPanel } from '../components/UserSettings/DeleteOrganizationPanel';
+import EmailWhitelabelPanel from '../components/UserSettings/EmailWhitelabel/EmailWhitelabelPanel';
 import ExportingPanel from '../components/UserSettings/ExportingPanel';
 import GithubSettingsPanel from '../components/UserSettings/GithubSettingsPanel';
 import GithubUserSettingsPanel from '../components/UserSettings/GithubUserSettingsPanel';
@@ -66,7 +67,6 @@ import SocialLoginsPanel from '../components/UserSettings/SocialLoginsPanel';
 import SupportImpersonationPanel from '../components/UserSettings/SupportImpersonationPanel';
 import UserAttributesPanel from '../components/UserSettings/UserAttributesPanel';
 import UsersAndGroupsPanel from '../components/UserSettings/UsersAndGroupsPanel';
-import EmailWhitelabelPanel from '../components/UserSettings/EmailWhitelabel/EmailWhitelabelPanel';
 import VerifiedDomainsPanel from '../components/UserSettings/VerifiedDomains/VerifiedDomainsPanel';
 import { ReviewRemediationWorkspace } from '../ee/features/aiCopilot/components/Admin/ReviewRemediationWorkspace';
 import { AiAgentsSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiAgentsSettingsPage';

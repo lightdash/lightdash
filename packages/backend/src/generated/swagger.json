@@ -2537,6 +2537,9 @@
                     },
                     "dashboardFiltersInteractivity": {
                         "properties": {
+                            "canAddFilters": {
+                                "type": "boolean"
+                            },
                             "hidden": {
                                 "type": "boolean"
                             },
@@ -2695,6 +2698,9 @@
             },
             "EmbedJwtContentAiAgent": {
                 "properties": {
+                    "canExplore": {
+                        "type": "boolean"
+                    },
                     "agentUuid": {
                         "type": "string"
                     },
@@ -3824,6 +3830,9 @@
                                     },
                                     "dashboardFiltersInteractivity": {
                                         "properties": {
+                                            "canAddFilters": {
+                                                "type": "boolean"
+                                            },
                                             "hidden": {
                                                 "type": "boolean"
                                             },
@@ -6280,6 +6289,10 @@
             },
             "EchartsLegend": {
                 "properties": {
+                    "selected": {
+                        "$ref": "#/components/schemas/Record_string.boolean_",
+                        "description": "Legend entries toggled off by name. Missing entries default to visible."
+                    },
                     "placement": {
                         "$ref": "#/components/schemas/LegendPlacement",
                         "description": "High-level placement preset. Overrides orient/top/right/bottom/left\nwhen set to an outside value."
@@ -13810,6 +13823,9 @@
                         "type": "number",
                         "format": "double"
                     },
+                    "alwaysIncludeInContext": {
+                        "type": "boolean"
+                    },
                     "summary": {
                         "$ref": "#/components/schemas/AiAgentDocumentStructuredSummary"
                     },
@@ -13841,6 +13857,7 @@
                     "originalFilename",
                     "mimeType",
                     "contentSizeBytes",
+                    "alwaysIncludeInContext",
                     "summary",
                     "agentAccess",
                     "createdByUserUuid",
@@ -13904,6 +13921,9 @@
                     "summary": {
                         "$ref": "#/components/schemas/AiAgentDocumentStructuredSummary"
                     },
+                    "alwaysIncludeInContext": {
+                        "type": "boolean"
+                    },
                     "contentSizeBytes": {
                         "type": "number",
                         "format": "double"
@@ -13936,6 +13956,7 @@
                     "agentAccess",
                     "storageKey",
                     "summary",
+                    "alwaysIncludeInContext",
                     "contentSizeBytes",
                     "mimeType",
                     "originalFilename",
@@ -13960,17 +13981,47 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ApiCreateAgentDocument": {
+                "properties": {
+                    "content": {
+                        "type": "string"
+                    },
+                    "mimeType": {
+                        "type": "string"
+                    },
+                    "originalFilename": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["content", "mimeType", "originalFilename", "name"],
+                "type": "object",
+                "description": "Body of POST /api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/documents."
+            },
+            "ApiUpdateAgentDocument": {
+                "properties": {
+                    "alwaysIncludeInContext": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["alwaysIncludeInContext"],
+                "type": "object"
+            },
             "ApiCreateAiAgentDocument": {
                 "properties": {
                     "agentAccess": {
                         "items": {
                             "type": "string"
                         },
-                        "type": "array"
+                        "type": "array",
+                        "deprecated": true
                     },
                     "projectUuid": {
                         "type": "string",
-                        "nullable": true
+                        "nullable": true,
+                        "deprecated": true
                     },
                     "content": {
                         "type": "string"
@@ -13986,7 +14037,8 @@
                     }
                 },
                 "required": ["content", "mimeType", "originalFilename", "name"],
-                "type": "object"
+                "type": "object",
+                "description": "Body of POST /api/v1/aiAgents/documents. Both scope fields are deprecated:\nscope now comes from the agent-scoped route path. Once they are removed this\nendpoint only creates organization level documents."
             },
             "AiAgentModelConfig": {
                 "properties": {
@@ -14354,6 +14406,15 @@
                     }
                 },
                 "required": ["authType", "url", "name"],
+                "type": "object"
+            },
+            "ApiUpdateAiMcpServerCredentialBody": {
+                "properties": {
+                    "bearerToken": {
+                        "type": "string"
+                    }
+                },
+                "required": ["bearerToken"],
                 "type": "object"
             },
             "AiMcpGithubAvailability": {
@@ -17276,6 +17337,65 @@
                                             },
                                             {
                                                 "properties": {
+                                                    "aiWritebackRunUuid": {
+                                                        "type": "string"
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": ["pending"],
+                                                        "nullable": false
+                                                    }
+                                                },
+                                                "required": [
+                                                    "aiWritebackRunUuid",
+                                                    "status"
+                                                ],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "dbtSourceOptions": {
+                                                        "items": {
+                                                            "properties": {
+                                                                "projectSubPath": {
+                                                                    "type": "string",
+                                                                    "nullable": true
+                                                                },
+                                                                "branch": {
+                                                                    "type": "string",
+                                                                    "nullable": true
+                                                                },
+                                                                "isPrimary": {
+                                                                    "type": "boolean"
+                                                                },
+                                                                "projectDbtSourceUuid": {
+                                                                    "type": "string"
+                                                                },
+                                                                "repository": {
+                                                                    "type": "string",
+                                                                    "nullable": true
+                                                                },
+                                                                "name": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "projectSubPath",
+                                                                "branch",
+                                                                "isPrimary",
+                                                                "projectDbtSourceUuid",
+                                                                "repository",
+                                                                "name"
+                                                            ],
+                                                            "type": "object"
+                                                        },
+                                                        "type": "array",
+                                                        "nullable": true
+                                                    },
+                                                    "needsDbtSourceSelection": {
+                                                        "type": "boolean",
+                                                        "nullable": true
+                                                    },
                                                     "previewUrl": {
                                                         "type": "string",
                                                         "nullable": true
@@ -23053,6 +23173,63 @@
                 "type": "object",
                 "description": "Body for kicking off an AI writeback run. The target repository is\ncloned into a sandbox, the prompt is executed by the Claude Code CLI, and a\npull request is opened against the repo if the agent changes any files.\n\nThe target repository (owner, repo) and the dbt project sub-folder are\nresolved server-side from the chosen dbt source — by default the Lightdash\nproject's primary dbt connection (identified by the `projectUuid` path\nparameter), or the source named by `dbtSourceUuid` when the project has more\nthan one dbt source."
             },
+            "AiWritebackFailureStage": {
+                "type": "string",
+                "enum": [
+                    "sandbox",
+                    "install",
+                    "clone",
+                    "agent",
+                    "commit",
+                    "push",
+                    "pull_request"
+                ]
+            },
+            "AiWritebackRunStatus": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/AiWritebackFailureStage"
+                    },
+                    {
+                        "type": "string",
+                        "enum": ["pending", "ready", "error"]
+                    }
+                ]
+            },
+            "AiWritebackRunStatusResult": {
+                "properties": {
+                    "errorMessage": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "prUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/AiWritebackRunStatus"
+                    }
+                },
+                "required": ["errorMessage", "prUrl", "status"],
+                "type": "object"
+            },
+            "ApiSuccess_AiWritebackRunStatusResult_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiWritebackRunStatusResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiWritebackRunStatusResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiWritebackRunStatusResult_"
+            },
             "ProjectCiStatus": {
                 "properties": {
                     "checkedAt": {
@@ -23596,8 +23773,38 @@
                 "type": "string",
                 "enum": ["success", "error"]
             },
+            "McpActivitySessionGroup": {
+                "properties": {
+                    "errorCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "callCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "key": {
+                        "type": "string"
+                    }
+                },
+                "required": ["errorCount", "callCount", "key"],
+                "type": "object",
+                "description": "Server-computed display group for session-grouped activity: a session\nsplit into segments on 1h inactivity gaps (sessionless calls chunk the\nsame way under a shared no-session block). Counts cover the whole\nsegment, not just the loaded page. Null when the query isn't\nsession-grouped (e.g. sorted by duration)."
+            },
             "McpActivityItem": {
                 "properties": {
+                    "sessionGroup": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/McpActivitySessionGroup"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "sessionId": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "protocolVersion": {
                         "type": "string",
                         "nullable": true
@@ -23684,6 +23891,8 @@
                     }
                 },
                 "required": [
+                    "sessionGroup",
+                    "sessionId",
                     "protocolVersion",
                     "authType",
                     "userAgent",
@@ -25638,6 +25847,36 @@
             "UpdateAiReviewNotificationSettings": {
                 "$ref": "#/components/schemas/Pick_AiReviewNotificationSettings.enabled-or-slackChannelId_"
             },
+            "AiOrgProviderModelVisibility": {
+                "properties": {
+                    "allowedModels": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["enabled"],
+                "type": "object"
+            },
+            "Partial_Record_ByoAiProvider.AiOrgProviderModelVisibility__": {
+                "properties": {
+                    "anthropic": {
+                        "$ref": "#/components/schemas/AiOrgProviderModelVisibility"
+                    },
+                    "openai": {
+                        "$ref": "#/components/schemas/AiOrgProviderModelVisibility"
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "AiOrgModelVisibility": {
+                "$ref": "#/components/schemas/Partial_Record_ByoAiProvider.AiOrgProviderModelVisibility__"
+            },
             "AiProviderApiKeysSet": {
                 "properties": {
                     "openai": {
@@ -25671,6 +25910,14 @@
                     },
                     "providerApiKeysSet": {
                         "$ref": "#/components/schemas/AiProviderApiKeysSet"
+                    },
+                    "modelVisibility": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiOrgModelVisibility"
+                            }
+                        ],
+                        "nullable": true
                     },
                     "defaultAiAgentModelConfig": {
                         "allOf": [
@@ -25706,6 +25953,16 @@
             },
             "ComputedAiOrganizationSettings": {
                 "properties": {
+                    "aiAgentReviewsPausedByByok": {
+                        "type": "boolean"
+                    },
+                    "configurableModelOptions": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiModelOption"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
                     "defaultAiAgentModelOptions": {
                         "items": {
                             "$ref": "#/components/schemas/AiModelOption"
@@ -25784,6 +26041,14 @@
                 "properties": {
                     "providerApiKeys": {
                         "$ref": "#/components/schemas/UpdateAiProviderApiKeys"
+                    },
+                    "modelVisibility": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiOrgModelVisibility"
+                            }
+                        ],
+                        "nullable": true
                     },
                     "defaultAiAgentModelConfig": {
                         "allOf": [
@@ -30386,7 +30651,10 @@
                     "generateArtifactQuestion",
                     "appGeneratePipeline",
                     "appBuildFromSource",
+                    "aiWritebackPipeline",
+                    "aiAgentEditDbtProjectPipeline",
                     "sweepStaleAppLocks",
+                    "sweepStaleAiWritebackRuns",
                     "cleanMcpToolCalls",
                     "handleScheduledDelivery",
                     "sendSlackNotification",
@@ -37893,6 +38161,68 @@
                 "required": ["parameterReferences", "query"],
                 "type": "object"
             },
+            "InviteLink": {
+                "properties": {
+                    "email": {
+                        "type": "string"
+                    },
+                    "userUuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "inviteUrl": {
+                        "type": "string"
+                    },
+                    "inviteCode": {
+                        "type": "string"
+                    },
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "email",
+                    "userUuid",
+                    "organizationUuid",
+                    "inviteUrl",
+                    "inviteCode",
+                    "expiresAt"
+                ],
+                "type": "object"
+            },
+            "ApiInviteLinkResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/InviteLink"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "CreateInviteLink": {
+                "properties": {
+                    "role": {
+                        "$ref": "#/components/schemas/OrganizationMemberRole"
+                    },
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "email": {
+                        "type": "string"
+                    }
+                },
+                "required": ["email"],
+                "type": "object"
+            },
             "ApiStartImpersonationResponse": {
                 "properties": {
                     "results": {
@@ -44231,7 +44561,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3339.0",
+        "version": "0.3354.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -46073,6 +46403,230 @@
                 ]
             }
         },
+        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/documents": {
+            "get": {
+                "operationId": "listAgentDocuments",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentDocumentSummaryListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List the knowledge documents this agent can use: the organization level\ndocuments plus the ones granted to this agent in this project.",
+                "summary": "List agent documents",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "createAgentDocument",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentDocumentResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Create a knowledge document scoped to this project and agent.",
+                "summary": "Create agent document",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiCreateAgentDocument"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/documents/{documentUuid}": {
+            "patch": {
+                "operationId": "updateAgentDocument",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Choose whether the full knowledge document is included in every prompt.",
+                "summary": "Update agent document",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "documentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiUpdateAgentDocument"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "deleteAgentDocument",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Delete a knowledge document this agent can use.",
+                "summary": "Delete agent document",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "documentUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/aiAgents/documents": {
             "get": {
                 "operationId": "listAiAgentDocuments",
@@ -46098,6 +46652,8 @@
                         }
                     }
                 },
+                "description": "List every knowledge document in the organization.",
+                "summary": "List AI agent documents",
                 "security": [],
                 "parameters": [
                     {
@@ -46134,6 +46690,8 @@
                         }
                     }
                 },
+                "description": "Create a knowledge document. The projectUuid and agentAccess body fields\nare deprecated: scope the document by creating it on the agent route\ninstead. Without them the document is available to every agent.",
+                "summary": "Create AI agent document",
                 "security": [],
                 "parameters": [],
                 "requestBody": {
@@ -46173,6 +46731,8 @@
                         }
                     }
                 },
+                "description": "Delete a knowledge document anywhere in the organization.",
+                "summary": "Delete AI agent document",
                 "security": [],
                 "parameters": [
                     {
@@ -46468,6 +47028,62 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ApiCreateAiMcpServer"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgents/mcpServers/{mcpServerUuid}/credential": {
+            "post": {
+                "operationId": "updateMcpServerBearerCredential",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiMcpServerResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "mcpServerUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiUpdateAiMcpServerCredentialBody"
                             }
                         }
                     }
@@ -63721,6 +64337,122 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/invite-links/{inviteLinkCode}": {
+            "get": {
+                "operationId": "GetInviteLink",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiInviteLinkResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get an invite link by its code. Public endpoint used by the invite\nacceptance page.",
+                "summary": "Get invite link",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "the code of the invite link",
+                        "in": "path",
+                        "name": "inviteLinkCode",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/invite-links": {
+            "post": {
+                "operationId": "CreateInviteLink",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiInviteLinkResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Invite a new user to the organization and create an invite link for\nthem. If the email already belongs to a pending user, a new invite\nlink is generated for them. Only available to organization admins.",
+                "summary": "Create invite link",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "description": "the email, role and expiry of the invite.\nexpiresAt defaults to 3 days from now when omitted",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CreateInviteLink",
+                                "description": "the email, role and expiry of the invite.\nexpiresAt defaults to 3 days from now when omitted"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "RevokeAllInviteLinks",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Revoke all invite links in the organization. Only available to\norganization admins.",
+                "summary": "Revoke all invite links",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": []
             }
         },
         "/api/v1/impersonation/start": {

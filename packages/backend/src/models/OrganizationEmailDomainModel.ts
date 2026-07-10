@@ -118,9 +118,7 @@ export class OrganizationEmailDomainModel {
         organizationUuid: string,
         update: DbOrganizationEmailDomainUpdate,
     ): Promise<DbOrganizationEmailDomain> {
-        const [updated] = await this.database(
-            OrganizationEmailDomainsTableName,
-        )
+        const [updated] = await this.database(OrganizationEmailDomainsTableName)
             .where('organization_uuid', organizationUuid)
             .update({ ...update, updated_at: new Date() })
             .returning('*');
