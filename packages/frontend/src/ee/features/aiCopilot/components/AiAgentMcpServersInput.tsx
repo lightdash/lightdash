@@ -72,6 +72,8 @@ const createMcpServerFormSchema = z
         url: z.string().trim().url('Enter a valid URL'),
         authType: z.enum(['none', 'bearer', 'oauth']),
         bearerToken: z.string(),
+        clientId: z.string(),
+        clientSecret: z.string(),
         allowOAuthCredentialSharing: z.boolean(),
     })
     .superRefine((values, ctx) => {
@@ -83,6 +85,41 @@ const createMcpServerFormSchema = z
                 code: z.ZodIssueCode.custom,
                 message: 'Bearer token is required',
                 path: ['bearerToken'],
+            });
+        }
+        if (
+            values.authType === 'oauth' &&
+            values.clientId.trim().length > 0 &&
+            values.clientSecret.trim().length === 0
+        ) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'Client secret is required',
+                path: ['clientSecret'],
+            });
+        }
+        if (
+            values.authType === 'oauth' &&
+            values.clientSecret.trim().length > 0 &&
+            values.clientId.trim().length === 0
+        ) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: 'Client ID is required',
+                path: ['clientId'],
+            });
+        }
+        if (
+            values.authType === 'oauth' &&
+            values.allowOAuthCredentialSharing &&
+            (values.clientId.trim().length > 0 ||
+                values.clientSecret.trim().length > 0)
+        ) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message:
+                    'Client credentials are only supported for personal OAuth',
+                path: ['clientId'],
             });
         }
     });
@@ -241,6 +278,8 @@ const CreateMcpServerModal = ({
             url: '',
             authType: 'none',
             bearerToken: '',
+            clientId: '',
+            clientSecret: '',
             allowOAuthCredentialSharing: false,
         },
         validate: zodResolver(createMcpServerFormSchema),
@@ -354,16 +393,64 @@ const CreateMcpServerModal = ({
                                     }
                                 >
                                     <Box pt="xs">
+                                        {!form.values
+                                            .allowOAuthCredentialSharing && (
+                                            <>
+                                                <TextInput
+                                                    variant="subtle"
+                                                    label="OAuth client ID"
+                                                    placeholder="client_id"
+                                                    disabled={isLoading}
+                                                    autoComplete="off"
+                                                    {...form.getInputProps(
+                                                        'clientId',
+                                                    )}
+                                                />
+                                                <PasswordInput
+                                                    mt="sm"
+                                                    variant="subtle"
+                                                    label="OAuth client secret"
+                                                    placeholder="client_secret"
+                                                    disabled={isLoading}
+                                                    autoComplete="off"
+                                                    {...form.getInputProps(
+                                                        'clientSecret',
+                                                    )}
+                                                />
+                                            </>
+                                        )}
                                         <Checkbox
+                                            mt={
+                                                form.values
+                                                    .allowOAuthCredentialSharing
+                                                    ? undefined
+                                                    : 'md'
+                                            }
                                             label="Allow shared project credentials for this MCP"
                                             description="Optional. Agent managers can connect a shared project account for this MCP."
                                             disabled={isLoading}
-                                            {...form.getInputProps(
-                                                'allowOAuthCredentialSharing',
-                                                {
-                                                    type: 'checkbox',
-                                                },
-                                            )}
+                                            checked={
+                                                form.values
+                                                    .allowOAuthCredentialSharing
+                                            }
+                                            onChange={(event) => {
+                                                const checked =
+                                                    event.currentTarget.checked;
+                                                form.setFieldValue(
+                                                    'allowOAuthCredentialSharing',
+                                                    checked,
+                                                );
+                                                if (checked) {
+                                                    form.setFieldValue(
+                                                        'clientId',
+                                                        '',
+                                                    );
+                                                    form.setFieldValue(
+                                                        'clientSecret',
+                                                        '',
+                                                    );
+                                                }
+                                            }}
                                         />
                                     </Box>
                                 </Collapse>
@@ -874,7 +961,14 @@ export const AiAgentMcpServersInput = ({
                             ? {
                                   bearerToken: values.bearerToken.trim(),
                               }
-                            : null,
+                            : values.authType === 'oauth' &&
+                                values.clientId.trim() &&
+                                values.clientSecret.trim()
+                              ? {
+                                    clientId: values.clientId.trim(),
+                                    clientSecret: values.clientSecret.trim(),
+                                }
+                              : null,
                 });
             } catch (error) {
                 popupWindow?.close();
