@@ -18,11 +18,27 @@ import { wrapSentryTransactionSync } from '../../utils';
 import { updateExploreWithDateZoom } from './dateZoom';
 import { CompiledQuery, MetricQueryBuilder } from './MetricQueryBuilder';
 import { PivotQueryBuilder } from './PivotQueryBuilder';
+import { TotalQueryBuilder, TotalQueryKind } from './TotalQueryBuilder';
+
+/**
+ * Turns the source query into a totals query. When set on the definition, the
+ * composer collapses `metricQuery` + `pivotConfiguration` into the requested
+ * grain (grand/row/column/subtotal) via `TotalQueryBuilder` before compiling.
+ */
+export type TotalConfiguration = {
+    kind: TotalQueryKind;
+    // Required only for `columnSubtotal`; undefined for every other kind.
+    subtotalDimensions: string[] | undefined;
+};
 
 /** What to compile: the metric query and, optionally, how to pivot it. */
 export type QueryComposerDefinition = {
     metricQuery: MetricQuery;
-    pivotConfiguration: PivotConfiguration | undefined;
+    pivotConfiguration?: PivotConfiguration;
+    // When set, the composer builds the totals query for this grain instead of
+    // the source query. Mutually exclusive with dashboard filters (totals only
+    // arrive from the internal calculate-total path, which never sets them).
+    totalConfiguration?: TotalConfiguration;
 };
 
 /** Raw inputs the composer needs to prepare context and build SQL. */
@@ -61,6 +77,13 @@ export class QueryComposer {
 
     private compiledQuery: CompiledQuery | undefined;
 
+    private effectiveDefinition:
+        | {
+              metricQuery: MetricQuery;
+              pivotConfiguration: PivotConfiguration | undefined;
+          }
+        | undefined;
+
     constructor(
         definition: QueryComposerDefinition,
         context: QueryComposerContext,
@@ -69,13 +92,57 @@ export class QueryComposer {
         this.context = context;
     }
 
+    /**
+     * The query the composer actually compiles: the totals-collapsed query when
+     * a `totalConfiguration` is set, otherwise the source query. Memoized.
+     */
+    private getEffectiveDefinition(): {
+        metricQuery: MetricQuery;
+        pivotConfiguration: PivotConfiguration | undefined;
+    } {
+        if (this.effectiveDefinition) {
+            return this.effectiveDefinition;
+        }
+
+        const { metricQuery, pivotConfiguration, totalConfiguration } =
+            this.definition;
+
+        if (!totalConfiguration) {
+            this.effectiveDefinition = { metricQuery, pivotConfiguration };
+            return this.effectiveDefinition;
+        }
+
+        this.effectiveDefinition = new TotalQueryBuilder({
+            metricQuery,
+            pivotConfiguration: pivotConfiguration ?? null,
+            kind: totalConfiguration.kind,
+            subtotalDimensions: totalConfiguration.subtotalDimensions,
+        }).compileQuery();
+        return this.effectiveDefinition;
+    }
+
+    /** The effective (totals-collapsed) metric query the composer compiles. */
+    getMetricQuery(): MetricQuery {
+        return this.getEffectiveDefinition().metricQuery;
+    }
+
+    /** The effective (totals-collapsed) pivot configuration, if any. */
+    getPivotConfiguration(): PivotConfiguration | undefined {
+        return this.getEffectiveDefinition().pivotConfiguration;
+    }
+
     /** Compile the metric query to base SQL. Memoized. */
     compile(): CompiledQuery {
         if (this.compiledQuery) {
             return this.compiledQuery;
         }
 
-        const { metricQuery, pivotConfiguration } = this.definition;
+        const { metricQuery, pivotConfiguration } =
+            this.getEffectiveDefinition();
+        // Date zoom targets the source query's dimensions; it rewrites the
+        // explore, not the metric query, and stays inert when the collapsed
+        // totals query doesn't select the zoom dimension.
+        const sourceMetricQuery = this.definition.metricQuery;
         const {
             explore,
             warehouseSqlBuilder,
@@ -106,7 +173,7 @@ export class QueryComposer {
             dateZoomTargetFieldId,
         } = updateExploreWithDateZoom(
             explore,
-            metricQuery,
+            sourceMetricQuery,
             warehouseSqlBuilder,
             availableParameters,
             dateZoom,
@@ -162,7 +229,8 @@ export class QueryComposer {
      */
     getSql({ columnLimit }: { columnLimit: number }): string {
         const compiledQuery = this.compile();
-        const { metricQuery, pivotConfiguration } = this.definition;
+        const { metricQuery, pivotConfiguration } =
+            this.getEffectiveDefinition();
 
         if (!pivotConfiguration) {
             return compiledQuery.query;

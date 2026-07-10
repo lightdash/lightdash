@@ -15,7 +15,11 @@ This file covers SQL generation only. For the end-to-end pivot pipeline (config 
 import { QueryComposer } from './QueryComposer';
 
 const composer = new QueryComposer(
-    { metricQuery, pivotConfiguration }, // pivotConfiguration: undefined for a flat query
+    {
+        metricQuery,
+        pivotConfiguration, // undefined for a flat query
+        totalConfiguration, // undefined unless building a totals query (see below)
+    },
     {
         explore,
         warehouseSqlBuilder,
@@ -40,6 +44,17 @@ const composer = new QueryComposer(
 const compiled = composer.compile(); // memoized CompiledQuery (base SQL, fields, warnings, params)
 const sql = composer.getSql({ columnLimit }); // PivotQueryBuilder-wrapped when pivotConfiguration is set, else base
 ```
+
+**Totals mode.** Set `totalConfiguration: { kind, subtotalDimensions }` on the
+definition to build a totals query. The composer collapses the source
+`metricQuery` + `pivotConfiguration` into the requested grain
+(`grandTotal`/`columnTotal`/`rowTotal`/`columnSubtotal`) via `TotalQueryBuilder`
+before compiling. `getMetricQuery()` / `getPivotConfiguration()` return the
+**effective (collapsed)** query, so routing / request echo / response use it
+rather than the source. Date zoom stays inert here — it targets the source
+query's dimensions, which the collapsed totals query typically no longer selects.
+This is what the calculate-total path (`executeAsyncCalculateTotalFromQueryHistory`)
+uses instead of hand-collapsing at the call site.
 
 **MetricQueryBuilder** — builds the base SQL from an Explore + MetricQuery (dimensions, metrics, filters, joins, table calculations). Handles fan-out protection via CTEs and period-over-period comparisons. Usually driven via `QueryComposer` rather than constructed directly.
 
