@@ -1,3 +1,12 @@
+## [0.3356.1](https://github.com/lightdash/lightdash/compare/0.3356.0...0.3356.1) (2026-07-10)
+
+
+### Bug Fixes
+
+* **ai-agent:** stop blocked/errored runSql from poisoning message history ([#25344](https://github.com/lightdash/lightdash/issues/25344)) ([e783f79](https://github.com/lightdash/lightdash/commit/e783f790f8a12ad60cf760c21e221678404993f1)), closes [/linear.app/lightdash/issue/ZAP-601/ai-agent-blockederrored-runsql-poisons-message-history-anthropic-400#agent-session-f1dbd83](https://github.com//linear.app/lightdash/issue/ZAP-601/ai-agent-blockederrored-runsql-poisons-message-history-anthropic-400/issues/agent-session-f1dbd83)
+* render sql chart time axis in utc to match label formatter ([#25382](https://github.com/lightdash/lightdash/issues/25382)) ([ce47f0b](https://github.com/lightdash/lightdash/commit/ce47f0bbdce490b43950d3a46f96c54aee746ca8))
+* stop dashboard promotion from resolving slugs to the wrong project ([#25380](https://github.com/lightdash/lightdash/issues/25380)) ([c7b6e8a](https://github.com/lightdash/lightdash/commit/c7b6e8a3ca99bbb997d62607425ad417f46cbfaf))
+
 # [0.3356.0](https://github.com/lightdash/lightdash/compare/0.3355.0...0.3356.0) (2026-07-10)
 
 
