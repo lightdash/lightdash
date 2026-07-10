@@ -1,3 +1,11 @@
+# [0.3362.0](https://github.com/lightdash/lightdash/compare/0.3361.0...0.3362.0) (2026-07-10)
+
+
+### Features
+
+* **backend:** make screenshot readiness timeout configurable ([#25399](https://github.com/lightdash/lightdash/issues/25399)) ([4fda5bd](https://github.com/lightdash/lightdash/commit/4fda5bd5f54414738294c8fbf12d07ab16c3801d))
+* **backend:** OSV malware screen for data-app custom dependencies [GLITCH-558] ([#25387](https://github.com/lightdash/lightdash/issues/25387)) ([993ffeb](https://github.com/lightdash/lightdash/commit/993ffeb83863129747dfd8d06a182f74816ef7ff))
+
 # [0.3361.0](https://github.com/lightdash/lightdash/compare/0.3360.0...0.3361.0) (2026-07-10)
 
 
