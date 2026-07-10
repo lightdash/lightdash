@@ -870,7 +870,7 @@ Opt-in flags on the existing `lightdash download` / `lightdash upload` commands 
 - **`lightdash download --apps [appUuids...]`** — download data apps into `lightdash/apps/<slug>/`. Bare `--apps` = all apps in the project (listed via the content API); with UUIDs = just those. Each folder holds `lightdash-app.yml` (manifest) + the app's `src/` tree. The built `dist` is intentionally excluded — it's regenerated on upload.
 - **`lightdash upload --apps [appUuids...]`** — upload each `lightdash/apps/<slug>/` folder; the server rebuilds the source. **Fire-and-forget:** the CLI posts and returns immediately — the app shows `building` in the UI until the server finishes.
 
-**Identity:** the manifest's `appUuid` is the source of truth (apps have no persistent slug; the `<slug>` folder name is derived from the app name via `generateSlug`). Uploading to the **same project** appends a new version of that app; uploading to a **different project** creates a new app there.
+**Identity:** the manifest's `appUuid` is the source of truth (apps have no persistent slug; the `<slug>` folder name is derived from the app name via `generateSlug`, with a stable `untitled-app-<uuid8>` fallback for unnamed apps so re-downloads reuse the same folder). Uploading to the **same project** appends a new version of that app; uploading to a **different project** creates a new app there.
 
 ### What the endpoints do
 

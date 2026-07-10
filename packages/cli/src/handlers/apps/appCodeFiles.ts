@@ -26,7 +26,14 @@ export const appFolderName = (
     appUuid: string,
     takenFolders: Set<string>,
 ): string => {
-    const slug = generateSlug(name);
+    // generateSlug returns a RANDOM 5-char string for names that sanitize to
+    // nothing (e.g. unnamed apps whose first build never got auto-titled). A
+    // random folder never matches the previous download's, so every run would
+    // duplicate the app on disk — use a stable uuid-based fallback instead,
+    // mirroring the "Untitled app <uuid8>" display convention.
+    const slug = /[a-z0-9]/i.test(name)
+        ? generateSlug(name)
+        : `untitled-app-${appUuid.slice(0, 8)}`;
     if (!takenFolders.has(slug)) {
         return slug;
     }

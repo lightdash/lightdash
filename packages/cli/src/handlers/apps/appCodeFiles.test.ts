@@ -279,6 +279,29 @@ describe('appFolderName', () => {
         expect(first).toBe('my-sales-app-aaaa1111');
         expect(second).toBe('my-sales-app-cccc2222');
     });
+
+    // generateSlug returns a RANDOM string for names that sanitize to nothing,
+    // which would give an unnamed app a different folder on every download.
+    it('uses a stable untitled-app-<uuid8> folder for an empty name', () => {
+        const uuid = 'abcd1234-ef56-7890-ab12-cdef01234567';
+        expect(appFolderName('', uuid, new Set())).toBe(
+            'untitled-app-abcd1234',
+        );
+        // Deterministic: a re-download must land in the same folder.
+        expect(appFolderName('', uuid, new Set())).toBe(
+            'untitled-app-abcd1234',
+        );
+    });
+
+    it('uses the stable fallback for a name with no alphanumeric characters', () => {
+        expect(
+            appFolderName(
+                '!!!',
+                'abcd1234-ef56-7890-ab12-cdef01234567',
+                new Set(),
+            ),
+        ).toBe('untitled-app-abcd1234');
+    });
 });
 
 // ─── readDependenciesFromDir ──────────────────────────────────────────────────
