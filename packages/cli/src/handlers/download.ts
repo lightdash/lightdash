@@ -87,8 +87,8 @@ export type DownloadHandlerOptions = {
     verbose: boolean;
     charts: string[]; // These can be slugs, uuids or urls
     dashboards: string[]; // These can be slugs, uuids or urls
-    apps: string[] | boolean | null; // download: string[] = specific UUIDs; upload: true = all app folders on disk; null/false/absent = skip
-    includeApps?: boolean; // download only: include all of the project's apps, capped at --apps-limit
+    apps?: string[]; // specific app UUIDs (enterprise); absent = no explicit selection
+    includeApps?: boolean; // download: all of the project's apps, capped at --apps-limit; upload: all app folders on disk
     appsLimit?: string; // download only: cap for the --include-apps listing (default 50); raw string from commander
     createNew?: boolean; // upload only: always create a new app instead of updating the manifest's app
     force: boolean;
@@ -1886,12 +1886,13 @@ export const uploadHandler = async (
             dashboardTotal = total;
         }
 
-        // Upload data apps (enterprise, opt-in via --apps, fire-and-forget)
-        const appsOption = options.apps;
+        // Upload data apps (enterprise, opt-in via --apps <uuids...> or
+        // --include-apps, fire-and-forget)
+        const explicitAppUuids = Array.isArray(options.apps)
+            ? options.apps
+            : [];
         const shouldUploadApps =
-            appsOption !== null &&
-            appsOption !== false &&
-            appsOption !== undefined;
+            options.includeApps === true || explicitAppUuids.length > 0;
 
         let appsCreated = 0;
         let appsUpdated = 0;
@@ -1899,10 +1900,10 @@ export const uploadHandler = async (
         let appsSkipped = 0;
 
         if (shouldUploadApps) {
+            // --include-apps uploads every folder on disk; explicit UUIDs
+            // filter folders by their manifest appUuid
             const filterUuids: Set<string> | null =
-                Array.isArray(appsOption) && appsOption.length > 0
-                    ? new Set(appsOption)
-                    : null;
+                options.includeApps === true ? null : new Set(explicitAppUuids);
 
             const baseDir = getDownloadFolder(options.path);
             const appsDir = path.join(baseDir, 'apps');
@@ -1916,7 +1917,7 @@ export const uploadHandler = async (
                 if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
                     GlobalState.log(
                         styles.warning(
-                            `No apps directory found at ${appsDir}. Run 'lightdash download --apps' first.`,
+                            `No apps directory found at ${appsDir}. Run 'lightdash download --include-apps' first.`,
                         ),
                     );
                     appFolderEntries = [];

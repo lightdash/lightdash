@@ -831,8 +831,13 @@ program
     .option('--validate', 'Validate charts and dashboards after upload', false)
     .option('--gzip', 'Enable gzip compression for request bodies', false)
     .option(
-        '--apps [appUuids...]',
-        'Include data apps (enterprise). Optionally limit to specific app UUIDs; default: all app folders on disk.',
+        '--apps <appUuids...>',
+        'Upload specific data apps by UUID (enterprise).',
+    )
+    .option(
+        '--include-apps',
+        'Upload all app folders on disk (enterprise).',
+        false,
     )
     .option(
         '--create-new',

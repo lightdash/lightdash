@@ -867,8 +867,8 @@ Data apps can be **downloaded as source, versioned in git, edited, and re-upload
 
 Opt-in flags on the existing `lightdash download` / `lightdash upload` commands (off by default — core users never touch app code paths unless they ask):
 
-- **`lightdash download --apps [appUuids...]`** — download data apps into `lightdash/apps/<slug>/`. Bare `--apps` = all apps in the project (listed via the content API); with UUIDs = just those. Each folder holds `lightdash-app.yml` (manifest) + the app's `src/` tree. The built `dist` is intentionally excluded — it's regenerated on upload.
-- **`lightdash upload --apps [appUuids...]`** — upload each `lightdash/apps/<slug>/` folder; the server rebuilds the source. **Fire-and-forget:** the CLI posts and returns immediately — the app shows `building` in the UI until the server finishes.
+- **`lightdash download --apps <appUuids...>`** — download specific data apps into `lightdash/apps/<slug>/`; **`--include-apps`** downloads all of the project's apps (capped at `--apps-limit`, default 50). Each folder holds `lightdash-app.yml` (manifest) + the app's `src/` tree. The built `dist` is intentionally excluded — it's regenerated on upload.
+- **`lightdash upload --apps <appUuids...>`** — upload specific apps (matched by manifest `appUuid`); **`--include-apps`** uploads every `lightdash/apps/<slug>/` folder on disk. The server rebuilds the source. **Fire-and-forget:** the CLI posts and returns immediately — the app shows `building` in the UI until the server finishes.
 
 **Identity:** the manifest's `appUuid` is the source of truth (apps have no persistent slug; the `<slug>` folder name is derived from the app name via `generateSlug`). Uploading to the **same project** appends a new version of that app; uploading to a **different project** creates a new app there.
 
@@ -879,8 +879,8 @@ Opt-in flags on the existing `lightdash download` / `lightdash upload` commands 
 
 ### Moving an app between projects or instances
 
-- **Different project (same instance):** `lightdash upload --apps --project <target-project>` — creates and builds the app in the target project.
-- **Different instance:** point the CLI at the destination first — `lightdash login <destination-url>` (or set `LIGHTDASH_URL` / `LIGHTDASH_API_KEY`) — then `lightdash upload --apps --project <target>`. The **destination builds the source in its own sandbox** (so it must have data apps / the build sandbox enabled); it never receives code built elsewhere.
+- **Different project (same instance):** `lightdash upload --apps <appUuid> --project <target-project>` — creates and builds the app in the target project.
+- **Different instance:** point the CLI at the destination first — `lightdash login <destination-url>` (or set `LIGHTDASH_URL` / `LIGHTDASH_API_KEY`) — then `lightdash upload --apps <appUuid> --project <target>`. The **destination builds the source in its own sandbox** (so it must have data apps / the build sandbox enabled); it never receives code built elsewhere.
 
 ### Constraints & notes
 
@@ -893,7 +893,7 @@ Opt-in flags on the existing `lightdash download` / `lightdash upload` commands 
 
 Phase 1 makes apps [downloadable and uploadable from source](#cli); Phase 2 makes the downloaded tree **locally buildable**, so you can verify changes compile before uploading.
 
-#### What `lightdash download --apps` now includes
+#### What downloading an app now includes
 
 The download folder adds to the Phase 1 output (`src/` + `lightdash-app.yml`):
 
@@ -907,12 +907,12 @@ All scaffolding and context files are read-only reference — see [Upload is sou
 #### The local loop
 
 ```sh
-edit src/  →  pnpm install && pnpm build  →  lightdash upload --apps  →  server rebuilds
+edit src/  →  pnpm install && pnpm build  →  lightdash upload --apps <appUuid>  →  server rebuilds
 ```
 
 1. Edit files under `src/`.
 2. Run `pnpm install && pnpm build` as a pre-flight compile check against the downloaded scaffolding.
-3. Upload with `lightdash upload --apps` (fire-and-forget, as in Phase 1). The server rebuilds in its trusted sandbox.
+3. Upload with `lightdash upload --apps <appUuid>` — or `--include-apps` for every downloaded app folder (fire-and-forget, as in Phase 1). The server rebuilds in its trusted sandbox.
 
 **The server's build is authoritative.** Your local build is a compile check only; the deployed app is always the server's output.
 
