@@ -1000,9 +1000,7 @@ export const generateAgentResponse = async ({
             promptUuid: args.promptUuid,
             response: result.text,
             tokenUsage: {
-                // All-steps total (matches the ai.usage stream). `usage` is
-                // last-step only and undercounts multi-step tool-calling runs.
-                totalTokens: result.totalUsage.totalTokens ?? 0,
+                totalTokens: result.usage.totalTokens ?? 0,
             },
         });
 
@@ -1350,10 +1348,6 @@ export const streamAgentResponse = async ({
 
                 const stepCapReached = steps.length >= STEP_CAP;
 
-                // All-steps total (matches the ai.usage stream). `usage` is
-                // last-step only and undercounts multi-step tool-calling runs.
-                const promptTotalTokens = totalUsage.totalTokens ?? 0;
-
                 if (stepCapReached && !completeResponse) {
                     void dependencies.updatePrompt({
                         promptUuid: args.promptUuid,
@@ -1361,7 +1355,7 @@ export const streamAgentResponse = async ({
                             new AiAgentStepCapReachedError(steps.length),
                         ),
                         tokenUsage: {
-                            totalTokens: promptTotalTokens,
+                            totalTokens: usage.totalTokens ?? 0,
                         },
                     });
                 } else {
@@ -1369,7 +1363,7 @@ export const streamAgentResponse = async ({
                         response: completeResponse,
                         promptUuid: args.promptUuid,
                         tokenUsage: {
-                            totalTokens: promptTotalTokens,
+                            totalTokens: usage.totalTokens ?? 0,
                         },
                     });
                 }
@@ -1386,7 +1380,7 @@ export const streamAgentResponse = async ({
                         projectId: args.agentSettings.projectUuid,
                         aiAgentId: args.agentSettings.uuid,
                         agentName: args.agentSettings.name,
-                        usageTokensCount: promptTotalTokens,
+                        usageTokensCount: totalUsage.totalTokens ?? 0,
                         stepsCount: steps.length,
                         model:
                             typeof args.model === 'string'
