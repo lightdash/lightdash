@@ -1,3 +1,10 @@
+# [0.3370.0](https://github.com/lightdash/lightdash/compare/0.3369.0...0.3370.0) (2026-07-13)
+
+
+### Features
+
+* **data-apps:** move `create:DataApp` to Editor role ([#25425](https://github.com/lightdash/lightdash/issues/25425)) ([6eb6bb1](https://github.com/lightdash/lightdash/commit/6eb6bb1968119ebf742fbe942014c30808f6e756))
+
 # [0.3369.0](https://github.com/lightdash/lightdash/compare/0.3368.0...0.3369.0) (2026-07-13)
 
 
