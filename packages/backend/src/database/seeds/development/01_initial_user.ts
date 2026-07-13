@@ -289,6 +289,30 @@ export async function seed(knex: Knex): Promise<void> {
             lightdashConfig,
         });
         const tagsModel = new TagsModel({ database: knex });
+
+        const lightdashProjectConfig = await adapter.getLightdashProjectConfig({
+            projectUuid,
+            organizationUuid,
+            userUuid: user.user_uuid,
+        });
+
+        // Persist spotlight categories as yaml tags before indexing so the
+        // catalog index attaches them (mirrors ProjectService compile). Without
+        // this the seed project has no categories and category filtering
+        // returns nothing.
+        await tagsModel.replaceYamlTags(
+            projectUuid,
+            Object.entries(
+                lightdashProjectConfig.spotlight?.categories ?? {},
+            ).map(([yamlReference, category]) => ({
+                project_uuid: projectUuid,
+                name: category.label,
+                color: category.color ?? 'gray',
+                created_by_user_uuid: user.user_uuid,
+                yaml_reference: yamlReference,
+            })),
+        );
+
         const projectYamlTags = await tagsModel.getYamlTags(projectUuid);
         const cachedExploresMap = await projectModel.findExploresFromCache(
             projectUuid,
@@ -303,11 +327,6 @@ export async function seed(knex: Knex): Promise<void> {
         );
 
         // Seed parameters
-        const lightdashProjectConfig = await adapter.getLightdashProjectConfig({
-            projectUuid,
-            organizationUuid,
-            userUuid: user.user_uuid,
-        });
         await new ProjectParametersModel({
             database: knex,
         }).replace(projectUuid, lightdashProjectConfig.parameters ?? {});
