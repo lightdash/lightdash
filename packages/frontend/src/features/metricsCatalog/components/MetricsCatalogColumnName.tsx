@@ -1,11 +1,10 @@
 import { isEmojiIcon, type CatalogField } from '@lightdash/common';
-import { Box, Group } from '@mantine-8/core';
+import { Box, Group, Paper } from '@mantine-8/core';
 import {
     ActionIcon,
     Button,
     getDefaultZIndex,
     Highlight,
-    Paper,
     Portal,
 } from '@mantine/core';
 import { useClickOutside } from '@mantine/hooks';
@@ -58,15 +57,7 @@ const SharedEmojiPicker = forwardRef(
                         zIndex: getDefaultZIndex('overlay'),
                     }}
                 >
-                    <Paper
-                        shadow="xs"
-                        withBorder
-                        pt="xs"
-                        px="two"
-                        sx={(theme) => ({
-                            border: `1px solid ${theme.colors.ldGray[2]}`,
-                        })}
-                    >
+                    <Paper shadow="xs" withBorder pt="xs" px="two">
                         {emoji && (
                             <Group justify="flex-end">
                                 <Button

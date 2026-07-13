@@ -8,12 +8,11 @@ import {
     type VizTableHeaderSortConfig,
     formatSql,
 } from '@lightdash/common';
-import { Box, Group, Stack, Text } from '@mantine-8/core';
+import { Box, Group, Paper, Stack, Text } from '@mantine-8/core';
 import {
     ActionIcon,
     Indicator,
     LoadingOverlay,
-    Paper,
     SegmentedControl,
     Tooltip,
     Transition,
@@ -443,13 +442,10 @@ export const ContentPanel: FC = () => {
                 <Paper
                     shadow="none"
                     radius={0}
+                    withBorder={false}
                     px="md"
                     py={6}
-                    sx={(theme) => ({
-                        borderWidth: '0 0 1px 1px',
-                        borderStyle: 'solid',
-                        borderColor: theme.colors.ldGray[3],
-                    })}
+                    className={styles.toolbarPaper}
                 >
                     <Group justify="space-between">
                         <Group justify="space-between">
@@ -637,17 +633,9 @@ export const ContentPanel: FC = () => {
                             ref={inputSectionRef}
                             shadow="none"
                             radius={0}
+                            withBorder={false}
                             style={{ flex: 1 }}
-                            sx={(theme) => ({
-                                borderWidth: '0 0 0 1px',
-                                borderStyle: 'solid',
-                                borderColor: theme.colors.ldGray[3],
-                                overflow: 'auto',
-                                backgroundColor:
-                                    theme.colorScheme === 'dark'
-                                        ? theme.colors.dark[6]
-                                        : 'white',
-                            })}
+                            className={styles.inputPaper}
                         >
                             <Box
                                 style={{

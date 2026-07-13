@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { DbtProjectType } from '@lightdash/common';
-import { Group, Stack, Text } from '@mantine-8/core';
-import { ActionIcon, Button, Menu, Paper, Tooltip } from '@mantine/core';
+import { Group, Paper, Stack, Text } from '@mantine-8/core';
+import { ActionIcon, Button, Menu, Tooltip } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import {
     IconBrandGithub,
@@ -32,6 +32,7 @@ import {
 import { ChartErrorsAlert } from '../ChartErrorsAlert';
 import { SaveSqlChartModal } from '../SaveSqlChartModal';
 import { WriteBackToDbtModal } from '../WriteBackToDbtModal';
+import headerStyles from './HeaderPaper.module.css';
 
 type CtaAction = 'save' | 'createVirtualView' | 'writeBackToDbt';
 
@@ -261,13 +262,7 @@ export const HeaderCreate: FC = () => {
                 withBorder={false}
                 px="md"
                 py="xs"
-                sx={(theme) => ({
-                    borderBottom: `1px solid ${
-                        theme.colorScheme === 'dark'
-                            ? theme.colors.ldDark[8]
-                            : theme.colors.ldGray[3]
-                    }`,
-                })}
+                className={headerStyles.paper}
             >
                 <Group justify="space-between">
                     <Group gap="two">
