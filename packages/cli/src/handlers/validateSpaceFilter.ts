@@ -59,9 +59,10 @@ export const filterValidationsBySpace = (
     mode: SpaceFilterMode,
 ): ValidationResponse[] =>
     validations.filter((validation) => {
+        const { spaceUuid } = validation;
         // Table errors are project-level, not in spaces — never filtered
         if (isTableValidationError(validation)) return true;
-        if (validation.spaceUuid === undefined) return mode === 'exclude';
-        const isSelected = selectedSpaceUuids.has(validation.spaceUuid);
+        if (spaceUuid === undefined) return mode === 'exclude';
+        const isSelected = selectedSpaceUuids.has(spaceUuid);
         return mode === 'include' ? isSelected : !isSelected;
     });
