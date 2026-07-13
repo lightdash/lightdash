@@ -1,6 +1,9 @@
 import { subject } from '@casl/ability';
 import {
+    AlertAsCode,
     AlreadyExistsError,
+    ApiAlertAsCodeListResponse,
+    ApiAlertAsCodeUpsertResponse,
     ApiChartAsCodeListResponse,
     ApiDashboardAsCodeListResponse,
     ApiScheduledDeliveryAsCodeListResponse,
@@ -40,6 +43,7 @@ import {
     isSchedulerImageOptions,
     isSlackTarget,
     NotFoundError,
+    NotificationFrequency,
     ParameterError,
     Project,
     ProjectType,
@@ -149,6 +153,42 @@ const normalizeFilterIds = (filters: FiltersInput): Filters => ({
     metrics: normalizeFilterGroup(filters.metrics),
     tableCalculations: normalizeFilterGroup(filters.tableCalculations),
 });
+
+const stripFilterGroupItemIds = (
+    item: FilterGroupItemInput,
+): FilterGroupItemInput => {
+    if ('or' in item) {
+        return { or: item.or.map(stripFilterGroupItemIds) };
+    }
+    if ('and' in item) {
+        return { and: item.and.map(stripFilterGroupItemIds) };
+    }
+    const { id, ...filterRule } = item;
+    return filterRule;
+};
+
+const stripFilterIds = (
+    filters: FiltersInput | undefined,
+): FiltersInput | null => {
+    if (!filters) return null;
+    const result: FiltersInput = {};
+    if (filters.dimensions) {
+        result.dimensions = stripFilterGroupItemIds(
+            filters.dimensions,
+        ) as FilterGroupInput;
+    }
+    if (filters.metrics) {
+        result.metrics = stripFilterGroupItemIds(
+            filters.metrics,
+        ) as FilterGroupInput;
+    }
+    if (filters.tableCalculations) {
+        result.tableCalculations = stripFilterGroupItemIds(
+            filters.tableCalculations,
+        ) as FilterGroupInput;
+    }
+    return result;
+};
 
 type AnyChartTile = Extract<
     DashboardTileAsCode | DashboardTile,
@@ -1269,6 +1309,22 @@ export class CoderService extends BaseService {
         return targets;
     }
 
+    private static getScheduledDeliveryTargetKey(
+        target: ScheduledDeliveryTargetAsCode,
+    ): string {
+        switch (target.type) {
+            case 'email':
+                return `${target.type}:${target.recipient}`;
+            case 'slack':
+                return `${target.type}:${target.channel}`;
+            default:
+                return assertUnreachable(
+                    target,
+                    'Unknown scheduled delivery target',
+                );
+        }
+    }
+
     private static getDashboardScheduledDeliveryFiltersWithTileSlugs(
         dashboard: DashboardDAO,
         filters: DashboardFilterRule[] | undefined,
@@ -1399,7 +1455,7 @@ export class CoderService extends BaseService {
         }
         const targets =
             CoderService.getScheduledDeliveryTargetsAsCode(scheduler);
-        if (!targets || targets.length === 0) return null;
+        if (!targets) return null;
         const format = CoderService.getScheduledDeliveryFormat(scheduler);
         if (!format) return null;
 
@@ -1425,7 +1481,7 @@ export class CoderService extends BaseService {
                 ...common,
                 ...format,
                 resource: { type: 'chart', slug: chart.slug },
-                filters: scheduler.filters ?? null,
+                filters: stripFilterIds(scheduler.filters),
                 parameters: scheduler.parameters ?? null,
                 customViewportWidth: null,
                 selectedTabs: null,
@@ -1461,7 +1517,27 @@ export class CoderService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         slugs?: string[],
-    ): Promise<ApiScheduledDeliveryAsCodeListResponse['results']> {
+        contentType?: ContentAsCodeType.SCHEDULED_DELIVERY,
+    ): Promise<ApiScheduledDeliveryAsCodeListResponse['results']>;
+
+    async getScheduledDeliveries(
+        user: SessionUser,
+        projectUuid: string,
+        slugs: string[] | undefined,
+        contentType: ContentAsCodeType.ALERT,
+    ): Promise<ApiAlertAsCodeListResponse['results']>;
+
+    async getScheduledDeliveries(
+        user: SessionUser,
+        projectUuid: string,
+        slugs?: string[],
+        contentType:
+            | ContentAsCodeType.SCHEDULED_DELIVERY
+            | ContentAsCodeType.ALERT = ContentAsCodeType.SCHEDULED_DELIVERY,
+    ): Promise<
+        | ApiScheduledDeliveryAsCodeListResponse['results']
+        | ApiAlertAsCodeListResponse['results']
+    > {
         const project = await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
         if (
@@ -1481,7 +1557,11 @@ export class CoderService extends BaseService {
             )
         ) {
             throw new ForbiddenError(
-                'You are not allowed to download scheduled deliveries',
+                `You are not allowed to download ${
+                    contentType === ContentAsCodeType.ALERT
+                        ? 'alerts'
+                        : 'scheduled deliveries'
+                }`,
             );
         }
 
@@ -1490,35 +1570,94 @@ export class CoderService extends BaseService {
         const filteredSchedulers = slugs?.length
             ? schedulers.filter((scheduler) => slugs.includes(scheduler.slug))
             : schedulers;
+        const matchingSchedulers = filteredSchedulers.filter((scheduler) =>
+            contentType === ContentAsCodeType.ALERT
+                ? Boolean(scheduler.thresholds?.length)
+                : !scheduler.thresholds?.length,
+        );
         const transformed = await Promise.all(
-            filteredSchedulers.map((scheduler) =>
-                this.transformScheduledDelivery(scheduler),
+            matchingSchedulers.map((scheduler) =>
+                contentType === ContentAsCodeType.ALERT
+                    ? this.transformAlert(scheduler)
+                    : this.transformScheduledDelivery(scheduler),
             ),
         );
-        const scheduledDeliveries: ScheduledDeliveryAsCode[] = [];
-        const skipped: ApiScheduledDeliveryAsCodeListResponse['results']['skipped'] =
-            [];
+        const content: Array<ScheduledDeliveryAsCode | AlertAsCode> = [];
+        const skipped: Array<{ name: string; reason: string }> = [];
+        const contentName =
+            contentType === ContentAsCodeType.ALERT
+                ? 'Alert'
+                : 'Scheduled delivery';
+        const unsupportedReason =
+            contentType === ContentAsCodeType.ALERT
+                ? 'Alerts as code support chart alerts with email or Slack targets'
+                : 'MVP supports chart/dashboard deliveries with email or Slack targets and CSV, XLSX, image, or PDF formats; secret/OAuth-backed targets are excluded';
 
-        filteredSchedulers.forEach((scheduler, index) => {
-            const delivery = transformed[index];
-            if (delivery) {
-                scheduledDeliveries.push(delivery);
+        matchingSchedulers.forEach((scheduler, index) => {
+            const item = transformed[index];
+            if (item) {
+                content.push(item);
             } else {
                 skipped.push({
                     name: scheduler.name,
                     reason: scheduler.slug
-                        ? 'MVP supports chart/dashboard deliveries with email or Slack targets and CSV, XLSX, image, or PDF formats; alerts and secret/OAuth-backed targets are excluded'
-                        : 'Scheduled delivery is missing its portable identity and must be backfilled before export',
+                        ? unsupportedReason
+                        : `${contentName} is missing its portable identity and must be backfilled before export`,
                 });
             }
         });
 
-        return { scheduledDeliveries, skipped };
+        if (contentType === ContentAsCodeType.ALERT) {
+            return { alerts: content as AlertAsCode[], skipped };
+        }
+        return {
+            scheduledDeliveries: content as ScheduledDeliveryAsCode[],
+            skipped,
+        };
+    }
+
+    private async transformAlert(
+        scheduler: SchedulerAndTargets,
+    ): Promise<AlertAsCode | null> {
+        if (
+            !scheduler.slug ||
+            !isChartScheduler(scheduler) ||
+            !scheduler.thresholds?.length ||
+            scheduler.format !== SchedulerFormat.IMAGE
+        ) {
+            return null;
+        }
+        const targets =
+            CoderService.getScheduledDeliveryTargetsAsCode(scheduler);
+        if (!targets) return null;
+
+        const chart = await this.savedChartModel.getSummary(
+            scheduler.savedChartUuid,
+        );
+        return {
+            contentType: ContentAsCodeType.ALERT,
+            version: currentVersion,
+            slug: scheduler.slug,
+            name: scheduler.name,
+            message: scheduler.message ?? null,
+            cron: scheduler.cron,
+            timezone: scheduler.timezone ?? null,
+            enabled: scheduler.enabled,
+            includeLinks: scheduler.includeLinks,
+            targets,
+            resource: { type: 'chart', slug: chart.slug },
+            thresholds: scheduler.thresholds,
+            notificationFrequency:
+                scheduler.notificationFrequency ?? NotificationFrequency.ALWAYS,
+            filters: stripFilterIds(scheduler.filters),
+            parameters: scheduler.parameters ?? null,
+            downloadedAt: new Date(),
+        };
     }
 
     private async getScheduledDeliveryResource(
         projectUuid: string,
-        delivery: ScheduledDeliveryAsCode,
+        delivery: ScheduledDeliveryAsCode | AlertAsCode,
     ): Promise<
         | { type: 'chart'; uuid: string }
         | { type: 'dashboard'; uuid: string; dashboard: DashboardDAO }
@@ -1565,9 +1704,9 @@ export class CoderService extends BaseService {
         };
     }
 
-    private static getScheduledDeliveryTargets(
-        delivery: ScheduledDeliveryAsCode,
-    ): CreateSchedulerTarget[] {
+    private static getScheduledDeliveryTargets(delivery: {
+        targets: ScheduledDeliveryTargetAsCode[];
+    }): CreateSchedulerTarget[] {
         return delivery.targets.map((target) => {
             switch (target.type) {
                 case 'email':
@@ -1595,29 +1734,22 @@ export class CoderService extends BaseService {
         return delivery.resource.type === 'dashboard';
     }
 
-    private static scheduledDeliveriesAreEqual(
-        current: ScheduledDeliveryAsCode,
-        desired: ScheduledDeliveryAsCode,
+    private static scheduledContentIsEqual(
+        current: ScheduledDeliveryAsCode | AlertAsCode,
+        desired: ScheduledDeliveryAsCode | AlertAsCode,
     ): boolean {
-        const getTargetKey = (target: ScheduledDeliveryTargetAsCode) => {
-            switch (target.type) {
-                case 'email':
-                    return `${target.type}:${target.recipient}`;
-                case 'slack':
-                    return `${target.type}:${target.channel}`;
-                default:
-                    return assertUnreachable(
-                        target,
-                        'Unknown scheduled delivery target',
-                    );
-            }
-        };
-        const normalize = (delivery: ScheduledDeliveryAsCode) => {
-            const { downloadedAt, ...rest } = delivery;
+        const normalize = (
+            scheduledContent: ScheduledDeliveryAsCode | AlertAsCode,
+        ) => {
+            const { downloadedAt, ...rest } = scheduledContent;
             return {
                 ...rest,
                 targets: [...rest.targets].sort((left, right) =>
-                    getTargetKey(left).localeCompare(getTargetKey(right)),
+                    CoderService.getScheduledDeliveryTargetKey(
+                        left,
+                    ).localeCompare(
+                        CoderService.getScheduledDeliveryTargetKey(right),
+                    ),
                 ),
             };
         };
@@ -1628,12 +1760,17 @@ export class CoderService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         slug: string,
-        delivery: ScheduledDeliveryAsCode,
+        delivery: ScheduledDeliveryAsCode | AlertAsCode,
         force = false,
-    ): Promise<ApiScheduledDeliveryAsCodeUpsertResponse['results']> {
+    ): Promise<
+        | ApiScheduledDeliveryAsCodeUpsertResponse['results']
+        | ApiAlertAsCodeUpsertResponse['results']
+    > {
+        const isAlert = delivery.contentType === ContentAsCodeType.ALERT;
+        const contentName = isAlert ? 'Alert' : 'Scheduled delivery';
         if (slug !== delivery.slug) {
             throw new ParameterError(
-                `Scheduled delivery slug '${delivery.slug}' does not match path slug '${slug}'`,
+                `${contentName} slug '${delivery.slug}' does not match path slug '${slug}'`,
             );
         }
         const project = await this.projectModel.getSummary(projectUuid);
@@ -1648,7 +1785,9 @@ export class CoderService extends BaseService {
             )
         ) {
             throw new ForbiddenError(
-                'You are not allowed to upload scheduled deliveries',
+                `You are not allowed to upload ${
+                    isAlert ? 'alerts' : 'scheduled deliveries'
+                }`,
             );
         }
 
@@ -1663,24 +1802,27 @@ export class CoderService extends BaseService {
 
         if (
             existing &&
-            ((resource.type === 'chart' &&
-                (!isChartScheduler(existing) ||
-                    existing.savedChartUuid !== resource.uuid)) ||
+            (Boolean(existing.thresholds?.length) !== isAlert ||
+                (resource.type === 'chart' &&
+                    (!isChartScheduler(existing) ||
+                        existing.savedChartUuid !== resource.uuid)) ||
                 (resource.type === 'dashboard' &&
                     (!isDashboardScheduler(existing) ||
                         existing.dashboardUuid !== resource.uuid)))
         ) {
             throw new ParameterError(
-                `Scheduled delivery slug '${slug}' is already used by another resource in this project`,
+                `${contentName} slug '${slug}' is already used by another resource in this project`,
             );
         }
 
         if (existing) {
-            const current = await this.transformScheduledDelivery(existing);
+            const current = isAlert
+                ? await this.transformAlert(existing)
+                : await this.transformScheduledDelivery(existing);
             if (
                 !force &&
                 current &&
-                CoderService.scheduledDeliveriesAreEqual(current, delivery)
+                CoderService.scheduledContentIsEqual(current, delivery)
             ) {
                 return { action: PromotionAction.NO_CHANGES };
             }
@@ -1688,7 +1830,7 @@ export class CoderService extends BaseService {
 
         const targets = CoderService.getScheduledDeliveryTargets(delivery);
         let filters: Filters | DashboardFilterRule[] | undefined;
-        if (CoderService.isChartScheduledDelivery(delivery)) {
+        if (isAlert || CoderService.isChartScheduledDelivery(delivery)) {
             filters = delivery.filters
                 ? normalizeFilterIds(delivery.filters)
                 : undefined;
@@ -1706,27 +1848,35 @@ export class CoderService extends BaseService {
                 'Scheduled delivery resource type does not match its payload',
             );
         }
+        let selectedTabs: string[] | null | undefined;
+        if (isAlert) {
+            selectedTabs = null;
+        } else if (resource.type === 'dashboard' && delivery.selectedTabs) {
+            selectedTabs = delivery.selectedTabs.map((tabSlug) =>
+                CoderService.getDashboardTabUuid(resource.dashboard, tabSlug),
+            );
+        } else {
+            selectedTabs = delivery.selectedTabs;
+        }
+
         const schedulerInput = {
             slug: delivery.slug,
             name: delivery.name,
             message: delivery.message ?? undefined,
             cron: delivery.cron,
             timezone: delivery.timezone ?? undefined,
-            format: delivery.format,
-            options: delivery.options,
+            format: isAlert ? SchedulerFormat.IMAGE : delivery.format,
+            options: isAlert ? { withPdf: false } : delivery.options,
             filters,
             parameters: delivery.parameters ?? undefined,
-            customViewportWidth: delivery.customViewportWidth ?? undefined,
-            selectedTabs:
-                resource.type === 'dashboard' && delivery.selectedTabs
-                    ? delivery.selectedTabs.map((tabSlug) =>
-                          CoderService.getDashboardTabUuid(
-                              resource.dashboard,
-                              tabSlug,
-                          ),
-                      )
-                    : delivery.selectedTabs,
-            thresholds: undefined,
+            customViewportWidth: isAlert
+                ? undefined
+                : (delivery.customViewportWidth ?? undefined),
+            selectedTabs,
+            thresholds: isAlert ? delivery.thresholds : undefined,
+            notificationFrequency: isAlert
+                ? delivery.notificationFrequency
+                : undefined,
             enabled: delivery.enabled,
             includeLinks: delivery.includeLinks,
             targets,

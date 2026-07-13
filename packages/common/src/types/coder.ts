@@ -15,6 +15,7 @@ import type {
     DashboardTileTypes,
     FilterRule,
     MetricQuery,
+    NotificationFrequency,
     ParametersValuesMap,
     PromotionChanges,
     SavedChart,
@@ -23,6 +24,7 @@ import type {
     SchedulerImageOptions,
     SchedulerPdfOptions,
     SqlChart,
+    ThresholdOptions,
 } from '..';
 import type { ContentVerificationInfo } from './contentVerification';
 import type { PromotionAction } from './promotion';
@@ -35,6 +37,7 @@ export enum ContentAsCodeType {
     SQL_CHART = 'sql_chart',
     SPACE = 'space',
     SCHEDULED_DELIVERY = 'scheduled_delivery',
+    ALERT = 'alert',
 }
 
 /**
@@ -368,6 +371,46 @@ export type ApiScheduledDeliveryAsCodeListResponse = {
 };
 
 export type ApiScheduledDeliveryAsCodeUpsertResponse = {
+    status: 'ok';
+    results: {
+        action:
+            | PromotionAction.CREATE
+            | PromotionAction.UPDATE
+            | PromotionAction.NO_CHANGES;
+    };
+};
+
+export type AlertAsCode = {
+    contentType: ContentAsCodeType.ALERT;
+    version: number;
+    slug: string;
+    name: string;
+    message: string | null;
+    cron: string;
+    timezone: string | null;
+    enabled: boolean;
+    includeLinks: boolean;
+    targets: ScheduledDeliveryTargetAsCode[];
+    resource: {
+        type: 'chart';
+        slug: string;
+    };
+    thresholds: ThresholdOptions[];
+    notificationFrequency: NotificationFrequency;
+    filters: FiltersInput | null;
+    parameters: ParametersValuesMap | null;
+    downloadedAt?: Date;
+};
+
+export type ApiAlertAsCodeListResponse = {
+    status: 'ok';
+    results: {
+        alerts: AlertAsCode[];
+        skipped: ScheduledDeliveryAsCodeSkip[];
+    };
+};
+
+export type ApiAlertAsCodeUpsertResponse = {
     status: 'ok';
     results: {
         action:

@@ -1,10 +1,16 @@
 import { Ability } from '@casl/ability';
 import {
     ContentAsCodeType,
+    FilterOperator,
+    NotificationFrequency,
     OrganizationMemberRole,
     PossibleAbilities,
     PromotionAction,
     SchedulerFormat,
+    ThresholdOperator,
+    type AlertAsCode,
+    type Filters,
+    type FiltersInput,
     type ScheduledDeliveryAsCode,
     type SchedulerAndTargets,
     type SessionUser,
@@ -107,11 +113,83 @@ const delivery: ScheduledDeliveryAsCode = {
     selectedTabs: null,
 };
 
+const alertScheduler: SchedulerAndTargets = {
+    ...scheduler,
+    schedulerUuid: 'alert-scheduler-uuid',
+    slug: 'revenue-alert',
+    name: 'Revenue alert',
+    message: undefined,
+    format: SchedulerFormat.IMAGE,
+    options: { withPdf: false },
+    thresholds: [
+        {
+            fieldId: 'orders_total_revenue',
+            operator: ThresholdOperator.GREATER_THAN,
+            value: 1000,
+        },
+    ],
+    notificationFrequency: NotificationFrequency.ONCE,
+};
+
+const alert: AlertAsCode = {
+    contentType: ContentAsCodeType.ALERT,
+    version: 1,
+    slug: 'revenue-alert',
+    name: 'Revenue alert',
+    message: null,
+    cron: '0 9 * * 1',
+    timezone: 'Europe/Madrid',
+    enabled: true,
+    includeLinks: true,
+    targets: [{ type: 'email', recipient: 'data@example.com' }],
+    resource: { type: 'chart', slug: 'orders' },
+    thresholds: [
+        {
+            fieldId: 'orders_total_revenue',
+            operator: ThresholdOperator.GREATER_THAN,
+            value: 1000,
+        },
+    ],
+    notificationFrequency: NotificationFrequency.ONCE,
+    filters: null,
+    parameters: null,
+};
+
+const runtimeFilters: Filters = {
+    dimensions: {
+        id: 'runtime-group-id',
+        or: [
+            {
+                id: 'runtime-rule-id',
+                operator: FilterOperator.EQUALS,
+                target: { fieldId: 'payments_payment_method' },
+                values: ['credit_card'],
+            },
+        ],
+    },
+};
+
+const portableFilters: FiltersInput = {
+    dimensions: {
+        or: [
+            {
+                operator: FilterOperator.EQUALS,
+                target: { fieldId: 'payments_payment_method' },
+                values: ['credit_card'],
+            },
+        ],
+    },
+};
+
 const buildService = ({
     existing = null,
-}: { existing?: SchedulerAndTargets | null } = {}) => {
+    schedulers = [scheduler],
+}: {
+    existing?: SchedulerAndTargets | null;
+    schedulers?: SchedulerAndTargets[];
+} = {}) => {
     const schedulerModel = {
-        getSchedulerForProject: vi.fn(async () => [scheduler]),
+        getSchedulerForProject: vi.fn(async () => schedulers),
         findSchedulerByProjectSlug: vi.fn(async () => existing),
     };
     const schedulerService = {
@@ -207,6 +285,17 @@ describe('CoderService scheduled deliveries as code', () => {
         expect(result.scheduledDeliveries[0]).not.toHaveProperty('createdBy');
     });
 
+    it('exports a delivery without targets so they can be added as code', async () => {
+        const { service } = buildService({
+            schedulers: [{ ...scheduler, targets: [] }],
+        });
+
+        const result = await service.getScheduledDeliveries(user, projectUuid);
+
+        expect(result.skipped).toEqual([]);
+        expect(result.scheduledDeliveries[0]).toMatchObject({ targets: [] });
+    });
+
     it('makes the uploader the owner when creating a delivery', async () => {
         const { service, savedChartService } = buildService();
 
@@ -289,6 +378,22 @@ describe('CoderService scheduled deliveries as code', () => {
         expect(schedulerService.updateScheduler).not.toHaveBeenCalled();
     });
 
+    it('ignores generated filter IDs when detecting delivery changes', async () => {
+        const { service, schedulerService } = buildService({
+            existing: { ...scheduler, filters: runtimeFilters },
+        });
+
+        const result = await service.upsertScheduledDelivery(
+            user,
+            projectUuid,
+            delivery.slug,
+            { ...delivery, filters: portableFilters },
+        );
+
+        expect(result).toEqual({ action: PromotionAction.NO_CHANGES });
+        expect(schedulerService.updateScheduler).not.toHaveBeenCalled();
+    });
+
     it('ignores target order and YAML key order when detecting changes', async () => {
         const slackTarget = {
             schedulerSlackTargetUuid: 'slack-target-uuid',
@@ -338,5 +443,133 @@ describe('CoderService scheduled deliveries as code', () => {
 
         expect(result).toEqual({ action: PromotionAction.UPDATE });
         expect(schedulerService.updateScheduler).toHaveBeenCalledOnce();
+    });
+});
+
+describe('CoderService alerts as code', () => {
+    it('exports alerts separately from scheduled deliveries', async () => {
+        const { service } = buildService({ schedulers: [alertScheduler] });
+
+        const alerts = await service.getScheduledDeliveries(
+            user,
+            projectUuid,
+            undefined,
+            ContentAsCodeType.ALERT,
+        );
+        const deliveries = await service.getScheduledDeliveries(
+            user,
+            projectUuid,
+        );
+
+        expect(alerts.skipped).toEqual([]);
+        expect(alerts.alerts).toHaveLength(1);
+        expect(alerts.alerts[0]).toMatchObject(alert);
+        expect(deliveries).toEqual({ scheduledDeliveries: [], skipped: [] });
+    });
+
+    it('exports an alert without targets so they can be added as code', async () => {
+        const { service } = buildService({
+            schedulers: [{ ...alertScheduler, targets: [] }],
+        });
+
+        const result = await service.getScheduledDeliveries(
+            user,
+            projectUuid,
+            undefined,
+            ContentAsCodeType.ALERT,
+        );
+
+        expect(result.skipped).toEqual([]);
+        expect(result.alerts[0]).toMatchObject({ targets: [] });
+    });
+
+    it('updates a targetless alert when a target is added as code', async () => {
+        const { service, schedulerService } = buildService({
+            existing: { ...alertScheduler, targets: [] },
+        });
+
+        const result = await service.upsertScheduledDelivery(
+            user,
+            projectUuid,
+            alert.slug,
+            alert,
+        );
+
+        expect(result).toEqual({ action: PromotionAction.UPDATE });
+        expect(schedulerService.updateScheduler).toHaveBeenCalledWith(
+            user,
+            alertScheduler.schedulerUuid,
+            expect.objectContaining({
+                targets: [{ recipient: 'data@example.com' }],
+            }),
+        );
+    });
+
+    it('creates an alert with scheduler implementation details', async () => {
+        const { service, savedChartService } = buildService();
+
+        const result = await service.upsertScheduledDelivery(
+            user,
+            projectUuid,
+            alert.slug,
+            alert,
+        );
+
+        expect(result).toEqual({ action: PromotionAction.CREATE });
+        expect(savedChartService.createScheduler).toHaveBeenCalledWith(
+            user,
+            chartUuid,
+            expect.objectContaining({
+                format: SchedulerFormat.IMAGE,
+                options: { withPdf: false },
+                thresholds: alert.thresholds,
+                notificationFrequency: NotificationFrequency.ONCE,
+            }),
+        );
+    });
+
+    it('does not reschedule an unchanged alert', async () => {
+        const { service, schedulerService } = buildService({
+            existing: alertScheduler,
+        });
+
+        const result = await service.upsertScheduledDelivery(
+            user,
+            projectUuid,
+            alert.slug,
+            alert,
+        );
+
+        expect(result).toEqual({ action: PromotionAction.NO_CHANGES });
+        expect(schedulerService.updateScheduler).not.toHaveBeenCalled();
+    });
+
+    it('exports portable filters and ignores their generated IDs', async () => {
+        const alertWithFilters = { ...alert, filters: portableFilters };
+        const schedulerWithFilters = {
+            ...alertScheduler,
+            filters: runtimeFilters,
+        };
+        const { service, schedulerService } = buildService({
+            existing: schedulerWithFilters,
+            schedulers: [schedulerWithFilters],
+        });
+
+        const exported = await service.getScheduledDeliveries(
+            user,
+            projectUuid,
+            undefined,
+            ContentAsCodeType.ALERT,
+        );
+        const result = await service.upsertScheduledDelivery(
+            user,
+            projectUuid,
+            alert.slug,
+            alertWithFilters,
+        );
+
+        expect(exported.alerts[0].filters).toEqual(portableFilters);
+        expect(result).toEqual({ action: PromotionAction.NO_CHANGES });
+        expect(schedulerService.updateScheduler).not.toHaveBeenCalled();
     });
 });
