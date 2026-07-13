@@ -1,6 +1,7 @@
 import {
     ApiJobScheduledResponse,
     ApiJobStatusResponse,
+    ApiSpaceSummaryListResponse,
     ApiValidateResponse,
     Explore,
     ExploreError,
@@ -24,6 +25,11 @@ import * as styles from '../styles';
 import { compile, CompileHandlerOptions } from './compile';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { getProjectDisableTimestampConversion } from './timestampConversion';
+import {
+    filterValidationsBySpace,
+    resolveSpaceSelection,
+    SpaceFilterMode,
+} from './validateSpaceFilter';
 
 export const requestValidation = async (
     projectUuid: string,
@@ -50,6 +56,13 @@ export const getValidation = async (projectUuid: string, jobId: string) =>
         body: undefined,
     });
 
+export const getProjectSpaces = async (projectUuid: string) =>
+    lightdashApi<ApiSpaceSummaryListResponse['results']>({
+        method: 'GET',
+        url: `/api/v1/projects/${projectUuid}/spaces`,
+        body: undefined,
+    });
+
 export function delay(ms: number) {
     return new Promise((resolve) => {
         setTimeout(resolve, ms);
@@ -71,6 +84,8 @@ type ValidateHandlerOptions = CompileHandlerOptions & {
     preview: boolean;
     only: ValidationTarget[];
     showChartConfigurationWarnings: boolean;
+    includeSpaces?: string[];
+    excludeSpaces?: string[];
 };
 
 export const waitUntilFinished = async (jobUuid: string): Promise<string> => {
@@ -93,6 +108,12 @@ export const validateHandler = async (
     const options = { ...originalOptions };
     GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
+
+    if (options.includeSpaces?.length && options.excludeSpaces?.length) {
+        throw new ParameterError(
+            'Cannot use --include-spaces and --exclude-spaces together',
+        );
+    }
 
     const executionId = uuidv4();
     const startTime = Date.now();
@@ -152,11 +173,30 @@ export const validateHandler = async (
             projectId: projectUuid,
             isPreview,
             validationTargets,
+            includedSpacesCount: options.includeSpaces?.length ?? 0,
+            excludedSpacesCount: options.excludeSpaces?.length ?? 0,
         },
     });
 
     let shouldExitWithError = false;
     try {
+        let spaceFilter:
+            | { mode: SpaceFilterMode; selectedSpaceUuids: Set<string> }
+            | undefined;
+        const spaceFilterSlugs = options.includeSpaces?.length
+            ? options.includeSpaces
+            : options.excludeSpaces;
+        if (spaceFilterSlugs?.length) {
+            const spaces = await getProjectSpaces(projectUuid);
+            spaceFilter = {
+                mode: options.includeSpaces?.length ? 'include' : 'exclude',
+                selectedSpaceUuids: resolveSpaceSelection(
+                    spaces,
+                    spaceFilterSlugs,
+                ),
+            };
+        }
+
         const explores = await compile(options);
         GlobalState.debug(`> Compiled ${explores.length} explores`);
 
@@ -177,15 +217,30 @@ export const validateHandler = async (
         const allValidation = await getValidation(projectUuid, jobId);
 
         // Filter out chart configuration warnings unless explicitly requested
-        const validation = options.showChartConfigurationWarnings
-            ? allValidation
-            : allValidation.filter(
-                  (v) =>
-                      !isChartValidationError(v) ||
-                      v.errorType !== ValidationErrorType.ChartConfiguration,
-              );
+        const validationWithoutConfigWarnings =
+            options.showChartConfigurationWarnings
+                ? allValidation
+                : allValidation.filter(
+                      (v) =>
+                          !isChartValidationError(v) ||
+                          v.errorType !==
+                              ValidationErrorType.ChartConfiguration,
+                  );
 
-        const hiddenWarningsCount = allValidation.length - validation.length;
+        const hiddenWarningsCount =
+            allValidation.length - validationWithoutConfigWarnings.length;
+
+        let validation = validationWithoutConfigWarnings;
+        let spaceFilteredCount = 0;
+        if (spaceFilter) {
+            validation = filterValidationsBySpace(
+                validationWithoutConfigWarnings,
+                spaceFilter.selectedSpaceUuids,
+                spaceFilter.mode,
+            );
+            spaceFilteredCount =
+                validationWithoutConfigWarnings.length - validation.length;
+        }
         const tableErrors = validation.filter(isTableValidationError);
         const chartErrors = validation.filter(isChartValidationError);
         const dashboardErrors = validation.filter(isDashboardValidationError);
@@ -197,6 +252,8 @@ export const validateHandler = async (
                 projectId: projectUuid,
                 isPreview,
                 validationTargets,
+                includedSpacesCount: options.includeSpaces?.length ?? 0,
+                excludedSpacesCount: options.excludeSpaces?.length ?? 0,
                 durationMs: Date.now() - startTime,
                 success: validation.length === 0,
                 totalErrors: validation.length,
@@ -214,10 +271,16 @@ export const validateHandler = async (
                           hiddenWarningsCount > 1 ? 's' : ''
                       } hidden, use --show-chart-configuration-warnings to show)`
                     : '';
+            const spaceFilteredMessage =
+                spaceFilteredCount > 0
+                    ? ` (${spaceFilteredCount} error${
+                          spaceFilteredCount > 1 ? 's' : ''
+                      } in filtered-out spaces hidden)`
+                    : '';
             spinner?.succeed(
                 `  Validation finished without errors in ${Math.trunc(
                     elapsedMs / 1000,
-                )}s${hiddenMessage}`,
+                )}s${hiddenMessage}${spaceFilteredMessage}`,
             );
         } else {
             const elapsedMs = Date.now() - startTime;
@@ -256,6 +319,16 @@ export const validateHandler = async (
             ) {
                 console.error(
                     `- Dashboards: ${styleTotalErrors(dashboardErrors.length)}`,
+                );
+            }
+
+            if (spaceFilteredCount > 0) {
+                console.error(
+                    styles.secondary(
+                        `(${spaceFilteredCount} error${
+                            spaceFilteredCount > 1 ? 's' : ''
+                        } in filtered-out spaces hidden)`,
+                    ),
                 );
             }
 
