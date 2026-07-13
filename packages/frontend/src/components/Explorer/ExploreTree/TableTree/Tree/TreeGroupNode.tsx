@@ -1,6 +1,6 @@
 import { hasIntersection } from '@lightdash/common';
-import { Group, Text } from '@mantine-8/core';
-import { Badge, Highlight, HoverCard, NavLink } from '@mantine/core';
+import { Group, Text, Highlight } from '@mantine-8/core';
+import { Badge, HoverCard, NavLink } from '@mantine/core';
 import { IconChevronRight } from '@tabler/icons-react';
 import intersectionBy from 'lodash/intersectionBy';
 import { memo, useCallback, useMemo, type FC } from 'react';
@@ -175,6 +175,7 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
                                 <Highlight
                                     component="span"
                                     highlight={searchQuery || ''}
+                                    inherit
                                 >
                                     {label}
                                 </Highlight>

@@ -7,8 +7,9 @@ import {
     Stack,
     Text,
     ActionIcon,
+    Highlight,
 } from '@mantine-8/core';
-import { Highlight, ScrollArea, TextInput, Tooltip } from '@mantine/core';
+import { ScrollArea, TextInput, Tooltip } from '@mantine/core';
 import { useDebouncedValue, useHover } from '@mantine/hooks';
 import { IconCopy, IconSearch, IconX } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
@@ -76,7 +77,11 @@ const TableField: FC<{
                     style={{ flex: 1 }}
                     truncate
                 >
-                    <Highlight component="span" highlight={search || ''}>
+                    <Highlight
+                        component="span"
+                        highlight={search || ''}
+                        inherit
+                    >
                         {field.name}
                     </Highlight>
                 </Text>

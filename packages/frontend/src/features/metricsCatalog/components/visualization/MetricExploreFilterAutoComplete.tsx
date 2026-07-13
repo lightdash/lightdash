@@ -1,7 +1,6 @@
 import { type CompiledDimension } from '@lightdash/common';
-import { Group, Loader, Stack, Text } from '@mantine-8/core';
+import { Group, Loader, Stack, Text, Highlight } from '@mantine-8/core';
 import {
-    Highlight,
     MultiSelect,
     ScrollArea,
     Tooltip,
@@ -260,7 +259,7 @@ export const MetricExploreFilterAutoComplete: FC<Props> = ({
                             {label}
                         </Text>
                     ) : (
-                        <Highlight highlight={search} {...others}>
+                        <Highlight highlight={search} {...others} fz="sm">
                             {label}
                         </Highlight>
                     )

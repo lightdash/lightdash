@@ -17,8 +17,8 @@ import {
     type FilterableField,
     type Item,
 } from '@lightdash/common';
-import { Group, Text, ActionIcon } from '@mantine-8/core';
-import { Highlight, HoverCard, NavLink, Tooltip } from '@mantine/core';
+import { Group, Text, ActionIcon, Highlight } from '@mantine-8/core';
+import { HoverCard, NavLink, Tooltip } from '@mantine/core';
 import {
     IconAlertTriangle,
     IconCalendarPin,
@@ -450,6 +450,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                                 <Highlight
                                     component="span"
                                     highlight={searchQuery || ''}
+                                    inherit
                                 >
                                     {label}
                                 </Highlight>

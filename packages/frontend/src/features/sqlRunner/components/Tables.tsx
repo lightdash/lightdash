@@ -9,14 +9,9 @@ import {
     type BoxProps,
     Text,
     ActionIcon,
-} from '@mantine-8/core';
-import {
     Highlight,
-    ScrollArea,
-    TextInput,
-    Tooltip,
-    UnstyledButton,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { ScrollArea, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
 import { useDebouncedValue, useHover } from '@mantine/hooks';
 import {
     IconChevronDown,
@@ -136,6 +131,7 @@ const TableItem: FC<TableItemProps> = memo(
                                 <Highlight
                                     component="span"
                                     highlight={search || ''}
+                                    inherit
                                 >
                                     {table}
                                 </Highlight>
