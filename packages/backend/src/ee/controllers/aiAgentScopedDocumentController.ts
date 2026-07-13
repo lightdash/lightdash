@@ -1,10 +1,12 @@
 import {
+    ApiAiAgentDocumentContentResponse,
     ApiAiAgentDocumentResponse,
     ApiAiAgentDocumentSummaryListResponse,
     ApiCreateAgentDocument,
     ApiErrorPayload,
     ApiSuccessEmpty,
     ApiUpdateAgentDocument,
+    ApiUpdateAgentDocumentContent,
     assertRegisteredAccount,
     type UUID,
 } from '@lightdash/common';
@@ -89,6 +91,64 @@ export class AiAgentScopedDocumentController extends BaseController {
             results: await this.getService().createDocument(
                 toSessionUser(req.account),
                 { projectUuid, agentUuid },
+                body,
+            ),
+        };
+    }
+
+    /**
+     * Read the full content of a knowledge document this agent can use.
+     * @summary Get agent document content
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{documentUuid}/content')
+    @OperationId('getAgentDocumentContent')
+    async getDocumentContent(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() agentUuid: UUID,
+        @Path() documentUuid: UUID,
+    ): Promise<ApiAiAgentDocumentContentResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getService().getDocumentContent(
+                toSessionUser(req.account),
+                { projectUuid, agentUuid },
+                documentUuid,
+            ),
+        };
+    }
+
+    /**
+     * Replace the name and content of a knowledge document this agent can use.
+     * @summary Update agent document content
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('/{documentUuid}/content')
+    @OperationId('updateAgentDocumentContent')
+    async updateDocumentContent(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() agentUuid: UUID,
+        @Path() documentUuid: UUID,
+        @Body() body: ApiUpdateAgentDocumentContent,
+    ): Promise<ApiAiAgentDocumentResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getService().updateDocumentContent(
+                toSessionUser(req.account),
+                { projectUuid, agentUuid },
+                documentUuid,
                 body,
             ),
         };

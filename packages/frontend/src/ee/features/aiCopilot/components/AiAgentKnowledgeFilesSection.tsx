@@ -23,6 +23,7 @@ import {
     UnstyledButton,
 } from '@mantine-8/core';
 import {
+    IconEye,
     IconFileText,
     IconFolderOpen,
     IconTrash,
@@ -45,6 +46,7 @@ import {
 } from '../hooks/useAiAgentDocuments';
 import { AiAgentDocumentRelevanceCard } from './AiAgentDocumentRelevanceCard';
 import { AiAgentIcon } from './AiAgentIcon';
+import { AiAgentKnowledgeDocumentModal } from './AiAgentKnowledgeDocumentModal';
 import styles from './AiAgentKnowledgeFilesSection.module.css';
 
 const ACCEPT_ATTR =
@@ -104,7 +106,7 @@ const getPendingActionModalConfig = (
         case 'enableFullContext':
             return {
                 title: 'Always include in context?',
-                description: `The full content of “${action.document.name}” will be added to every prompt. This uses more tokens and may increase response time.`,
+                description: `The full content of “${action.document.name}” will be added to every session. This uses more tokens and may increase response time.`,
                 confirmLabel: 'Always include',
                 variant: 'default',
             };
@@ -138,6 +140,8 @@ export const AiAgentKnowledgeFilesSection = ({
     const [pendingAction, setPendingAction] = useState<PendingAction | null>(
         null,
     );
+    const [viewingDocument, setViewingDocument] =
+        useState<AiAgentDocumentSummary | null>(null);
 
     const effectiveSelectedId = useMemo(() => {
         if (selectedId && pendingUploads.some((p) => p.tempId === selectedId)) {
@@ -548,32 +552,52 @@ export const AiAgentKnowledgeFilesSection = ({
                                             </Text>
                                         </Stack>
                                         {selectedDocument && (
-                                            <Tooltip
-                                                label="Delete document"
-                                                position="left"
-                                                withArrow
-                                            >
-                                                <ActionIcon
-                                                    variant="subtle"
-                                                    color="red"
-                                                    loading={
-                                                        deleteDocument.isLoading &&
-                                                        deleteDocument.variables ===
-                                                            selectedDocument.uuid
-                                                    }
-                                                    onClick={() =>
-                                                        setPendingAction({
-                                                            type: 'delete',
-                                                            document:
-                                                                selectedDocument,
-                                                        })
-                                                    }
+                                            <Group gap={4} wrap="nowrap">
+                                                <Tooltip
+                                                    label="View and edit document"
+                                                    position="left"
+                                                    withArrow
                                                 >
-                                                    <MantineIcon
-                                                        icon={IconTrash}
-                                                    />
-                                                </ActionIcon>
-                                            </Tooltip>
+                                                    <ActionIcon
+                                                        variant="subtle"
+                                                        onClick={() =>
+                                                            setViewingDocument(
+                                                                selectedDocument,
+                                                            )
+                                                        }
+                                                    >
+                                                        <MantineIcon
+                                                            icon={IconEye}
+                                                        />
+                                                    </ActionIcon>
+                                                </Tooltip>
+                                                <Tooltip
+                                                    label="Delete document"
+                                                    position="left"
+                                                    withArrow
+                                                >
+                                                    <ActionIcon
+                                                        variant="subtle"
+                                                        color="red"
+                                                        loading={
+                                                            deleteDocument.isLoading &&
+                                                            deleteDocument.variables ===
+                                                                selectedDocument.uuid
+                                                        }
+                                                        onClick={() =>
+                                                            setPendingAction({
+                                                                type: 'delete',
+                                                                document:
+                                                                    selectedDocument,
+                                                            })
+                                                        }
+                                                    >
+                                                        <MantineIcon
+                                                            icon={IconTrash}
+                                                        />
+                                                    </ActionIcon>
+                                                </Tooltip>
+                                            </Group>
                                         )}
                                     </Group>
 
@@ -581,7 +605,7 @@ export const AiAgentKnowledgeFilesSection = ({
                                         <Switch
                                             size="xs"
                                             label="Always include in context"
-                                            description="Adds the full document to every prompt. Uses more tokens."
+                                            description="Adds the full document to every session. Uses more tokens."
                                             checked={
                                                 selectedDocument.alwaysIncludeInContext
                                             }
@@ -667,6 +691,12 @@ export const AiAgentKnowledgeFilesSection = ({
                     </Group>
                 )}
             </Paper>
+            <AiAgentKnowledgeDocumentModal
+                agentUuid={agentUuid}
+                document={viewingDocument}
+                onClose={() => setViewingDocument(null)}
+                projectUuid={projectUuid}
+            />
             {pendingAction && (
                 <MantineModal
                     opened

@@ -1,13 +1,16 @@
 import { subject } from '@casl/ability';
 import {
     AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES,
+    AI_AGENT_DOCUMENT_MAX_NAME_LENGTH,
     AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES,
     AiAgent,
     AiAgentDocument,
+    AiAgentDocumentContent,
     AiAgentDocumentSummary,
     ApiCreateAgentDocument,
     ApiCreateAiAgentDocument,
     ApiUpdateAgentDocument,
+    ApiUpdateAgentDocumentContent,
     CommercialFeatureFlags,
     Explore,
     ForbiddenError,
@@ -20,6 +23,7 @@ import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
 import {
     AiAgentDocumentCreatedEvent,
     AiAgentDocumentDeletedEvent,
+    AiAgentDocumentUpdatedEvent,
     LightdashAnalytics,
 } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -130,6 +134,34 @@ export class AiAgentDocumentService extends BaseService {
         }
     }
 
+    private async generateSummary(
+        user: SessionUser,
+        organizationUuid: string,
+        args: {
+            name: string;
+            content: string;
+            projectExplores: Explore[];
+        },
+    ): Promise<AiAgentDocument['summary']> {
+        const copilotConfig =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                organizationUuid,
+            );
+        return generateDocumentSummary(
+            {
+                ...getModel(copilotConfig, {
+                    enableReasoning: false,
+                    useFastModel: true,
+                }),
+                telemetry: {
+                    organizationUuid,
+                    userUuid: user.userUuid,
+                },
+            },
+            args,
+        );
+    }
+
     private async assertCopilotEnabled(user: SessionUser): Promise<void> {
         const flag = await this.commercialFeatureFlagModel.get({
             user,
@@ -225,6 +257,161 @@ export class AiAgentDocumentService extends BaseService {
         });
     }
 
+    async getDocumentContent(
+        user: SessionUser,
+        { projectUuid, agentUuid }: AiAgentDocumentScope,
+        documentUuid: string,
+    ): Promise<AiAgentDocumentContent> {
+        const organizationUuid = assertOrganizationUuid(user);
+        await this.assertCopilotEnabled(user);
+        this.assertCanViewDocuments(user, organizationUuid, projectUuid);
+        await this.aiAgentService.getAgent(user, agentUuid, projectUuid);
+
+        const content = await this.aiAgentDocumentModel.getContentForAgent({
+            organizationUuid,
+            agentUuid,
+            projectUuid,
+            documentUuid,
+        });
+        if (!content) {
+            throw new NotFoundError(
+                `AI agent document ${documentUuid} not found`,
+            );
+        }
+        return content;
+    }
+
+    async updateDocumentContent(
+        user: SessionUser,
+        { projectUuid, agentUuid }: AiAgentDocumentScope,
+        documentUuid: string,
+        body: ApiUpdateAgentDocumentContent,
+    ): Promise<AiAgentDocument> {
+        const organizationUuid = assertOrganizationUuid(user);
+        await this.assertCopilotEnabled(user);
+        this.assertCanManageDocuments(user, organizationUuid, projectUuid);
+        const agent = await this.aiAgentService.getAgent(
+            user,
+            agentUuid,
+            projectUuid,
+        );
+
+        const existing = await this.aiAgentDocumentModel.findAccessibleForAgent(
+            {
+                organizationUuid,
+                agentUuid,
+                projectUuid,
+                documentUuid,
+            },
+        );
+        if (!existing) {
+            throw new NotFoundError(
+                `AI agent document ${documentUuid} not found`,
+            );
+        }
+        this.assertCanManageDocuments(
+            user,
+            organizationUuid,
+            existing.projectUuid,
+        );
+
+        const name = body.name.trim();
+        if (name.length === 0) {
+            throw new ParameterError('Document name cannot be empty');
+        }
+        if (name.length > AI_AGENT_DOCUMENT_MAX_NAME_LENGTH) {
+            throw new ParameterError(
+                `Document name cannot exceed ${AI_AGENT_DOCUMENT_MAX_NAME_LENGTH} characters`,
+            );
+        }
+
+        const existingContent =
+            await this.aiAgentDocumentModel.getContentForAgent({
+                organizationUuid,
+                agentUuid,
+                projectUuid,
+                documentUuid,
+            });
+        if (!existingContent) {
+            throw new NotFoundError(
+                `AI agent document ${documentUuid} not found`,
+            );
+        }
+
+        const contentSizeBytes = Buffer.byteLength(body.content, 'utf8');
+        const contentChanged = body.content !== existingContent.content;
+        if (contentChanged) {
+            if (contentSizeBytes > AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES) {
+                throw new PayloadTooLargeError(
+                    `Content exceeds the ${AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES} byte limit.`,
+                    {
+                        contentSizeBytes,
+                        maxBytes: AI_AGENT_DOCUMENT_MAX_CONTENT_BYTES,
+                    },
+                );
+            }
+
+            const existingTotal =
+                await this.aiAgentDocumentModel.getOrganizationContentSize(
+                    organizationUuid,
+                );
+            const projectedTotal =
+                existingTotal - existing.contentSizeBytes + contentSizeBytes;
+            if (projectedTotal > AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES) {
+                throw new PayloadTooLargeError(
+                    `Organization document quota of ${AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES} bytes would be exceeded`,
+                    {
+                        currentBytes: existingTotal,
+                        incomingBytes: contentSizeBytes,
+                        quotaBytes: AI_AGENT_DOCUMENT_ORG_QUOTA_BYTES,
+                    },
+                );
+            }
+        }
+
+        let { summary } = existing;
+        if (contentChanged) {
+            const projectExplores = await this.getAgentExploresForSummarization(
+                user,
+                agent,
+            );
+            try {
+                summary = await this.generateSummary(user, organizationUuid, {
+                    name,
+                    content: body.content,
+                    projectExplores,
+                });
+            } catch (error) {
+                this.logger.error(
+                    `Failed to regenerate summary for document "${name}", keeping the existing summary: ${error}`,
+                );
+            }
+        }
+
+        const document = await this.aiAgentDocumentModel.updateContent({
+            documentUuid,
+            organizationUuid,
+            name,
+            content: body.content,
+            summary,
+            updatedByUserUuid: user.userUuid,
+        });
+
+        this.analytics.track<AiAgentDocumentUpdatedEvent>({
+            event: 'ai_agent_document.updated',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: existing.projectUuid,
+                documentId: documentUuid,
+                contentChanged,
+                contentSizeBytes,
+            },
+        });
+
+        return document;
+    }
+
     async updateDocument(
         user: SessionUser,
         { projectUuid, agentUuid }: AiAgentDocumentScope,
@@ -303,23 +490,9 @@ export class AiAgentDocumentService extends BaseService {
             body.originalFilename,
         );
 
-        const copilotConfig =
-            await this.orgAiCopilotConfigResolver.getCopilotConfig(
-                organizationUuid,
-            );
-        const modelOptions = {
-            ...getModel(copilotConfig, {
-                enableReasoning: false,
-                useFastModel: true,
-            }),
-            telemetry: {
-                organizationUuid,
-                userUuid: user.userUuid,
-            },
-        };
         let summary: AiAgentDocument['summary'];
         try {
-            summary = await generateDocumentSummary(modelOptions, {
+            summary = await this.generateSummary(user, organizationUuid, {
                 name: body.name,
                 content: body.content,
                 projectExplores: scope.projectExplores,
