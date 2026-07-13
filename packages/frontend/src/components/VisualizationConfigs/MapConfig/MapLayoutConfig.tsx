@@ -9,14 +9,8 @@ import {
     MapChartLocation,
     MapChartType,
 } from '@lightdash/common';
-import { Group, Stack } from '@mantine-8/core';
-import {
-    Loader,
-    SegmentedControl,
-    Select,
-    Switch,
-    TextInput,
-} from '@mantine/core';
+import { Group, Loader, Stack } from '@mantine-8/core';
+import { SegmentedControl, Select, Switch, TextInput } from '@mantine/core';
 import { memo, useEffect, useMemo, type FC } from 'react';
 import {
     findMatchingProperty,

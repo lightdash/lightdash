@@ -1,9 +1,8 @@
 import { isDimension, type FilterableItem } from '@lightdash/common';
-import { Group, Stack, Text } from '@mantine-8/core';
+import { Group, Loader, Stack, Text } from '@mantine-8/core';
 import {
     ActionIcon,
     Highlight,
-    Loader,
     MultiSelect,
     ScrollArea,
     TextInput,

@@ -8,7 +8,8 @@ import {
     type Explore,
     type Metric,
 } from '@lightdash/common';
-import { ActionIcon, Loader, TextInput } from '@mantine/core';
+import { Loader } from '@mantine-8/core';
+import { ActionIcon, TextInput } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import {

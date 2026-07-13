@@ -1,5 +1,5 @@
-import { Box, Flex, Group, Stack, Text, Title } from '@mantine-8/core';
-import { Alert, Avatar, Button, Loader, Tooltip } from '@mantine/core';
+import { Box, Flex, Group, Loader, Stack, Text, Title } from '@mantine-8/core';
+import { Alert, Avatar, Button, Tooltip } from '@mantine/core';
 import {
     IconAlertCircle,
     IconClock,
