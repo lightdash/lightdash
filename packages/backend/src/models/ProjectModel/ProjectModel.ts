@@ -1614,6 +1614,113 @@ export class ProjectModel {
         );
     }
 
+    async updateCachedExploreField(
+        projectUuid: string,
+        exploreName: string,
+        fieldType: 'dimension' | 'metric',
+        fieldName: string,
+        updates: { label?: string; hidden?: boolean },
+    ): Promise<Explore> {
+        return this.database.transaction(async (trx) => {
+            const cachedExplore = await trx(CachedExploreTableName)
+                .select<{ explore: Explore | ExploreError }>('explore')
+                .where('project_uuid', projectUuid)
+                .andWhere('name', exploreName)
+                .forUpdate()
+                .first();
+            if (!cachedExplore) {
+                throw new NotFoundError(
+                    `Explore "${exploreName}" does not exist.`,
+                );
+            }
+            if (isExploreError(cachedExplore.explore)) {
+                throw new ParameterError(
+                    `Explore "${exploreName}" has no editable fields.`,
+                );
+            }
+
+            const collectionName =
+                fieldType === 'dimension' ? 'dimensions' : 'metrics';
+            const matches = Object.entries(
+                cachedExplore.explore.tables,
+            ).flatMap(([tableName, table]) =>
+                Object.keys(table[collectionName])
+                    .filter(
+                        (key) =>
+                            key === fieldName ||
+                            `${tableName}_${key}` === fieldName,
+                    )
+                    .map((key) => ({ tableName, key })),
+            );
+            if (matches.length === 0) {
+                throw new NotFoundError(
+                    `${fieldType} "${fieldName}" does not exist in explore "${exploreName}".`,
+                );
+            }
+            if (matches.length > 1) {
+                throw new ParameterError(
+                    `${fieldType} "${fieldName}" is ambiguous in explore "${exploreName}". Use its table-prefixed field ID.`,
+                );
+            }
+
+            const [{ tableName, key }] = matches;
+            const table = cachedExplore.explore.tables[tableName];
+            const updatedExplore: Explore = {
+                ...cachedExplore.explore,
+                tables: {
+                    ...cachedExplore.explore.tables,
+                    [tableName]: {
+                        ...table,
+                        [collectionName]: {
+                            ...table[collectionName],
+                            [key]: {
+                                ...table[collectionName][key],
+                                ...updates,
+                            },
+                        },
+                    },
+                },
+            };
+
+            await trx(CachedExploreTableName)
+                .where('project_uuid', projectUuid)
+                .andWhere('name', exploreName)
+                .update({ explore: JSON.stringify(updatedExplore) });
+            await trx(CachedExploresTableName)
+                .where('project_uuid', projectUuid)
+                .update({
+                    explores: trx.raw(
+                        `
+                        CASE
+                            WHEN explores IS NULL THEN ?::jsonb
+                            ELSE (
+                                SELECT jsonb_agg(
+                                    CASE
+                                        WHEN (value->>'name') = ? THEN ?::jsonb
+                                        ELSE value
+                                    END
+                                )
+                                FROM jsonb_array_elements(
+                                    CASE
+                                        WHEN jsonb_typeof(explores) = 'array' THEN explores
+                                        ELSE '[]'::jsonb
+                                    END
+                                )
+                            )
+                        END
+                    `,
+                        [
+                            JSON.stringify([updatedExplore]),
+                            exploreName,
+                            JSON.stringify(updatedExplore),
+                        ],
+                    ),
+                });
+
+            return updatedExplore;
+        });
+    }
+
     async tryAcquireProjectLock(
         projectUuid: string,
         onLockAcquired: () => Promise<void>,

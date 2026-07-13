@@ -70,6 +70,7 @@ import { SavedChartService } from './SavedChartsService/SavedChartService';
 import { SavedSqlService } from './SavedSqlService/SavedSqlService';
 import { SchedulerService } from './SchedulerService/SchedulerService';
 import { SearchService } from './SearchService/SearchService';
+import { SemanticGenerationService } from './SemanticGenerationService/SemanticGenerationService';
 import { ShareService } from './ShareService/ShareService';
 import { SlackIntegrationService } from './SlackIntegrationService/SlackIntegrationService';
 import { SlackService } from './SlackService/SlackService';
@@ -125,6 +126,7 @@ interface ServiceManifest {
     savedChartService: SavedChartService;
     schedulerService: SchedulerService;
     searchService: SearchService;
+    semanticGenerationService: SemanticGenerationService;
     shareService: ShareService;
     slackIntegrationService: SlackIntegrationService;
     sshKeyPairService: SshKeyPairService;
@@ -864,6 +866,21 @@ export class ServiceRepository
             'projectProfileService',
             () =>
                 new ProjectProfileService({
+                    jobModel: this.models.getJobModel(),
+                    onboardingProjectStateModel:
+                        this.models.getOnboardingProjectStateModel(),
+                    projectModel: this.models.getProjectModel(),
+                    projectService: this.getProjectService(),
+                    schedulerClient: this.clients.getSchedulerClient(),
+                }),
+        );
+    }
+
+    public getSemanticGenerationService(): SemanticGenerationService {
+        return this.getService(
+            'semanticGenerationService',
+            () =>
+                new SemanticGenerationService({
                     jobModel: this.models.getJobModel(),
                     onboardingProjectStateModel:
                         this.models.getOnboardingProjectStateModel(),

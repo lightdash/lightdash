@@ -27,6 +27,7 @@
         "test:dev:nowatch": "vitest run --config vitest.config.ts --changed",
         "test:snapshots:update": "vitest run --config vitest.config.ts src/utils/QueryBuilder/metricQueryBuilderSnapshots -u",
         "test:integration": "vitest run --config vitest.config.integration.ts",
+        "test:integration:db": "vitest run --config vitest.config.integration.db.ts",
         "test:integration:dev": "vitest run --config vitest.config.integration.ts --watch",
         "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore --rulesdir eslint-rules",
         "formatter": "oxfmt",

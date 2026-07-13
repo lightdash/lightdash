@@ -66,6 +66,7 @@ import {
     NotificationFrequency,
     NotificationPayloadBase,
     OnboardingProfilePayload,
+    OnboardingSemanticPayload,
     operatorActionValue,
     ParameterError,
     ParametersValuesMap,
@@ -179,6 +180,7 @@ import { getDashboardParametersValuesMap } from '../services/ProjectService/para
 import { ProjectService } from '../services/ProjectService/ProjectService';
 import { RenameService } from '../services/RenameService/RenameService';
 import { SchedulerService } from '../services/SchedulerService/SchedulerService';
+import { SemanticGenerationService } from '../services/SemanticGenerationService/SemanticGenerationService';
 import {
     ScreenshotContext,
     UnfurlService,
@@ -208,6 +210,7 @@ export type SchedulerTaskArguments = {
     deployService: DeployService;
     projectService: ProjectService;
     projectProfileService: ProjectProfileService;
+    semanticGenerationService: SemanticGenerationService;
     schedulerService: SchedulerService;
     unfurlService: UnfurlService;
     userService: UserService;
@@ -374,6 +377,8 @@ export default class SchedulerTask {
 
     protected readonly projectProfileService: ProjectProfileService;
 
+    protected readonly semanticGenerationService: SemanticGenerationService;
+
     protected readonly schedulerService: SchedulerService;
 
     protected readonly unfurlService: UnfurlService;
@@ -425,6 +430,7 @@ export default class SchedulerTask {
         this.deployService = args.deployService;
         this.projectService = args.projectService;
         this.projectProfileService = args.projectProfileService;
+        this.semanticGenerationService = args.semanticGenerationService;
         this.schedulerService = args.schedulerService;
         this.unfurlService = args.unfurlService;
         this.userService = args.userService;
@@ -2135,6 +2141,63 @@ export default class SchedulerTask {
             });
 
             await this.projectProfileService.runProfileJob(user, payload);
+
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                details: {
+                    createdByUserUuid: payload.createdByUserUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                    jobUuid: payload.jobUuid,
+                },
+                status: SchedulerJobStatus.COMPLETED,
+            });
+        } catch (error) {
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                details: {
+                    createdByUserUuid: payload.createdByUserUuid,
+                    error: getErrorMessage(error),
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                    jobUuid: payload.jobUuid,
+                },
+                status: SchedulerJobStatus.ERROR,
+            });
+            throw error;
+        }
+    }
+
+    protected async onboardingSemantic(
+        jobId: string,
+        scheduledTime: Date,
+        payload: OnboardingSemanticPayload,
+    ) {
+        const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> =
+            {
+                task: SCHEDULER_TASKS.ONBOARDING_SEMANTIC,
+                jobId,
+                scheduledTime,
+            };
+        try {
+            const user = await this.userService.getSessionByUserUuid(
+                payload.createdByUserUuid,
+            );
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                details: {
+                    createdByUserUuid: payload.createdByUserUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                    jobUuid: payload.jobUuid,
+                },
+                status: SchedulerJobStatus.STARTED,
+            });
+
+            await this.semanticGenerationService.runGenerationJob(
+                user,
+                payload,
+            );
 
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,

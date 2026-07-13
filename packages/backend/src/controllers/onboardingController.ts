@@ -4,11 +4,14 @@ import {
     ApiGrantScriptResponse,
     ApiOnboardingProfileResponse,
     ApiOnboardingProjectStateResponse,
+    ApiOnboardingSemanticLayerResponse,
     ApiScheduleOnboardingProfileResponse,
+    ApiScheduleOnboardingSemanticLayerResponse,
     assertRegisteredAccount,
     GrantScriptRequest,
     TestOnboardingConnectionRequest,
     UpdateOnboardingProjectStep,
+    UpdateSemanticLayerFieldRequest,
     type UUID,
 } from '@lightdash/common';
 import {
@@ -114,6 +117,58 @@ export class OnboardingController extends BaseController {
             results: await this.services
                 .getProjectProfileService()
                 .getProfile(toSessionUser(req.account), projectUuid),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/semantic-layer')
+    @OperationId('ScheduleOnboardingSemanticLayer')
+    async scheduleSemanticLayer(
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiScheduleOnboardingSemanticLayerResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSemanticGenerationService()
+                .scheduleGeneration(toSessionUser(req.account), projectUuid),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/semantic-layer')
+    @OperationId('GetOnboardingSemanticLayer')
+    async getSemanticLayer(
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiOnboardingSemanticLayerResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSemanticGenerationService()
+                .getSemanticLayer(toSessionUser(req.account), projectUuid),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Patch('/semantic-layer/fields')
+    @OperationId('UpdateOnboardingSemanticLayerField')
+    async updateSemanticLayerField(
+        @Path() projectUuid: UUID,
+        @Body() body: UpdateSemanticLayerFieldRequest,
+        @Request() req: express.Request,
+    ): Promise<ApiOnboardingSemanticLayerResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSemanticGenerationService()
+                .updateField(toSessionUser(req.account), projectUuid, body),
         };
     }
 }

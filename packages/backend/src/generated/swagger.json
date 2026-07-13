@@ -30671,6 +30671,7 @@
                     "validateProject",
                     "compileProject",
                     "onboardingProfile",
+                    "onboardingSemantic",
                     "createProjectWithCompile",
                     "testAndCompileProject",
                     "sqlRunner",
@@ -38209,6 +38210,212 @@
             },
             "ApiOnboardingProfileResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_ProfileResult_"
+            },
+            "ApiScheduleOnboardingSemanticLayerResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__jobUuid-string__"
+            },
+            "SemanticLayerFieldSource": {
+                "properties": {
+                    "column": {
+                        "type": "string"
+                    },
+                    "table": {
+                        "type": "string"
+                    }
+                },
+                "required": ["column", "table"],
+                "type": "object"
+            },
+            "SemanticLayerMetric": {
+                "properties": {
+                    "hidden": {
+                        "type": "boolean"
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/SemanticLayerFieldSource"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/MetricType"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["hidden", "source", "type", "label", "name"],
+                "type": "object"
+            },
+            "SemanticLayerDimension": {
+                "properties": {
+                    "hidden": {
+                        "type": "boolean"
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/SemanticLayerFieldSource"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/DimensionType"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["hidden", "source", "type", "label", "name"],
+                "type": "object"
+            },
+            "SemanticLayerJoin": {
+                "properties": {
+                    "relationship": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/JoinRelationship"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "sqlOn": {
+                        "type": "string"
+                    },
+                    "table": {
+                        "type": "string"
+                    }
+                },
+                "required": ["relationship", "sqlOn", "table"],
+                "type": "object"
+            },
+            "SemanticLayerExplore": {
+                "properties": {
+                    "joins": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticLayerJoin"
+                        },
+                        "type": "array"
+                    },
+                    "dimensions": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticLayerDimension"
+                        },
+                        "type": "array"
+                    },
+                    "metrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticLayerMetric"
+                        },
+                        "type": "array"
+                    },
+                    "baseTable": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "joins",
+                    "dimensions",
+                    "metrics",
+                    "baseTable",
+                    "label",
+                    "name"
+                ],
+                "type": "object"
+            },
+            "SemanticLayerValidationError": {
+                "properties": {
+                    "message": {
+                        "type": "string"
+                    },
+                    "exploreName": {
+                        "type": "string"
+                    }
+                },
+                "required": ["message", "exploreName"],
+                "type": "object"
+            },
+            "SemanticLayerResult": {
+                "properties": {
+                    "generatedAt": {
+                        "type": "string"
+                    },
+                    "validationErrors": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticLayerValidationError"
+                        },
+                        "type": "array"
+                    },
+                    "skippedTableCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "explores": {
+                        "items": {
+                            "$ref": "#/components/schemas/SemanticLayerExplore"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "generatedAt",
+                    "validationErrors",
+                    "skippedTableCount",
+                    "explores"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_SemanticLayerResult_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/SemanticLayerResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiOnboardingSemanticLayerResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_SemanticLayerResult_"
+            },
+            "UpdateSemanticLayerFieldRequest": {
+                "properties": {
+                    "hidden": {
+                        "type": "boolean",
+                        "nullable": true
+                    },
+                    "label": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "fieldName": {
+                        "type": "string"
+                    },
+                    "fieldType": {
+                        "type": "string",
+                        "enum": ["dimension", "metric"]
+                    },
+                    "exploreName": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "hidden",
+                    "label",
+                    "fieldName",
+                    "fieldType",
+                    "exploreName"
+                ],
+                "type": "object"
             },
             "ConnectionCheckId": {
                 "type": "string",
@@ -64756,6 +64963,131 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/onboarding/semantic-layer": {
+            "post": {
+                "operationId": "ScheduleOnboardingSemanticLayer",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiScheduleOnboardingSemanticLayerResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "get": {
+                "operationId": "GetOnboardingSemanticLayer",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOnboardingSemanticLayerResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/onboarding/semantic-layer/fields": {
+            "patch": {
+                "operationId": "UpdateOnboardingSemanticLayerField",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOnboardingSemanticLayerResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateSemanticLayerFieldRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/onboarding/connection/test": {

@@ -2,6 +2,7 @@ export enum JobType {
     COMPILE_PROJECT = 'COMPILE_PROJECT',
     CREATE_PROJECT = 'CREATE_PROJECT',
     ONBOARDING_PROFILE = 'ONBOARDING_PROFILE',
+    ONBOARDING_SEMANTIC = 'ONBOARDING_SEMANTIC',
 }
 
 export enum JobStatusType {
@@ -32,6 +33,9 @@ export enum JobStepType {
     ONBOARDING_PROFILE_LISTING_TABLES = 'ONBOARDING_PROFILE_LISTING_TABLES',
     ONBOARDING_PROFILE_SAMPLING_COLUMNS = 'ONBOARDING_PROFILE_SAMPLING_COLUMNS',
     ONBOARDING_PROFILE_INFERRING_RELATIONSHIPS = 'ONBOARDING_PROFILE_INFERRING_RELATIONSHIPS',
+    ONBOARDING_SEMANTIC_GENERATING_EXPLORES = 'ONBOARDING_SEMANTIC_GENERATING_EXPLORES',
+    ONBOARDING_SEMANTIC_COMPILING_VALIDATING = 'ONBOARDING_SEMANTIC_COMPILING_VALIDATING',
+    ONBOARDING_SEMANTIC_SAVING = 'ONBOARDING_SEMANTIC_SAVING',
 }
 
 export const JobLabels = {
@@ -49,6 +53,9 @@ export const JobLabels = {
     ONBOARDING_PROFILE_SAMPLING_COLUMNS: 'Sampling columns',
     ONBOARDING_PROFILE_INFERRING_RELATIONSHIPS:
         'Inferring entities and relationships',
+    ONBOARDING_SEMANTIC_GENERATING_EXPLORES: 'Generating explores',
+    ONBOARDING_SEMANTIC_COMPILING_VALIDATING: 'Compiling & validating',
+    ONBOARDING_SEMANTIC_SAVING: 'Saving',
 };
 
 export type BaseJob = {
@@ -80,7 +87,16 @@ type OnboardingProfileJob = BaseJob & {
     jobResults?: undefined;
 };
 
-export type Job = CompileJob | CreateProjectJob | OnboardingProfileJob;
+type OnboardingSemanticJob = BaseJob & {
+    jobType: JobType.ONBOARDING_SEMANTIC;
+    jobResults?: undefined;
+};
+
+export type Job =
+    | CompileJob
+    | CreateProjectJob
+    | OnboardingProfileJob
+    | OnboardingSemanticJob;
 
 export function isCompileJob(value: unknown): value is CompileJob {
     return (

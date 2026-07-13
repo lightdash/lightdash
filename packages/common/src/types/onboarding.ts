@@ -1,5 +1,6 @@
 import type { ApiSuccess } from './api/success';
-import type { DimensionType } from './field';
+import type { JoinRelationship } from './explore';
+import type { DimensionType, MetricType } from './field';
 import type { CreateWarehouseCredentials } from './projects';
 
 export enum OnboardingStepType {
@@ -141,5 +142,72 @@ export type ProfileErrorResult = {
 export type ApiOnboardingProfileResponse = ApiSuccess<ProfileResult>;
 
 export type ApiScheduleOnboardingProfileResponse = ApiSuccess<{
+    jobUuid: string;
+}>;
+
+export type SemanticLayerFieldSource = {
+    table: string;
+    column: string;
+};
+
+export type SemanticLayerMetric = {
+    name: string;
+    label: string;
+    type: MetricType;
+    source: SemanticLayerFieldSource;
+    hidden: boolean;
+};
+
+export type SemanticLayerDimension = {
+    name: string;
+    label: string;
+    type: DimensionType;
+    source: SemanticLayerFieldSource;
+    hidden: boolean;
+};
+
+export type SemanticLayerJoin = {
+    table: string;
+    sqlOn: string;
+    relationship: JoinRelationship | null;
+};
+
+export type SemanticLayerExplore = {
+    name: string;
+    label: string;
+    baseTable: string;
+    metrics: SemanticLayerMetric[];
+    dimensions: SemanticLayerDimension[];
+    joins: SemanticLayerJoin[];
+};
+
+export type SemanticLayerValidationError = {
+    exploreName: string;
+    message: string;
+};
+
+export type SemanticLayerResult = {
+    explores: SemanticLayerExplore[];
+    skippedTableCount: number;
+    validationErrors: SemanticLayerValidationError[];
+    generatedAt: string;
+};
+
+export type SemanticLayerErrorResult = {
+    error: string;
+};
+
+export type UpdateSemanticLayerFieldRequest = {
+    exploreName: string;
+    fieldType: 'dimension' | 'metric';
+    fieldName: string;
+    label: string | null;
+    hidden: boolean | null;
+};
+
+export type ApiOnboardingSemanticLayerResponse =
+    ApiSuccess<SemanticLayerResult>;
+
+export type ApiScheduleOnboardingSemanticLayerResponse = ApiSuccess<{
     jobUuid: string;
 }>;
