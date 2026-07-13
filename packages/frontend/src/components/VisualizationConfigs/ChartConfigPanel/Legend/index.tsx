@@ -10,9 +10,9 @@ import {
     type Series,
     type TableCalculation,
 } from '@lightdash/common';
-import { Group, Loader, Stack } from '@mantine-8/core';
+import { Collapse, Group, Loader, Stack } from '@mantine-8/core';
 import { useDebouncedCallback } from '@mantine-8/hooks';
-import { Collapse, SegmentedControl, Switch } from '@mantine/core';
+import { SegmentedControl, Switch } from '@mantine/core';
 import { lazy, Suspense, useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import { useToggle } from 'react-use';

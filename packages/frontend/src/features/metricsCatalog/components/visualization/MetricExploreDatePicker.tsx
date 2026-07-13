@@ -4,10 +4,9 @@ import {
     type MetricExplorerDateRange,
     type TimeDimensionConfig,
 } from '@lightdash/common';
-import { Box, Group, Stack, Text } from '@mantine-8/core';
+import { Box, Divider, Group, Stack, Text } from '@mantine-8/core';
 import {
     Button,
-    Divider,
     Popover,
     SegmentedControl,
     TextInput,
