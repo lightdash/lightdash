@@ -46,6 +46,11 @@ import {
     toolCreateContentOutputSchema,
 } from './toolCreateContentArgs';
 import {
+    TOOL_CREATE_SCHEDULED_DELIVERY_DESCRIPTION,
+    toolCreateScheduledDeliveryArgsSchema,
+    toolCreateScheduledDeliveryOutputSchema,
+} from './toolCreateScheduledDeliveryArgs';
+import {
     TOOL_DASHBOARD_DESCRIPTION,
     toolDashboardArgsSchema,
     toolDashboardOutputSchema,
@@ -748,6 +753,24 @@ export const createContentToolDefinition: ToolDefinitionWithoutMcpOutput<
     },
 });
 
+export const createScheduledDeliveryToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'createScheduledDelivery',
+    typeof toolCreateScheduledDeliveryArgsSchema,
+    typeof toolCreateScheduledDeliveryArgsSchema,
+    typeof toolCreateScheduledDeliveryOutputSchema
+> = defineTool({
+    name: 'createScheduledDelivery',
+    title: 'Create scheduled delivery',
+    description: TOOL_CREATE_SCHEDULED_DELIVERY_DESCRIPTION,
+    availability: ['agent', 'mcp'],
+    inputSchema: toolCreateScheduledDeliveryArgsSchema,
+    agent: { outputSchema: toolCreateScheduledDeliveryOutputSchema },
+    mcp: {
+        name: 'create_scheduled_delivery',
+        annotations: writeAnnotations,
+    },
+});
+
 export const runContentQueryToolDefinition: ToolDefinitionWithoutMcpOutput<
     'runContentQuery',
     typeof toolRunContentQueryArgsSchema,
@@ -1422,6 +1445,7 @@ type AgentToolDefinitionsByName = {
     resolveUrl: typeof resolveUrlToolDefinition;
     editContent: typeof editContentToolDefinition;
     createContent: typeof createContentToolDefinition;
+    createScheduledDelivery: typeof createScheduledDeliveryToolDefinition;
     runContentQuery: typeof runContentQueryToolDefinition;
     listContent: typeof listContentToolDefinition;
     improveContext: typeof improveContextToolDefinition;
@@ -1473,6 +1497,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     resolveUrl: resolveUrlToolDefinition,
     editContent: editContentToolDefinition,
     createContent: createContentToolDefinition,
+    createScheduledDelivery: createScheduledDeliveryToolDefinition,
     runContentQuery: runContentQueryToolDefinition,
     listContent: listContentToolDefinition,
     improveContext: improveContextToolDefinition,
@@ -1526,6 +1551,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     resolveUrlToolDefinition,
     editContentToolDefinition,
     createContentToolDefinition,
+    createScheduledDeliveryToolDefinition,
     runContentQueryToolDefinition,
     listContentToolDefinition,
     improveContextToolDefinition,
