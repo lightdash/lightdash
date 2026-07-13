@@ -1,9 +1,16 @@
 import {
+    DbtVersionOptionLatest,
     getDbtEnvironmentVariableKeyError,
+    getDbtVersionSupportedWarehouses,
     getInvalidDbtEnvironmentVariableKeys,
+    getLatestSupportDbtVersion,
     isSafeDbtEnvironmentVariableKey,
+    isWarehouseSupportedByDbtVersion,
+    LATEST_SUPPORTED_DBT_VERSION,
     LIGHTDASH_DBT_PROFILE_ENV_VAR_PREFIX,
     mergeWarehouseCredentials,
+    resolveDbtVersion,
+    SupportedDbtVersions,
     WarehouseTypes,
     type CreateAthenaCredentials,
     type CreatePostgresCredentials,
@@ -219,5 +226,33 @@ describe('mergeWarehouseCredentials', () => {
                 requireUserCredentials: true,
             }).requireUserCredentials,
         ).toBe(true);
+    });
+});
+
+describe('latest dbt version', () => {
+    test('`latest` resolves to LATEST_SUPPORTED_DBT_VERSION', () => {
+        expect(getLatestSupportDbtVersion()).toBe(LATEST_SUPPORTED_DBT_VERSION);
+        expect(resolveDbtVersion(DbtVersionOptionLatest.LATEST)).toBe(
+            LATEST_SUPPORTED_DBT_VERSION,
+        );
+    });
+
+    test('`latest` supports every warehouse adapter', () => {
+        const supported = getDbtVersionSupportedWarehouses(
+            LATEST_SUPPORTED_DBT_VERSION,
+        );
+        const missing = Object.values(WarehouseTypes).filter(
+            (warehouse) => !supported.includes(warehouse),
+        );
+        expect(missing).toEqual([]);
+    });
+
+    test('records dbt 1.12 as missing databricks support', () => {
+        expect(
+            isWarehouseSupportedByDbtVersion(
+                SupportedDbtVersions.V1_12,
+                WarehouseTypes.DATABRICKS,
+            ),
+        ).toBe(false);
     });
 });
