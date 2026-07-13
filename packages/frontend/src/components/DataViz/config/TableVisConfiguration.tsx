@@ -1,12 +1,12 @@
 import { type VizColumn } from '@lightdash/common';
-import { TextInput, ActionIcon } from '@mantine-8/core';
-import { ScrollArea } from '@mantine/core';
+import { ActionIcon, ScrollArea, TextInput } from '@mantine-8/core';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { type FC } from 'react';
 import {
     useAppDispatch as useVizDispatch,
     useAppSelector as useVizSelector,
 } from '../../../features/sqlRunner/store/hooks';
+import scrollAreaClasses from '../../../styles/ScrollArea.module.css';
 import MantineIcon from '../../common/MantineIcon';
 import { Config } from '../../VisualizationConfigs/common/Config';
 import { TableFieldIcon } from '../Icons';
@@ -29,10 +29,10 @@ const TableVisConfiguration: FC<{ columns: VizColumn[] }> = ({ columns }) => {
     return (
         <ScrollArea
             offsetScrollbars
-            variant="primary"
-            className="only-vertical"
+            scrollbars="y"
+            classNames={{ content: scrollAreaClasses.verticalContent }}
             type="auto"
-            sx={{ flex: 1 }}
+            style={{ flex: 1 }}
             mb="md"
         >
             <Config>

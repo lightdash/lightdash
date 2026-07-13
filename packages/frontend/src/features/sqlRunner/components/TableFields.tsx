@@ -9,14 +9,16 @@ import {
     Text,
     ActionIcon,
     Highlight,
+    ScrollArea,
 } from '@mantine-8/core';
-import { ScrollArea, Tooltip } from '@mantine/core';
+import { Tooltip } from '@mantine/core';
 import { useDebouncedValue, useHover } from '@mantine/hooks';
 import { IconCopy, IconSearch, IconX } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { TableFieldIcon } from '../../../components/DataViz/Icons';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
+import scrollAreaClasses from '../../../styles/ScrollArea.module.css';
 import {
     useTableFields,
     type WarehouseTableField,
@@ -172,9 +174,9 @@ export const TableFields: FC = () => {
             {isSuccess && tableFields && activeTable && (
                 <ScrollArea
                     offsetScrollbars
-                    variant="primary"
-                    className="only-vertical"
-                    sx={{ flex: 1 }}
+                    scrollbars="y"
+                    classNames={{ content: scrollAreaClasses.verticalContent }}
+                    style={{ flex: 1 }}
                     type="auto"
                     scrollbarSize={8}
                     pl="sm"

@@ -1,10 +1,11 @@
 import { ChartKind } from '@lightdash/common';
-import { Group, Stack, Title, ActionIcon } from '@mantine-8/core';
-import { ScrollArea, Tooltip } from '@mantine/core';
+import { ActionIcon, Group, ScrollArea, Stack, Title } from '@mantine-8/core';
+import { Tooltip } from '@mantine/core';
 import { IconLayoutSidebarLeftCollapse, IconReload } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { VisualizationConfigPanel } from '../../../components/DataViz/VisualizationConfigPanel';
+import scrollAreaClasses from '../../../styles/ScrollArea.module.css';
 import { useRefreshTables } from '../hooks/useTables';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSelectedChartType, SidebarTabs } from '../store/sqlRunnerSlice';
@@ -82,10 +83,10 @@ export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
 
             <ScrollArea
                 offsetScrollbars
-                variant="primary"
-                className="only-vertical"
+                scrollbars="y"
+                classNames={{ content: scrollAreaClasses.verticalContent }}
                 px="sm"
-                sx={{
+                style={{
                     flex: 1,
                     display:
                         activeSidebarTab === SidebarTabs.VISUALIZATION
