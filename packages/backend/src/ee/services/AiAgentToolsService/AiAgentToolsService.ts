@@ -1195,9 +1195,6 @@ export class AiAgentToolsService extends BaseService {
         return `/projects/${context.projectUuid}/spaces/${uuid}`;
     }
 
-    // ?scheduler_uuid deep-links to the delivery's edit modal on the resource
-    // page (see getSchedulerUuidFromUrlParams in the frontend). No content-link
-    // fragment: the link points at the delivery, not the content itself.
     private static getScheduledDeliveryUrl(
         context: AiAgentToolsRuntimeContext,
         type: 'dashboard' | 'chart',
@@ -1675,10 +1672,6 @@ export class AiAgentToolsService extends BaseService {
                 resourceUuidOrSlug: args.resourceUuidOrSlug,
             },
             async () => {
-                // Resource lookups are scoped to the agent's project (and the
-                // agent's spaces) so an out-of-scope uuid resolves to NotFound
-                // instead of leaking. The scheduler is always created against
-                // the resolved uuid — the arg may be a slug.
                 const notFoundMessage = `${
                     args.resourceType === 'chart' ? 'Chart' : 'Dashboard'
                 } "${args.resourceUuidOrSlug}" was not found`;
