@@ -10,10 +10,11 @@ import {
     Group,
     Stack,
     Text,
+    UnstyledButton,
     Button,
     SegmentedControl,
 } from '@mantine-8/core';
-import { Popover, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
+import { Popover, TextInput, Tooltip } from '@mantine/core';
 import { DatePicker, MonthPicker, YearPicker } from '@mantine/dates';
 import { useCallback, useEffect, useRef, type FC } from 'react';
 import useTracking from '../../../../providers/Tracking/useTracking';
@@ -229,22 +230,11 @@ export const MetricExploreDatePicker: FC<Props> = ({
                             <UnstyledButton
                                 key={preset.label}
                                 onClick={() => handlePresetSelect(preset)}
-                                sx={(theme) => ({
-                                    fontWeight: 500,
-                                    fontSize: theme.fontSizes.xs,
-                                    color: theme.colors.ldGray[7],
-                                    padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                                    borderRadius: theme.radius.sm,
-                                    backgroundColor:
-                                        tempSelectedPreset?.label ===
-                                        preset.label
-                                            ? theme.colors.ldGray[0]
-                                            : 'transparent',
-
-                                    '&:hover': {
-                                        backgroundColor: theme.colors.ldGray[0],
-                                    },
-                                })}
+                                data-selected={
+                                    tempSelectedPreset?.label ===
+                                        preset.label || undefined
+                                }
+                                className={styles.presetButton}
                             >
                                 {preset.label}
                             </UnstyledButton>
