@@ -1,12 +1,6 @@
 import { DbtProjectType } from '@lightdash/common';
-import { CopyButton, Stack, ActionIcon, Anchor } from '@mantine-8/core';
-import {
-    Alert,
-    MultiSelect,
-    PasswordInput,
-    TextInput,
-    Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Alert, Anchor, CopyButton, Stack } from '@mantine-8/core';
+import { MultiSelect, PasswordInput, TextInput, Tooltip } from '@mantine/core';
 import { IconCheck, IconCopy, IconInfoCircle } from '@tabler/icons-react';
 import React, { useCallback, useState, type FC } from 'react';
 import useApp from '../../../providers/App/useApp';

@@ -1,4 +1,5 @@
 import {
+    Alert,
     Box,
     Flex,
     Group,
@@ -8,7 +9,7 @@ import {
     Title,
     Button,
 } from '@mantine-8/core';
-import { Alert, Avatar, Tooltip } from '@mantine/core';
+import { Avatar, Tooltip } from '@mantine/core';
 import {
     IconAlertCircle,
     IconClock,
