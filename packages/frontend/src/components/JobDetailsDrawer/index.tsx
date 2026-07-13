@@ -5,6 +5,7 @@ import {
     type JobStep,
 } from '@lightdash/common';
 import {
+    Alert,
     Box,
     CopyButton,
     Group,
@@ -14,7 +15,7 @@ import {
     Title,
     ActionIcon,
 } from '@mantine-8/core';
-import { Alert, Drawer, type DefaultMantineColor } from '@mantine/core';
+import { Drawer, type DefaultMantineColor } from '@mantine/core';
 import { useInterval } from '@mantine/hooks';
 import {
     IconAlertTriangle,

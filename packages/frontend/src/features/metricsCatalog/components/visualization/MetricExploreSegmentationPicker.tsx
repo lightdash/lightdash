@@ -5,8 +5,16 @@ import {
     type CompiledDimension,
     type MetricExplorerQuery,
 } from '@lightdash/common';
-import { Box, Group, Loader, Stack, Text, Button } from '@mantine-8/core';
-import { Alert, Select, Tooltip } from '@mantine/core';
+import {
+    Alert,
+    Box,
+    Button,
+    Group,
+    Loader,
+    Stack,
+    Text,
+} from '@mantine-8/core';
+import { Select, Tooltip } from '@mantine/core';
 import { IconInfoCircle, IconX } from '@tabler/icons-react';
 import { type UseQueryResult } from '@tanstack/react-query';
 import { useMemo, type FC } from 'react';
@@ -120,11 +128,9 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
                     px="sm"
                     variant="light"
                     color="blue"
-                    sx={(theme) => ({
-                        borderStyle: 'dashed',
-                        borderWidth: 1,
-                        borderColor: theme.colors.blue[4],
-                    })}
+                    style={{
+                        border: '1px dashed var(--mantine-color-blue-4)',
+                    }}
                     styles={{
                         icon: {
                             marginRight: 2,

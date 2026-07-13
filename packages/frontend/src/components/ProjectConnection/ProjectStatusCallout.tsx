@@ -1,6 +1,5 @@
 import { type ApiError } from '@lightdash/common';
-import { Loader } from '@mantine-8/core';
-import { Alert, type AlertProps } from '@mantine/core';
+import { Alert, Loader, type AlertProps } from '@mantine-8/core';
 import {
     IconAlertTriangleFilled,
     IconCircleCheckFilled,
@@ -32,7 +31,7 @@ const ProjectStatusCallout: FC<ProjectStatusCalloutProps> = ({
             title: 'Updating project settings...',
             icon: <Loader size="lg" />,
             children: undefined,
-            styles: { title: { marginBottom: 0 } },
+            styles: { body: { gap: 0 } },
         };
     } else if (isSuccess) {
         stateProps = {
@@ -40,7 +39,7 @@ const ProjectStatusCallout: FC<ProjectStatusCalloutProps> = ({
             title: 'Project settings updated!',
             icon: <MantineIcon icon={IconCircleCheckFilled} size="lg" />,
             children: undefined,
-            styles: { title: { marginBottom: 0 } },
+            styles: { body: { gap: 0 } },
         };
     } else if (isError) {
         stateProps = {
@@ -59,7 +58,7 @@ const ProjectStatusCallout: FC<ProjectStatusCalloutProps> = ({
                     }}
                 />
             ) : null,
-            styles: error ? { title: { marginBottom: 0 } } : undefined,
+            styles: error ? { body: { gap: 0 } } : undefined,
         };
     } else {
         stateProps = {
@@ -67,7 +66,7 @@ const ProjectStatusCallout: FC<ProjectStatusCalloutProps> = ({
             title: 'Updating project settings...',
             icon: <Loader size="lg" />,
             children: undefined,
-            styles: { title: { marginBottom: 0 } },
+            styles: { body: { gap: 0 } },
         };
     }
 
