@@ -2,12 +2,11 @@ import {
     DatabricksAuthenticationType,
     WarehouseTypes,
 } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
+import { Group, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Anchor,
     Button,
-    Group,
     PasswordInput,
     Select,
     TextInput,
@@ -250,7 +249,7 @@ const DatabricksForm: FC<{
                     placeholder="/sql/protocolv1/o/xxxx/xxxx"
                 />
 
-                <Group spacing="sm">
+                <Group gap="sm">
                     <Select
                         name="warehouse.authenticationType"
                         {...form.getInputProps('warehouse.authenticationType')}
@@ -398,8 +397,8 @@ const DatabricksForm: FC<{
                                         <Group
                                             // @ts-expect-error
                                             key={field.key}
-                                            noWrap
-                                            spacing="xs"
+                                            wrap="nowrap"
+                                            gap="xs"
                                         >
                                             <TextInput
                                                 style={{

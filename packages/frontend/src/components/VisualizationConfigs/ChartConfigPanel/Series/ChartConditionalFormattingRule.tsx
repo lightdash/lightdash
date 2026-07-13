@@ -6,11 +6,10 @@ import {
     type ConditionalFormattingWithFilterOperator,
     type FilterableItem,
 } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
+import { Group, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Collapse,
-    Group,
     Select,
     TextInput,
     Tooltip,
@@ -69,8 +68,8 @@ export const ChartConditionalFormattingRule: FC<Props> = ({
 
     return (
         <Stack gap="xs" ref={ref}>
-            <Group noWrap position="apart">
-                <Group spacing="xs">
+            <Group wrap="nowrap" justify="space-between">
+                <Group gap="xs">
                     <Text fw={500} fz="xs">
                         Condition {ruleIndex + 1}
                     </Text>
@@ -93,7 +92,7 @@ export const ChartConditionalFormattingRule: FC<Props> = ({
                 </ActionIcon>
             </Group>
             <Collapse in={isOpen}>
-                <Group noWrap spacing="xs">
+                <Group wrap="nowrap" gap="xs">
                     <Select
                         value={rule.operator}
                         data={filterOperatorOptions}

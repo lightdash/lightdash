@@ -10,15 +10,9 @@ import {
     type Series,
     type TableCalculation,
 } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
+import { Group, Stack } from '@mantine-8/core';
 import { useDebouncedCallback } from '@mantine-8/hooks';
-import {
-    Collapse,
-    Group,
-    Loader,
-    SegmentedControl,
-    Switch,
-} from '@mantine/core';
+import { Collapse, Loader, SegmentedControl, Switch } from '@mantine/core';
 import { lazy, Suspense, useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import { useToggle } from 'react-use';
@@ -206,7 +200,7 @@ export const Legend: FC<Props> = ({ items }) => {
         <Stack>
             <Config>
                 <Config.Section>
-                    <Group spacing="xs" align="center">
+                    <Group gap="xs" align="center">
                         <Config.Heading>Legend</Config.Heading>
                         <Switch
                             checked={legendConfig.show ?? showDefault}
@@ -218,7 +212,7 @@ export const Legend: FC<Props> = ({ items }) => {
 
                     <Collapse in={legendConfig.show ?? showDefault}>
                         <Stack gap="xs">
-                            <Group spacing="xs">
+                            <Group gap="xs">
                                 <Config.Label>Placement</Config.Label>
                                 <SegmentedControl
                                     name="placement"
@@ -248,7 +242,7 @@ export const Legend: FC<Props> = ({ items }) => {
                             {(legendConfig.placement ?? 'custom') ===
                                 'custom' && (
                                 <>
-                                    <Group spacing="xs">
+                                    <Group gap="xs">
                                         <Config.Label>
                                             Scroll behavior
                                         </Config.Label>
@@ -272,7 +266,7 @@ export const Legend: FC<Props> = ({ items }) => {
                                             }
                                         />
                                     </Group>
-                                    <Group spacing="xs">
+                                    <Group gap="xs">
                                         <Config.Label>Orientation</Config.Label>
                                         <SegmentedControl
                                             name="orient"
@@ -303,7 +297,7 @@ export const Legend: FC<Props> = ({ items }) => {
                             )}
                             {(legendConfig.placement === 'outsideRight' ||
                                 legendConfig.placement === 'outsideLeft') && (
-                                <Group spacing="xs">
+                                <Group gap="xs">
                                     <Config.Label>
                                         Legend area width
                                     </Config.Label>

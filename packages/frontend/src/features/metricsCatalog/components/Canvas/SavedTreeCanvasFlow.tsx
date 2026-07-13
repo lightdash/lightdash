@@ -1,6 +1,6 @@
 import type { CatalogMetricsTreeEdge } from '@lightdash/common';
-import { Box } from '@mantine-8/core';
-import { Button, Group, useMantineTheme, Text } from '@mantine/core';
+import { Box, Group } from '@mantine-8/core';
+import { Button, useMantineTheme, Text } from '@mantine/core';
 import { IconLayoutGridRemove } from '@tabler/icons-react';
 import {
     Background,
@@ -144,7 +144,7 @@ const SavedTreeCanvasFlow: FC<Props> = ({
                                 position="top-left"
                                 style={{ margin: '14px 27px' }}
                             >
-                                <Group spacing="xs">
+                                <Group gap="xs">
                                     <Text fz={14} fw={500} c="ldGray.6">
                                         Canvas mode:
                                     </Text>

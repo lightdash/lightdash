@@ -4,10 +4,10 @@ import {
     type VizColumnsConfig,
     type VizTableHeaderSortConfig,
 } from '@lightdash/common';
+import { Group } from '@mantine-8/core';
 import {
     Badge,
     Flex,
-    Group,
     Tooltip,
     useMantineTheme,
     type FlexProps,
@@ -106,7 +106,7 @@ export const ChartDataTable = ({
                                                 position="top"
                                                 withinPortal
                                             >
-                                                <Group spacing="two" fz={13}>
+                                                <Group gap="two" fz={13}>
                                                     {columnsConfig?.[header.id]
                                                         ?.aggregation && (
                                                         <Badge

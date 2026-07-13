@@ -1,11 +1,10 @@
 import { LightdashMode, type ApiErrorDetail } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
+import { Group, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Anchor,
     Button,
     CopyButton,
-    Group,
     Modal,
     Tooltip,
     useMantineTheme,
@@ -83,7 +82,7 @@ const ApiErrorDisplayStatic = ({ apiError }: { apiError: ApiErrorDetail }) => {
                 <Text mb={0} fw="bold">
                     Contact support with the following information:
                 </Text>
-                <Group spacing="xxs" align="flex-start">
+                <Group gap="xxs" align="flex-start">
                     <Text mb={0} fw="bold">
                         Error ID: {apiError.sentryEventId || 'n/a'}
                         <br />
@@ -171,7 +170,7 @@ const ApiErrorDisplayWithHealth = ({
                     <Text mb={0} c="red.6" style={{ whiteSpace: 'pre-wrap' }}>
                         {apiError.message}
                     </Text>
-                    <Group spacing="xs">
+                    <Group gap="xs">
                         <Button
                             size="xs"
                             compact
@@ -217,7 +216,7 @@ const ApiErrorDisplayWithHealth = ({
                 <Text mb={0} fw="bold">
                     Contact support with the following information:
                 </Text>
-                <Group spacing="xxs" align="flex-start">
+                <Group gap="xxs" align="flex-start">
                     <Text mb={0} fw="bold">
                         Error ID: {apiError.sentryEventId || 'n/a'}
                         <br />

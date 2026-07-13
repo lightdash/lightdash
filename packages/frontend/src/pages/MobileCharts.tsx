@@ -3,8 +3,8 @@ import {
     wrapResourceView,
     type ResourceViewItem,
 } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
-import { ActionIcon, Group, TextInput } from '@mantine/core';
+import { Group, Stack } from '@mantine-8/core';
+import { ActionIcon, TextInput } from '@mantine/core';
 import { IconChartBar, IconSearch, IconX } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
 import { useMemo, useState, type FC } from 'react';
@@ -49,7 +49,7 @@ const MobileCharts: FC = () => {
 
     return (
         <Stack gap="md" m="lg">
-            <Group position="apart">
+            <Group justify="space-between">
                 <PageBreadcrumbs
                     items={[
                         { title: 'Home', to: '/home' },

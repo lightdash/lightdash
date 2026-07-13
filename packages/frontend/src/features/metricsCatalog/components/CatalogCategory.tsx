@@ -1,5 +1,6 @@
 import type { CatalogItem } from '@lightdash/common';
-import { ActionIcon, Badge, Group, Tooltip } from '@mantine/core';
+import { Group } from '@mantine-8/core';
+import { ActionIcon, Badge, Tooltip } from '@mantine/core';
 import { IconCode, IconX } from '@tabler/icons-react';
 import type { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -63,7 +64,7 @@ export const CatalogCategory: FC<Props> = ({
                 },
             })}
         >
-            <Group spacing={1}>
+            <Group gap={1}>
                 {category.name}
                 {onRemove && (
                     <ActionIcon

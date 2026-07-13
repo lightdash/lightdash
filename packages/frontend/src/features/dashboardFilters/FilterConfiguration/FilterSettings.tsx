@@ -7,12 +7,11 @@ import {
     type DashboardFilterRule,
     type FilterRule,
 } from '@lightdash/common';
-import { Box, Stack } from '@mantine-8/core';
+import { Box, Group, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Button,
     Checkbox,
-    Group,
     Select,
     Switch,
     TextInput,
@@ -207,7 +206,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                 )}
 
                 {(showValueInput || filterRule.required) && (
-                    <Group spacing="xs" noWrap align="flex-start">
+                    <Group gap="xs" wrap="nowrap" align="flex-start">
                         <Box style={{ flex: 1 }}>
                             <FilterInputComponent
                                 popoverProps={popoverProps}

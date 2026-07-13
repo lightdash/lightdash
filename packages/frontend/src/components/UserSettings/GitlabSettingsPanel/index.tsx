@@ -1,10 +1,9 @@
-import { Box, Stack } from '@mantine-8/core';
+import { Box, Group, Stack } from '@mantine-8/core';
 import {
     Alert,
     Avatar,
     Button,
     Flex,
-    Group,
     Loader,
     Title,
     Text,
@@ -35,7 +34,7 @@ const GitlabSettingsPanel: FC = () => {
     return (
         <SettingsGridCard>
             <Box>
-                <Group spacing="sm">
+                <Group gap="sm">
                     <Avatar src={gitlabIcon} size="md" />
                     <Title order={4}>GitLab</Title>
                 </Group>

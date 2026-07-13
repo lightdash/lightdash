@@ -1,6 +1,6 @@
 import { getItemLabelWithoutTableName } from '@lightdash/common';
-import { Box } from '@mantine-8/core';
-import { ActionIcon, Group, TextInput, Tooltip } from '@mantine/core';
+import { Box, Group } from '@mantine-8/core';
+import { ActionIcon, TextInput, Tooltip } from '@mantine/core';
 import { useDebouncedState } from '@mantine/hooks';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
@@ -78,7 +78,7 @@ const MapFieldConfiguration: FC<MapFieldConfigurationProps> = ({ fieldId }) => {
     const isVisible = isFieldVisible(fieldId);
 
     return (
-        <Group spacing="xs" noWrap style={{ flexGrow: 1 }}>
+        <Group gap="xs" wrap="nowrap" style={{ flexGrow: 1 }}>
             <Box style={{ flexGrow: 1 }}>
                 <MapFieldConfigurationInput
                     fieldId={fieldId}

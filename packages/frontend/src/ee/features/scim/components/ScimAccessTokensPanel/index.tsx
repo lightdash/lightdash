@@ -1,5 +1,5 @@
-import { Stack } from '@mantine-8/core';
-import { Anchor, Button, Group, TextInput, Title, Text } from '@mantine/core';
+import { Group, Stack } from '@mantine-8/core';
+import { Anchor, Button, TextInput, Title, Text } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
@@ -30,7 +30,7 @@ const ScimAccessTokensPanel: FC = () => {
 
     return (
         <Stack mb="lg">
-            <Group position="apart">
+            <Group justify="space-between">
                 <Title order={5}>SCIM access tokens</Title>
                 <Button onClick={() => setIsCreatingToken(true)}>
                     Generate new token

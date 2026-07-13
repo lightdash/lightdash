@@ -1,10 +1,9 @@
 import { SnowflakeAuthenticationType, WarehouseTypes } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
+import { Group, Stack } from '@mantine-8/core';
 import {
     Anchor,
     Button,
     FileInput,
-    Group,
     NumberInput,
     PasswordInput,
     Radio,
@@ -276,7 +275,7 @@ const SnowflakeForm: FC<{
                             labelProps={{ style: { marginTop: '8px' } }}
                         />
 
-                        <Group spacing="sm">
+                        <Group gap="sm">
                             <Select
                                 name="warehouse.authenticationType"
                                 {...form.getInputProps(

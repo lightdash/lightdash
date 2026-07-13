@@ -5,10 +5,9 @@ import {
     type MetricExplorerQuery,
     type MetricWithAssociatedTimeDimension,
 } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
+import { Group, Stack } from '@mantine-8/core';
 import {
     Anchor,
-    Group,
     Loader,
     Paper,
     Radio,
@@ -170,10 +169,10 @@ export const MetricExploreComparison: FC<Props> = ({
                                 <Stack>
                                     <Group
                                         align="center"
-                                        noWrap
-                                        position="apart"
+                                        wrap="nowrap"
+                                        justify="space-between"
                                     >
-                                        <Group noWrap>
+                                        <Group wrap="nowrap">
                                             <Paper
                                                 p="xs"
                                                 radius="md"

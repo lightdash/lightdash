@@ -1,6 +1,6 @@
 import { ValueLabelPositionOptions } from '@lightdash/common';
-import { Box } from '@mantine-8/core';
-import { Group, Select, Text } from '@mantine/core';
+import { Box, Group } from '@mantine-8/core';
+import { Select, Text } from '@mantine/core';
 import {
     IconArrowDown,
     IconArrowLeft,
@@ -59,7 +59,7 @@ const ValueLabelItem = forwardRef<
     }
 >(({ value, ...others }, ref) => (
     <Box ref={ref} {...others}>
-        <Group noWrap spacing="xs">
+        <Group wrap="nowrap" gap="xs">
             <ValueLabelIcon position={value} />
             <Text>{capitalize(value)}</Text>
         </Group>

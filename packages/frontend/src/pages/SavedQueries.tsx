@@ -1,6 +1,6 @@
 import { ContentType, LightdashMode } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
-import { Button, Group } from '@mantine/core';
+import { Group, Stack } from '@mantine-8/core';
+import { Button } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useNavigate, useParams } from 'react-router';
@@ -36,7 +36,7 @@ const SavedQueries: FC = () => {
                 withLargeContent
             >
                 <Stack gap="xxl" w="100%">
-                    <Group position="apart">
+                    <Group justify="space-between">
                         <PageBreadcrumbs
                             items={[
                                 { title: 'Home', to: '/home' },

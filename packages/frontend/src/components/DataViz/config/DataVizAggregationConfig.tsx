@@ -3,8 +3,8 @@ import {
     VizAggregationOptions,
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
-import { Box } from '@mantine-8/core';
-import { Group, Select, Tooltip, useMantineTheme, Text } from '@mantine/core';
+import { Box, Group } from '@mantine-8/core';
+import { Select, Tooltip, useMantineTheme, Text } from '@mantine/core';
 import {
     IconAsterisk,
     IconMathFunction,
@@ -64,7 +64,7 @@ const AggregationItem = forwardRef<
     ComponentPropsWithoutRef<'div'> & { value: string; selected: boolean }
 >(({ value, ...others }, ref) => (
     <Box ref={ref} {...others}>
-        <Group noWrap spacing="xs">
+        <Group wrap="nowrap" gap="xs">
             <AggregationIcon aggregation={value} />
             <Text>{capitalize(value)}</Text>
         </Group>

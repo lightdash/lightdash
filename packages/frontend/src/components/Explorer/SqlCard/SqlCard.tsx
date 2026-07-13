@@ -4,11 +4,10 @@ import {
     isCustomSqlDimension,
     isSqlTableCalculation,
 } from '@lightdash/common';
-import { Box } from '@mantine-8/core';
+import { Box, Group } from '@mantine-8/core';
 import {
     ActionIcon,
     CopyButton,
-    Group,
     SegmentedControl,
     Skeleton,
     Tooltip,
@@ -144,7 +143,7 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
             rightHeaderElement={
                 sqlIsOpen &&
                 !cannotViewSqlAuthoredFields && (
-                    <Group spacing="xs">
+                    <Group gap="xs">
                         {hasPivotQuery && (
                             <SegmentedControl
                                 size="xs"

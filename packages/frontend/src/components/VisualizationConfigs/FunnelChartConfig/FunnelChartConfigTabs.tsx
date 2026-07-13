@@ -9,11 +9,10 @@ import {
     type Metric,
     type TableCalculation,
 } from '@lightdash/common';
-import { Box, Stack } from '@mantine-8/core';
+import { Box, Group, Stack } from '@mantine-8/core';
 import {
     Checkbox,
     Collapse,
-    Group,
     MantineProvider,
     SegmentedControl,
     Switch,
@@ -88,7 +87,7 @@ export const ConfigTabs: FC = memo(() => {
                                 <Config.Heading>
                                     Data orientation
                                 </Config.Heading>
-                                <Group spacing="xs">
+                                <Group gap="xs">
                                     <Config.Label>Steps are</Config.Label>
                                     <SegmentedControl
                                         value={dataInput}
@@ -172,7 +171,7 @@ export const ConfigTabs: FC = memo(() => {
                             <Config.Section>
                                 <Config.Heading>Labels</Config.Heading>
 
-                                <Group spacing="xs" noWrap>
+                                <Group gap="xs" wrap="nowrap">
                                     <Config.Label>Position</Config.Label>
                                     <SegmentedControl
                                         value={labels?.position}
@@ -205,7 +204,7 @@ export const ConfigTabs: FC = memo(() => {
                                     />
                                 </Group>
 
-                                <Group spacing="xs">
+                                <Group gap="xs">
                                     <Checkbox
                                         checked={labels?.showValue}
                                         onChange={(newValue) =>
@@ -278,7 +277,7 @@ export const ConfigTabs: FC = memo(() => {
                         </Config>
 
                         <Collapse in={showLegend}>
-                            <Group spacing="xs">
+                            <Group gap="xs">
                                 <Config.Label>Orientation</Config.Label>
                                 <SegmentedControl
                                     name="orient"

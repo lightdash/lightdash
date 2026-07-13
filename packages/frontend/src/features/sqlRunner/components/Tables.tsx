@@ -1,9 +1,8 @@
 import { PartitionType, type PartitionColumn } from '@lightdash/common';
-import { Box, Center, Stack, type BoxProps } from '@mantine-8/core';
+import { Box, Center, Group, Stack, type BoxProps } from '@mantine-8/core';
 import {
     ActionIcon,
     CopyButton,
-    Group,
     Highlight,
     Loader,
     ScrollArea,
@@ -220,7 +219,7 @@ const Table: FC<{
                     },
                 })}
             >
-                <Group noWrap spacing="two">
+                <Group wrap="nowrap" gap="two">
                     <Text p={6} fz="sm" c="ldGray.8">
                         {schema}
                     </Text>

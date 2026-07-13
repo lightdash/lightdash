@@ -1,4 +1,5 @@
-import { Group, NavLink, Text, useMantineTheme } from '@mantine/core';
+import { Group } from '@mantine-8/core';
+import { NavLink, Text, useMantineTheme } from '@mantine/core';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { TableItemDetailPreview } from '../ItemDetailPreview';
@@ -68,7 +69,7 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
             closePreview={handleMouseLeave}
             tableMetadata={tableMetadata}
         >
-            <Group spacing="xs" noWrap>
+            <Group gap="xs" wrap="nowrap">
                 <Text truncate fw={600}>
                     {table.label}
                 </Text>

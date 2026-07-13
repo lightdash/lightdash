@@ -8,10 +8,9 @@ import {
     type VizTableHeaderSortConfig,
     formatSql,
 } from '@lightdash/common';
-import { Box, Stack } from '@mantine-8/core';
+import { Box, Group, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
-    Group,
     Indicator,
     LoadingOverlay,
     Paper,
@@ -453,8 +452,8 @@ export const ContentPanel: FC = () => {
                         borderColor: theme.colors.ldGray[3],
                     })}
                 >
-                    <Group position="apart">
-                        <Group position="apart">
+                    <Group justify="space-between">
+                        <Group justify="space-between">
                             <Indicator
                                 color="red.6"
                                 offset={10}
@@ -478,7 +477,10 @@ export const ContentPanel: FC = () => {
                                                     withinPortal
                                                     label="You haven't run this query yet."
                                                 >
-                                                    <Group spacing={4} noWrap>
+                                                    <Group
+                                                        gap={4}
+                                                        wrap="nowrap"
+                                                    >
                                                         <SqlEditorPreferencesPopover />
 
                                                         <Text>SQL</Text>
@@ -498,7 +500,10 @@ export const ContentPanel: FC = () => {
                                                     withinPortal
                                                     label="Run a query to see the chart"
                                                 >
-                                                    <Group spacing={4} noWrap>
+                                                    <Group
+                                                        gap={4}
+                                                        wrap="nowrap"
+                                                    >
                                                         <MantineIcon
                                                             color="ldGray.6"
                                                             icon={
@@ -530,7 +535,7 @@ export const ContentPanel: FC = () => {
                                 />
                             </Indicator>
                         </Group>
-                        <Group spacing="xs">
+                        <Group gap="xs">
                             <Parameters
                                 isEditMode={false}
                                 parameters={projectParameters}
@@ -885,8 +890,8 @@ export const ContentPanel: FC = () => {
                                                     {hasReachedPivotColumnLimit &&
                                                         maxColumnLimit && (
                                                             <Group
-                                                                position="center"
-                                                                spacing="xs"
+                                                                justify="center"
+                                                                gap="xs"
                                                             >
                                                                 <MantineIcon
                                                                     color="gray"

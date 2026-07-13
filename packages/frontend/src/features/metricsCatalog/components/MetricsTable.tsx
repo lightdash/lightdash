@@ -5,15 +5,8 @@ import {
     type CatalogField,
     type CatalogItem,
 } from '@lightdash/common';
-import { Box, Center } from '@mantine-8/core';
-import {
-    Anchor,
-    Divider,
-    Group,
-    Paper,
-    useMantineTheme,
-    Text,
-} from '@mantine/core';
+import { Box, Center, Group } from '@mantine-8/core';
+import { Anchor, Divider, Paper, useMantineTheme, Text } from '@mantine/core';
 import {
     IconArrowDown,
     IconArrowsSort,
@@ -507,7 +500,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({
                     setSelectedTables={handleSetTableFilters}
                     selectedOwners={ownerFilters}
                     setSelectedOwners={handleSetOwnerFilters}
-                    position="apart"
+                    justify="space-between"
                     p={`${theme.spacing.lg} ${theme.spacing.xl}`}
                     showCategoriesFilter={canManageTags || dataHasCategories}
                     metricCatalogView={metricCatalogView}
@@ -529,7 +522,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({
                 {isFetching ? (
                     <Text>Loading more...</Text>
                 ) : (
-                    <Group spacing="two">
+                    <Group gap="two">
                         <Text>
                             {hasNextPage
                                 ? 'Scroll for more metrics'
@@ -664,7 +657,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({
                                 setSelectedTables={handleSetTableFilters}
                                 selectedOwners={ownerFilters}
                                 setSelectedOwners={handleSetOwnerFilters}
-                                position="apart"
+                                justify="space-between"
                                 p={`${theme.spacing.lg} ${theme.spacing.xl}`}
                                 showCategoriesFilter={
                                     canManageTags || dataHasCategories

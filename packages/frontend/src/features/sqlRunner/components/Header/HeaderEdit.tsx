@@ -1,9 +1,8 @@
 import { type SqlChart } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
+import { Group, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Button,
-    Group,
     HoverCard,
     Menu,
     Paper,
@@ -172,9 +171,9 @@ export const HeaderEdit: FC = () => {
                     }`,
                 })}
             >
-                <Group position="apart">
+                <Group justify="space-between">
                     <Stack gap="none">
-                        <Group spacing="two">
+                        <Group gap="two">
                             <TitleBreadCrumbs
                                 projectUuid={savedSqlChart.project.projectUuid}
                                 spaceUuid={savedSqlChart.space.uuid}
@@ -192,7 +191,7 @@ export const HeaderEdit: FC = () => {
                                 <MantineIcon icon={IconPencil} />
                             </ActionIcon>
                         </Group>
-                        <Group spacing="xs">
+                        <Group gap="xs">
                             <UpdatedInfo
                                 updatedAt={savedSqlChart.lastUpdatedAt}
                                 user={savedSqlChart.lastUpdatedBy}
@@ -211,7 +210,7 @@ export const HeaderEdit: FC = () => {
                         </Group>
                     </Stack>
 
-                    <Group spacing="xs">
+                    <Group gap="xs">
                         <HoverCard disabled={!hasUnrunChanges} withArrow>
                             <HoverCard.Target>
                                 <Button

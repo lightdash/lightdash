@@ -1,12 +1,6 @@
 import { FeatureFlags } from '@lightdash/common';
-import {
-    Button,
-    Flex,
-    Group,
-    Loader,
-    useMantineTheme,
-    Text,
-} from '@mantine/core';
+import { Group } from '@mantine-8/core';
+import { Button, Flex, Loader, useMantineTheme, Text } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import Editor, { type EditorProps, type Monaco } from '@monaco-editor/react';
 import { type IDisposable, type languages } from 'monaco-editor';
@@ -267,7 +261,7 @@ export const ConfigTabs: React.FC = memo(() => {
                 h="calc(100vh - 300px)"
                 align="top"
                 mt="4px"
-                sx={{
+                style={{
                     borderTop: '0.125rem solid #dee2e6',
                 }}
             >

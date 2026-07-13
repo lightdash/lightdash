@@ -4,13 +4,12 @@ import {
     type Job,
     type JobStep,
 } from '@lightdash/common';
-import { Box, Stack } from '@mantine-8/core';
+import { Box, Group, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Alert,
     CopyButton,
     Drawer,
-    Group,
     Loader,
     Title,
     type DefaultMantineColor,
@@ -154,7 +153,7 @@ const JobDetailsDrawer: FC = () => {
                 },
             }}
             title={
-                <Group noWrap align="center" spacing="xs">
+                <Group wrap="nowrap" align="center" gap="xs">
                     <DrawerIcon job={activeJob} />
 
                     <Box>
