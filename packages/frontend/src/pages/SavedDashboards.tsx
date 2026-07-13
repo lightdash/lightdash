@@ -1,6 +1,5 @@
 import { ContentType, LightdashMode } from '@lightdash/common';
-import { Group, Stack } from '@mantine-8/core';
-import { Button } from '@mantine/core';
+import { Group, Stack, Button } from '@mantine-8/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
@@ -64,7 +63,7 @@ const SavedDashboards = () => {
                             userCanCreateDashboards &&
                             !isDemo && (
                                 <Button
-                                    leftIcon={<IconPlus size={18} />}
+                                    leftSection={<IconPlus size={18} />}
                                     onClick={handleCreateDashboard}
                                 >
                                     Create dashboard

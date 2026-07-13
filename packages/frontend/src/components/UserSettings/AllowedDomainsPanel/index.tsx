@@ -6,14 +6,8 @@ import {
     validateOrganizationEmailDomains,
     type AllowedEmailDomains,
 } from '@lightdash/common';
-import { Flex, Stack, Text, Title } from '@mantine-8/core';
-import {
-    ActionIcon,
-    Button,
-    MultiSelect,
-    Select,
-    Tooltip,
-} from '@mantine/core';
+import { Flex, Stack, Text, Title, Button } from '@mantine-8/core';
+import { ActionIcon, MultiSelect, Select, Tooltip } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconHelpCircle, IconPlus, IconTrash } from '@tabler/icons-react';
 import {
@@ -30,6 +24,7 @@ import {
 } from '../../../hooks/organization/useAllowedDomains';
 import { useProjects } from '../../../hooks/useProjects';
 import MantineIcon from '../../common/MantineIcon';
+import styles from './AllowedDomainsPanel.module.css';
 
 const roleOptions: Array<{
     value: AllowedEmailDomains['role'];
@@ -414,15 +409,11 @@ const AllowedDomainsPanel: FC = () => {
                                             {...(!canAddMoreProjects && {
                                                 'data-disabled': true,
                                             })}
-                                            sx={{
-                                                '&[data-disabled="true"]': {
-                                                    pointerEvents: 'all',
-                                                },
-                                            }}
+                                            className={styles.addProjectButton}
                                             onClick={handleAddProject}
                                             variant="outline"
                                             size="xs"
-                                            leftIcon={
+                                            leftSection={
                                                 <MantineIcon icon={IconPlus} />
                                             }
                                         >

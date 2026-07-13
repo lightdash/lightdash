@@ -1,8 +1,7 @@
 import { getErrorMessage, type CatalogItem } from '@lightdash/common';
-import { Box, Divider, Group, Stack, Text } from '@mantine-8/core';
+import { Box, Divider, Group, Stack, Text, Button } from '@mantine-8/core';
 import {
     ActionIcon,
-    Button,
     Popover,
     SimpleGrid,
     TextInput,
@@ -161,9 +160,8 @@ const EditPopover: FC<EditPopoverProps> = ({
                         </Tooltip>
 
                         <Button
-                            variant="darkPrimary"
-                            size="xs"
-                            compact
+                            variant="dark"
+                            size="compact-xs"
                             onClick={handleSave}
                         >
                             Save

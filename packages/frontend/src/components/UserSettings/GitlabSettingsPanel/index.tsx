@@ -1,5 +1,14 @@
-import { Box, Flex, Group, Loader, Stack, Text, Title } from '@mantine-8/core';
-import { Alert, Avatar, Button } from '@mantine/core';
+import {
+    Box,
+    Flex,
+    Group,
+    Loader,
+    Stack,
+    Text,
+    Title,
+    Button,
+} from '@mantine-8/core';
+import { Alert, Avatar } from '@mantine/core';
 import { IconAlertCircle, IconRefresh, IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
 import gitlabIcon from '../../../svgs/gitlab-icon.svg';
@@ -69,7 +78,7 @@ const GitlabSettingsPanel: FC = () => {
                                 target="_blank"
                                 variant="default"
                                 href={GITLAB_INSTALL_URL}
-                                leftIcon={<MantineIcon icon={IconRefresh} />}
+                                leftSection={<MantineIcon icon={IconRefresh} />}
                                 onClick={() => {
                                     deleteGitlabInstallationMutation.mutate(
                                         undefined,
@@ -94,7 +103,7 @@ const GitlabSettingsPanel: FC = () => {
                                 onClick={() =>
                                     deleteGitlabInstallationMutation.mutate()
                                 }
-                                leftIcon={<MantineIcon icon={IconTrash} />}
+                                leftSection={<MantineIcon icon={IconTrash} />}
                             >
                                 Delete
                             </Button>

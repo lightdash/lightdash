@@ -1,12 +1,6 @@
 import { isEmojiIcon, type CatalogField } from '@lightdash/common';
-import { Box, Group, Paper } from '@mantine-8/core';
-import {
-    ActionIcon,
-    Button,
-    getDefaultZIndex,
-    Highlight,
-    Portal,
-} from '@mantine/core';
+import { Box, Group, Paper, Button } from '@mantine-8/core';
+import { ActionIcon, getDefaultZIndex, Highlight, Portal } from '@mantine/core';
 import { useClickOutside } from '@mantine/hooks';
 import { IconTrash } from '@tabler/icons-react';
 import EmojiPicker, {
@@ -62,11 +56,12 @@ const SharedEmojiPicker = forwardRef(
                             <Group justify="flex-end">
                                 <Button
                                     variant="light"
-                                    size="xs"
-                                    compact
+                                    size="compact-xs"
                                     color="gray"
                                     onClick={() => onClick(null)}
-                                    leftIcon={<MantineIcon icon={IconTrash} />}
+                                    leftSection={
+                                        <MantineIcon icon={IconTrash} />
+                                    }
                                 >
                                     Remove
                                 </Button>

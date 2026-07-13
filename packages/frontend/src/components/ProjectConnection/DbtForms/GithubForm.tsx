@@ -1,10 +1,9 @@
 import { DbtProjectType } from '@lightdash/common';
-import { Group, Stack, Text } from '@mantine-8/core';
+import { Button, Group, Stack, Text } from '@mantine-8/core';
 import {
     ActionIcon,
     Anchor,
     Avatar,
-    Button,
     PasswordInput,
     ScrollArea,
     Select,
@@ -159,20 +158,14 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
         <>
             {' '}
             <Button
-                leftIcon={
+                leftSection={
                     <Avatar
                         src={githubIcon}
                         size="sm"
                         styles={{ image: { filter: 'invert(1)' } }}
                     />
                 }
-                sx={() => ({
-                    backgroundColor: 'black',
-                    color: 'white',
-                    '&:hover': {
-                        backgroundColor: 'ldGray.8',
-                    },
-                })}
+                className={styles.githubButton}
                 onClick={() => {
                     window.open(
                         GITHUB_INSTALL_URL,

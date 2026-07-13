@@ -1,13 +1,6 @@
 import { type OrganizationColorPalette } from '@lightdash/common';
-import { Flex, Group, Paper, Text } from '@mantine-8/core';
-import {
-    ActionIcon,
-    Badge,
-    Button,
-    ColorSwatch,
-    Menu,
-    Tooltip,
-} from '@mantine/core';
+import { Flex, Group, Paper, Text, Button } from '@mantine-8/core';
+import { ActionIcon, Badge, ColorSwatch, Menu, Tooltip } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import {
     IconDotsVertical,
@@ -149,12 +142,12 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                                     onSetActive(palette.colorPaletteUuid)
                                 }
                                 h={32}
-                                sx={() => ({
+                                style={{
                                     visibility:
                                         isHovered && !isActive
                                             ? 'visible'
                                             : 'hidden',
-                                })}
+                                }}
                             >
                                 Use This Theme
                             </Button>

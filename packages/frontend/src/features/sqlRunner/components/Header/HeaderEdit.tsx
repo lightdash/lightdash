@@ -1,6 +1,6 @@
 import { type SqlChart } from '@lightdash/common';
-import { Group, Paper, Stack, Title } from '@mantine-8/core';
-import { ActionIcon, Button, HoverCard, Menu, Tooltip } from '@mantine/core';
+import { Group, Paper, Stack, Title, Button } from '@mantine-8/core';
+import { ActionIcon, HoverCard, Menu, Tooltip } from '@mantine/core';
 import {
     IconArrowBack,
     IconDots,

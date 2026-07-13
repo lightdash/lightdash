@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import { ContentType, FeatureFlags } from '@lightdash/common';
-import { Group, Stack } from '@mantine-8/core';
-import { Button } from '@mantine/core';
+import { Group, Stack, Button } from '@mantine-8/core';
 import { IconPlus } from '@tabler/icons-react';
 import { Link, Navigate, useParams } from 'react-router';
 import Page from '../components/common/Page/Page';
@@ -57,7 +56,7 @@ const SavedApps = () => {
                             <Button
                                 component={Link}
                                 to={`/projects/${projectUuid}/apps/generate`}
-                                leftIcon={<IconPlus size={18} />}
+                                leftSection={<IconPlus size={18} />}
                             >
                                 Create data app
                             </Button>

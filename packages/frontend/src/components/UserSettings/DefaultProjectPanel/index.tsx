@@ -1,6 +1,6 @@
 import { ProjectType } from '@lightdash/common';
-import { Flex, Stack } from '@mantine-8/core';
-import { Button, Select } from '@mantine/core';
+import { Flex, Stack, Button } from '@mantine-8/core';
+import { Select } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useEffect, type FC } from 'react';
 import { z } from 'zod';

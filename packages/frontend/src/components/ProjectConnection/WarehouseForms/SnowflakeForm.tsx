@@ -1,8 +1,7 @@
 import { SnowflakeAuthenticationType, WarehouseTypes } from '@lightdash/common';
-import { Group, Stack, Text } from '@mantine-8/core';
+import { Group, Stack, Text, Button } from '@mantine-8/core';
 import {
     Anchor,
-    Button,
     FileInput,
     NumberInput,
     PasswordInput,
@@ -38,6 +37,7 @@ import {
     PASSWORD_LABEL,
     PRIVATE_KEY_LABEL,
 } from './util';
+import styles from './WarehouseButtons.module.css';
 
 export const SnowflakeSchemaInput: FC<{
     disabled: boolean;
@@ -70,8 +70,8 @@ const SnowflakeSSOInput: FC<{
             variant="default"
             color="gray"
             disabled={disabled}
-            leftIcon={getWarehouseIcon(WarehouseTypes.SNOWFLAKE, 'sm')}
-            sx={{ ':hover': { textDecoration: 'underline' } }}
+            leftSection={getWarehouseIcon(WarehouseTypes.SNOWFLAKE, 'sm')}
+            className={styles.signInButton}
         >
             Sign in with Snowflake
         </Button>
@@ -367,7 +367,9 @@ const SnowflakeForm: FC<{
                                     disabled={disabled}
                                     {...form.getInputProps(
                                         'warehouse.requireUserCredentials',
-                                        { type: 'checkbox' },
+                                        {
+                                            type: 'checkbox',
+                                        },
                                     )}
                                 />
                             </>
@@ -527,7 +529,9 @@ const SnowflakeForm: FC<{
                                         disabled={disabled}
                                         {...form.getInputProps(
                                             'warehouse.requireUserCredentials',
-                                            { type: 'checkbox' },
+                                            {
+                                                type: 'checkbox',
+                                            },
                                         )}
                                     />
                                 )}
@@ -556,7 +560,9 @@ const SnowflakeForm: FC<{
                                     disabled={disabled}
                                     {...form.getInputProps(
                                         'warehouse.clientSessionKeepAlive',
-                                        { type: 'checkbox' },
+                                        {
+                                            type: 'checkbox',
+                                        },
                                     )}
                                 />
 

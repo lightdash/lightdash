@@ -8,11 +8,10 @@ import {
     SEED_ORG_1_ADMIN_PASSWORD,
     type OpenIdIdentityIssuerType,
 } from '@lightdash/common';
-import { Box, Divider, Stack, Text, Title } from '@mantine-8/core';
+import { Box, Divider, Stack, Text, Title, Button } from '@mantine-8/core';
 import {
     ActionIcon,
     Anchor,
-    Button,
     Card,
     PasswordInput,
     TextInput,

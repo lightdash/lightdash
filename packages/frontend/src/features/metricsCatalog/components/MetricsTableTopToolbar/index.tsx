@@ -28,11 +28,11 @@ import {
     Stack,
     type GroupProps,
     Text,
+    Button,
 } from '@mantine-8/core';
 import {
     ActionIcon,
     Badge,
-    Button,
     Popover,
     SegmentedControl,
     TextInput,
@@ -523,7 +523,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                                     radius="md"
                                                     h={28}
                                                     onClick={handleReset}
-                                                    sx={(theme) => ({
+                                                    style={(theme) => ({
                                                         border: `1px solid ${theme.colors.ldGray[2]}`,
                                                         boxShadow:
                                                             theme.shadows
@@ -543,7 +543,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                             <Button
                                                 size="xs"
                                                 h={28}
-                                                variant="darkPrimary"
+                                                variant="dark"
                                                 onClick={handleSave}
                                                 loading={
                                                     isCreatingSpotlightConfig
@@ -567,7 +567,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                                 variant="default"
                                                 onClick={handleReset}
                                                 disabled={!hasConfigChanges}
-                                                sx={(theme) => ({
+                                                style={(theme) => ({
                                                     border: `1px solid ${theme.colors.ldGray[2]}`,
                                                     boxShadow:
                                                         theme.shadows.subtle,

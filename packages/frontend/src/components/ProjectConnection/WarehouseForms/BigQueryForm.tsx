@@ -1,10 +1,9 @@
 import { BigqueryAuthenticationType, WarehouseTypes } from '@lightdash/common';
-import { Group, Loader, Stack, Text } from '@mantine-8/core';
+import { Group, Loader, Stack, Text, Button } from '@mantine-8/core';
 import type { SelectItem } from '@mantine/core';
 import {
     Anchor,
     Autocomplete,
-    Button,
     FileInput,
     Image,
     NumberInput,
@@ -85,7 +84,7 @@ const BigQuerySSOInput: FC<{
                 variant="default"
                 color="gray"
                 disabled={disabled}
-                leftIcon={
+                leftSection={
                     <Image
                         width={16}
                         src={

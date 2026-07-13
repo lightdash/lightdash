@@ -13,12 +13,11 @@ import {
     type ResourceViewItem,
     type SpaceSummary,
 } from '@lightdash/common';
-import { Box, Divider, Group, Text } from '@mantine-8/core';
+import { Box, Divider, Group, Text, Button } from '@mantine-8/core';
 import { useDebouncedCallback } from '@mantine-8/hooks';
 import {
     ActionIcon,
     Anchor,
-    Button,
     TextInput,
     Tooltip,
     useMantineTheme,
@@ -733,7 +732,7 @@ const InfiniteResourceTable = ({
                                 variant="filled"
                                 size="xs"
                                 color="blue"
-                                leftIcon={
+                                leftSection={
                                     <MantineIcon icon={IconFolderSymlink} />
                                 }
                                 onClick={openTransferItemsModal}
