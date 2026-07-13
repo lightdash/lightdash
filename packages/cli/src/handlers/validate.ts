@@ -28,6 +28,7 @@ import { getProjectDisableTimestampConversion } from './timestampConversion';
 import {
     filterValidationsBySpace,
     resolveSpaceSelection,
+    SpaceFilterMode,
 } from './validateSpaceFilter';
 
 export const requestValidation = async (
@@ -179,6 +180,23 @@ export const validateHandler = async (
 
     let shouldExitWithError = false;
     try {
+        let spaceFilter:
+            | { mode: SpaceFilterMode; selectedSpaceUuids: Set<string> }
+            | undefined;
+        const spaceFilterSlugs = options.includeSpaces?.length
+            ? options.includeSpaces
+            : options.excludeSpaces;
+        if (spaceFilterSlugs?.length) {
+            const spaces = await getProjectSpaces(projectUuid);
+            spaceFilter = {
+                mode: options.includeSpaces?.length ? 'include' : 'exclude',
+                selectedSpaceUuids: resolveSpaceSelection(
+                    spaces,
+                    spaceFilterSlugs,
+                ),
+            };
+        }
+
         const explores = await compile(options);
         GlobalState.debug(`> Compiled ${explores.length} explores`);
 
@@ -214,22 +232,11 @@ export const validateHandler = async (
 
         let validation = validationWithoutConfigWarnings;
         let spaceFilteredCount = 0;
-        const spaceFilterSlugs = options.includeSpaces?.length
-            ? options.includeSpaces
-            : options.excludeSpaces;
-        if (spaceFilterSlugs?.length) {
-            const spaceFilterMode = options.includeSpaces?.length
-                ? ('include' as const)
-                : ('exclude' as const);
-            const spaces = await getProjectSpaces(projectUuid);
-            const selectedSpaceUuids = resolveSpaceSelection(
-                spaces,
-                spaceFilterSlugs,
-            );
+        if (spaceFilter) {
             validation = filterValidationsBySpace(
                 validationWithoutConfigWarnings,
-                selectedSpaceUuids,
-                spaceFilterMode,
+                spaceFilter.selectedSpaceUuids,
+                spaceFilter.mode,
             );
             spaceFilteredCount =
                 validationWithoutConfigWarnings.length - validation.length;
