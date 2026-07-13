@@ -1,8 +1,5 @@
-import {
-    type ActionIconProps,
-    type ButtonProps,
-    type PopoverProps,
-} from '@mantine/core';
+import { type ActionIconProps, type PopoverProps } from '@mantine-8/core';
+import { type ButtonProps } from '@mantine/core';
 
 export const COLLAPSABLE_CARD_BUTTON_PROPS: Omit<ButtonProps, 'children'> = {
     variant: 'default',
@@ -13,7 +10,7 @@ export const COLLAPSABLE_CARD_ACTION_ICON_PROPS: Pick<
     ActionIconProps,
     'variant' | 'size'
 > = {
-    ...COLLAPSABLE_CARD_BUTTON_PROPS,
+    variant: 'default',
     size: 'md',
 };
 
