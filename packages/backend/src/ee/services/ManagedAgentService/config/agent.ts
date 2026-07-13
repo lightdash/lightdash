@@ -1,5 +1,4 @@
 import type { AgentCreateParams } from '@anthropic-ai/sdk/resources/beta/agents';
-import { createHash } from 'crypto';
 import { produce } from 'immer';
 
 export const managedAgentConfig: AgentCreateParams = {
@@ -430,6 +429,38 @@ type RenderManagedAgentConfigArgs = {
     toolSettings?: Record<string, boolean>;
 };
 
+export const getAutopilotSessionTitle = (
+    projectName: string,
+    now: Date,
+): string => `Health check: ${projectName} — ${now.toISOString()}`;
+
+export const getAutopilotInitialPrompt = (
+    projectName: string,
+    now: Date,
+): string =>
+    `Today's date is ${now.toISOString().split('T')[0]}. Analyze project "${projectName}". Follow your checklist.`;
+
+export const getAutopilotSlackSummaryResult = (
+    currentSummary: string,
+    input: Record<string, unknown>,
+): {
+    summary: string;
+    summaryLength: number;
+    toolResult: string;
+} => {
+    const candidate =
+        typeof input.summary === 'string' ? input.summary.trim() : '';
+
+    return {
+        summary: candidate || currentSummary,
+        summaryLength: candidate.length,
+        toolResult: JSON.stringify({
+            ok: true,
+            summary_length: candidate.length,
+        }),
+    };
+};
+
 const managedAgentCapabilityTools = {
     createContent: ['create_content_from_code'],
     modifyExistingContent: [
@@ -503,6 +534,3 @@ export const renderManagedAgentConfig = ({
         }
     });
 };
-
-export const getManagedAgentConfigHash = (agentConfig: AgentCreateParams) =>
-    createHash('md5').update(JSON.stringify(agentConfig)).digest('hex');

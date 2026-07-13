@@ -4,25 +4,22 @@ import type {
     AgentUpdateParams,
     BetaManagedAgentsAgent,
 } from '@anthropic-ai/sdk/resources/beta/agents';
+import type { BetaManagedAgentsStreamSessionEvents } from '@anthropic-ai/sdk/resources/beta/sessions/events';
 import { ParameterError } from '@lightdash/common';
-import * as Sentry from '@sentry/node';
+import { createHash } from 'crypto';
 import type { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { traceSpan, type TraceSpan } from '../../tracing/tracing';
-import {
-    getManagedAgentConfigHash,
-    renderManagedAgentConfig,
-} from '../services/ManagedAgentService/config/agent';
 
 type ManagedAgentClientConfig = {
     lightdashConfig: LightdashConfig;
+    anthropicClient?: Anthropic;
 };
 
 export type ManagedAgentSessionConfig = {
+    agentConfig: AgentCreateParams;
     serviceAccountPat: string;
     resourceName: string;
-    skillIds: string[];
-    toolSettings: Record<string, boolean>;
     persistedAgentId: string | null;
     persistedAgentConfigHash: string | null;
     persistedAgentVersion: number | null;
@@ -39,10 +36,62 @@ export type ManagedAgentSessionConfig = {
     ) => Promise<void>;
 };
 
-type CustomToolHandler = (
+export type ManagedAgentProgressEvent =
+    | {
+          type: 'message';
+      }
+    | {
+          type: 'tool_use';
+          source: 'builtin' | 'mcp' | 'custom';
+          toolName: string;
+      }
+    | {
+          type: 'idle';
+          stopReason: string | null;
+      };
+
+type ManagedAgentCustomToolHandler = (
     toolName: string,
     input: Record<string, unknown>,
 ) => Promise<string>;
+
+export type ManagedAgentRunConfig = {
+    projectName: string;
+    sessionTitle: string;
+    initialPrompt: string;
+    onCustomToolUse: ManagedAgentCustomToolHandler;
+    onSessionCreated?: (sessionId: string) => Promise<void> | void;
+    onProgress?: (
+        progressEvent: ManagedAgentProgressEvent,
+    ) => Promise<void> | void;
+    abortSignal?: AbortSignal;
+    timeoutMs?: number;
+};
+
+export type ManagedAgentSessionResult =
+    | {
+          status: 'completed';
+          sessionId: string;
+      }
+    | {
+          status: 'cancelled' | 'failed' | 'timed_out';
+          sessionId: string;
+          error: string;
+      };
+
+class ManagedAgentSessionTimeoutError extends Error {}
+
+const renderAgentConfigForResource = (
+    resourceName: string,
+    agentConfig: AgentCreateParams,
+): AgentCreateParams => ({
+    ...agentConfig,
+    name: `${agentConfig.name} (${resourceName})`,
+    metadata: {
+        ...agentConfig.metadata,
+        lightdash_resource: resourceName,
+    },
+});
 
 export class ManagedAgentClient {
     private readonly config: ManagedAgentClientConfig;
@@ -52,6 +101,10 @@ export class ManagedAgentClient {
     }
 
     private getAnthropicClient(): Anthropic {
+        if (this.config.anthropicClient) {
+            return this.config.anthropicClient;
+        }
+
         const { anthropicApiKey } = this.config.lightdashConfig.managedAgent;
         if (!anthropicApiKey) {
             throw new ParameterError(
@@ -62,36 +115,17 @@ export class ManagedAgentClient {
         return new Anthropic({ apiKey: anthropicApiKey });
     }
 
-    private getRenderedAgentConfig(
-        resourceName: string,
-        skillIds: string[],
-        toolSettings: Record<string, boolean>,
-    ): AgentCreateParams {
-        const renderedAgentConfig = renderManagedAgentConfig({
-            lightdashSiteUrl: this.config.lightdashConfig.siteUrl,
-            skillIds,
-            toolSettings,
-        });
-        return {
-            ...renderedAgentConfig,
-            name: `${renderedAgentConfig.name} (${resourceName})`,
-            metadata: {
-                ...renderedAgentConfig.metadata,
-                lightdash_resource: resourceName,
-            },
-        };
-    }
-
     private async ensureAgent(
         beta: Anthropic.Beta,
         sessionConfig: ManagedAgentSessionConfig,
     ): Promise<string> {
-        const desiredAgent = this.getRenderedAgentConfig(
+        const desiredAgent = renderAgentConfigForResource(
             sessionConfig.resourceName,
-            sessionConfig.skillIds,
-            sessionConfig.toolSettings,
+            sessionConfig.agentConfig,
         );
-        const desiredHash = getManagedAgentConfigHash(desiredAgent);
+        const desiredHash = createHash('md5')
+            .update(JSON.stringify(desiredAgent))
+            .digest('hex');
 
         if (
             sessionConfig.persistedAgentId &&
@@ -282,13 +316,10 @@ export class ManagedAgentClient {
 
     async runSession(
         sessionConfig: ManagedAgentSessionConfig,
-        projectName: string,
-        onCustomToolUse: CustomToolHandler,
-        onSessionCreated?: (sessionId: string) => void,
-    ): Promise<{
-        sessionId: string;
-        slackSummary: string | null;
-    }> {
+        runConfig: ManagedAgentRunConfig,
+    ): Promise<ManagedAgentSessionResult> {
+        runConfig.abortSignal?.throwIfAborted();
+
         // Managed-agent sessions run on Anthropic's Agents API (not the Vercel
         // AI SDK), so they need a manual span to show up in tracing alongside
         // the auto-instrumented AI-SDK calls. Token usage isn't surfaced in the
@@ -301,49 +332,51 @@ export class ManagedAgentClient {
                     feature: 'managed-agent',
                     'gen_ai.system': 'anthropic',
                     'lightdash.resource_name': sessionConfig.resourceName,
-                    'lightdash.project_name': projectName,
+                    'lightdash.project_name': runConfig.projectName,
                 },
             },
             (span) =>
-                this.runManagedAgentSession(
-                    sessionConfig,
-                    projectName,
-                    onCustomToolUse,
-                    span,
-                    onSessionCreated,
-                ),
+                this.runManagedAgentSession(sessionConfig, runConfig, span),
         );
     }
 
     private async runManagedAgentSession(
         sessionConfig: ManagedAgentSessionConfig,
-        projectName: string,
-        onCustomToolUse: CustomToolHandler,
+        runConfig: ManagedAgentRunConfig,
         span: TraceSpan,
-        onSessionCreated?: (sessionId: string) => void,
-    ): Promise<{
-        sessionId: string;
-        slackSummary: string | null;
-    }> {
+    ): Promise<ManagedAgentSessionResult> {
+        runConfig.abortSignal?.throwIfAborted();
+
         const client = this.getAnthropicClient();
         const { agentId, environmentId, vaultId } =
             await this.ensureAgentAndEnvironment(client, sessionConfig);
+        runConfig.abortSignal?.throwIfAborted();
 
         const session = await client.beta.sessions.create({
             agent: agentId,
             environment_id: environmentId,
             vault_ids: [vaultId],
-            title: `Health check: ${projectName} — ${new Date().toISOString()}`,
+            title: runConfig.sessionTitle,
         });
+        runConfig.abortSignal?.throwIfAborted();
 
         Logger.info(`[ManagedAgent] Session created: ${session.id}`);
         span.setAttributes({
             'gen_ai.agent.id': agentId,
             'gen_ai.session.id': session.id,
         });
-        onSessionCreated?.(session.id);
+        await runConfig.onSessionCreated?.(session.id);
+        runConfig.abortSignal?.throwIfAborted();
 
         const stream = await client.beta.sessions.events.stream(session.id);
+        if (runConfig.abortSignal?.aborted) {
+            await this.interruptSession(client, session.id, stream.controller);
+            return {
+                status: 'cancelled',
+                sessionId: session.id,
+                error: this.getErrorMessage(runConfig.abortSignal.reason),
+            };
+        }
 
         await client.beta.sessions.events.send(session.id, {
             events: [
@@ -352,39 +385,37 @@ export class ManagedAgentClient {
                     content: [
                         {
                             type: 'text',
-                            text: `Today's date is ${new Date().toISOString().split('T')[0]}. Analyze project "${projectName}". Follow your checklist.`,
+                            text: runConfig.initialPrompt,
                         },
                     ],
                 },
             ],
         });
+        if (runConfig.abortSignal?.aborted) {
+            await this.interruptSession(client, session.id, stream.controller);
+            return {
+                status: 'cancelled',
+                sessionId: session.id,
+                error: this.getErrorMessage(runConfig.abortSignal.reason),
+            };
+        }
 
-        const { sessionTimeoutMs } = this.config.lightdashConfig.managedAgent;
-
-        // Wrap the event loop in a timeout to prevent the scheduler from
-        // blocking indefinitely if the agent stalls or loops.
-        const timeoutPromise = new Promise<never>((_, reject) => {
-            setTimeout(
-                () =>
-                    reject(
-                        new Error(
-                            `[ManagedAgent] Session timed out after ${sessionTimeoutMs}ms`,
-                        ),
-                    ),
-                sessionTimeoutMs,
-            );
-        });
-
-        let slackSummary: string | null = null;
+        const sessionTimeoutMs =
+            runConfig.timeoutMs ??
+            this.config.lightdashConfig.managedAgent.sessionTimeoutMs;
 
         const eventLoop = async () => {
             for await (const event of stream) {
+                try {
+                    await this.emitProgress(event, runConfig.onProgress);
+                } catch (error) {
+                    Logger.warn(
+                        `[ManagedAgent] Progress callback failed: ${this.getErrorMessage(error)}`,
+                    );
+                }
+
                 if (event.type === 'agent.message') {
-                    for (const block of event.content) {
-                        if ('text' in block) {
-                            Logger.debug(`[ManagedAgent] ${block.text}`);
-                        }
-                    }
+                    Logger.debug('[ManagedAgent] Agent message received');
                 } else if (event.type === 'agent.tool_use') {
                     Logger.info(`[ManagedAgent] Built-in tool: ${event.name}`);
                 } else if (event.type === 'agent.mcp_tool_use') {
@@ -393,44 +424,8 @@ export class ManagedAgentClient {
                     Logger.info(
                         `[ManagedAgent] Tool call: ${event.name} (event_id: ${event.id})`,
                     );
-                    if (event.name === 'write_slack_summary') {
-                        const summary =
-                            typeof event.input.summary === 'string'
-                                ? event.input.summary.trim()
-                                : null;
-                        if (summary) {
-                            slackSummary = summary;
-                            Logger.info(
-                                `[ManagedAgent] Captured dedicated Slack summary (${summary.length} chars)`,
-                            );
-                        } else {
-                            Logger.warn(
-                                '[ManagedAgent] write_slack_summary called without a valid summary',
-                            );
-                        }
-                        await client.beta.sessions.events.send(session.id, {
-                            events: [
-                                {
-                                    type: 'user.custom_tool_result',
-                                    custom_tool_use_id: event.id,
-                                    content: [
-                                        {
-                                            type: 'text',
-                                            text: JSON.stringify({
-                                                ok: true,
-                                                summary_length:
-                                                    summary?.length ?? 0,
-                                            }),
-                                        },
-                                    ],
-                                },
-                            ],
-                        });
-                        // eslint-disable-next-line no-continue
-                        continue;
-                    }
                     try {
-                        const result = await onCustomToolUse(
+                        const result = await runConfig.onCustomToolUse(
                             event.name,
                             event.input as Record<string, unknown>,
                         );
@@ -491,19 +486,172 @@ export class ManagedAgentClient {
             }
         };
 
+        let timeoutId: NodeJS.Timeout | undefined;
+        let removeAbortListener: (() => void) | undefined;
+        const timeoutPromise = new Promise<never>((_, reject) => {
+            timeoutId = setTimeout(() => {
+                const error = new ManagedAgentSessionTimeoutError(
+                    `[ManagedAgent] Session timed out after ${sessionTimeoutMs}ms`,
+                );
+                void this.interruptSession(
+                    client,
+                    session.id,
+                    stream.controller,
+                ).then(
+                    () => reject(error),
+                    () => reject(error),
+                );
+            }, sessionTimeoutMs);
+        });
+        const abortPromise = runConfig.abortSignal
+            ? new Promise<never>((_, reject) => {
+                  const abort = () => {
+                      const error =
+                          runConfig.abortSignal?.reason ??
+                          new Error('[ManagedAgent] Session aborted');
+                      void this.interruptSession(
+                          client,
+                          session.id,
+                          stream.controller,
+                      ).then(
+                          () => reject(error),
+                          () => reject(error),
+                      );
+                  };
+
+                  if (runConfig.abortSignal?.aborted) {
+                      abort();
+                      return;
+                  }
+
+                  runConfig.abortSignal?.addEventListener('abort', abort, {
+                      once: true,
+                  });
+                  removeAbortListener = () =>
+                      runConfig.abortSignal?.removeEventListener(
+                          'abort',
+                          abort,
+                      );
+              })
+            : null;
+
         try {
-            await Promise.race([eventLoop(), timeoutPromise]);
-        } catch (error) {
-            // Always return the session ID even on timeout so the caller
-            // can still look up actions recorded before the error.
-            Logger.error(
-                `[ManagedAgent] Session ${session.id} error: ${error instanceof Error ? error.message : 'Unknown'}`,
+            await Promise.race(
+                [eventLoop(), timeoutPromise, abortPromise].filter(
+                    (promise): promise is Promise<void> | Promise<never> =>
+                        promise !== null,
+                ),
             );
+            return { status: 'completed', sessionId: session.id };
+        } catch (error) {
+            Logger.error(
+                `[ManagedAgent] Session ${session.id} error: ${this.getErrorMessage(error)}`,
+            );
+            if (!stream.controller.signal.aborted) {
+                await this.interruptSession(
+                    client,
+                    session.id,
+                    stream.controller,
+                );
+            }
+
+            return {
+                status: this.getTerminalStatus(error, runConfig.abortSignal),
+                sessionId: session.id,
+                error: this.getErrorMessage(error),
+            };
+        } finally {
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+            }
+            removeAbortListener?.();
+        }
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    private async emitProgress(
+        event: BetaManagedAgentsStreamSessionEvents,
+        onProgress: ManagedAgentRunConfig['onProgress'],
+    ): Promise<void> {
+        if (!onProgress) {
+            return;
         }
 
-        return {
-            sessionId: session.id,
-            slackSummary,
-        };
+        if (event.type === 'agent.message') {
+            await onProgress({ type: 'message' });
+            return;
+        }
+
+        if (event.type === 'agent.tool_use') {
+            await onProgress({
+                type: 'tool_use',
+                source: 'builtin',
+                toolName: event.name,
+            });
+            return;
+        }
+
+        if (event.type === 'agent.mcp_tool_use') {
+            await onProgress({
+                type: 'tool_use',
+                source: 'mcp',
+                toolName: event.name,
+            });
+            return;
+        }
+
+        if (event.type === 'agent.custom_tool_use') {
+            await onProgress({
+                type: 'tool_use',
+                source: 'custom',
+                toolName: event.name,
+            });
+            return;
+        }
+
+        if (event.type === 'session.status_idle') {
+            await onProgress({
+                type: 'idle',
+                stopReason: event.stop_reason?.type ?? null,
+            });
+        }
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    private async interruptSession(
+        client: Anthropic,
+        sessionId: string,
+        streamController: AbortController,
+    ): Promise<void> {
+        try {
+            await client.beta.sessions.events.send(sessionId, {
+                events: [{ type: 'user.interrupt' }],
+            });
+        } catch (error) {
+            Logger.error(
+                `[ManagedAgent] Failed to interrupt session ${sessionId}: ${this.getErrorMessage(error)}`,
+            );
+        } finally {
+            streamController.abort();
+        }
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    private getErrorMessage(error: unknown): string {
+        return error instanceof Error ? error.message : 'Unknown error';
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    private getTerminalStatus(
+        error: unknown,
+        abortSignal?: AbortSignal,
+    ): 'cancelled' | 'failed' | 'timed_out' {
+        if (abortSignal?.aborted) {
+            return 'cancelled';
+        }
+        if (error instanceof ManagedAgentSessionTimeoutError) {
+            return 'timed_out';
+        }
+        return 'failed';
     }
 }

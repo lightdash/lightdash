@@ -49,6 +49,12 @@ import {
 import { ManagedAgentModel } from '../../models/ManagedAgentModel';
 import type { ServiceAccountModel } from '../../models/ServiceAccountModel';
 import {
+    getAutopilotInitialPrompt,
+    getAutopilotSessionTitle,
+    getAutopilotSlackSummaryResult,
+    renderManagedAgentConfig,
+} from './config/agent';
+import {
     formatManagedAgentToolListResult,
     getManagedAgentToolResultLimit,
     summarizeManagedAgentBrokenContent,
@@ -288,10 +294,13 @@ export class ManagedAgentService extends BaseService {
         const settings = await this.managedAgentModel.getSettings(projectUuid);
 
         return {
+            agentConfig: renderManagedAgentConfig({
+                lightdashSiteUrl: this.lightdashConfig.siteUrl,
+                skillIds: this.lightdashConfig.managedAgent.skillIds,
+                toolSettings: settings?.toolSettings ?? {},
+            }),
             serviceAccountPat: serviceAccountToken,
             resourceName: `${organization.name}:${organization.organizationUuid}:${project.projectUuid}`,
-            skillIds: this.lightdashConfig.managedAgent.skillIds,
-            toolSettings: settings?.toolSettings ?? {},
             persistedAgentId: agentId,
             persistedAgentConfigHash: agentConfigHash,
             persistedAgentVersion: agentVersion,
@@ -721,7 +730,9 @@ export class ManagedAgentService extends BaseService {
                     const chart = await this.savedChartModel.get(
                         targetUuid,
                         undefined,
-                        { deleted: 'any' },
+                        {
+                            deleted: 'any',
+                        },
                     );
                     return await this.canActorViewChart(actor, chart);
                 }
@@ -773,7 +784,9 @@ export class ManagedAgentService extends BaseService {
                         const chart = await this.savedChartModel.get(
                             chartUuid,
                             undefined,
-                            { deleted: 'any' },
+                            {
+                                deleted: 'any',
+                            },
                         );
                         return this.canActorViewChart(actor, chart);
                     },
@@ -1205,37 +1218,65 @@ export class ManagedAgentService extends BaseService {
         const onToolCall = async (
             toolName: string,
             input: Record<string, unknown>,
-        ): Promise<string> =>
-            this.handleToolCall(
+        ): Promise<string> => {
+            if (toolName === 'write_slack_summary') {
+                const summaryResult = getAutopilotSlackSummaryResult(
+                    slackSummary,
+                    input,
+                );
+                slackSummary = summaryResult.summary;
+
+                if (summaryResult.summaryLength > 0) {
+                    this.logger.info(
+                        `Captured dedicated Slack summary (${summaryResult.summaryLength} chars)`,
+                    );
+                } else {
+                    this.logger.warn(
+                        'write_slack_summary called without a valid summary',
+                    );
+                }
+
+                return summaryResult.toolResult;
+            }
+
+            return this.handleToolCall(
                 projectUuid,
                 sessionId,
                 runUuid,
                 toolName,
                 input,
             );
+        };
 
-        const onSessionCreated = (id: string) => {
+        const onSessionCreated = async (id: string) => {
             sessionId = id;
-            void this.managedAgentModel
-                .setRunSessionId(runUuid, id)
-                .catch((e) =>
-                    this.logger.error(
-                        `Failed to set session_id on run ${runUuid}: ${
-                            e instanceof Error ? e.message : 'Unknown'
-                        }`,
-                    ),
+            try {
+                await this.managedAgentModel.setRunSessionId(runUuid, id);
+            } catch (error) {
+                this.logger.error(
+                    `Failed to set session_id on run ${runUuid}: ${error instanceof Error ? error.message : 'Unknown'}`,
                 );
+            }
         };
 
         try {
+            const now = new Date();
             const result = await this.managedAgentClient.runSession(
                 sessionConfig,
-                projectUuid,
-                onToolCall,
-                onSessionCreated,
+                {
+                    projectName: projectUuid,
+                    sessionTitle: getAutopilotSessionTitle(projectUuid, now),
+                    initialPrompt: getAutopilotInitialPrompt(projectUuid, now),
+                    onCustomToolUse: onToolCall,
+                    onSessionCreated,
+                },
             );
             sessionId = result.sessionId;
-            slackSummary = result.slackSummary ?? '';
+            if (result.status !== 'completed') {
+                this.logger.error(
+                    `Heartbeat session ${sessionId} ended with ${result.status}: ${result.error}`,
+                );
+            }
             this.logger.info(`Heartbeat complete for project: ${projectUuid}`);
         } catch (error) {
             this.logger.error(
@@ -1484,7 +1525,9 @@ export class ManagedAgentService extends BaseService {
         try {
             const actions = await this.managedAgentModel.getActions(
                 projectUuid,
-                { sessionId },
+                {
+                    sessionId,
+                },
             );
 
             this.logger.info(
