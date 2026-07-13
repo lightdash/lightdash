@@ -35,6 +35,7 @@ import {
     type ChartAsCode,
     type DashboardAsCode,
     type FieldValueSearchResult,
+    type SchedulerAiAugmentation,
 } from '@lightdash/common';
 import * as JsonPatch from 'fast-json-patch';
 import Logger from '../../../logging/logger';
@@ -71,6 +72,7 @@ import type { BuiltInSkills } from '../ai/skills/builtInSkills';
 import {
     AnalyzeFieldImpactFn,
     CreateContentFn,
+    CreateScheduledDeliveryFn,
     DescribeWarehouseTableFn,
     EditContentFn,
     FindContentFn,
@@ -109,6 +111,7 @@ import {
 } from '../ai/utils/populateCustomMetricsSQL';
 import { getExploreRequiredFilters } from '../ai/utils/requiredFilters';
 import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
+import type { SchedulerAiAugmentationService } from '../SchedulerAiAugmentationService/SchedulerAiAugmentationService';
 
 type AgentListContentResult = Awaited<ReturnType<ListContentFn>>;
 type AgentListContentItem = AgentListContentResult['items'][number];
@@ -187,6 +190,7 @@ export type AiAgentToolsRuntime = {
     resolveUrl: ResolveUrlFn;
     editContent: EditContentFn;
     createContent: CreateContentFn;
+    createScheduledDelivery: CreateScheduledDeliveryFn;
     validateContent: ValidateContentFn;
     listKnowledgeDocuments: ListKnowledgeDocumentsFn;
     getKnowledgeDocumentContent: (args: {
@@ -251,6 +255,9 @@ type AiAgentToolsServiceDependencies = {
     featureFlagService: FeatureFlagService;
     previewDeploySetupService: PreviewDeploySetupService;
     shareService: ShareService;
+    // Lazy to break the construction cycle: schedulerAiAugmentationService →
+    // aiAgentService → aiAgentToolsService.
+    getSchedulerAiAugmentationService: () => SchedulerAiAugmentationService;
     lightdashConfig: {
         siteUrl: string;
         ai: { copilot: { maxQueryLimit: number } };
@@ -299,6 +306,8 @@ export class AiAgentToolsService extends BaseService {
     private readonly previewDeploySetupService: PreviewDeploySetupService;
 
     private readonly shareService: ShareService;
+
+    private readonly getSchedulerAiAugmentationService: () => SchedulerAiAugmentationService;
 
     private readonly lightdashConfig: AiAgentToolsServiceDependencies['lightdashConfig'];
 
@@ -358,6 +367,7 @@ export class AiAgentToolsService extends BaseService {
         featureFlagService,
         previewDeploySetupService,
         shareService,
+        getSchedulerAiAugmentationService,
         lightdashConfig,
     }: AiAgentToolsServiceDependencies) {
         super();
@@ -383,6 +393,8 @@ export class AiAgentToolsService extends BaseService {
         this.featureFlagService = featureFlagService;
         this.previewDeploySetupService = previewDeploySetupService;
         this.shareService = shareService;
+        this.getSchedulerAiAugmentationService =
+            getSchedulerAiAugmentationService;
         this.lightdashConfig = lightdashConfig;
     }
 
@@ -520,6 +532,8 @@ export class AiAgentToolsService extends BaseService {
             resolveUrl: (args) => this.resolveUrl(context, args),
             editContent: (args) => this.editContent(context, args),
             createContent: (args) => this.createContent(context, args),
+            createScheduledDelivery: (args) =>
+                this.createScheduledDelivery(context, args),
             validateContent: (args) => this.validateContent(args),
             listKnowledgeDocuments: () => this.listKnowledgeDocuments(context),
             getKnowledgeDocumentContent: (args) =>
@@ -1630,6 +1644,101 @@ export class AiAgentToolsService extends BaseService {
         content,
     }: Parameters<ValidateContentFn>[0]): ReturnType<ValidateContentFn> {
         return this.aiAgentContentValidation.validateContent(type, content);
+    }
+
+    private createScheduledDelivery(
+        context: AiAgentToolsRuntimeContext,
+        args: Parameters<CreateScheduledDeliveryFn>[0],
+    ): ReturnType<CreateScheduledDeliveryFn> {
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(
+                context,
+            )}.createScheduledDelivery`,
+            {
+                resourceType: args.resourceType,
+                resourceUuid: args.resourceUuid,
+            },
+            async () => {
+                // Resource lookups are scoped to the agent's project so a uuid
+                // from another project resolves to NotFound instead of leaking.
+                let scheduler;
+                switch (args.resourceType) {
+                    case 'chart':
+                        await this.savedChartService.get(
+                            args.resourceUuid,
+                            context.account,
+                            { projectUuid: context.projectUuid },
+                        );
+                        scheduler =
+                            await this.savedChartService.createScheduler(
+                                context.user,
+                                args.resourceUuid,
+                                args.scheduler,
+                            );
+                        break;
+                    case 'dashboard':
+                        await this.dashboardService.getByIdOrSlug(
+                            context.user,
+                            args.resourceUuid,
+                            { projectUuid: context.projectUuid },
+                        );
+                        scheduler = await this.dashboardService.createScheduler(
+                            context.user,
+                            args.resourceUuid,
+                            args.scheduler,
+                        );
+                        break;
+                    default:
+                        return assertUnreachable(
+                            args.resourceType,
+                            'Invalid resource type',
+                        );
+                }
+
+                if (args.aiAugmentationPrompt === null) {
+                    return {
+                        scheduler,
+                        aiAugmentationAttached: false,
+                        warnings: [],
+                    };
+                }
+
+                const augmentation: SchedulerAiAugmentation = context.agentUuid
+                    ? {
+                          type: 'agent',
+                          prompt: args.aiAugmentationPrompt,
+                          agentUuid: context.agentUuid,
+                          sourceThreadUuid: null,
+                      }
+                    : {
+                          type: 'fast_model',
+                          prompt: args.aiAugmentationPrompt,
+                      };
+
+                try {
+                    await this.getSchedulerAiAugmentationService().upsertAugmentation(
+                        context.user,
+                        scheduler.schedulerUuid,
+                        augmentation,
+                    );
+                    return {
+                        scheduler,
+                        aiAugmentationAttached: true,
+                        warnings: [],
+                    };
+                } catch (error) {
+                    return {
+                        scheduler,
+                        aiAugmentationAttached: false,
+                        warnings: [
+                            `AI augmentation could not be attached: ${getErrorMessage(
+                                error,
+                            )}. The delivery was created WITHOUT it — the user can add or fix the augmentation from the Scheduled deliveries UI, or remove the delivery there.`,
+                        ],
+                    };
+                }
+            },
+        );
     }
 
     private runAsyncQuery(

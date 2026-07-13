@@ -300,6 +300,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     previewDeploySetupService:
                         repository.getPreviewDeploySetupService<PreviewDeploySetupService>(),
                     shareService: repository.getShareService(),
+                    getSchedulerAiAugmentationService: () =>
+                        repository.getSchedulerAiAugmentationService<SchedulerAiAugmentationService>(),
                 }),
             aiAgentService: ({
                 models,

@@ -14,6 +14,7 @@ import {
     CacheMetadata,
     CatalogField,
     ChartAsCode,
+    CreateSchedulerAndTargetsWithoutIds,
     DashboardAsCode,
     DashboardSearchResult,
     DbtProjectType,
@@ -26,6 +27,7 @@ import {
     PreviewDeploySetupResult,
     ProjectType,
     SavedChart,
+    SchedulerAndTargets,
     SlackPrompt,
     ToolFindContentArgs,
     ToolFindFieldsArgs,
@@ -331,6 +333,17 @@ export type CreateContentFn = (args: CreateContentArgs) => Promise<
 >;
 
 export type ValidateContentFn = (args: CreateContentArgs) => void;
+
+export type CreateScheduledDeliveryFn = (args: {
+    resourceType: 'chart' | 'dashboard';
+    resourceUuid: string;
+    scheduler: CreateSchedulerAndTargetsWithoutIds;
+    aiAugmentationPrompt: string | null;
+}) => Promise<{
+    scheduler: SchedulerAndTargets;
+    aiAugmentationAttached: boolean;
+    warnings: string[];
+}>;
 
 export type UpdateProgressFn = (
     progress: string,

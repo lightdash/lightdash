@@ -19,6 +19,7 @@ import {
     ConsumePromptSteersFn,
     CreateContentFn,
     CreateOrUpdateArtifactFn,
+    CreateScheduledDeliveryFn,
     DescribeWarehouseTableFn,
     DiscoverReposFn,
     EditContentFn,
@@ -144,6 +145,9 @@ export type AiAgentArgs = AnyAiModel & {
     // When the modern Slack streaming card is driving progress, tools render
     // their state into the card instead of the legacy bolt-gif placeholder.
     useSlackStreamCard: boolean;
+    // Originating Slack channel, so scheduling can target "this channel"
+    // without asking. Null for web and MCP prompts.
+    slackChannelId: string | null;
     warehouseType: WarehouseTypes | null;
     warehouseSchema: string | null;
     availableSkills: AiAgentSkillReference[];
@@ -186,6 +190,7 @@ export type AiAgentDependencies = {
     resolveUrl: ResolveUrlFn;
     editContent: EditContentFn;
     createContent: CreateContentFn;
+    createScheduledDelivery: CreateScheduledDeliveryFn;
     validateContent: ValidateContentFn;
     getDashboardCharts: GetDashboardChartsFn;
     findExplores: FindExploresFn;

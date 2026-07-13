@@ -7727,6 +7727,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             resolveUrl: toolsRuntime.resolveUrl,
             editContent: toolsRuntime.editContent,
             createContent: toolsRuntime.createContent,
+            createScheduledDelivery: toolsRuntime.createScheduledDelivery,
             validateContent: toolsRuntime.validateContent,
             getDashboardCharts: toolsRuntime.getDashboardCharts,
             findFields: toolsRuntime.findFields,
@@ -7915,6 +7916,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             resolveUrl,
             editContent,
             createContent,
+            createScheduledDelivery,
             validateContent,
             getDashboardCharts,
             findFields,
@@ -8308,6 +8310,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 ? user.userUuid
                 : null,
             useSlackStreamCard: Boolean(options.onSlackStepProgress),
+            slackChannelId: isSlackPrompt(prompt)
+                ? prompt.slackChannelId
+                : null,
             warehouseType,
             warehouseSchema,
             availableSkills,
@@ -8362,6 +8367,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             resolveUrl,
             editContent,
             createContent,
+            createScheduledDelivery,
             validateContent,
             getDashboardCharts,
             findFields,
