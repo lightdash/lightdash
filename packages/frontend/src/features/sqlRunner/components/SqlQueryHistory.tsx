@@ -1,7 +1,6 @@
-import { Stack } from '@mantine-8/core';
+import { Group, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
-    Group,
     HoverCard,
     Popover,
     Tooltip,
@@ -58,7 +57,7 @@ const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
                             dispatch(setSql(sql));
                         }}
                     >
-                        <Group spacing="xs" lh={1} noWrap>
+                        <Group gap="xs" lh={1} wrap="nowrap">
                             <MantineIcon
                                 icon={hovered ? IconCornerDownLeft : IconClock}
                             />
@@ -80,7 +79,7 @@ const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
                     </UnstyledButton>
                 </HoverCard.Target>
                 <HoverCard.Dropdown maw={600} sx={{ overflow: 'scroll' }}>
-                    <Group position="apart">
+                    <Group justify="space-between">
                         <Text
                             fz="xs"
                             fw={500}

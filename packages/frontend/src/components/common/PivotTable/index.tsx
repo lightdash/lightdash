@@ -27,14 +27,8 @@ import {
     type ResultValue,
     type SortField,
 } from '@lightdash/common';
-import { Box, Menu, type BoxProps } from '@mantine-8/core';
-import {
-    Button,
-    Group,
-    Skeleton,
-    Text,
-    useMantineColorScheme,
-} from '@mantine/core';
+import { Box, Group, Menu, type BoxProps } from '@mantine-8/core';
+import { Button, Skeleton, Text, useMantineColorScheme } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import {
     flexRender,
@@ -1214,8 +1208,8 @@ const PivotTable: FC<PivotTableProps> = ({
                                         titleSortIcon ? (
                                             <Group
                                                 display="inline-flex"
-                                                spacing={4}
-                                                noWrap
+                                                gap={4}
+                                                wrap="nowrap"
                                                 align="center"
                                             >
                                                 {getFieldLabel(
@@ -1436,8 +1430,8 @@ const PivotTable: FC<PivotTableProps> = ({
                             const headerInnerContent = sortIcon ? (
                                 <Group
                                     display="inline-flex"
-                                    spacing={4}
-                                    noWrap
+                                    gap={4}
+                                    wrap="nowrap"
                                     align="center"
                                 >
                                     {isLabel
@@ -1995,7 +1989,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                                     cell.getContext(),
                                                 )
                                             ) : (
-                                                <Group spacing="two" noWrap>
+                                                <Group gap="two" wrap="nowrap">
                                                     <Button
                                                         compact
                                                         size="xs"

@@ -8,8 +8,8 @@ import {
     type ResultRow,
     type TableCalculation,
 } from '@lightdash/common';
-import { Box, ScrollArea, Stack } from '@mantine-8/core';
-import { Divider, Group, SegmentedControl, Text } from '@mantine/core';
+import { Box, Group, ScrollArea, Stack } from '@mantine-8/core';
+import { Divider, SegmentedControl, Text } from '@mantine/core';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import ColorSelector from '../../ColorSelector';
 import { ChartConditionalFormatting } from './ChartConditionalFormatting';
@@ -161,7 +161,7 @@ export const CustomColors: FC<Props> = ({
                 uniqueCategories.length > 0 && (
                     <>
                         <Divider />
-                        <Group spacing="xs" noWrap>
+                        <Group gap="xs" wrap="nowrap">
                             <ColorSelector
                                 color={setAllColor ?? colorPalette[0]}
                                 swatches={colorPalette}
@@ -185,8 +185,8 @@ export const CustomColors: FC<Props> = ({
                                         ([rawKey, label], idx) => (
                                             <Group
                                                 key={rawKey}
-                                                spacing="xs"
-                                                noWrap
+                                                gap="xs"
+                                                wrap="nowrap"
                                             >
                                                 <ColorSelector
                                                     color={

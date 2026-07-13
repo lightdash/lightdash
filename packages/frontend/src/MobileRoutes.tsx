@@ -1,11 +1,10 @@
-import { Stack } from '@mantine-8/core';
+import { Group, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Burger,
     Divider,
     Drawer,
     getDefaultZIndex,
-    Group,
     Header,
     MantineProvider,
     Title,
@@ -100,7 +99,7 @@ export const MobileNavBar: FC = () => {
                     boxShadow: 'lg',
                 }}
             >
-                <Group align="center" position="apart" sx={{ flex: 1 }}>
+                <Group align="center" justify="space-between" flex={1}>
                     <ActionIcon
                         component={Link}
                         to={'/'}

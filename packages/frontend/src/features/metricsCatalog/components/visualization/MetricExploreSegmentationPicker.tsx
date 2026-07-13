@@ -5,16 +5,8 @@ import {
     type CompiledDimension,
     type MetricExplorerQuery,
 } from '@lightdash/common';
-import { Box, Stack } from '@mantine-8/core';
-import {
-    Alert,
-    Button,
-    Group,
-    Loader,
-    Select,
-    Tooltip,
-    Text,
-} from '@mantine/core';
+import { Box, Group, Stack } from '@mantine-8/core';
+import { Alert, Button, Loader, Select, Tooltip, Text } from '@mantine/core';
 import { IconInfoCircle, IconX } from '@tabler/icons-react';
 import { type UseQueryResult } from '@tanstack/react-query';
 import { useMemo, type FC } from 'react';
@@ -52,7 +44,7 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
 
     return (
         <Stack gap="xs">
-            <Group position="apart">
+            <Group justify="space-between">
                 <Text fw={500} c="ldGray.7">
                     Segment
                 </Text>

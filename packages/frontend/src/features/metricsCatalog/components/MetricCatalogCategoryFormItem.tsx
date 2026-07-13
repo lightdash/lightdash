@@ -1,10 +1,9 @@
 import { getErrorMessage, type CatalogItem } from '@lightdash/common';
-import { Box, Stack } from '@mantine-8/core';
+import { Box, Group, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Button,
     Divider,
-    Group,
     Popover,
     SimpleGrid,
     TextInput,
@@ -21,6 +20,7 @@ import { useDeleteTag, useUpdateTag } from '../hooks/useProjectTags';
 import { TAG_COLOR_SWATCHES } from '../utils/getRandomTagColor';
 import { CatalogCategory } from './CatalogCategory';
 import { CatalogCategorySwatch } from './CatalogCategorySwatch';
+import styles from './MetricCatalogCategoryFormItem.module.css';
 
 type EditPopoverProps = {
     hovered: boolean;
@@ -145,7 +145,7 @@ const EditPopover: FC<EditPopoverProps> = ({
                         })}
                     />
 
-                    <Group position="apart">
+                    <Group justify="space-between">
                         <Tooltip
                             variant="xs"
                             label="Delete this tag permanently"
@@ -213,18 +213,11 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
             px={4}
             py={3}
             pos="relative"
-            position="apart"
+            justify="space-between"
             tabIndex={0}
             role="button"
             onKeyDown={handleKeyDown}
-            sx={(theme) => ({
-                borderRadius: theme.radius.md,
-                outline: 'none',
-                '&:focus, &:hover': {
-                    backgroundColor: theme.colors.ldGray[0],
-                    transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                },
-            })}
+            className={styles.categoryFormItem}
         >
             <UnstyledButton
                 onClick={onClick}

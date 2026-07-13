@@ -27,7 +27,8 @@ import {
     type ResultValue,
     type TableCalculation,
 } from '@lightdash/common';
-import { Group, Skeleton, Tooltip } from '@mantine/core';
+import { Group } from '@mantine-8/core';
+import { Skeleton, Tooltip } from '@mantine/core';
 import { IconExclamationCircle } from '@tabler/icons-react';
 import { type CellContext } from '@tanstack/react-table';
 import omit from 'lodash/omit';
@@ -733,7 +734,7 @@ export const useColumns = (): TableColumn[] => {
                     {
                         id: fieldId,
                         header: () => (
-                            <Group spacing="two">
+                            <Group gap="two">
                                 <Tooltip
                                     withinPortal
                                     label="This field was not found in the dbt project."

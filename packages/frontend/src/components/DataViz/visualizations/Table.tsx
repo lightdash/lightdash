@@ -5,14 +5,8 @@ import {
     type VizColumnsConfig,
     type VizTableHeaderSortConfig,
 } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
-import {
-    Badge,
-    Flex,
-    Group,
-    useMantineTheme,
-    type FlexProps,
-} from '@mantine/core';
+import { Group, Menu } from '@mantine-8/core';
+import { Badge, Flex, useMantineTheme, type FlexProps } from '@mantine/core';
 import { IconArrowDown, IconArrowUp, IconCopy } from '@tabler/icons-react';
 import { flexRender } from '@tanstack/react-table';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -138,7 +132,7 @@ export const Table = <T extends IResultsRunner>({
                                                   }
                                         }
                                     >
-                                        <Group spacing="two" fz={13}>
+                                        <Group gap="two" fz={13}>
                                             {columnsConfig[header.id]
                                                 ?.aggregation && (
                                                 <Badge

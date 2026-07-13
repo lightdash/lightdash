@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { ContentType, LightdashMode } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
-import { Button, Group } from '@mantine/core';
+import { Group, Stack } from '@mantine-8/core';
+import { Button } from '@mantine/core';
 import { IconFolderPlus, IconPlus } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useParams } from 'react-router';
@@ -68,7 +68,7 @@ const Spaces: FC = () => {
                 withLargeContent
             >
                 <Stack gap="xxl" w="100%">
-                    <Group position="apart">
+                    <Group justify="space-between">
                         <PageBreadcrumbs
                             items={[
                                 { to: '/home', title: 'Home' },
@@ -76,7 +76,7 @@ const Spaces: FC = () => {
                             ]}
                         />
 
-                        <Group spacing="xs">
+                        <Group gap="xs">
                             {!isDemo && userCanManageSpace && (
                                 <Button
                                     leftIcon={<IconPlus size={18} />}

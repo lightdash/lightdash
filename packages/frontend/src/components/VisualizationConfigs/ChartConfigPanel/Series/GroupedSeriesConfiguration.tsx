@@ -19,8 +19,8 @@ import {
     type Series,
     type TableCalculation,
 } from '@lightdash/common';
-import { Box, Stack } from '@mantine-8/core';
-import { Checkbox, Group, Select, Switch } from '@mantine/core';
+import { Box, Group, Stack } from '@mantine-8/core';
+import { Checkbox, Select, Switch } from '@mantine/core';
 import React, { useCallback, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
@@ -153,7 +153,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
     return (
         <Config>
             <Config.Section>
-                <Group noWrap spacing="two">
+                <Group wrap="nowrap" gap="two">
                     <GrabIcon
                         dragHandleProps={dragHandleProps}
                         disabled={isDragDisabled}
@@ -165,7 +165,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                     </Config.Heading>
                 </Group>
                 <Stack gap="xs" ml="md">
-                    <Group noWrap spacing="xs" align="start">
+                    <Group wrap="nowrap" gap="xs" align="start">
                         <ChartTypeSelect
                             chartValue={chartValue}
                             showMixed={!isChartTypeTheSameForAllSeries}
@@ -264,7 +264,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                     </Group>
                     {(chartValue === CartesianSeriesType.LINE ||
                         chartValue === CartesianSeriesType.AREA) && (
-                        <Group spacing="xs">
+                        <Group gap="xs">
                             <Checkbox
                                 checked={Boolean(seriesGroup[0].showSymbol)}
                                 label="Show symbol"

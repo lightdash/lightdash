@@ -3,10 +3,9 @@ import {
     getItemId,
     getItemLabelWithoutTableName,
 } from '@lightdash/common';
-import { Center, Stack } from '@mantine-8/core';
+import { Center, Group, Stack } from '@mantine-8/core';
 import {
     Checkbox,
-    Group,
     NumberInput,
     SegmentedControl,
     Tooltip,
@@ -73,7 +72,7 @@ export const GaugeDisplayConfig: FC = memo(() => {
                         precision={2}
                         removeTrailingZeros={true}
                     />
-                    <Group spacing="xs" align="flex-end">
+                    <Group gap="xs" align="flex-end">
                         {maxValueMode === GaugeValueMode.FIXED ? (
                             <NumberInput
                                 label="Maximum value"

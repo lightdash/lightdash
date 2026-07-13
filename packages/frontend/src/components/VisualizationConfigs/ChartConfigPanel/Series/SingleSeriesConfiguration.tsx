@@ -5,15 +5,8 @@ import {
     type CartesianChartLayout,
     type Series,
 } from '@lightdash/common';
-import { Box, Stack } from '@mantine-8/core';
-import {
-    ActionIcon,
-    Checkbox,
-    Collapse,
-    Group,
-    Popover,
-    Select,
-} from '@mantine/core';
+import { Box, Group, Stack } from '@mantine-8/core';
+import { ActionIcon, Checkbox, Collapse, Popover, Select } from '@mantine/core';
 import { useDebouncedState, useHover } from '@mantine/hooks';
 import {
     IconChevronDown,
@@ -77,11 +70,11 @@ const SingleSeriesConfiguration: FC<Props> = ({
 
     return (
         <Box>
-            <Group position="apart">
+            <Group justify="space-between">
                 <Group
-                    spacing="two"
+                    gap="two"
                     ref={ref}
-                    sx={{
+                    style={{
                         flexGrow: 1,
                     }}
                 >
@@ -146,7 +139,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                     )}
                 </Group>
 
-                <Group spacing="one">
+                <Group gap="one">
                     {isGrouped && (
                         <ActionIcon
                             onClick={() => {
@@ -173,7 +166,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
             </Group>
             <Collapse in={!isCollapsable || isOpen || false}>
                 <Stack ml="lg" gap="xs">
-                    <Group spacing="xs" noWrap>
+                    <Group gap="xs" wrap="nowrap">
                         <ChartTypeSelect
                             showLabel={!isGrouped}
                             chartValue={type}
@@ -341,7 +334,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                     </Group>
                     {(type === CartesianSeriesType.LINE ||
                         type === CartesianSeriesType.AREA) && (
-                        <Group spacing="xs">
+                        <Group gap="xs">
                             <Checkbox
                                 checked={Boolean(series.showSymbol)}
                                 label="Show symbol"

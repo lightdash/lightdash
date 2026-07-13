@@ -1,4 +1,5 @@
-import { Group, MultiSelect, type MultiSelectProps, Text } from '@mantine/core';
+import { Group } from '@mantine-8/core';
+import { MultiSelect, type MultiSelectProps, Text } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import uniq from 'lodash/uniq';
 import { useCallback, useMemo, useState, type FC } from 'react';
@@ -124,7 +125,7 @@ const FilterMultiStringInput: FC<Props> = ({
                 disabled={disabled}
                 creatable
                 getCreateLabel={(query) => (
-                    <Group spacing="xxs">
+                    <Group gap="xxs">
                         <MantineIcon icon={IconPlus} color="blue" size="sm" />
                         <Text c="blue">Add "{query}"</Text>
                     </Group>

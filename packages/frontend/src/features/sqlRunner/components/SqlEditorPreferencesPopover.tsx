@@ -1,12 +1,6 @@
 import { WarehouseTypes } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
-import {
-    ActionIcon,
-    Group,
-    Popover,
-    SegmentedControl,
-    Text,
-} from '@mantine/core';
+import { Group, Stack } from '@mantine-8/core';
+import { ActionIcon, Popover, SegmentedControl, Text } from '@mantine/core';
 import { IconCodeCircle } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';

@@ -10,9 +10,8 @@ import {
     type ConditionalFormattingWithFilterOperator,
     type FilterableItem,
 } from '@lightdash/common';
-import { Accordion, Center, Stack } from '@mantine-8/core';
+import { Accordion, Center, Group, Stack } from '@mantine-8/core';
 import {
-    Group,
     SegmentedControl,
     Select,
     TextInput,
@@ -217,7 +216,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
 
             <Accordion.Panel>
                 <Stack gap="xs">
-                    <Group noWrap spacing="xs">
+                    <Group wrap="nowrap" gap="xs">
                         <Text fw={500} fz="xs" c="dimmed">
                             Compare:
                         </Text>
@@ -277,7 +276,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                                 placeholder="Compare field"
                             />
                         )}
-                    <Group noWrap spacing="xs">
+                    <Group wrap="nowrap" gap="xs">
                         <Select
                             value={rule.operator}
                             data={filterOperatorOptions}

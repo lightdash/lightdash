@@ -20,18 +20,16 @@ import {
     type CatalogCategoryFilterMode,
     type CatalogField,
 } from '@lightdash/common';
-import { Box, Center, Stack } from '@mantine-8/core';
+import { Box, Center, Group, Stack, type GroupProps } from '@mantine-8/core';
 import {
     ActionIcon,
     Badge,
     Button,
     Divider,
-    Group,
     Popover,
     SegmentedControl,
     TextInput,
     Tooltip,
-    type GroupProps,
     Text,
 } from '@mantine/core';
 import {
@@ -104,8 +102,8 @@ const SortableColumn: FC<{
     };
 
     return (
-        <Group ref={setNodeRef} style={style} position="apart" h={28}>
-            <Group spacing={4}>
+        <Group ref={setNodeRef} style={style} justify="space-between" h={28}>
+            <Group gap={4}>
                 <Tooltip
                     variant="xs"
                     disabled={!column.frozen}
@@ -327,7 +325,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
 
         return (
             <Group {...props}>
-                <Group spacing="xs">
+                <Group gap="xs">
                     {/* Search input */}
                     <TextInput
                         size="xs"
@@ -411,7 +409,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                         setSelectedOwners={setSelectedOwners}
                     />
                 </Group>
-                <Group spacing="xs">
+                <Group gap="xs">
                     <Badge
                         bg="ldGray.1"
                         c="ldGray.8"
@@ -421,7 +419,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                         tt="none"
                         h={32}
                     >
-                        <Group spacing={6}>
+                        <Group gap={6}>
                             <TotalMetricsDot />
                             <Text fz="sm" fw={500}>
                                 {totalResults} metrics
@@ -497,7 +495,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                 </Stack>
 
                                 <Divider color="ldGray.1" />
-                                <Group position="apart" mt={4}>
+                                <Group justify="space-between" mt={4}>
                                     {canManageSpotlight ? (
                                         <>
                                             <Tooltip

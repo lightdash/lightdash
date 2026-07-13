@@ -19,11 +19,10 @@ import {
     type DashboardTile,
     type ResultColumn,
 } from '@lightdash/common';
-import { Box, Stack } from '@mantine-8/core';
+import { Box, Group, Stack } from '@mantine-8/core';
 import {
     Button,
     Flex,
-    Group,
     Select,
     Tabs,
     Tooltip,
@@ -465,7 +464,7 @@ const FilterConfiguration: FC<Props> = ({
                                 />
                             )
                         ) : selectedField ? (
-                            <Group spacing="xs">
+                            <Group gap="xs">
                                 <FieldIcon item={selectedField} />
                                 {originalFilterRule?.label && !isEditMode ? (
                                     <Text span fw={500}>
@@ -476,7 +475,7 @@ const FilterConfiguration: FC<Props> = ({
                                 )}
                             </Group>
                         ) : (
-                            <Group spacing="xs">
+                            <Group gap="xs">
                                 <MantineIcon
                                     icon={IconSql}
                                     size={'lg'}

@@ -1,7 +1,6 @@
 import { type CompiledDimension } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
+import { Group, Stack } from '@mantine-8/core';
 import {
-    Group,
     Highlight,
     Loader,
     MultiSelect,
@@ -237,7 +236,7 @@ export const MetricExploreFilterAutoComplete: FC<Props> = ({
                     query.trim().length > 0 && !values.includes(query)
                 }
                 getCreateLabel={(query) => (
-                    <Group spacing="xxs">
+                    <Group gap="xxs">
                         <MantineIcon icon={IconPlus} color="blue" size="sm" />
                         <Text c="blue">Add "{query}"</Text>
                     </Group>

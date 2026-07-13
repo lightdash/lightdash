@@ -1,6 +1,6 @@
 import { ChartKind } from '@lightdash/common';
-import { Box, Stack } from '@mantine-8/core';
-import { Group, SegmentedControl } from '@mantine/core';
+import { Box, Group, Stack } from '@mantine-8/core';
+import { SegmentedControl } from '@mantine/core';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
 import { getChartIcon } from '../../common/ResourceIcon/utils';
@@ -237,7 +237,7 @@ export const ChartPreviewComponent: FC<ChartPreviewComponentProps> = ({
 
     return (
         <Stack gap="sm" h="100%" style={{ flex: 1, backgroundColor }} pt="xs">
-            <Group position="center">
+            <Group justify="center">
                 <SegmentedControl
                     value={chartType}
                     onChange={(value) => setChartType(value as ChartKind)}

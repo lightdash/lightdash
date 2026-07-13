@@ -14,10 +14,9 @@ import {
     type ConditionalFormattingRowFields,
     type ResultRow,
 } from '@lightdash/common';
-import { Center } from '@mantine-8/core';
+import { Center, Group } from '@mantine-8/core';
 import {
     Button,
-    Group,
     Loader,
     Skeleton,
     Tooltip,
@@ -285,7 +284,7 @@ const TableRow: FC<TableRowProps> = ({
                         tooltipContent={tooltipContent || undefined}
                     >
                         {cell.getIsGrouped() ? (
-                            <Group spacing="xxs">
+                            <Group gap="xxs">
                                 <Button
                                     compact
                                     size="xs"

@@ -1,11 +1,10 @@
 import { DbtProjectType } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
+import { Group, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Anchor,
     Avatar,
     Button,
-    Group,
     PasswordInput,
     ScrollArea,
     Select,
@@ -107,7 +106,7 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
         return (
             <>
                 {repos && repos.length > 0 && (
-                    <Group spacing="xs">
+                    <Group gap="xs">
                         <Select
                             name="dbt.repository"
                             searchable
@@ -303,7 +302,7 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     return (
         <>
             <Stack style={{ marginTop: '8px' }}>
-                <Group spacing="sm">
+                <Group gap="sm">
                     <Select
                         name="dbt.authorization_method"
                         {...form.getInputProps('dbt.authorization_method')}

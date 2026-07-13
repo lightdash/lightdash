@@ -6,8 +6,8 @@ import {
     findReplaceableCustomMetrics,
     getMetrics,
 } from '@lightdash/common';
-import { Menu, Stack } from '@mantine-8/core';
-import { ActionIcon, Group, HoverCard, Text } from '@mantine/core';
+import { Group, Menu, Stack } from '@mantine-8/core';
+import { ActionIcon, HoverCard, Text } from '@mantine/core';
 import {
     IconAlertTriangle,
     IconCode,
@@ -203,8 +203,8 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                     display: isVisualizationConfigOpen ? 'none' : 'flex',
                 }}
             >
-                <Group position="apart">
-                    <Group spacing="xs">
+                <Group justify="space-between">
+                    <Group gap="xs">
                         <PageBreadcrumbs size="md" items={breadcrumbs} />
                         {explore.warnings && explore.warnings.length > 0 && (
                             <HoverCard
