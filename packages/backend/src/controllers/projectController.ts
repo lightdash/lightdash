@@ -15,6 +15,8 @@ import {
     ApiErrorPayload,
     ApiGetProjectGroupAccesses,
     ApiGetProjectMemberResponse,
+    ApiGoogleSheetsSyncAsCodeListResponse,
+    ApiGoogleSheetsSyncAsCodeUpsertResponse,
     ApiPreviewExpirationProjectSettingsResponse,
     ApiPreviewExpiresAtResponse,
     ApiProjectAccessListResponse,
@@ -38,6 +40,7 @@ import {
     ForbiddenError,
     getErrorMessage,
     getRequestMethod,
+    GoogleSheetsSyncAsCode,
     isDuplicateDashboardParams,
     LightdashRequestMethodHeader,
     ParameterError,
@@ -1620,6 +1623,65 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
                     projectUuid,
                     slug,
                     alert,
+                    force,
+                ),
+        };
+    }
+
+    /**
+     * Get Google Sheets syncs in code representation
+     * @summary List Google Sheets syncs as code
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/googleSheets/code')
+    @OperationId('getGoogleSheetsSyncsAsCode')
+    async getGoogleSheetsSyncsAsCode(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query() slugs?: string[],
+    ): Promise<ApiGoogleSheetsSyncAsCodeListResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getCoderService()
+                .getScheduledDeliveries(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    slugs,
+                    ContentAsCodeType.GOOGLE_SHEETS_SYNC,
+                ),
+        };
+    }
+
+    /**
+     * Upsert a Google Sheets sync from code representation
+     * @summary Upsert Google Sheets sync as code
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/googleSheets/{slug}/code')
+    @OperationId('upsertGoogleSheetsSyncAsCode')
+    async upsertGoogleSheetsSyncAsCode(
+        @Path() projectUuid: string,
+        @Path() slug: string,
+        @Body() googleSheetsSync: GoogleSheetsSyncAsCode,
+        @Request() req: express.Request,
+        @Query() force: boolean = false,
+    ): Promise<ApiGoogleSheetsSyncAsCodeUpsertResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getCoderService()
+                .upsertScheduledDelivery(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    slug,
+                    googleSheetsSync,
                     force,
                 ),
         };

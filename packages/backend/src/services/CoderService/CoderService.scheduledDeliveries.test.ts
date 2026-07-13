@@ -11,6 +11,7 @@ import {
     type AlertAsCode,
     type Filters,
     type FiltersInput,
+    type GoogleSheetsSyncAsCode,
     type ScheduledDeliveryAsCode,
     type SchedulerAndTargets,
     type SessionUser,
@@ -22,6 +23,7 @@ import { CoderService } from './CoderService';
 const projectUuid = 'project-uuid';
 const organizationUuid = 'organization-uuid';
 const chartUuid = 'chart-uuid';
+const dashboardUuid = 'dashboard-uuid';
 
 const user: SessionUser = {
     userUuid: 'uploader-uuid',
@@ -52,6 +54,11 @@ const user: SessionUser = {
         {
             action: 'manage',
             subject: 'ScheduledDeliveries',
+            conditions: { projectUuid, organizationUuid },
+        },
+        {
+            action: 'manage',
+            subject: 'GoogleSheets',
             conditions: { projectUuid, organizationUuid },
         },
     ]),
@@ -155,6 +162,72 @@ const alert: AlertAsCode = {
     parameters: null,
 };
 
+const googleSheetsScheduler: SchedulerAndTargets = {
+    ...scheduler,
+    schedulerUuid: 'google-sheets-scheduler-uuid',
+    slug: 'orders-sheet',
+    name: 'Orders sheet',
+    message: undefined,
+    format: SchedulerFormat.GSHEETS,
+    options: {
+        gdriveId: 'spreadsheet-id',
+        gdriveName: 'Orders',
+        gdriveOrganizationName: 'Test organization',
+        url: 'https://docs.google.com/spreadsheets/d/spreadsheet-id/edit',
+        tabName: 'Orders data',
+    },
+    includeLinks: false,
+    targets: [],
+};
+
+const googleSheetsSync: GoogleSheetsSyncAsCode = {
+    contentType: ContentAsCodeType.GOOGLE_SHEETS_SYNC,
+    version: 1,
+    slug: 'orders-sheet',
+    name: 'Orders sheet',
+    message: null,
+    cron: '0 9 * * 1',
+    timezone: 'Europe/Madrid',
+    enabled: true,
+    includeLinks: false,
+    destination: {
+        spreadsheetId: 'spreadsheet-id',
+        spreadsheetName: 'Orders',
+        organizationName: 'Test organization',
+        url: 'https://docs.google.com/spreadsheets/d/spreadsheet-id/edit',
+        tabName: 'Orders data',
+    },
+    resource: { type: 'chart', slug: 'orders' },
+    filters: null,
+    parameters: null,
+    customViewportWidth: null,
+    selectedTabs: null,
+};
+
+const dashboardGoogleSheetsScheduler: SchedulerAndTargets = {
+    ...googleSheetsScheduler,
+    schedulerUuid: 'dashboard-google-sheets-scheduler-uuid',
+    slug: 'dashboard-sheet',
+    name: 'Dashboard sheet',
+    savedChartUuid: null,
+    savedChartName: null,
+    dashboardUuid,
+    dashboardName: 'Orders dashboard',
+    filters: undefined,
+    customViewportWidth: undefined,
+    selectedTabs: null,
+};
+
+const dashboardGoogleSheetsSync: GoogleSheetsSyncAsCode = {
+    ...googleSheetsSync,
+    slug: 'dashboard-sheet',
+    name: 'Dashboard sheet',
+    resource: { type: 'dashboard', slug: 'orders-dashboard' },
+    filters: null,
+    customViewportWidth: null,
+    selectedTabs: null,
+};
+
 const runtimeFilters: Filters = {
     dimensions: {
         id: 'runtime-group-id',
@@ -199,6 +272,9 @@ const buildService = ({
     const savedChartService = {
         createScheduler: vi.fn(async () => scheduler),
     };
+    const dashboardService = {
+        createScheduler: vi.fn(async () => dashboardGoogleSheetsScheduler),
+    };
 
     const service = new CoderService({
         lightdashConfig: lightdashConfigMock,
@@ -217,19 +293,34 @@ const buildService = ({
             find: vi.fn(async () => [{ uuid: chartUuid, slug: 'orders' }]),
         } as never,
         savedSqlModel: {} as never,
-        dashboardModel: {} as never,
+        dashboardModel: {
+            find: vi.fn(async () => [
+                { uuid: dashboardUuid, slug: 'orders-dashboard' },
+            ]),
+            getByIdOrSlug: vi.fn(async () => ({
+                uuid: dashboardUuid,
+                slug: 'orders-dashboard',
+                tabs: [],
+                tiles: [],
+            })),
+        } as never,
         spaceModel: {} as never,
         schedulerModel: schedulerModel as never,
         schedulerService: schedulerService as never,
         savedChartService: savedChartService as never,
-        dashboardService: {} as never,
+        dashboardService: dashboardService as never,
         schedulerClient: {} as never,
         promoteService: {} as never,
         spacePermissionService: {} as never,
         contentVerificationModel: {} as never,
     });
 
-    return { service, schedulerService, savedChartService };
+    return {
+        service,
+        schedulerService,
+        savedChartService,
+        dashboardService,
+    };
 };
 
 describe('CoderService scheduled deliveries as code', () => {
@@ -571,5 +662,193 @@ describe('CoderService alerts as code', () => {
         expect(exported.alerts[0].filters).toEqual(portableFilters);
         expect(result).toEqual({ action: PromotionAction.NO_CHANGES });
         expect(schedulerService.updateScheduler).not.toHaveBeenCalled();
+    });
+});
+
+describe('CoderService Google Sheets syncs as code', () => {
+    it('exports Google Sheets syncs separately from deliveries and alerts', async () => {
+        const { service } = buildService({
+            schedulers: [googleSheetsScheduler],
+        });
+
+        const googleSheets = await service.getScheduledDeliveries(
+            user,
+            projectUuid,
+            undefined,
+            ContentAsCodeType.GOOGLE_SHEETS_SYNC,
+        );
+        const deliveries = await service.getScheduledDeliveries(
+            user,
+            projectUuid,
+        );
+        const alerts = await service.getScheduledDeliveries(
+            user,
+            projectUuid,
+            undefined,
+            ContentAsCodeType.ALERT,
+        );
+
+        expect(googleSheets.skipped).toEqual([]);
+        expect(googleSheets.googleSheetsSyncs).toHaveLength(1);
+        expect(googleSheets.googleSheetsSyncs[0]).toMatchObject(
+            googleSheetsSync,
+        );
+        expect(deliveries).toEqual({ scheduledDeliveries: [], skipped: [] });
+        expect(alerts).toEqual({ alerts: [], skipped: [] });
+    });
+
+    it('reports unsupported SQL syncs without mixing them into other domains', async () => {
+        const sqlSync: SchedulerAndTargets = {
+            ...googleSheetsScheduler,
+            savedChartUuid: null,
+            savedChartName: null,
+            savedSqlUuid: 'saved-sql-uuid',
+            savedSqlName: 'Saved SQL',
+        };
+        const { service } = buildService({ schedulers: [sqlSync] });
+
+        const result = await service.getScheduledDeliveries(
+            user,
+            projectUuid,
+            undefined,
+            ContentAsCodeType.GOOGLE_SHEETS_SYNC,
+        );
+
+        expect(result.googleSheetsSyncs).toEqual([]);
+        expect(result.skipped).toEqual([
+            {
+                name: sqlSync.name,
+                reason: 'Google Sheets sync as code supports chart and dashboard resources',
+            },
+        ]);
+    });
+
+    it('creates a sync with Google Sheets scheduler options and no targets', async () => {
+        const { service, savedChartService } = buildService();
+
+        const result = await service.upsertScheduledDelivery(
+            user,
+            projectUuid,
+            googleSheetsSync.slug,
+            googleSheetsSync,
+        );
+
+        expect(result).toEqual({ action: PromotionAction.CREATE });
+        expect(savedChartService.createScheduler).toHaveBeenCalledWith(
+            user,
+            chartUuid,
+            expect.objectContaining({
+                format: SchedulerFormat.GSHEETS,
+                options: {
+                    gdriveId: 'spreadsheet-id',
+                    gdriveName: 'Orders',
+                    gdriveOrganizationName: 'Test organization',
+                    url: 'https://docs.google.com/spreadsheets/d/spreadsheet-id/edit',
+                    tabName: 'Orders data',
+                },
+                targets: [],
+            }),
+        );
+    });
+
+    it('round-trips dashboard syncs through dashboard slugs', async () => {
+        const { service, dashboardService } = buildService({
+            schedulers: [dashboardGoogleSheetsScheduler],
+        });
+
+        const exported = await service.getScheduledDeliveries(
+            user,
+            projectUuid,
+            undefined,
+            ContentAsCodeType.GOOGLE_SHEETS_SYNC,
+        );
+        const result = await service.upsertScheduledDelivery(
+            user,
+            projectUuid,
+            dashboardGoogleSheetsSync.slug,
+            dashboardGoogleSheetsSync,
+        );
+
+        expect(exported.googleSheetsSyncs[0]).toMatchObject(
+            dashboardGoogleSheetsSync,
+        );
+        expect(result).toEqual({ action: PromotionAction.CREATE });
+        expect(dashboardService.createScheduler).toHaveBeenCalledWith(
+            user,
+            dashboardUuid,
+            expect.objectContaining({
+                format: SchedulerFormat.GSHEETS,
+                targets: [],
+            }),
+        );
+    });
+
+    it('does not reschedule an unchanged sync', async () => {
+        const { service, schedulerService } = buildService({
+            existing: googleSheetsScheduler,
+        });
+
+        const result = await service.upsertScheduledDelivery(
+            user,
+            projectUuid,
+            googleSheetsSync.slug,
+            googleSheetsSync,
+        );
+
+        expect(result).toEqual({ action: PromotionAction.NO_CHANGES });
+        expect(schedulerService.updateScheduler).not.toHaveBeenCalled();
+    });
+
+    it('updates the destination and preserves ownership semantics', async () => {
+        const { service, schedulerService } = buildService({
+            existing: googleSheetsScheduler,
+        });
+        const updated = {
+            ...googleSheetsSync,
+            destination: {
+                ...googleSheetsSync.destination,
+                tabName: 'Updated orders',
+            },
+        };
+
+        const result = await service.upsertScheduledDelivery(
+            user,
+            projectUuid,
+            updated.slug,
+            updated,
+        );
+
+        expect(result).toEqual({ action: PromotionAction.UPDATE });
+        expect(schedulerService.updateScheduler).toHaveBeenCalledWith(
+            user,
+            googleSheetsScheduler.schedulerUuid,
+            expect.objectContaining({
+                options: expect.objectContaining({
+                    tabName: 'Updated orders',
+                }),
+            }),
+        );
+        expect(schedulerService.updateScheduler).toHaveBeenCalledWith(
+            user,
+            googleSheetsScheduler.schedulerUuid,
+            expect.not.objectContaining({ createdBy: expect.anything() }),
+        );
+    });
+
+    it('forces an unchanged sync update', async () => {
+        const { service, schedulerService } = buildService({
+            existing: googleSheetsScheduler,
+        });
+
+        const result = await service.upsertScheduledDelivery(
+            user,
+            projectUuid,
+            googleSheetsSync.slug,
+            googleSheetsSync,
+            true,
+        );
+
+        expect(result).toEqual({ action: PromotionAction.UPDATE });
+        expect(schedulerService.updateScheduler).toHaveBeenCalledOnce();
     });
 });

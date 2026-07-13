@@ -11,6 +11,8 @@ import {
     ApiDashboardAsCodeListResponse,
     ApiDashboardValidationResponse,
     ApiEmbedProjectAppsResponse,
+    ApiGoogleSheetsSyncAsCodeListResponse,
+    ApiGoogleSheetsSyncAsCodeUpsertResponse,
     ApiImportAppCodeResponse,
     ApiScheduledDeliveryAsCodeListResponse,
     ApiScheduledDeliveryAsCodeUpsertResponse,
@@ -23,6 +25,7 @@ import {
     DashboardAsCode,
     generateSlug,
     getErrorMessage,
+    GoogleSheetsSyncAsCode,
     LightdashError,
     ParameterError,
     Project,
@@ -95,6 +98,7 @@ export type DownloadHandlerOptions = {
     charts: string[]; // These can be slugs, uuids or urls
     dashboards: string[]; // These can be slugs, uuids or urls
     alerts: string[];
+    googleSheets: string[];
     scheduledDeliveries: string[];
     apps?: string[]; // specific app UUIDs (enterprise); absent = no explicit selection
     includeApps?: boolean; // download: all of the project's apps, capped at --apps-limit; upload: all app folders on disk
@@ -112,6 +116,7 @@ export type DownloadHandlerOptions = {
     skipCharts: boolean; // Skip downloading charts and SQL charts
     skipDashboards: boolean; // Skip downloading dashboards
     skipAlerts: boolean;
+    skipGoogleSheets: boolean;
     skipScheduledDeliveries: boolean;
     appsOnly?: boolean; // download only: implies skipCharts + skipDashboards + skipSpaces
     stripPivotSeries: boolean; // Strip per-value pivot series config for portable chart YAML
@@ -868,28 +873,51 @@ const getScheduledDeliveriesFolder = (customPath?: string): string =>
 const getAlertsFolder = (customPath?: string): string =>
     path.join(getDownloadFolder(customPath), 'alerts');
 
-type ScheduledContentAsCode = ScheduledDeliveryAsCode | AlertAsCode;
+const getGoogleSheetsFolder = (customPath?: string): string =>
+    path.join(getDownloadFolder(customPath), 'google-sheets');
+
+type ScheduledContentAsCode =
+    | ScheduledDeliveryAsCode
+    | AlertAsCode
+    | GoogleSheetsSyncAsCode;
 type ScheduledContentType =
     | ContentAsCodeTypeEnum.SCHEDULED_DELIVERY
-    | ContentAsCodeTypeEnum.ALERT;
+    | ContentAsCodeTypeEnum.ALERT
+    | ContentAsCodeTypeEnum.GOOGLE_SHEETS_SYNC;
 
 const getScheduledContentConfig = (
     contentType: ScheduledContentType,
     customPath?: string,
-) =>
-    contentType === ContentAsCodeTypeEnum.ALERT
-        ? {
-              folder: getAlertsFolder(customPath),
-              route: 'alerts',
-              singular: 'alert',
-              plural: 'alerts',
-          }
-        : {
-              folder: getScheduledDeliveriesFolder(customPath),
-              route: 'scheduledDeliveries',
-              singular: 'scheduled delivery',
-              plural: 'scheduled deliveries',
-          };
+) => {
+    switch (contentType) {
+        case ContentAsCodeTypeEnum.ALERT:
+            return {
+                folder: getAlertsFolder(customPath),
+                route: 'alerts',
+                singular: 'alert',
+                plural: 'alerts',
+            };
+        case ContentAsCodeTypeEnum.GOOGLE_SHEETS_SYNC:
+            return {
+                folder: getGoogleSheetsFolder(customPath),
+                route: 'googleSheets',
+                singular: 'Google Sheets sync',
+                plural: 'Google Sheets syncs',
+            };
+        case ContentAsCodeTypeEnum.SCHEDULED_DELIVERY:
+            return {
+                folder: getScheduledDeliveriesFolder(customPath),
+                route: 'scheduledDeliveries',
+                singular: 'scheduled delivery',
+                plural: 'scheduled deliveries',
+            };
+        default:
+            return assertUnreachable(
+                contentType,
+                'Unknown scheduled content type',
+            );
+    }
+};
 
 const getPromoteAction = (action: PromotionAction) => {
     switch (action) {
@@ -920,6 +948,7 @@ const downloadScheduledContent = async (
     ).toString();
     const results = await lightdashApi<
         | ApiAlertAsCodeListResponse['results']
+        | ApiGoogleSheetsSyncAsCodeListResponse['results']
         | ApiScheduledDeliveryAsCodeListResponse['results']
     >({
         method: 'GET',
@@ -928,8 +957,14 @@ const downloadScheduledContent = async (
         }`,
         body: undefined,
     });
-    const scheduledContent: ScheduledContentAsCode[] =
-        'alerts' in results ? results.alerts : results.scheduledDeliveries;
+    let scheduledContent: ScheduledContentAsCode[];
+    if ('alerts' in results) {
+        scheduledContent = results.alerts;
+    } else if ('googleSheetsSyncs' in results) {
+        scheduledContent = results.googleSheetsSyncs;
+    } else {
+        scheduledContent = results.scheduledDeliveries;
+    }
 
     for (const item of scheduledContent) {
         const outputDir = path.join(
@@ -1009,6 +1044,7 @@ const upsertScheduledContent = async (
         try {
             const result = await lightdashApi<
                 | ApiAlertAsCodeUpsertResponse['results']
+                | ApiGoogleSheetsSyncAsCodeUpsertResponse['results']
                 | ApiScheduledDeliveryAsCodeUpsertResponse['results']
             >({
                 method: 'POST',
@@ -1084,6 +1120,7 @@ export const downloadHandler = async (
         options.skipDashboards = true;
         options.skipSpaces = true;
         options.skipAlerts = true;
+        options.skipGoogleSheets = true;
         options.skipScheduledDeliveries = true;
     }
 
@@ -1139,6 +1176,7 @@ export const downloadHandler = async (
             options.charts.length > 0 ||
             options.dashboards.length > 0 ||
             options.alerts.length > 0 ||
+            options.googleSheets.length > 0 ||
             options.scheduledDeliveries.length > 0;
 
         // When downloading specific charts or dashboards, skip space metadata
@@ -1318,6 +1356,27 @@ export const downloadHandler = async (
                 );
                 spinner.succeed(
                     `Downloaded ${scheduledDeliveryTotal} scheduled deliveries`,
+                );
+            }
+        }
+
+        if (!options.skipGoogleSheets) {
+            if (hasFilters && options.googleSheets.length === 0) {
+                GlobalState.log(
+                    styles.warning(
+                        `No Google Sheets sync filters provided, skipping`,
+                    ),
+                );
+            } else {
+                spinner.start(`Downloading Google Sheets syncs`);
+                const googleSheetsTotal = await downloadScheduledContent(
+                    projectId,
+                    options.googleSheets,
+                    ContentAsCodeTypeEnum.GOOGLE_SHEETS_SYNC,
+                    options.path,
+                );
+                spinner.succeed(
+                    `Downloaded ${googleSheetsTotal} Google Sheets ${googleSheetsTotal === 1 ? 'sync' : 'syncs'}`,
                 );
             }
         }
@@ -1999,6 +2058,7 @@ export const uploadHandler = async (
             options.charts.length > 0 ||
             options.dashboards.length > 0 ||
             options.alerts.length > 0 ||
+            options.googleSheets.length > 0 ||
             options.scheduledDeliveries.length > 0;
 
         // Discover loose YAML files (outside charts/ and dashboards/) classified by contentType
@@ -2128,6 +2188,25 @@ export const uploadHandler = async (
                     changes,
                     options.force,
                     ContentAsCodeTypeEnum.SCHEDULED_DELIVERY,
+                    options.path,
+                );
+            }
+        }
+
+        if (!options.skipGoogleSheets) {
+            if (hasFilters && options.googleSheets.length === 0) {
+                GlobalState.log(
+                    styles.warning(
+                        `No Google Sheets sync filters provided, skipping`,
+                    ),
+                );
+            } else {
+                changes = await upsertScheduledContent(
+                    projectId,
+                    options.googleSheets,
+                    changes,
+                    options.force,
+                    ContentAsCodeTypeEnum.GOOGLE_SHEETS_SYNC,
                     options.path,
                 );
             }
