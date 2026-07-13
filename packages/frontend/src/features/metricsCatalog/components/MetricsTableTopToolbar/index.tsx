@@ -20,12 +20,11 @@ import {
     type CatalogCategoryFilterMode,
     type CatalogField,
 } from '@lightdash/common';
-import { Box, Stack } from '@mantine-8/core';
+import { Box, Center, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Badge,
     Button,
-    Center,
     Divider,
     Group,
     Popover,

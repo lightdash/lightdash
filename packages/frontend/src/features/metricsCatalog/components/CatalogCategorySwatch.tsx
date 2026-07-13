@@ -1,8 +1,9 @@
-import { Center } from '@mantine/core';
+import { Center } from '@mantine-8/core';
 import { IconCheck } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useCategoryStyles } from '../styles/useCategoryStyles';
+import styles from './CatalogCategorySwatch.module.css';
 
 type Props = {
     color: string;
@@ -15,16 +16,13 @@ export const CatalogCategorySwatch: FC<Props> = ({
     onClick,
     selected,
 }: Props) => {
-    const { classes, theme, cx } = useCategoryStyles(color);
+    const { classes, cx } = useCategoryStyles(color);
     return (
         <Center
             h={18}
             w={18}
-            className={cx(classes.base, classes.withHover)}
+            className={cx(classes.base, classes.withHover, styles.swatch)}
             onClick={onClick}
-            sx={{
-                borderRadius: theme.radius.sm,
-            }}
         >
             {selected && (
                 <MantineIcon

@@ -3,14 +3,8 @@ import {
     DownloadFileType,
     type VizTableConfig,
 } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
-import {
-    ActionIcon,
-    Center,
-    Popover,
-    SegmentedControl,
-    Text,
-} from '@mantine/core';
+import { Center, Stack } from '@mantine-8/core';
+import { ActionIcon, Popover, SegmentedControl, Text } from '@mantine/core';
 import { IconDownload, IconPhoto, IconTableExport } from '@tabler/icons-react';
 import { memo, useState } from 'react';
 import ChartDownloadOptions from '../../../../components/common/ChartDownload/ChartDownloadOptions';

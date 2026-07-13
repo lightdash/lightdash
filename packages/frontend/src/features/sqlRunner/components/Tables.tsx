@@ -1,8 +1,7 @@
 import { PartitionType, type PartitionColumn } from '@lightdash/common';
-import { Box, Stack, type BoxProps } from '@mantine-8/core';
+import { Box, Center, Stack, type BoxProps } from '@mantine-8/core';
 import {
     ActionIcon,
-    Center,
     CopyButton,
     Group,
     Highlight,

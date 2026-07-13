@@ -14,9 +14,9 @@ import {
     type ConditionalFormattingRowFields,
     type ResultRow,
 } from '@lightdash/common';
+import { Center } from '@mantine-8/core';
 import {
     Button,
-    Center,
     Group,
     Loader,
     Skeleton,

@@ -5,10 +5,9 @@ import {
     type CatalogField,
     type CatalogItem,
 } from '@lightdash/common';
-import { Box } from '@mantine-8/core';
+import { Box, Center } from '@mantine-8/core';
 import {
     Anchor,
-    Center,
     Divider,
     Group,
     Paper,
