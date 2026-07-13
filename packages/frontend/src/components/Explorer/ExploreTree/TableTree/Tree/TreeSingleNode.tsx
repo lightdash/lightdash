@@ -17,14 +17,8 @@ import {
     type FilterableField,
     type Item,
 } from '@lightdash/common';
-import { Group, Text } from '@mantine-8/core';
-import {
-    ActionIcon,
-    Highlight,
-    HoverCard,
-    NavLink,
-    Tooltip,
-} from '@mantine/core';
+import { Group, Text, ActionIcon } from '@mantine-8/core';
+import { Highlight, HoverCard, NavLink, Tooltip } from '@mantine/core';
 import {
     IconAlertTriangle,
     IconCalendarPin,
@@ -509,7 +503,11 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                                     : 'Click here to add filter'
                             }
                         >
-                            <ActionIcon onClick={handleFilterClick}>
+                            <ActionIcon
+                                variant="subtle"
+                                color="gray"
+                                onClick={handleFilterClick}
+                            >
                                 <MantineIcon
                                     icon={IconFilter}
                                     style={{ flexShrink: 0 }}

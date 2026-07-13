@@ -4,8 +4,8 @@ import {
     isCustomSqlDimension,
     isSqlTableCalculation,
 } from '@lightdash/common';
-import { Box, CopyButton, Group, Skeleton } from '@mantine-8/core';
-import { ActionIcon, SegmentedControl, Tooltip } from '@mantine/core';
+import { Box, CopyButton, Group, Skeleton, ActionIcon } from '@mantine-8/core';
+import { SegmentedControl, Tooltip } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconCheck, IconClipboard } from '@tabler/icons-react';
 import {
@@ -116,6 +116,7 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
                                 fw={500}
                             >
                                 <ActionIcon
+                                    variant="subtle"
                                     color={copied ? 'teal' : 'gray'}
                                     onClick={copy}
                                 >

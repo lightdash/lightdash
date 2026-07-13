@@ -1,6 +1,5 @@
-import { Group, Stack, Text } from '@mantine-8/core';
+import { Group, Stack, Text, ActionIcon } from '@mantine-8/core';
 import {
-    ActionIcon,
     HoverCard,
     Popover,
     Tooltip,

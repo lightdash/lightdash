@@ -29,9 +29,9 @@ import {
     type GroupProps,
     Text,
     Button,
+    ActionIcon,
 } from '@mantine-8/core';
 import {
-    ActionIcon,
     Badge,
     Popover,
     SegmentedControl,
@@ -121,6 +121,7 @@ const SortableColumn: FC<{
                 >
                     <Box>
                         <ActionIcon
+                            variant="subtle"
                             size="xs"
                             color="ldGray.5"
                             {...attributes}
@@ -136,9 +137,10 @@ const SortableColumn: FC<{
                 </Text>
             </Group>
             <ActionIcon
+                variant="subtle"
                 size="xs"
                 color="ldGray.5"
-                sx={{
+                style={{
                     visibility: column.frozen ? 'hidden' : 'visible',
                 }}
                 onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
@@ -449,11 +451,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                     variant="transparent"
                                     size="xs"
                                     color="ldGray.5"
-                                    sx={{
-                                        display: embedToken
-                                            ? 'none'
-                                            : undefined,
-                                    }}
+                                    display={embedToken ? 'none' : undefined}
                                 >
                                     <MantineIcon icon={IconEye} />
                                 </ActionIcon>

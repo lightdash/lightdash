@@ -8,9 +8,8 @@ import {
     type VizTableHeaderSortConfig,
     formatSql,
 } from '@lightdash/common';
-import { Box, Group, Paper, Stack, Text } from '@mantine-8/core';
+import { Box, Group, Paper, Stack, Text, ActionIcon } from '@mantine-8/core';
 import {
-    ActionIcon,
     Indicator,
     LoadingOverlay,
     SegmentedControl,

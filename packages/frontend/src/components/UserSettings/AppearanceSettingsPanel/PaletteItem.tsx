@@ -1,6 +1,6 @@
 import { type OrganizationColorPalette } from '@lightdash/common';
-import { Flex, Group, Paper, Text, Button } from '@mantine-8/core';
-import { ActionIcon, Badge, ColorSwatch, Menu, Tooltip } from '@mantine/core';
+import { Flex, Group, Paper, Text, Button, ActionIcon } from '@mantine-8/core';
+import { Badge, ColorSwatch, Menu, Tooltip } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import {
     IconDotsVertical,
@@ -166,6 +166,8 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                         >
                             <Menu.Target>
                                 <ActionIcon
+                                    variant="subtle"
+                                    color="gray"
                                     size="xs"
                                     aria-label="Palette actions"
                                 >

@@ -8,8 +8,8 @@ import {
     type Explore,
     type Metric,
 } from '@lightdash/common';
-import { Loader } from '@mantine-8/core';
-import { ActionIcon, TextInput } from '@mantine/core';
+import { Loader, ActionIcon } from '@mantine-8/core';
+import { TextInput } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import {
@@ -266,7 +266,11 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
                             data-testid="ExploreTree/SearchInput-Loader"
                         />
                     ) : search ? (
-                        <ActionIcon onClick={handleClearSearch}>
+                        <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            onClick={handleClearSearch}
+                        >
                             <MantineIcon icon={IconX} />
                         </ActionIcon>
                     ) : null

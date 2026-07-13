@@ -1,6 +1,6 @@
 import { ChartKind } from '@lightdash/common';
-import { Group, Stack, Title } from '@mantine-8/core';
-import { ActionIcon, ScrollArea, Tooltip } from '@mantine/core';
+import { Group, Stack, Title, ActionIcon } from '@mantine-8/core';
+import { ScrollArea, Tooltip } from '@mantine/core';
 import { IconLayoutSidebarLeftCollapse, IconReload } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -48,6 +48,8 @@ export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
                             position="right"
                         >
                             <ActionIcon
+                                variant="subtle"
+                                color="gray"
                                 size="xs"
                                 onClick={() => updateTables()}
                             >
@@ -57,7 +59,7 @@ export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
                     )}
                 </Group>
                 <Tooltip variant="xs" label="Close sidebar" position="left">
-                    <ActionIcon size="xs">
+                    <ActionIcon variant="subtle" color="gray" size="xs">
                         <MantineIcon
                             icon={IconLayoutSidebarLeftCollapse}
                             onClick={() => setSidebarOpen(false)}

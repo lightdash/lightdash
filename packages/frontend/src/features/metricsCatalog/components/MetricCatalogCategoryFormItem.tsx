@@ -1,7 +1,14 @@
 import { getErrorMessage, type CatalogItem } from '@lightdash/common';
-import { Box, Divider, Group, Stack, Text, Button } from '@mantine-8/core';
 import {
+    Box,
+    Divider,
+    Group,
+    Stack,
+    Text,
+    Button,
     ActionIcon,
+} from '@mantine-8/core';
+import {
     Popover,
     SimpleGrid,
     TextInput,
@@ -83,12 +90,12 @@ const EditPopover: FC<EditPopoverProps> = ({
         >
             <Popover.Target>
                 <ActionIcon
-                    sx={(theme) => ({
+                    variant="subtle"
+                    color="gray"
+                    className={styles.editButton}
+                    style={{
                         visibility: hovered || opened ? 'visible' : 'hidden',
-                        '&:hover': {
-                            backgroundColor: theme.colors.background[0],
-                        },
-                    })}
+                    }}
                     size="sm"
                     onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                         e.stopPropagation();

@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { ExploreType, type SummaryExplore } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
-import { ActionIcon, TextInput } from '@mantine/core';
+import { Stack, ActionIcon } from '@mantine-8/core';
+import { TextInput } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconAlertCircle,
@@ -175,7 +175,11 @@ const BasePanel = () => {
                             icon={<MantineIcon icon={IconSearch} />}
                             rightSection={
                                 search ? (
-                                    <ActionIcon onClick={() => setSearch('')}>
+                                    <ActionIcon
+                                        variant="subtle"
+                                        color="gray"
+                                        onClick={() => setSearch('')}
+                                    >
                                         <MantineIcon icon={IconX} />
                                     </ActionIcon>
                                 ) : null

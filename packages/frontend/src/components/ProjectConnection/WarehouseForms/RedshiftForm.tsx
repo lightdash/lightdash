@@ -1,7 +1,6 @@
 import { RedshiftAuthenticationType, WarehouseTypes } from '@lightdash/common';
-import { CopyButton, Stack, Button } from '@mantine-8/core';
+import { CopyButton, Stack, Button, ActionIcon } from '@mantine-8/core';
 import {
-    ActionIcon,
     Anchor,
     NumberInput,
     PasswordInput,
@@ -372,6 +371,7 @@ const RedshiftForm: FC<{
                                                             position="right"
                                                         >
                                                             <ActionIcon
+                                                                variant="subtle"
                                                                 color={
                                                                     copied
                                                                         ? 'teal'

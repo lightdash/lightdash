@@ -1,6 +1,6 @@
 import { assertUnreachable, ChartType } from '@lightdash/common';
-import { Divider, Group, Loader, Text } from '@mantine-8/core';
-import { ActionIcon, ScrollArea, Tooltip } from '@mantine/core';
+import { Divider, Group, Loader, Text, ActionIcon } from '@mantine-8/core';
+import { ScrollArea, Tooltip } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 import { lazy, Suspense, useMemo, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
@@ -74,7 +74,12 @@ const VisualizationConfig: FC<Props> = ({ chartType, onClose }) => {
                 </Text>
 
                 <Tooltip label="Close visualization config" position="right">
-                    <ActionIcon size="sm" onClick={onClose}>
+                    <ActionIcon
+                        variant="subtle"
+                        color="gray"
+                        size="sm"
+                        onClick={onClose}
+                    >
                         <MantineIcon icon={IconX} />
                     </ActionIcon>
                 </Tooltip>

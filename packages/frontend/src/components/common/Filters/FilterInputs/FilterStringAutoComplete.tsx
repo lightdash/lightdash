@@ -1,7 +1,6 @@
 import { isDimension, type FilterableItem } from '@lightdash/common';
-import { Group, Loader, Stack, Text } from '@mantine-8/core';
+import { Group, Loader, Stack, Text, ActionIcon } from '@mantine-8/core';
 import {
-    ActionIcon,
     Highlight,
     MultiSelect,
     ScrollArea,
@@ -550,7 +549,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                                         color="gray"
                                         size="sm"
                                         onClick={openManageValues}
-                                        sx={{
+                                        style={{
                                             visibility: isWrapperHovered
                                                 ? 'visible'
                                                 : 'hidden',

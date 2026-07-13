@@ -7,8 +7,8 @@ import {
     isMetric,
     type FilterableField,
 } from '@lightdash/common';
-import { UnstyledButton } from '@mantine-8/core';
-import { ActionIcon, Tooltip } from '@mantine/core';
+import { UnstyledButton, ActionIcon } from '@mantine-8/core';
+import { Tooltip } from '@mantine/core';
 import { IconFilter } from '@tabler/icons-react';
 import {
     memo,
@@ -166,7 +166,11 @@ const SelectedFieldRow: FC<RowProps> = memo(({ row, onDeselect }) => {
                                 : 'Click here to add filter'
                         }
                     >
-                        <ActionIcon onClick={handleFilterClick}>
+                        <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            onClick={handleFilterClick}
+                        >
                             <MantineIcon icon={IconFilter} />
                         </ActionIcon>
                     </Tooltip>

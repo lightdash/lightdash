@@ -1,6 +1,5 @@
-import { Divider, Group, Stack, Title } from '@mantine-8/core';
+import { Divider, Group, Stack, Title, ActionIcon } from '@mantine-8/core';
 import {
-    ActionIcon,
     Burger,
     Drawer,
     getDefaultZIndex,
@@ -100,6 +99,8 @@ export const MobileNavBar: FC = () => {
             >
                 <Group align="center" justify="space-between" flex={1}>
                     <ActionIcon
+                        variant="subtle"
+                        color="gray"
                         component={Link}
                         to={'/'}
                         title="Home"

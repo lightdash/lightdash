@@ -6,14 +6,9 @@ import {
     Loader,
     Stack,
     Text,
-} from '@mantine-8/core';
-import {
     ActionIcon,
-    Highlight,
-    ScrollArea,
-    TextInput,
-    Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { Highlight, ScrollArea, TextInput, Tooltip } from '@mantine/core';
 import { useDebouncedValue, useHover } from '@mantine/hooks';
 import { IconCopy, IconSearch, IconX } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
@@ -46,6 +41,8 @@ const TableField: FC<{
                                 position="right"
                             >
                                 <ActionIcon
+                                    variant="subtle"
+                                    color="gray"
                                     size={16}
                                     onClick={copy}
                                     bg="ldGray.1"
@@ -136,6 +133,8 @@ export const TableFields: FC = () => {
                         rightSection={
                             search ? (
                                 <ActionIcon
+                                    variant="subtle"
+                                    color="gray"
                                     size="xs"
                                     onClick={() => setSearch('')}
                                 >

@@ -7,8 +7,9 @@ import {
     Text,
     Button,
     type ButtonProps,
+    ActionIcon,
 } from '@mantine-8/core';
-import { ActionIcon, Popover, useMantineTheme } from '@mantine/core';
+import { Popover, useMantineTheme } from '@mantine/core';
 import { useClickOutside, useDisclosure } from '@mantine/hooks';
 import { IconRefresh, IconSparkles, IconX } from '@tabler/icons-react';
 import { useCallback, useEffect, useRef, useState, type FC } from 'react';
@@ -109,6 +110,7 @@ const LearnMorePopover: FC<{ buttonStyles?: ButtonProps['style'] }> = ({
                             ✨ Lightdash Spotlight is here!
                         </Text>
                         <ActionIcon
+                            color="gray"
                             variant="transparent"
                             size="xs"
                             onClick={handleClose}

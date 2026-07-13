@@ -5,8 +5,8 @@ import {
     type CartesianChartLayout,
     type Series,
 } from '@lightdash/common';
-import { Box, Collapse, Group, Stack } from '@mantine-8/core';
-import { ActionIcon, Checkbox, Popover, Select } from '@mantine/core';
+import { Box, Collapse, Group, Stack, ActionIcon } from '@mantine-8/core';
+import { Checkbox, Popover, Select } from '@mantine/core';
 import { useDebouncedState, useHover } from '@mantine/hooks';
 import {
     IconChevronDown,
@@ -142,6 +142,8 @@ const SingleSeriesConfiguration: FC<Props> = ({
                 <Group gap="one">
                     {isGrouped && (
                         <ActionIcon
+                            variant="subtle"
+                            color="gray"
                             onClick={() => {
                                 updateSingleSeries({
                                     ...series,
@@ -155,7 +157,11 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         </ActionIcon>
                     )}
                     {isCollapsable && (
-                        <ActionIcon onClick={toggleIsOpen}>
+                        <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            onClick={toggleIsOpen}
+                        >
                             <MantineIcon
                                 color="ldGray.7"
                                 icon={isOpen ? IconChevronUp : IconChevronDown}
@@ -227,6 +233,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                     >
                                         <Popover.Target>
                                             <ActionIcon
+                                                color="gray"
                                                 variant="subtle"
                                                 size="xs"
                                             >

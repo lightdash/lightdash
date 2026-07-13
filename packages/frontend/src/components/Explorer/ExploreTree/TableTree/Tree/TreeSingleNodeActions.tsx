@@ -14,8 +14,8 @@ import {
     type Dimension,
     type Metric,
 } from '@lightdash/common';
-import { Box, Menu, type MenuProps } from '@mantine-8/core';
-import { ActionIcon, Tooltip } from '@mantine/core';
+import { Box, Menu, type MenuProps, ActionIcon } from '@mantine-8/core';
+import { Tooltip } from '@mantine/core';
 import {
     IconCode,
     IconCopy,
@@ -469,7 +469,7 @@ const TreeSingleNodeActions: FC<Props> = ({
                         label="View options"
                         disabled={isOpened}
                     >
-                        <ActionIcon variant="transparent">
+                        <ActionIcon color="gray" variant="transparent">
                             <MantineIcon
                                 icon={IconDots}
                                 color={isOpened ? 'black' : undefined}

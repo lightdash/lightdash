@@ -8,14 +8,16 @@ import {
     SEED_ORG_1_ADMIN_PASSWORD,
     type OpenIdIdentityIssuerType,
 } from '@lightdash/common';
-import { Box, Divider, Stack, Text, Title, Button } from '@mantine-8/core';
 import {
+    Box,
+    Divider,
+    Stack,
+    Text,
+    Title,
+    Button,
     ActionIcon,
-    Anchor,
-    Card,
-    PasswordInput,
-    TextInput,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { Anchor, Card, PasswordInput, TextInput } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { useTimeout } from '@mantine/hooks';
 import { IconX } from '@tabler/icons-react';
@@ -259,6 +261,8 @@ const Login: FC<{}> = () => {
                             rightSection={
                                 preCheckEmail ? (
                                     <ActionIcon
+                                        variant="subtle"
+                                        color="gray"
                                         onClick={() => {
                                             setPreCheckEmail(undefined);
                                             form.setValues({

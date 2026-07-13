@@ -5,8 +5,15 @@ import {
     type PieChartValueLabel,
     type PieChartValueOptions,
 } from '@lightdash/common';
-import { Box, Collapse, Group, Stack, type StackProps } from '@mantine-8/core';
-import { ActionIcon, Tooltip } from '@mantine/core';
+import {
+    Box,
+    Collapse,
+    Group,
+    Stack,
+    type StackProps,
+    ActionIcon,
+} from '@mantine-8/core';
+import { Tooltip } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconChevronDown, IconChevronUp } from '@tabler/icons-react';
 import { forwardRef } from 'react';
@@ -111,7 +118,11 @@ export const GroupItem = forwardRef<
                         label="Override value label options"
                         withinPortal
                     >
-                        <ActionIcon onClick={toggle}>
+                        <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            onClick={toggle}
+                        >
                             <MantineIcon
                                 icon={opened ? IconChevronUp : IconChevronDown}
                             />

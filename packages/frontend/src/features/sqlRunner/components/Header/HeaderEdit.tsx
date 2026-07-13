@@ -1,6 +1,13 @@
 import { type SqlChart } from '@lightdash/common';
-import { Group, Paper, Stack, Title, Button } from '@mantine-8/core';
-import { ActionIcon, HoverCard, Menu, Tooltip } from '@mantine/core';
+import {
+    Group,
+    Paper,
+    Stack,
+    Title,
+    Button,
+    ActionIcon,
+} from '@mantine-8/core';
+import { HoverCard, Menu, Tooltip } from '@mantine/core';
 import {
     IconArrowBack,
     IconDots,
@@ -170,6 +177,8 @@ export const HeaderEdit: FC = () => {
                                 {savedSqlChart.name}
                             </Title>
                             <ActionIcon
+                                variant="subtle"
+                                color="gray"
                                 size="xs"
                                 onClick={() => {
                                     dispatch(toggleModal('updateChartModal'));
@@ -247,7 +256,7 @@ export const HeaderEdit: FC = () => {
                             width={200}
                         >
                             <Menu.Target>
-                                <ActionIcon variant="subtle">
+                                <ActionIcon color="gray" variant="subtle">
                                     <MantineIcon icon={IconDots} />
                                 </ActionIcon>
                             </Menu.Target>

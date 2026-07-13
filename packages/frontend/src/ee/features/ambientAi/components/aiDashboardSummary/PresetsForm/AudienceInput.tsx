@@ -1,5 +1,5 @@
-import { Flex, Stack, Text } from '@mantine-8/core';
-import { ActionIcon, TextInput, type SystemProp } from '@mantine/core';
+import { Flex, Stack, Text, ActionIcon } from '@mantine-8/core';
+import { TextInput, type SystemProp } from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import {
@@ -20,7 +20,7 @@ const AudienceItem: FC<AudienceItemProps> = ({ item, removeItem }) => {
     return (
         <Flex gap="xs" align={'center'} justify={'center'}>
             <Text>{item}</Text>
-            <ActionIcon>
+            <ActionIcon variant="subtle" color="gray">
                 <MantineIcon icon={IconTrash} onClick={removeItem} />
             </ActionIcon>
         </Flex>
@@ -72,6 +72,8 @@ const AudienceInput: FC<AudienceInputProps> = ({
                     value={inputAudience}
                     rightSection={
                         <ActionIcon
+                            variant="subtle"
+                            color="gray"
                             onClick={addAudience}
                             disabled={inputAudience.trim().length === 0}
                         >

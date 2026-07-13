@@ -6,8 +6,7 @@ import {
     ResourceViewItemType,
     type ResourceViewSpaceItem,
 } from '@lightdash/common';
-import { Box, Group, Menu, Stack, Button } from '@mantine-8/core';
-import { ActionIcon } from '@mantine/core';
+import { Box, Group, Menu, Stack, Button, ActionIcon } from '@mantine-8/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconDots,

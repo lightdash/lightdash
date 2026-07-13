@@ -3,8 +3,8 @@ import {
     wrapResourceView,
     type ResourceViewItem,
 } from '@lightdash/common';
-import { Group, Stack } from '@mantine-8/core';
-import { ActionIcon, TextInput } from '@mantine/core';
+import { Group, Stack, ActionIcon } from '@mantine-8/core';
+import { TextInput } from '@mantine/core';
 import { IconChartBar, IconSearch, IconX } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
 import { useMemo, useState, type FC } from 'react';
@@ -61,7 +61,11 @@ const MobileCharts: FC = () => {
                 icon={<MantineIcon icon={IconSearch} />}
                 rightSection={
                     search ? (
-                        <ActionIcon onClick={() => setSearch('')}>
+                        <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            onClick={() => setSearch('')}
+                        >
                             <MantineIcon icon={IconX} />
                         </ActionIcon>
                     ) : null

@@ -1,7 +1,6 @@
 import { DbtProjectType } from '@lightdash/common';
-import { CopyButton, Stack } from '@mantine-8/core';
+import { CopyButton, Stack, ActionIcon } from '@mantine-8/core';
 import {
-    ActionIcon,
     Alert,
     Anchor,
     MultiSelect,
@@ -108,6 +107,7 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                                     position="left"
                                 >
                                     <ActionIcon
+                                        variant="subtle"
                                         color={copied ? 'teal' : 'gray'}
                                         onClick={copy}
                                     >

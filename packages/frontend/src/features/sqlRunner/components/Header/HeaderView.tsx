@@ -1,7 +1,14 @@
 import { subject } from '@casl/ability';
 import { DashboardTileTypes } from '@lightdash/common';
-import { Group, Paper, Stack, Title, Button } from '@mantine-8/core';
-import { ActionIcon, Menu, Tooltip } from '@mantine/core';
+import {
+    Group,
+    Paper,
+    Stack,
+    Title,
+    Button,
+    ActionIcon,
+} from '@mantine-8/core';
+import { Menu, Tooltip } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconCirclesRelation,
@@ -208,7 +215,7 @@ export const HeaderView: FC = () => {
                                 width={200}
                             >
                                 <Menu.Target>
-                                    <ActionIcon variant="subtle">
+                                    <ActionIcon color="gray" variant="subtle">
                                         <MantineIcon icon={IconDots} />
                                     </ActionIcon>
                                 </Menu.Target>
