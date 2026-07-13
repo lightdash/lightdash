@@ -1,3 +1,10 @@
+## [0.3365.1](https://github.com/lightdash/lightdash/compare/0.3365.0...0.3365.1) (2026-07-13)
+
+
+### Bug Fixes
+
+* **frontend:** read metrics catalog column menu labels from preserved column def ([#25428](https://github.com/lightdash/lightdash/issues/25428)) ([23a70d1](https://github.com/lightdash/lightdash/commit/23a70d1ed958d5344503242c2d61c67c4c8cacc7))
+
 # [0.3365.0](https://github.com/lightdash/lightdash/compare/0.3364.2...0.3365.0) (2026-07-13)
 
 
