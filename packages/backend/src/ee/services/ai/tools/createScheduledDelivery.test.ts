@@ -25,7 +25,7 @@ const makeResult = (
 ): Awaited<ReturnType<CreateScheduledDeliveryFn>> => ({
     scheduler: makeScheduler(),
     resourceUuid: 'chart-uuid-1',
-    href: '/projects/project-uuid-1/saved/chart-uuid-1/view#chart-link',
+    href: '/projects/project-uuid-1/saved/chart-uuid-1/view?scheduler_uuid=scheduler-uuid-1',
     aiAugmentationAttached: false,
     warnings: [],
     ...overrides,
@@ -143,13 +143,13 @@ describe('createScheduledDelivery tool', () => {
             cron: '0 9 * * 1',
             resourceType: 'chart',
             resourceUuid: 'chart-uuid-1',
-            href: '/projects/project-uuid-1/saved/chart-uuid-1/view#chart-link',
+            href: '/projects/project-uuid-1/saved/chart-uuid-1/view?scheduler_uuid=scheduler-uuid-1',
             aiAugmentationAttached: true,
             warnings: [],
         });
         expect(output.result).toContain('scheduler-uuid-1');
         expect(output.result).toContain(
-            '/projects/project-uuid-1/saved/chart-uuid-1/view#chart-link',
+            '/projects/project-uuid-1/saved/chart-uuid-1/view?scheduler_uuid=scheduler-uuid-1',
         );
         expect(output.result).toContain(
             'AI augmentation is attached and will write the delivery message on each send.',

@@ -79,7 +79,7 @@ export const getCreateScheduledDelivery = ({
                     aiAugmentationAttached
                         ? 'AI augmentation is attached and will write the delivery message on each send.'
                         : null,
-                    `The user can review, pause, edit or delete it from the ${args.resourceType}'s Scheduled deliveries menu: ${href}`,
+                    `Share this link with the user — it opens the delivery's settings, where it can be reviewed, paused, edited or deleted: ${href}`,
                     ...warnings,
                 ]
                     .filter(Boolean)

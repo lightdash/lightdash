@@ -755,7 +755,7 @@ describe('AiAgentToolsService', () => {
             );
             expect(result.resourceUuid).toBe('chart-uuid-1');
             expect(result.href).toBe(
-                `/projects/${projectUuid}/saved/chart-uuid-1/view#chart-link`,
+                `/projects/${projectUuid}/saved/chart-uuid-1/view?scheduler_uuid=scheduler-uuid-1`,
             );
         });
 
@@ -842,7 +842,7 @@ describe('AiAgentToolsService', () => {
             );
             expect(result.resourceUuid).toBe('dashboard-uuid-1');
             expect(result.href).toBe(
-                `/projects/${projectUuid}/dashboards/dashboard-uuid-1/view#dashboard-link`,
+                `/projects/${projectUuid}/dashboards/dashboard-uuid-1/view?scheduler_uuid=scheduler-uuid-1`,
             );
         });
     });

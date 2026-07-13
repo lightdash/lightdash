@@ -12,6 +12,7 @@ import {
     migrateRunQueryArgsV1ToV2,
     type AiAgentToolResult,
     type ToolAnalyzeFieldImpactArgs,
+    type ToolCreateScheduledDeliveryOutput,
     type ToolDashboardArgs,
     type ToolDescribeWarehouseTableArgs,
     type ToolFindChartsArgs,
@@ -55,6 +56,7 @@ import { ListWarehouseTablesToolCallDescription } from './ListWarehouseTablesToo
 import { QueryResultToolCallDescription } from './QueryResultToolCallDescription';
 import { RepoShellToolCallDescription } from './RepoShellToolCallDescription';
 import { RunContentQueryToolCallDescription } from './RunContentQueryToolCallDescription';
+import { ScheduledDeliveryToolCallDescription } from './ScheduledDeliveryToolCallDescription';
 import { SemanticLayerSearchToolCallDescription } from './SemanticLayerSearchToolCallDescription';
 import { SqlRunToolCallDescription } from './SqlRunToolCallDescription';
 
@@ -77,7 +79,7 @@ export const ToolCallDescription: FC<{
     toolName: ToolName;
     toolCall: ToolCallSummary;
     toolResult?: AiAgentToolResult;
-}> = ({ toolName, toolCall }) => {
+}> = ({ toolName, toolCall, toolResult }) => {
     // Mid-stream the toolArgs payload can arrive before any input chunks have
     // been parsed. Casting an undefined value and reading fields throws, so
     // bail until args exist.
@@ -345,11 +347,25 @@ export const ToolCallDescription: FC<{
                     command={toolArgsExploreRepo.command ?? null}
                 />
             );
+        case 'createScheduledDelivery': {
+            const args = toolCall.toolArgs as { name?: string };
+            const metadata =
+                toolResult &&
+                toolResult.toolName === 'createScheduledDelivery' &&
+                'metadata' in toolResult
+                    ? (toolResult.metadata as ToolCreateScheduledDeliveryOutput['metadata'])
+                    : undefined;
+            return (
+                <ScheduledDeliveryToolCallDescription
+                    name={args.name ?? null}
+                    href={metadata?.status === 'success' ? metadata.href : null}
+                />
+            );
+        }
         case 'discoverRepos':
         case 'listWorkstreams':
         case 'closePullRequest':
         case 'getPullRequestDiff':
-        case 'createScheduledDelivery':
         case 'editDbtProject':
         case 'editProjectContext':
         case 'editRepo':

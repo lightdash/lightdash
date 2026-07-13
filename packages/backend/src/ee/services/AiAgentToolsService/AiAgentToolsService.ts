@@ -1195,6 +1195,22 @@ export class AiAgentToolsService extends BaseService {
         return `/projects/${context.projectUuid}/spaces/${uuid}`;
     }
 
+    // ?scheduler_uuid deep-links to the delivery's edit modal on the resource
+    // page (see getSchedulerUuidFromUrlParams in the frontend). No content-link
+    // fragment: the link points at the delivery, not the content itself.
+    private static getScheduledDeliveryUrl(
+        context: AiAgentToolsRuntimeContext,
+        type: 'dashboard' | 'chart',
+        resourceUuid: string,
+        schedulerUuid: string,
+    ) {
+        const basePath =
+            type === 'dashboard'
+                ? `/projects/${context.projectUuid}/dashboards/${resourceUuid}/view`
+                : `/projects/${context.projectUuid}/saved/${resourceUuid}/view`;
+        return `${basePath}?scheduler_uuid=${schedulerUuid}`;
+    }
+
     private static getDataAppUrl(
         context: AiAgentToolsRuntimeContext,
         uuid: string,
@@ -1721,10 +1737,11 @@ export class AiAgentToolsService extends BaseService {
                             'Invalid resource type',
                         );
                 }
-                const href = AiAgentToolsService.getContentUrl(
+                const href = AiAgentToolsService.getScheduledDeliveryUrl(
                     context,
                     args.resourceType,
                     resourceUuid,
+                    scheduler.schedulerUuid,
                 );
 
                 if (args.aiAugmentationPrompt === null) {
