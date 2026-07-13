@@ -45,6 +45,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Installing multiple versions of dbt
 # dbt 1.4 is the default
+# NOTE: keep the per-version adapter list in sync with
+# DBT_VERSION_SUPPORTED_WAREHOUSES in packages/common/src/types/projects.ts —
+# `latest` only advances to a version with full adapter coverage.
 # Use pip cache to speed up subsequent builds
 RUN --mount=type=cache,target=/root/.cache/pip \
     python3 -m venv /usr/local/dbt1.4 \
