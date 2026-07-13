@@ -3,9 +3,8 @@ import {
     getItemId,
     getItemLabelWithoutTableName,
 } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
+import { Center, Stack } from '@mantine-8/core';
 import {
-    Center,
     Checkbox,
     Group,
     NumberInput,

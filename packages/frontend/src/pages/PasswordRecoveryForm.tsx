@@ -1,14 +1,6 @@
 import { getEmailSchema } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
-import {
-    Anchor,
-    Button,
-    Center,
-    List,
-    TextInput,
-    Title,
-    Text,
-} from '@mantine/core';
+import { Center, Stack } from '@mantine-8/core';
+import { Anchor, Button, List, TextInput, Title, Text } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { type FC } from 'react';
 import { Link } from 'react-router';
