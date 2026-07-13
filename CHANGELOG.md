@@ -1,3 +1,10 @@
+# [0.3367.0](https://github.com/lightdash/lightdash/compare/0.3366.0...0.3367.0) (2026-07-13)
+
+
+### Features
+
+* enable data app viz downloads and uploads ([#25409](https://github.com/lightdash/lightdash/issues/25409)) ([7a7be97](https://github.com/lightdash/lightdash/commit/7a7be976f9db6bac465511312ac26913f9fa0e95))
+
 # [0.3366.0](https://github.com/lightdash/lightdash/compare/0.3365.2...0.3366.0) (2026-07-13)
 
 
