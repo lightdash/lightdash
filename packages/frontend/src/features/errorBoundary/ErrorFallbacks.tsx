@@ -1,10 +1,10 @@
-import { Box, Stack } from '@mantine-8/core';
-import { Button, Text } from '@mantine/core';
+import { Box, Button, Stack, Text } from '@mantine-8/core';
 import { Prism } from '@mantine/prism';
 import { IconAlertCircle, IconRefresh } from '@tabler/icons-react';
 import { type FC } from 'react';
 import SuboptimalState from '../../components/common/SuboptimalState/SuboptimalState';
 import { triggerChunkErrorReload } from '../chunkErrorHandler';
+import classes from './ErrorFallbacks.module.css';
 
 /**
  * Fallback UI shown when a chunk load error occurs after auto-reload has failed.
@@ -53,11 +53,9 @@ export const GeneralErrorFallback: FC<{ eventId: string; error: unknown }> = ({
         description={
             <Stack
                 gap="xs"
-                style={{
-                    borderRadius: 'var(--mantine-radius-md)',
-                    padding: 'var(--mantine-spacing-xs)',
-                    backgroundColor: 'var(--mantine-color-ldGray-1)',
-                }}
+                p="xs"
+                bg="ldGray.1"
+                className={classes.errorDetails}
             >
                 <Text>You can contact support with the following error ID</Text>
                 <Prism
