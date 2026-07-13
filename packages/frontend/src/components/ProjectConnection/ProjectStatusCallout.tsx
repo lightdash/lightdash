@@ -1,5 +1,6 @@
 import { type ApiError } from '@lightdash/common';
-import { Alert, Loader, type AlertProps } from '@mantine/core';
+import { Loader } from '@mantine-8/core';
+import { Alert, type AlertProps } from '@mantine/core';
 import {
     IconAlertTriangleFilled,
     IconCircleCheckFilled,

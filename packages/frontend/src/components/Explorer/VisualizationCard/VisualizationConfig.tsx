@@ -1,12 +1,6 @@
 import { assertUnreachable, ChartType } from '@lightdash/common';
-import { Group, Text } from '@mantine-8/core';
-import {
-    ActionIcon,
-    Divider,
-    Loader,
-    ScrollArea,
-    Tooltip,
-} from '@mantine/core';
+import { Group, Loader, Text } from '@mantine-8/core';
+import { ActionIcon, Divider, ScrollArea, Tooltip } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 import { lazy, Suspense, useMemo, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';

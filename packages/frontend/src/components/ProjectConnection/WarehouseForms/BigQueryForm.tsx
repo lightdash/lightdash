@@ -1,5 +1,5 @@
 import { BigqueryAuthenticationType, WarehouseTypes } from '@lightdash/common';
-import { Group, Stack, Text } from '@mantine-8/core';
+import { Group, Loader, Stack, Text } from '@mantine-8/core';
 import type { SelectItem } from '@mantine/core';
 import {
     Anchor,
@@ -7,7 +7,6 @@ import {
     Button,
     FileInput,
     Image,
-    Loader,
     NumberInput,
     Select,
     Switch,

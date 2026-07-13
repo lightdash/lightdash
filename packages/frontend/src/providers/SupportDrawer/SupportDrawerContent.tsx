@@ -137,7 +137,7 @@ const SupportDrawerContent: FC<SupportDrawerContentProps> = () => {
                                 </Text>
                             </>
                         ) : (
-                            <Loader height={200} w="100%" variant="dots" />
+                            <Loader height={200} w="100%" type="dots" />
                         )}
                     </Stack>
                 </Paper>

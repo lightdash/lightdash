@@ -1,8 +1,7 @@
 import { type CompiledDimension } from '@lightdash/common';
-import { Group, Stack, Text } from '@mantine-8/core';
+import { Group, Loader, Stack, Text } from '@mantine-8/core';
 import {
     Highlight,
-    Loader,
     MultiSelect,
     ScrollArea,
     Tooltip,

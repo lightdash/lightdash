@@ -5,8 +5,8 @@ import {
     type MetricExplorerQuery,
     type MetricWithAssociatedTimeDimension,
 } from '@lightdash/common';
-import { Group, Stack, Text } from '@mantine-8/core';
-import { Anchor, Loader, Paper, Radio, Select, Tooltip } from '@mantine/core';
+import { Group, Loader, Stack, Text } from '@mantine-8/core';
+import { Anchor, Paper, Radio, Select, Tooltip } from '@mantine/core';
 import { IconCalendar, IconStack } from '@tabler/icons-react';
 import { type UseQueryResult } from '@tanstack/react-query';
 import { useCallback, type FC } from 'react';
