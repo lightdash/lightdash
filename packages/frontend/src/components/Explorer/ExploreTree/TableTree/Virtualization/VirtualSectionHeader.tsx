@@ -142,7 +142,7 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
     return (
         <Group mt="sm" mb="xs" pl={pl} pr="sm" justify="space-between">
             <Group gap="xs">
-                <Text fw={600} c={color}>
+                <Text fz="sm" fw={600} c={color}>
                     {label}
                 </Text>
                 {helpButton && (

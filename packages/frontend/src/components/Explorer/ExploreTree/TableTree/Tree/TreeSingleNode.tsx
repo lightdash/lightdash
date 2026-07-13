@@ -455,6 +455,7 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                             <Highlight
                                 component={Text}
                                 truncate
+                                fz="sm"
                                 sx={{ flexGrow: 1 }}
                                 highlight={searchQuery || ''}
                             >

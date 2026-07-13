@@ -70,7 +70,7 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
             tableMetadata={tableMetadata}
         >
             <Group gap="xs" wrap="nowrap">
-                <Text truncate fw={600}>
+                <Text truncate fz="sm" fw={600}>
                     {table.label}
                 </Text>
                 {!isExpanded && (

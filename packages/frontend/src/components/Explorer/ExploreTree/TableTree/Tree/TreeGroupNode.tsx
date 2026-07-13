@@ -174,6 +174,7 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
                             <Highlight
                                 component={Text}
                                 truncate
+                                fz="sm"
                                 highlight={searchQuery || ''}
                             >
                                 {label}
