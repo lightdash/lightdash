@@ -1,3 +1,15 @@
+# [0.3366.0](https://github.com/lightdash/lightdash/compare/0.3365.2...0.3366.0) (2026-07-13)
+
+
+### Bug Fixes
+
+* **backend:** flag fields referencing missing warehouse columns in validation ([#25432](https://github.com/lightdash/lightdash/issues/25432)) ([eceee0a](https://github.com/lightdash/lightdash/commit/eceee0af9e90a838aa633a566ffb5a5be918c477))
+
+
+### Features
+
+* add dashboard filter requirement types and unmet-requirements helpers ([#25304](https://github.com/lightdash/lightdash/issues/25304)) ([7035560](https://github.com/lightdash/lightdash/commit/7035560b3d8bf9eab934e2a1d6472e170d8ccb77))
+
 ## [0.3365.2](https://github.com/lightdash/lightdash/compare/0.3365.1...0.3365.2) (2026-07-13)
 
 
