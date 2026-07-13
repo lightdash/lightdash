@@ -1,3 +1,10 @@
+# [0.3365.0](https://github.com/lightdash/lightdash/compare/0.3364.2...0.3365.0) (2026-07-13)
+
+
+### Features
+
+* respect default time dimensions in AI agents ([#25407](https://github.com/lightdash/lightdash/issues/25407)) ([4efc4d3](https://github.com/lightdash/lightdash/commit/4efc4d321b32909daaa59d1fcdb2de47ac25423b)), closes [#25374](https://github.com/lightdash/lightdash/issues/25374)
+
 ## [0.3364.2](https://github.com/lightdash/lightdash/compare/0.3364.1...0.3364.2) (2026-07-13)
 
 
