@@ -6,12 +6,11 @@ import {
 import assertUnreachable from '../utils/assertUnreachable';
 import { getItemId } from '../utils/item';
 import { type AnyType } from './any';
+import { type ColumnInfo, type CompiledModelNode } from './dbtFromSchema';
 import {
-    type ColumnInfo,
-    type CompiledModelNode,
-    type ParsedMetric,
-} from './dbtFromSchema';
-import { type DbtSemanticModel } from './dbtSemanticLayer';
+    type DbtSemanticMetric,
+    type DbtSemanticModel,
+} from './dbtSemanticLayer';
 import { ParseError } from './errors';
 import { type JoinRelationship } from './explore';
 import {
@@ -447,29 +446,6 @@ export const isDbtPackages = (
     results: Record<string, AnyType>,
 ): results is DbtPackages => 'packages' in results;
 
-export type V9MetricRef = {
-    name: string;
-    package?: string | null;
-    version?: string | number | null;
-};
-
-export const isV9MetricRef = (x: string[] | V9MetricRef): x is V9MetricRef =>
-    typeof x === 'object' && x !== null && 'name' in x;
-
-export type DbtMetric = Omit<ParsedMetric, 'refs'> & {
-    meta?: Record<string, AnyType> & DbtMetricLightdashMetadata;
-    refs?: string[][] | V9MetricRef[];
-};
-
-export type DbtMetricLightdashMetadata = {
-    hidden?: boolean;
-    /** @deprecated Use groups instead */
-    group_label?: string;
-    groups?: string[];
-    show_underlying_values?: string[];
-    filters: Record<string, AnyType>[];
-};
-
 export type DbtDoc = {
     unique_id: string;
     name: string;
@@ -479,7 +455,11 @@ export type DbtDoc = {
 export interface DbtManifest {
     nodes: Record<string, DbtNode>;
     metadata: DbtRawManifestMetadata;
-    metrics: Record<string, DbtMetric>;
+    /**
+     * dbt MetricFlow metrics (dbt >= 1.6). Translated into Lightdash metrics
+     * during CLI compile — see `translateMetricFlowMetrics`.
+     */
+    metrics: Record<string, DbtSemanticMetric>;
     docs: Record<string, DbtDoc>;
     /**
      * Opaque manifest sections that Lightdash carries through the multi-source

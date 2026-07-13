@@ -20,12 +20,6 @@ import {
     getReferencedTableColumns,
 } from './translator';
 import {
-    DBT_METRIC,
-    DBT_METRIC_DERIVED,
-    DBT_METRIC_WITH_CUSTOM_SQL,
-    DBT_METRIC_WITH_FILTER,
-    DBT_METRIC_WITH_SQL_FIELD,
-    DBT_V9_METRIC,
     expectedModelWithType,
     LIGHTDASH_TABLE_SQL_WHERE,
     LIGHTDASH_TABLE_WITH_ADDITIONAL_DIMENSIONS,
@@ -34,8 +28,6 @@ import {
     LIGHTDASH_TABLE_WITH_AI_HINT_FROM_CONFIG,
     LIGHTDASH_TABLE_WITH_COMPOSITE_PRIMARY_KEY,
     LIGHTDASH_TABLE_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS,
-    LIGHTDASH_TABLE_WITH_DBT_METRICS,
-    LIGHTDASH_TABLE_WITH_DBT_V9_METRICS,
     LIGHTDASH_TABLE_WITH_DEFAULT_SHOW_UNDERLYING_VALUES,
     LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_BIGQUERY,
     LIGHTDASH_TABLE_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS_SNOWFLAKE,
@@ -194,7 +186,6 @@ describe('additional dimensions with hidden base dimension', () => {
         const result = convertTable(
             SupportedDbtAdapter.BIGQUERY,
             MODEL_WITH_HIDDEN_BASE_AND_VISIBLE_ADDITIONAL,
-            [],
             DEFAULT_SPOTLIGHT_CONFIG,
         );
 
@@ -262,7 +253,6 @@ describe('additional dimensions in dbt 1.10+ (config.meta structure)', () => {
         const result = convertTable(
             SupportedDbtAdapter.BIGQUERY,
             MODEL_WITH_CONFIG_META_ADDITIONAL_DIMENSIONS,
-            [],
             DEFAULT_SPOTLIGHT_CONFIG,
         );
 
@@ -327,7 +317,6 @@ describe('additional dimensions in dbt 1.10+ (config.meta structure)', () => {
         const result = convertTable(
             SupportedDbtAdapter.BIGQUERY,
             modelWithSeparators,
-            [],
             DEFAULT_SPOTLIGHT_CONFIG,
         );
 
@@ -346,42 +335,15 @@ describe('convert tables from dbt models', () => {
             convertTable(
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_NO_METRICS,
-                [],
                 DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITHOUT_AUTO_METRICS);
-    });
-    it('should convert dbt model with dbt metrics', () => {
-        expect(
-            convertTable(
-                SupportedDbtAdapter.BIGQUERY,
-                MODEL_WITH_NO_METRICS,
-                [
-                    DBT_METRIC,
-                    DBT_METRIC_WITH_SQL_FIELD,
-                    DBT_METRIC_WITH_CUSTOM_SQL,
-                    DBT_METRIC_WITH_FILTER,
-                    DBT_METRIC_DERIVED,
-                ],
-                DEFAULT_SPOTLIGHT_CONFIG,
-            ),
-        ).toStrictEqual(LIGHTDASH_TABLE_WITH_DBT_METRICS);
-        // dbt 1.5 metrics
-        expect(
-            convertTable(
-                SupportedDbtAdapter.BIGQUERY,
-                MODEL_WITH_NO_METRICS,
-                [DBT_V9_METRIC],
-                DEFAULT_SPOTLIGHT_CONFIG,
-            ),
-        ).toStrictEqual(LIGHTDASH_TABLE_WITH_DBT_V9_METRICS);
     });
     it('should convert dbt model with metrics in meta', () => {
         expect(
             convertTable(
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_METRIC,
-                [],
                 DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_METRICS);
@@ -390,7 +352,6 @@ describe('convert tables from dbt models', () => {
         const result = convertTable(
             SupportedDbtAdapter.BIGQUERY,
             MODEL_WITH_METRIC_DRIVERS,
-            [],
             DEFAULT_SPOTLIGHT_CONFIG,
         );
 
@@ -407,7 +368,6 @@ describe('convert tables from dbt models', () => {
             convertTable(
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS,
-                [],
                 DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(
@@ -419,7 +379,6 @@ describe('convert tables from dbt models', () => {
             convertTable(
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS,
-                [],
                 DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(
@@ -431,7 +390,6 @@ describe('convert tables from dbt models', () => {
             convertTable(
                 SupportedDbtAdapter.SNOWFLAKE,
                 MODEL_WITH_DEFAULT_TIME_INTERVAL_DIMENSIONS,
-                [],
                 DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(
@@ -443,7 +401,6 @@ describe('convert tables from dbt models', () => {
             convertTable(
                 SupportedDbtAdapter.SNOWFLAKE,
                 MODEL_WITH_NO_TIME_INTERVAL_DIMENSIONS,
-                [],
                 DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(
@@ -455,7 +412,6 @@ describe('convert tables from dbt models', () => {
             convertTable(
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_OFF_TIME_INTERVAL_DIMENSIONS,
-                [],
                 DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_OFF_TIME_INTERVAL_DIMENSIONS);
@@ -465,7 +421,6 @@ describe('convert tables from dbt models', () => {
             convertTable(
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_OFF_BOOLEAN_TIME_INTERVAL_DIMENSIONS,
-                [],
                 DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_OFF_TIME_INTERVAL_DIMENSIONS);
@@ -475,7 +430,6 @@ describe('convert tables from dbt models', () => {
             convertTable(
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS,
-                [],
                 DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_CUSTOM_TIME_INTERVAL_DIMENSIONS);
@@ -484,7 +438,6 @@ describe('convert tables from dbt models', () => {
         const result = convertTable(
             SupportedDbtAdapter.BIGQUERY,
             MODEL_WITH_WRONG_METRIC,
-            [],
             DEFAULT_SPOTLIGHT_CONFIG,
         );
         expect(result.warnings).toBeDefined();
@@ -503,7 +456,6 @@ describe('convert tables from dbt models', () => {
         const result = convertTable(
             SupportedDbtAdapter.BIGQUERY,
             MODEL_WITH_WRONG_METRICS,
-            [],
             DEFAULT_SPOTLIGHT_CONFIG,
         );
         expect(result.warnings).toBeDefined();
@@ -526,7 +478,6 @@ describe('convert tables from dbt models', () => {
             convertTable(
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_GROUP_LABEL,
-                [],
                 DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_GROUP_LABEL);
@@ -538,7 +489,6 @@ describe('convert tables from dbt models', () => {
             convertTable(
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_SQL_WHERE,
-                [],
                 DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_SQL_WHERE);
@@ -549,7 +499,6 @@ describe('convert tables from dbt models', () => {
             convertTable(
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_SQL_FILTER,
-                [],
                 DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_SQL_WHERE);
@@ -560,7 +509,6 @@ describe('convert tables from dbt models', () => {
             convertTable(
                 SupportedDbtAdapter.POSTGRES,
                 MODEL_WITH_ADDITIONAL_DIMENSIONS,
-                [],
                 DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_ADDITIONAL_DIMENSIONS);
@@ -591,7 +539,6 @@ describe('convert tables from dbt models', () => {
                     },
                 },
             },
-            [],
             DEFAULT_SPOTLIGHT_CONFIG,
         );
 
@@ -622,7 +569,6 @@ describe('convert tables from dbt models', () => {
                     },
                 },
             },
-            [],
             DEFAULT_SPOTLIGHT_CONFIG,
         );
 
@@ -659,7 +605,6 @@ describe('convert tables from dbt models', () => {
                     },
                 },
             },
-            [],
             DEFAULT_SPOTLIGHT_CONFIG,
         );
 
@@ -680,7 +625,6 @@ describe('convert tables from dbt models', () => {
             convertTable(
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_GROUPS_BLOCK,
-                [],
                 DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_GROUP_BLOCK);
@@ -691,7 +635,6 @@ describe('convert tables from dbt models', () => {
             convertTable(
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_SINGLE_PRIMARY_KEY,
-                [],
                 DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_SINGLE_PRIMARY_KEY);
@@ -702,7 +645,6 @@ describe('convert tables from dbt models', () => {
             convertTable(
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_COMPOSITE_PRIMARY_KEY,
-                [],
                 DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_COMPOSITE_PRIMARY_KEY);
@@ -713,7 +655,6 @@ describe('convert tables from dbt models', () => {
             convertTable(
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_DIMENSION_AI_HINT,
-                [],
                 DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_DIMENSION_AI_HINT);
@@ -724,7 +665,6 @@ describe('convert tables from dbt models', () => {
             convertTable(
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_METRIC_AI_HINT,
-                [],
                 DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_METRIC_AI_HINT);
@@ -735,7 +675,6 @@ describe('convert tables from dbt models', () => {
             convertTable(
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_MODEL_METRIC_AI_HINT,
-                [],
                 DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_MODEL_METRIC_AI_HINT);
@@ -746,7 +685,6 @@ describe('convert tables from dbt models', () => {
             convertTable(
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_AI_HINT,
-                [],
                 DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_AI_HINT);
@@ -757,7 +695,6 @@ describe('convert tables from dbt models', () => {
             convertTable(
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_AI_HINT_IN_CONFIG,
-                [],
                 DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_AI_HINT_FROM_CONFIG);
@@ -768,7 +705,6 @@ describe('convert tables from dbt models', () => {
             convertTable(
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_AI_HINT_ARRAY,
-                [],
                 DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_AI_HINT_ARRAY);
@@ -779,7 +715,6 @@ describe('convert tables from dbt models', () => {
             convertTable(
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_DIMENSION_AI_HINT_ARRAY,
-                [],
                 DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_DIMENSION_AI_HINT_ARRAY);
@@ -790,7 +725,6 @@ describe('convert tables from dbt models', () => {
             convertTable(
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_METRIC_AI_HINT_ARRAY,
-                [],
                 DEFAULT_SPOTLIGHT_CONFIG,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_METRIC_AI_HINT_ARRAY);
@@ -811,7 +745,6 @@ describe('convert tables from dbt models', () => {
                             },
                         },
                     },
-                    [],
                     DEFAULT_SPOTLIGHT_CONFIG,
                 ),
             ).toBeTruthy();
@@ -831,7 +764,6 @@ describe('convert tables from dbt models', () => {
                             },
                         },
                     },
-                    [],
                     DEFAULT_SPOTLIGHT_CONFIG,
                 ),
             ).toThrowError(
@@ -854,7 +786,6 @@ describe('convert tables from dbt models', () => {
                             },
                         },
                     },
-                    [],
                     DEFAULT_SPOTLIGHT_CONFIG,
                 ),
             ).toThrowError(
@@ -875,7 +806,6 @@ describe('convert tables from dbt models', () => {
                             },
                         },
                     },
-                    [],
                     DEFAULT_SPOTLIGHT_CONFIG,
                 ),
             ).toThrowError(
@@ -897,7 +827,6 @@ describe('convert tables from dbt models', () => {
                             },
                         },
                     },
-                    [],
                     DEFAULT_SPOTLIGHT_CONFIG,
                 ),
             ).toThrowError(`Set "my_set" in model "myTable" cannot be empty`);
@@ -918,7 +847,6 @@ describe('convert tables from dbt models', () => {
                             },
                         },
                     },
-                    [],
                     DEFAULT_SPOTLIGHT_CONFIG,
                 ),
             ).toThrowError(
@@ -946,7 +874,6 @@ describe('convert tables from dbt models', () => {
                             },
                         },
                     },
-                    [],
                     DEFAULT_SPOTLIGHT_CONFIG,
                 ),
             ).toBeTruthy();
@@ -975,7 +902,6 @@ describe('convert tables from dbt models', () => {
                             },
                         },
                     },
-                    [],
                     DEFAULT_SPOTLIGHT_CONFIG,
                 ),
             ).toThrowError(
@@ -1000,7 +926,6 @@ describe('convert tables from dbt models', () => {
                             },
                         },
                     },
-                    [],
                     DEFAULT_SPOTLIGHT_CONFIG,
                 ),
             ).toBeTruthy();
@@ -1036,7 +961,6 @@ describe('convert tables from dbt models', () => {
                             },
                         },
                     },
-                    [],
                     DEFAULT_SPOTLIGHT_CONFIG,
                 ),
             ).toBeTruthy();
@@ -1063,7 +987,6 @@ describe('convert tables from dbt models', () => {
                             },
                         },
                     },
-                    [],
                     DEFAULT_SPOTLIGHT_CONFIG,
                 ),
             ).toBeTruthy();
@@ -1089,7 +1012,6 @@ describe('convert tables from dbt models', () => {
                             },
                         },
                     },
-                    [],
                     DEFAULT_SPOTLIGHT_CONFIG,
                 ),
             ).toThrowError(
@@ -1117,7 +1039,6 @@ describe('convert tables from dbt models', () => {
                             },
                         },
                     },
-                    [],
                     DEFAULT_SPOTLIGHT_CONFIG,
                 ),
             ).toThrowError(
@@ -1132,7 +1053,6 @@ describe('dbt source paths', () => {
         const result = convertTable(
             SupportedDbtAdapter.BIGQUERY,
             MODEL_WITH_NO_METRICS,
-            [],
             DEFAULT_SPOTLIGHT_CONFIG,
         );
         expect(result.dbtPackageName).toBeUndefined();
@@ -1149,7 +1069,6 @@ describe('dbt source paths', () => {
                 patch_path: 'jaffle_shop://models/orders.yml',
                 path: 'orders.sql',
             },
-            [],
             DEFAULT_SPOTLIGHT_CONFIG,
         );
         expect(result.dbtPackageName).toBe('jaffle_shop');
@@ -1164,7 +1083,6 @@ describe('dbt source paths', () => {
                 ...MODEL_WITH_NO_METRICS,
                 patch_path: 'pkg://schema.yml',
             },
-            [],
             DEFAULT_SPOTLIGHT_CONFIG,
         );
         expect(ymlOnly.ymlPath).toBe('schema.yml');
@@ -1174,7 +1092,6 @@ describe('dbt source paths', () => {
         const sqlOnly = convertTable(
             SupportedDbtAdapter.BIGQUERY,
             { ...MODEL_WITH_NO_METRICS, path: 'foo.sql' },
-            [],
             DEFAULT_SPOTLIGHT_CONFIG,
         );
         expect(sqlOnly.sqlPath).toBe('foo.sql');
@@ -1189,7 +1106,6 @@ describe('spotlight config', () => {
             convertTable(
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_NO_CATEGORIES,
-                [DBT_METRIC],
                 SPOTLIGHT_CONFIG_WITH_CATEGORIES_AND_HIDE.spotlight,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_NO_CATEGORIES);
@@ -1200,7 +1116,6 @@ describe('spotlight config', () => {
             convertTable(
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_MODEL_LEVEL_CATEGORIES,
-                [DBT_METRIC],
                 SPOTLIGHT_CONFIG_WITH_CATEGORIES_AND_HIDE.spotlight,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_MODEL_LEVEL_CATEGORIES);
@@ -1211,7 +1126,6 @@ describe('spotlight config', () => {
             convertTable(
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_METRIC_LEVEL_CATEGORIES,
-                [DBT_METRIC],
                 SPOTLIGHT_CONFIG_WITH_CATEGORIES_AND_HIDE.spotlight,
             ),
         ).toStrictEqual(LIGHTDASH_TABLE_WITH_METRIC_LEVEL_CATEGORIES);
@@ -1222,7 +1136,6 @@ describe('spotlight config', () => {
             convertTable(
                 SupportedDbtAdapter.BIGQUERY,
                 MODEL_WITH_METRIC_LEVEL_CATEGORIES,
-                [DBT_METRIC],
                 DEFAULT_SPOTLIGHT_CONFIG, // no categories defined
             ),
         ).toThrowError(
@@ -1299,7 +1212,6 @@ describe('explore-scoped additional dimensions', () => {
             [MODEL_WITH_EXPLORE_SCOPED_DIMENSIONS],
             false,
             SupportedDbtAdapter.POSTGRES,
-            [],
             warehouseClientMock,
             {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
@@ -1344,7 +1256,6 @@ describe('explore-scoped additional dimensions', () => {
             [MODEL_WITH_EXPLORE_SCOPED_DIMENSIONS],
             false,
             SupportedDbtAdapter.POSTGRES,
-            [],
             warehouseClientMock,
             {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
@@ -1396,7 +1307,6 @@ describe('explore-scoped additional dimensions', () => {
             [MODEL_WITH_DATE_EXPLORE_DIMENSION],
             false,
             SupportedDbtAdapter.POSTGRES,
-            [],
             warehouseClientMock,
             {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
@@ -1445,7 +1355,6 @@ describe('explore-scoped additional dimensions', () => {
             [modelWithExploreSqlFilter],
             false,
             SupportedDbtAdapter.POSTGRES,
-            [],
             warehouseClientMock,
             {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
@@ -1472,7 +1381,6 @@ describe('explore-scoped additional dimensions', () => {
         const table = convertTable(
             SupportedDbtAdapter.POSTGRES,
             MODEL_WITH_DEFAULT_SHOW_UNDERLYING_VALUES,
-            [],
             DEFAULT_SPOTLIGHT_CONFIG,
         );
 
@@ -1561,7 +1469,6 @@ describe('required/default filters on hidden dimensions', () => {
             [modelWithExploreScopedFilters],
             false,
             SupportedDbtAdapter.POSTGRES,
-            [],
             warehouseClientMock,
             {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
@@ -1607,7 +1514,6 @@ describe('custom granularities', () => {
         const result = convertTable(
             SupportedDbtAdapter.POSTGRES,
             MODEL_WITH_CUSTOM_GRANULARITY,
-            [],
             DEFAULT_SPOTLIGHT_CONFIG,
             undefined,
             undefined,
@@ -1635,7 +1541,6 @@ describe('custom granularities', () => {
         const result = convertTable(
             SupportedDbtAdapter.POSTGRES,
             MODEL_WITH_CUSTOM_GRANULARITY,
-            [],
             DEFAULT_SPOTLIGHT_CONFIG,
             undefined,
             undefined,
@@ -1652,7 +1557,6 @@ describe('custom granularities', () => {
         const result = convertTable(
             SupportedDbtAdapter.POSTGRES,
             MODEL_WITH_CUSTOM_GRANULARITY_AND_REQUIRED_ATTRIBUTES,
-            [],
             DEFAULT_SPOTLIGHT_CONFIG,
             undefined,
             undefined,
@@ -1661,7 +1565,9 @@ describe('custom granularities', () => {
 
         expect(
             result.dimensions.created_at_slt_week.requiredAttributes,
-        ).toEqual({ department: 'finance' });
+        ).toEqual({
+            department: 'finance',
+        });
 
         // Standard interval should also have it
         expect(result.dimensions.created_at_day.requiredAttributes).toEqual({
@@ -1674,7 +1580,6 @@ describe('custom granularities', () => {
         const result = convertTable(
             SupportedDbtAdapter.POSTGRES,
             MODEL_WITH_CUSTOM_GRANULARITY,
-            [],
             DEFAULT_SPOTLIGHT_CONFIG,
             undefined,
             undefined,
@@ -1692,7 +1597,6 @@ describe('custom granularities', () => {
             [MODEL_WITH_CUSTOM_GRANULARITY],
             false,
             SupportedDbtAdapter.POSTGRES,
-            [],
             warehouseClientMock,
             {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
@@ -1723,7 +1627,6 @@ describe('custom granularities', () => {
             [MODEL_WITH_CUSTOM_GRANULARITY],
             false,
             SupportedDbtAdapter.POSTGRES,
-            [],
             warehouseClientMock,
             {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
@@ -1763,7 +1666,6 @@ describe('custom granularities', () => {
             [modelWithMixedGranularities],
             false,
             SupportedDbtAdapter.POSTGRES,
-            [],
             warehouseClientMock,
             {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
@@ -1790,7 +1692,6 @@ describe('duplicate metric/dimension names', () => {
             [MODEL_WITH_DUPLICATE_METRIC_DIMENSION_NAME],
             false,
             SupportedDbtAdapter.POSTGRES,
-            [],
             warehouseClientMock,
             {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
@@ -1818,7 +1719,6 @@ describe('duplicate metric/dimension names', () => {
             [MODEL_WITH_DUPLICATE_METRIC_DIMENSION_NAME],
             false,
             SupportedDbtAdapter.POSTGRES,
-            [],
             warehouseClientMock,
             {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
@@ -1856,7 +1756,6 @@ describe('duplicate metric/dimension names', () => {
         const result = convertTable(
             SupportedDbtAdapter.BIGQUERY,
             modelWithMixedMetrics,
-            [],
             DEFAULT_SPOTLIGHT_CONFIG,
         );
         expect(result.dimensions).toHaveProperty('user_id');
@@ -1892,7 +1791,6 @@ describe('duplicate metric/dimension names', () => {
         const result = convertTable(
             SupportedDbtAdapter.BIGQUERY,
             modelWithSetAndDuplicate,
-            [],
             DEFAULT_SPOTLIGHT_CONFIG,
         );
         expect(result.warnings).toHaveLength(1);
@@ -1908,7 +1806,6 @@ describe('duplicate metric/dimension names', () => {
         const result = convertTable(
             SupportedDbtAdapter.BIGQUERY,
             MODEL_WITH_WRONG_METRIC,
-            [],
             DEFAULT_SPOTLIGHT_CONFIG,
         );
         expect(result.warnings).toHaveLength(1);
@@ -1921,7 +1818,6 @@ describe('duplicate metric/dimension names', () => {
         const result = convertTable(
             SupportedDbtAdapter.BIGQUERY,
             MODEL_WITH_WRONG_METRICS,
-            [],
             DEFAULT_SPOTLIGHT_CONFIG,
         );
         const duplicateWarnings = result.warnings!.filter(
@@ -1960,7 +1856,6 @@ describe('convert_timezone dimension override', () => {
         const result = convertTable(
             SupportedDbtAdapter.BIGQUERY,
             buildModel(false),
-            [],
             DEFAULT_SPOTLIGHT_CONFIG,
         );
         expect(result.dimensions.created_at.skipTimezoneConversion).toBe(true);
@@ -1993,7 +1888,6 @@ describe('convert_timezone dimension override', () => {
         const result = convertTable(
             SupportedDbtAdapter.BIGQUERY,
             modelWithCustom,
-            [],
             DEFAULT_SPOTLIGHT_CONFIG,
             undefined,
             undefined,
@@ -2014,7 +1908,6 @@ describe('convert_timezone dimension override', () => {
         const result = convertTable(
             SupportedDbtAdapter.SNOWFLAKE,
             buildModel(false),
-            [],
             DEFAULT_SPOTLIGHT_CONFIG,
             undefined,
             true,
@@ -2035,7 +1928,6 @@ describe('convert_timezone dimension override', () => {
         const undef = convertTable(
             SupportedDbtAdapter.BIGQUERY,
             buildModel(undefined),
-            [],
             DEFAULT_SPOTLIGHT_CONFIG,
         );
         expect(
@@ -2045,7 +1937,6 @@ describe('convert_timezone dimension override', () => {
         const truthy = convertTable(
             SupportedDbtAdapter.BIGQUERY,
             buildModel(true),
-            [],
             DEFAULT_SPOTLIGHT_CONFIG,
         );
         expect(
@@ -2070,7 +1961,6 @@ describe('project default additional_time_intervals', () => {
         const result = convertTable(
             SupportedDbtAdapter.POSTGRES,
             TIMESTAMP_MODEL,
-            [],
             DEFAULT_SPOTLIGHT_CONFIG,
             undefined, // startOfWeek
             undefined, // disableTimestampConversion
@@ -2086,7 +1976,6 @@ describe('project default additional_time_intervals', () => {
         const result = convertTable(
             SupportedDbtAdapter.POSTGRES,
             TIMESTAMP_MODEL,
-            [],
             DEFAULT_SPOTLIGHT_CONFIG,
             undefined,
             undefined,
@@ -2116,7 +2005,6 @@ describe('project default additional_time_intervals', () => {
         const result = convertTable(
             SupportedDbtAdapter.POSTGRES,
             EXPLICIT_MODEL,
-            [],
             DEFAULT_SPOTLIGHT_CONFIG,
             undefined,
             undefined,
@@ -2133,7 +2021,6 @@ describe('project default additional_time_intervals', () => {
             [TIMESTAMP_MODEL],
             false,
             SupportedDbtAdapter.POSTGRES,
-            [],
             warehouseClientMock,
             {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
@@ -2170,7 +2057,6 @@ describe('granularity_labels overrides', () => {
             [TS_MODEL],
             false,
             SupportedDbtAdapter.POSTGRES,
-            [],
             warehouseClientMock,
             {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
@@ -2203,7 +2089,6 @@ describe('granularity_labels overrides', () => {
             [TS_MODEL],
             false,
             SupportedDbtAdapter.POSTGRES,
-            [],
             warehouseClientMock,
             { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
         );

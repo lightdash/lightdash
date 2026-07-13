@@ -1,6 +1,6 @@
+import { warehouseClientMock } from '../compiler/exploreCompiler.mock';
 import { convertExplores } from '../compiler/translator';
 import { model as MOCK_MODEL } from '../compiler/translator.mock';
-import { warehouseClientMock } from '../compiler/exploreCompiler.mock';
 import { SupportedDbtAdapter, type DbtModelNode } from '../types/dbt';
 import {
     MetricFlowAggregation,
@@ -53,12 +53,18 @@ const simpleMetric = (
 describe('translateMetricFlowMetrics', () => {
     it('translates a simple metric into a Lightdash model metric', () => {
         const result = translateMetricFlowMetrics({
-            semanticModels: { [ordersSemanticModel.unique_id]: ordersSemanticModel },
+            semanticModels: {
+                [ordersSemanticModel.unique_id]: ordersSemanticModel,
+            },
             metrics: {
-                'metric.jaffle.revenue': simpleMetric('revenue', 'order_total', {
-                    label: 'Revenue',
-                    description: 'Total revenue',
-                }),
+                'metric.jaffle.revenue': simpleMetric(
+                    'revenue',
+                    'order_total',
+                    {
+                        label: 'Revenue',
+                        description: 'Total revenue',
+                    },
+                ),
             },
             modelNamesByUniqueId,
         });
@@ -182,24 +188,27 @@ describe('translateMetricFlowMetrics', () => {
         ['ratio', { type: 'ratio' as const, type_params: {} }],
         ['derived', { type: 'derived' as const, type_params: {} }],
         ['cumulative', { type: 'cumulative' as const, type_params: {} }],
-    ])('skips unsupported metric type %s with a warning', (_label, overrides) => {
-        const result = translateMetricFlowMetrics({
-            semanticModels: {
-                sm: { ...ordersSemanticModel, measures: [] },
-            },
-            metrics: {
-                m: {
-                    name: 'unsupported',
-                    unique_id: 'metric.jaffle.unsupported',
-                    ...overrides,
+    ])(
+        'skips unsupported metric type %s with a warning',
+        (_label, overrides) => {
+            const result = translateMetricFlowMetrics({
+                semanticModels: {
+                    sm: { ...ordersSemanticModel, measures: [] },
                 },
-            },
-            modelNamesByUniqueId,
-        });
-        expect(result.translatedCount).toBe(0);
-        expect(result.skippedCount).toBe(1);
-        expect(result.warnings[0]).toContain('unsupported');
-    });
+                metrics: {
+                    m: {
+                        name: 'unsupported',
+                        unique_id: 'metric.jaffle.unsupported',
+                        ...overrides,
+                    },
+                },
+                modelNamesByUniqueId,
+            });
+            expect(result.translatedCount).toBe(0);
+            expect(result.skippedCount).toBe(1);
+            expect(result.warnings[0]).toContain('unsupported');
+        },
+    );
 
     it('skips filtered metrics', () => {
         const result = translateMetricFlowMetrics({
@@ -291,7 +300,6 @@ describe('translateMetricFlowMetrics', () => {
             [modelWithMetrics],
             false,
             SupportedDbtAdapter.POSTGRES,
-            [],
             warehouseClientMock,
             { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
         );
