@@ -1,6 +1,7 @@
 import { isDimension, type FilterableItem } from '@lightdash/common';
 import {
     ActionIcon,
+    Box,
     Group,
     Highlight,
     Loader,
@@ -391,7 +392,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                         }}
                     />
                 ) : (
-                    <div ref={wrapperRef} style={{ width: '100%' }}>
+                    <Box ref={wrapperRef} w="100%">
                         <MultiSelectCombobox
                             ref={multiSelectRef}
                             {...rest}
@@ -622,7 +623,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                             onFocus={onInputFocus}
                             onBlur={handleBlur}
                         />
-                    </div>
+                    </Box>
                 )}
             </MultiValuePastePopover>
         </>

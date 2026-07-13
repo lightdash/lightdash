@@ -40,6 +40,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import { DEFAULT_TAB, FilterActions, FilterTabs } from './constants';
+import classes from './FilterConfiguration.module.css';
 import FilterCoverageSummary from './FilterCoverageSummary';
 import FilterFieldSelect from './FilterFieldSelect';
 import FilterSettings from './FilterSettings';
@@ -408,7 +409,9 @@ const FilterConfiguration: FC<Props> = ({
     };
 
     return (
-        <Stack>
+        // Keep dropdowns in document flow so the panel grows and Apply stays
+        // reachable — PROD-2395.
+        <Stack className={classes.inlineDropdowns}>
             <Tabs
                 value={selectedTabId}
                 onChange={(tabId) => {

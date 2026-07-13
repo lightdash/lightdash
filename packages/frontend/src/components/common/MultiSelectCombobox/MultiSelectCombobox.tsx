@@ -132,9 +132,12 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
             const values = new Set<string>();
             visibleOptions.forEach((option) => {
                 if (values.has(option.value)) {
-                    throw new Error(
-                        `Duplicate MultiSelect option value: ${option.value}`,
-                    );
+                    if (import.meta.env.DEV) {
+                        console.error(
+                            `Duplicate MultiSelect option value: ${option.value}`,
+                        );
+                    }
+                    return;
                 }
                 values.add(option.value);
                 if (!option.group) {

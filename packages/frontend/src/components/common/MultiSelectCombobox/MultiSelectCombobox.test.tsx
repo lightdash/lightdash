@@ -55,4 +55,26 @@ describe('MultiSelectCombobox', () => {
         );
         expect(hiddenInput?.value).toBe('chart-1,chart-2');
     });
+
+    it('ignores duplicate option values instead of crashing', async () => {
+        const user = userEvent.setup();
+        const consoleError = vi
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        renderWithProviders(
+            <MultiSelectCombobox
+                {...defaultProps}
+                options={[
+                    { value: 'duplicate', label: 'First' },
+                    { value: 'duplicate', label: 'Second' },
+                ]}
+            />,
+        );
+
+        await user.click(screen.getByRole('textbox'));
+
+        expect(screen.getAllByRole('option', { hidden: true })).toHaveLength(1);
+        consoleError.mockRestore();
+    });
 });
