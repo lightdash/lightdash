@@ -7,27 +7,28 @@ import { useEffect, useReducer, useRef } from 'react';
 import { useLocation } from 'react-router';
 import useToaster from './toaster/useToaster';
 
-// Lock state is metadata of the saved dashboard, not something the URL
-// should be able to assert. Strip `lockedTabUuids` from URL-provided
-// override rules so a stale shared link can't keep a filter "locked"
-// after an editor has removed the lock from the saved dashboard.
+// Lock state and requirement flags are metadata of the saved dashboard, not
+// something the URL should be able to assert. Strip them from URL-provided
+// override rules so a stale shared link can't keep a filter "locked",
+// required, or in a requirement group after an editor has changed the saved
+// dashboard.
+type UrlOverrideRule = DashboardFilterRuleOverride & {
+    lockedTabUuids?: string[];
+    required?: boolean;
+    requiredGroupId?: string;
+};
+
 const sanitizeOverrideRule = (
-    rule: DashboardFilterRuleOverride & { lockedTabUuids?: string[] },
+    rule: UrlOverrideRule,
 ): DashboardFilterRuleOverride => {
-    const { lockedTabUuids: _, ...rest } = rule;
+    const { lockedTabUuids, required, requiredGroupId, ...rest } = rule;
     return rest;
 };
 
 const sanitizeOverrideState = (state: {
-    dimensions?: (DashboardFilterRuleOverride & {
-        lockedTabUuids?: string[];
-    })[];
-    metrics?: (DashboardFilterRuleOverride & {
-        lockedTabUuids?: string[];
-    })[];
-    tableCalculations?: (DashboardFilterRuleOverride & {
-        lockedTabUuids?: string[];
-    })[];
+    dimensions?: UrlOverrideRule[];
+    metrics?: UrlOverrideRule[];
+    tableCalculations?: UrlOverrideRule[];
 }): Record<keyof DashboardFilters, DashboardFilterRuleOverride[]> => ({
     dimensions: (state.dimensions ?? []).map(sanitizeOverrideRule),
     metrics: (state.metrics ?? []).map(sanitizeOverrideRule),
@@ -143,7 +144,13 @@ export const useSavedDashboardFiltersOverrides = () => {
     }, [showToastWarning]);
 
     const addSavedFilterOverride = (
-        { tileTargets, lockedTabUuids, ...item }: DashboardFilterRule,
+        {
+            tileTargets,
+            lockedTabUuids,
+            required,
+            requiredGroupId,
+            ...item
+        }: DashboardFilterRule,
         category: FilterCategory = 'dimensions',
     ) => {
         dispatch({
@@ -154,7 +161,13 @@ export const useSavedDashboardFiltersOverrides = () => {
     };
 
     const removeSavedFilterOverride = (
-        { tileTargets, lockedTabUuids, ...item }: DashboardFilterRule,
+        {
+            tileTargets,
+            lockedTabUuids,
+            required,
+            requiredGroupId,
+            ...item
+        }: DashboardFilterRule,
         category: FilterCategory = 'dimensions',
     ) => {
         dispatch({

@@ -1,5 +1,6 @@
 import {
     applyDimensionOverrides,
+    applyMetricOverrides,
     compressDashboardFiltersToParam,
     convertDashboardFiltersParamToDashboardFilters,
     DashboardTileTypes,
@@ -1155,14 +1156,10 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                 };
 
                 if (safeOverrides.metrics?.length > 0) {
-                    updated.metrics = prevFilters.metrics.map((metric) => {
-                        const override = safeOverrides.metrics.find(
-                            (m) => m.id === metric.id,
-                        );
-                        return override
-                            ? { ...override, tileTargets: metric.tileTargets }
-                            : metric;
-                    });
+                    updated.metrics = applyMetricOverrides(
+                        prevFilters,
+                        safeOverrides,
+                    );
                 }
 
                 return updated;
