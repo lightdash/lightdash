@@ -1,6 +1,12 @@
-import { Divider, Group, Stack, Title, ActionIcon } from '@mantine-8/core';
 import {
+    ActionIcon,
     Burger,
+    Divider,
+    Group,
+    Stack,
+    Title,
+} from '@mantine-8/core';
+import {
     Drawer,
     getDefaultZIndex,
     Header,
@@ -108,11 +114,23 @@ export const MobileNavBar: FC = () => {
                     >
                         <Logo />
                     </ActionIcon>
-                    <Burger opened={isMenuOpen} onClick={toggleMenu} />
+                    <Burger
+                        opened={isMenuOpen}
+                        onClick={toggleMenu}
+                        color="white"
+                        aria-label={
+                            isMenuOpen
+                                ? 'Close navigation menu'
+                                : 'Open navigation menu'
+                        }
+                        aria-expanded={isMenuOpen}
+                        aria-controls="mobile-navigation"
+                    />
                 </Group>
             </Header>
 
             <Drawer
+                id="mobile-navigation"
                 title={<ThemeSwitcher />}
                 opened={isMenuOpen}
                 onClose={toggleMenu}
