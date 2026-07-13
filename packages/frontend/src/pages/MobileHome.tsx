@@ -3,8 +3,7 @@ import {
     ResourceViewItemType,
     wrapResource,
 } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
-import { Title } from '@mantine/core';
+import { Stack, Title } from '@mantine-8/core';
 import { IconLayoutDashboard } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import { useParams } from 'react-router';

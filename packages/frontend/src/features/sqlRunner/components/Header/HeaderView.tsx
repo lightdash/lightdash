@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { DashboardTileTypes } from '@lightdash/common';
-import { Group, Stack } from '@mantine-8/core';
-import { ActionIcon, Button, Menu, Paper, Title, Tooltip } from '@mantine/core';
+import { Group, Stack, Title } from '@mantine-8/core';
+import { ActionIcon, Button, Menu, Paper, Tooltip } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconCirclesRelation,
