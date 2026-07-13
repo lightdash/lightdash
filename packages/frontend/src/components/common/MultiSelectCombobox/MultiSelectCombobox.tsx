@@ -15,6 +15,7 @@ import {
     type KeyboardEvent,
     type ReactNode,
 } from 'react';
+import classes from './MultiSelectCombobox.module.css';
 
 export type MultiSelectComboboxOption = {
     value: string;
@@ -323,19 +324,11 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
                                                     value={option.value}
                                                     disabled={option.disabled}
                                                     active={selected}
+                                                    className={classes.option}
                                                     fz="sm"
                                                     ff="inherit"
                                                     px="sm"
                                                     py="xxs"
-                                                    style={
-                                                        selected
-                                                            ? {
-                                                                  backgroundColor:
-                                                                      'var(--mantine-primary-color-filled)',
-                                                                  color: 'var(--mantine-color-white)',
-                                                              }
-                                                            : undefined
-                                                    }
                                                 >
                                                     {renderOption?.(
                                                         option,

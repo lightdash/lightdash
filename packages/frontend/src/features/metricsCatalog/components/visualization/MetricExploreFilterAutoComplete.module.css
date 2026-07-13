@@ -29,6 +29,10 @@
 }
 
 .option {
+    --multi-select-selected-background: var(--mantine-color-ldGray-0);
+    --multi-select-selected-hover-background: var(--mantine-color-ldGray-0);
+    --multi-select-selected-color: var(--mantine-color-ldGray-7);
+
     font-size: var(--mantine-font-size-sm);
 }
 

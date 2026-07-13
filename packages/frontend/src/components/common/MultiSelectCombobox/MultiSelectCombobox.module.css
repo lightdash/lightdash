@@ -1,0 +1,14 @@
+.option[data-combobox-active] {
+    background-color: var(
+        --multi-select-selected-background,
+        var(--mantine-primary-color-filled)
+    );
+    color: var(--multi-select-selected-color, var(--mantine-color-white));
+}
+
+.option[data-combobox-active]:hover {
+    background-color: var(
+        --multi-select-selected-hover-background,
+        var(--mantine-primary-color-filled-hover)
+    );
+}

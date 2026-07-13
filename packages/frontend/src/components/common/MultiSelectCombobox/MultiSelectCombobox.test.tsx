@@ -77,4 +77,23 @@ describe('MultiSelectCombobox', () => {
         expect(screen.getAllByRole('option', { hidden: true })).toHaveLength(1);
         consoleError.mockRestore();
     });
+
+    it('leaves selected option colors overridable by consumer CSS', () => {
+        renderWithProviders(
+            <MultiSelectCombobox
+                {...defaultProps}
+                value={['chart-1']}
+                selectedValues={['chart-1']}
+            />,
+        );
+
+        fireEvent.focus(screen.getByRole('textbox'));
+
+        const option = screen.getByRole('option', {
+            name: 'Chart one',
+            hidden: true,
+        });
+        expect(option).toHaveAttribute('data-combobox-active', 'true');
+        expect(option.style.backgroundColor).toBe('');
+    });
 });

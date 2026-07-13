@@ -176,6 +176,114 @@ describe('FilterStringAutoComplete', () => {
             expect(calledWith).toContain('value-50');
             expect(calledWith).toContain('value-59');
         });
+
+        it('removes a selected hidden value from the dropdown without dropping other values', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const values = createValues(100);
+            const onChange = vi.fn();
+
+            renderWithProviders(
+                <FilterStringAutoComplete
+                    filterId="test-filter"
+                    field={mockField}
+                    values={values}
+                    suggestions={[]}
+                    onChange={onChange}
+                />,
+            );
+
+            await user.click(screen.getByRole('textbox'));
+            await user.click(
+                screen.getByRole('option', {
+                    name: 'value-75',
+                    hidden: true,
+                }),
+            );
+
+            expect(onChange).toHaveBeenCalledWith(
+                values.filter((value) => value !== 'value-75'),
+            );
+        });
+    });
+
+    describe('selection behavior', () => {
+        it('replaces a single value once without recommitting it on blur', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const onChange = vi.fn();
+
+            renderWithProviders(
+                <FilterStringAutoComplete
+                    filterId="test-filter"
+                    field={mockField}
+                    values={['old-value']}
+                    suggestions={[]}
+                    onChange={onChange}
+                    singleValue
+                />,
+            );
+
+            const input = screen.getByRole('textbox');
+            fireEvent.focus(input);
+            await user.type(input, 'new-value{Enter}');
+
+            expect(onChange).toHaveBeenCalledTimes(1);
+            expect(onChange).toHaveBeenCalledWith(['new-value']);
+        });
+
+        it('toggles the null option without changing real values', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const onChange = vi.fn();
+            const onIncludeNullChange = vi.fn();
+
+            renderWithProviders(
+                <FilterStringAutoComplete
+                    filterId="test-filter"
+                    field={mockField}
+                    values={['value-1']}
+                    suggestions={[]}
+                    onChange={onChange}
+                    showNullOption
+                    includeNull={false}
+                    onIncludeNullChange={onIncludeNullChange}
+                />,
+            );
+
+            await user.click(screen.getByRole('textbox'));
+            await user.click(
+                screen.getByRole('option', {
+                    name: '(null)',
+                    hidden: true,
+                }),
+            );
+
+            expect(onIncludeNullChange).toHaveBeenCalledWith(true);
+            expect(onChange).not.toHaveBeenCalled();
+        });
+
+        it('preserves dropdown lifecycle callbacks', async () => {
+            const user = userEvent.setup({ pointerEventsCheck: 0 });
+            const onDropdownOpen = vi.fn();
+            const onDropdownClose = vi.fn();
+
+            renderWithProviders(
+                <FilterStringAutoComplete
+                    filterId="test-filter"
+                    field={mockField}
+                    values={[]}
+                    suggestions={[]}
+                    onChange={vi.fn()}
+                    onDropdownOpen={onDropdownOpen}
+                    onDropdownClose={onDropdownClose}
+                />,
+            );
+
+            const input = screen.getByRole('textbox');
+            await user.click(input);
+            fireEvent.blur(input);
+
+            expect(onDropdownOpen).toHaveBeenCalled();
+            expect(onDropdownClose).toHaveBeenCalled();
+        });
     });
 
     describe('commit on blur', () => {

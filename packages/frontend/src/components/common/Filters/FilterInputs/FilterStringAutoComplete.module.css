@@ -54,13 +54,3 @@
     justify-content: flex-end;
     align-items: flex-start;
 }
-
-/* Custom selected state for dropdown items when values are truncated */
-/* This ensures hidden values (beyond display limit) still show as selected */
-.multiSelectItemSelected {
-    background-color: var(--mantine-color-blue-6);
-    color: var(--mantine-color-white);
-    &:hover {
-        background-color: var(--mantine-color-blue-7) !important;
-    }
-}
