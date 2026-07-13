@@ -1,4 +1,4 @@
-import { Box, Center, Group, Stack } from '@mantine-8/core';
+import { Box, Center, Group, Stack, Text } from '@mantine-8/core';
 import {
     ActionIcon,
     CopyButton,
@@ -7,7 +7,6 @@ import {
     ScrollArea,
     TextInput,
     Tooltip,
-    Text,
 } from '@mantine/core';
 import { useDebouncedValue, useHover } from '@mantine/hooks';
 import { IconCopy, IconSearch, IconX } from '@tabler/icons-react';

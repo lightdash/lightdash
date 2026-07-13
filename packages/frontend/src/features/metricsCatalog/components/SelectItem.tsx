@@ -1,5 +1,4 @@
-import { Box } from '@mantine-8/core';
-import { Text } from '@mantine/core';
+import { Box, Text } from '@mantine-8/core';
 import { mergeRefs, useHover } from '@mantine/hooks';
 import { forwardRef, type ComponentPropsWithoutRef } from 'react';
 

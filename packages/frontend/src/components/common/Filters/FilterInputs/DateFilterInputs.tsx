@@ -10,8 +10,8 @@ import {
     type BaseFilterRule,
     type DateFilterRule,
 } from '@lightdash/common';
-import { Flex } from '@mantine-8/core';
-import { NumberInput, Text } from '@mantine/core';
+import { Flex, Text } from '@mantine-8/core';
+import { NumberInput } from '@mantine/core';
 import dayjs from 'dayjs';
 import { type FilterInputsProps } from '.';
 import useFiltersContext from '../useFiltersContext';

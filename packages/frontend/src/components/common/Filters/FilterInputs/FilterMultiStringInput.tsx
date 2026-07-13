@@ -1,5 +1,5 @@
-import { Group } from '@mantine-8/core';
-import { MultiSelect, type MultiSelectProps, Text } from '@mantine/core';
+import { Group, Text } from '@mantine-8/core';
+import { MultiSelect, type MultiSelectProps } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import uniq from 'lodash/uniq';
 import { useCallback, useMemo, useState, type FC } from 'react';

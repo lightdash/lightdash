@@ -1,6 +1,6 @@
 import { type NotificationAiReview } from '@lightdash/common';
-import { Group, Menu } from '@mantine-8/core';
-import { Tooltip, useMantineTheme, Text } from '@mantine/core';
+import { Group, Menu, Text } from '@mantine-8/core';
+import { Tooltip, useMantineTheme } from '@mantine/core';
 import { IconCircleFilled } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useCallback, type FC } from 'react';

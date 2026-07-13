@@ -13,7 +13,7 @@ import {
     type ResourceViewItem,
     type SpaceSummary,
 } from '@lightdash/common';
-import { Box, Group } from '@mantine-8/core';
+import { Box, Group, Text } from '@mantine-8/core';
 import { useDebouncedCallback } from '@mantine-8/hooks';
 import {
     ActionIcon,
@@ -23,7 +23,6 @@ import {
     TextInput,
     Tooltip,
     useMantineTheme,
-    Text,
 } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {

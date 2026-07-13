@@ -4,7 +4,7 @@ import {
     type MetricExplorerDateRange,
     type TimeDimensionConfig,
 } from '@lightdash/common';
-import { Box, Group, Stack } from '@mantine-8/core';
+import { Box, Group, Stack, Text } from '@mantine-8/core';
 import {
     Button,
     Divider,
@@ -13,7 +13,6 @@ import {
     TextInput,
     Tooltip,
     UnstyledButton,
-    Text,
 } from '@mantine/core';
 import { DatePicker, MonthPicker, YearPicker } from '@mantine/dates';
 import { useCallback, useEffect, useRef, type FC } from 'react';

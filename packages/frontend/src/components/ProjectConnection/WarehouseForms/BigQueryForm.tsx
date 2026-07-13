@@ -1,5 +1,5 @@
 import { BigqueryAuthenticationType, WarehouseTypes } from '@lightdash/common';
-import { Group, Stack } from '@mantine-8/core';
+import { Group, Stack, Text } from '@mantine-8/core';
 import type { SelectItem } from '@mantine/core';
 import {
     Anchor,
@@ -13,7 +13,6 @@ import {
     Switch,
     TextInput,
     Tooltip,
-    Text,
 } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconCheck, IconExclamationCircle } from '@tabler/icons-react';

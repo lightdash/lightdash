@@ -1,5 +1,5 @@
 import { type CompiledDimension } from '@lightdash/common';
-import { Group, Stack } from '@mantine-8/core';
+import { Group, Stack, Text } from '@mantine-8/core';
 import {
     Highlight,
     Loader,
@@ -7,7 +7,6 @@ import {
     ScrollArea,
     Tooltip,
     type MultiSelectProps,
-    Text,
 } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import uniq from 'lodash/uniq';

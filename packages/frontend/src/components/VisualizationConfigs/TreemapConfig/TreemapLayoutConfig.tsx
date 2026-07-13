@@ -8,8 +8,8 @@ import {
     type Metric,
     type TableCalculation,
 } from '@lightdash/common';
-import { Box, Group, Stack } from '@mantine-8/core';
-import { Grid, NumberInput, Switch, Tooltip, Text } from '@mantine/core';
+import { Box, Group, Stack, Text } from '@mantine-8/core';
+import { Grid, NumberInput, Switch, Tooltip } from '@mantine/core';
 import { IconHelpCircle } from '@tabler/icons-react';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';

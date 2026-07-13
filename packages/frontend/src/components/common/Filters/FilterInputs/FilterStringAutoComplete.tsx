@@ -1,5 +1,5 @@
 import { isDimension, type FilterableItem } from '@lightdash/common';
-import { Group, Stack } from '@mantine-8/core';
+import { Group, Stack, Text } from '@mantine-8/core';
 import {
     ActionIcon,
     Highlight,
@@ -10,7 +10,6 @@ import {
     Tooltip,
     type MultiSelectProps,
     type MultiSelectValueProps,
-    Text,
 } from '@mantine/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
 import {

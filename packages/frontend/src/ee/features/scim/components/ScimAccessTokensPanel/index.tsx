@@ -1,5 +1,5 @@
-import { Group, Stack } from '@mantine-8/core';
-import { Anchor, Button, TextInput, Title, Text } from '@mantine/core';
+import { Group, Stack, Text } from '@mantine-8/core';
+import { Anchor, Button, TextInput, Title } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';

@@ -19,14 +19,13 @@ import {
     type DashboardTile,
     type ResultColumn,
 } from '@lightdash/common';
-import { Box, Flex, Group, Stack } from '@mantine-8/core';
+import { Box, Flex, Group, Stack, Text } from '@mantine-8/core';
 import {
     Button,
     Select,
     Tabs,
     Tooltip,
     type PopoverProps,
-    Text,
 } from '@mantine/core';
 import { IconRotate2, IconSql } from '@tabler/icons-react';
 import { produce } from 'immer';

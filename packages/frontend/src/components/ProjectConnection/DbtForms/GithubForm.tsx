@@ -1,5 +1,5 @@
 import { DbtProjectType } from '@lightdash/common';
-import { Group, Stack } from '@mantine-8/core';
+import { Group, Stack, Text } from '@mantine-8/core';
 import {
     ActionIcon,
     Anchor,
@@ -11,7 +11,6 @@ import {
     TextInput,
     Tooltip,
     type ScrollAreaProps,
-    Text,
 } from '@mantine/core';
 import { IconCheck, IconRefresh } from '@tabler/icons-react';
 import React, { useEffect, type FC, type ReactNode } from 'react';

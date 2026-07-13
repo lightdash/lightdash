@@ -14,7 +14,7 @@ import {
     type DashboardTile,
     type Field,
 } from '@lightdash/common';
-import { Box, Flex, Group, Stack } from '@mantine-8/core';
+import { Box, Flex, Group, Stack, Text } from '@mantine-8/core';
 import {
     ActionIcon,
     Checkbox,
@@ -23,7 +23,6 @@ import {
     Tooltip,
     useMantineTheme,
     type PopoverProps,
-    Text,
 } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';

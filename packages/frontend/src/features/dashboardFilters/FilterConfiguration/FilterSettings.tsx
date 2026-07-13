@@ -7,7 +7,7 @@ import {
     type DashboardFilterRule,
     type FilterRule,
 } from '@lightdash/common';
-import { Box, Group, Stack } from '@mantine-8/core';
+import { Box, Group, Stack, Text } from '@mantine-8/core';
 import {
     ActionIcon,
     Button,
@@ -17,7 +17,6 @@ import {
     TextInput,
     Tooltip,
     type PopoverProps,
-    Text,
 } from '@mantine/core';
 import { IconHelpCircle, IconX } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';

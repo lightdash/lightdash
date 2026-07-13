@@ -20,7 +20,14 @@ import {
     type CatalogCategoryFilterMode,
     type CatalogField,
 } from '@lightdash/common';
-import { Box, Center, Group, Stack, type GroupProps } from '@mantine-8/core';
+import {
+    Box,
+    Center,
+    Group,
+    Stack,
+    type GroupProps,
+    Text,
+} from '@mantine-8/core';
 import {
     ActionIcon,
     Badge,
@@ -30,7 +37,6 @@ import {
     SegmentedControl,
     TextInput,
     Tooltip,
-    Text,
 } from '@mantine/core';
 import {
     IconEye,

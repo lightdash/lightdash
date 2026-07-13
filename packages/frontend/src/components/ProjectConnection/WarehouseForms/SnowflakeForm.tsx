@@ -1,5 +1,5 @@
 import { SnowflakeAuthenticationType, WarehouseTypes } from '@lightdash/common';
-import { Group, Stack } from '@mantine-8/core';
+import { Group, Stack, Text } from '@mantine-8/core';
 import {
     Anchor,
     Button,
@@ -10,7 +10,6 @@ import {
     Select,
     TextInput,
     Tooltip,
-    Text,
 } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import { useState, type FC } from 'react';

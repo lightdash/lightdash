@@ -2,14 +2,8 @@ import type {
     ApiError,
     GeneratedFormulaTableCalculation,
 } from '@lightdash/common';
-import { Box, Button, Flex } from '@mantine-8/core';
-import {
-    Alert,
-    Anchor,
-    ScrollArea,
-    useMantineTheme,
-    Text,
-} from '@mantine/core';
+import { Box, Button, Flex, Text } from '@mantine-8/core';
+import { Alert, Anchor, ScrollArea, useMantineTheme } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { IconAlertCircle, IconSparkles, IconWand } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';

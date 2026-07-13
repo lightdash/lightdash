@@ -1,13 +1,12 @@
 import { subject } from '@casl/ability';
 import { CatalogCategoryFilterMode, isCompileJob } from '@lightdash/common';
-import { Box, Group, Stack } from '@mantine-8/core';
+import { Box, Group, Stack, Text } from '@mantine-8/core';
 import {
     ActionIcon,
     Button,
     Popover,
     useMantineTheme,
     type ButtonProps,
-    Text,
 } from '@mantine/core';
 import { useClickOutside, useDisclosure } from '@mantine/hooks';
 import { IconRefresh, IconSparkles, IconX } from '@tabler/icons-react';

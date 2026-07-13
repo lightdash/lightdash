@@ -1,5 +1,5 @@
 import { LightdashMode, type ApiErrorDetail } from '@lightdash/common';
-import { Group, Stack } from '@mantine-8/core';
+import { Group, Stack, Text } from '@mantine-8/core';
 import {
     ActionIcon,
     Anchor,
@@ -8,7 +8,6 @@ import {
     Modal,
     Tooltip,
     useMantineTheme,
-    Text,
 } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { IconCheck, IconCopy, IconSpeakerphone } from '@tabler/icons-react';
