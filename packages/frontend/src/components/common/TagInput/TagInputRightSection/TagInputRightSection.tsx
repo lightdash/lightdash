@@ -23,6 +23,7 @@ export function TagInputRightSection({
             variant="transparent"
             onClick={onClear}
             size={size}
+            color="gray"
             onMouseDown={(event) => event.preventDefault()}
         />
     ) : (

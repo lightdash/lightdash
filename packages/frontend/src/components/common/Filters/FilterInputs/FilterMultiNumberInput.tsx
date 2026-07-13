@@ -130,6 +130,7 @@ const FilterMultiNumberInput: FC<Props> = ({
                 {isSummaryMode ? (
                     <TextInput
                         size="xs"
+                        radius="md"
                         w="100%"
                         readOnly
                         value={`${values.length.toLocaleString()} values selected`}
@@ -141,6 +142,7 @@ const FilterMultiNumberInput: FC<Props> = ({
                     <TagInput
                         w="100%"
                         clearable
+                        radius="md"
                         data-autofocus={autoFocus || undefined}
                         size="xs"
                         disabled={disabled}

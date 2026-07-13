@@ -173,6 +173,7 @@ const BasePanel = () => {
                         <TextInput
                             leftSection={<MantineIcon icon={IconSearch} />}
                             rightSectionPointerEvents="all"
+                            radius="md"
                             rightSection={
                                 search ? (
                                     <ActionIcon
