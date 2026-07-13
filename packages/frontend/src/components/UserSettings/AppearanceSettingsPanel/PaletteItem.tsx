@@ -7,8 +7,9 @@ import {
     Button,
     ActionIcon,
     Badge,
+    ColorSwatch,
 } from '@mantine-8/core';
-import { ColorSwatch, Menu, Tooltip } from '@mantine/core';
+import { Menu, Tooltip } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import {
     IconDotsVertical,
