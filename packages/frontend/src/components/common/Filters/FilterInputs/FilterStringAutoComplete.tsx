@@ -1,7 +1,13 @@
 import { isDimension, type FilterableItem } from '@lightdash/common';
-import { Group, Loader, Stack, Text, ActionIcon } from '@mantine-8/core';
 import {
+    Group,
+    Loader,
+    Stack,
+    Text,
+    ActionIcon,
     Highlight,
+} from '@mantine-8/core';
+import {
     MultiSelect,
     ScrollArea,
     TextInput,
@@ -597,6 +603,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                                     highlight={search}
                                     className={itemClassName}
                                     {...others}
+                                    fz="sm"
                                 >
                                     {label}
                                 </Highlight>

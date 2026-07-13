@@ -1,6 +1,13 @@
 import { isEmojiIcon, type CatalogField } from '@lightdash/common';
-import { Box, Group, Paper, Button, ActionIcon } from '@mantine-8/core';
-import { getDefaultZIndex, Highlight, Portal } from '@mantine/core';
+import {
+    Box,
+    Group,
+    Paper,
+    Button,
+    ActionIcon,
+    Highlight,
+} from '@mantine-8/core';
+import { getDefaultZIndex, Portal } from '@mantine/core';
 import { useClickOutside } from '@mantine/hooks';
 import { IconTrash } from '@tabler/icons-react';
 import EmojiPicker, {

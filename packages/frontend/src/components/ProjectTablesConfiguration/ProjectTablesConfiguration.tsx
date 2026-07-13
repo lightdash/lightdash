@@ -10,8 +10,9 @@ import {
     Title,
     Button,
     Anchor,
+    Highlight,
 } from '@mantine-8/core';
-import { Highlight, MultiSelect, Radio, ScrollArea } from '@mantine/core';
+import { MultiSelect, Radio, ScrollArea } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useToggle } from 'react-use';
@@ -269,6 +270,7 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                                                 <Highlight
                                                     highlight={search}
                                                     {...others}
+                                                    fz="sm"
                                                 >
                                                     {label}
                                                 </Highlight>
@@ -334,6 +336,7 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                                                 <Highlight
                                                     highlight={search}
                                                     {...others}
+                                                    fz="sm"
                                                 >
                                                     {label}
                                                 </Highlight>
