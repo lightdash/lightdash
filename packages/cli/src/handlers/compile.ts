@@ -1,5 +1,6 @@
 import {
     attachTypesToModels,
+    attachWarehouseColumnWarningsToExplores,
     convertExplores,
     convertLightdashModelsToDbtModels,
     DbtManifest,
@@ -374,7 +375,11 @@ export const compile = async (options: CompileHandlerOptions) => {
         );
         console.error('');
 
-        explores = [...validExplores, ...failedExplores];
+        explores = attachWarehouseColumnWarningsToExplores(
+            validExplores,
+            catalog,
+            adapterType !== 'snowflake',
+        ).concat(failedExplores);
         dbtMetrics = manifest.metrics;
     }
 

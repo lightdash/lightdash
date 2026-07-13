@@ -8281,7 +8281,8 @@
                     "FIELD_ERROR",
                     "SET_VALIDATION_ERROR",
                     "INVALID_PARAMETER",
-                    "DUPLICATE_FIELD_NAME"
+                    "DUPLICATE_FIELD_NAME",
+                    "MISSING_WAREHOUSE_COLUMN"
                 ],
                 "type": "string"
             },
