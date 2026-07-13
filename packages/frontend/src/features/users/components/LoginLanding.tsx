@@ -8,7 +8,7 @@ import {
     SEED_ORG_1_ADMIN_PASSWORD,
     type OpenIdIdentityIssuerType,
 } from '@lightdash/common';
-import { Box, Stack, Text } from '@mantine-8/core';
+import { Box, Stack, Text, Title } from '@mantine-8/core';
 import {
     ActionIcon,
     Anchor,
@@ -17,7 +17,6 @@ import {
     Divider,
     PasswordInput,
     TextInput,
-    Title,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { useTimeout } from '@mantine/hooks';

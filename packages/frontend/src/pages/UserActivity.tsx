@@ -3,8 +3,8 @@ import {
     type UserActivity as UserActivityResponse,
     type UserWithCount,
 } from '@lightdash/common';
-import { Box, Group, Stack, Text } from '@mantine-8/core';
-import { Anchor, Button, Card, Table, Title, Tooltip } from '@mantine/core';
+import { Box, Group, Stack, Text, Title } from '@mantine-8/core';
+import { Anchor, Button, Card, Table, Tooltip } from '@mantine/core';
 import { IconUsers } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link, useParams } from 'react-router';
@@ -58,7 +58,7 @@ const BigNumberVis: FC<{ value: number | string; label: string }> = ({
             <Title order={1} size={56} fw={500}>
                 {value}
             </Title>
-            <Title order={4} fw={500} color="gray">
+            <Title order={4} fw={500} c="gray">
                 {label}
             </Title>
         </Stack>

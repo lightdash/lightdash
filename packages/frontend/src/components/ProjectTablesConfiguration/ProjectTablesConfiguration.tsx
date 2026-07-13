@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { hasIntersection, TableSelectionType } from '@lightdash/common';
-import { Box, Flex, Stack, Text } from '@mantine-8/core';
+import { Box, Flex, Stack, Text, Title } from '@mantine-8/core';
 import {
     Anchor,
     Button,
@@ -10,7 +10,6 @@ import {
     MultiSelect,
     Radio,
     ScrollArea,
-    Title,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';

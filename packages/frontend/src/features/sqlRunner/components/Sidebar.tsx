@@ -1,6 +1,6 @@
 import { ChartKind } from '@lightdash/common';
-import { Group, Stack } from '@mantine-8/core';
-import { ActionIcon, ScrollArea, Title, Tooltip } from '@mantine/core';
+import { Group, Stack, Title } from '@mantine-8/core';
+import { ActionIcon, ScrollArea, Tooltip } from '@mantine/core';
 import { IconLayoutSidebarLeftCollapse, IconReload } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';

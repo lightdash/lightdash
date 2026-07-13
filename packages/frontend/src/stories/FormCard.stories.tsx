@@ -1,4 +1,4 @@
-import { Stack } from '@mantine-8/core';
+import { Stack, Title } from '@mantine-8/core';
 import {
     Button,
     Card,
@@ -6,7 +6,6 @@ import {
     Select,
     Switch,
     TextInput,
-    Title,
 } from '@mantine/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 

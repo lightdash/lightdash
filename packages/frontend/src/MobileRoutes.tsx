@@ -1,4 +1,4 @@
-import { Group, Stack } from '@mantine-8/core';
+import { Group, Stack, Title } from '@mantine-8/core';
 import {
     ActionIcon,
     Burger,
@@ -7,7 +7,6 @@ import {
     getDefaultZIndex,
     Header,
     MantineProvider,
-    Title,
 } from '@mantine/core';
 import {
     IconChartAreaLine,

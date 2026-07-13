@@ -1,5 +1,5 @@
-import { Box, Center, Stack, Text } from '@mantine-8/core';
-import { Anchor, Button, Card, PasswordInput, Title } from '@mantine/core';
+import { Box, Center, Stack, Text, Title } from '@mantine-8/core';
+import { Anchor, Button, Card, PasswordInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
