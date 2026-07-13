@@ -1,10 +1,9 @@
 import { RedshiftAuthenticationType, WarehouseTypes } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
+import { CopyButton, Stack } from '@mantine-8/core';
 import {
     ActionIcon,
     Anchor,
     Button,
-    CopyButton,
     NumberInput,
     PasswordInput,
     Select,
