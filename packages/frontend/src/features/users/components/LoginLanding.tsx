@@ -360,10 +360,11 @@ const Login: FC<{}> = () => {
                                 </Stack>
                             </>
                         )}
-                        <Text mx="auto" mt="md">
+                        <Text mx="auto" mt="md" fz="sm">
                             Don't have an account?{' '}
                             <Anchor
                                 href={health.data?.signupUrl || '/register'}
+                                fz="sm"
                             >
                                 Sign up
                             </Anchor>
