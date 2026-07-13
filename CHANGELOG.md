@@ -1,3 +1,18 @@
+# [0.3371.0](https://github.com/lightdash/lightdash/compare/0.3370.0...0.3371.0) (2026-07-13)
+
+
+### Bug Fixes
+
+* guard data-app theme size to prevent apply timeouts (PROD-8685) ([#25444](https://github.com/lightdash/lightdash/issues/25444)) ([d326786](https://github.com/lightdash/lightdash/commit/d3267860696563aae99ebccdf200cbf149e0d70e))
+* saved dashboard owns filter requirement flags in overrides ([#25415](https://github.com/lightdash/lightdash/issues/25415)) ([a2f7f76](https://github.com/lightdash/lightdash/commit/a2f7f76b499741506a34620ede6d185b9f0c7e24))
+* **warehouses:** parse BigQuery NUMERIC/BIGNUMERIC as numbers ([#25445](https://github.com/lightdash/lightdash/issues/25445)) ([4c0ffbd](https://github.com/lightdash/lightdash/commit/4c0ffbdcfeae3a01abbe9428e926f48d5152a110))
+
+
+### Features
+
+* add Google Sheets syncs as code ([#25446](https://github.com/lightdash/lightdash/issues/25446)) ([3aa8545](https://github.com/lightdash/lightdash/commit/3aa85451e2ac087810ace1cd84f7db1c4b6545b9))
+* **deep-research:** add managed agent client ([#25447](https://github.com/lightdash/lightdash/issues/25447)) ([88c5edf](https://github.com/lightdash/lightdash/commit/88c5edf526b113ff57630f0acb4b43ebb0d55f4e))
+
 # [0.3370.0](https://github.com/lightdash/lightdash/compare/0.3369.0...0.3370.0) (2026-07-13)
 
 
