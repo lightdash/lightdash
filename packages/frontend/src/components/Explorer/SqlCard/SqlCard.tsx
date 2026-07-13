@@ -4,14 +4,8 @@ import {
     isCustomSqlDimension,
     isSqlTableCalculation,
 } from '@lightdash/common';
-import { Box, Group } from '@mantine-8/core';
-import {
-    ActionIcon,
-    CopyButton,
-    SegmentedControl,
-    Skeleton,
-    Tooltip,
-} from '@mantine/core';
+import { Box, CopyButton, Group, Skeleton } from '@mantine-8/core';
+import { ActionIcon, SegmentedControl, Tooltip } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconCheck, IconClipboard } from '@tabler/icons-react';
 import {

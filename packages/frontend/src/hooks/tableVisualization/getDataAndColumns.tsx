@@ -11,8 +11,7 @@ import {
     type ResultRow,
     type ResultValue,
 } from '@lightdash/common';
-import { Text } from '@mantine-8/core';
-import { Skeleton } from '@mantine/core';
+import { Skeleton, Text } from '@mantine-8/core';
 import { captureException } from '@sentry/react';
 import type { CellContext } from '@tanstack/react-table';
 import {

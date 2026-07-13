@@ -1,10 +1,9 @@
 import { LightdashMode, type ApiErrorDetail } from '@lightdash/common';
-import { Group, Stack, Text } from '@mantine-8/core';
+import { CopyButton, Group, Stack, Text } from '@mantine-8/core';
 import {
     ActionIcon,
     Anchor,
     Button,
-    CopyButton,
     Modal,
     Tooltip,
     useMantineTheme,

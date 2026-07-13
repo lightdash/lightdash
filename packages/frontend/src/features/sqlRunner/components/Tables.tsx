@@ -2,6 +2,7 @@ import { PartitionType, type PartitionColumn } from '@lightdash/common';
 import {
     Box,
     Center,
+    CopyButton,
     Group,
     Loader,
     Stack,
@@ -10,7 +11,6 @@ import {
 } from '@mantine-8/core';
 import {
     ActionIcon,
-    CopyButton,
     Highlight,
     ScrollArea,
     TextInput,
