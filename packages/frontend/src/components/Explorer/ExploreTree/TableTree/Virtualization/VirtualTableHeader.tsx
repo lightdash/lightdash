@@ -1,5 +1,5 @@
-import { Group, Text } from '@mantine-8/core';
-import { NavLink, useMantineTheme } from '@mantine/core';
+import { Group, NavLink, Text } from '@mantine-8/core';
+import { useMantineTheme } from '@mantine/core';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { TableItemDetailPreview } from '../ItemDetailPreview';
@@ -47,6 +47,15 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
         () => toggleHover(false),
         [toggleHover],
     );
+    const handleKeyDown = useCallback(
+        (event: React.KeyboardEvent<HTMLElement>) => {
+            if (event.nativeEvent.code === 'Space') {
+                event.preventDefault();
+                onToggle();
+            }
+        },
+        [onToggle],
+    );
 
     const stickyStyle = useMemo(
         () => ({
@@ -84,8 +93,10 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
 
     return (
         <NavLink
+            component="button"
             opened={isExpanded}
             onClick={onToggle}
+            onKeyDown={handleKeyDown}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
             label={label}
