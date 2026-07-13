@@ -14,8 +14,9 @@ import {
     Button,
     ActionIcon,
     Select,
+    TagsInput,
 } from '@mantine-8/core';
-import { MultiSelect, Tooltip } from '@mantine/core';
+import { Tooltip } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconHelpCircle, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useEffect, useMemo, type FC } from 'react';
@@ -184,18 +185,23 @@ const AllowedDomainsPanel: FC = () => {
     return isSuccess ? (
         <form name="allowedEmailDomains" onSubmit={handleSubmit}>
             <Stack>
-                <MultiSelect
-                    creatable
-                    searchable
+                <TagsInput
                     name="emailDomains"
                     label="Allowed email domains"
                     placeholder="E.g. lightdash.com"
                     disabled={isLoading}
-                    data={form.values.emailDomains.map((emailDomain) => ({
-                        value: emailDomain,
-                        label: emailDomain,
-                    }))}
-                    onCreate={(value) => {
+                    data={form.values.emailDomains}
+                    acceptValueOnBlur={false}
+                    splitChars={[]}
+                    {...form.getInputProps('emailDomains')}
+                    onChange={(nextValues) => {
+                        const value = nextValues.find(
+                            (item) => !form.values.emailDomains.includes(item),
+                        );
+                        if (!value) {
+                            form.setFieldValue('emailDomains', nextValues);
+                            return;
+                        }
                         if (!isValidEmailDomain(value)) {
                             form.setFieldError(
                                 'emailDomains',
@@ -216,12 +222,9 @@ const AllowedDomainsPanel: FC = () => {
                             );
                             return;
                         }
-
-                        return value;
+                        form.clearFieldError('emailDomains');
+                        form.setFieldValue('emailDomains', nextValues);
                     }}
-                    getCreateLabel={(query: string) => `+ Add ${query} domain`}
-                    defaultValue={form.values.emailDomains}
-                    {...form.getInputProps('emailDomains')}
                 />
 
                 {!!form.values.emailDomains.length && (

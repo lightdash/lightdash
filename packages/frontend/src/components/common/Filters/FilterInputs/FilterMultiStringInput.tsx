@@ -1,13 +1,13 @@
-import { Group, Text } from '@mantine-8/core';
-import { MultiSelect, type MultiSelectProps } from '@mantine/core';
-import { IconPlus } from '@tabler/icons-react';
+import { TagsInput, type TagsInputProps } from '@mantine-8/core';
 import uniq from 'lodash/uniq';
 import { useCallback, useMemo, useState, type FC } from 'react';
-import MantineIcon from '../../MantineIcon';
 import MultiValuePastePopover from './MultiValuePastePopover';
 import { formatDisplayValue } from './utils';
 
-type Props = Omit<MultiSelectProps, 'data' | 'onChange'> & {
+type Props = Omit<
+    TagsInputProps,
+    'acceptValueOnBlur' | 'data' | 'onChange' | 'value'
+> & {
     values: string[];
     onChange: (values: string[]) => void;
 };
@@ -116,51 +116,29 @@ const FilterMultiStringInput: FC<Props> = ({
                 handleAdd(tempPasteValues);
             }}
         >
-            <MultiSelect
+            <TagsInput
                 size="xs"
                 w="100%"
                 placeholder={
                     values.length > 0 || disabled ? undefined : placeholder
                 }
                 disabled={disabled}
-                creatable
-                getCreateLabel={(query) => (
-                    <Group gap="xxs">
-                        <MantineIcon icon={IconPlus} color="blue" size="sm" />
-                        <Text c="blue">Add "{query}"</Text>
-                    </Group>
-                )}
+                acceptValueOnBlur={false}
+                splitChars={[]}
                 styles={{
-                    input: {
+                    pillsList: {
                         maxHeight: '350px',
                         overflowY: 'auto',
                     },
-                    item: {
-                        // makes add new item button sticky to bottom
-                        '&:last-child:not([value])': {
-                            position: 'sticky',
-                            bottom: 4,
-                            // casts shadow on the bottom of the list to avoid transparency
-                            boxShadow: '0 4px 0 0 white',
-                        },
-                        '&:last-child:not([value]):not(:hover)': {
-                            background: 'white',
-                        },
-                    },
                 }}
-                disableSelectedItemFiltering={false}
-                searchable
-                clearSearchOnChange
                 {...rest}
                 searchValue={search}
                 onSearchChange={setSearch}
                 onPaste={handlePaste}
-                nothingFound={'Please type to add the filter value'}
                 data={data}
                 value={values}
                 onDropdownClose={handleResetSearch}
                 onChange={handleChange}
-                onCreate={handleAdd}
                 onBlur={handleBlur}
             />
         </MultiValuePastePopover>

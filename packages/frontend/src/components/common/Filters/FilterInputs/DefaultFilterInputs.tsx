@@ -62,7 +62,9 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                             disabled={disabled}
                             placeholder={placeholder}
                             data-autofocus
-                            withinPortal={popoverProps?.withinPortal}
+                            comboboxProps={{
+                                withinPortal: popoverProps?.withinPortal,
+                            }}
                             onDropdownOpen={popoverProps?.onOpen}
                             onDropdownClose={popoverProps?.onClose}
                             values={(rule.values || []).filter(isString)}
@@ -82,7 +84,9 @@ const DefaultFilterInputs = <T extends BaseFilterRule>({
                             data-autofocus
                             placeholder={placeholder}
                             suggestions={suggestions || []}
-                            withinPortal={popoverProps?.withinPortal}
+                            comboboxProps={{
+                                withinPortal: popoverProps?.withinPortal,
+                            }}
                             onDropdownOpen={popoverProps?.onOpen}
                             onDropdownClose={popoverProps?.onClose}
                             values={(rule.values || []).filter(isString)}

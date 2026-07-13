@@ -11,10 +11,10 @@ import {
     Button,
     Anchor,
     Highlight,
+    MultiSelect,
     Radio,
     ScrollArea,
 } from '@mantine-8/core';
-import { MultiSelect } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useToggle } from 'react-use';
@@ -127,6 +127,11 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
     const handleResetSearch = useCallback(() => {
         setTimeout(() => setSearch(() => ''), 0);
     }, [setSearch]);
+
+    const preserveSearchOnOptionSubmit = useCallback(() => {
+        const submittedSearch = search;
+        setTimeout(() => setSearch(submittedSearch), 0);
+    }, [search]);
 
     useEffect(() => {
         if (!tablesConfig) return;
@@ -260,25 +265,27 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                                         }
                                         placeholder="e.g lightdash, prod"
                                         searchable
-                                        clearSearchOnChange={false}
+                                        hidePickedOptions
                                         searchValue={search}
                                         onSearchChange={setSearch}
-                                        itemComponent={({ label, ...others }) =>
-                                            others.disabled ? (
-                                                <Text c="dimmed" {...others}>
-                                                    {label}
+                                        onOptionSubmit={
+                                            preserveSearchOnOptionSubmit
+                                        }
+                                        renderOption={({ option }) =>
+                                            option.disabled ? (
+                                                <Text c="dimmed">
+                                                    {option.label}
                                                 </Text>
                                             ) : (
                                                 <Highlight
                                                     highlight={search}
-                                                    {...others}
                                                     fz="sm"
                                                 >
-                                                    {label}
+                                                    {option.label}
                                                 </Highlight>
                                             )
                                         }
-                                        nothingFound={
+                                        nothingFoundMessage={
                                             isLoadingTablesConfig
                                                 ? 'Loading...'
                                                 : 'No results found'
@@ -326,25 +333,27 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                                         disabled={disabled}
                                         placeholder="e.g users, orders"
                                         searchable
-                                        clearSearchOnChange={false}
+                                        hidePickedOptions
                                         searchValue={search}
                                         onSearchChange={setSearch}
-                                        itemComponent={({ label, ...others }) =>
-                                            others.disabled ? (
-                                                <Text c="dimmed" {...others}>
-                                                    {label}
+                                        onOptionSubmit={
+                                            preserveSearchOnOptionSubmit
+                                        }
+                                        renderOption={({ option }) =>
+                                            option.disabled ? (
+                                                <Text c="dimmed">
+                                                    {option.label}
                                                 </Text>
                                             ) : (
                                                 <Highlight
                                                     highlight={search}
-                                                    {...others}
                                                     fz="sm"
                                                 >
-                                                    {label}
+                                                    {option.label}
                                                 </Highlight>
                                             )
                                         }
-                                        nothingFound={
+                                        nothingFoundMessage={
                                             isLoadingTablesConfig
                                                 ? 'Loading...'
                                                 : 'No results found'

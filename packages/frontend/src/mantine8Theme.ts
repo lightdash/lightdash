@@ -105,6 +105,22 @@ const paperDottedStyles = (theme: MantineTheme) => ({
     background: 'inherit',
 });
 
+const comboboxOptionStyles = (theme: MantineTheme) => ({
+    option: {
+        fontFamily: theme.fontFamily,
+        fontSize: theme.fontSizes.sm,
+        padding: `${theme.spacing.xxs} ${theme.spacing.sm}`,
+        '&[data-combobox-active]': {
+            backgroundColor: 'var(--mantine-primary-color-filled)',
+            color: 'var(--mantine-color-white)',
+        },
+    },
+    groupLabel: {
+        fontFamily: theme.fontFamily,
+        fontSize: theme.fontSizes.sm,
+    },
+});
+
 export const getMantine8ThemeOverride = (
     colorScheme: ColorScheme,
     overrides?: Partial<MantineThemeOverride>,
@@ -159,8 +175,11 @@ export const getMantine8ThemeOverride = (
                 }),
             }),
             Pill: Pill.extend({
-                styles: (theme, props) =>
-                    props.variant === 'outline'
+                styles: (theme, props) => ({
+                    remove: {
+                        color: `${theme.colors.ldGray[6]} !important`,
+                    },
+                    ...(props.variant === 'outline'
                         ? {
                               root: {
                                   border: `1px solid ${theme.colors.ldGray[2]}`,
@@ -170,7 +189,8 @@ export const getMantine8ThemeOverride = (
                                   },
                               },
                           }
-                        : {},
+                        : {}),
+                }),
             }),
             Button: Button.extend({
                 vars: (theme, props) => {
@@ -316,6 +336,10 @@ export const getMantine8ThemeOverride = (
                 },
             }),
             TagsInput: TagsInput.extend({
+                defaultProps: {
+                    radius: 'md',
+                },
+                styles: (theme) => comboboxOptionStyles(theme),
                 vars: (theme, props) => {
                     if (props.variant === 'subtle')
                         return subtleInputStyles(theme);
@@ -323,6 +347,9 @@ export const getMantine8ThemeOverride = (
                 },
             }),
             PillsInput: PillsInput.extend({
+                defaultProps: {
+                    radius: 'md',
+                },
                 vars: (theme, props) => {
                     if (props.variant === 'subtle') {
                         return subtleInputStyles(theme);
@@ -331,6 +358,7 @@ export const getMantine8ThemeOverride = (
                 },
             }),
             MultiSelect: MultiSelect.extend({
+                styles: (theme) => comboboxOptionStyles(theme),
                 vars: (theme, props) => {
                     if (props.variant === 'subtle')
                         return subtleInputStyles(theme);

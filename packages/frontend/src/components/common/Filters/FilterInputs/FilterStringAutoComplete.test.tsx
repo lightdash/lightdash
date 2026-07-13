@@ -3,7 +3,7 @@ import {
     FieldType,
     type FilterableItem,
 } from '@lightdash/common';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../testing/testUtils';
@@ -61,7 +61,7 @@ describe('FilterStringAutoComplete', () => {
             const values = createValues(100);
             const onChange = vi.fn();
 
-            renderWithProviders(
+            const { container } = renderWithProviders(
                 <FilterStringAutoComplete
                     filterId="test-filter"
                     field={mockField}
@@ -72,7 +72,11 @@ describe('FilterStringAutoComplete', () => {
             );
 
             // Should show the "+50 more" pill
-            expect(screen.getByText('+50 more')).toBeInTheDocument();
+            expect(
+                within(container).getByRole('button', {
+                    name: 'Manage 50 more filter values',
+                }),
+            ).toBeInTheDocument();
         });
 
         it('shows all values when below inline limit', async () => {
@@ -90,11 +94,17 @@ describe('FilterStringAutoComplete', () => {
             );
 
             // Should not show "+N more" pill
-            expect(screen.queryByText(/more$/)).not.toBeInTheDocument();
+            expect(
+                screen.queryByRole('button', {
+                    name: /Manage .* more filter values/,
+                }),
+            ).not.toBeInTheDocument();
 
             // All values should be visible
             values.forEach((value) => {
-                expect(screen.getByText(value)).toBeInTheDocument();
+                expect(
+                    screen.getByRole('button', { name: `Remove ${value}` }),
+                ).toBeInTheDocument();
             });
         });
     });
@@ -115,17 +125,9 @@ describe('FilterStringAutoComplete', () => {
                 />,
             );
 
-            // Find the remove button on the first value pill (it's aria-hidden, so we query by class)
-            const firstValuePill = screen.getByText('value-0');
-            // eslint-disable-next-line testing-library/no-node-access
-            const pillContainer = firstValuePill.closest(
-                '.mantine-MultiSelect-value',
+            await user.click(
+                screen.getByRole('button', { name: 'Remove value-0' }),
             );
-            // eslint-disable-next-line testing-library/no-node-access
-            const removeButton = pillContainer?.querySelector('button');
-
-            expect(removeButton).toBeTruthy();
-            await user.click(removeButton!);
 
             // onChange should be called with 99 values (all except value-0)
             await waitFor(() => {
@@ -156,7 +158,7 @@ describe('FilterStringAutoComplete', () => {
             );
 
             // Focus on the input using fireEvent (bypasses pointer-events check)
-            const input = screen.getByRole('searchbox');
+            const input = screen.getByRole('textbox');
             fireEvent.focus(input);
 
             // Type a new value and press Enter
@@ -192,7 +194,7 @@ describe('FilterStringAutoComplete', () => {
                 />,
             );
 
-            const input = screen.getByRole('searchbox');
+            const input = screen.getByRole('textbox');
             fireEvent.focus(input);
             await user.type(input, 'typed-but-not-entered');
             fireEvent.blur(input);
@@ -238,7 +240,7 @@ describe('FilterStringAutoComplete', () => {
             const values = createValues(100);
             const onChange = vi.fn();
 
-            renderWithProviders(
+            const { container } = renderWithProviders(
                 <FilterStringAutoComplete
                     filterId="test-filter"
                     field={mockField}
@@ -249,7 +251,9 @@ describe('FilterStringAutoComplete', () => {
             );
 
             // Click the "+50 more" pill - use fireEvent to bypass pointer-events check
-            const morePill = screen.getByText('+50 more');
+            const morePill = within(container).getByRole('button', {
+                name: 'Manage 50 more filter values',
+            });
             fireEvent.mouseDown(morePill);
 
             // Modal should open
