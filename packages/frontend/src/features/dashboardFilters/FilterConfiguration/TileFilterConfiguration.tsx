@@ -471,6 +471,8 @@ const TileFilterConfiguration: FC<Props> = ({
                                                     )}
                                                 />
                                                 <Text
+                                                    fz="sm"
+                                                    fw={500}
                                                     c={
                                                         value.invalidField
                                                             ? 'red'
