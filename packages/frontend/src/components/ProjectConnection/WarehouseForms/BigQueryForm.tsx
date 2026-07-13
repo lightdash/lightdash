@@ -1,9 +1,16 @@
 import { BigqueryAuthenticationType, WarehouseTypes } from '@lightdash/common';
-import { Group, Loader, Stack, Text, Button, Anchor } from '@mantine-8/core';
+import {
+    Anchor,
+    Button,
+    FileInput,
+    Group,
+    Loader,
+    Stack,
+    Text,
+} from '@mantine-8/core';
 import type { SelectItem } from '@mantine/core';
 import {
     Autocomplete,
-    FileInput,
     Image,
     NumberInput,
     Select,
@@ -405,8 +412,6 @@ const BigQueryForm: FC<{
                                 },
                             )}
                             label="Key File"
-                            // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
-                            // @ts-ignore
                             placeholder={
                                 !requireSecrets
                                     ? '**************'

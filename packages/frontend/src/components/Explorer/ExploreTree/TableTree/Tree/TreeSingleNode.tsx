@@ -17,8 +17,8 @@ import {
     type FilterableField,
     type Item,
 } from '@lightdash/common';
-import { Group, Text, ActionIcon, Highlight } from '@mantine-8/core';
-import { HoverCard, NavLink, Tooltip } from '@mantine/core';
+import { ActionIcon, Group, Highlight, NavLink, Text } from '@mantine-8/core';
+import { HoverCard, Tooltip } from '@mantine/core';
 import {
     IconAlertTriangle,
     IconCalendarPin,
@@ -51,6 +51,7 @@ import FieldIcon from '../../../../common/Filters/FieldIcon';
 import MantineIcon from '../../../../common/MantineIcon';
 import { ItemDetailPreview } from '../ItemDetailPreview';
 import { MAX_GROUP_DEPTH } from './constants';
+import styles from './TreeSingleNode.module.css';
 import TreeSingleNodeActions from './TreeSingleNodeActions';
 import { type Node } from './types';
 import useTableTree from './useTableTree';
@@ -340,15 +341,6 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
         toggleMenu();
     }, [toggleHover, toggleMenu]);
 
-    const navLinkSx = useMemo(
-        () => ({
-            backgroundColor: isSelected ? itemColors.bg : undefined,
-            '&:hover': {
-                backgroundColor: itemColors.bgHover,
-            },
-        }),
-        [isSelected, itemColors],
-    );
     const icon = useMemo(
         () => <NavItemIcon isMissing={isMissing} item={item} />,
         [isMissing, item],
@@ -414,8 +406,15 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
         <NavLink
             component="div"
             noWrap
-            sx={navLinkSx}
-            icon={icon}
+            data-selected={isSelected || undefined}
+            className={styles.root}
+            style={
+                {
+                    '--tree-node-bg': itemColors.bg,
+                    '--tree-node-hover-bg': itemColors.bgHover,
+                } as React.CSSProperties
+            }
+            leftSection={icon}
             onClick={handleClick}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}

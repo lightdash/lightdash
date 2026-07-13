@@ -1,7 +1,6 @@
 import { SnowflakeAuthenticationType, WarehouseTypes } from '@lightdash/common';
-import { Group, Stack, Text, Button, Anchor } from '@mantine-8/core';
+import { Anchor, Button, FileInput, Group, Stack, Text } from '@mantine-8/core';
 import {
-    FileInput,
     NumberInput,
     PasswordInput,
     Radio,
@@ -382,8 +381,6 @@ const SnowflakeForm: FC<{
                                         'warehouse.privateKey',
                                     )}
                                     label="Private Key File"
-                                    // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
-                                    // @ts-ignore
                                     placeholder={
                                         !requireSecrets
                                             ? '**************'
