@@ -1049,6 +1049,157 @@ Usage tips:
       "agentName": null,
       "annotations": {
         "destructiveHint": false,
+        "idempotentHint": false,
+        "readOnlyHint": false,
+      },
+      "description": "Create a LIVE scheduled delivery that sends a saved chart or dashboard to Slack channels and/or email recipients on a cron schedule. IMPORTANT: before calling this tool, propose the full configuration to the user (name, schedule in plain words, timezone, destinations, format, AI augmentation prompt if any) and wait for their explicit confirmation in the conversation. Requires an existing saved chart or dashboard — if the content only exists in this conversation, create it with createContent first, then schedule the created uuid. On success, report the created scheduler uuid back to the user.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "aiAugmentationPrompt": {
+            "description": "Instructions for the AI-written delivery message, regenerated from the delivered data on every send. null = plain delivery without AI augmentation., ",
+            "type": "string",
+          },
+          "cron": {
+            "description": "5-part cron expression, e.g. "0 9 * * 1". Minimum frequency is hourly — sub-hourly minute patterns (e.g. "*/15") are rejected.",
+            "type": "string",
+          },
+          "csvOptions": {
+            "additionalProperties": false,
+            "description": "Only used when format is "csv". null = defaults (formatted, table limit)., ",
+            "properties": {
+              "formatted": {
+                "description": "Apply Lightdash value formatting.",
+                "type": "boolean",
+              },
+              "limit": {
+                "anyOf": [
+                  {
+                    "const": "table",
+                    "type": "string",
+                  },
+                  {
+                    "const": "all",
+                    "type": "string",
+                  },
+                  {
+                    "exclusiveMinimum": 0,
+                    "type": "integer",
+                  },
+                ],
+                "description": ""table" = the chart's own limit, "all" = all results, or an explicit row count.",
+              },
+            },
+            "required": [
+              "formatted",
+              "limit",
+            ],
+            "type": "object",
+          },
+          "enabled": {
+            "description": "Whether the delivery starts firing immediately. Use true unless the user asked for a paused delivery.",
+            "type": "boolean",
+          },
+          "format": {
+            "description": ""image" sends a rendered image of the chart/dashboard; "csv" sends the results as CSV.",
+            "enum": [
+              "csv",
+              "image",
+            ],
+            "type": "string",
+          },
+          "message": {
+            "description": "Optional static message included with every delivery. Ignored when aiAugmentationPrompt is set (the AI writes the message instead)., ",
+            "type": "string",
+          },
+          "name": {
+            "description": "Human-readable delivery name.",
+            "minLength": 1,
+            "type": "string",
+          },
+          "resourceType": {
+            "description": "Type of saved content to deliver.",
+            "enum": [
+              "chart",
+              "dashboard",
+            ],
+            "type": "string",
+          },
+          "resourceUuid": {
+            "description": "UUID of the saved chart or dashboard to deliver.",
+            "type": "string",
+          },
+          "targets": {
+            "description": "At least one Slack channel or email recipient.",
+            "items": {
+              "anyOf": [
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "channel": {
+                      "description": "Slack channel ID (preferred, e.g. "C0123ABCDEF") or channel name. The Lightdash Slack app must be able to join it.",
+                      "minLength": 1,
+                      "type": "string",
+                    },
+                    "type": {
+                      "const": "slack",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "type",
+                    "channel",
+                  ],
+                  "type": "object",
+                },
+                {
+                  "additionalProperties": false,
+                  "properties": {
+                    "recipient": {
+                      "description": "Email address of the recipient.",
+                      "minLength": 3,
+                      "type": "string",
+                    },
+                    "type": {
+                      "const": "email",
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "type",
+                    "recipient",
+                  ],
+                  "type": "object",
+                },
+              ],
+            },
+            "minItems": 1,
+            "type": "array",
+          },
+          "timezone": {
+            "description": "IANA timezone the cron runs in (e.g. "Europe/London"). null = project default., ",
+            "type": "string",
+          },
+        },
+        "required": [
+          "resourceType",
+          "resourceUuid",
+          "name",
+          "cron",
+          "format",
+          "targets",
+          "enabled",
+        ],
+        "type": "object",
+      },
+      "name": "create_scheduled_delivery",
+      "title": "Create scheduled delivery",
+    },
+    {
+      "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
         "idempotentHint": true,
         "readOnlyHint": true,
       },
@@ -7522,6 +7673,7 @@ exports[`MCP tool contracts > matches the shared MCP tool definition names snaps
   "resolve_url",
   "edit_content",
   "create_content",
+  "create_scheduled_delivery",
   "list_content",
   "get_lightdash_version",
   "list_explores",

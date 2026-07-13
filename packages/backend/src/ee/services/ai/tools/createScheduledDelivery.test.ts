@@ -2,6 +2,7 @@ import {
     SchedulerFormat,
     type SchedulerAndTargets,
     type ToolCreateScheduledDeliveryArgs,
+    type ToolCreateScheduledDeliveryOutput,
 } from '@lightdash/common';
 import type { CreateScheduledDeliveryFn } from '../types/aiAgentDependencies';
 import { getCreateScheduledDelivery } from './createScheduledDelivery';
@@ -36,12 +37,15 @@ const makeArgs = (
     ...overrides,
 });
 
-const executeTool = async (
+const executeTool = (
     createScheduledDelivery: CreateScheduledDeliveryFn,
     args: ToolCreateScheduledDeliveryArgs,
 ) => {
     const tool = getCreateScheduledDelivery({ createScheduledDelivery });
-    return tool.execute!(args, { toolCallId: 'tool-call-1', messages: [] });
+    return tool.execute!(args, {
+        toolCallId: 'tool-call-1',
+        messages: [],
+    }) as Promise<ToolCreateScheduledDeliveryOutput>;
 };
 
 describe('createScheduledDelivery tool', () => {
