@@ -31,6 +31,7 @@ import { AiAgentDocumentModel } from './models/AiAgentDocumentModel';
 import { AiAgentModel } from './models/AiAgentModel';
 import { AiAgentReviewClassifierModel } from './models/AiAgentReviewClassifierModel';
 import { AiAgentReviewNotificationModel } from './models/AiAgentReviewNotificationModel';
+import { AiDeepResearchRunModel } from './models/AiDeepResearchRunModel';
 import { AiOrganizationSettingsModel } from './models/AiOrganizationSettingsModel';
 import { AiRouterModel } from './models/AiRouterModel';
 import { AiWritebackRunModel } from './models/AiWritebackRunModel';
@@ -62,6 +63,7 @@ import { AiAgentReviewClassifierService } from './services/AiAgentReviewClassifi
 import { AiAgentReviewNotificationService } from './services/AiAgentReviewNotificationService';
 import { AiAgentService } from './services/AiAgentService/AiAgentService';
 import { AiAgentToolsService } from './services/AiAgentToolsService/AiAgentToolsService';
+import { AiDeepResearchService } from './services/AiDeepResearchService/AiDeepResearchService';
 import { AiOrganizationSettingsService } from './services/AiOrganizationSettingsService';
 import { AiRouterService } from './services/AiRouterService/AiRouterService';
 import { AiService } from './services/AiService/AiService';
@@ -122,6 +124,15 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
 
     return {
         serviceProviders: {
+            aiDeepResearchService: ({ models, clients }) =>
+                new AiDeepResearchService({
+                    aiDeepResearchRunModel:
+                        models.getAiDeepResearchRunModel<AiDeepResearchRunModel>(),
+                    projectModel: models.getProjectModel(),
+                    featureFlagModel: models.getFeatureFlagModel(),
+                    schedulerClient:
+                        clients.getSchedulerClient() as CommercialSchedulerClient,
+                }),
             projectContextService: ({ models }) =>
                 new ProjectContextService({
                     projectModel: models.getProjectModel(),
@@ -844,6 +855,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new AiWritebackThreadModel({ database }),
             aiWritebackRunModel: ({ database }) =>
                 new AiWritebackRunModel({ database }),
+            aiDeepResearchRunModel: ({ database }) =>
+                new AiDeepResearchRunModel({ database }),
             sandboxRegistryModel: ({ database }) =>
                 new SandboxRegistryModel({ database }),
             projectCiStatusModel: ({ database }) =>
@@ -920,6 +933,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 aiAgentService: context.serviceRepository.getAiAgentService(),
                 aiWritebackService:
                     context.serviceRepository.getAiWritebackService<AiWritebackService>(),
+                aiDeepResearchService:
+                    context.serviceRepository.getAiDeepResearchService<AiDeepResearchService>(),
                 catalogService: context.serviceRepository.getCatalogService(),
                 encryptionUtil: context.utils.getEncryptionUtil(),
                 msTeamsClient: context.clients.getMsTeamsClient(),

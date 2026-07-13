@@ -23,6 +23,7 @@ import { AiAgentAdminService } from '../services/AiAgentAdminService';
 import { AiAgentReviewClassifierService } from '../services/AiAgentReviewClassifierService';
 import { type AiAgentReviewNotificationService } from '../services/AiAgentReviewNotificationService';
 import { AiAgentService } from '../services/AiAgentService/AiAgentService';
+import { type AiDeepResearchService } from '../services/AiDeepResearchService/AiDeepResearchService';
 import type { AiWritebackService } from '../services/AiWritebackService/AiWritebackService';
 import { AppGenerateService } from '../services/AppGenerateService/AppGenerateService';
 import type { EmbedService } from '../services/EmbedService/EmbedService';
@@ -37,10 +38,12 @@ const AI_AGENT_REVIEW_CLASSIFIER_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
 const AI_AGENT_REVIEW_WRITEBACK_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const APP_GENERATE_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
 const AI_WRITEBACK_TIMEOUT_MS = 30 * 60 * 1000;
+const AI_DEEP_RESEARCH_TIMEOUT_MS = 60 * 60 * 1000;
 
 type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     aiAgentService: AiAgentService;
     aiWritebackService: AiWritebackService;
+    aiDeepResearchService: AiDeepResearchService;
     aiAgentReviewClassifierService: AiAgentReviewClassifierService;
     aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
     aiAgentReviewNotificationModel: AiAgentReviewNotificationModel;
@@ -59,6 +62,8 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
     protected readonly aiAgentService: AiAgentService;
 
     protected readonly aiWritebackService: AiWritebackService;
+
+    protected readonly aiDeepResearchService: AiDeepResearchService;
 
     protected readonly aiAgentReviewClassifierService: AiAgentReviewClassifierService;
 
@@ -88,6 +93,7 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
         super(args);
         this.aiAgentService = args.aiAgentService;
         this.aiWritebackService = args.aiWritebackService;
+        this.aiDeepResearchService = args.aiDeepResearchService;
         this.aiAgentReviewClassifierService =
             args.aiAgentReviewClassifierService;
         this.aiAgentReviewClassifierModel = args.aiAgentReviewClassifierModel;
@@ -121,6 +127,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                 pattern: '*/2 * * * *', // Every 2 minutes
                 options: {
                     backfillPeriod: 5 * 60 * 1000, // 5 min
+                    maxAttempts: 1,
+                },
+            },
+            {
+                task: EE_SCHEDULER_TASKS.SWEEP_STALE_AI_DEEP_RESEARCH_RUNS,
+                pattern: '*/2 * * * *',
+                options: {
+                    backfillPeriod: 5 * 60 * 1000,
                     maxAttempts: 1,
                 },
             },
@@ -504,6 +518,31 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     },
                 );
             },
+            [EE_SCHEDULER_TASKS.AI_DEEP_RESEARCH]: async (payload, helpers) => {
+                const abortController = new AbortController();
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        EE_SCHEDULER_TASKS.AI_DEEP_RESEARCH,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.aiDeepResearchService.executeRun(
+                                payload,
+                                abortController.signal,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    AI_DEEP_RESEARCH_TIMEOUT_MS,
+                    async (_job, error) => {
+                        abortController.abort(error);
+                        await this.aiDeepResearchService.markRunTimedOut(
+                            payload.aiDeepResearchRunUuid,
+                        );
+                    },
+                );
+            },
             [EE_SCHEDULER_TASKS.AI_AGENT_EDIT_DBT_PROJECT_PIPELINE]: async (
                 payload,
                 helpers,
@@ -567,6 +606,10 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     }
                 }
             },
+            [EE_SCHEDULER_TASKS.SWEEP_STALE_AI_DEEP_RESEARCH_RUNS]:
+                async () => {
+                    await this.aiDeepResearchService.sweepStaleRuns();
+                },
             [EE_SCHEDULER_TASKS.SEND_REVIEW_NOTIFICATION]: async (payload) => {
                 await sendReviewNotification({
                     siteUrl: this.lightdashConfig.siteUrl,

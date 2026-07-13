@@ -16797,10 +16797,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -16809,8 +16809,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "label",
                                                                         "tableName",
+                                                                        "label",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -16833,28 +16833,28 @@
                                                                                         "items": {},
                                                                                         "type": "array"
                                                                                     },
-                                                                                    "required": {
-                                                                                        "type": "boolean"
-                                                                                    },
-                                                                                    "tableName": {
-                                                                                        "type": "string"
-                                                                                    },
                                                                                     "fieldRef": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "fieldId": {
                                                                                         "type": "string"
                                                                                     },
+                                                                                    "tableName": {
+                                                                                        "type": "string"
+                                                                                    },
                                                                                     "operator": {
                                                                                         "type": "string"
+                                                                                    },
+                                                                                    "required": {
+                                                                                        "type": "boolean"
                                                                                     }
                                                                                 },
                                                                                 "required": [
-                                                                                    "required",
-                                                                                    "tableName",
                                                                                     "fieldRef",
                                                                                     "fieldId",
-                                                                                    "operator"
+                                                                                    "tableName",
+                                                                                    "operator",
+                                                                                    "required"
                                                                                 ],
                                                                                 "type": "object"
                                                                             },
@@ -16936,15 +16936,15 @@
                                                                             ],
                                                                             "type": "object"
                                                                         },
-                                                                        "error": {
-                                                                            "type": "string"
-                                                                        },
                                                                         "status": {
                                                                             "type": "string",
                                                                             "enum": [
                                                                                 "error",
                                                                                 "success"
                                                                             ]
+                                                                        },
+                                                                        "error": {
+                                                                            "type": "string"
                                                                         },
                                                                         "results": {
                                                                             "items": {
@@ -16967,10 +16967,10 @@
                                                                                     "fieldType": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "label": {
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
+                                                                                    "label": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "name": {
@@ -16979,8 +16979,8 @@
                                                                                 },
                                                                                 "required": [
                                                                                     "fieldType",
-                                                                                    "label",
                                                                                     "tableName",
+                                                                                    "label",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -17102,27 +17102,27 @@
                                                                                 "fieldFilterType": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "fieldType": {
-                                                                                    "type": "string",
-                                                                                    "enum": [
-                                                                                        "dimension",
-                                                                                        "metric"
-                                                                                    ]
-                                                                                },
                                                                                 "description": {
                                                                                     "type": "string",
                                                                                     "nullable": true
                                                                                 },
-                                                                                "label": {
+                                                                                "fieldType": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                        "metric",
+                                                                                        "dimension"
+                                                                                    ]
+                                                                                },
+                                                                                "table": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "fieldId": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "name": {
+                                                                                "label": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "table": {
+                                                                                "name": {
                                                                                     "type": "string"
                                                                                 }
                                                                             },
@@ -17131,12 +17131,12 @@
                                                                                 "caseSensitiveFilters",
                                                                                 "fieldValueType",
                                                                                 "fieldFilterType",
-                                                                                "fieldType",
                                                                                 "description",
-                                                                                "label",
+                                                                                "fieldType",
+                                                                                "table",
                                                                                 "fieldId",
-                                                                                "name",
-                                                                                "table"
+                                                                                "label",
+                                                                                "name"
                                                                             ],
                                                                             "type": "object"
                                                                         },
@@ -17156,28 +17156,28 @@
                                                                                             "items": {},
                                                                                             "type": "array"
                                                                                         },
-                                                                                        "required": {
-                                                                                            "type": "boolean"
-                                                                                        },
-                                                                                        "tableName": {
-                                                                                            "type": "string"
-                                                                                        },
                                                                                         "fieldRef": {
                                                                                             "type": "string"
                                                                                         },
                                                                                         "fieldId": {
                                                                                             "type": "string"
                                                                                         },
+                                                                                        "tableName": {
+                                                                                            "type": "string"
+                                                                                        },
                                                                                         "operator": {
                                                                                             "type": "string"
+                                                                                        },
+                                                                                        "required": {
+                                                                                            "type": "boolean"
                                                                                         }
                                                                                     },
                                                                                     "required": [
-                                                                                        "required",
-                                                                                        "tableName",
                                                                                         "fieldRef",
                                                                                         "fieldId",
-                                                                                        "operator"
+                                                                                        "tableName",
+                                                                                        "operator",
+                                                                                        "required"
                                                                                     ],
                                                                                     "type": "object"
                                                                                 },
@@ -17326,13 +17326,13 @@
                                                     "href": {
                                                         "type": "string"
                                                     },
+                                                    "slug": {
+                                                        "type": "string"
+                                                    },
                                                     "status": {
                                                         "type": "string",
                                                         "enum": ["success"],
                                                         "nullable": false
-                                                    },
-                                                    "slug": {
-                                                        "type": "string"
                                                     },
                                                     "uuid": {
                                                         "type": "string"
@@ -17345,8 +17345,8 @@
                                                     "versionUuids",
                                                     "warnings",
                                                     "href",
-                                                    "status",
                                                     "slug",
+                                                    "status",
                                                     "uuid",
                                                     "name"
                                                 ],
@@ -17508,13 +17508,13 @@
                                                     "href": {
                                                         "type": "string"
                                                     },
+                                                    "slug": {
+                                                        "type": "string"
+                                                    },
                                                     "status": {
                                                         "type": "string",
                                                         "enum": ["success"],
                                                         "nullable": false
-                                                    },
-                                                    "slug": {
-                                                        "type": "string"
                                                     },
                                                     "name": {
                                                         "type": "string"
@@ -17522,8 +17522,8 @@
                                                 },
                                                 "required": [
                                                     "href",
-                                                    "status",
                                                     "slug",
+                                                    "status",
                                                     "name"
                                                 ],
                                                 "type": "object"
@@ -17551,9 +17551,9 @@
                                                         "type": "string",
                                                         "enum": [
                                                             "error",
+                                                            "rejected",
                                                             "success",
-                                                            "timeout",
-                                                            "rejected"
+                                                            "timeout"
                                                         ]
                                                     }
                                                 },
@@ -17584,10 +17584,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -17596,8 +17596,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "label",
                                                                         "tableName",
+                                                                        "label",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -17607,8 +17607,8 @@
                                                             "type": {
                                                                 "type": "string",
                                                                 "enum": [
-                                                                    "dimension",
                                                                     "metric",
+                                                                    "dimension",
                                                                     null
                                                                 ],
                                                                 "nullable": true
@@ -23570,6 +23570,405 @@
                 "required": ["results", "status"],
                 "type": "object",
                 "description": "The repositories the agent can read for a project, used by the chat input's\n`@`-mention repository picker. This is the same union the agent's repo VFS\nmounts (the org installation's repos plus the linked user's own), gated by the\nproject's `view:SourceCode` ability — unlike the org-wide `/github/repos/list`\nendpoint, it never exposes repo names to users without source-code access."
+            },
+            "AiDeepResearchRunStatus": {
+                "type": "string",
+                "enum": [
+                    "queued",
+                    "running",
+                    "failed",
+                    "completed",
+                    "partially_completed",
+                    "cancelled"
+                ]
+            },
+            "AiDeepResearchConfidence": {
+                "type": "string",
+                "enum": ["low", "medium", "high"]
+            },
+            "AiDeepResearchEvidence": {
+                "properties": {
+                    "sourceUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "sourceLabel": {
+                        "type": "string"
+                    },
+                    "sourceType": {
+                        "type": "string",
+                        "enum": ["lightdash", "warehouse", "web"]
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "sourceUrl",
+                    "sourceLabel",
+                    "sourceType",
+                    "description",
+                    "title"
+                ],
+                "type": "object"
+            },
+            "AiDeepResearchFinding": {
+                "properties": {
+                    "evidence": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiDeepResearchEvidence"
+                        },
+                        "type": "array"
+                    },
+                    "confidence": {
+                        "$ref": "#/components/schemas/AiDeepResearchConfidence"
+                    },
+                    "summary": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    }
+                },
+                "required": ["evidence", "confidence", "summary", "title"],
+                "type": "object"
+            },
+            "AiDeepResearchReport": {
+                "properties": {
+                    "nextSteps": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "unresolvedQuestions": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "scope": {
+                        "type": "string"
+                    },
+                    "caveats": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "findings": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiDeepResearchFinding"
+                        },
+                        "type": "array"
+                    },
+                    "summary": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "nextSteps",
+                    "unresolvedQuestions",
+                    "scope",
+                    "caveats",
+                    "findings",
+                    "summary"
+                ],
+                "type": "object"
+            },
+            "AiDeepResearchBudget": {
+                "properties": {
+                    "maxResultRows": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "maxWarehouseQueries": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "maxToolCalls": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "maxTokens": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "maxRuntimeMs": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": [
+                    "maxResultRows",
+                    "maxWarehouseQueries",
+                    "maxToolCalls",
+                    "maxTokens",
+                    "maxRuntimeMs"
+                ],
+                "type": "object"
+            },
+            "AiDeepResearchRun": {
+                "properties": {
+                    "completedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "startedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "updatedAt": {
+                        "type": "string"
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "cancellationRequestedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "errorMessage": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "budget": {
+                        "$ref": "#/components/schemas/AiDeepResearchBudget"
+                    },
+                    "result": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiDeepResearchReport"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/AiDeepResearchRunStatus"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "aiDeepResearchRunUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "completedAt",
+                    "startedAt",
+                    "updatedAt",
+                    "createdAt",
+                    "cancellationRequestedAt",
+                    "errorMessage",
+                    "budget",
+                    "result",
+                    "status",
+                    "projectUuid",
+                    "aiDeepResearchRunUuid"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_AiDeepResearchRun_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiDeepResearchRun"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiDeepResearchRunResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiDeepResearchRun_"
+            },
+            "AiDeepResearchPhase": {
+                "type": "string",
+                "enum": [
+                    "planning",
+                    "investigating",
+                    "validating",
+                    "synthesizing"
+                ]
+            },
+            "AiDeepResearchActivity": {
+                "type": "string",
+                "enum": [
+                    "lightdash_metadata",
+                    "warehouse_query",
+                    "web_search",
+                    "web_fetch",
+                    "reporting"
+                ]
+            },
+            "AiDeepResearchProgress": {
+                "properties": {
+                    "total": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "current": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "activity": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiDeepResearchActivity"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "phase": {
+                        "$ref": "#/components/schemas/AiDeepResearchPhase"
+                    }
+                },
+                "required": ["total", "current", "activity", "phase"],
+                "type": "object"
+            },
+            "AiDeepResearchEvent": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "createdAt": {
+                                "type": "string"
+                            },
+                            "payload": {
+                                "properties": {
+                                    "status": {
+                                        "$ref": "#/components/schemas/AiDeepResearchRunStatus"
+                                    }
+                                },
+                                "required": ["status"],
+                                "type": "object"
+                            },
+                            "eventType": {
+                                "type": "string",
+                                "enum": ["status_changed"],
+                                "nullable": false
+                            },
+                            "aiDeepResearchRunUuid": {
+                                "type": "string"
+                            },
+                            "aiDeepResearchEventUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "createdAt",
+                            "payload",
+                            "eventType",
+                            "aiDeepResearchRunUuid",
+                            "aiDeepResearchEventUuid"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "createdAt": {
+                                "type": "string"
+                            },
+                            "payload": {
+                                "$ref": "#/components/schemas/Record_string.never_"
+                            },
+                            "eventType": {
+                                "type": "string",
+                                "enum": ["cancellation_requested"],
+                                "nullable": false
+                            },
+                            "aiDeepResearchRunUuid": {
+                                "type": "string"
+                            },
+                            "aiDeepResearchEventUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "createdAt",
+                            "payload",
+                            "eventType",
+                            "aiDeepResearchRunUuid",
+                            "aiDeepResearchEventUuid"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "createdAt": {
+                                "type": "string"
+                            },
+                            "payload": {
+                                "properties": {
+                                    "progress": {
+                                        "$ref": "#/components/schemas/AiDeepResearchProgress"
+                                    }
+                                },
+                                "required": ["progress"],
+                                "type": "object"
+                            },
+                            "eventType": {
+                                "type": "string",
+                                "enum": ["progress"],
+                                "nullable": false
+                            },
+                            "aiDeepResearchRunUuid": {
+                                "type": "string"
+                            },
+                            "aiDeepResearchEventUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "createdAt",
+                            "payload",
+                            "eventType",
+                            "aiDeepResearchRunUuid",
+                            "aiDeepResearchEventUuid"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "AiDeepResearchEventsPage": {
+                "properties": {
+                    "nextCursor": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "events": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiDeepResearchEvent"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["nextCursor", "events"],
+                "type": "object"
+            },
+            "ApiSuccess_AiDeepResearchEventsPage_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiDeepResearchEventsPage"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiDeepResearchEventsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiDeepResearchEventsPage_"
             },
             "Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid_": {
                 "properties": {
@@ -30660,9 +31059,11 @@
                     "appGeneratePipeline",
                     "appBuildFromSource",
                     "aiWritebackPipeline",
+                    "aiDeepResearch",
                     "aiAgentEditDbtProjectPipeline",
                     "sweepStaleAppLocks",
                     "sweepStaleAiWritebackRuns",
+                    "sweepStaleAiDeepResearchRuns",
                     "cleanMcpToolCalls",
                     "handleScheduledDelivery",
                     "sendSlackNotification",
@@ -34239,22 +34640,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "chart": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ContentAsCodeType.SPACE": {
@@ -34822,22 +35223,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -45102,7 +45503,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3367.0",
+        "version": "0.3368.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
