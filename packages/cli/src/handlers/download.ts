@@ -9,6 +9,8 @@ import {
     ApiDashboardValidationResponse,
     ApiEmbedProjectAppsResponse,
     ApiImportAppCodeResponse,
+    ApiScheduledDeliveryAsCodeListResponse,
+    ApiScheduledDeliveryAsCodeUpsertResponse,
     ApiSqlChartAsCodeListResponse,
     assertUnreachable,
     AuthorizationError,
@@ -24,6 +26,7 @@ import {
     PromotionAction,
     PromotionChanges,
     removePivotedSeriesValuesFromChartConfig,
+    ScheduledDeliveryAsCode,
     SqlChartAsCode,
     validateDataAppDependencies,
     type DataAppCodeDownload,
@@ -88,6 +91,7 @@ export type DownloadHandlerOptions = {
     verbose: boolean;
     charts: string[]; // These can be slugs, uuids or urls
     dashboards: string[]; // These can be slugs, uuids or urls
+    scheduledDeliveries: string[];
     apps?: string[]; // specific app UUIDs (enterprise); absent = no explicit selection
     includeApps?: boolean; // download: all of the project's apps, capped at --apps-limit; upload: all app folders on disk
     appsLimit?: string; // download only: cap for the --include-apps listing (default 50); raw string from commander
@@ -103,6 +107,7 @@ export type DownloadHandlerOptions = {
     skipSpaces: boolean; // Skip writing space metadata files during download
     skipCharts: boolean; // Skip downloading charts and SQL charts
     skipDashboards: boolean; // Skip downloading dashboards
+    skipScheduledDeliveries: boolean;
     appsOnly?: boolean; // download only: implies skipCharts + skipDashboards + skipSpaces
     stripPivotSeries: boolean; // Strip per-value pivot series config for portable chart YAML
     validate?: boolean; // Validate charts and dashboards after upload
@@ -852,6 +857,145 @@ export const downloadContent = async (
     return [total, [...new Set(chartSlugs)], allMetadataEntries, allSpaces];
 };
 
+const getScheduledDeliveriesFolder = (customPath?: string): string =>
+    path.join(getDownloadFolder(customPath), 'scheduled-deliveries');
+
+const getPromoteAction = (action: PromotionAction) => {
+    switch (action) {
+        case PromotionAction.CREATE:
+            return 'created';
+        case PromotionAction.UPDATE:
+            return 'updated';
+        case PromotionAction.DELETE:
+            return 'deleted';
+        case PromotionAction.NO_CHANGES:
+            return 'skipped';
+        default:
+            assertUnreachable(action, `Unknown promotion action: ${action}`);
+    }
+    return 'skipped';
+};
+
+const getScheduledDeliveryResourceFolder = (
+    delivery: ScheduledDeliveryAsCode,
+): string => (delivery.resource.type === 'chart' ? 'charts' : 'dashboards');
+
+const downloadScheduledDeliveries = async (
+    projectId: string,
+    slugs: string[],
+    customPath?: string,
+): Promise<number> => {
+    await fs.mkdir(getScheduledDeliveriesFolder(customPath), {
+        recursive: true,
+    });
+    const query = new URLSearchParams(
+        slugs.map((slug) => ['slugs', slug] as [string, string]),
+    ).toString();
+    const results = await lightdashApi<
+        ApiScheduledDeliveryAsCodeListResponse['results']
+    >({
+        method: 'GET',
+        url: `/api/v1/projects/${projectId}/scheduledDeliveries/code${
+            query ? `?${query}` : ''
+        }`,
+        body: undefined,
+    });
+
+    for (const delivery of results.scheduledDeliveries) {
+        const outputDir = path.join(
+            getScheduledDeliveriesFolder(customPath),
+            getScheduledDeliveryResourceFolder(delivery),
+            delivery.resource.slug,
+        );
+        await fs.mkdir(outputDir, { recursive: true });
+        await fs.writeFile(
+            path.join(outputDir, `${delivery.slug}.yml`),
+            yaml.dump(delivery, { quotingType: '"', sortKeys: true }),
+        );
+    }
+
+    results.skipped.forEach((delivery) =>
+        GlobalState.debug(
+            `Skipped scheduled delivery "${delivery.name}": ${delivery.reason}`,
+        ),
+    );
+
+    return results.scheduledDeliveries.length;
+};
+
+const readScheduledDeliveryFiles = async (
+    customPath?: string,
+): Promise<ScheduledDeliveryAsCode[]> => {
+    const folder = getScheduledDeliveriesFolder(customPath);
+    try {
+        const entries = await fs.readdir(folder, {
+            recursive: true,
+            withFileTypes: true,
+        });
+        const deliveries: ScheduledDeliveryAsCode[] = [];
+        for (const entry of entries) {
+            if (
+                entry.isFile() &&
+                (entry.name.endsWith('.yml') || entry.name.endsWith('.yaml'))
+            ) {
+                const filePath = path.join(entry.parentPath, entry.name);
+                const parsed = yaml.load(
+                    await fs.readFile(filePath, 'utf-8'),
+                ) as Record<string, unknown>;
+                if (
+                    parsed.contentType ===
+                    ContentAsCodeTypeEnum.SCHEDULED_DELIVERY
+                ) {
+                    deliveries.push(parsed as ScheduledDeliveryAsCode);
+                }
+            }
+        }
+        return deliveries;
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+        throw error;
+    }
+};
+
+const upsertScheduledDeliveries = async (
+    projectId: string,
+    slugs: string[],
+    changes: Record<string, number>,
+    force: boolean,
+    customPath?: string,
+): Promise<Record<string, number>> => {
+    const deliveries = await readScheduledDeliveryFiles(customPath);
+    GlobalState.log(`Found ${deliveries.length} scheduled delivery files`);
+    const filteredDeliveries = slugs.length
+        ? deliveries.filter((delivery) => slugs.includes(delivery.slug))
+        : deliveries;
+
+    for (const delivery of filteredDeliveries) {
+        try {
+            const result = await lightdashApi<
+                ApiScheduledDeliveryAsCodeUpsertResponse['results']
+            >({
+                method: 'POST',
+                url: `/api/v1/projects/${projectId}/scheduledDeliveries/${delivery.slug}/code?force=${force}`,
+                body: JSON.stringify(delivery),
+            });
+            const action = getPromoteAction(result.action);
+            const key = `scheduled deliveries ${action}`;
+            changes[key] = (changes[key] ?? 0) + 1;
+        } catch (error) {
+            changes['scheduled deliveries with errors'] =
+                (changes['scheduled deliveries with errors'] ?? 0) + 1;
+            GlobalState.log(
+                styles.error(
+                    `Error upserting scheduled delivery "${delivery.name}" (${delivery.resource.type}: ${delivery.resource.slug}): ${getErrorMessage(error)}`,
+                ),
+            );
+        }
+    }
+
+    return changes;
+};
+
 // Space-scoped fallback listing for servers without the project-wide apps
 // endpoint; omits apps that were never added to a space.
 const listAppUuidsViaContentApi = async (
@@ -903,6 +1047,7 @@ export const downloadHandler = async (
         options.skipCharts = true;
         options.skipDashboards = true;
         options.skipSpaces = true;
+        options.skipScheduledDeliveries = true;
     }
 
     await checkLightdashVersion();
@@ -954,7 +1099,9 @@ export const downloadHandler = async (
     });
     try {
         const hasFilters =
-            options.charts.length > 0 || options.dashboards.length > 0;
+            options.charts.length > 0 ||
+            options.dashboards.length > 0 ||
+            options.scheduledDeliveries.length > 0;
 
         // When downloading specific charts or dashboards, skip space metadata
         const skipSpaces = options.skipSpaces || hasFilters;
@@ -1096,6 +1243,27 @@ export const downloadHandler = async (
                         } charts linked to dashboards`,
                     );
                 }
+            }
+        }
+
+        if (!options.skipScheduledDeliveries) {
+            if (hasFilters && options.scheduledDeliveries.length === 0) {
+                GlobalState.log(
+                    styles.warning(
+                        `No scheduled delivery filters provided, skipping`,
+                    ),
+                );
+            } else {
+                spinner.start(`Downloading scheduled deliveries`);
+                const scheduledDeliveryTotal =
+                    await downloadScheduledDeliveries(
+                        projectId,
+                        options.scheduledDeliveries,
+                        options.path,
+                    );
+                spinner.succeed(
+                    `Downloaded ${scheduledDeliveryTotal} scheduled deliveries`,
+                );
             }
         }
 
@@ -1307,22 +1475,6 @@ export const downloadHandler = async (
             },
         });
     }
-};
-
-const getPromoteAction = (action: PromotionAction) => {
-    switch (action) {
-        case PromotionAction.CREATE:
-            return 'created';
-        case PromotionAction.UPDATE:
-            return 'updated';
-        case PromotionAction.DELETE:
-            return 'deleted';
-        case PromotionAction.NO_CHANGES:
-            return 'skipped';
-        default:
-            assertUnreachable(action, `Unknown promotion action: ${action}`);
-    }
-    return 'skipped';
 };
 
 const storeUploadChanges = (
@@ -1789,7 +1941,9 @@ export const uploadHandler = async (
         // If any filter is provided, we skip those items without filters
         // eg: if a --charts filter is provided, we skip dashboards if no --dashboards filter is provided
         const hasFilters =
-            options.charts.length > 0 || options.dashboards.length > 0;
+            options.charts.length > 0 ||
+            options.dashboards.length > 0 ||
+            options.scheduledDeliveries.length > 0;
 
         // Discover loose YAML files (outside charts/ and dashboards/) classified by contentType
         const looseFiles = await readLooseCodeFiles(options.path);
@@ -1885,6 +2039,24 @@ export const uploadHandler = async (
                 );
             changes = dashboardChanges;
             dashboardTotal = total;
+        }
+
+        if (!options.skipScheduledDeliveries) {
+            if (hasFilters && options.scheduledDeliveries.length === 0) {
+                GlobalState.log(
+                    styles.warning(
+                        `No scheduled delivery filters provided, skipping`,
+                    ),
+                );
+            } else {
+                changes = await upsertScheduledDeliveries(
+                    projectId,
+                    options.scheduledDeliveries,
+                    changes,
+                    options.force,
+                    options.path,
+                );
+            }
         }
 
         // Upload data apps (enterprise, opt-in via --apps <uuids...> or

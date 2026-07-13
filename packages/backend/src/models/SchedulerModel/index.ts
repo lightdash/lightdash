@@ -2,6 +2,7 @@ import {
     AnyType,
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
+    generateSlug,
     GsheetExportProgress,
     isAppCreateScheduler,
     isChartCreateScheduler,
@@ -24,6 +25,7 @@ import {
     KnexPaginatedData,
     LogCounts,
     NotFoundError,
+    ParameterError,
     Scheduler,
     SchedulerAndTargets,
     SchedulerBase,
@@ -120,6 +122,7 @@ export class SchedulerModel {
     static convertScheduler(scheduler: SelectScheduler): Scheduler {
         const base: SchedulerBase = {
             schedulerUuid: scheduler.scheduler_uuid,
+            slug: scheduler.slug ?? '',
             name: scheduler.name,
             message: scheduler.message,
             createdAt: scheduler.created_at,
@@ -210,8 +213,12 @@ export class SchedulerModel {
     // overrides; only dashboards carry viewport width & selected tabs.
     private static toSchedulerInsert(
         newScheduler: CreateSchedulerAndTargets,
+        projectUuid: string,
+        slug: string,
     ): SchedulerInsert {
         const common = {
+            project_uuid: projectUuid,
+            slug,
             name: newScheduler.name,
             message: newScheduler.message,
             format: newScheduler.format,
@@ -285,6 +292,124 @@ export class SchedulerModel {
         throw new UnexpectedServerError(
             'Cannot create scheduler without a resource reference',
         );
+    }
+
+    private static async getSchedulerProjectUuid(
+        trx: Knex.Transaction,
+        scheduler: CreateSchedulerAndTargets,
+    ): Promise<string> {
+        let result: { project_uuid: string } | undefined;
+        if (isChartCreateScheduler(scheduler)) {
+            result = await trx(SavedChartsTableName)
+                .select<{ project_uuid: string }>(
+                    `${ProjectTableName}.project_uuid`,
+                )
+                .leftJoin(
+                    DashboardsTableName,
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    `${SavedChartsTableName}.dashboard_uuid`,
+                )
+                .join(SpaceTableName, function joinChartSpace() {
+                    this.on(
+                        `${SpaceTableName}.space_id`,
+                        '=',
+                        `${SavedChartsTableName}.space_id`,
+                    ).orOn(
+                        `${SpaceTableName}.space_id`,
+                        '=',
+                        `${DashboardsTableName}.space_id`,
+                    );
+                })
+                .join(
+                    ProjectTableName,
+                    `${ProjectTableName}.project_id`,
+                    `${SpaceTableName}.project_id`,
+                )
+                .where(
+                    `${SavedChartsTableName}.saved_query_uuid`,
+                    scheduler.savedChartUuid,
+                )
+                .first();
+        } else if (isDashboardCreateScheduler(scheduler)) {
+            result = await trx(DashboardsTableName)
+                .select<{ project_uuid: string }>(
+                    `${ProjectTableName}.project_uuid`,
+                )
+                .join(
+                    SpaceTableName,
+                    `${SpaceTableName}.space_id`,
+                    `${DashboardsTableName}.space_id`,
+                )
+                .join(
+                    ProjectTableName,
+                    `${ProjectTableName}.project_id`,
+                    `${SpaceTableName}.project_id`,
+                )
+                .where(
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    scheduler.dashboardUuid,
+                )
+                .first();
+        } else if (isSqlChartScheduler(scheduler)) {
+            result = await trx(SavedSqlTableName)
+                .select<{ project_uuid: string }>('project_uuid')
+                .where('saved_sql_uuid', scheduler.savedSqlUuid)
+                .first();
+        } else if (isAppCreateScheduler(scheduler)) {
+            result = await trx(AppsTableName)
+                .select<{ project_uuid: string }>('project_uuid')
+                .where('app_id', scheduler.appUuid)
+                .first();
+        }
+        if (!result) {
+            throw new UnexpectedServerError(
+                'Cannot resolve the project for the scheduled delivery resource',
+            );
+        }
+        return result.project_uuid;
+    }
+
+    private static async getCreateSlug(
+        trx: Knex.Transaction,
+        scheduler: CreateSchedulerAndTargets,
+    ): Promise<{ projectUuid: string; slug: string }> {
+        const projectUuid = await SchedulerModel.getSchedulerProjectUuid(
+            trx,
+            scheduler,
+        );
+        const requestedSlug = scheduler.slug;
+        const baseSlug = (requestedSlug ?? generateSlug(scheduler.name)).slice(
+            0,
+            240,
+        );
+
+        if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(baseSlug)) {
+            throw new ParameterError(
+                `Invalid scheduled delivery slug: ${baseSlug}`,
+            );
+        }
+
+        await trx.raw('SELECT pg_advisory_xact_lock(?, hashtext(?))', [
+            3,
+            `${projectUuid}:${baseSlug}`,
+        ]);
+
+        if (requestedSlug) {
+            return { projectUuid, slug: baseSlug };
+        }
+
+        const matchingSlugs = await trx(SchedulerTableName)
+            .select('slug')
+            .where('project_uuid', projectUuid)
+            .where('slug', 'like', `${baseSlug}%`)
+            .pluck<string>('slug');
+        let slug = baseSlug;
+        let suffix = 1;
+        while (matchingSlugs.includes(slug)) {
+            slug = `${baseSlug}-${suffix}`;
+            suffix += 1;
+        }
+        return { projectUuid, slug };
     }
 
     static convertSlackTarget(
@@ -400,6 +525,22 @@ export class SchedulerModel {
             });
     }
 
+    static getSchedulerListSelect(db: Knex) {
+        return [
+            `${SchedulerTableName}.*`,
+            db.raw(
+                `(${UserTableName}.first_name || ' ' || ${UserTableName}.last_name) as created_by_name`,
+            ),
+            `${SavedChartsTableName}.name as saved_chart_name`,
+            `${DashboardsTableName}.name as dashboard_name`,
+            `${SavedSqlTableName}.name as saved_sql_name`,
+            `${AppsTableName}.name as app_name`,
+            `${ProjectTableName}.name as project_name`,
+            `${ProjectTableName}.scheduler_timezone as project_scheduler_timezone`,
+            `${ProjectTableName}.organization_id as organization_id`,
+        ];
+    }
+
     private async getSchedulersWithTargets(
         schedulers: SelectScheduler[],
     ): Promise<SchedulerAndTargets[]> {
@@ -486,18 +627,7 @@ export class SchedulerModel {
 
         let baseQuery = this.database(SchedulerTableName)
             .select<SelectScheduler[]>(
-                `${SchedulerTableName}.*`,
-                this.database.raw(
-                    `(${UserTableName}.first_name || ' ' || ${UserTableName}.last_name) as created_by_name`,
-                ),
-                `${SavedChartsTableName}.name as saved_chart_name`,
-                `${DashboardsTableName}.name as dashboard_name`,
-                `${SavedSqlTableName}.name as saved_sql_name`,
-                `${AppsTableName}.name as app_name`,
-                `${ProjectTableName}.project_uuid as project_uuid`,
-                `${ProjectTableName}.name as project_name`,
-                `${ProjectTableName}.scheduler_timezone as project_scheduler_timezone`,
-                `${ProjectTableName}.organization_id as organization_id`,
+                ...SchedulerModel.getSchedulerListSelect(this.database),
             )
             .whereNull(`${SchedulerTableName}.deleted_at`)
             .leftJoin(
@@ -855,6 +985,22 @@ export class SchedulerModel {
         return this.getSchedulersWithTargets(await schedulers);
     }
 
+    async findSchedulerByProjectSlug(
+        projectUuid: string,
+        slug: string,
+    ): Promise<SchedulerAndTargets | null> {
+        const [scheduler] = await SchedulerModel.getBaseSchedulerQuery(
+            this.database,
+        )
+            .where(`${SchedulerTableName}.project_uuid`, projectUuid)
+            .where(`${SchedulerTableName}.slug`, slug);
+        if (!scheduler) return null;
+        const [schedulerWithTargets] = await this.getSchedulersWithTargets([
+            scheduler,
+        ]);
+        return schedulerWithTargets;
+    }
+
     async getDashboardSchedulers(
         dashboardUuid: string,
     ): Promise<SchedulerAndTargets[]> {
@@ -979,8 +1125,18 @@ export class SchedulerModel {
         newScheduler: CreateSchedulerAndTargets,
     ): Promise<SchedulerAndTargets> {
         const schedulerUuid = await this.database.transaction(async (trx) => {
+            const { projectUuid, slug } = await SchedulerModel.getCreateSlug(
+                trx,
+                newScheduler,
+            );
             const [scheduler] = await trx(SchedulerTableName)
-                .insert(SchedulerModel.toSchedulerInsert(newScheduler))
+                .insert(
+                    SchedulerModel.toSchedulerInsert(
+                        newScheduler,
+                        projectUuid,
+                        slug,
+                    ),
+                )
                 .returning('*');
             const targetPromises = newScheduler.targets.map(async (target) => {
                 if (isCreateSchedulerSlackTarget(target)) {

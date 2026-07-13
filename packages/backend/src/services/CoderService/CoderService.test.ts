@@ -654,6 +654,10 @@ describe('CoderService', () => {
                 savedSqlModel: {
                     find: vi.fn(),
                 } as AnyType,
+                schedulerModel: {} as AnyType,
+                schedulerService: {} as AnyType,
+                savedChartService: {} as AnyType,
+                dashboardService: {} as AnyType,
                 schedulerClient: {} as AnyType,
                 spaceModel: {} as AnyType,
                 spacePermissionService: {} as AnyType,

@@ -12,9 +12,13 @@ import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
+import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+import { DashboardService } from '../DashboardService/DashboardService';
 import { PromoteService } from '../PromoteService/PromoteService';
+import { SavedChartService } from '../SavedChartsService/SavedChartService';
+import { SchedulerService } from '../SchedulerService/SchedulerService';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { CoderService } from './CoderService';
 
@@ -77,6 +81,10 @@ const buildService = () =>
         savedSqlModel: {} as unknown as SavedSqlModel,
         dashboardModel: {} as unknown as DashboardModel,
         spaceModel: {} as unknown as SpaceModel,
+        schedulerModel: {} as unknown as SchedulerModel,
+        schedulerService: {} as unknown as SchedulerService,
+        savedChartService: {} as unknown as SavedChartService,
+        dashboardService: {} as unknown as DashboardService,
         schedulerClient: {} as unknown as SchedulerClient,
         promoteService: {} as unknown as PromoteService,
         spacePermissionService: {} as unknown as SpacePermissionService,
