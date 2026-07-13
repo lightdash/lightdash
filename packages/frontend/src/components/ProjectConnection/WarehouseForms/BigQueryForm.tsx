@@ -1,9 +1,4 @@
-import {
-    BigqueryAuthenticationType,
-    WarehouseTypes,
-    type BigqueryDataset,
-    type BigqueryProject,
-} from '@lightdash/common';
+import { BigqueryAuthenticationType, WarehouseTypes } from '@lightdash/common';
 import {
     Anchor,
     Autocomplete,
@@ -43,22 +38,6 @@ import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
 import { useProjectFormContext } from '../useProjectFormContext';
 import classes from './BigQueryForm.module.css';
 import { BigQueryDefaultValues } from './defaultValues';
-
-const MOCK_BIGQUERY_PROJECTS: BigqueryProject[] = [
-    { projectId: 'acme-analytics-prod', friendlyName: 'Acme Analytics' },
-    { projectId: 'lightdash-demo', friendlyName: 'Lightdash Demo' },
-    { projectId: 'marketing-attribution', friendlyName: 'Marketing' },
-    { projectId: 'finance-reporting', friendlyName: 'Finance Reporting' },
-    { projectId: 'product-events', friendlyName: 'Product Events' },
-    { projectId: 'sandbox-project-id', friendlyName: null },
-    { projectId: 'seventh-project', friendlyName: 'Seventh Project' },
-];
-
-const isBigQuerySsoMockEnabled = () =>
-    import.meta.env.DEV &&
-    typeof window !== 'undefined' &&
-    new URLSearchParams(window.location.search).get('mockBigQuerySso') ===
-        'true';
 
 export const BigQuerySchemaInput: FC<{
     disabled: boolean;
@@ -137,6 +116,7 @@ const BigQueryForm: FC<{
         error: bigqueryAuthError,
         refetch: refetchAuth,
     } = useIsBigQueryAuthenticated();
+    const isAuthenticated = data !== undefined && bigqueryAuthError === null;
     const form = useFormContext();
     const project = form.getInputProps('warehouse.project');
     const [debouncedProject] = useDebouncedValue(project.value, 300);
@@ -149,41 +129,16 @@ const BigQueryForm: FC<{
         form.values.warehouse?.type === WarehouseTypes.BIGQUERY &&
         form.values.warehouse?.authenticationType ===
             BigqueryAuthenticationType.SSO;
-    const useMockBigQuerySso = isBigQuerySsoMockEnabled();
-    const isAuthenticated =
-        useMockBigQuerySso ||
-        (data !== undefined && bigqueryAuthError === null);
     const {
-        data: queriedDatasets,
+        data: datasets,
         refetch: refetchDatasets,
-        error: queriedDatasetsError,
-    } = useBigqueryDatasets(
-        !useMockBigQuerySso && isAuthenticated && isSso,
-        debouncedProject,
-    );
+        error: datasetsError,
+    } = useBigqueryDatasets(isAuthenticated && isSso, debouncedProject);
     const {
-        data: queriedGcpProjects,
-        isLoading: isLoadingQueriedProjects,
-        error: queriedProjectsError,
-    } = useBigqueryProjects(!useMockBigQuerySso && isAuthenticated && isSso);
-    const mockDatasets: BigqueryDataset[] = debouncedProject
-        ? [
-              {
-                  projectId: debouncedProject,
-                  datasetId: 'mock_analytics',
-                  location: 'EU',
-              },
-          ]
-        : [];
-    const datasets = useMockBigQuerySso ? mockDatasets : queriedDatasets;
-    const datasetsError = useMockBigQuerySso ? null : queriedDatasetsError;
-    const gcpProjects = useMockBigQuerySso
-        ? MOCK_BIGQUERY_PROJECTS
-        : queriedGcpProjects;
-    const isLoadingProjects = useMockBigQuerySso
-        ? false
-        : isLoadingQueriedProjects;
-    const projectsError = useMockBigQuerySso ? null : queriedProjectsError;
+        data: gcpProjects,
+        isLoading: isLoadingProjects,
+        error: projectsError,
+    } = useBigqueryProjects(isAuthenticated && isSso);
     const [isOpen, toggleOpen] = useToggle(false);
     const [temporaryFile, setTemporaryFile] = useState<File | null>(null);
     const { savedProject } = useProjectFormContext();
