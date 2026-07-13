@@ -7,10 +7,10 @@ import {
     Text,
     ActionIcon,
     Highlight,
+    ScrollArea,
 } from '@mantine-8/core';
 import {
     MultiSelect,
-    ScrollArea,
     Tooltip,
     type MultiSelectProps,
     type MultiSelectValueProps,

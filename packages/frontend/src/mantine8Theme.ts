@@ -112,11 +112,7 @@ export const getMantine8ThemeOverride = (
     const { colors, components, ...legacyTheme } =
         getMantine6ThemeOverride(colorScheme);
 
-    const {
-        Button: _Button,
-        ScrollArea: _ScrollArea,
-        ...legacyComponentsTheme
-    } = components;
+    const { Button: _Button, ...legacyComponentsTheme } = components;
 
     return {
         ...legacyTheme,

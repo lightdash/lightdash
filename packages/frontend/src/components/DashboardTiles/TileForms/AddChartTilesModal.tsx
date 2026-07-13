@@ -7,13 +7,17 @@ import {
     type ChartContent,
     type Dashboard,
 } from '@lightdash/common';
-import { Button, Group, Loader, Stack, Text, Tooltip } from '@mantine-8/core';
 import {
-    getDefaultZIndex,
-    MultiSelect,
+    Button,
+    Group,
+    Loader,
     ScrollArea,
+    Stack,
+    Text,
+    Tooltip,
     type ScrollAreaProps,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { getDefaultZIndex, MultiSelect } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconChartAreaLine } from '@tabler/icons-react';

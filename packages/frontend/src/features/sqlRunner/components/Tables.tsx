@@ -12,8 +12,9 @@ import {
     UnstyledButton,
     ActionIcon,
     Highlight,
+    ScrollArea,
 } from '@mantine-8/core';
-import { ScrollArea, Tooltip } from '@mantine/core';
+import { Tooltip } from '@mantine/core';
 import { useDebouncedValue, useHover } from '@mantine/hooks';
 import {
     IconChevronDown,
@@ -28,6 +29,7 @@ import isEmpty from 'lodash/isEmpty';
 import { memo, useEffect, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
+import scrollAreaClasses from '../../../styles/ScrollArea.module.css';
 import { useTables, type TablesBySchema } from '../hooks/useTables';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSql, toggleActiveTable } from '../store/sqlRunnerSlice';
@@ -389,10 +391,10 @@ export const Tables: FC = () => {
 
             <ScrollArea
                 offsetScrollbars
-                variant="primary"
-                className="only-vertical"
+                scrollbars="y"
+                classNames={{ content: scrollAreaClasses.verticalContent }}
                 pl="sm"
-                sx={{ flex: 1 }}
+                style={{ flex: 1 }}
                 type="auto"
                 scrollbarSize={8}
             >
