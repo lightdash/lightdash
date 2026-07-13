@@ -16,8 +16,8 @@ import {
     type Series as SeriesType,
     type TableCalculation,
 } from '@lightdash/common';
-import { Divider, Stack } from '@mantine-8/core';
-import { Checkbox, Switch } from '@mantine/core';
+import { Checkbox, Divider, Stack } from '@mantine-8/core';
+import { Switch } from '@mantine/core';
 import { produce } from 'immer';
 import React, { Fragment, useCallback, useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
@@ -29,6 +29,7 @@ import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { ColorPaletteSection } from '../../common/ColorPaletteSection';
 import { Config } from '../../common/Config';
+import compactStyles from '../../mantineTheme.module.css';
 import BasicSeriesConfiguration from './BasicSeriesConfiguration';
 import { CustomColors } from './CustomColors';
 import GroupedSeriesConfiguration from './GroupedSeriesConfiguration';
@@ -391,6 +392,10 @@ export const Series: FC<Props> = ({ items }) => {
             )}
             {hasStackedBars && (
                 <Checkbox
+                    size="xs"
+                    classNames={{
+                        label: compactStyles.compactCheckboxLabel,
+                    }}
                     checked={showOverlappingLabelsEnabled}
                     label="Show overlapping labels"
                     onChange={handleOverlappingLabelsToggle}

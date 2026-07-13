@@ -9,8 +9,15 @@ import {
     XAxisSort,
     type ItemsMap,
 } from '@lightdash/common';
-import { Group, Stack, Text, Button, SegmentedControl } from '@mantine-8/core';
-import { Checkbox, NumberInput, Select, Switch } from '@mantine/core';
+import {
+    Button,
+    Checkbox,
+    Group,
+    SegmentedControl,
+    Stack,
+    Text,
+} from '@mantine-8/core';
+import { NumberInput, Select, Switch } from '@mantine/core';
 import {
     IconChartBar,
     IconMinus,
@@ -26,6 +33,7 @@ import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
 import { LabelEditor } from '../../common/LabelEditor';
+import compactStyles from '../../mantineTheme.module.css';
 import { AxisMinInterval } from './AxisMinInterval';
 import { AxisMinMax } from './AxisMinMax';
 
@@ -281,6 +289,10 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                     {getAxisTypeFromField(xAxisField) === 'category' && (
                         <Stack gap="xs">
                             <Checkbox
+                                size="xs"
+                                classNames={{
+                                    label: compactStyles.compactCheckboxLabel,
+                                }}
                                 label="Enable scrollable chart"
                                 checked={
                                     dirtyEchartsConfig?.xAxis?.[0]
@@ -436,6 +448,10 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
 
                     <Stack gap="xs">
                         <Checkbox
+                            size="xs"
+                            classNames={{
+                                label: compactStyles.compactCheckboxLabel,
+                            }}
                             label={`${dirtyLayout?.flipAxes ? 'Y' : 'X'}-axis`}
                             checked={!!dirtyLayout?.showGridX}
                             onChange={() => {
@@ -444,6 +460,10 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                         />
 
                         <Checkbox
+                            size="xs"
+                            classNames={{
+                                label: compactStyles.compactCheckboxLabel,
+                            }}
                             label={`${dirtyLayout?.flipAxes ? 'X' : 'Y'}-axis`}
                             checked={
                                 dirtyLayout?.showGridY !== undefined
@@ -467,6 +487,10 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
 
                     <Stack gap="xs">
                         <Checkbox
+                            size="xs"
+                            classNames={{
+                                label: compactStyles.compactCheckboxLabel,
+                            }}
                             label={`${dirtyLayout?.flipAxes ? 'Y' : 'X'}-axis`}
                             checked={
                                 dirtyLayout?.flipAxes
@@ -483,6 +507,10 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                         />
                         {(dirtyLayout?.flipAxes || hasPrimaryYAxis) && (
                             <Checkbox
+                                size="xs"
+                                classNames={{
+                                    label: compactStyles.compactCheckboxLabel,
+                                }}
                                 label={
                                     dirtyLayout?.flipAxes
                                         ? 'X-axis'
@@ -504,6 +532,10 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                         )}
                         {hasSecondaryYAxis && (
                             <Checkbox
+                                size="xs"
+                                classNames={{
+                                    label: compactStyles.compactCheckboxLabel,
+                                }}
                                 label="Right Y-axis"
                                 checked={showRightYAxis}
                                 onChange={() => {
@@ -518,6 +550,10 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                 <Config.Section>
                     <Config.Heading>Show tick lines</Config.Heading>
                     <Checkbox
+                        size="xs"
+                        classNames={{
+                            label: compactStyles.compactCheckboxLabel,
+                        }}
                         label="Show tick lines on axes"
                         checked={!!dirtyEchartsConfig?.showAxisTicks}
                         onChange={(e) => {
@@ -532,6 +568,10 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                     <Config.Section>
                         <Config.Heading>Connect nulls</Config.Heading>
                         <Checkbox
+                            size="xs"
+                            classNames={{
+                                label: compactStyles.compactCheckboxLabel,
+                            }}
                             label="Connect null values in line series"
                             checked={
                                 dirtyLayout?.connectNulls !== undefined

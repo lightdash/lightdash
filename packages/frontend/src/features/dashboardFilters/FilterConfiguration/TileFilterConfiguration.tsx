@@ -22,14 +22,9 @@ import {
     Stack,
     Text,
     ActionIcon,
-} from '@mantine-8/core';
-import {
     Checkbox,
-    Select,
-    Tooltip,
-    useMantineTheme,
-    type PopoverProps,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { Select, Tooltip, type PopoverProps } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';
@@ -93,7 +88,6 @@ const TileFilterConfiguration: FC<Props> = ({
     onChange,
     onToggleAll,
 }) => {
-    const theme = useMantineTheme();
     const [collapsedTabs, setCollapsedTabs] = useState<Record<string, boolean>>(
         {},
     );
@@ -392,11 +386,7 @@ const TileFilterConfiguration: FC<Props> = ({
                                     )}
                                 </Group>
                             }
-                            styles={{
-                                label: {
-                                    paddingLeft: theme.spacing.xs,
-                                },
-                            }}
+                            classNames={{ label: classes.checkboxLabel }}
                             onChange={() => {
                                 if (isIndeterminate) {
                                     onToggleAll(false, tileUuids);
@@ -490,10 +480,8 @@ const TileFilterConfiguration: FC<Props> = ({
                                                 </Text>
                                             </Flex>
                                         }
-                                        styles={{
-                                            label: {
-                                                paddingLeft: theme.spacing.xs,
-                                            },
+                                        classNames={{
+                                            label: classes.checkboxLabel,
                                         }}
                                         checked={value.checked}
                                         onChange={(event) => {
@@ -650,11 +638,7 @@ const TileFilterConfiguration: FC<Props> = ({
                             : ''}
                     </Text>
                 }
-                styles={{
-                    label: {
-                        paddingLeft: theme.spacing.xs,
-                    },
-                }}
+                classNames={{ label: classes.checkboxLabel }}
                 onChange={() => {
                     const tileUuids = tileTargetList.map((v) => v.tileUuid);
                     if (isIndeterminate) {
