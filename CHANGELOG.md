@@ -1,3 +1,10 @@
+## [0.3371.3](https://github.com/lightdash/lightdash/compare/0.3371.2...0.3371.3) (2026-07-13)
+
+
+### Bug Fixes
+
+* **frontend:** restore metrics catalog category colors after Badge v8 migration ([#25491](https://github.com/lightdash/lightdash/issues/25491)) ([dd1ea71](https://github.com/lightdash/lightdash/commit/dd1ea71bd5dac95c404962131b0c9cd3ecb97ba2)), closes [#25462](https://github.com/lightdash/lightdash/issues/25462)
+
 ## [0.3371.2](https://github.com/lightdash/lightdash/compare/0.3371.1...0.3371.2) (2026-07-13)
 
 
