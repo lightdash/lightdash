@@ -1,5 +1,5 @@
+import { CloseButton } from '@mantine-8/core';
 import {
-    CloseButton,
     type DefaultProps,
     type MantineNumberSize,
     type MantineSize,
@@ -60,7 +60,7 @@ export function DefaultValue({
                     onMouseDown={onRemove}
                     size={buttonSizes[size]}
                     radius={2}
-                    color="blue"
+                    c="blue"
                     variant="transparent"
                     iconSize="70%"
                     className={classes.defaultValueRemove}
