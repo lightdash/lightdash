@@ -171,14 +171,14 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
                         offset={80}
                     >
                         <HoverCard.Target>
-                            <Highlight
-                                component={Text}
-                                truncate
-                                fz="sm"
-                                highlight={searchQuery || ''}
-                            >
-                                {label}
-                            </Highlight>
+                            <Text truncate fz="sm">
+                                <Highlight
+                                    component="span"
+                                    highlight={searchQuery || ''}
+                                >
+                                    {label}
+                                </Highlight>
+                            </Text>
                         </HoverCard.Target>
                         <HoverCard.Dropdown
                             hidden={!isHover}

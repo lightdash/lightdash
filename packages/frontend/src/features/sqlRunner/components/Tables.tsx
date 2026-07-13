@@ -127,19 +127,21 @@ const TableItem: FC<TableItemProps> = memo(
                         }}
                     >
                         {search.length > 2 ? (
-                            <Highlight
+                            <Text
                                 ref={truncatedRef}
-                                component={Text}
-                                highlight={search || ''}
                                 truncate
-                                sx={{
-                                    flex: 1,
-                                }}
+                                fz="sm"
+                                style={{ flex: 1 }}
                             >
-                                {table}
-                            </Highlight>
+                                <Highlight
+                                    component="span"
+                                    highlight={search || ''}
+                                >
+                                    {table}
+                                </Highlight>
+                            </Text>
                         ) : (
-                            <Text>{table}</Text>
+                            <Text fz="sm">{table}</Text>
                         )}
                     </Tooltip>
                 </UnstyledButton>

@@ -64,21 +64,19 @@ const TableField: FC<{
                 label={field.name}
                 disabled={!isTruncated}
             >
-                <Highlight
+                <Text
                     ref={truncatedRef}
-                    component={Text}
                     fw={500}
                     p={4}
                     fz={13}
                     c="ldGray.7"
-                    sx={{
-                        flex: 1,
-                    }}
-                    highlight={search || ''}
+                    style={{ flex: 1 }}
                     truncate
                 >
-                    {field.name}
-                </Highlight>
+                    <Highlight component="span" highlight={search || ''}>
+                        {field.name}
+                    </Highlight>
+                </Text>
             </Tooltip>
             <Text fz={12} c="ldGray.5">
                 {field.type}

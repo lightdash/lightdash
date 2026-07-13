@@ -117,24 +117,20 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
             label={
                 isError ? (
                     <Stack gap={2}>
-                        <Highlight
-                            component={Text}
-                            highlight={query ?? ''}
-                            truncate
-                            fz="inherit"
-                        >
-                            {displayLabel}
-                        </Highlight>
-                        {showUnderlyingName && (
-                            <Highlight
-                                component={Text}
-                                highlight={query ?? ''}
-                                truncate
-                                fz="xs"
-                                c="ldGray.7"
-                            >
-                                {explore.name}
+                        <Text truncate fz="sm">
+                            <Highlight component="span" highlight={query ?? ''}>
+                                {displayLabel}
                             </Highlight>
+                        </Text>
+                        {showUnderlyingName && (
+                            <Text truncate fz="xs" c="ldGray.7">
+                                <Highlight
+                                    component="span"
+                                    highlight={query ?? ''}
+                                >
+                                    {explore.name}
+                                </Highlight>
+                            </Text>
                         )}
                     </Stack>
                 ) : (
@@ -146,26 +142,23 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
                         offset={0}
                     >
                         <Stack gap={2}>
-                            <Highlight
-                                component={Text}
-                                highlight={query ?? ''}
-                                truncate
-                                fz="sm"
-                                fw={500}
-                                c="ldDark.8"
-                            >
-                                {displayLabel}
-                            </Highlight>
-                            {showUnderlyingName && (
+                            <Text truncate fz="sm" fw={500} c="ldDark.8">
                                 <Highlight
-                                    component={Text}
+                                    component="span"
                                     highlight={query ?? ''}
-                                    truncate
-                                    fz="xs"
-                                    c="ldGray.7"
                                 >
-                                    {explore.name}
+                                    {displayLabel}
                                 </Highlight>
+                            </Text>
+                            {showUnderlyingName && (
+                                <Text truncate fz="xs" c="ldGray.7">
+                                    <Highlight
+                                        component="span"
+                                        highlight={query ?? ''}
+                                    >
+                                        {explore.name}
+                                    </Highlight>
+                                </Text>
                             )}
                         </Stack>
                     </TableItemDetailPreview>

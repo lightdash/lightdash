@@ -452,15 +452,14 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                         }
                     >
                         <HoverCard.Target>
-                            <Highlight
-                                component={Text}
-                                truncate
-                                fz="sm"
-                                sx={{ flexGrow: 1 }}
-                                highlight={searchQuery || ''}
-                            >
-                                {label}
-                            </Highlight>
+                            <Text truncate fz="sm" style={{ flexGrow: 1 }}>
+                                <Highlight
+                                    component="span"
+                                    highlight={searchQuery || ''}
+                                >
+                                    {label}
+                                </Highlight>
+                            </Text>
                         </HoverCard.Target>
                         <HoverCard.Dropdown
                             hidden={!isHover}
