@@ -232,6 +232,8 @@ export class DorisWarehouseClient extends WarehouseBaseClient<CreateDorisCredent
             // Keep large integers safe.
             supportBigNumbers: true,
             bigNumberStrings: true,
+            // TLS/SSL support
+            ssl: credentials.ssl ? { rejectUnauthorized: false } : undefined,
         };
     }
 
@@ -245,6 +247,9 @@ export class DorisWarehouseClient extends WarehouseBaseClient<CreateDorisCredent
         },
     ): Promise<void> {
         const connection = mysql.createConnection(this.connectionOptions);
+        const queryTimeoutMs =
+            (this.credentials.timeoutSeconds || 30) * 1000;
+        let timeoutTimer: ReturnType<typeof setTimeout> | undefined;
         try {
             // Inject query tags as a leading SQL comment for traceability.
             const taggedSql = options?.tags
@@ -255,13 +260,34 @@ export class DorisWarehouseClient extends WarehouseBaseClient<CreateDorisCredent
                 const fields: Record<string, { type: DimensionType }> = {};
                 let fieldsEmitted = false;
                 let processingPromise: Promise<void> = Promise.resolve();
+                let settled = false;
+
+                // Query-level timeout: cancel the query if it exceeds
+                // timeoutSeconds. Separate from connectTimeout (TCP handshake only).
+                timeoutTimer = setTimeout(() => {
+                    if (!settled) {
+                        settled = true;
+                        connection.destroy();
+                        reject(
+                            new WarehouseQueryError(
+                                `Query cancelled after ${queryTimeoutMs}ms (timeoutSeconds)`,
+                            ),
+                        );
+                    }
+                }, queryTimeoutMs);
 
                 // Canonical mysql2 streaming: events on the Query object with
                 // connection.pause()/resume() for backpressure. `?` placeholders
                 // are bound with parameterised values to prevent SQL injection.
                 const query = connection.query(taggedSql, options?.values ?? []);
 
-                query.on('error', reject);
+                query.on('error', (err) => {
+                    if (!settled) {
+                        settled = true;
+                        clearTimeout(timeoutTimer);
+                        reject(err);
+                    }
+                });
 
                 query.on('fields', (queryFields: mysql.FieldPacket[]) => {
                     queryFields.forEach((f) => {
@@ -283,19 +309,30 @@ export class DorisWarehouseClient extends WarehouseBaseClient<CreateDorisCredent
                             }
                             await streamCallback({ fields, rows: [row] });
                         })
-                        .catch(reject)
+                        .catch((err) => {
+                            if (!settled) {
+                                settled = true;
+                                clearTimeout(timeoutTimer);
+                                reject(err);
+                            }
+                        })
                         .finally(() => {
                             connection.resume();
                         });
                 });
 
                 query.on('end', () => {
-                    processingPromise.then(resolve).catch(reject);
+                    if (!settled) {
+                        settled = true;
+                        clearTimeout(timeoutTimer);
+                        processingPromise.then(resolve).catch(reject);
+                    }
                 });
             });
         } catch (e: unknown) {
             throw new WarehouseQueryError(getErrorMessage(e));
         } finally {
+            clearTimeout(timeoutTimer);
             connection.end();
         }
     }

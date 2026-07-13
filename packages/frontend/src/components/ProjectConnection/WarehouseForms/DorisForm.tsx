@@ -1,6 +1,6 @@
 import { WarehouseTypes } from '@lightdash/common';
 import { NumberInput, PasswordInput, Stack, TextInput } from '@mantine/core';
-import React, { type FC } from 'react';
+import React, { type FC, type ReactNode } from 'react';
 import { useToggle } from 'react-use';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
@@ -13,14 +13,18 @@ import { DorisDefaultValues } from './defaultValues';
 
 export const DorisSchemaInput: FC<{
     disabled: boolean;
-}> = ({ disabled }) => {
+    description?: ReactNode;
+}> = ({ disabled, description }) => {
     const form = useFormContext();
 
     return (
         <TextInput
             name="warehouse.schema"
             label="Schema"
-            description="This is the database name (Doris addresses tables as `database.table`)."
+            description={
+                description ??
+                'This is the database name (Doris addresses tables as `database.table`).'
+            }
             required
             {...form.getInputProps('warehouse.schema')}
             disabled={disabled}
@@ -122,6 +126,19 @@ const DorisForm: FC<{
 
                         <DataTimezoneField disabled={disabled} />
                         <StartOfWeekSelect disabled={disabled} />
+
+                        <BooleanSwitch
+                            name="warehouse.ssl"
+                            label="Enable SSL/TLS"
+                            description="Encrypt the connection between Lightdash and your Doris instance."
+                            {...form.getInputProps('warehouse.ssl', {
+                                type: 'checkbox',
+                            })}
+                            defaultChecked={
+                                DorisDefaultValues.ssl ?? false
+                            }
+                            disabled={disabled}
+                        />
                     </Stack>
                 </FormSection>
                 <FormCollapseButton isSectionOpen={isOpen} onClick={toggleOpen}>

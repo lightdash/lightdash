@@ -76,6 +76,11 @@ const getConnectionDefaults = (
                 database: undefined,
                 schema: nonEmpty(credentials.schema),
             };
+        case WarehouseTypes.DORIS:
+            return {
+                database: undefined,
+                schema: nonEmpty(credentials.schema),
+            };
         case WarehouseTypes.DUCKDB:
             if (credentials.connectionType === DuckdbConnectionType.DUCKLAKE) {
                 return {

@@ -185,6 +185,7 @@ export const DorisDefaultValues: CreateDorisCredentials = {
     startOfWeek: undefined,
     dataTimezone: undefined,
     timeoutSeconds: 300,
+    ssl: false,
 };
 
 export const AthenaDefaultValues: CreateAthenaCredentials = {

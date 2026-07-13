@@ -216,6 +216,7 @@ export type CreateDorisCredentials = {
     startOfWeek?: WeekDay | null;
     dataTimezone?: string;
     timeoutSeconds?: number;
+    ssl?: boolean;
 };
 export type DorisCredentials = Omit<
     CreateDorisCredentials,
