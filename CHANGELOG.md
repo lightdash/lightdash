@@ -1,3 +1,10 @@
+## [0.3364.1](https://github.com/lightdash/lightdash/compare/0.3364.0...0.3364.1) (2026-07-13)
+
+
+### Bug Fixes
+
+* **cli:** stable folder names for unnamed data apps on download ([#25411](https://github.com/lightdash/lightdash/issues/25411)) ([88bd92a](https://github.com/lightdash/lightdash/commit/88bd92a2396160ba3d90f511b8ad02ec12f127c0))
+
 # [0.3364.0](https://github.com/lightdash/lightdash/compare/0.3363.1...0.3364.0) (2026-07-13)
 
 
