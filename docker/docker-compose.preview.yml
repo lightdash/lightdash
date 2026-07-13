@@ -73,6 +73,14 @@ services:
             S3_BUCKET: ${S3_BUCKET}
             MCP_ENABLED: true
             CUSTOM_ROLES_ENABLED: true
+
+            # Enterprise Postgres wire protocol server for the semantic layer.
+            # Setting the port starts the listener and lights up the "Semantic
+            # layer" project settings page so the UI can be tested. NOTE: this
+            # only exposes the port inside the cluster — Okteto's HTTP ingress
+            # can't route raw Postgres TCP, so external clients can't connect to
+            # a preview yet.
+            PGWIRE_PORT: 5433
             # Enables the combined timezone feature (incl. user-level timezone
             # resolution) so the timezone api-tests pass.
             LIGHTDASH_ENABLE_TIMEZONE_SUPPORT: true
@@ -112,5 +120,6 @@ services:
             BRANDFETCH_API_KEY: ${BRANDFETCH_API_KEY}
         ports:
             - '8080:8080'
+            - '5433:5433'
         command: ['pnpm', 'start']
         entrypoint: ['/usr/bin/renderDeployHook.sh']
