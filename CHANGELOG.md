@@ -1,3 +1,10 @@
+# [0.3364.0](https://github.com/lightdash/lightdash/compare/0.3363.1...0.3364.0) (2026-07-13)
+
+
+### Features
+
+* **agents:** edit knowledge documents ([#25377](https://github.com/lightdash/lightdash/issues/25377)) ([72f93d0](https://github.com/lightdash/lightdash/commit/72f93d0f9babbf11f3f14a621f53e7035ff6316d))
+
 ## [0.3363.1](https://github.com/lightdash/lightdash/compare/0.3363.0...0.3363.1) (2026-07-10)
 
 
