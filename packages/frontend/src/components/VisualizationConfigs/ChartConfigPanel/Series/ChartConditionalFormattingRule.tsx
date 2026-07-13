@@ -6,8 +6,15 @@ import {
     type ConditionalFormattingWithFilterOperator,
     type FilterableItem,
 } from '@lightdash/common';
-import { Collapse, Group, Stack, Text, ActionIcon } from '@mantine-8/core';
-import { Select, TextInput, Tooltip } from '@mantine/core';
+import {
+    Collapse,
+    Group,
+    Stack,
+    Text,
+    ActionIcon,
+    Select,
+} from '@mantine-8/core';
+import { TextInput, Tooltip } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconChevronDown, IconChevronUp, IconTrash } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
@@ -96,6 +103,7 @@ export const ChartConditionalFormattingRule: FC<Props> = ({
             <Collapse in={isOpen}>
                 <Group wrap="nowrap" gap="xs">
                     <Select
+                        allowDeselect={false}
                         value={rule.operator}
                         data={filterOperatorOptions}
                         onChange={(value) => {
@@ -106,6 +114,7 @@ export const ChartConditionalFormattingRule: FC<Props> = ({
                         disabled={!field || !filterType}
                     />
                     <Select
+                        allowDeselect={false}
                         display={field && filterType ? 'none' : 'block'}
                         placeholder="Value(s)"
                         data={[]}

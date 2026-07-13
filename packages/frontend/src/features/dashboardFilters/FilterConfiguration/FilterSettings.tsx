@@ -15,14 +15,9 @@ import {
     Group,
     Stack,
     Text,
-} from '@mantine-8/core';
-import {
     Select,
-    Switch,
-    TextInput,
-    Tooltip,
-    type PopoverProps,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { Switch, TextInput, Tooltip, type PopoverProps } from '@mantine/core';
 import { IconHelpCircle, IconX } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import FilterInputComponent from '../../../components/common/Filters/FilterInputs';
@@ -129,16 +124,24 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                 )}
 
                 <Select
+                    allowDeselect={false}
                     size="xs"
                     data={filterOperatorOptions}
-                    withinPortal={popoverProps?.withinPortal}
+                    comboboxProps={{ withinPortal: popoverProps?.withinPortal }}
                     onDropdownOpen={popoverProps?.onOpen}
                     onDropdownClose={popoverProps?.onClose}
-                    onChange={handleChangeFilterOperator}
+                    onChange={(value) =>
+                        value &&
+                        handleChangeFilterOperator(
+                            value as FilterRule['operator'],
+                        )
+                    }
                     value={filterRule.operator}
-                    itemComponent={({ label, value, ...others }) => {
+                    renderOption={({ option }) => {
                         const description =
-                            filterOperatorDescription[value as FilterOperator];
+                            filterOperatorDescription[
+                                option.value as FilterOperator
+                            ];
                         if (description) {
                             return (
                                 <Tooltip
@@ -148,11 +151,11 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                     maw={300}
                                     withinPortal
                                 >
-                                    <div {...others}>{label}</div>
+                                    <div>{option.label}</div>
                                 </Tooltip>
                             );
                         }
-                        return <div {...others}>{label}</div>;
+                        return <div>{option.label}</div>;
                     }}
                     rightSectionWidth={140}
                     rightSectionProps={{

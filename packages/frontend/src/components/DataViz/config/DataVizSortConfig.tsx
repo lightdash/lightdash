@@ -1,10 +1,10 @@
 import { SortByDirection, type VizSortBy } from '@lightdash/common';
-import { Box, Text } from '@mantine-8/core';
-import { Select, Tooltip, useMantineTheme } from '@mantine/core';
+import { Box, Text, Select } from '@mantine-8/core';
+import { Tooltip } from '@mantine/core';
 import { IconArrowLeft, IconArrowRight } from '@tabler/icons-react';
 import { forwardRef, type ComponentPropsWithoutRef, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
-import { usePillSelectStyles } from '../hooks/usePillSelectStyles';
+import classes from './PillSelect.module.css';
 
 const SortIcon: FC<{ sortByDirection: VizSortBy['direction'] }> = ({
     sortByDirection,
@@ -42,23 +42,16 @@ const SortItem = forwardRef<
     HTMLDivElement,
     ComponentPropsWithoutRef<'div'> & {
         label: string;
-        value: SortByDirection | undefined;
+        value: SortByDirection | 'none';
         selected: boolean;
     }
->(({ value, label, ...others }, ref) => (
+>(({ value, label, selected: _selected, ...others }, ref) => (
     <Box ref={ref} {...others}>
-        <Text>{getSortLabel(value)}</Text>
+        <Text>{getSortLabel(value === 'none' ? undefined : value)}</Text>
     </Box>
 ));
 
 export const DataVizSortConfig: FC<Props> = ({ sortBy, onChangeSortBy }) => {
-    const { colors } = useMantineTheme();
-    const { classes, cx } = usePillSelectStyles({
-        backgroundColor: colors.ldGray[2],
-        textColor: colors.ldGray[7],
-        hoverColor: colors.ldGray[3],
-    });
-
     const selectOptions = [
         {
             value: 'none',
@@ -77,26 +70,38 @@ export const DataVizSortConfig: FC<Props> = ({ sortBy, onChangeSortBy }) => {
     return (
         <Tooltip label="Sort by" variant="xs" withinPortal>
             <Select
-                withinPortal
+                allowDeselect={false}
+                comboboxProps={{ withinPortal: true }}
                 data={selectOptions}
-                itemComponent={SortItem}
+                renderOption={({ option, checked }) => (
+                    <SortItem
+                        value={option.value as SortByDirection | 'none'}
+                        label={option.label}
+                        selected={checked ?? false}
+                    />
+                )}
                 value={sortBy ?? selectOptions[0].value}
-                onChange={(value: SortByDirection | 'none') =>
-                    onChangeSortBy(value === 'none' ? undefined : value)
+                onChange={(value) =>
+                    onChangeSortBy(
+                        value === 'none'
+                            ? undefined
+                            : (value as SortByDirection),
+                    )
                 }
-                icon={sortBy ? <SortIcon sortByDirection={sortBy} /> : null}
+                leftSection={
+                    sortBy ? <SortIcon sortByDirection={sortBy} /> : null
+                }
                 classNames={{
-                    item: classes.item,
+                    option: `${classes.option} ${classes.grayOption}`,
                     dropdown: classes.dropdown,
-                    input: cx(
-                        classes.input,
-                        !sortBy && classes.inputUnsetValue,
-                    ),
-                    rightSection: classes.rightSection,
+                    input: `${classes.input} ${classes.grayInput} ${
+                        !sortBy ? classes.inputUnsetValue : ''
+                    }`,
+                    section: classes.section,
                 }}
                 styles={{
                     input: {
-                        width: '105px',
+                        width: '115px',
                     },
                 }}
             />

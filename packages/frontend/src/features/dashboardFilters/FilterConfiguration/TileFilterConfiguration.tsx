@@ -23,8 +23,9 @@ import {
     Text,
     ActionIcon,
     Checkbox,
+    Select,
 } from '@mantine-8/core';
-import { Select, Tooltip, type PopoverProps } from '@mantine/core';
+import { Tooltip, type PopoverProps } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';
@@ -553,8 +554,8 @@ const TileFilterConfiguration: FC<Props> = ({
                                             w="100%"
                                             size="xs"
                                             searchable
-                                            dropdownComponent="div"
-                                            icon={undefined}
+                                            withScrollArea={false}
+                                            leftSection={undefined}
                                             allowDeselect={false}
                                             value={value.selectedField}
                                             data={

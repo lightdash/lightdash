@@ -6,17 +6,19 @@ import {
     validateOrganizationEmailDomains,
     type AllowedEmailDomains,
 } from '@lightdash/common';
-import { Flex, Stack, Text, Title, Button, ActionIcon } from '@mantine-8/core';
-import { MultiSelect, Select, Tooltip } from '@mantine/core';
+import {
+    Flex,
+    Stack,
+    Text,
+    Title,
+    Button,
+    ActionIcon,
+    Select,
+} from '@mantine-8/core';
+import { MultiSelect, Tooltip } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconHelpCircle, IconPlus, IconTrash } from '@tabler/icons-react';
-import {
-    forwardRef,
-    useEffect,
-    useMemo,
-    type FC,
-    type ForwardedRef,
-} from 'react';
+import { useEffect, useMemo, type FC } from 'react';
 import { z } from 'zod';
 import {
     useAllowedEmailDomains,
@@ -225,27 +227,23 @@ const AllowedDomainsPanel: FC = () => {
                 {!!form.values.emailDomains.length && (
                     <>
                         <Select
+                            allowDeselect={false}
                             label="Default role"
                             name="role"
                             placeholder="Organization viewer"
                             disabled={isLoading}
                             data={roleOptions}
-                            itemComponent={forwardRef(
-                                (
-                                    { subLabel, label, ...others }: any,
-                                    ref: ForwardedRef<HTMLDivElement>,
-                                ) => (
-                                    <Stack
-                                        ref={ref}
-                                        gap="xs"
-                                        p="xs"
-                                        {...others}
-                                    >
-                                        <Text size="sm">{label}</Text>
-                                        <Text size="xs">{subLabel}</Text>
+                            renderOption={({ option }) => {
+                                const role = roleOptions.find(
+                                    ({ value }) => value === option.value,
+                                );
+                                return (
+                                    <Stack gap="xs" p="xs">
+                                        <Text size="sm">{option.label}</Text>
+                                        <Text size="xs">{role?.subLabel}</Text>
                                     </Stack>
-                                ),
-                            )}
+                                );
+                            }}
                             defaultValue={OrganizationMemberRole.VIEWER}
                             {...form.getInputProps('role')}
                             onChange={(value) => {
@@ -281,6 +279,7 @@ const AllowedDomainsPanel: FC = () => {
                                                 gap="xs"
                                             >
                                                 <Select
+                                                    allowDeselect={false}
                                                     size="xs"
                                                     disabled={isLoading}
                                                     label={
@@ -316,6 +315,7 @@ const AllowedDomainsPanel: FC = () => {
                                                 />
 
                                                 <Select
+                                                    allowDeselect={false}
                                                     label={
                                                         index === 0
                                                             ? 'Project role'
@@ -324,50 +324,49 @@ const AllowedDomainsPanel: FC = () => {
                                                     disabled={isLoading}
                                                     size="xs"
                                                     data={projectRoleOptions}
-                                                    itemComponent={forwardRef(
-                                                        (
-                                                            {
-                                                                selected,
-                                                                subLabel,
-                                                                label,
-                                                                ...others
-                                                            }: any,
-                                                            ref: ForwardedRef<HTMLDivElement>,
-                                                        ) => {
-                                                            return (
-                                                                <Flex
-                                                                    ref={ref}
-                                                                    gap="xs"
-                                                                    justify="space-between"
-                                                                    align="center"
-                                                                    {...others}
-                                                                >
-                                                                    <Text size="xs">
-                                                                        {label}
-                                                                    </Text>
-
-                                                                    <Tooltip
-                                                                        withinPortal
-                                                                        multiline
-                                                                        label={
-                                                                            subLabel
-                                                                        }
-                                                                    >
-                                                                        <MantineIcon
-                                                                            color={
-                                                                                selected
-                                                                                    ? 'white'
-                                                                                    : 'grey'
-                                                                            }
-                                                                            icon={
-                                                                                IconHelpCircle
-                                                                            }
-                                                                        />
-                                                                    </Tooltip>
-                                                                </Flex>
+                                                    renderOption={({
+                                                        option,
+                                                        checked,
+                                                    }) => {
+                                                        const role =
+                                                            projectRoleOptions.find(
+                                                                ({ value }) =>
+                                                                    value ===
+                                                                    option.value,
                                                             );
-                                                        },
-                                                    )}
+                                                        return (
+                                                            <Flex
+                                                                gap="xs"
+                                                                justify="space-between"
+                                                                align="center"
+                                                            >
+                                                                <Text size="xs">
+                                                                    {
+                                                                        option.label
+                                                                    }
+                                                                </Text>
+
+                                                                <Tooltip
+                                                                    withinPortal
+                                                                    multiline
+                                                                    label={
+                                                                        role?.subLabel
+                                                                    }
+                                                                >
+                                                                    <MantineIcon
+                                                                        color={
+                                                                            checked
+                                                                                ? 'white'
+                                                                                : 'grey'
+                                                                        }
+                                                                        icon={
+                                                                            IconHelpCircle
+                                                                        }
+                                                                    />
+                                                                </Tooltip>
+                                                            </Flex>
+                                                        );
+                                                    }}
                                                     defaultValue={
                                                         ProjectMemberRole.VIEWER
                                                     }

@@ -19,8 +19,17 @@ import {
     type DashboardTile,
     type ResultColumn,
 } from '@lightdash/common';
-import { Box, Button, Flex, Group, Stack, Tabs, Text } from '@mantine-8/core';
-import { Select, Tooltip, type PopoverProps } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Flex,
+    Group,
+    Stack,
+    Tabs,
+    Text,
+    Select,
+} from '@mantine-8/core';
+import { Tooltip, type PopoverProps } from '@mantine/core';
 import { IconRotate2, IconSql } from '@tabler/icons-react';
 import { produce } from 'immer';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
@@ -430,6 +439,7 @@ const FilterConfiguration: FC<Props> = ({
                                 />
                             ) : (
                                 <Select
+                                    allowDeselect={false}
                                     size="xs"
                                     label={
                                         <Text>

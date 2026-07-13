@@ -1,12 +1,13 @@
 import { RedshiftAuthenticationType, WarehouseTypes } from '@lightdash/common';
-import { CopyButton, Stack, Button, ActionIcon, Anchor } from '@mantine-8/core';
 import {
-    NumberInput,
-    PasswordInput,
+    CopyButton,
+    Stack,
+    Button,
+    ActionIcon,
+    Anchor,
     Select,
-    TextInput,
-    Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { NumberInput, PasswordInput, TextInput, Tooltip } from '@mantine/core';
 import { IconCheck, IconCopy } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
 import { useToggle } from 'react-use';
@@ -241,6 +242,7 @@ const RedshiftForm: FC<{
                         />
 
                         <Select
+                            allowDeselect={false}
                             name="warehouse.sslmode"
                             {...form.getInputProps('warehouse.sslmode')}
                             defaultValue={RedshiftDefaultValues.sslmode}

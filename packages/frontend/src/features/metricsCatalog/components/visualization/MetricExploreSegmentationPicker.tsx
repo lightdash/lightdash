@@ -13,12 +13,14 @@ import {
     Loader,
     Stack,
     Text,
+    Select,
 } from '@mantine-8/core';
-import { Select, Tooltip } from '@mantine/core';
+import { Tooltip } from '@mantine/core';
 import { IconInfoCircle, IconX } from '@tabler/icons-react';
 import { type UseQueryResult } from '@tanstack/react-query';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { groupComboboxItems } from '../../../../components/common/Select/utils';
 import { Blocks } from '../../../../svgs/metricsCatalog';
 import { useSelectStyles } from '../../styles/useSelectStyles';
 import SelectItem from '../SelectItem';
@@ -43,11 +45,13 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
 
     const segmentByData = useMemo(
         () =>
-            dimensions?.map((dimension) => ({
-                value: getItemId(dimension),
-                label: dimension.label,
-                group: dimension.tableLabel,
-            })) ?? [],
+            groupComboboxItems(
+                dimensions?.map((dimension) => ({
+                    value: getItemId(dimension),
+                    label: dimension.label,
+                    group: dimension.tableLabel,
+                })) ?? [],
+            ),
         [dimensions],
     );
 
@@ -92,8 +96,9 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
             >
                 <Box>
                     <Select
+                        allowDeselect={false}
                         placeholder="Segment by"
-                        icon={<Blocks />}
+                        leftSection={<Blocks />}
                         searchable
                         radius="md"
                         size="xs"
@@ -104,7 +109,13 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
                                 ? query.segmentDimension
                                 : null
                         }
-                        itemComponent={SelectItem}
+                        renderOption={({ option, checked }) => (
+                            <SelectItem
+                                value={option.value}
+                                label={option.label}
+                                selected={checked ?? false}
+                            />
+                        )}
                         onChange={onSegmentDimensionChange}
                         data-disabled={!segmentDimensionsQuery.isSuccess}
                         rightSection={
@@ -113,11 +124,7 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
                             ) : undefined
                         }
                         classNames={classes}
-                        sx={{
-                            '&:hover': {
-                                cursor: 'not-allowed',
-                            },
-                        }}
+                        className={styles.segmentationSelect}
                     />
                 </Box>
             </Tooltip>

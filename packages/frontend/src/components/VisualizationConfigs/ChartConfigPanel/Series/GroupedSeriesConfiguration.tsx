@@ -19,8 +19,8 @@ import {
     type Series,
     type TableCalculation,
 } from '@lightdash/common';
-import { Box, Checkbox, Group, Stack } from '@mantine-8/core';
-import { Select, Switch } from '@mantine/core';
+import { Box, Checkbox, Group, Stack, Select } from '@mantine-8/core';
+import { Switch } from '@mantine/core';
 import React, { useCallback, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
@@ -186,6 +186,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                         />
 
                         <Select
+                            allowDeselect={false}
                             label="Axis"
                             value={
                                 isAxisTheSameForAllSeries
@@ -214,6 +215,7 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                             }}
                         />
                         <Select
+                            allowDeselect={false}
                             label="Value labels"
                             value={
                                 isLabelTheSameForAllSeries
