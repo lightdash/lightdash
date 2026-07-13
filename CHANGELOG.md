@@ -1,3 +1,12 @@
+## [0.3364.2](https://github.com/lightdash/lightdash/compare/0.3364.1...0.3364.2) (2026-07-13)
+
+
+### Bug Fixes
+
+* **backend:** decouple dbt `latest` from newest listed version ([#25421](https://github.com/lightdash/lightdash/issues/25421)) ([d002b84](https://github.com/lightdash/lightdash/commit/d002b8427e5c50849c332a9a0bc72434f4fc294b))
+* **frontend:** clarify route chunk load errors ([#25290](https://github.com/lightdash/lightdash/issues/25290)) ([c647a6e](https://github.com/lightdash/lightdash/commit/c647a6eff413cd90cd0b34ae938935010545a3d5))
+* **frontend:** invalid DOM nesting and v6 Button props in error fallbacks ([#25423](https://github.com/lightdash/lightdash/issues/25423)) ([ea02517](https://github.com/lightdash/lightdash/commit/ea02517e3fd32d7596d6b632a921b75d7a4673b7))
+
 ## [0.3364.1](https://github.com/lightdash/lightdash/compare/0.3364.0...0.3364.1) (2026-07-13)
 
 
