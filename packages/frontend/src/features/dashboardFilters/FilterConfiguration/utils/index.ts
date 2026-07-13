@@ -20,6 +20,13 @@ import isEqual from 'lodash/isEqual';
  */
 export type FilterTileRelation = 'auto' | 'disabled' | 'mapped';
 
+export const getValidSqlColumnReferences = (
+    columns: ReadonlyArray<{ reference?: unknown }>,
+): string[] =>
+    columns.flatMap(({ reference }) =>
+        typeof reference === 'string' ? [reference] : [],
+    );
+
 /**
  * Gets the relationship between a filter and a tile based on tileTargets configuration.
  *
