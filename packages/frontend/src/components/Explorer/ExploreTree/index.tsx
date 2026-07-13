@@ -259,6 +259,7 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
             <TextInput
                 leftSection={<MantineIcon icon={IconSearch} />}
                 rightSectionPointerEvents={isPending ? 'none' : 'all'}
+                radius="md"
                 rightSection={
                     isPending ? (
                         <Loader
