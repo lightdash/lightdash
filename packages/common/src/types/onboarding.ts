@@ -1,4 +1,5 @@
 import type { ApiSuccess } from './api/success';
+import type { CreateWarehouseCredentials } from './projects';
 
 export enum OnboardingStepType {
     CONNECT = 'connect',
@@ -70,3 +71,21 @@ export type ApiOnboardingProjectStateResponse =
 
 export type ApiConnectionDiagnosticResponse =
     ApiSuccess<ConnectionDiagnosticResult>;
+
+export type TestOnboardingConnectionRequest = {
+    warehouseConnection: CreateWarehouseCredentials;
+};
+
+export type GrantScriptRequest = {
+    roleName: string;
+    databaseName: string;
+    warehouseName: string;
+    userName: string | null;
+    schemas: string[] | null;
+};
+
+export type GrantScriptResult = {
+    sql: string;
+};
+
+export type ApiGrantScriptResponse = ApiSuccess<GrantScriptResult>;

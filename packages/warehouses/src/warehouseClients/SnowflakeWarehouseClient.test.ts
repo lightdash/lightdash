@@ -4,6 +4,8 @@ import { Readable } from 'stream';
 import type { Mock } from 'vitest';
 import {
     mapFieldType,
+    mapSnowflakeDiagnosticError,
+    SnowflakeDiagnosticError,
     SnowflakeWarehouseClient,
 } from './SnowflakeWarehouseClient';
 import {
@@ -113,6 +115,70 @@ describe('SnowflakeWarehouseClient', () => {
         expect(await warehouse.getCatalog(config)).toEqual(
             expectedWarehouseSchema,
         );
+    });
+});
+
+describe('mapSnowflakeDiagnosticError', () => {
+    it.each([
+        [
+            { code: 'ENOTFOUND', message: 'getaddrinfo ENOTFOUND host' },
+            'account_identifier',
+        ],
+        [
+            {
+                code: 250001,
+                message: 'Incorrect username or password was specified',
+            },
+            'authentication',
+        ],
+        [
+            {
+                code: 'ERR_OSSL_PEM_BAD_BASE64_DECODE',
+                message: 'PEM routines failed',
+            },
+            'private_key',
+        ],
+        [
+            { code: 390144, message: 'Authentication token rejected' },
+            'private_key',
+        ],
+        [
+            {
+                code: 390422,
+                message: 'Incoming request rejected',
+            },
+            'network_policy',
+        ],
+        [
+            {
+                code: '002003',
+                message:
+                    "Database 'ANALYTICS' does not exist or not authorized",
+            },
+            'database_access',
+        ],
+        [
+            {
+                code: '002043',
+                message: "Warehouse 'COMPUTE' does not exist or not authorized",
+            },
+            'warehouse_access',
+        ],
+        [{ code: 'UNKNOWN', message: 'socket closed unexpectedly' }, 'unknown'],
+    ])('maps %o to %s without exposing its raw message', (error, category) => {
+        const result = mapSnowflakeDiagnosticError(error);
+
+        expect(result.category).toBe(category);
+        expect(result.code).toBe(String(error.code));
+        expect(result.sanitizedMessage).not.toContain(error.message);
+    });
+
+    it('keeps the raw error non-enumerable for internal inspection', () => {
+        const rawError = new Error('sensitive socket detail');
+        const error = new SnowflakeDiagnosticError(rawError);
+
+        expect(error.getRawError()).toBe(rawError);
+        expect(JSON.stringify(error)).not.toContain('sensitive socket detail');
     });
 });
 

@@ -37999,6 +37999,174 @@
             "UpdateOnboardingProjectStep": {
                 "$ref": "#/components/schemas/Pick_OnboardingProjectStep.step-or-status-or-result_"
             },
+            "ConnectionCheckId": {
+                "type": "string",
+                "enum": [
+                    "resolve_host",
+                    "open_connection",
+                    "authenticate",
+                    "list_schemas",
+                    "select_1"
+                ]
+            },
+            "ConnectionCheckStatus": {
+                "type": "string",
+                "enum": ["pending", "running", "passed", "failed", "skipped"]
+            },
+            "ConnectionCheckDiagnosis": {
+                "properties": {
+                    "docsUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "remedySql": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "detail": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    }
+                },
+                "required": ["docsUrl", "remedySql", "detail", "title"],
+                "type": "object"
+            },
+            "ConnectionCheck": {
+                "properties": {
+                    "diagnosis": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ConnectionCheckDiagnosis"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "durationMs": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/ConnectionCheckStatus"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "id": {
+                        "$ref": "#/components/schemas/ConnectionCheckId"
+                    }
+                },
+                "required": [
+                    "diagnosis",
+                    "durationMs",
+                    "status",
+                    "label",
+                    "id"
+                ],
+                "type": "object"
+            },
+            "ConnectionDiagnosticResult": {
+                "properties": {
+                    "checks": {
+                        "items": {
+                            "$ref": "#/components/schemas/ConnectionCheck"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["passed", "failed"]
+                    }
+                },
+                "required": ["checks", "status"],
+                "type": "object"
+            },
+            "ApiSuccess_ConnectionDiagnosticResult_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ConnectionDiagnosticResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiConnectionDiagnosticResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_ConnectionDiagnosticResult_"
+            },
+            "TestOnboardingConnectionRequest": {
+                "properties": {
+                    "warehouseConnection": {
+                        "$ref": "#/components/schemas/CreateWarehouseCredentials"
+                    }
+                },
+                "required": ["warehouseConnection"],
+                "type": "object"
+            },
+            "GrantScriptResult": {
+                "properties": {
+                    "sql": {
+                        "type": "string"
+                    }
+                },
+                "required": ["sql"],
+                "type": "object"
+            },
+            "ApiSuccess_GrantScriptResult_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/GrantScriptResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiGrantScriptResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_GrantScriptResult_"
+            },
+            "GrantScriptRequest": {
+                "properties": {
+                    "schemas": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
+                    "userName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "warehouseName": {
+                        "type": "string"
+                    },
+                    "databaseName": {
+                        "type": "string"
+                    },
+                    "roleName": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "schemas",
+                    "userName",
+                    "warehouseName",
+                    "databaseName",
+                    "roleName"
+                ],
+                "type": "object"
+            },
             "NotificationBase": {
                 "properties": {
                     "url": {
@@ -64297,6 +64465,90 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/UpdateOnboardingProjectStep"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/onboarding/connection/test": {
+            "post": {
+                "operationId": "TestOnboardingConnection",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiConnectionDiagnosticResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Test draft warehouse credentials without persisting them.",
+                "summary": "Test connection",
+                "tags": ["Onboarding"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TestOnboardingConnectionRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/onboarding/connection/grant-script": {
+            "post": {
+                "operationId": "GenerateOnboardingGrantScript",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGrantScriptResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Generate a least-privilege Snowflake grant script for draft connection settings without persisting them.",
+                "summary": "Generate grants",
+                "tags": ["Onboarding"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/GrantScriptRequest"
                             }
                         }
                     }

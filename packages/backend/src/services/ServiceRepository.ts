@@ -80,6 +80,7 @@ import { UnfurlService } from './UnfurlService/UnfurlService';
 import { UserAttributesService } from './UserAttributesService/UserAttributesService';
 import { UserService } from './UserService';
 import { ValidationService } from './ValidationService/ValidationService';
+import { WarehouseDiagnosticsService } from './WarehouseDiagnosticsService/WarehouseDiagnosticsService';
 /**
  * Interface outlining all services available under the `ServiceRepository`. Add new services to
  * this list (in alphabetical order, please!) to have typescript help ensure you've updated the
@@ -131,6 +132,7 @@ interface ServiceManifest {
     userAttributesService: UserAttributesService;
     userService: UserService;
     validationService: ValidationService;
+    warehouseDiagnosticsService: WarehouseDiagnosticsService;
     catalogService: CatalogService;
     metricsExplorerService: MetricsExplorerService;
     promoteService: PromoteService;
@@ -1152,6 +1154,13 @@ export class ServiceRepository
                     spacePermissionService: this.getSpacePermissionService(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
+        );
+    }
+
+    public getWarehouseDiagnosticsService(): WarehouseDiagnosticsService {
+        return this.getService(
+            'warehouseDiagnosticsService',
+            () => new WarehouseDiagnosticsService(),
         );
     }
 

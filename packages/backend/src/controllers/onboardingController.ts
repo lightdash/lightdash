@@ -1,7 +1,11 @@
 import {
+    ApiConnectionDiagnosticResponse,
     ApiErrorPayload,
+    ApiGrantScriptResponse,
     ApiOnboardingProjectStateResponse,
     assertRegisteredAccount,
+    GrantScriptRequest,
+    TestOnboardingConnectionRequest,
     UpdateOnboardingProjectStep,
     type UUID,
 } from '@lightdash/common';
@@ -12,6 +16,7 @@ import {
     OperationId,
     Patch,
     Path,
+    Post,
     Request,
     Response,
     Route,
@@ -72,6 +77,59 @@ export class OnboardingController extends BaseController {
                     body.status,
                     body.result,
                 ),
+        };
+    }
+}
+
+@Route('/api/v1/onboarding/connection')
+@Response<ApiErrorPayload>('default', 'Error')
+@Tags('Onboarding')
+export class OnboardingConnectionController extends BaseController {
+    /**
+     * Test draft warehouse credentials without persisting them.
+     * @summary Test connection
+     */
+    @Middlewares([isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/test')
+    @OperationId('TestOnboardingConnection')
+    async testConnection(
+        @Body() body: TestOnboardingConnectionRequest,
+        @Request() req: express.Request,
+    ): Promise<ApiConnectionDiagnosticResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getWarehouseDiagnosticsService()
+                .testConnection(req.account, body.warehouseConnection),
+        };
+    }
+
+    /**
+     * Generate a least-privilege Snowflake grant script for draft connection settings without persisting them.
+     * @summary Generate grants
+     */
+    @Middlewares([isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/grant-script')
+    @OperationId('GenerateOnboardingGrantScript')
+    async getGrantScript(
+        @Body() body: GrantScriptRequest,
+        @Request() req: express.Request,
+    ): Promise<ApiGrantScriptResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getWarehouseDiagnosticsService()
+                .getGrantScript(req.account, {
+                    roleName: body.roleName,
+                    databaseName: body.databaseName,
+                    warehouseName: body.warehouseName,
+                    userName: body.userName ?? undefined,
+                    schemas: body.schemas ?? undefined,
+                }),
         };
     }
 }

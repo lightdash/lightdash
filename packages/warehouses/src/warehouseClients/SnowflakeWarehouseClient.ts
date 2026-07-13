@@ -18,6 +18,7 @@ import {
     type WarehouseExecuteAsyncQueryArgs,
 } from '@lightdash/common';
 import * as crypto from 'crypto';
+import { lookup } from 'dns/promises';
 import {
     Column,
     configure,
@@ -95,6 +96,139 @@ const normaliseSnowflakeType = (type: string): string => {
 };
 
 const EXTERNAL_BROWSER_AUTHENTICATOR = 'EXTERNALBROWSER';
+
+export type SnowflakeDiagnosticErrorCategory =
+    | 'account_identifier'
+    | 'authentication'
+    | 'private_key'
+    | 'database_access'
+    | 'warehouse_access'
+    | 'network_policy'
+    | 'unknown';
+
+export type SnowflakeDiagnosticErrorDetails = {
+    category: SnowflakeDiagnosticErrorCategory;
+    code: string | null;
+    sanitizedMessage: string;
+};
+
+const DIAGNOSTIC_MESSAGES: Record<SnowflakeDiagnosticErrorCategory, string> = {
+    account_identifier: 'The Snowflake account host could not be resolved.',
+    authentication: 'Snowflake rejected the supplied username or password.',
+    private_key:
+        'Snowflake could not authenticate with the supplied private key.',
+    database_access: 'The configured role cannot access the database.',
+    warehouse_access: 'The configured role cannot use the warehouse.',
+    network_policy:
+        'Snowflake blocked this connection because of a network policy.',
+    unknown: 'Snowflake could not complete the connection check.',
+};
+
+export const mapSnowflakeDiagnosticError = (
+    error: unknown,
+): SnowflakeDiagnosticErrorDetails => {
+    const errorWithCode = error as Partial<
+        SnowflakeError & NodeJS.ErrnoException
+    >;
+    const rawMessage =
+        typeof errorWithCode?.message === 'string'
+            ? errorWithCode.message
+            : getErrorMessage(error);
+    const normalizedMessage = rawMessage.toLowerCase();
+    const code =
+        typeof errorWithCode?.code === 'string' ||
+        typeof errorWithCode?.code === 'number'
+            ? String(errorWithCode.code)
+            : null;
+
+    let category: SnowflakeDiagnosticErrorCategory = 'unknown';
+    if (code === 'ENOTFOUND' || normalizedMessage.includes('enotfound')) {
+        category = 'account_identifier';
+    } else if (
+        code === '390144' ||
+        normalizedMessage.includes('private key') ||
+        normalizedMessage.includes('passphrase') ||
+        normalizedMessage.includes('jwt') ||
+        normalizedMessage.includes('pkcs') ||
+        normalizedMessage.includes('pem routines') ||
+        normalizedMessage.includes('asn1')
+    ) {
+        category = 'private_key';
+    } else if (
+        code === '250001' ||
+        normalizedMessage.includes('incorrect username or password') ||
+        normalizedMessage.includes('incorrect username-password')
+    ) {
+        category = 'authentication';
+    } else if (
+        code === '390422' ||
+        normalizedMessage.includes('network policy') ||
+        normalizedMessage.includes('ip address is not allowed') ||
+        normalizedMessage.includes('not allowed to access snowflake')
+    ) {
+        category = 'network_policy';
+    } else if (
+        normalizedMessage.includes('warehouse') &&
+        (normalizedMessage.includes('not authorized') ||
+            normalizedMessage.includes('does not exist') ||
+            normalizedMessage.includes('no active warehouse') ||
+            normalizedMessage.includes('insufficient privileges'))
+    ) {
+        category = 'warehouse_access';
+    } else if (
+        normalizedMessage.includes('database') &&
+        (normalizedMessage.includes('not authorized') ||
+            normalizedMessage.includes('does not exist') ||
+            normalizedMessage.includes('insufficient privileges'))
+    ) {
+        category = 'database_access';
+    }
+
+    return {
+        category,
+        code,
+        sanitizedMessage: DIAGNOSTIC_MESSAGES[category],
+    };
+};
+
+export class SnowflakeDiagnosticError extends Error {
+    readonly details: SnowflakeDiagnosticErrorDetails;
+
+    private readonly rawError!: unknown;
+
+    constructor(error: unknown) {
+        const details = mapSnowflakeDiagnosticError(error);
+        super(details.sanitizedMessage);
+        this.name = 'SnowflakeDiagnosticError';
+        this.details = details;
+        Object.defineProperty(this, 'rawError', {
+            configurable: false,
+            enumerable: false,
+            value: error,
+            writable: false,
+        });
+    }
+
+    getRawError(): unknown {
+        return this.rawError;
+    }
+}
+
+export type SnowflakeDiagnosticSession = {
+    connection: Connection;
+};
+
+export type SnowflakeDiagnosticIdentity = {
+    role: string | null;
+    user: string | null;
+    database: string | null;
+    warehouse: string | null;
+};
+
+export type SnowflakeDiagnosticTables = {
+    schemaCount: number;
+    tableCount: number;
+};
 
 export const mapFieldType = (type: string): DimensionType => {
     switch (normaliseSnowflakeType(type)) {
@@ -222,6 +356,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     // We cache the promise itself (not the resolved connection) to prevent race conditions
     private externalBrowserConnectionPromise?: Promise<Connection>;
 
+    private readonly privateKey: string | undefined;
+
+    private readonly privateKeyPassphrase: string | undefined;
+
     constructor(credentials: CreateSnowflakeCredentials) {
         super(credentials, new SnowflakeSqlBuilder(credentials.startOfWeek));
         if (typeof credentials.quotedIdentifiersIgnoreCase !== 'undefined') {
@@ -262,36 +400,11 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 credentials.authenticationType ===
                     SnowflakeAuthenticationType.PRIVATE_KEY)
         ) {
-            if (!credentials.privateKeyPass) {
-                authenticationOptions = {
-                    username: credentials.user,
-                    role: credentials.role,
-                    privateKey: credentials.privateKey,
-                    authenticator: 'SNOWFLAKE_JWT',
-                };
-            } else {
-                /**
-                 * @ref https://docs.snowflake.com/en/developer-guide/node-js/nodejs-driver-authenticate#use-key-pair-authentication-and-key-pair-rotation
-                 */
-                const privateKeyObject = crypto.createPrivateKey({
-                    key: credentials.privateKey,
-                    format: 'pem',
-                    passphrase: credentials.privateKeyPass,
-                });
-
-                // Extract the private key from the object as a PEM-encoded string.
-                const privateKey = privateKeyObject.export({
-                    format: 'pem',
-                    type: 'pkcs8',
-                });
-
-                authenticationOptions = {
-                    username: credentials.user,
-                    role: credentials.role,
-                    privateKey: privateKey.toString(),
-                    authenticator: 'SNOWFLAKE_JWT',
-                };
-            }
+            authenticationOptions = {
+                username: credentials.user,
+                role: credentials.role,
+                authenticator: 'SNOWFLAKE_JWT',
+            };
         } else if (credentials.password) {
             authenticationOptions = {
                 username: credentials.user,
@@ -300,6 +413,9 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 authenticator: 'SNOWFLAKE',
             };
         }
+
+        this.privateKey = credentials.privateKey;
+        this.privateKeyPassphrase = credentials.privateKeyPass;
 
         this.connectionOptions = {
             account: credentials.account,
@@ -356,6 +472,30 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         return this.createConnection(connectionOptionsOverrides);
     }
 
+    private getConnectionOptions(
+        connectionOptionsOverrides?: Partial<ConnectionOptions>,
+    ): ConnectionOptions {
+        let privateKey: string | undefined;
+        if (this.privateKey && this.privateKeyPassphrase) {
+            privateKey = crypto
+                .createPrivateKey({
+                    key: this.privateKey,
+                    format: 'pem',
+                    passphrase: this.privateKeyPassphrase,
+                })
+                .export({ format: 'pem', type: 'pkcs8' })
+                .toString();
+        } else {
+            privateKey = this.privateKey;
+        }
+
+        return {
+            ...this.connectionOptions,
+            ...(privateKey ? { privateKey } : {}),
+            ...connectionOptionsOverrides,
+        };
+    }
+
     /**
      * Creates and caches a connection for external browser authentication.
      * This prevents opening multiple browser tabs when parallel queries are executed.
@@ -373,8 +513,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             let connection: Connection;
             try {
                 connection = createConnection({
-                    ...this.connectionOptions,
-                    ...connectionOptionsOverrides,
+                    ...this.getConnectionOptions(connectionOptionsOverrides),
                 });
 
                 console.info(
@@ -406,8 +545,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         let connection: Connection;
         try {
             connection = createConnection({
-                ...this.connectionOptions,
-                ...connectionOptionsOverrides,
+                ...this.getConnectionOptions(connectionOptionsOverrides),
             });
 
             await Util.promisify(connection.connect.bind(connection))();
@@ -417,6 +555,115 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             );
         }
         return connection;
+    }
+
+    getDiagnosticHost(): string {
+        if (this.connectionOptions.accessUrl) {
+            return new URL(this.connectionOptions.accessUrl).hostname;
+        }
+
+        const [account, ...regionParts] =
+            this.connectionOptions.account.split('.');
+        const region = regionParts.join('.');
+        if (!region || region.toLowerCase() === 'us-west-2') {
+            return `${account}.snowflakecomputing.com`;
+        }
+        const domain = region.toLowerCase().startsWith('cn-')
+            ? 'snowflakecomputing.cn'
+            : 'snowflakecomputing.com';
+        return `${account}.${region}.${domain}`;
+    }
+
+    async resolveDiagnosticHost(): Promise<void> {
+        try {
+            await lookup(this.getDiagnosticHost());
+        } catch (error) {
+            throw new SnowflakeDiagnosticError(error);
+        }
+    }
+
+    async openDiagnosticConnection(): Promise<SnowflakeDiagnosticSession> {
+        try {
+            const connection = createConnection(this.getConnectionOptions());
+            await Util.promisify(connection.connect.bind(connection))();
+            return { connection };
+        } catch (error) {
+            throw new SnowflakeDiagnosticError(error);
+        }
+    }
+
+    async authenticateDiagnosticConnection(
+        session: SnowflakeDiagnosticSession,
+    ): Promise<SnowflakeDiagnosticIdentity> {
+        try {
+            const result = await this.executeStatements(
+                session.connection,
+                'SELECT CURRENT_ROLE() AS role, CURRENT_USER() AS user, CURRENT_DATABASE() AS database, CURRENT_WAREHOUSE() AS warehouse',
+            );
+            const row = (result.rows[0] ?? {}) as Record<string, AnyType>;
+            const value = (name: string): string | null => {
+                const resultValue = row[name] ?? row[name.toUpperCase()];
+                return typeof resultValue === 'string' ? resultValue : null;
+            };
+            return {
+                role: value('role'),
+                user: value('user'),
+                database: value('database'),
+                warehouse: value('warehouse'),
+            };
+        } catch (error) {
+            throw new SnowflakeDiagnosticError(error);
+        }
+    }
+
+    async listDiagnosticTables(
+        session: SnowflakeDiagnosticSession,
+    ): Promise<SnowflakeDiagnosticTables> {
+        try {
+            const result = await this.executeStatements(
+                session.connection,
+                `
+                    SELECT
+                        TABLE_CATALOG as "table_catalog",
+                        TABLE_SCHEMA as "table_schema",
+                        TABLE_NAME as "table_name"
+                    FROM information_schema.tables
+                    WHERE TABLE_TYPE IN ('BASE TABLE', 'VIEW')
+                    ORDER BY 1,2,3
+                `,
+            );
+            const schemas = new Set(
+                result.rows.flatMap((row) => {
+                    const value = (row as Record<string, AnyType>).table_schema;
+                    return typeof value === 'string' ? [value] : [];
+                }),
+            );
+            return {
+                schemaCount: schemas.size,
+                tableCount: result.rows.length,
+            };
+        } catch (error) {
+            throw new SnowflakeDiagnosticError(error);
+        }
+    }
+
+    async selectOneDiagnosticConnection(
+        session: SnowflakeDiagnosticSession,
+    ): Promise<void> {
+        try {
+            await this.executeStatements(session.connection, 'SELECT 1');
+        } catch (error) {
+            throw new SnowflakeDiagnosticError(error);
+        }
+    }
+
+    async closeDiagnosticConnection(
+        session: SnowflakeDiagnosticSession,
+    ): Promise<void> {
+        await this.destroyConnection(
+            session.connection,
+            this.connectionOptions.authenticator,
+        );
     }
 
     /**
