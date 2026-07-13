@@ -4,14 +4,16 @@ import {
     type MetricExplorerDateRange,
     type TimeDimensionConfig,
 } from '@lightdash/common';
-import { Box, Divider, Group, Stack, Text, Button } from '@mantine-8/core';
 import {
-    Popover,
+    Box,
+    Divider,
+    Group,
+    Stack,
+    Text,
+    Button,
     SegmentedControl,
-    TextInput,
-    Tooltip,
-    UnstyledButton,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { Popover, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
 import { DatePicker, MonthPicker, YearPicker } from '@mantine/dates';
 import { useCallback, useEffect, useRef, type FC } from 'react';
 import useTracking from '../../../../providers/Tracking/useTracking';
@@ -19,6 +21,7 @@ import { EventName } from '../../../../types/Events';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import { useDateRangePicker } from '../../hooks/useDateRangePicker';
 import { getMatchingPresetLabel } from '../../utils/metricExploreDate';
+import styles from './MetricExploreDatePicker.module.css';
 import { TimeDimensionIntervalPicker } from './TimeDimensionIntervalPicker';
 
 type Props = {
@@ -187,35 +190,12 @@ export const MetricExploreDatePicker: FC<Props> = ({
                         }}
                         transitionDuration={300}
                         transitionTimingFunction="linear"
-                        styles={(theme) => ({
-                            root: {
-                                border: `1px solid ${theme.colors.ldGray[2]}`,
-                                borderRadius: theme.radius.md,
-                                backgroundColor: theme.colors.ldGray[0],
-                                alignItems: 'center',
-                            },
-                            label: {
-                                fontSize: theme.fontSizes.sm,
-                                color: theme.colors.ldGray[6],
-                                fontWeight: 500,
-                                paddingLeft: theme.spacing.sm,
-                                paddingRight: theme.spacing.sm,
-                                '&[data-active]': {
-                                    color: theme.colors.ldDark[7],
-                                },
-                            },
-                            control: {
-                                '&:not(:first-of-type)': {
-                                    borderLeft: 'none',
-                                },
-                            },
-                            indicator: {
-                                boxShadow: theme.shadows.subtle,
-                                border: `1px solid ${theme.colors.ldGray[3]}`,
-                                borderRadius: theme.radius.md,
-                                top: 4,
-                            },
-                        })}
+                        withItemsBorders={false}
+                        classNames={{
+                            root: styles.root,
+                            label: styles.label,
+                            indicator: styles.indicator,
+                        }}
                     />
                     {showTimeDimensionIntervalPicker &&
                         timeDimensionBaseField && (

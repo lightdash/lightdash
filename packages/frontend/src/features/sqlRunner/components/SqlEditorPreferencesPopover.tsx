@@ -1,6 +1,12 @@
 import { WarehouseTypes } from '@lightdash/common';
-import { Group, Stack, Text, ActionIcon } from '@mantine-8/core';
-import { Popover, SegmentedControl } from '@mantine/core';
+import {
+    Group,
+    Stack,
+    Text,
+    ActionIcon,
+    SegmentedControl,
+} from '@mantine-8/core';
+import { Popover } from '@mantine/core';
 import { IconCodeCircle } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -85,9 +91,11 @@ export const SqlEditorPreferencesPopover: FC = () => {
                                     { label: 'Never', value: 'never' },
                                 ]}
                                 value={settings.quotePreference}
-                                onChange={(
-                                    value: SqlEditorPreferences['quotePreference'],
-                                ) => handleQuotePreferenceChange(value)}
+                                onChange={(value) =>
+                                    handleQuotePreferenceChange(
+                                        value as SqlEditorPreferences['quotePreference'],
+                                    )
+                                }
                             />
                         </Group>
 
@@ -103,9 +111,11 @@ export const SqlEditorPreferencesPopover: FC = () => {
                                     { label: 'Lowercase', value: 'lowercase' },
                                 ]}
                                 value={settings.casePreference}
-                                onChange={(
-                                    value: SqlEditorPreferences['casePreference'],
-                                ) => handleCasePreferenceChange(value)}
+                                onChange={(value) =>
+                                    handleCasePreferenceChange(
+                                        value as SqlEditorPreferences['casePreference'],
+                                    )
+                                }
                             />
                         </Group>
                     </Stack>

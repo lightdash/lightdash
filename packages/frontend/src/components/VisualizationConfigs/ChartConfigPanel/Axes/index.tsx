@@ -9,14 +9,8 @@ import {
     XAxisSort,
     type ItemsMap,
 } from '@lightdash/common';
-import { Group, Stack, Text, Button } from '@mantine-8/core';
-import {
-    Checkbox,
-    NumberInput,
-    SegmentedControl,
-    Select,
-    Switch,
-} from '@mantine/core';
+import { Group, Stack, Text, Button, SegmentedControl } from '@mantine-8/core';
+import { Checkbox, NumberInput, Select, Switch } from '@mantine/core';
 import {
     IconChartBar,
     IconMinus,

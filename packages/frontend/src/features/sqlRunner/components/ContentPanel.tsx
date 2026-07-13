@@ -8,14 +8,16 @@ import {
     type VizTableHeaderSortConfig,
     formatSql,
 } from '@lightdash/common';
-import { Box, Group, Paper, Stack, Text, ActionIcon } from '@mantine-8/core';
 import {
-    Indicator,
-    LoadingOverlay,
+    Box,
+    Group,
+    Paper,
+    Stack,
+    Text,
+    ActionIcon,
     SegmentedControl,
-    Tooltip,
-    Transition,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { Indicator, LoadingOverlay, Tooltip, Transition } from '@mantine/core';
 import { useElementSize, useHotkeys } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
@@ -513,20 +515,22 @@ export const ContentPanel: FC = () => {
                                         },
                                     ]}
                                     value={activeEditorTab}
-                                    onChange={(value: EditorTabs) => {
+                                    onChange={(value) => {
+                                        const editorTab = value as EditorTabs;
+
                                         if (isLoadingSqlQuery) {
                                             return;
                                         }
 
                                         if (
-                                            value ===
+                                            editorTab ===
                                                 EditorTabs.VISUALIZATION &&
                                             !queryResults?.results
                                         ) {
                                             return;
                                         }
 
-                                        dispatch(setActiveEditorTab(value));
+                                        dispatch(setActiveEditorTab(editorTab));
                                     }}
                                 />
                             </Indicator>

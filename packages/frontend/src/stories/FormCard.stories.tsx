@@ -1,11 +1,5 @@
-import { Stack, Title, Button } from '@mantine-8/core';
-import {
-    Card,
-    SegmentedControl,
-    Select,
-    Switch,
-    TextInput,
-} from '@mantine/core';
+import { Stack, Title, Button, SegmentedControl } from '@mantine-8/core';
+import { Card, Select, Switch, TextInput } from '@mantine/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 interface FormCardProps {
@@ -49,7 +43,7 @@ export function FormCard({ hasError = false }: FormCardProps) {
                     <SegmentedControl
                         radius="md"
                         data={['Option 1', 'Option 2', 'Option 3']}
-                        sx={{
+                        style={{
                             alignSelf: 'flex-start',
                         }}
                     />

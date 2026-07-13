@@ -9,11 +9,17 @@ import {
     type Metric,
     type TableCalculation,
 } from '@lightdash/common';
-import { Box, Collapse, Group, Stack, Tabs } from '@mantine-8/core';
+import {
+    Box,
+    Collapse,
+    Group,
+    Stack,
+    Tabs,
+    SegmentedControl,
+} from '@mantine-8/core';
 import {
     Checkbox,
     MantineProvider,
-    SegmentedControl,
     Switch,
     Tooltip,
     useMantineColorScheme,
@@ -88,6 +94,7 @@ export const ConfigTabs: FC = memo(() => {
                                 <Group gap="xs">
                                     <Config.Label>Steps are</Config.Label>
                                     <SegmentedControl
+                                        size="xs"
                                         value={dataInput}
                                         data={[
                                             {
@@ -172,6 +179,7 @@ export const ConfigTabs: FC = memo(() => {
                                 <Group gap="xs" wrap="nowrap">
                                     <Config.Label>Position</Config.Label>
                                     <SegmentedControl
+                                        size="xs"
                                         value={labels?.position}
                                         data={[
                                             {
@@ -192,11 +200,10 @@ export const ConfigTabs: FC = memo(() => {
                                                 label: 'Hidden',
                                             },
                                         ]}
-                                        onChange={(
-                                            newPosition: FunnelChartLabelPosition,
-                                        ) =>
+                                        onChange={(newPosition) =>
                                             onLabelsChange({
-                                                position: newPosition,
+                                                position:
+                                                    newPosition as FunnelChartLabelPosition,
                                             })
                                         }
                                     />
@@ -278,11 +285,14 @@ export const ConfigTabs: FC = memo(() => {
                             <Group gap="xs">
                                 <Config.Label>Orientation</Config.Label>
                                 <SegmentedControl
+                                    size="xs"
                                     name="orient"
                                     value={legendPosition}
-                                    onChange={(
-                                        val: FunnelChartLegendPosition,
-                                    ) => legendPositionChange(val)}
+                                    onChange={(value) =>
+                                        legendPositionChange(
+                                            value as FunnelChartLegendPosition,
+                                        )
+                                    }
                                     data={[
                                         {
                                             value: FunnelChartLegendPosition.HORIZONTAL,

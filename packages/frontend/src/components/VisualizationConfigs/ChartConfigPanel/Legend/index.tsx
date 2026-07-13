@@ -10,9 +10,15 @@ import {
     type Series,
     type TableCalculation,
 } from '@lightdash/common';
-import { Collapse, Group, Loader, Stack } from '@mantine-8/core';
+import {
+    Collapse,
+    Group,
+    Loader,
+    Stack,
+    SegmentedControl,
+} from '@mantine-8/core';
 import { useDebouncedCallback } from '@mantine-8/hooks';
-import { SegmentedControl, Switch } from '@mantine/core';
+import { Switch } from '@mantine/core';
 import { lazy, Suspense, useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import { useToggle } from 'react-use';
@@ -215,6 +221,7 @@ export const Legend: FC<Props> = ({ items }) => {
                             <Group gap="xs">
                                 <Config.Label>Placement</Config.Label>
                                 <SegmentedControl
+                                    size="xs"
                                     name="placement"
                                     value={legendConfig.placement ?? 'custom'}
                                     onChange={(val) =>
@@ -247,6 +254,7 @@ export const Legend: FC<Props> = ({ items }) => {
                                             Scroll behavior
                                         </Config.Label>
                                         <SegmentedControl
+                                            size="xs"
                                             value={
                                                 dirtyEchartsConfig?.legend
                                                     ?.type ?? 'scroll'
@@ -269,6 +277,7 @@ export const Legend: FC<Props> = ({ items }) => {
                                     <Group gap="xs">
                                         <Config.Label>Orientation</Config.Label>
                                         <SegmentedControl
+                                            size="xs"
                                             name="orient"
                                             value={
                                                 legendConfig.orient ??

@@ -4,11 +4,10 @@ import {
     DucklakeDataPathType,
     WarehouseTypes,
 } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
+import { Stack, SegmentedControl } from '@mantine-8/core';
 import {
     NumberInput,
     PasswordInput,
-    SegmentedControl,
     Select,
     Switch,
     TextInput,

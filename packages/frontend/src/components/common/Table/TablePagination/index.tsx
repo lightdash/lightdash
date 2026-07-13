@@ -1,5 +1,4 @@
-import { Text } from '@mantine-8/core';
-import { SegmentedControl } from '@mantine/core';
+import { Text, SegmentedControl } from '@mantine-8/core';
 import { type FC } from 'react';
 import PaginateControl from '../../PaginateControl';
 import { DEFAULT_PAGE_SIZE } from '../constants';

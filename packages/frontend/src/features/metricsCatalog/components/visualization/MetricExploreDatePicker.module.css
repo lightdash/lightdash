@@ -1,0 +1,23 @@
+.root {
+    align-items: center;
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: var(--mantine-radius-md);
+    background-color: var(--mantine-color-ldGray-0);
+}
+
+.label {
+    padding-inline: var(--mantine-spacing-sm);
+    color: var(--mantine-color-ldGray-6);
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 500;
+}
+
+.label[data-active] {
+    color: var(--mantine-color-ldDark-7);
+}
+
+.indicator {
+    border: 1px solid var(--mantine-color-ldGray-3);
+    border-radius: var(--mantine-radius-md);
+    box-shadow: var(--mantine-shadow-subtle);
+}
