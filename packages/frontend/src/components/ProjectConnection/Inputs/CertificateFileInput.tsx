@@ -1,4 +1,5 @@
-import { CloseButton, FileInput } from '@mantine/core';
+import { CloseButton } from '@mantine-8/core';
+import { FileInput } from '@mantine/core';
 import React, { useState, type FC } from 'react';
 import { useFormContext } from '../formContext';
 
@@ -67,6 +68,8 @@ const CertificateFileInput: FC<
                 rightSection={
                     (temporaryFile || fileNamePlaceholder) && (
                         <CloseButton
+                            aria-label="Remove certificate file"
+                            size="sm"
                             variant="transparent"
                             onClick={() => {
                                 setTemporaryFile(null);

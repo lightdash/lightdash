@@ -11,13 +11,14 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import {
+    ActionIcon,
+    CloseButton,
     Group,
     NumberInput,
-    Stack,
-    ActionIcon,
     SegmentedControl,
+    Stack,
 } from '@mantine-8/core';
-import { CloseButton, TextInput, Tooltip } from '@mantine/core';
+import { TextInput, Tooltip } from '@mantine/core';
 import { IconRotate360 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { EMPTY_X_AXIS } from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
@@ -260,6 +261,8 @@ export const Layout: FC<Props> = ({ items }) => {
                             onChange={handleOnChangeOfXAxisField}
                             rightSection={
                                 <CloseButton
+                                    aria-label="Clear x-axis field"
+                                    size="xs"
                                     onClick={() => {
                                         setXField(EMPTY_X_AXIS);
                                     }}
@@ -308,6 +311,8 @@ export const Layout: FC<Props> = ({ items }) => {
                                 rightSection={
                                     yFields?.length !== 1 && (
                                         <CloseButton
+                                            aria-label="Remove y-axis field"
+                                            size="xs"
                                             onClick={() => {
                                                 removeSingleSeries(index);
                                             }}
@@ -375,6 +380,8 @@ export const Layout: FC<Props> = ({ items }) => {
                                             value={pivotKey}
                                             rightSection={
                                                 <CloseButton
+                                                    aria-label="Remove pivot dimension"
+                                                    size="xs"
                                                     onClick={() => {
                                                         setPivotDimensions(
                                                             pivotDimensions.filter(
@@ -419,6 +426,8 @@ export const Layout: FC<Props> = ({ items }) => {
                                             rightSection={
                                                 groupSelectedField && (
                                                     <CloseButton
+                                                        aria-label="Remove pivot dimension"
+                                                        size="xs"
                                                         onClick={() => {
                                                             setPivotDimensions(
                                                                 pivotDimensions.filter(
