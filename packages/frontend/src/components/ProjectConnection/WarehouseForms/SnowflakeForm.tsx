@@ -1,5 +1,6 @@
 import { SnowflakeAuthenticationType, WarehouseTypes } from '@lightdash/common';
 import {
+    TextInput,
     Anchor,
     Button,
     FileInput,
@@ -9,7 +10,7 @@ import {
     Text,
     Select,
 } from '@mantine-8/core';
-import { NumberInput, PasswordInput, TextInput, Tooltip } from '@mantine/core';
+import { NumberInput, PasswordInput, Tooltip } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useToggle } from 'react-use';

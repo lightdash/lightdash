@@ -11,6 +11,7 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import {
+    TextInput,
     ActionIcon,
     CloseButton,
     Group,
@@ -18,7 +19,7 @@ import {
     SegmentedControl,
     Stack,
 } from '@mantine-8/core';
-import { TextInput, Tooltip } from '@mantine/core';
+import { Tooltip } from '@mantine/core';
 import { IconRotate360 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { EMPTY_X_AXIS } from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
@@ -375,11 +376,16 @@ export const Layout: FC<Props> = ({ items }) => {
                                 if (!groupSelectedField) {
                                     return (
                                         <TextInput
+                                            size="xs"
                                             key={pivotKey}
                                             readOnly
                                             value={pivotKey}
+                                            rightSectionPointerEvents="all"
                                             rightSection={
                                                 <CloseButton
+                                                    onMouseDown={(event) =>
+                                                        event.preventDefault()
+                                                    }
                                                     aria-label="Remove pivot dimension"
                                                     size="xs"
                                                     onClick={() => {

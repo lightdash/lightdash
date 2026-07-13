@@ -183,6 +183,7 @@ const ReferenceLineValue: FC<ReferenceLineValueProps> = ({
     return (
         <TextInput
             {...inputProps}
+            size="xs"
             disabled={
                 (!isNumericItem(field) &&
                     // We treat untyped table calculations as numeric

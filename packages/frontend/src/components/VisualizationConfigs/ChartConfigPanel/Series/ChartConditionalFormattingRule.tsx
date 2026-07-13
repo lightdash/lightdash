@@ -7,6 +7,7 @@ import {
     type FilterableItem,
 } from '@lightdash/common';
 import {
+    TextInput,
     Collapse,
     Group,
     Stack,
@@ -14,7 +15,7 @@ import {
     ActionIcon,
     Select,
 } from '@mantine-8/core';
-import { TextInput, Tooltip } from '@mantine/core';
+import { Tooltip } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconChevronDown, IconChevronUp, IconTrash } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
@@ -130,7 +131,11 @@ export const ChartConditionalFormattingRule: FC<Props> = ({
                                     onChange={onChangeRule}
                                 />
                             ) : (
-                                <TextInput disabled placeholder="Values" />
+                                <TextInput
+                                    size="xs"
+                                    disabled
+                                    placeholder="Values"
+                                />
                             )}
                         </FiltersProvider>
                     ) : null}

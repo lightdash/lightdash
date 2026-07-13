@@ -11,6 +11,7 @@ import {
     type FilterableItem,
 } from '@lightdash/common';
 import {
+    TextInput,
     Accordion,
     Center,
     Group,
@@ -19,7 +20,7 @@ import {
     SegmentedControl,
     Select,
 } from '@mantine-8/core';
-import { TextInput, Tooltip } from '@mantine/core';
+import { Tooltip } from '@mantine/core';
 import differenceBy from 'lodash/differenceBy';
 import { useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';

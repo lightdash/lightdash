@@ -1,5 +1,6 @@
 import { WarehouseTypes } from '@lightdash/common';
 import {
+    TextInput,
     CopyButton,
     Stack,
     Button,
@@ -7,7 +8,7 @@ import {
     Anchor,
     Select,
 } from '@mantine-8/core';
-import { NumberInput, PasswordInput, TextInput, Tooltip } from '@mantine/core';
+import { NumberInput, PasswordInput, Tooltip } from '@mantine/core';
 import { IconCheck, IconCopy } from '@tabler/icons-react';
 import React, { type FC } from 'react';
 import { useToggle } from 'react-use';
@@ -363,6 +364,7 @@ const PostgresForm: FC<{
                                         label="Generated SSH Public Key"
                                         readOnly={true}
                                         disabled={disabled}
+                                        rightSectionPointerEvents="all"
                                         rightSection={
                                             <>
                                                 <CopyButton
@@ -379,6 +381,12 @@ const PostgresForm: FC<{
                                                             position="right"
                                                         >
                                                             <ActionIcon
+                                                                aria-label="Copy SSH tunnel public key"
+                                                                onMouseDown={(
+                                                                    event,
+                                                                ) =>
+                                                                    event.preventDefault()
+                                                                }
                                                                 variant="subtle"
                                                                 color={
                                                                     copied

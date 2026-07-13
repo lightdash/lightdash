@@ -1,11 +1,12 @@
 import {
+    TextInput,
     Stack,
     Title,
     Button,
     SegmentedControl,
     Select,
 } from '@mantine-8/core';
-import { Card, Switch, TextInput } from '@mantine/core';
+import { Card, Switch } from '@mantine/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 interface FormCardProps {

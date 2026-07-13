@@ -1,4 +1,5 @@
 import {
+    TextInput,
     Box,
     Center,
     CopyButton,
@@ -9,7 +10,7 @@ import {
     ActionIcon,
     Highlight,
 } from '@mantine-8/core';
-import { ScrollArea, TextInput, Tooltip } from '@mantine/core';
+import { ScrollArea, Tooltip } from '@mantine/core';
 import { useDebouncedValue, useHover } from '@mantine/hooks';
 import { IconCopy, IconSearch, IconX } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
@@ -128,16 +129,21 @@ export const TableFields: FC = () => {
                     <TextInput
                         size="xs"
                         disabled={!tableFields && !isValidSearch}
-                        icon={
+                        leftSection={
                             isLoading ? (
                                 <Loader size="xs" />
                             ) : (
                                 <MantineIcon icon={IconSearch} />
                             )
                         }
+                        rightSectionPointerEvents="all"
                         rightSection={
                             search ? (
                                 <ActionIcon
+                                    aria-label="Clear search"
+                                    onMouseDown={(event) =>
+                                        event.preventDefault()
+                                    }
                                     variant="subtle"
                                     color="gray"
                                     size="xs"

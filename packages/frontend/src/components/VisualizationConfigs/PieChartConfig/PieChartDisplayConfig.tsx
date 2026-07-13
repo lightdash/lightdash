@@ -62,6 +62,7 @@ export const Display: React.FC = () => {
                     <Group>
                         <Config.Label>Label max length</Config.Label>
                         <TextInput
+                            size="xs"
                             type="number"
                             value={legendMaxItemLength}
                             placeholder={PieChartLegendLabelMaxLengthDefault.toString()}

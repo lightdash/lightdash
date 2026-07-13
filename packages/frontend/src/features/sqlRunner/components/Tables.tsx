@@ -1,5 +1,6 @@
 import { PartitionType, type PartitionColumn } from '@lightdash/common';
 import {
+    TextInput,
     Box,
     Center,
     CopyButton,
@@ -12,7 +13,7 @@ import {
     ActionIcon,
     Highlight,
 } from '@mantine-8/core';
-import { ScrollArea, TextInput, Tooltip } from '@mantine/core';
+import { ScrollArea, Tooltip } from '@mantine/core';
 import { useDebouncedValue, useHover } from '@mantine/hooks';
 import {
     IconChevronDown,
@@ -349,16 +350,21 @@ export const Tables: FC = () => {
                     <TextInput
                         size="xs"
                         disabled={!data && !debouncedSearch}
-                        icon={
+                        leftSection={
                             isLoading ? (
                                 <Loader size="xs" />
                             ) : (
                                 <MantineIcon icon={IconSearch} />
                             )
                         }
+                        rightSectionPointerEvents="all"
                         rightSection={
                             search ? (
                                 <ActionIcon
+                                    aria-label="Clear search"
+                                    onMouseDown={(event) =>
+                                        event.preventDefault()
+                                    }
                                     variant="subtle"
                                     color="gray"
                                     size="xs"

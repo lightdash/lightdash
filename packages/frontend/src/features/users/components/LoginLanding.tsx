@@ -9,6 +9,7 @@ import {
     type OpenIdIdentityIssuerType,
 } from '@lightdash/common';
 import {
+    TextInput,
     Box,
     Divider,
     Stack,
@@ -18,7 +19,7 @@ import {
     ActionIcon,
     Anchor,
 } from '@mantine-8/core';
-import { Card, PasswordInput, TextInput } from '@mantine/core';
+import { Card, PasswordInput } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { useTimeout } from '@mantine/hooks';
 import { IconX } from '@tabler/icons-react';
@@ -259,9 +260,14 @@ const Login: FC<{}> = () => {
                             required
                             {...form.getInputProps('email')}
                             disabled={isFormLoading}
+                            rightSectionPointerEvents="all"
                             rightSection={
                                 preCheckEmail ? (
                                     <ActionIcon
+                                        aria-label="Clear email address"
+                                        onMouseDown={(event) =>
+                                            event.preventDefault()
+                                        }
                                         variant="subtle"
                                         color="gray"
                                         onClick={() => {

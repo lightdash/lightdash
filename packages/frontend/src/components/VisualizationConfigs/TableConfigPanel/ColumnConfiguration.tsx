@@ -50,6 +50,7 @@ const ColumnConfigurationInput: FC<ColumnConfigurationInputProps> = ({
 
     return (
         <TextInput
+            size="xs"
             disabled={!isColumnVisible(fieldId)}
             placeholder={getFieldLabelDefault(fieldId)}
             defaultValue={value}

@@ -1,5 +1,12 @@
-import { Group, Stack, Text, Title, Button, Anchor } from '@mantine-8/core';
-import { TextInput } from '@mantine/core';
+import {
+    TextInput,
+    Group,
+    Stack,
+    Text,
+    Title,
+    Button,
+    Anchor,
+} from '@mantine-8/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
@@ -55,8 +62,11 @@ const ScimAccessTokensPanel: FC = () => {
                 <TextInput
                     value={scimURL}
                     readOnly
+                    rightSectionPointerEvents="all"
                     rightSection={
                         <Button
+                            aria-label="Copy access token"
+                            onMouseDown={(event) => event.preventDefault()}
                             variant="subtle"
                             onClick={handleCopyToClipboard}
                             size="compact-sm"

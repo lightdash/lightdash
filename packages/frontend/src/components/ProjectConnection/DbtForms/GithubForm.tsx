@@ -1,5 +1,6 @@
 import { DbtProjectType } from '@lightdash/common';
 import {
+    TextInput,
     Button,
     Group,
     Stack,
@@ -8,7 +9,7 @@ import {
     Anchor,
     Select,
 } from '@mantine-8/core';
-import { Avatar, PasswordInput, TextInput, Tooltip } from '@mantine/core';
+import { Avatar, PasswordInput, Tooltip } from '@mantine/core';
 import { IconCheck, IconRefresh } from '@tabler/icons-react';
 import React, { useEffect, type FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -181,7 +182,7 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 readOnly
                 description="Login first in order to be able to select a repository"
                 required
-                sx={(theme) => ({
+                styles={(theme) => ({
                     // Make it look disabled
                     input: {
                         backgroundColor: theme.colors.ldGray[1],
