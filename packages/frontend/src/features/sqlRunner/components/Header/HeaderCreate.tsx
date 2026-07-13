@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { DbtProjectType } from '@lightdash/common';
-import { Group, Paper, Stack, Text, Button } from '@mantine-8/core';
-import { ActionIcon, Menu, Tooltip } from '@mantine/core';
+import { Group, Paper, Stack, Text, Button, ActionIcon } from '@mantine-8/core';
+import { Menu, Tooltip } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import {
     IconBrandGithub,

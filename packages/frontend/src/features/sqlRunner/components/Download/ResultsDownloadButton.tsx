@@ -3,7 +3,8 @@ import {
     getHiddenFieldsFromVizTableConfig,
     type VizTableConfig,
 } from '@lightdash/common';
-import { ActionIcon, Popover, Tooltip } from '@mantine/core';
+import { ActionIcon } from '@mantine-8/core';
+import { Popover, Tooltip } from '@mantine/core';
 import { IconDownload } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';

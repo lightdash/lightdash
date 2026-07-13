@@ -14,9 +14,16 @@ import {
     type DashboardTile,
     type Field,
 } from '@lightdash/common';
-import { Box, Collapse, Flex, Group, Stack, Text } from '@mantine-8/core';
 import {
+    Box,
+    Collapse,
+    Flex,
+    Group,
+    Stack,
+    Text,
     ActionIcon,
+} from '@mantine-8/core';
+import {
     Checkbox,
     Select,
     Tooltip,
@@ -356,6 +363,7 @@ const TileFilterConfiguration: FC<Props> = ({
         return (
             <Flex align="center" gap="xxs">
                 <ActionIcon
+                    color="gray"
                     size="xs"
                     variant="subtle"
                     onClick={toggleCollapse}

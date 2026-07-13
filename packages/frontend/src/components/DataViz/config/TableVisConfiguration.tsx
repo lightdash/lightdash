@@ -1,5 +1,6 @@
 import { type VizColumn } from '@lightdash/common';
-import { ActionIcon, ScrollArea, TextInput } from '@mantine/core';
+import { ActionIcon } from '@mantine-8/core';
+import { ScrollArea, TextInput } from '@mantine/core';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { type FC } from 'react';
 import {
@@ -56,6 +57,8 @@ const TableVisConfiguration: FC<{ columns: VizColumn[] }> = ({ columns }) => {
                                 readOnly={!columnsConfig[reference].visible}
                                 rightSection={
                                     <ActionIcon
+                                        variant="subtle"
+                                        color="gray"
                                         onClick={() =>
                                             dispatch(
                                                 updateColumnVisibility({

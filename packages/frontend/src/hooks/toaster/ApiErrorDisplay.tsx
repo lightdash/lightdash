@@ -1,12 +1,13 @@
 import { LightdashMode, type ApiErrorDetail } from '@lightdash/common';
-import { CopyButton, Group, Stack, Text, Button } from '@mantine-8/core';
 import {
+    CopyButton,
+    Group,
+    Stack,
+    Text,
+    Button,
     ActionIcon,
-    Anchor,
-    Modal,
-    Tooltip,
-    useMantineTheme,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { Anchor, Modal, Tooltip, useMantineTheme } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { IconCheck, IconCopy, IconSpeakerphone } from '@tabler/icons-react';
 import { defaultContext } from '@tanstack/react-query';
@@ -34,7 +35,12 @@ const CopyErrorButton = ({
                 withArrow
                 position="right"
             >
-                <ActionIcon size="xs" onClick={copy} variant="transparent">
+                <ActionIcon
+                    color="gray"
+                    size="xs"
+                    onClick={copy}
+                    variant="transparent"
+                >
                     <MantineIcon
                         color={color}
                         icon={copied ? IconCheck : IconCopy}

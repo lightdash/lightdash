@@ -10,9 +10,8 @@ import {
     type Field,
     type TableCalculation,
 } from '@lightdash/common';
-import { Group, NumberInput, Stack } from '@mantine-8/core';
+import { Group, NumberInput, Stack, ActionIcon } from '@mantine-8/core';
 import {
-    ActionIcon,
     CloseButton,
     SegmentedControl,
     TextInput,
@@ -217,6 +216,7 @@ export const Layout: FC<Props> = ({ items }) => {
                         <Group gap="two">
                             <Tooltip variant="xs" label="Flip Axes">
                                 <ActionIcon
+                                    variant="subtle"
                                     onClick={() =>
                                         setFlipAxis(!dirtyLayout?.flipAxes)
                                     }

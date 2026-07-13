@@ -8,9 +8,9 @@ import {
     Stack,
     type BoxProps,
     Text,
+    ActionIcon,
 } from '@mantine-8/core';
 import {
-    ActionIcon,
     Highlight,
     ScrollArea,
     TextInput,
@@ -161,6 +161,8 @@ const TableItem: FC<TableItemProps> = memo(
                                 position="right"
                             >
                                 <ActionIcon
+                                    variant="subtle"
+                                    color="gray"
                                     size={16}
                                     onClick={copy}
                                     bg="ldGray.1"
@@ -372,6 +374,8 @@ export const Tables: FC = () => {
                         rightSection={
                             search ? (
                                 <ActionIcon
+                                    variant="subtle"
+                                    color="gray"
                                     size="xs"
                                     onClick={() => setSearch('')}
                                 >

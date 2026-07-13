@@ -6,8 +6,8 @@ import {
     findReplaceableCustomMetrics,
     getMetrics,
 } from '@lightdash/common';
-import { Group, Menu, Stack, Text } from '@mantine-8/core';
-import { ActionIcon, HoverCard } from '@mantine/core';
+import { Group, Menu, Stack, Text, ActionIcon } from '@mantine-8/core';
+import { HoverCard } from '@mantine/core';
 import {
     IconAlertTriangle,
     IconCode,
@@ -245,7 +245,10 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                         >
                             <Menu withArrow offset={-2}>
                                 <Menu.Target>
-                                    <ActionIcon variant="transparent">
+                                    <ActionIcon
+                                        color="gray"
+                                        variant="transparent"
+                                    >
                                         <MantineIcon icon={IconDots} />
                                     </ActionIcon>
                                 </Menu.Target>
@@ -298,7 +301,10 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                             >
                                 <Menu withArrow offset={-2}>
                                     <Menu.Target>
-                                        <ActionIcon variant="transparent">
+                                        <ActionIcon
+                                            color="gray"
+                                            variant="transparent"
+                                        >
                                             <MantineIcon icon={IconDots} />
                                         </ActionIcon>
                                     </Menu.Target>

@@ -1,10 +1,11 @@
 import type { CatalogItem } from '@lightdash/common';
-import { Group } from '@mantine-8/core';
-import { ActionIcon, Badge, Tooltip } from '@mantine/core';
+import { Group, ActionIcon } from '@mantine-8/core';
+import { Badge, Tooltip } from '@mantine/core';
 import { IconCode, IconX } from '@tabler/icons-react';
 import type { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useCategoryStyles } from '../styles/useCategoryStyles';
+import styles from './CatalogCategory.module.css';
 
 type Props = {
     category: Pick<
@@ -72,15 +73,7 @@ export const CatalogCategory: FC<Props> = ({
                         color="gray"
                         size={14}
                         onClick={onRemove}
-                        sx={(theme) => ({
-                            '&:focus': {
-                                backgroundColor: theme.fn.rgba(
-                                    theme.colors.ldGray[5],
-                                    0.35,
-                                ),
-                                outline: 'none',
-                            },
-                        })}
+                        className={styles.removeButton}
                     >
                         <MantineIcon
                             className={classes.removeIcon}

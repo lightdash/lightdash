@@ -13,15 +13,9 @@ import {
     type ResourceViewItem,
     type SpaceSummary,
 } from '@lightdash/common';
-import { Box, Divider, Group, Text, Button } from '@mantine-8/core';
+import { Box, Divider, Group, Text, Button, ActionIcon } from '@mantine-8/core';
 import { useDebouncedCallback } from '@mantine-8/hooks';
-import {
-    ActionIcon,
-    Anchor,
-    TextInput,
-    Tooltip,
-    useMantineTheme,
-} from '@mantine/core';
+import { Anchor, TextInput, Tooltip, useMantineTheme } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconAppWindow,

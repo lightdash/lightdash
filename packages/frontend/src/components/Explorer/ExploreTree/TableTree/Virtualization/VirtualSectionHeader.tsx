@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { FeatureFlags, isCustomSqlDimension } from '@lightdash/common';
-import { Button, Group, Text } from '@mantine-8/core';
-import { ActionIcon, Tooltip } from '@mantine/core';
+import { Button, Group, Text, ActionIcon } from '@mantine-8/core';
+import { Tooltip } from '@mantine/core';
 import { IconCode, IconPlus } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import {
@@ -178,6 +178,8 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
                 {showWriteBackCustomMetrics && (
                     <Tooltip label="Write back custom metrics">
                         <ActionIcon
+                            variant="subtle"
+                            color="gray"
                             onClick={handleWriteBackCustomMetrics}
                             data-testid="VirtualSectionHeader/WriteBackCustomMetricsButton"
                         >
@@ -189,6 +191,8 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
                 {showWriteBackCustomDimensions && (
                     <Tooltip label="Write back custom dimensions">
                         <ActionIcon
+                            variant="subtle"
+                            color="gray"
                             onClick={handleWriteBackCustomDimensions}
                             data-testid="VirtualSectionHeader/WriteBackCustomDimensionsButton"
                         >

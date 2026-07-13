@@ -1,7 +1,6 @@
 import { DbtProjectType } from '@lightdash/common';
-import { Button, Group, Stack, Text } from '@mantine-8/core';
+import { Button, Group, Stack, Text, ActionIcon } from '@mantine-8/core';
 import {
-    ActionIcon,
     Anchor,
     Avatar,
     PasswordInput,
@@ -141,6 +140,8 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
 
                         <Tooltip label="Refresh repositories after updating access on Github">
                             <ActionIcon
+                                variant="subtle"
+                                color="gray"
                                 mt="20px"
                                 onClick={() => refetchRepos()}
                                 disabled={!isValidGithubInstallation}

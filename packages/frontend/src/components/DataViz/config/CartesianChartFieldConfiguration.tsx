@@ -7,8 +7,8 @@ import {
     type VizIndexLayoutOptions,
     type VizPivotLayoutOptions,
 } from '@lightdash/common';
-import { Box, Group, Stack } from '@mantine-8/core';
-import { ActionIcon, Tooltip } from '@mantine/core';
+import { Box, Group, Stack, ActionIcon } from '@mantine-8/core';
+import { Tooltip } from '@mantine/core';
 import { IconMinus, IconPlus, IconX } from '@tabler/icons-react';
 import { type FC } from 'react';
 import {
@@ -217,6 +217,8 @@ const GroupByFieldAxisConfig = ({
                 // When the field is deleted, the error state prevents the clear button from showing
                 groupByError && (
                     <ActionIcon
+                        variant="subtle"
+                        color="gray"
                         onClick={() =>
                             dispatch(actions.unsetGroupByReference())
                         }

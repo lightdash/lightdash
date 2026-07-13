@@ -2,9 +2,8 @@ import {
     DatabricksAuthenticationType,
     WarehouseTypes,
 } from '@lightdash/common';
-import { Group, Stack, Text, Button } from '@mantine-8/core';
+import { Group, Stack, Text, Button, ActionIcon } from '@mantine-8/core';
 import {
-    ActionIcon,
     Anchor,
     PasswordInput,
     Select,
@@ -425,6 +424,8 @@ const DatabricksForm: FC<{
                                             />
                                             <Tooltip label="Remove compute">
                                                 <ActionIcon
+                                                    variant="subtle"
+                                                    color="gray"
                                                     size="sm"
                                                     onClick={() =>
                                                         removeCompute(index)

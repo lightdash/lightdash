@@ -12,13 +12,9 @@ import {
     Stack,
     Text,
     Title,
-} from '@mantine-8/core';
-import {
     ActionIcon,
-    Alert,
-    Drawer,
-    type DefaultMantineColor,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { Alert, Drawer, type DefaultMantineColor } from '@mantine/core';
 import { useInterval } from '@mantine/hooks';
 import {
     IconAlertTriangle,
@@ -220,6 +216,8 @@ const JobDetailsDrawer: FC = () => {
                                     >
                                         {({ copied, copy }) => (
                                             <ActionIcon
+                                                variant="subtle"
+                                                color="gray"
                                                 onClick={copy}
                                                 pos="absolute"
                                                 top={6}

@@ -1,6 +1,6 @@
 import { WarehouseTypes } from '@lightdash/common';
-import { Group, Stack, Text } from '@mantine-8/core';
-import { ActionIcon, Popover, SegmentedControl } from '@mantine/core';
+import { Group, Stack, Text, ActionIcon } from '@mantine-8/core';
+import { Popover, SegmentedControl } from '@mantine/core';
 import { IconCodeCircle } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -51,10 +51,11 @@ export const SqlEditorPreferencesPopover: FC = () => {
         >
             <Popover.Target>
                 <ActionIcon
+                    color="gray"
                     variant="light"
                     size="sm"
                     onClick={() => setOpened(!opened)}
-                    sx={{
+                    style={{
                         cursor: isPopoverDisabled ? 'default' : 'pointer',
                     }}
                 >

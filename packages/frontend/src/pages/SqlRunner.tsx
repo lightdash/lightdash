@@ -1,6 +1,6 @@
 import { getFieldQuoteChar } from '@lightdash/common';
-import { Group, Paper, Stack } from '@mantine-8/core';
-import { ActionIcon, Tooltip } from '@mantine/core';
+import { Group, Paper, Stack, ActionIcon } from '@mantine-8/core';
+import { Tooltip } from '@mantine/core';
 import { IconLayoutSidebarLeftExpand } from '@tabler/icons-react';
 import { useEffect } from 'react';
 import { Provider } from 'react-redux';
@@ -210,6 +210,8 @@ const SqlRunner = ({
                                 position="right"
                             >
                                 <ActionIcon
+                                    variant="subtle"
+                                    color="gray"
                                     size="sm"
                                     onClick={() => handleSetSidebarOpen(true)}
                                 >

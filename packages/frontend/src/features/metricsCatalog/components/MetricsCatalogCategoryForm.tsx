@@ -346,7 +346,7 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                                 }}
                             >
                                 <Group gap={4}>
-                                    <Text>Create</Text>
+                                    <Text fz="sm">Create</Text>
                                     {tagColor && (
                                         <CatalogCategory
                                             category={{
