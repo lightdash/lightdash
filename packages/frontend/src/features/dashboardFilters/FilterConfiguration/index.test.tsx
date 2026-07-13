@@ -106,4 +106,39 @@ describe('FilterConfiguration', () => {
             expect.objectContaining({ values: ['adam'] }),
         );
     });
+
+    it('allows changing between multiple and single values', async () => {
+        const user = userEvent.setup();
+
+        renderWithProviders(
+            <FilterConfiguration
+                isEditMode
+                tiles={[]}
+                tabs={[]}
+                availableTileFilters={{}}
+                field={mockField}
+                defaultFilterRule={anyValueRule}
+                originalFilterRule={anyValueRule}
+                onSave={vi.fn()}
+            />,
+        );
+
+        const toggle = screen.getByRole('button', {
+            name: 'Multiple values',
+        });
+        const rightSection = toggle.closest<HTMLElement>(
+            '[data-position="right"]',
+        );
+        expect(
+            rightSection?.parentElement?.style.getPropertyValue(
+                '--input-right-section-pointer-events',
+            ),
+        ).toBe('all');
+
+        await user.click(toggle);
+
+        expect(
+            screen.getByRole('button', { name: 'Single value' }),
+        ).toBeVisible();
+    });
 });
