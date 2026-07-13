@@ -109,6 +109,8 @@ import {
     type MergePullRequestResult,
 } from './ci';
 import {
+    type ApiAlertAsCodeListResponse,
+    type ApiAlertAsCodeUpsertResponse,
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
     type ApiDashboardAsCodeListResponse,
@@ -1110,6 +1112,8 @@ type ApiResults =
     | ApiGroupListResponse['results']
     | ApiPullRequestsResponse['results']
     | ApiCreateTagResponse['results']
+    | ApiAlertAsCodeListResponse['results']
+    | ApiAlertAsCodeUpsertResponse['results']
     | ApiChartAsCodeListResponse['results']
     | ApiSqlChartAsCodeListResponse['results']
     | ApiDashboardAsCodeListResponse['results']

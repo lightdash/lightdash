@@ -728,6 +728,7 @@ program
         'specify dashboard slugs, uuids or urls to download',
         [],
     )
+    .option('--alerts <slugs...>', 'specify alert slugs to download', [])
     .option(
         '--scheduled-deliveries <slugs...>',
         'specify scheduled delivery slugs to download',
@@ -761,6 +762,7 @@ program
     )
     .option('--skip-charts', 'skip downloading charts', false)
     .option('--skip-dashboards', 'skip downloading dashboards', false)
+    .option('--skip-alerts', 'skip downloading alerts', false)
     .option(
         '--skip-scheduled-deliveries',
         'skip downloading scheduled deliveries',
@@ -806,6 +808,7 @@ program
         'specify dashboard slugs to force upload',
         [],
     )
+    .option('--alerts <slugs...>', 'specify alert slugs to upload', [])
     .option(
         '--scheduled-deliveries <slugs...>',
         'specify scheduled delivery slugs to upload',
@@ -833,6 +836,7 @@ program
         false,
     )
     .option('--public', 'Create new spaces as public instead of private', false)
+    .option('--skip-alerts', 'skip uploading alerts', false)
     .option(
         '--skip-scheduled-deliveries',
         'skip uploading scheduled deliveries',

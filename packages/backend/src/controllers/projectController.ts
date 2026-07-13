@@ -1,5 +1,8 @@
 import {
+    AlertAsCode,
     AnyType,
+    ApiAlertAsCodeListResponse,
+    ApiAlertAsCodeUpsertResponse,
     ApiCalculateTotalResponse,
     ApiChartAsCodeListResponse,
     ApiChartAsCodeUpsertResponse,
@@ -27,6 +30,7 @@ import {
     assertRegisteredAccount,
     CalculateTotalFromQuery,
     ChartAsCode,
+    ContentAsCodeType,
     CreateProjectMember,
     DashboardAsCode,
     DbtExposure,
@@ -1557,6 +1561,65 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
                     projectUuid,
                     slug,
                     delivery,
+                    force,
+                ),
+        };
+    }
+
+    /**
+     * Get alerts in code representation
+     * @summary List alerts as code
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/alerts/code')
+    @OperationId('getAlertsAsCode')
+    async getAlertsAsCode(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query() slugs?: string[],
+    ): Promise<ApiAlertAsCodeListResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getCoderService()
+                .getScheduledDeliveries(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    slugs,
+                    ContentAsCodeType.ALERT,
+                ),
+        };
+    }
+
+    /**
+     * Upsert an alert from code representation
+     * @summary Upsert alert as code
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/alerts/{slug}/code')
+    @OperationId('upsertAlertAsCode')
+    async upsertAlertAsCode(
+        @Path() projectUuid: string,
+        @Path() slug: string,
+        @Body() alert: AlertAsCode,
+        @Request() req: express.Request,
+        @Query() force: boolean = false,
+    ): Promise<ApiAlertAsCodeUpsertResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getCoderService()
+                .upsertScheduledDelivery(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    slug,
+                    alert,
                     force,
                 ),
         };

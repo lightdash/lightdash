@@ -1,6 +1,9 @@
 /* eslint-disable no-await-in-loop */
 /* eslint-disable no-param-reassign */
 import {
+    AlertAsCode,
+    ApiAlertAsCodeListResponse,
+    ApiAlertAsCodeUpsertResponse,
     ApiChartAsCodeListResponse,
     ApiChartAsCodeUpsertResponse,
     ApiChartValidationResponse,
@@ -91,6 +94,7 @@ export type DownloadHandlerOptions = {
     verbose: boolean;
     charts: string[]; // These can be slugs, uuids or urls
     dashboards: string[]; // These can be slugs, uuids or urls
+    alerts: string[];
     scheduledDeliveries: string[];
     apps?: string[]; // specific app UUIDs (enterprise); absent = no explicit selection
     includeApps?: boolean; // download: all of the project's apps, capped at --apps-limit; upload: all app folders on disk
@@ -107,6 +111,7 @@ export type DownloadHandlerOptions = {
     skipSpaces: boolean; // Skip writing space metadata files during download
     skipCharts: boolean; // Skip downloading charts and SQL charts
     skipDashboards: boolean; // Skip downloading dashboards
+    skipAlerts: boolean;
     skipScheduledDeliveries: boolean;
     appsOnly?: boolean; // download only: implies skipCharts + skipDashboards + skipSpaces
     stripPivotSeries: boolean; // Strip per-value pivot series config for portable chart YAML
@@ -860,6 +865,32 @@ export const downloadContent = async (
 const getScheduledDeliveriesFolder = (customPath?: string): string =>
     path.join(getDownloadFolder(customPath), 'scheduled-deliveries');
 
+const getAlertsFolder = (customPath?: string): string =>
+    path.join(getDownloadFolder(customPath), 'alerts');
+
+type ScheduledContentAsCode = ScheduledDeliveryAsCode | AlertAsCode;
+type ScheduledContentType =
+    | ContentAsCodeTypeEnum.SCHEDULED_DELIVERY
+    | ContentAsCodeTypeEnum.ALERT;
+
+const getScheduledContentConfig = (
+    contentType: ScheduledContentType,
+    customPath?: string,
+) =>
+    contentType === ContentAsCodeTypeEnum.ALERT
+        ? {
+              folder: getAlertsFolder(customPath),
+              route: 'alerts',
+              singular: 'alert',
+              plural: 'alerts',
+          }
+        : {
+              folder: getScheduledDeliveriesFolder(customPath),
+              route: 'scheduledDeliveries',
+              singular: 'scheduled delivery',
+              plural: 'scheduled deliveries',
+          };
+
 const getPromoteAction = (action: PromotionAction) => {
     switch (action) {
         case PromotionAction.CREATE:
@@ -876,63 +907,63 @@ const getPromoteAction = (action: PromotionAction) => {
     return 'skipped';
 };
 
-const getScheduledDeliveryResourceFolder = (
-    delivery: ScheduledDeliveryAsCode,
-): string => (delivery.resource.type === 'chart' ? 'charts' : 'dashboards');
-
-const downloadScheduledDeliveries = async (
+const downloadScheduledContent = async (
     projectId: string,
     slugs: string[],
+    contentType: ScheduledContentType,
     customPath?: string,
 ): Promise<number> => {
-    await fs.mkdir(getScheduledDeliveriesFolder(customPath), {
-        recursive: true,
-    });
+    const config = getScheduledContentConfig(contentType, customPath);
+    await fs.mkdir(config.folder, { recursive: true });
     const query = new URLSearchParams(
         slugs.map((slug) => ['slugs', slug] as [string, string]),
     ).toString();
     const results = await lightdashApi<
-        ApiScheduledDeliveryAsCodeListResponse['results']
+        | ApiAlertAsCodeListResponse['results']
+        | ApiScheduledDeliveryAsCodeListResponse['results']
     >({
         method: 'GET',
-        url: `/api/v1/projects/${projectId}/scheduledDeliveries/code${
+        url: `/api/v1/projects/${projectId}/${config.route}/code${
             query ? `?${query}` : ''
         }`,
         body: undefined,
     });
+    const scheduledContent: ScheduledContentAsCode[] =
+        'alerts' in results ? results.alerts : results.scheduledDeliveries;
 
-    for (const delivery of results.scheduledDeliveries) {
+    for (const item of scheduledContent) {
         const outputDir = path.join(
-            getScheduledDeliveriesFolder(customPath),
-            getScheduledDeliveryResourceFolder(delivery),
-            delivery.resource.slug,
+            config.folder,
+            item.resource.type === 'chart' ? 'charts' : 'dashboards',
+            item.resource.slug,
         );
         await fs.mkdir(outputDir, { recursive: true });
         await fs.writeFile(
-            path.join(outputDir, `${delivery.slug}.yml`),
-            yaml.dump(delivery, { quotingType: '"', sortKeys: true }),
+            path.join(outputDir, `${item.slug}.yml`),
+            yaml.dump(item, { quotingType: '"', sortKeys: true }),
         );
     }
 
-    results.skipped.forEach((delivery) =>
+    results.skipped.forEach((item) =>
         GlobalState.debug(
-            `Skipped scheduled delivery "${delivery.name}": ${delivery.reason}`,
+            `Skipped ${config.singular} "${item.name}": ${item.reason}`,
         ),
     );
 
-    return results.scheduledDeliveries.length;
+    return scheduledContent.length;
 };
 
-const readScheduledDeliveryFiles = async (
+const readScheduledContentFiles = async (
+    contentType: ScheduledContentType,
     customPath?: string,
-): Promise<ScheduledDeliveryAsCode[]> => {
-    const folder = getScheduledDeliveriesFolder(customPath);
+): Promise<ScheduledContentAsCode[]> => {
+    const config = getScheduledContentConfig(contentType, customPath);
     try {
-        const entries = await fs.readdir(folder, {
+        const entries = await fs.readdir(config.folder, {
             recursive: true,
             withFileTypes: true,
         });
-        const deliveries: ScheduledDeliveryAsCode[] = [];
+        const scheduledContent: ScheduledContentAsCode[] = [];
         for (const entry of entries) {
             if (
                 entry.isFile() &&
@@ -942,52 +973,57 @@ const readScheduledDeliveryFiles = async (
                 const parsed = yaml.load(
                     await fs.readFile(filePath, 'utf-8'),
                 ) as Record<string, unknown>;
-                if (
-                    parsed.contentType ===
-                    ContentAsCodeTypeEnum.SCHEDULED_DELIVERY
-                ) {
-                    deliveries.push(parsed as ScheduledDeliveryAsCode);
+                if (parsed.contentType === contentType) {
+                    scheduledContent.push(parsed as ScheduledContentAsCode);
                 }
             }
         }
-        return deliveries;
+        return scheduledContent;
     } catch (error) {
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
         throw error;
     }
 };
 
-const upsertScheduledDeliveries = async (
+const upsertScheduledContent = async (
     projectId: string,
     slugs: string[],
     changes: Record<string, number>,
     force: boolean,
+    contentType: ScheduledContentType,
     customPath?: string,
 ): Promise<Record<string, number>> => {
-    const deliveries = await readScheduledDeliveryFiles(customPath);
-    GlobalState.log(`Found ${deliveries.length} scheduled delivery files`);
-    const filteredDeliveries = slugs.length
-        ? deliveries.filter((delivery) => slugs.includes(delivery.slug))
-        : deliveries;
+    const config = getScheduledContentConfig(contentType, customPath);
+    const scheduledContent = await readScheduledContentFiles(
+        contentType,
+        customPath,
+    );
+    GlobalState.log(
+        `Found ${scheduledContent.length} ${config.singular} files`,
+    );
+    const filteredContent = slugs.length
+        ? scheduledContent.filter((item) => slugs.includes(item.slug))
+        : scheduledContent;
 
-    for (const delivery of filteredDeliveries) {
+    for (const item of filteredContent) {
         try {
             const result = await lightdashApi<
-                ApiScheduledDeliveryAsCodeUpsertResponse['results']
+                | ApiAlertAsCodeUpsertResponse['results']
+                | ApiScheduledDeliveryAsCodeUpsertResponse['results']
             >({
                 method: 'POST',
-                url: `/api/v1/projects/${projectId}/scheduledDeliveries/${delivery.slug}/code?force=${force}`,
-                body: JSON.stringify(delivery),
+                url: `/api/v1/projects/${projectId}/${config.route}/${item.slug}/code?force=${force}`,
+                body: JSON.stringify(item),
             });
             const action = getPromoteAction(result.action);
-            const key = `scheduled deliveries ${action}`;
+            const key = `${config.plural} ${action}`;
             changes[key] = (changes[key] ?? 0) + 1;
         } catch (error) {
-            changes['scheduled deliveries with errors'] =
-                (changes['scheduled deliveries with errors'] ?? 0) + 1;
+            const errorKey = `${config.plural} with errors`;
+            changes[errorKey] = (changes[errorKey] ?? 0) + 1;
             GlobalState.log(
                 styles.error(
-                    `Error upserting scheduled delivery "${delivery.name}" (${delivery.resource.type}: ${delivery.resource.slug}): ${getErrorMessage(error)}`,
+                    `Error upserting ${config.singular} "${item.name}" (${item.resource.type}: ${item.resource.slug}): ${getErrorMessage(error)}`,
                 ),
             );
         }
@@ -1047,6 +1083,7 @@ export const downloadHandler = async (
         options.skipCharts = true;
         options.skipDashboards = true;
         options.skipSpaces = true;
+        options.skipAlerts = true;
         options.skipScheduledDeliveries = true;
     }
 
@@ -1101,6 +1138,7 @@ export const downloadHandler = async (
         const hasFilters =
             options.charts.length > 0 ||
             options.dashboards.length > 0 ||
+            options.alerts.length > 0 ||
             options.scheduledDeliveries.length > 0;
 
         // When downloading specific charts or dashboards, skip space metadata
@@ -1246,6 +1284,23 @@ export const downloadHandler = async (
             }
         }
 
+        if (!options.skipAlerts) {
+            if (hasFilters && options.alerts.length === 0) {
+                GlobalState.log(
+                    styles.warning(`No alert filters provided, skipping`),
+                );
+            } else {
+                spinner.start(`Downloading alerts`);
+                const alertTotal = await downloadScheduledContent(
+                    projectId,
+                    options.alerts,
+                    ContentAsCodeTypeEnum.ALERT,
+                    options.path,
+                );
+                spinner.succeed(`Downloaded ${alertTotal} alerts`);
+            }
+        }
+
         if (!options.skipScheduledDeliveries) {
             if (hasFilters && options.scheduledDeliveries.length === 0) {
                 GlobalState.log(
@@ -1255,12 +1310,12 @@ export const downloadHandler = async (
                 );
             } else {
                 spinner.start(`Downloading scheduled deliveries`);
-                const scheduledDeliveryTotal =
-                    await downloadScheduledDeliveries(
-                        projectId,
-                        options.scheduledDeliveries,
-                        options.path,
-                    );
+                const scheduledDeliveryTotal = await downloadScheduledContent(
+                    projectId,
+                    options.scheduledDeliveries,
+                    ContentAsCodeTypeEnum.SCHEDULED_DELIVERY,
+                    options.path,
+                );
                 spinner.succeed(
                     `Downloaded ${scheduledDeliveryTotal} scheduled deliveries`,
                 );
@@ -1943,6 +1998,7 @@ export const uploadHandler = async (
         const hasFilters =
             options.charts.length > 0 ||
             options.dashboards.length > 0 ||
+            options.alerts.length > 0 ||
             options.scheduledDeliveries.length > 0;
 
         // Discover loose YAML files (outside charts/ and dashboards/) classified by contentType
@@ -2041,6 +2097,23 @@ export const uploadHandler = async (
             dashboardTotal = total;
         }
 
+        if (!options.skipAlerts) {
+            if (hasFilters && options.alerts.length === 0) {
+                GlobalState.log(
+                    styles.warning(`No alert filters provided, skipping`),
+                );
+            } else {
+                changes = await upsertScheduledContent(
+                    projectId,
+                    options.alerts,
+                    changes,
+                    options.force,
+                    ContentAsCodeTypeEnum.ALERT,
+                    options.path,
+                );
+            }
+        }
+
         if (!options.skipScheduledDeliveries) {
             if (hasFilters && options.scheduledDeliveries.length === 0) {
                 GlobalState.log(
@@ -2049,11 +2122,12 @@ export const uploadHandler = async (
                     ),
                 );
             } else {
-                changes = await upsertScheduledDeliveries(
+                changes = await upsertScheduledContent(
                     projectId,
                     options.scheduledDeliveries,
                     changes,
                     options.force,
+                    ContentAsCodeTypeEnum.SCHEDULED_DELIVERY,
                     options.path,
                 );
             }
