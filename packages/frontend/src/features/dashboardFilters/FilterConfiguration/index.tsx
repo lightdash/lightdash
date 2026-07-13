@@ -465,11 +465,11 @@ const FilterConfiguration: FC<Props> = ({
                             <Group gap="xs">
                                 <FieldIcon item={selectedField} />
                                 {originalFilterRule?.label && !isEditMode ? (
-                                    <Text span fw={500}>
+                                    <Text span fz="sm" fw={500}>
                                         {originalFilterRule.label}
                                     </Text>
                                 ) : (
-                                    <FieldLabel item={selectedField} />
+                                    <FieldLabel item={selectedField} fz="sm" />
                                 )}
                             </Group>
                         ) : (
@@ -480,11 +480,11 @@ const FilterConfiguration: FC<Props> = ({
                                     color={'#0E5A8A'}
                                 />
                                 {originalFilterRule?.label && !isEditMode ? (
-                                    <Text span fw={500}>
+                                    <Text span fz="sm" fw={500}>
                                         {originalFilterRule.label}
                                     </Text>
                                 ) : (
-                                    <Text span fw={500}>
+                                    <Text span fz="sm" fw={500}>
                                         {draftFilterRule?.target.fieldId ||
                                             'SQL column'}
                                     </Text>

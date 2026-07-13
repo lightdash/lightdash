@@ -175,7 +175,7 @@ export const MetricExploreComparison: FC<Props> = ({
                                                 />
                                             </Paper>
 
-                                            <Text c="ldGray.7" fw={500}>
+                                            <Text fz="sm" c="ldGray.7" fw={500}>
                                                 {comparison.label}
                                             </Text>
                                         </Group>

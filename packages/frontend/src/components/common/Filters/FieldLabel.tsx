@@ -7,20 +7,25 @@ import {
     type Field,
     type TableCalculation,
 } from '@lightdash/common';
-import { Text } from '@mantine-8/core';
+import { Text, type TextProps } from '@mantine-8/core';
 import { type FC } from 'react';
 
 interface FieldLabelProps {
     item: Field | TableCalculation | AdditionalMetric | CustomDimension;
     hideTableName?: boolean;
+    fz?: TextProps['fz'];
 }
 
-const FieldLabel: FC<FieldLabelProps> = ({ item, hideTableName = false }) => {
+const FieldLabel: FC<FieldLabelProps> = ({
+    item,
+    hideTableName = false,
+    fz,
+}) => {
     return (
-        <Text span>
+        <Text span fz={fz}>
             {!hideTableName && isField(item) ? `${item.tableLabel} ` : ''}
 
-            <Text span fw={500}>
+            <Text span fz={fz} fw={500}>
                 {isCustomDimension(item)
                     ? item.name
                     : isField(item) || isAdditionalMetric(item)

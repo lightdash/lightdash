@@ -29,6 +29,7 @@ const NotificationTime: FC<{ createdAt: Date }> = ({ createdAt }) => {
             }
         >
             <Text
+                fz="sm"
                 ta="right"
                 mb="one"
                 fw={500}
@@ -79,7 +80,7 @@ export const AiReviewNotifications: FC<Props> = ({ notifications }) => {
                     p="xs"
                     key={notification.notificationId}
                     onClick={() => handleOnNotificationClick(notification)}
-                    fz="xs"
+                    fz="sm"
                 >
                     <NotificationTime createdAt={notification.createdAt} />
                     <Group gap={6} wrap="nowrap" align="center">
@@ -92,7 +93,7 @@ export const AiReviewNotifications: FC<Props> = ({ notifications }) => {
                                     : theme.colors.teal[5],
                             }}
                         />
-                        <Text className={classes.notificationMessage}>
+                        <Text fz="sm" className={classes.notificationMessage}>
                             {notification.message}
                         </Text>
                     </Group>

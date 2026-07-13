@@ -31,6 +31,7 @@ const NotificationTime: FC<{ createdAt: Date }> = ({ createdAt }) => {
             }
         >
             <Text
+                fz="sm"
                 ta="right"
                 mb="one"
                 fw={500}
@@ -99,11 +100,11 @@ export const DashboardCommentsNotifications: FC<Props> = ({
                         />
                     }
                     onClick={() => handleOnNotificationClick(notification)}
-                    fz="xs"
+                    fz="sm"
                 >
                     <>
                         <NotificationTime createdAt={notification.createdAt} />
-                        <Text className={classes.notificationMessage}>
+                        <Text fz="sm" className={classes.notificationMessage}>
                             {notification.message}
                         </Text>
                     </>
