@@ -10,13 +10,14 @@ import {
     type Field,
     type TableCalculation,
 } from '@lightdash/common';
-import { Group, NumberInput, Stack, ActionIcon } from '@mantine-8/core';
 import {
-    CloseButton,
+    Group,
+    NumberInput,
+    Stack,
+    ActionIcon,
     SegmentedControl,
-    TextInput,
-    Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { CloseButton, TextInput, Tooltip } from '@mantine/core';
 import { IconRotate360 } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { EMPTY_X_AXIS } from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
@@ -447,6 +448,7 @@ export const Layout: FC<Props> = ({ items }) => {
                             <Group gap="xs">
                                 <Config.Label>Stacking</Config.Label>
                                 <SegmentedControl
+                                    size="xs"
                                     disabled={isXAxisFieldNumeric}
                                     value={
                                         isXAxisFieldNumeric

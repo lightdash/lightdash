@@ -9,12 +9,8 @@ import {
     type SankeyNodeLayout,
     type TableCalculation,
 } from '@lightdash/common';
-import { Stack, Tabs, Text } from '@mantine-8/core';
-import {
-    MantineProvider,
-    SegmentedControl,
-    useMantineColorScheme,
-} from '@mantine/core';
+import { Stack, Tabs, Text, SegmentedControl } from '@mantine-8/core';
+import { MantineProvider, useMantineColorScheme } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import { isSankeyVisualizationConfig } from '../../LightdashVisualization/types';
@@ -194,6 +190,7 @@ export const ConfigTabs: FC = memo(() => {
                             <Config.Section>
                                 <Config.Heading>Orientation</Config.Heading>
                                 <SegmentedControl
+                                    size="xs"
                                     value={orient}
                                     data={[
                                         {
@@ -217,6 +214,7 @@ export const ConfigTabs: FC = memo(() => {
                             <Config.Section>
                                 <Config.Heading>Node layout</Config.Heading>
                                 <SegmentedControl
+                                    size="xs"
                                     value={effectiveLayout}
                                     data={[
                                         {
@@ -254,6 +252,7 @@ export const ConfigTabs: FC = memo(() => {
                                         Node alignment
                                     </Config.Heading>
                                     <SegmentedControl
+                                        size="xs"
                                         value={nodeAlign}
                                         data={[
                                             {

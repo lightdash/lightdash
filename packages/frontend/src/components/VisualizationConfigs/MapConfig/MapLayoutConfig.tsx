@@ -9,8 +9,8 @@ import {
     MapChartLocation,
     MapChartType,
 } from '@lightdash/common';
-import { Group, Loader, Stack } from '@mantine-8/core';
-import { SegmentedControl, Select, Switch, TextInput } from '@mantine/core';
+import { Group, Loader, Stack, SegmentedControl } from '@mantine-8/core';
+import { Select, Switch, TextInput } from '@mantine/core';
 import { memo, useEffect, useMemo, type FC } from 'react';
 import {
     findMatchingProperty,
@@ -325,6 +325,7 @@ export const Layout: FC = memo(() => {
                 <Config.Section>
                     <Config.Heading>Map Type</Config.Heading>
                     <SegmentedControl
+                        size="xs"
                         data={locationTypeOptions}
                         value={locationType}
                         onChange={(value) =>

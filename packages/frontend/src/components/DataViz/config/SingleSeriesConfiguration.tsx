@@ -5,8 +5,15 @@ import {
     type CartesianChartDisplay,
     type ChartKind,
 } from '@lightdash/common';
-import { Box, Flex, Group, Stack, Text } from '@mantine-8/core';
-import { SegmentedControl, TextInput } from '@mantine/core';
+import {
+    Box,
+    Flex,
+    Group,
+    Stack,
+    Text,
+    SegmentedControl,
+} from '@mantine-8/core';
+import { TextInput } from '@mantine/core';
 import { IconAlignLeft, IconAlignRight } from '@tabler/icons-react';
 import MantineIcon from '../../common/MantineIcon';
 import ColorSelector from '../../VisualizationConfigs/ColorSelector';
@@ -124,7 +131,8 @@ export const SingleSeriesConfiguration = ({
                 <Flex justify="flex-start" align="center" wrap="nowrap">
                     <Config.Label w={LABEL_WIDTH}>Y Axis</Config.Label>
                     <SegmentedControl
-                        sx={{ minWidth: '130px', flex: 1 }}
+                        miw={130}
+                        flex={1}
                         radius="md"
                         fz="sm"
                         data={[

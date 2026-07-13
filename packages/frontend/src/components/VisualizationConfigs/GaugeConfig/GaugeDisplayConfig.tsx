@@ -3,13 +3,8 @@ import {
     getItemId,
     getItemLabelWithoutTableName,
 } from '@lightdash/common';
-import { Center, Group, Stack } from '@mantine-8/core';
-import {
-    Checkbox,
-    NumberInput,
-    SegmentedControl,
-    Tooltip,
-} from '@mantine/core';
+import { Center, Group, Stack, SegmentedControl } from '@mantine-8/core';
+import { Checkbox, NumberInput, Tooltip } from '@mantine/core';
 import { memo, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import { isGaugeVisualizationConfig } from '../../LightdashVisualization/types';
