@@ -1,3 +1,12 @@
+# [0.3369.0](https://github.com/lightdash/lightdash/compare/0.3368.0...0.3369.0) (2026-07-13)
+
+
+### Features
+
+* add alerts as code ([#25436](https://github.com/lightdash/lightdash/issues/25436)) ([fc31edf](https://github.com/lightdash/lightdash/commit/fc31edf3d0e91fa72e1b40b2fbd526e00f43491a))
+* **cli:** include/exclude spaces in lightdash validate ([#25437](https://github.com/lightdash/lightdash/issues/25437)) ([01da3f3](https://github.com/lightdash/lightdash/commit/01da3f324326f9d4ec11bcbd6eca8108dbc897e8))
+* **deep-research:** add durable run lifecycle ([#25443](https://github.com/lightdash/lightdash/issues/25443)) ([1bfc216](https://github.com/lightdash/lightdash/commit/1bfc216c57ae34c3e9bc600c86ccb7a76527d3ee))
+
 # [0.3368.0](https://github.com/lightdash/lightdash/compare/0.3367.0...0.3368.0) (2026-07-13)
 
 
