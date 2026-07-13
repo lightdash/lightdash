@@ -3,8 +3,16 @@ import {
     type UserActivity as UserActivityResponse,
     type UserWithCount,
 } from '@lightdash/common';
-import { Box, Group, Stack, Text, Title, Button } from '@mantine-8/core';
-import { Anchor, Card, Table, Tooltip } from '@mantine/core';
+import {
+    Box,
+    Group,
+    Stack,
+    Text,
+    Title,
+    Button,
+    Anchor,
+} from '@mantine-8/core';
+import { Card, Table, Tooltip } from '@mantine/core';
 import { IconUsers } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link, useParams } from 'react-router';
@@ -92,7 +100,7 @@ const showTableViews = ({
                 return (
                     <tr key={`${key}-${view.uuid}`}>
                         <td>
-                            <Anchor component={Link} to={to}>
+                            <Anchor inherit component={Link} to={to}>
                                 {view.name}
                             </Anchor>
                         </td>
@@ -441,6 +449,7 @@ const UserActivity: FC = () => {
                                         <td>{user.lastName}</td>
                                         <td>
                                             <Anchor
+                                                inherit
                                                 component={Link}
                                                 to={getDashboardLink(
                                                     projectUuid,

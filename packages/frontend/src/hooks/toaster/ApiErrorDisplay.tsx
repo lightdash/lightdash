@@ -6,8 +6,9 @@ import {
     Text,
     Button,
     ActionIcon,
+    Anchor,
 } from '@mantine-8/core';
-import { Anchor, Modal, Tooltip, useMantineTheme } from '@mantine/core';
+import { Modal, Tooltip, useMantineTheme } from '@mantine/core';
 import { modals } from '@mantine/modals';
 import { IconCheck, IconCopy, IconSpeakerphone } from '@tabler/icons-react';
 import { defaultContext } from '@tanstack/react-query';
@@ -58,6 +59,7 @@ const GoogleSheetsReauthMessage = ({ message }: { message: string }) => {
         <Text mb={0}>
             {message}{' '}
             <Anchor
+                inherit
                 component="button"
                 type="button"
                 onClick={() => openLoginPopup()}

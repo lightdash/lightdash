@@ -1,7 +1,6 @@
 import { SnowflakeAuthenticationType, WarehouseTypes } from '@lightdash/common';
-import { Group, Stack, Text, Button } from '@mantine-8/core';
+import { Group, Stack, Text, Button, Anchor } from '@mantine-8/core';
 import {
-    Anchor,
     FileInput,
     NumberInput,
     PasswordInput,
@@ -289,6 +288,7 @@ const SnowflakeForm: FC<{
                                         <Text mt="0" c="gray" fs="xs">
                                             You are connected to Snowflake,{' '}
                                             <Anchor
+                                                inherit
                                                 href="#"
                                                 onClick={() => {
                                                     openLoginPopup();
@@ -394,6 +394,7 @@ const SnowflakeForm: FC<{
                                             This is the .p8 private key file.
                                             You can see{' '}
                                             <Anchor
+                                                inherit
                                                 target="_blank"
                                                 href="https://docs.snowflake.com/en/user-guide/key-pair-auth#generate-the-private-key"
                                                 rel="noreferrer"
@@ -546,6 +547,7 @@ const SnowflakeForm: FC<{
                                             hour timeout limit You can see more
                                             details in{' '}
                                             <Anchor
+                                                inherit
                                                 target="_blank"
                                                 href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#client_session_keep_alive"
                                                 rel="noreferrer"
@@ -578,6 +580,7 @@ const SnowflakeForm: FC<{
                                             parameter. You can see more details
                                             in{' '}
                                             <Anchor
+                                                inherit
                                                 target="_blank"
                                                 href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#query_tag"
                                                 rel="noreferrer"

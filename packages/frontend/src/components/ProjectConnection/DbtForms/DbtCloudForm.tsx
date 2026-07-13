@@ -1,8 +1,7 @@
 import { DbtProjectType } from '@lightdash/common';
-import { CopyButton, Stack, ActionIcon } from '@mantine-8/core';
+import { CopyButton, Stack, ActionIcon, Anchor } from '@mantine-8/core';
 import {
     Alert,
-    Anchor,
     MultiSelect,
     PasswordInput,
     TextInput,
@@ -147,6 +146,7 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                     <p>
                         Use the endpoint that's appropriate for your{' '}
                         <Anchor
+                            inherit
                             target="_blank"
                             href="https://docs.getdbt.com/docs/dbt-cloud-apis/discovery-querying#discovery-api-endpoints"
                             rel="noreferrer"

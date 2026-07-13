@@ -1,5 +1,6 @@
 import { DbtProjectType } from '@lightdash/common';
-import { Anchor, PasswordInput, TextInput } from '@mantine/core';
+import { Anchor } from '@mantine-8/core';
+import { PasswordInput, TextInput } from '@mantine/core';
 import { type FC } from 'react';
 import { useFormContext } from '../formContext';
 import DbtVersionSelect from '../Inputs/DbtVersion';
@@ -23,6 +24,7 @@ const AzureDevOpsForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                             This is your secret token used to access Azure
                             Devops. See the
                             <Anchor
+                                inherit
                                 href="https://docs.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops&tabs=Windows"
                                 target="_blank"
                                 rel="noreferrer"

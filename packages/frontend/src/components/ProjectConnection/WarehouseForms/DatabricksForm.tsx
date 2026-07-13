@@ -2,14 +2,15 @@ import {
     DatabricksAuthenticationType,
     WarehouseTypes,
 } from '@lightdash/common';
-import { Group, Stack, Text, Button, ActionIcon } from '@mantine-8/core';
 import {
+    Group,
+    Stack,
+    Text,
+    Button,
+    ActionIcon,
     Anchor,
-    PasswordInput,
-    Select,
-    TextInput,
-    Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { PasswordInput, Select, TextInput, Tooltip } from '@mantine/core';
 import { IconCheck, IconPlus, IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useToggle } from 'react-use';
@@ -46,6 +47,7 @@ export const DatabricksSchemaInput: FC<{
                 <p>
                     Check out for more details in{' '}
                     <Anchor
+                        inherit
                         target="_blank"
                         href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#database-1"
                         rel="noreferrer"
@@ -211,6 +213,7 @@ const DatabricksForm: FC<{
                         <p>
                             Check out for more details in{' '}
                             <Anchor
+                                inherit
                                 target="_blank"
                                 href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#server-hostname"
                                 rel="noreferrer"
@@ -233,6 +236,7 @@ const DatabricksForm: FC<{
                         <p>
                             Check out for more details in{' '}
                             <Anchor
+                                inherit
                                 target="_blank"
                                 href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#http-path"
                                 rel="noreferrer"
@@ -259,6 +263,7 @@ const DatabricksForm: FC<{
                                 <Text mt="0" c="gray" fs="xs">
                                     You are connected to Databricks,{' '}
                                     <Anchor
+                                        inherit
                                         href="#"
                                         onClick={() => {
                                             openLoginPopup();
@@ -295,6 +300,7 @@ const DatabricksForm: FC<{
                             <p>
                                 Check out for more details in{' '}
                                 <Anchor
+                                    inherit
                                     target="_blank"
                                     href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#personal-access-token"
                                     rel="noreferrer"

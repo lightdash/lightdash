@@ -1,7 +1,6 @@
 import { WarehouseTypes } from '@lightdash/common';
-import { CopyButton, Stack, Button, ActionIcon } from '@mantine-8/core';
+import { CopyButton, Stack, Button, ActionIcon, Anchor } from '@mantine-8/core';
 import {
-    Anchor,
     NumberInput,
     PasswordInput,
     Select,
@@ -162,6 +161,7 @@ const PostgresForm: FC<{
                                     system should send a TCP keepalive message
                                     to the client. You can see more details in{' '}
                                     <Anchor
+                                        inherit
                                         target="_blank"
                                         href="https://postgresqlco.nf/doc/en/param/tcp_keepalives_idle/"
                                         rel="noreferrer"
@@ -184,6 +184,7 @@ const PostgresForm: FC<{
                                     This controls the Postgres "search path".
                                     You can see more details in{' '}
                                     <Anchor
+                                        inherit
                                         target="_blank"
                                         href="https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#search_path"
                                         rel="noreferrer"
@@ -207,6 +208,7 @@ const PostgresForm: FC<{
                                     databases using SSL. You can see more
                                     details in{' '}
                                     <Anchor
+                                        inherit
                                         target="_blank"
                                         href="https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#sslmode"
                                         rel="noreferrer"

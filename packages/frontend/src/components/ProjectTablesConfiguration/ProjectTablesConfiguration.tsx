@@ -9,14 +9,9 @@ import {
     Text,
     Title,
     Button,
-} from '@mantine-8/core';
-import {
     Anchor,
-    Highlight,
-    MultiSelect,
-    Radio,
-    ScrollArea,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { Highlight, MultiSelect, Radio, ScrollArea } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useToggle } from 'react-use';
@@ -193,6 +188,7 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                         You have selected <b>{modelsIncluded.length}</b> models{' '}
                         {modelsIncluded.length > 0 && (
                             <Anchor
+                                type="button"
                                 size="sm"
                                 component="button"
                                 onClick={toggleList}

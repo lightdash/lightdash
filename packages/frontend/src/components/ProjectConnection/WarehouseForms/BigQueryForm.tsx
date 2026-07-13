@@ -1,8 +1,7 @@
 import { BigqueryAuthenticationType, WarehouseTypes } from '@lightdash/common';
-import { Group, Loader, Stack, Text, Button } from '@mantine-8/core';
+import { Group, Loader, Stack, Text, Button, Anchor } from '@mantine-8/core';
 import type { SelectItem } from '@mantine/core';
 import {
-    Anchor,
     Autocomplete,
     FileInput,
     Image,
@@ -51,6 +50,7 @@ export const BigQuerySchemaInput: FC<{
                     <b> dataset </b>
                     value{' '}
                     <Anchor
+                        inherit
                         target="_blank"
                         href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#:~:text=This%20connection%20method%20requires%20local%20OAuth%20via%20gcloud."
                         rel="noreferrer"
@@ -199,6 +199,7 @@ const BigQueryForm: FC<{
                                     <Text mt="0" c="gray" fs="xs">
                                         You are connected to BigQuery,{' '}
                                         <Anchor
+                                            inherit
                                             href="#"
                                             onClick={() => {
                                                 openLoginPopup();
@@ -244,6 +245,7 @@ const BigQueryForm: FC<{
                             description={
                                 <p>
                                     <Anchor
+                                        inherit
                                         target="_blank"
                                         href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#project"
                                         rel="noreferrer"
@@ -298,6 +300,7 @@ const BigQueryForm: FC<{
                             description={
                                 <p>
                                     <Anchor
+                                        inherit
                                         target="_blank"
                                         href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#project"
                                         rel="noreferrer"
@@ -338,6 +341,7 @@ const BigQueryForm: FC<{
                             The location of BigQuery datasets. You can see more
                             details in{' '}
                             <Anchor
+                                inherit
                                 target="_blank"
                                 href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#dataset-locations"
                                 rel="noreferrer"
@@ -366,7 +370,7 @@ const BigQueryForm: FC<{
                             If you're not sure what this is, check out the
                             <b> dataset </b>
                             value{' '}
-                            <Anchor
+                            <Anchor inherit
                                 target="_blank"
                                 href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#:~:text=This%20connection%20method%20requires%20local%20OAuth%20via%20gcloud."
                                 rel="noreferrer"
@@ -412,6 +416,7 @@ const BigQueryForm: FC<{
                                 <p>
                                     This is the JSON key file. You can see{' '}
                                     <Anchor
+                                        inherit
                                         target="_blank"
                                         href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#key-file"
                                         rel="noreferrer"
@@ -502,6 +507,7 @@ const BigQueryForm: FC<{
                                     where you materialize most resources. You
                                     can see more details in{' '}
                                     <Anchor
+                                        inherit
                                         target="_blank"
                                         href="https://docs.getdbt.com/docs/core/connect-data-platform/bigquery-setup#execution-project"
                                         rel="noreferrer"
@@ -545,6 +551,7 @@ const BigQueryForm: FC<{
                                     cancel the query. You can see more details
                                     in{' '}
                                     <Anchor
+                                        inherit
                                         target="_blank"
                                         href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#timeouts"
                                         rel="noreferrer"
@@ -568,6 +575,7 @@ const BigQueryForm: FC<{
                                     The priority for the BigQuery jobs that dbt
                                     executes. You can see more details in{' '}
                                     <Anchor
+                                        inherit
                                         target="_blank"
                                         href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#priority"
                                         rel="noreferrer"
@@ -602,6 +610,7 @@ const BigQueryForm: FC<{
                                     that result in unhandled server errors You
                                     can see more details in{' '}
                                     <Anchor
+                                        inherit
                                         target="_blank"
                                         href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#retries"
                                         rel="noreferrer"
@@ -630,6 +639,7 @@ const BigQueryForm: FC<{
                                     configured maximum bytes threshold. You can
                                     see more details in{' '}
                                     <Anchor
+                                        inherit
                                         target="_blank"
                                         href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#maximum-bytes-billed"
                                         rel="noreferrer"

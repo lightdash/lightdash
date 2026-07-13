@@ -4,8 +4,8 @@ import {
     DbtProjectTypeLabels,
     WarehouseTypes,
 } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
-import { Anchor, Select, TextInput } from '@mantine/core';
+import { Stack, Anchor } from '@mantine-8/core';
+import { Select, TextInput } from '@mantine/core';
 import { useMemo, useState, type FC } from 'react';
 import useApp from '../../providers/App/useApp';
 import AzureDevOpsForm from './DbtForms/AzureDevOpsForm';
@@ -248,6 +248,7 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
                                                 models from your dbt project.
                                                 You can see more details in{' '}
                                                 <Anchor
+                                                    inherit
                                                     href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project/#dbt-selector"
                                                     target="_blank"
                                                     rel="noreferrer"

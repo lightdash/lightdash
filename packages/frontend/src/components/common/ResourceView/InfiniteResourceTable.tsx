@@ -13,9 +13,17 @@ import {
     type ResourceViewItem,
     type SpaceSummary,
 } from '@lightdash/common';
-import { Box, Divider, Group, Text, Button, ActionIcon } from '@mantine-8/core';
+import {
+    Box,
+    Divider,
+    Group,
+    Text,
+    Button,
+    ActionIcon,
+    Anchor,
+} from '@mantine-8/core';
 import { useDebouncedCallback } from '@mantine-8/hooks';
-import { Anchor, TextInput, Tooltip, useMantineTheme } from '@mantine/core';
+import { TextInput, Tooltip, useMantineTheme } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconAppWindow,
@@ -252,7 +260,7 @@ const InfiniteResourceTable = ({
                 if (space) {
                     return (
                         <Anchor
-                            color="ldGray.7"
+                            c="ldGray.7"
                             component={Link}
                             to={`/projects/${space.projectUuid}/spaces/${space.uuid}`}
                             onClick={(e: React.MouseEvent<HTMLAnchorElement>) =>

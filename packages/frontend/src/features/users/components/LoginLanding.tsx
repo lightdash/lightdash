@@ -16,8 +16,9 @@ import {
     Title,
     Button,
     ActionIcon,
+    Anchor,
 } from '@mantine-8/core';
-import { Anchor, Card, PasswordInput, TextInput } from '@mantine/core';
+import { Card, PasswordInput, TextInput } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { useTimeout } from '@mantine/hooks';
 import { IconX } from '@tabler/icons-react';
@@ -287,7 +288,11 @@ const Login: FC<{}> = () => {
                                     {...form.getInputProps('password')}
                                     disabled={isFormLoading}
                                 />
-                                <Anchor href="/recover-password" mx="auto">
+                                <Anchor
+                                    inherit
+                                    href="/recover-password"
+                                    mx="auto"
+                                >
                                     Forgot your password?
                                 </Anchor>
                                 <Button
