@@ -1,6 +1,6 @@
 import { type ItemsMap } from '@lightdash/common';
-import { Button } from '@mantine-8/core';
-import { Popover, Textarea } from '@mantine/core';
+import { Button, Textarea } from '@mantine-8/core';
+import { Popover } from '@mantine/core';
 import { IconSparkles } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router';
