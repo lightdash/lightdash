@@ -1,9 +1,16 @@
 import { SnowflakeAuthenticationType, WarehouseTypes } from '@lightdash/common';
-import { Anchor, Button, FileInput, Group, Stack, Text } from '@mantine-8/core';
+import {
+    Anchor,
+    Button,
+    FileInput,
+    Group,
+    Radio,
+    Stack,
+    Text,
+} from '@mantine-8/core';
 import {
     NumberInput,
     PasswordInput,
-    Radio,
     Select,
     TextInput,
     Tooltip,
