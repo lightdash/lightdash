@@ -1,10 +1,17 @@
 import { subject } from '@casl/ability';
 import { hasIntersection, TableSelectionType } from '@lightdash/common';
-import { Box, Flex, Loader, Stack, Text, Title } from '@mantine-8/core';
+import {
+    Box,
+    Collapse,
+    Flex,
+    Loader,
+    Stack,
+    Text,
+    Title,
+} from '@mantine-8/core';
 import {
     Anchor,
     Button,
-    Collapse,
     Highlight,
     MultiSelect,
     Radio,

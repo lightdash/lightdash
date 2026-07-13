@@ -9,10 +9,9 @@ import {
     type Metric,
     type TableCalculation,
 } from '@lightdash/common';
-import { Box, Group, Stack } from '@mantine-8/core';
+import { Box, Collapse, Group, Stack } from '@mantine-8/core';
 import {
     Checkbox,
-    Collapse,
     MantineProvider,
     SegmentedControl,
     Switch,

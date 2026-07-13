@@ -5,8 +5,8 @@ import {
     type CartesianChartLayout,
     type Series,
 } from '@lightdash/common';
-import { Box, Group, Stack } from '@mantine-8/core';
-import { ActionIcon, Checkbox, Collapse, Popover, Select } from '@mantine/core';
+import { Box, Collapse, Group, Stack } from '@mantine-8/core';
+import { ActionIcon, Checkbox, Popover, Select } from '@mantine/core';
 import { useDebouncedState, useHover } from '@mantine/hooks';
 import {
     IconChevronDown,

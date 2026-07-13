@@ -23,6 +23,7 @@ import {
 import {
     Box,
     Center,
+    Divider,
     Group,
     Stack,
     type GroupProps,
@@ -32,7 +33,6 @@ import {
     ActionIcon,
     Badge,
     Button,
-    Divider,
     Popover,
     SegmentedControl,
     TextInput,
@@ -392,9 +392,9 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                             orientation="vertical"
                             w={1}
                             h={20}
-                            sx={{
+                            color="ldGray.3"
+                            style={{
                                 alignSelf: 'center',
-                                borderColor: 'ldGray.3',
                             }}
                         />
                     )}
@@ -585,10 +585,10 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                         orientation="vertical"
                         w={1}
                         h={20}
-                        sx={{
-                            display: embedToken ? 'none' : undefined,
+                        color="#DEE2E6"
+                        display={embedToken ? 'none' : undefined}
+                        style={{
                             alignSelf: 'center',
-                            borderColor: '#DEE2E6',
                         }}
                     />
                     <SegmentedControl

@@ -14,11 +14,10 @@ import {
     type DashboardTile,
     type Field,
 } from '@lightdash/common';
-import { Box, Flex, Group, Stack, Text } from '@mantine-8/core';
+import { Box, Collapse, Flex, Group, Stack, Text } from '@mantine-8/core';
 import {
     ActionIcon,
     Checkbox,
-    Collapse,
     Select,
     Tooltip,
     useMantineTheme,

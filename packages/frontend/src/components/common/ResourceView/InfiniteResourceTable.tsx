@@ -13,13 +13,12 @@ import {
     type ResourceViewItem,
     type SpaceSummary,
 } from '@lightdash/common';
-import { Box, Group, Text } from '@mantine-8/core';
+import { Box, Divider, Group, Text } from '@mantine-8/core';
 import { useDebouncedCallback } from '@mantine-8/hooks';
 import {
     ActionIcon,
     Anchor,
     Button,
-    Divider,
     TextInput,
     Tooltip,
     useMantineTheme,
@@ -707,9 +706,9 @@ const InfiniteResourceTable = ({
                                         orientation="vertical"
                                         w={1}
                                         h={20}
-                                        sx={{
+                                        color="#DEE2E6"
+                                        style={{
                                             alignSelf: 'center',
-                                            borderColor: '#DEE2E6',
                                         }}
                                     />
                                     <ContentTypeFilter

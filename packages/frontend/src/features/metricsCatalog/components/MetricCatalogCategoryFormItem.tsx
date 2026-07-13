@@ -1,9 +1,8 @@
 import { getErrorMessage, type CatalogItem } from '@lightdash/common';
-import { Box, Group, Stack, Text } from '@mantine-8/core';
+import { Box, Divider, Group, Stack, Text } from '@mantine-8/core';
 import {
     ActionIcon,
     Button,
-    Divider,
     Popover,
     SimpleGrid,
     TextInput,
@@ -137,12 +136,7 @@ const EditPopover: FC<EditPopoverProps> = ({
                         ))}
                     </SimpleGrid>
 
-                    <Divider
-                        c="ldGray.2"
-                        sx={(theme) => ({
-                            borderTopColor: theme.colors.ldGray[2],
-                        })}
-                    />
+                    <Divider color="ldGray.2" />
 
                     <Group justify="space-between">
                         <Tooltip

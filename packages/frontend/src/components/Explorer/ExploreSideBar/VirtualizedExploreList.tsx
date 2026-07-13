@@ -274,7 +274,7 @@ const VirtualizedExploreList: FC<VirtualizedExploreListProps> = ({
                         <Divider
                             key={item.id}
                             size={0.5}
-                            c="ldGray.5"
+                            color="ldGray.5"
                             my="xs"
                         />
                     );
