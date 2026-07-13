@@ -206,12 +206,6 @@ export const applyOrganizationMemberStaticAbilities: Record<
                 $elemMatch: { userUuid: member.userUuid },
             },
         });
-        // Create personal data apps; once created, the user can also view
-        // and manage their own. Moving an app into a space is gated
-        // separately by the target space's manage rule.
-        can('create', 'DataApp', {
-            organizationUuid: member.organizationUuid,
-        });
         can('view', 'DataApp', {
             organizationUuid: member.organizationUuid,
             createdByUserUuid: member.userUuid,
@@ -255,6 +249,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
     editor(member, { can }) {
         applyOrganizationMemberStaticAbilities.interactive_viewer(member, {
             can,
+        });
+        can('create', 'DataApp', {
+            organizationUuid: member.organizationUuid,
         });
         can('manage', 'Space', {
             organizationUuid: member.organizationUuid,
