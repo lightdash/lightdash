@@ -4,8 +4,8 @@ import {
     type VizColumnsConfig,
     type VizTableHeaderSortConfig,
 } from '@lightdash/common';
-import { Flex, Group, type FlexProps } from '@mantine-8/core';
-import { Badge, Tooltip, useMantineTheme } from '@mantine/core';
+import { Flex, Group, type FlexProps, Badge } from '@mantine-8/core';
+import { Tooltip, useMantineTheme } from '@mantine/core';
 import { IconArrowDown, IconArrowUp } from '@tabler/icons-react';
 import { flexRender } from '@tanstack/react-table';
 import { useMemo } from 'react';
@@ -104,6 +104,7 @@ export const ChartDataTable = ({
                                                     {columnsConfig?.[header.id]
                                                         ?.aggregation && (
                                                         <Badge
+                                                            variant="light"
                                                             size="sm"
                                                             color="indigo"
                                                             radius="xs"

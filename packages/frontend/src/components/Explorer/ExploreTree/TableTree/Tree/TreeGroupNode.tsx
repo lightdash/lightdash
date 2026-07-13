@@ -1,6 +1,6 @@
 import { hasIntersection } from '@lightdash/common';
-import { Group, Text, Highlight } from '@mantine-8/core';
-import { Badge, HoverCard, NavLink } from '@mantine/core';
+import { Group, Text, Highlight, Badge } from '@mantine-8/core';
+import { HoverCard, NavLink } from '@mantine/core';
 import { IconChevronRight } from '@tabler/icons-react';
 import intersectionBy from 'lodash/intersectionBy';
 import { memo, useCallback, useMemo, type FC } from 'react';
@@ -155,7 +155,7 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
             label={
                 <Group>
                     {!isOpen && hasSelectedChildren && (
-                        <Badge>{selectedChildrenCount}</Badge>
+                        <Badge variant="light">{selectedChildrenCount}</Badge>
                     )}
                     <HoverCard
                         openDelay={300}
