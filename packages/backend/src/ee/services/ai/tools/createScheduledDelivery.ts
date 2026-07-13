@@ -79,7 +79,7 @@ export const getCreateScheduledDelivery = ({
                     aiAugmentationAttached
                         ? 'AI augmentation is attached and will write the delivery message on each send.'
                         : null,
-                    `Share this link with the user — it opens the delivery's settings, where it can be reviewed, paused, edited or deleted: ${href}`,
+                    `Share this markdown link with the user verbatim (the link text must be the delivery name) — it opens the delivery's settings, where it can be reviewed, paused, edited or deleted: [${scheduler.name}](${href})`,
                     ...warnings,
                 ]
                     .filter(Boolean)
