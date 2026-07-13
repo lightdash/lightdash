@@ -4,6 +4,7 @@ import {
     ParameterError,
     type ApiAppImageUploadResponse,
     type ApiAppImageUrlResponse,
+    type ApiAppPreviewTokenResponse,
     type ApiAppSchedulersResponse,
     type ApiAppThumbnailUrlResponse,
     type ApiCancelAppVersionResponse,
@@ -592,6 +593,31 @@ export class AppGenerateController extends BaseController {
                 projectUuid,
                 appUuid,
                 version,
+            ),
+        };
+    }
+
+    /**
+     * Exchanges the caller's credential for a short-lived token limited to
+     * the data-app SDK routes for this project. Used by `lightdash apps
+     * preview` so the local preview never holds a durable full-authority
+     * credential.
+     * @summary Mint app preview token
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/preview-token')
+    @OperationId('mintAppPreviewToken')
+    async mintAppPreviewToken(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiAppPreviewTokenResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.getAppGenerateService().mintPreviewApiToken(
+                toSessionUser(req.account),
+                projectUuid,
             ),
         };
     }

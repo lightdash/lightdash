@@ -77,7 +77,7 @@ describe('startPreviewProxy', () => {
         upstream = await startFakeUpstream();
         proxy = await startPreviewProxy({
             upstreamUrl: upstream.url,
-            apiKey: API_KEY,
+            getApiKey: () => API_KEY,
             projectUuid: PROJECT_UUID,
             nonce: NONCE,
         });

@@ -37,6 +37,40 @@ export const buildPreviewChildEnv = (args: {
 });
 
 /**
+ * Exchanges the durable CLI credential for a short-lived, project-scoped
+ * preview token (GLITCH-609). Returns null when the server doesn't support
+ * the exchange (older version, EE disabled) or the mint is refused — the
+ * caller falls back to using the durable credential in the proxy.
+ */
+export const exchangeForPreviewToken = async (args: {
+    serverUrl: string;
+    apiKey: string;
+    projectUuid: string;
+}): Promise<{ token: string; expiresAt: string } | null> => {
+    try {
+        const res = await fetch(
+            new URL(
+                `/api/v1/ee/projects/${args.projectUuid}/apps/preview-token`,
+                args.serverUrl,
+            ),
+            {
+                method: 'POST',
+                headers: { Authorization: `ApiKey ${args.apiKey}` },
+            },
+        );
+        if (!res.ok) return null;
+        const body = (await res.json()) as {
+            status: string;
+            results?: { token: string; expiresAt: string };
+        };
+        if (body.status !== 'ok' || !body.results?.token) return null;
+        return body.results;
+    } catch {
+        return null;
+    }
+};
+
+/**
  * Older downloads have a vite.config.js that proxies /api straight to the
  * instance and expects the credential in .env.local — incompatible with the
  * proxy-based flow (requests would go out uncredentialed and 401).
@@ -192,10 +226,54 @@ export const appsPreviewHandler = async (
         );
     }
 
+    // Prefer a short-lived project-scoped token over the durable credential:
+    // the proxy then holds minutes of narrow authority instead of the PAT,
+    // and the server enforces the SDK-route scope even if the token leaks.
+    const credential = { current: apiKey };
+    const exchange = () =>
+        exchangeForPreviewToken({
+            serverUrl,
+            apiKey,
+            projectUuid: target.projectUuid,
+        });
+    const minted = await exchange();
+    let refreshTimer: NodeJS.Timeout | undefined;
+    if (minted !== null) {
+        credential.current = minted.token;
+        const ttlMs = new Date(minted.expiresAt).getTime() - Date.now();
+        const refreshEveryMs = Math.max(60_000, Math.floor(ttlMs / 2));
+        refreshTimer = setInterval(() => {
+            exchange()
+                .then((refreshed) => {
+                    if (refreshed !== null) {
+                        credential.current = refreshed.token;
+                        GlobalState.debug('Refreshed preview token');
+                    } else {
+                        GlobalState.log(
+                            styles.warning(
+                                `Could not refresh the preview token — queries will start failing when it expires. Check your login ('lightdash login ${serverUrl}') and restart preview.`,
+                            ),
+                        );
+                    }
+                })
+                .catch(() => {});
+        }, refreshEveryMs);
+        refreshTimer.unref();
+        GlobalState.log(
+            `Using a short-lived preview token scoped to project ${target.projectUuid} (auto-refreshed while the preview runs).`,
+        );
+    } else {
+        GlobalState.log(
+            styles.warning(
+                `This server does not support short-lived preview tokens; falling back to your API key (held in the CLI proxy, never exposed to the app).`,
+            ),
+        );
+    }
+
     const proxyNonce = randomBytes(16).toString('hex');
     const proxy = await startPreviewProxy({
         upstreamUrl: serverUrl,
-        apiKey,
+        getApiKey: () => credential.current,
         projectUuid: target.projectUuid,
         nonce: proxyNonce,
     });
@@ -222,6 +300,7 @@ export const appsPreviewHandler = async (
             }),
         });
     } finally {
+        if (refreshTimer !== undefined) clearInterval(refreshTimer);
         await proxy.close();
     }
 };

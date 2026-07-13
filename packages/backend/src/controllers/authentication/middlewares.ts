@@ -15,7 +15,11 @@ import { fromApiKey, fromOauth } from '../../auth/account/account';
 import { requestContextFromExpress } from '../../auth/account/requestContext';
 import { buildAccountExistsWarning } from '../../auth/account/warnAccountExists';
 import { lightdashConfig } from '../../config/lightdashConfig';
-import { authenticateServiceAccount } from '../../ee/authentication';
+import {
+    authenticateDataAppPreviewToken,
+    authenticateServiceAccount,
+    DATA_APP_PREVIEW_TOKEN_PREFIX,
+} from '../../ee/authentication';
 import Logger from '../../logging/logger';
 
 export const isAuthenticated: RequestHandler = (req, res, next) => {
@@ -110,6 +114,18 @@ then Personal access tokens (ApiKey header), which can throw an error if the tok
 export const allowApiKeyAuthentication: RequestHandler = (req, res, next) => {
     if (req.isAuthenticated()) {
         next();
+        return;
+    }
+
+    // Data-app preview tokens are prefix-dispatched and exclusive — they
+    // never fall through to OAuth/service-account/PAT auth. The middleware
+    // itself limits them to the data-app SDK route allowlist.
+    if (
+        req.headers.authorization?.startsWith(
+            `ApiKey ${DATA_APP_PREVIEW_TOKEN_PREFIX}`,
+        )
+    ) {
+        authenticateDataAppPreviewToken(req, res, next);
         return;
     }
 

@@ -76,7 +76,9 @@ const sendJsonError = (
  */
 export const startPreviewProxy = (args: {
     upstreamUrl: string;
-    apiKey: string;
+    // Read per-request so the credential can rotate mid-run (the short-lived
+    // preview token is refreshed while vite runs).
+    getApiKey: () => string;
     projectUuid: string;
     nonce: string;
 }): Promise<PreviewProxyHandle> => {
@@ -125,7 +127,7 @@ export const startPreviewProxy = (args: {
         }
 
         const headers = filterHeaders(req.headers, DROPPED_REQUEST_HEADERS);
-        headers.authorization = `ApiKey ${args.apiKey}`;
+        headers.authorization = `ApiKey ${args.getApiKey()}`;
 
         const upstreamReq = requestFn(
             {

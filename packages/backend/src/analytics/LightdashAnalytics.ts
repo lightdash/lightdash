@@ -1605,6 +1605,16 @@ export type DataAppUploadRejectedEvent = BaseTrack & {
     };
 };
 
+export type DataAppPreviewTokenMintedEvent = BaseTrack & {
+    event: 'data_app.preview_token_minted';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        expiresInSeconds: number;
+    };
+};
+
 export type DataAppEvent =
     | DataAppCreatedEvent
     | DataAppIteratedEvent
@@ -1618,7 +1628,8 @@ export type DataAppEvent =
     | DataAppPromotedEvent
     | DataAppDownloadedEvent
     | DataAppUploadedEvent
-    | DataAppUploadRejectedEvent;
+    | DataAppUploadRejectedEvent
+    | DataAppPreviewTokenMintedEvent;
 
 export type AiWritebackStartedEvent = BaseTrack & {
     event: 'ai_writeback.started';
