@@ -4,8 +4,14 @@ import {
     DucklakeDataPathType,
     WarehouseTypes,
 } from '@lightdash/common';
-import { TextInput, Stack, SegmentedControl, Select } from '@mantine-8/core';
-import { NumberInput, PasswordInput, Switch } from '@mantine/core';
+import {
+    TextInput,
+    Stack,
+    SegmentedControl,
+    Select,
+    Switch,
+} from '@mantine-8/core';
+import { NumberInput, PasswordInput } from '@mantine/core';
 import { type FC } from 'react';
 import { useToggle } from 'react-use';
 import FormCollapseButton from '../FormCollapseButton';

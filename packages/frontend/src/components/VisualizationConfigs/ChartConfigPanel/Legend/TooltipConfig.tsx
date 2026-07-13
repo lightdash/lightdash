@@ -4,11 +4,11 @@ import {
     Group,
     Paper,
     Stack,
+    Switch,
     Text,
     Tooltip,
     useMantineColorScheme,
 } from '@mantine-8/core';
-import { Switch } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
     Editor,
@@ -28,6 +28,7 @@ import MantineIcon from '../../../common/MantineIcon';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
+import compactStyles from '../../mantineTheme.module.css';
 import styles from './TooltipConfig.module.css';
 import '../../../../styles/monaco.css';
 
@@ -283,7 +284,14 @@ export const TooltipConfig: FC<Props> = ({ fields }) => {
                         style={{ cursor: 'pointer' }}
                     />
                 </Tooltip>
-                <Switch checked={show} onChange={() => setShow(!show)} />
+                <Switch
+                    size="xs"
+                    classNames={{
+                        label: compactStyles.compactCheckboxLabel,
+                    }}
+                    checked={show}
+                    onChange={() => setShow(!show)}
+                />
             </Group>
 
             <Collapse in={show}>

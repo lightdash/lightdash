@@ -12,8 +12,9 @@ import {
     Stack,
     Text,
     Select,
+    Switch,
 } from '@mantine-8/core';
-import { NumberInput, Switch, Tooltip } from '@mantine/core';
+import { NumberInput, Tooltip } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconCheck, IconExclamationCircle } from '@tabler/icons-react';
 import { useState, type ChangeEvent, type FC } from 'react';
