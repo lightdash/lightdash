@@ -19,10 +19,9 @@ import {
     type DashboardTile,
     type ResultColumn,
 } from '@lightdash/common';
-import { Box, Group, Stack } from '@mantine-8/core';
+import { Box, Flex, Group, Stack } from '@mantine-8/core';
 import {
     Button,
-    Flex,
     Select,
     Tabs,
     Tooltip,

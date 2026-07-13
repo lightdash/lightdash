@@ -5,8 +5,8 @@ import {
     type VizColumnsConfig,
     type VizTableHeaderSortConfig,
 } from '@lightdash/common';
-import { Group, Menu } from '@mantine-8/core';
-import { Badge, Flex, useMantineTheme, type FlexProps } from '@mantine/core';
+import { Flex, Group, Menu, type FlexProps } from '@mantine-8/core';
+import { Badge, useMantineTheme } from '@mantine/core';
 import { IconArrowDown, IconArrowUp, IconCopy } from '@tabler/icons-react';
 import { flexRender } from '@tanstack/react-table';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -91,13 +91,13 @@ export const Table = <T extends IResultsRunner>({
             direction="column"
             miw="100%"
             {...flexProps}
-            sx={{
+            style={{
                 overflow: 'auto',
                 fontFeatureSettings: "'tnum'",
                 flexGrow: 1,
-                ...(typeof flexProps?.sx === 'object' &&
-                !Array.isArray(flexProps.sx)
-                    ? flexProps.sx
+                ...(typeof flexProps?.style === 'object' &&
+                !Array.isArray(flexProps.style)
+                    ? flexProps.style
                     : {}),
             }}
             className="sentry-block ph-no-capture"

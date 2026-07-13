@@ -1,6 +1,6 @@
 import { SpotlightTableColumns, type CatalogField } from '@lightdash/common';
-import { Box, Group } from '@mantine-8/core';
-import { Button, Flex, Text } from '@mantine/core';
+import { Box, Flex, Group } from '@mantine-8/core';
+import { Button, Text } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconPlus, IconUser } from '@tabler/icons-react';
 import { useMemo } from 'react';
@@ -284,7 +284,7 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
 
                         table.setEditingCell(cell);
                     }}
-                    sx={{
+                    style={{
                         cursor: canManageTags ? 'pointer' : 'default',
                     }}
                 >

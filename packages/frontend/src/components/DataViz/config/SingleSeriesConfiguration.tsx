@@ -5,8 +5,8 @@ import {
     type CartesianChartDisplay,
     type ChartKind,
 } from '@lightdash/common';
-import { Box, Group, Stack } from '@mantine-8/core';
-import { Flex, SegmentedControl, TextInput, Text } from '@mantine/core';
+import { Box, Flex, Group, Stack } from '@mantine-8/core';
+import { SegmentedControl, TextInput, Text } from '@mantine/core';
 import { IconAlignLeft, IconAlignRight } from '@tabler/icons-react';
 import MantineIcon from '../../common/MantineIcon';
 import ColorSelector from '../../VisualizationConfigs/ColorSelector';
