@@ -61,7 +61,6 @@ type Props = Omit<PillsInputProps, 'onChange'> & {
     showNullOption?: boolean;
     includeNull?: boolean;
     onIncludeNullChange?: (includeNull: boolean) => void;
-    limit?: number;
     comboboxProps?: ComboboxProps;
     onDropdownOpen?: () => void;
     onDropdownClose?: () => void;
@@ -127,7 +126,6 @@ const FilterStringAutoComplete: FC<Props> = ({
     showNullOption,
     includeNull,
     onIncludeNullChange,
-    limit: _limit,
     comboboxProps,
     ...rest
 }) => {
