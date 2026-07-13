@@ -48,13 +48,18 @@ export const getCreateScheduledDelivery = ({
         ...toolDefinition,
         execute: async (args) => {
             try {
-                const { scheduler, aiAugmentationAttached, warnings } =
-                    await createScheduledDelivery({
-                        resourceType: args.resourceType,
-                        resourceUuid: args.resourceUuid,
-                        scheduler: toSchedulerPayload(args),
-                        aiAugmentationPrompt: args.aiAugmentationPrompt,
-                    });
+                const {
+                    scheduler,
+                    resourceUuid,
+                    href,
+                    aiAugmentationAttached,
+                    warnings,
+                } = await createScheduledDelivery({
+                    resourceType: args.resourceType,
+                    resourceUuidOrSlug: args.resourceUuidOrSlug,
+                    scheduler: toSchedulerPayload(args),
+                    aiAugmentationPrompt: args.aiAugmentationPrompt,
+                });
 
                 const summary = [
                     `Created scheduled delivery "${scheduler.name}" (uuid: ${scheduler.schedulerUuid}).`,
@@ -74,6 +79,7 @@ export const getCreateScheduledDelivery = ({
                     aiAugmentationAttached
                         ? 'AI augmentation is attached and will write the delivery message on each send.'
                         : null,
+                    `The user can review, pause, edit or delete it from the ${args.resourceType}'s Scheduled deliveries menu: ${href}`,
                     ...warnings,
                 ]
                     .filter(Boolean)
@@ -87,7 +93,8 @@ export const getCreateScheduledDelivery = ({
                         name: scheduler.name,
                         cron: scheduler.cron,
                         resourceType: args.resourceType,
-                        resourceUuid: args.resourceUuid,
+                        resourceUuid,
+                        href,
                         aiAugmentationAttached,
                         warnings,
                     },

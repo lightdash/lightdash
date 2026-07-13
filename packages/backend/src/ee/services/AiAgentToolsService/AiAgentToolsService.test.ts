@@ -10,6 +10,7 @@ import {
     RequestMethod,
     SessionUser,
     UnitOfTime,
+    type CreateSchedulerAndTargetsWithoutIds,
 } from '@lightdash/common';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
@@ -714,6 +715,135 @@ describe('AiAgentToolsService', () => {
             chartUuid: 'allowed-chart-uuid',
             limit: 100,
             context: QueryExecutionContext.AI,
+        });
+    });
+
+    describe('createScheduledDelivery', () => {
+        const schedulerPayload = {
+            name: 'Weekly sales',
+            cron: '0 9 * * 1',
+        } as CreateSchedulerAndTargetsWithoutIds;
+
+        it('resolves a chart slug to its uuid before creating the scheduler', async () => {
+            const createScheduler = vi
+                .fn()
+                .mockResolvedValue({ schedulerUuid: 'scheduler-uuid-1' });
+            const service = makeService({
+                savedChartService: {
+                    get: vi.fn().mockResolvedValue({
+                        uuid: 'chart-uuid-1',
+                        spaceUuid: 'allowed-space-uuid',
+                    }),
+                    createScheduler,
+                },
+            });
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ spaceAccess: ['allowed-space-uuid'] }),
+            );
+
+            const result = await runtime.createScheduledDelivery({
+                resourceType: 'chart',
+                resourceUuidOrSlug: 'weekly-sales',
+                scheduler: schedulerPayload,
+                aiAugmentationPrompt: null,
+            });
+
+            expect(createScheduler).toHaveBeenCalledWith(
+                user,
+                'chart-uuid-1',
+                schedulerPayload,
+            );
+            expect(result.resourceUuid).toBe('chart-uuid-1');
+            expect(result.href).toBe(
+                `/projects/${projectUuid}/saved/chart-uuid-1/view#chart-link`,
+            );
+        });
+
+        it('does not create deliveries on charts outside the scoped agent spaces', async () => {
+            const createScheduler = vi.fn();
+            const service = makeService({
+                savedChartService: {
+                    get: vi.fn().mockResolvedValue({
+                        uuid: 'blocked-chart-uuid',
+                        spaceUuid: 'blocked-space-uuid',
+                    }),
+                    createScheduler,
+                },
+            });
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ spaceAccess: ['allowed-space-uuid'] }),
+            );
+
+            await expect(
+                runtime.createScheduledDelivery({
+                    resourceType: 'chart',
+                    resourceUuidOrSlug: 'blocked-chart-uuid',
+                    scheduler: schedulerPayload,
+                    aiAugmentationPrompt: null,
+                }),
+            ).rejects.toThrow(NotFoundError);
+            expect(createScheduler).not.toHaveBeenCalled();
+        });
+
+        it('does not create deliveries on dashboards outside the scoped agent spaces', async () => {
+            const createScheduler = vi.fn();
+            const service = makeService({
+                dashboardService: {
+                    getByIdOrSlug: vi.fn().mockResolvedValue({
+                        uuid: 'blocked-dashboard-uuid',
+                        spaceUuid: 'blocked-space-uuid',
+                    }),
+                    createScheduler,
+                },
+            });
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ spaceAccess: ['allowed-space-uuid'] }),
+            );
+
+            await expect(
+                runtime.createScheduledDelivery({
+                    resourceType: 'dashboard',
+                    resourceUuidOrSlug: 'blocked-dashboard-uuid',
+                    scheduler: schedulerPayload,
+                    aiAugmentationPrompt: null,
+                }),
+            ).rejects.toThrow(NotFoundError);
+            expect(createScheduler).not.toHaveBeenCalled();
+        });
+
+        it('creates dashboard deliveries with the resolved uuid inside the scoped agent spaces', async () => {
+            const createScheduler = vi
+                .fn()
+                .mockResolvedValue({ schedulerUuid: 'scheduler-uuid-1' });
+            const service = makeService({
+                dashboardService: {
+                    getByIdOrSlug: vi.fn().mockResolvedValue({
+                        uuid: 'dashboard-uuid-1',
+                        spaceUuid: 'allowed-space-uuid',
+                    }),
+                    createScheduler,
+                },
+            });
+            const runtime = service.createRuntime(
+                makeRuntimeContext({ spaceAccess: ['allowed-space-uuid'] }),
+            );
+
+            const result = await runtime.createScheduledDelivery({
+                resourceType: 'dashboard',
+                resourceUuidOrSlug: 'weekly-kpis',
+                scheduler: schedulerPayload,
+                aiAugmentationPrompt: null,
+            });
+
+            expect(createScheduler).toHaveBeenCalledWith(
+                user,
+                'dashboard-uuid-1',
+                schedulerPayload,
+            );
+            expect(result.resourceUuid).toBe('dashboard-uuid-1');
+            expect(result.href).toBe(
+                `/projects/${projectUuid}/dashboards/dashboard-uuid-1/view#dashboard-link`,
+            );
         });
     });
 

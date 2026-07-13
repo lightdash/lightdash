@@ -1656,48 +1656,82 @@ export class AiAgentToolsService extends BaseService {
             )}.createScheduledDelivery`,
             {
                 resourceType: args.resourceType,
-                resourceUuid: args.resourceUuid,
+                resourceUuidOrSlug: args.resourceUuidOrSlug,
             },
             async () => {
-                // Resource lookups are scoped to the agent's project so a uuid
-                // from another project resolves to NotFound instead of leaking.
+                // Resource lookups are scoped to the agent's project (and the
+                // agent's spaces) so an out-of-scope uuid resolves to NotFound
+                // instead of leaking. The scheduler is always created against
+                // the resolved uuid — the arg may be a slug.
+                const notFoundMessage = `${
+                    args.resourceType === 'chart' ? 'Chart' : 'Dashboard'
+                } "${args.resourceUuidOrSlug}" was not found`;
                 let scheduler;
+                let resourceUuid;
                 switch (args.resourceType) {
-                    case 'chart':
-                        await this.savedChartService.get(
-                            args.resourceUuid,
+                    case 'chart': {
+                        const chart = await this.savedChartService.get(
+                            args.resourceUuidOrSlug,
                             context.account,
                             { projectUuid: context.projectUuid },
                         );
+                        if (
+                            !AiAgentToolsService.hasAgentSpaceAccess(
+                                context.spaceAccess,
+                                chart.spaceUuid,
+                            )
+                        ) {
+                            throw new NotFoundError(notFoundMessage);
+                        }
+                        resourceUuid = chart.uuid;
                         scheduler =
                             await this.savedChartService.createScheduler(
                                 context.user,
-                                args.resourceUuid,
+                                chart.uuid,
                                 args.scheduler,
                             );
                         break;
-                    case 'dashboard':
-                        await this.dashboardService.getByIdOrSlug(
-                            context.user,
-                            args.resourceUuid,
-                            { projectUuid: context.projectUuid },
-                        );
+                    }
+                    case 'dashboard': {
+                        const dashboard =
+                            await this.dashboardService.getByIdOrSlug(
+                                context.user,
+                                args.resourceUuidOrSlug,
+                                { projectUuid: context.projectUuid },
+                            );
+                        if (
+                            !AiAgentToolsService.hasAgentSpaceAccess(
+                                context.spaceAccess,
+                                dashboard.spaceUuid,
+                            )
+                        ) {
+                            throw new NotFoundError(notFoundMessage);
+                        }
+                        resourceUuid = dashboard.uuid;
                         scheduler = await this.dashboardService.createScheduler(
                             context.user,
-                            args.resourceUuid,
+                            dashboard.uuid,
                             args.scheduler,
                         );
                         break;
+                    }
                     default:
                         return assertUnreachable(
                             args.resourceType,
                             'Invalid resource type',
                         );
                 }
+                const href = AiAgentToolsService.getContentUrl(
+                    context,
+                    args.resourceType,
+                    resourceUuid,
+                );
 
                 if (args.aiAugmentationPrompt === null) {
                     return {
                         scheduler,
+                        resourceUuid,
+                        href,
                         aiAugmentationAttached: false,
                         warnings: [],
                     };
@@ -1723,12 +1757,16 @@ export class AiAgentToolsService extends BaseService {
                     );
                     return {
                         scheduler,
+                        resourceUuid,
+                        href,
                         aiAugmentationAttached: true,
                         warnings: [],
                     };
                 } catch (error) {
                     return {
                         scheduler,
+                        resourceUuid,
+                        href,
                         aiAugmentationAttached: false,
                         warnings: [
                             `AI augmentation could not be attached: ${getErrorMessage(

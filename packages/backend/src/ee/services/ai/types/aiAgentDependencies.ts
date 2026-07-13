@@ -336,11 +336,13 @@ export type ValidateContentFn = (args: CreateContentArgs) => void;
 
 export type CreateScheduledDeliveryFn = (args: {
     resourceType: 'chart' | 'dashboard';
-    resourceUuid: string;
+    resourceUuidOrSlug: string;
     scheduler: CreateSchedulerAndTargetsWithoutIds;
     aiAugmentationPrompt: string | null;
 }) => Promise<{
     scheduler: SchedulerAndTargets;
+    resourceUuid: string;
+    href: string;
     aiAugmentationAttached: boolean;
     warnings: string[];
 }>;

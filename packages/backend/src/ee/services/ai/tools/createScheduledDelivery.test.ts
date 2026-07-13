@@ -20,11 +20,22 @@ const makeScheduler = (
         ...overrides,
     }) as SchedulerAndTargets;
 
+const makeResult = (
+    overrides: Partial<Awaited<ReturnType<CreateScheduledDeliveryFn>>> = {},
+): Awaited<ReturnType<CreateScheduledDeliveryFn>> => ({
+    scheduler: makeScheduler(),
+    resourceUuid: 'chart-uuid-1',
+    href: '/projects/project-uuid-1/saved/chart-uuid-1/view#chart-link',
+    aiAugmentationAttached: false,
+    warnings: [],
+    ...overrides,
+});
+
 const makeArgs = (
     overrides: Partial<ToolCreateScheduledDeliveryArgs> = {},
 ): ToolCreateScheduledDeliveryArgs => ({
     resourceType: 'chart',
-    resourceUuid: 'chart-uuid-1',
+    resourceUuidOrSlug: 'chart-uuid-1',
     name: 'Weekly sales',
     cron: '0 9 * * 1',
     timezone: 'Europe/London',
@@ -50,18 +61,14 @@ const executeTool = (
 
 describe('createScheduledDelivery tool', () => {
     it('maps image format to an image scheduler payload', async () => {
-        const fn = vi.fn().mockResolvedValue({
-            scheduler: makeScheduler(),
-            aiAugmentationAttached: false,
-            warnings: [],
-        });
+        const fn = vi.fn().mockResolvedValue(makeResult());
 
         await executeTool(fn, makeArgs());
 
         expect(fn).toHaveBeenCalledWith(
             expect.objectContaining({
                 resourceType: 'chart',
-                resourceUuid: 'chart-uuid-1',
+                resourceUuidOrSlug: 'chart-uuid-1',
                 aiAugmentationPrompt: null,
                 scheduler: expect.objectContaining({
                     format: SchedulerFormat.IMAGE,
@@ -78,11 +85,7 @@ describe('createScheduledDelivery tool', () => {
     });
 
     it('maps csv format with defaults when csvOptions is null', async () => {
-        const fn = vi.fn().mockResolvedValue({
-            scheduler: makeScheduler(),
-            aiAugmentationAttached: false,
-            warnings: [],
-        });
+        const fn = vi.fn().mockResolvedValue(makeResult());
 
         await executeTool(
             fn,
@@ -104,11 +107,7 @@ describe('createScheduledDelivery tool', () => {
     });
 
     it('passes explicit csvOptions through', async () => {
-        const fn = vi.fn().mockResolvedValue({
-            scheduler: makeScheduler(),
-            aiAugmentationAttached: false,
-            warnings: [],
-        });
+        const fn = vi.fn().mockResolvedValue(makeResult());
 
         await executeTool(
             fn,
@@ -127,12 +126,10 @@ describe('createScheduledDelivery tool', () => {
         );
     });
 
-    it('returns success metadata with the scheduler uuid', async () => {
-        const fn = vi.fn().mockResolvedValue({
-            scheduler: makeScheduler(),
-            aiAugmentationAttached: true,
-            warnings: [],
-        });
+    it('returns success metadata with the scheduler uuid and href', async () => {
+        const fn = vi
+            .fn()
+            .mockResolvedValue(makeResult({ aiAugmentationAttached: true }));
 
         const output = await executeTool(
             fn,
@@ -146,10 +143,14 @@ describe('createScheduledDelivery tool', () => {
             cron: '0 9 * * 1',
             resourceType: 'chart',
             resourceUuid: 'chart-uuid-1',
+            href: '/projects/project-uuid-1/saved/chart-uuid-1/view#chart-link',
             aiAugmentationAttached: true,
             warnings: [],
         });
         expect(output.result).toContain('scheduler-uuid-1');
+        expect(output.result).toContain(
+            '/projects/project-uuid-1/saved/chart-uuid-1/view#chart-link',
+        );
         expect(output.result).toContain(
             'AI augmentation is attached and will write the delivery message on each send.',
         );
@@ -158,11 +159,9 @@ describe('createScheduledDelivery tool', () => {
     it('surfaces augmentation-failure warnings on a partial success', async () => {
         const warning =
             'AI augmentation could not be attached: agent has no access. The delivery was created WITHOUT it.';
-        const fn = vi.fn().mockResolvedValue({
-            scheduler: makeScheduler(),
-            aiAugmentationAttached: false,
-            warnings: [warning],
-        });
+        const fn = vi
+            .fn()
+            .mockResolvedValue(makeResult({ warnings: [warning] }));
 
         const output = await executeTool(
             fn,

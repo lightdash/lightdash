@@ -4,7 +4,7 @@ export const TOOL_CREATE_SCHEDULED_DELIVERY_DESCRIPTION = [
     'Create a LIVE scheduled delivery that sends a saved chart or dashboard to Slack channels and/or email recipients on a cron schedule.',
     'IMPORTANT: before calling this tool, propose the full configuration to the user (name, schedule in plain words, timezone, destinations, format, AI augmentation prompt if any) and wait for their explicit confirmation in the conversation.',
     'Requires an existing saved chart or dashboard — if the content only exists in this conversation, create it with createContent first, then schedule the created uuid.',
-    'On success, report the created scheduler uuid back to the user.',
+    'On success, share the returned href with the user — the delivery is managed (paused, edited, deleted) from that page.',
 ].join(' ');
 
 const slackTargetSchema = z.object({
@@ -26,9 +26,11 @@ export const toolCreateScheduledDeliveryArgsSchema = z.object({
     resourceType: z
         .enum(['chart', 'dashboard'])
         .describe('Type of saved content to deliver.'),
-    resourceUuid: z
+    resourceUuidOrSlug: z
         .string()
-        .describe('UUID of the saved chart or dashboard to deliver.'),
+        .describe(
+            'UUID (preferred) or slug of the saved chart or dashboard to deliver. Use the uuid from createContent/findContent results — slugs are not guaranteed unique.',
+        ),
     name: z.string().min(1).describe('Human-readable delivery name.'),
     cron: z
         .string()
@@ -83,7 +85,7 @@ export const toolCreateScheduledDeliveryArgsSchema = z.object({
     enabled: z
         .boolean()
         .describe(
-            'Whether the delivery starts firing immediately. Use true unless the user asked for a paused delivery.',
+            'Whether the delivery starts firing immediately. Use true only when the user explicitly confirmed it should go live; when in doubt, create it paused (false) — the user can enable it from the UI.',
         ),
     aiAugmentationPrompt: z
         .string()
@@ -108,6 +110,7 @@ const toolCreateScheduledDeliveryMetadataSchema = z.discriminatedUnion(
             cron: z.string(),
             resourceType: z.enum(['chart', 'dashboard']),
             resourceUuid: z.string(),
+            href: z.string(),
             aiAugmentationAttached: z.boolean(),
             warnings: z.array(z.string()),
         }),
