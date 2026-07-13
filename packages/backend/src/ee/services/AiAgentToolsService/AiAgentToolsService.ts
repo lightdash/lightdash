@@ -41,6 +41,7 @@ import * as JsonPatch from 'fast-json-patch';
 import Logger from '../../../logging/logger';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
+import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import { JobModel } from '../../../models/JobModel/JobModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
@@ -245,6 +246,7 @@ type AiAgentToolsServiceDependencies = {
     spaceService: SpaceService;
     spaceModel: SpaceModel;
     dashboardService: DashboardService;
+    dashboardModel: DashboardModel;
     savedChartService: SavedChartService;
     savedChartModel: SavedChartModel;
     coderService: CoderService;
@@ -288,6 +290,8 @@ export class AiAgentToolsService extends BaseService {
     private readonly spaceModel: SpaceModel;
 
     private readonly dashboardService: DashboardService;
+
+    private readonly dashboardModel: DashboardModel;
 
     private readonly savedChartService: SavedChartService;
 
@@ -358,6 +362,7 @@ export class AiAgentToolsService extends BaseService {
         spaceService,
         spaceModel,
         dashboardService,
+        dashboardModel,
         savedChartService,
         savedChartModel,
         coderService,
@@ -384,6 +389,7 @@ export class AiAgentToolsService extends BaseService {
         this.spaceService = spaceService;
         this.spaceModel = spaceModel;
         this.dashboardService = dashboardService;
+        this.dashboardModel = dashboardModel;
         this.savedChartService = savedChartService;
         this.savedChartModel = savedChartModel;
         this.coderService = coderService;
@@ -1675,13 +1681,15 @@ export class AiAgentToolsService extends BaseService {
                 const notFoundMessage = `${
                     args.resourceType === 'chart' ? 'Chart' : 'Dashboard'
                 } "${args.resourceUuidOrSlug}" was not found`;
+                // Model-level lookups: the service getters record a view event
+                // per call. User authz is enforced by createScheduler.
                 let scheduler;
                 let resourceUuid;
                 switch (args.resourceType) {
                     case 'chart': {
-                        const chart = await this.savedChartService.get(
+                        const chart = await this.savedChartModel.get(
                             args.resourceUuidOrSlug,
-                            context.account,
+                            undefined,
                             { projectUuid: context.projectUuid },
                         );
                         if (
@@ -1703,8 +1711,7 @@ export class AiAgentToolsService extends BaseService {
                     }
                     case 'dashboard': {
                         const dashboard =
-                            await this.dashboardService.getByIdOrSlug(
-                                context.user,
+                            await this.dashboardModel.getByIdOrSlug(
                                 args.resourceUuidOrSlug,
                                 { projectUuid: context.projectUuid },
                             );
