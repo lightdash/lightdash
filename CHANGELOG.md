@@ -1,3 +1,11 @@
+## [0.3371.2](https://github.com/lightdash/lightdash/compare/0.3371.1...0.3371.2) (2026-07-13)
+
+
+### Bug Fixes
+
+* **frontend:** enable dashboard value mode toggle ([#25489](https://github.com/lightdash/lightdash/issues/25489)) ([b846bb3](https://github.com/lightdash/lightdash/commit/b846bb3fe91aaf1d5de15000ff30bf147bd42068))
+* **frontend:** polish migrated input styling ([#25486](https://github.com/lightdash/lightdash/issues/25486)) ([446c9a4](https://github.com/lightdash/lightdash/commit/446c9a4b041572af062c54840f303a522b960e3b))
+
 ## [0.3371.1](https://github.com/lightdash/lightdash/compare/0.3371.0...0.3371.1) (2026-07-13)
 
 
