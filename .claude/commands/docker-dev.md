@@ -245,7 +245,8 @@ Run **after** the env file has the license, and after bootstrap (or full migrate
 
 ```bash
 # Apply core + EE migrations (license in scope → EE migration dir included)
-PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli -e .env.development.local -e .env.development -- pnpm -F backend migrate
+# TS_NODE_TRANSPILE_ONLY=1 avoids ts-node type-checking every pending EE migration file (see Troubleshooting).
+PGHOST=localhost PGPORT=$LD_PG_PORT TS_NODE_TRANSPILE_ONLY=1 pnpx dotenv-cli -e .env.development.local -e .env.development -- pnpm -F backend migrate
 
 # Confirm no pending migrations (this is what HealthService checks)
 PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli -e .env.development.local -e .env.development -- \
@@ -687,10 +688,12 @@ ln -s "$SHARED_VENV" venv   # only if ./venv doesn't already exist as a real ven
 ### Run Migrations (skip if bootstrapped)
 
 ```bash
-PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli -e .env.development -- pnpm -F backend migrate
+PGHOST=localhost PGPORT=$LD_PG_PORT TS_NODE_TRANSPILE_ONLY=1 pnpx dotenv-cli -e .env.development -- pnpm -F backend migrate
 ```
 
-> **EE mode:** add `-e .env.development.local` (first) so the license is in scope and the EE migration directory is included: `pnpx dotenv-cli -e .env.development.local -e .env.development -- pnpm -F backend migrate`. See **Step EE-2**.
+> **EE mode:** add `-e .env.development.local` (first) so the license is in scope and the EE migration directory is included: `TS_NODE_TRANSPILE_ONLY=1 pnpx dotenv-cli -e .env.development.local -e .env.development -- pnpm -F backend migrate`. See **Step EE-2**.
+
+> **Always set `TS_NODE_TRANSPILE_ONLY=1` when migrating an empty/wiped schema.** The migrate command runs through `ts-node`, which **type-checks every pending migration file** before executing any SQL. On a normal up-to-date DB only a handful are pending, so it's near-instant even with type-checking. But from an **empty schema all ~369 migration files are pending**, and type-checking all of them pegs a CPU core at 100% for **minutes** while `pg_stat_activity` shows **zero active SQL** — it looks hung but is just compiling. `TS_NODE_TRANSPILE_ONLY=1` skips the type-check (safe — migrations already typecheck in CI) and drops a full from-scratch run from minutes to **~4 seconds**. Because knex wraps the whole batch in one transaction, no tables are visible to other connections until it commits at the very end, so `SELECT count(*)` checks read 0 mid-run — don't mistake that for no progress. See **Troubleshooting → From-scratch migration pegs CPU**.
 
 ### Seed Database (skip if bootstrapped)
 
@@ -963,7 +966,10 @@ export DBT_DEMO_DIR=$(pwd)/examples/full-jaffle-shop-demo
 
 docker exec "${LD_CONTAINER_PREFIX}-db-dev-1" psql -U postgres -c 'drop schema public cascade; create schema public;'
 
-PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli -e .env.development -- pnpm -F backend migrate
+# TS_NODE_TRANSPILE_ONLY=1 is REQUIRED here — this migrate runs from an empty schema, so all
+# ~369 migrations are pending and ts-node would otherwise type-check every file (minutes of
+# 100% CPU with no visible SQL). Transpile-only drops it to ~4s. See Troubleshooting.
+PGHOST=localhost PGPORT=$LD_PG_PORT TS_NODE_TRANSPILE_ONLY=1 pnpx dotenv-cli -e .env.development -- pnpm -F backend migrate
 PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli -e .env.development -- pnpm -F backend seed
 
 PGHOST=localhost PGPORT=$LD_PG_PORT PGUSER=postgres PGPASSWORD=password PGDATABASE=postgres \
@@ -1078,3 +1084,37 @@ docker compose -p ld-shared -f docker/docker-compose.dev.shared.yml --env-file .
 ./scripts/dev-ports.sh gc
 ./scripts/dev-ports.sh release && ./scripts/dev-ports.sh claim
 ```
+
+### From-scratch migration pegs CPU / "migrate is normally near-instant but hangs"
+
+**Symptom:** After wiping the schema (`drop schema public cascade` — e.g. to get a fresh, unseeded instance for onboarding/signup testing), `pnpm -F backend migrate` runs for **minutes** at 100% CPU. `SELECT count(*) FROM knex_migrations` and the table count both stay at 0. The backend meanwhile spams `relation "sessions" does not exist` on every `/health`, `/org`, and session-cleanup poll.
+
+**Root cause — it's `ts-node`, not the database.** The migrate command runs migrations through `ts-node`, which **type-checks each pending migration file** before executing it. On a normal up-to-date DB only a few migrations are pending → near-instant. From an **empty schema all ~369 migrations are pending** → `ts-node` type-checks all 369 files → one CPU core pinned for minutes. Confirm it's CPU-bound (not a DB lock):
+
+```bash
+# The migrate process burns 100%+ CPU...
+ps -o pid,%cpu,etime,command -p "$(pgrep -f 'knex/bin/cli.js migrate:latest')"
+# ...while Postgres shows ZERO active SQL from it and NO ungranted locks:
+docker exec "${LD_CONTAINER_PREFIX}-db-dev-1" psql -U postgres -c \
+  "SELECT pid,state,wait_event,now()-query_start AS dur,left(query,60) FROM pg_stat_activity WHERE datname='postgres' AND pid<>pg_backend_pid() ORDER BY query_start;"
+docker exec "${LD_CONTAINER_PREFIX}-db-dev-1" psql -U postgres -c \
+  "SELECT relation::regclass,mode,granted,pid FROM pg_locks WHERE NOT granted;"   # expect 0 rows
+```
+
+If you see 100% CPU + no active SQL + no ungranted locks, it's the type-checker.
+
+**Fix:** kill it and rerun with `TS_NODE_TRANSPILE_ONLY=1` (skips type-checking — safe, migrations already typecheck in CI). Full 369-migration run drops from minutes to **~4s**:
+
+```bash
+pkill -f 'knex/bin/cli.js migrate:latest'; pkill -f 'backend migrate'
+PGHOST=localhost PGPORT=$LD_PG_PORT TS_NODE_TRANSPILE_ONLY=1 \
+  pnpx dotenv-cli -e .env.development -- pnpm -F backend migrate   # add -e .env.development.local first for EE
+# then restart the backend so it picks up the fresh schema (clears the "sessions does not exist" spam):
+pm2 restart "${LD_INSTANCE_ID}-api" "${LD_INSTANCE_ID}-scheduler"
+```
+
+**Notes:**
+- Knex wraps the whole batch in a **single transaction**, so no tables/migrations are visible to other connections (your `psql` checks) until it commits at the very end — 0 counts mid-run is normal, not "no progress." Don't kill a run that's still making CPU progress unless you're switching it to transpile-only.
+- Killing mid-run is safe *because* of that single transaction — it rolls back cleanly to an empty schema; just rerun with transpile-only.
+- After a successful fresh migrate, **re-take the instance snapshot** (see `snapshot`) so `/docker-dev reset` restores the fresh empty state, not a previously-populated one.
+- Getting a **fresh, unseeded instance** (empty org/users → app lands on the register/onboarding flow) = wipe schema + migrate (transpile-only) + **skip seed and dbt**. The bootstrap-from-shared-base path always brings the seeded demo org, so it can't produce a first-run/empty state on its own.
