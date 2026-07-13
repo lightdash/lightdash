@@ -1,12 +1,6 @@
 import { AthenaAuthenticationType, WarehouseTypes } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
-import {
-    Anchor,
-    NumberInput,
-    PasswordInput,
-    Select,
-    TextInput,
-} from '@mantine/core';
+import { Stack, Anchor } from '@mantine-8/core';
+import { NumberInput, PasswordInput, Select, TextInput } from '@mantine/core';
 import { useEffect, type FC } from 'react';
 import { useToggle } from 'react-use';
 import useHealth from '../../../hooks/health/useHealth';
@@ -99,6 +93,7 @@ const AthenaForm: FC<{
                             The AWS region where your Athena workgroup is
                             located. See{' '}
                             <Anchor
+                                inherit
                                 target="_blank"
                                 href="https://docs.getdbt.com/docs/core/connect-data-platform/athena-setup"
                                 rel="noreferrer"

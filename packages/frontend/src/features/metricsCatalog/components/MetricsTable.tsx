@@ -5,8 +5,16 @@ import {
     type CatalogField,
     type CatalogItem,
 } from '@lightdash/common';
-import { Box, Center, Divider, Group, Paper, Text } from '@mantine-8/core';
-import { Anchor, useMantineTheme } from '@mantine/core';
+import {
+    Box,
+    Center,
+    Divider,
+    Group,
+    Paper,
+    Text,
+    Anchor,
+} from '@mantine-8/core';
+import { useMantineTheme } from '@mantine/core';
 import {
     IconArrowDown,
     IconArrowsSort,
@@ -545,6 +553,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({
                         <Text>
                             To learn how to define metrics, check out our{' '}
                             <Anchor
+                                inherit
                                 target="_blank"
                                 href="https://docs.lightdash.com/references/metrics/"
                             >

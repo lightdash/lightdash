@@ -2,8 +2,8 @@ import type {
     ApiError,
     GeneratedFormulaTableCalculation,
 } from '@lightdash/common';
-import { Box, Button, Flex, Text } from '@mantine-8/core';
-import { Alert, Anchor, ScrollArea, useMantineTheme } from '@mantine/core';
+import { Box, Button, Flex, Text, Anchor } from '@mantine-8/core';
+import { Alert, ScrollArea, useMantineTheme } from '@mantine/core';
 import { useLocalStorage } from '@mantine/hooks';
 import { IconAlertCircle, IconSparkles, IconWand } from '@tabler/icons-react';
 import { useCallback, type FC } from 'react';
@@ -219,6 +219,7 @@ export const SqlForm: FC<Props> = ({
                             <Text fz="xs">
                                 Need inspiration?{' '}
                                 <Anchor
+                                    inherit
                                     target="_blank"
                                     href="https://docs.lightdash.com/guides/table-calculations/sql-templates"
                                     rel="noreferrer"

@@ -1,5 +1,5 @@
-import { Group, Stack, Text, Title, Button } from '@mantine-8/core';
-import { Anchor, TextInput } from '@mantine/core';
+import { Group, Stack, Text, Title, Button, Anchor } from '@mantine-8/core';
+import { TextInput } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
@@ -45,6 +45,7 @@ const ScimAccessTokensPanel: FC = () => {
                         Lightdash via SCIM.
                     </Text>
                     <Anchor
+                        inherit
                         href="https://docs.lightdash.com/references/scim-integration/"
                         target="_blank"
                     >

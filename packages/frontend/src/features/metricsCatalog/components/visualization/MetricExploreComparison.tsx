@@ -5,8 +5,8 @@ import {
     type MetricExplorerQuery,
     type MetricWithAssociatedTimeDimension,
 } from '@lightdash/common';
-import { Group, Loader, Paper, Stack, Text } from '@mantine-8/core';
-import { Anchor, Radio, Select, Tooltip } from '@mantine/core';
+import { Group, Loader, Paper, Stack, Text, Anchor } from '@mantine-8/core';
+import { Radio, Select, Tooltip } from '@mantine/core';
 import { IconCalendar, IconStack } from '@tabler/icons-react';
 import { type UseQueryResult } from '@tanstack/react-query';
 import { useCallback, type FC } from 'react';
@@ -220,6 +220,7 @@ export const MetricExploreComparison: FC<Props> = ({
                                                 dimension defined in the .yml
                                                 can be compared.{' '}
                                                 <Anchor
+                                                    inherit
                                                     c="ldGray.9"
                                                     fw={500}
                                                     target="_blank"

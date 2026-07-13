@@ -1,7 +1,13 @@
 import { DbtProjectType } from '@lightdash/common';
-import { Button, Group, Stack, Text, ActionIcon } from '@mantine-8/core';
 import {
+    Button,
+    Group,
+    Stack,
+    Text,
+    ActionIcon,
     Anchor,
+} from '@mantine-8/core';
+import {
     Avatar,
     PasswordInput,
     ScrollArea,
@@ -57,7 +63,8 @@ const DropdownComponentOverride = ({
                     )
                 }
             >
-                Don't see your repository? <Anchor>Configure here</Anchor>
+                Don't see your repository?{' '}
+                <Anchor inherit>Configure here</Anchor>
             </Text>
         </Tooltip>
     </Stack>
@@ -232,6 +239,7 @@ const GithubPersonalAccessTokenForm: FC<{ disabled: boolean }> = ({
                     <p>
                         This is used to access your repo.
                         <Anchor
+                            inherit
                             target="_blank"
                             href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#github"
                             rel="noreferrer"
@@ -310,6 +318,7 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                                 <Text>
                                     You are connected to GitHub.{' '}
                                     <Anchor
+                                        inherit
                                         href="/generalSettings/integrations"
                                         target="_blank"
                                     >

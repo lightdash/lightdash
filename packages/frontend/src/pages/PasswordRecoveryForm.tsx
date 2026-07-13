@@ -1,6 +1,6 @@
 import { getEmailSchema } from '@lightdash/common';
-import { Center, Stack, Text, Title, Button } from '@mantine-8/core';
-import { Anchor, List, TextInput } from '@mantine/core';
+import { Center, Stack, Text, Title, Button, Anchor } from '@mantine-8/core';
+import { List, TextInput } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { type FC } from 'react';
 import { Link } from 'react-router';
@@ -56,7 +56,11 @@ export const PasswordRecoveryForm: FC = () => {
                             </Button>
                             {!health.data?.isAuthenticated && (
                                 <Center>
-                                    <Anchor component={Link} to="/login">
+                                    <Anchor
+                                        inherit
+                                        component={Link}
+                                        to="/login"
+                                    >
                                         Back to sign in
                                     </Anchor>
                                 </Center>
@@ -79,6 +83,7 @@ export const PasswordRecoveryForm: FC = () => {
                         <List.Item>
                             Try{' '}
                             <Anchor
+                                inherit
                                 component={Link}
                                 to="/recover-password"
                                 onClick={reset}
@@ -91,7 +96,7 @@ export const PasswordRecoveryForm: FC = () => {
                     </List>
 
                     <Center mt="lg">
-                        <Anchor component={Link} to="/login">
+                        <Anchor inherit component={Link} to="/login">
                             Back to sign in
                         </Anchor>
                     </Center>
