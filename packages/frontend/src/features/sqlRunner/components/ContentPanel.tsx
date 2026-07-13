@@ -482,7 +482,7 @@ export const ContentPanel: FC = () => {
                                                     >
                                                         <SqlEditorPreferencesPopover />
 
-                                                        <Text>SQL</Text>
+                                                        <Text fz="sm">SQL</Text>
                                                     </Group>
                                                 </Tooltip>
                                             ),
@@ -509,7 +509,9 @@ export const ContentPanel: FC = () => {
                                                                 IconChartHistogram
                                                             }
                                                         />
-                                                        <Text>Chart</Text>
+                                                        <Text fz="sm">
+                                                            Chart
+                                                        </Text>
                                                     </Group>
                                                 </Tooltip>
                                             ),
