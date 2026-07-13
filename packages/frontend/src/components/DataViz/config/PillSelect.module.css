@@ -1,0 +1,94 @@
+.input {
+    height: 24px;
+    min-height: 24px;
+    padding: 0;
+    margin-right: 6px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 500;
+    border: 0;
+    border-radius: var(--mantine-radius-sm);
+}
+
+.input[data-with-left-section] {
+    padding: 0 0 0 30px;
+}
+
+.indigoInput {
+    color: light-dark(
+        var(--mantine-color-indigo-6),
+        var(--mantine-color-indigo-0)
+    );
+    background-color: light-dark(
+        var(--mantine-color-indigo-0),
+        var(--mantine-color-indigo-8)
+    );
+}
+
+.indigoInput:hover {
+    background-color: light-dark(
+        var(--mantine-color-indigo-1),
+        var(--mantine-color-indigo-7)
+    );
+}
+
+.grayInput {
+    color: light-dark(
+        var(--mantine-color-ldGray-7),
+        var(--mantine-color-ldGray-2)
+    );
+    background-color: light-dark(
+        var(--mantine-color-ldGray-1),
+        var(--mantine-color-ldGray-8)
+    );
+}
+
+.grayInput:hover {
+    background-color: light-dark(
+        var(--mantine-color-ldGray-2),
+        var(--mantine-color-ldGray-7)
+    );
+}
+
+.inputUnsetValue {
+    color: var(--mantine-color-ldGray-5);
+}
+
+.section[data-position='right'] {
+    display: none;
+}
+
+.dropdown {
+    min-width: fit-content;
+}
+
+.option[data-combobox-selected] {
+    font-weight: 500;
+}
+
+.indigoOption[data-combobox-selected] {
+    color: light-dark(
+        var(--mantine-color-indigo-6),
+        var(--mantine-color-indigo-0)
+    );
+    background-color: light-dark(
+        var(--mantine-color-indigo-1),
+        var(--mantine-color-indigo-8)
+    );
+}
+
+.indigoOption[data-combobox-selected]:hover {
+    background-color: light-dark(
+        var(--mantine-color-indigo-2),
+        var(--mantine-color-indigo-7)
+    );
+}
+
+.grayOption[data-combobox-selected] {
+    color: var(--mantine-color-ldGray-7);
+    background-color: var(--mantine-color-ldGray-2);
+}
+
+.grayOption[data-combobox-selected]:hover {
+    background-color: var(--mantine-color-ldGray-3);
+}

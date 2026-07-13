@@ -4,7 +4,7 @@ import {
     UnitOfTime,
     type FilterableField,
 } from '@lightdash/common';
-import { Select } from '@mantine/core';
+import { Select } from '@mantine-8/core';
 import { useMemo, type FC } from 'react';
 
 const allPeriodOptions = [
@@ -61,6 +61,7 @@ const FilterPeriodToDateSelect: FC<Props> = ({
 
     return (
         <Select
+            allowDeselect={false}
             w="100%"
             size="xs"
             disabled={disabled}

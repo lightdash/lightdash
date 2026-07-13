@@ -7,11 +7,12 @@ import {
     Group,
     Image,
     Loader,
+    type ComboboxItem,
     Stack,
     Text,
+    Select,
 } from '@mantine-8/core';
-import type { SelectItem } from '@mantine/core';
-import { NumberInput, Select, Switch, TextInput, Tooltip } from '@mantine/core';
+import { NumberInput, Switch, TextInput, Tooltip } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconCheck, IconExclamationCircle } from '@tabler/icons-react';
 import { useState, type ChangeEvent, type FC } from 'react';
@@ -182,13 +183,14 @@ const BigQueryForm: FC<{
             value: BigqueryAuthenticationType.ADC,
             label: 'Application Default Credentials',
         },
-    ].filter(Boolean) as SelectItem[];
+    ].filter(Boolean) as ComboboxItem[];
     return (
         <>
             <Stack mt={8}>
                 {
                     <Group gap="sm">
                         <Select
+                            allowDeselect={false}
                             name="warehouse.authenticationType"
                             {...form.getInputProps(
                                 'warehouse.authenticationType',
@@ -572,6 +574,7 @@ const BigQueryForm: FC<{
                         />
 
                         <Select
+                            allowDeselect={false}
                             name="warehouse.priority"
                             {...form.getInputProps('warehouse.priority')}
                             defaultValue={BigQueryDefaultValues.priority}

@@ -1,5 +1,4 @@
-import { Alert, Text } from '@mantine-8/core';
-import { Select } from '@mantine/core';
+import { Alert, Text, Select } from '@mantine-8/core';
 import { IconInfoCircle } from '@tabler/icons-react';
 import React, { type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
@@ -35,7 +34,10 @@ const StartOfWeekSelect: FC<{
                     field.onChange(value ? parseInt(value) : null)
                 }
                 disabled={disabled}
-                dropdownPosition="top"
+                comboboxProps={{
+                    position: 'top',
+                    middlewares: { flip: false },
+                }}
             />
             {isRedeployRequired && parseInt(field.value) >= 0 && (
                 <Alert

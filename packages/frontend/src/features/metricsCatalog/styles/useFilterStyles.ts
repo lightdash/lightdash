@@ -21,12 +21,12 @@ const baseStyles = (theme: MantineTheme) => ({
     },
     baseItem: {
         fontSize: 14,
-        '&[data-selected="true"]': {
+        '&[data-combobox-selected]': {
             color: theme.colors.ldGray[7],
             fontWeight: 500,
             backgroundColor: theme.colors.ldGray[0],
         },
-        '&[data-selected="true"]:hover': {
+        '&[data-combobox-selected]:hover': {
             backgroundColor: theme.colors.ldGray[0],
         },
         '&:hover': {
@@ -68,7 +68,7 @@ export const useFilterSelectStyles = createStyles((theme) => {
                 borderBottomLeftRadius: 0,
             },
         },
-        item: base.baseItem,
+        option: base.baseItem,
         dropdown: {
             minWidth: 300,
         },
@@ -108,7 +108,7 @@ export const useOperatorSelectStyles = createStyles((theme: MantineTheme) => {
                 maxWidth: '100%',
             },
         },
-        item: base.baseItem,
+        option: base.baseItem,
         dropdown: {
             minWidth: 100,
         },

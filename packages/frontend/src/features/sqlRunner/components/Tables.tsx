@@ -82,6 +82,7 @@ const TableItem: FC<TableItemProps> = memo(
         return (
             <Box ref={hoverRef} pos="relative" {...rest}>
                 <UnstyledButton
+                    ff="inherit"
                     onClick={() => {
                         if (!sql || sql.match(/SELECT \* FROM (.+)/)) {
                             dispatch(
@@ -211,6 +212,7 @@ const Table: FC<{
             <UnstyledButton
                 onClick={() => setIsExpanded(!isExpanded)}
                 className={styles.schemaButton}
+                ff="inherit"
             >
                 <Group wrap="nowrap" gap="two">
                     <Text p={6} fz="sm" c="ldGray.8">

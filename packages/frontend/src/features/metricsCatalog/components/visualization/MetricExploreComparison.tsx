@@ -13,12 +13,14 @@ import {
     Radio,
     Stack,
     Text,
+    Select,
 } from '@mantine-8/core';
-import { Select, Tooltip } from '@mantine/core';
+import { Tooltip } from '@mantine/core';
 import { IconCalendar, IconStack } from '@tabler/icons-react';
 import { type UseQueryResult } from '@tanstack/react-query';
 import { useCallback, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { groupComboboxItems } from '../../../../components/common/Select/utils';
 import { useSelectStyles } from '../../styles/useSelectStyles';
 import SelectItem from '../SelectItem';
 import comparisonStyles from './MetricExploreComparison.module.css';
@@ -189,11 +191,12 @@ export const MetricExploreComparison: FC<Props> = ({
                                             metricsWithTimeDimensionsQuery.data
                                                 .length > 0) ? (
                                             <Select
+                                                allowDeselect={false}
                                                 placeholder="Select a metric"
                                                 searchable
                                                 radius="md"
                                                 size="xs"
-                                                data={
+                                                data={groupComboboxItems(
                                                     metricsWithTimeDimensionsQuery.data?.map(
                                                         (metric) => ({
                                                             value: getItemId(
@@ -202,11 +205,22 @@ export const MetricExploreComparison: FC<Props> = ({
                                                             label: metric.label,
                                                             group: metric.tableLabel,
                                                         }),
-                                                    ) ?? []
-                                                }
+                                                    ) ?? [],
+                                                )}
                                                 value={getItemId(query.metric)}
                                                 onChange={handleMetricChange}
-                                                itemComponent={SelectItem}
+                                                renderOption={({
+                                                    option,
+                                                    checked,
+                                                }) => (
+                                                    <SelectItem
+                                                        value={option.value}
+                                                        label={option.label}
+                                                        selected={
+                                                            checked ?? false
+                                                        }
+                                                    />
+                                                )}
                                                 // this does not work as expected in Mantine 6
                                                 data-disabled={
                                                     !metricsWithTimeDimensionsQuery.isSuccess
@@ -221,8 +235,8 @@ export const MetricExploreComparison: FC<Props> = ({
                                                 }
                                                 classNames={{
                                                     input: classes.input,
-                                                    item: classes.item,
-                                                    rightSection:
+                                                    option: classes.option,
+                                                    section:
                                                         classes.rightSection,
                                                     dropdown: classes.dropdown,
                                                 }}

@@ -1,6 +1,5 @@
 import { ProjectType } from '@lightdash/common';
-import { Flex, Stack, Button } from '@mantine-8/core';
-import { Select } from '@mantine/core';
+import { Flex, Stack, Button, Select } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { useEffect, type FC } from 'react';
 import { z } from 'zod';
@@ -57,6 +56,7 @@ const DefaultProjectPanel: FC = () => {
         <form onSubmit={handleOnSubmit}>
             <Stack>
                 <Select
+                    allowDeselect={false}
                     key={form.values.defaultProjectUuid}
                     label="Project name"
                     data={projects
@@ -68,7 +68,10 @@ const DefaultProjectPanel: FC = () => {
                     disabled={isLoading}
                     required
                     placeholder="No project selected"
-                    dropdownPosition="bottom"
+                    comboboxProps={{
+                        position: 'bottom',
+                        middlewares: { flip: false },
+                    }}
                     {...form.getInputProps('defaultProjectUuid')}
                 />
 

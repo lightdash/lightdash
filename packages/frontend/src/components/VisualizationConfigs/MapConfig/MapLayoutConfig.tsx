@@ -9,8 +9,14 @@ import {
     MapChartLocation,
     MapChartType,
 } from '@lightdash/common';
-import { Group, Loader, Stack, SegmentedControl } from '@mantine-8/core';
-import { Select, Switch, TextInput } from '@mantine/core';
+import {
+    Group,
+    Loader,
+    Stack,
+    SegmentedControl,
+    Select,
+} from '@mantine-8/core';
+import { Switch, TextInput } from '@mantine/core';
 import { memo, useEffect, useMemo, type FC } from 'react';
 import {
     findMatchingProperty,
@@ -454,6 +460,7 @@ export const Layout: FC = memo(() => {
                                 </>
                             ) : (
                                 <Select
+                                    allowDeselect={false}
                                     label="Map region"
                                     disabled={isCustomMap}
                                     data={mapTypeOptions}
