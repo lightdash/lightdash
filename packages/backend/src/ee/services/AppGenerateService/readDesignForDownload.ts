@@ -1,9 +1,13 @@
 import { type S3Client } from '@aws-sdk/client-s3';
-import { type DataAppThemeContext } from '@lightdash/common';
+import {
+    getThemeTotalBytes,
+    MAX_THEME_TOTAL_BYTES,
+    type DataAppThemeContext,
+} from '@lightdash/common';
 import type { Logger } from 'winston';
 import type { OrganizationDesignModel } from '../../../models/OrganizationDesignModel';
 import { designS3Key } from '../../../services/OrganizationDesignService/OrganizationDesignService';
-import { contextFile, THEME_ASSET_CAP } from './appContext';
+import { contextFile } from './appContext';
 import { readS3ObjectAsBuffer } from './s3Utils';
 
 export async function readDesignForDownload(args: {
@@ -62,19 +66,28 @@ export async function readDesignForDownload(args: {
         instructionParts.push(design.extraInstructions);
     }
 
-    const assetCount = assetFiles.length;
-    if (assetCount > THEME_ASSET_CAP) {
+    const assetBytes = getThemeTotalBytes(assetFiles);
+    if (assetBytes > MAX_THEME_TOTAL_BYTES) {
+        const mb = (n: number) => Math.round(n / (1024 * 1024));
         logger.warn(
-            `Theme ${design.designUuid}: ${assetCount} assets exceed cap of ${THEME_ASSET_CAP}; skipping all assets`,
+            `Theme ${design.designUuid}: assets total ${mb(
+                assetBytes,
+            )} MB, exceed cap of ${mb(
+                MAX_THEME_TOTAL_BYTES,
+            )} MB; skipping all assets`,
         );
         instructionParts.push(
-            `> **Note**: ${assetCount} theme asset(s) were skipped because they exceed the download cap of ${THEME_ASSET_CAP}.`,
+            `> **Note**: ${assetFiles.length} theme asset(s) (${mb(
+                assetBytes,
+            )} MB) were skipped because they exceed the download cap of ${mb(
+                MAX_THEME_TOTAL_BYTES,
+            )} MB.`,
         );
         const instructionText = instructionParts.join('\n\n---\n\n');
         return {
             instructions: contextFile('theme/instructions.md', instructionText),
             assets: [],
-            skippedAssetCount: assetCount,
+            skippedAssetCount: assetFiles.length,
         };
     }
 

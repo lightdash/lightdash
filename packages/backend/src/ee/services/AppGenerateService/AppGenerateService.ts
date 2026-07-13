@@ -14,6 +14,7 @@ import { subject } from '@casl/ability';
 import {
     assertEmbeddedAuth,
     assertUnreachable,
+    checkThemeLimits,
     DATA_APP_CLAUDE_MODELS,
     DATA_APP_VIZ_TEMPLATE,
     dataAppVizJsonSchema,
@@ -31,10 +32,12 @@ import {
     ParameterError,
     QueryExecutionContext,
     sanitizeAppPackageJsonScripts,
+    themeLimitMessage,
     TooManyRequestsError,
     validateDataAppCode,
     validateDataAppDependencies,
     type AnonymousAccount,
+    type ApiOrganizationDesign,
     type AppBuildFromSourceJobPayload,
     type AppChartReference,
     type AppClarification,
@@ -2050,6 +2053,22 @@ export class AppGenerateService extends BaseService {
         ];
     }
 
+    /**
+     * Reject a theme that exceeds the asset-count/total-size guardrails before
+     * it reaches the (expensive, timeout-prone) build pipeline. Themes are
+     * normally capped at upload time, but a theme can predate the guardrails or
+     * be an org default the caller didn't choose — so we re-check here and turn
+     * it into a synchronous, actionable error instead of a silent build timeout.
+     */
+    private static assertThemeWithinLimits(
+        design: ApiOrganizationDesign,
+    ): void {
+        const violation = checkThemeLimits(design.files);
+        if (violation) {
+            throw new ParameterError(themeLimitMessage(violation, design.name));
+        }
+    }
+
     private static buildThemeChangePrompt(themeName: string | null): string {
         const target = themeName
             ? `the active organization theme "${themeName}"`
@@ -3156,6 +3175,32 @@ export class AppGenerateService extends BaseService {
         // always lands clean. When `payload.designUuid` is absent/null
         // the helper short-circuits and `effective-skill.md` is
         // byte-identical to the baseline `/app/skill.md`.
+        // Backstop for the upload-time and enqueue-time guardrails: a theme can
+        // grow between enqueue and worker pickup (or a job may predate the
+        // guardrails). Fail fast with the specific limit message instead of
+        // copying everything into the sandbox and running the build to timeout.
+        if (payload.designUuid) {
+            const design =
+                await this.organizationDesignModel.findInOrganization(
+                    payload.organizationUuid,
+                    payload.designUuid,
+                );
+            const violation = design ? checkThemeLimits(design.files) : null;
+            if (design && violation) {
+                const message = themeLimitMessage(violation, design.name);
+                this.logger.warn(
+                    `App ${appUuid}: theme ${payload.designUuid} exceeds the size cap at build time (${violation.bytes} > ${violation.limit} bytes); failing fast — ${message}`,
+                );
+                await this.markError(
+                    appUuid,
+                    version,
+                    new Error(message),
+                    message,
+                );
+                return;
+            }
+        }
+
         const designCopy = await copyDesignIntoSandbox({
             sandbox,
             s3Client,
@@ -4313,6 +4358,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             const orgDefault =
                 await this.organizationDesignModel.getDefault(organizationUuid);
             if (orgDefault) {
+                AppGenerateService.assertThemeWithinLimits(orgDefault);
                 resolvedDesignUuid = orgDefault.designUuid;
                 designSnapshot = {
                     designUuid: orgDefault.designUuid,
@@ -4329,6 +4375,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             if (!picked) {
                 throw new ParameterError(`Theme not found: ${designUuidInput}`);
             }
+            AppGenerateService.assertThemeWithinLimits(picked);
             resolvedDesignUuid = picked.designUuid;
             designSnapshot = {
                 designUuid: picked.designUuid,
@@ -4493,6 +4540,10 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                     effectiveDesignUuid,
                 );
             if (design) {
+                // Inherited themes are copied into the sandbox on every
+                // iteration too, so enforce the guardrails regardless of
+                // whether this iteration is an explicit theme change.
+                AppGenerateService.assertThemeWithinLimits(design);
                 designSnapshot = {
                     designUuid: design.designUuid,
                     name: design.name,
