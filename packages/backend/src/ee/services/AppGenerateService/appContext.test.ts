@@ -2,13 +2,9 @@ import {
     CONTEXT_PREFIX,
     contextFile,
     promptHistoryToMarkdown,
-    THEME_ASSET_CAP,
 } from './appContext';
 
 describe('appContext helpers', () => {
-    it('caps theme assets at 30', () => {
-        expect(THEME_ASSET_CAP).toBe(30);
-    });
     it('prefixes and base64-encodes a context file', () => {
         const f = contextFile('semantic-layer.yml', 'models: []');
         expect(f.path).toBe(`${CONTEXT_PREFIX}semantic-layer.yml`);

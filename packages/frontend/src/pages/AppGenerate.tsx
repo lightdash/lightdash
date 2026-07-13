@@ -3,6 +3,7 @@ import {
     ChartKind,
     DEFAULT_DATA_APP_CLAUDE_MODEL,
     FeatureFlags,
+    isApiError,
     isAppVersionInProgress,
     type ApiAppVersionSummary,
     type AppChartReference,
@@ -1145,14 +1146,16 @@ const AppGenerate: FC = () => {
                     },
                     onError: (err: unknown) => {
                         setThemeChipOverride(null);
+                        const themeErrorMessage = isApiError(err)
+                            ? err.error.message
+                            : err instanceof Error
+                              ? err.message
+                              : 'Failed to apply theme';
                         setLocalMessages((prev) => [
                             ...prev,
                             {
                                 role: 'assistant',
-                                content:
-                                    err instanceof Error
-                                        ? err.message
-                                        : 'Failed to apply theme',
+                                content: themeErrorMessage,
                                 imagePreviewUrls: [],
                                 imageResourceIds: [],
                                 charts: [],
@@ -1568,14 +1571,18 @@ const AppGenerate: FC = () => {
             }
         },
         onError: (err: unknown) => {
+            // The mutation rejects with an ApiError object (not an Error
+            // instance), so read its message before falling back.
+            const errorMessage = isApiError(err)
+                ? err.error.message
+                : err instanceof Error
+                  ? err.message
+                  : 'Failed to generate app';
             setLocalMessages((prev) => [
                 ...prev,
                 {
                     role: 'assistant' as const,
-                    content:
-                        err instanceof Error
-                            ? err.message
-                            : 'Failed to generate app',
+                    content: errorMessage,
                     imagePreviewUrls: [],
                     imageResourceIds: [],
                     charts: [],
