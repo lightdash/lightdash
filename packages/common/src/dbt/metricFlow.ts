@@ -172,7 +172,12 @@ export const translateMetricFlowMetrics = ({
             metricType === MetricType.PERCENTILE &&
             typeof measure.agg_params?.percentile === 'number'
         ) {
-            definition.percentile = measure.agg_params.percentile * 100;
+            // MetricFlow stores percentile as a 0-1 decimal in the compiled
+            // manifest (e.g. 0.95); Lightdash uses a 0-100 scale. The latest
+            // YAML spec authors it as 0-100, so accept both: values <= 1 are
+            // treated as fractions, anything larger is already a percentage.
+            const p = measure.agg_params.percentile;
+            definition.percentile = p <= 1 ? p * 100 : p;
         }
 
         return { modelName, definition };

@@ -422,10 +422,15 @@ export const compile = async (options: CompileHandlerOptions) => {
             validModelsWithTypes,
             false,
             manifest.metadata.adapter_type,
+            // Legacy dbt metrics (calculation_method) only exist in manifests
+            // before v10. From v10 (dbt 1.6+) onwards `manifest.metrics` holds
+            // MetricFlow metrics, which are handled by applyMetricFlowMetrics
+            // above — they must not be fed into the legacy metrics path.
             [
                 DbtManifestVersion.V10,
                 DbtManifestVersion.V11,
                 DbtManifestVersion.V12,
+                DbtManifestVersion.V20,
             ].includes(manifestVersion)
                 ? []
                 : Object.values(manifest.metrics || {}),

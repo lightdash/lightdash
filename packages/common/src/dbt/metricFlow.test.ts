@@ -114,7 +114,7 @@ describe('translateMetricFlowMetrics', () => {
         );
     });
 
-    it('translates create_metric measures and scales percentile', () => {
+    it('translates create_metric measures and scales a 0-1 percentile to 0-100', () => {
         const result = translateMetricFlowMetrics({
             semanticModels: {
                 sm: {
@@ -140,6 +140,28 @@ describe('translateMetricFlowMetrics', () => {
             description: undefined,
             percentile: 95,
         });
+    });
+
+    it('accepts a percentile already on the 0-100 scale', () => {
+        const result = translateMetricFlowMetrics({
+            semanticModels: {
+                sm: {
+                    ...ordersSemanticModel,
+                    measures: [
+                        {
+                            name: 'p90_total',
+                            agg: MetricFlowAggregation.PERCENTILE,
+                            expr: 'amount',
+                            create_metric: true,
+                            agg_params: { percentile: 90 },
+                        },
+                    ],
+                },
+            },
+            metrics: {},
+            modelNamesByUniqueId,
+        });
+        expect(result.metricsByModel.orders.p90_total.percentile).toBe(90);
     });
 
     it('does not duplicate a create_metric measure already defined as an explicit metric', () => {
