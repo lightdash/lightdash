@@ -185,14 +185,24 @@ export const writeDependenciesToDir = async (
     await fs.writeFile(path.join(dir, 'pnpm-lock.yaml'), deps.lockfile);
 };
 
+export type LocalAppDependencies = {
+    packageJson: string;
+    // null = no pnpm-lock.yaml on disk. The download scaffold writes a
+    // package.json but never a lockfile, so this is the normal state of a
+    // freshly downloaded folder; it only becomes an error if the declared
+    // set differs from the template baseline (the caller decides).
+    lockfile: string | null;
+};
+
 /**
- * Reads package.json + pnpm-lock.yaml from the app folder root when both are
- * present. Returns null when neither file exists (no declared deps).
- * Throws when exactly one of the two files is present (incomplete pair).
+ * Reads package.json (+ pnpm-lock.yaml when present) from the app folder
+ * root. Returns null when there is no package.json and no lockfile (no
+ * declared deps at all). Throws on a lockfile without a package.json —
+ * nothing declares it, so the folder is broken.
  */
 export const readDependenciesFromDir = async (
     dir: string,
-): Promise<DataAppDependencies | null> => {
+): Promise<LocalAppDependencies | null> => {
     const pkgJsonPath = path.join(dir, 'package.json');
     const lockfilePath = path.join(dir, 'pnpm-lock.yaml');
 
@@ -209,17 +219,15 @@ export const readDependenciesFromDir = async (
 
     if (!pkgJsonExists && !lockfileExists) return null;
 
-    if (!pkgJsonExists || !lockfileExists) {
-        const missing = pkgJsonExists ? 'pnpm-lock.yaml' : 'package.json';
-        const present = pkgJsonExists ? 'package.json' : 'pnpm-lock.yaml';
+    if (!pkgJsonExists) {
         throw new Error(
-            `App folder has ${present} but is missing ${missing}. Both are required to declare custom dependencies.`,
+            'App folder has pnpm-lock.yaml but is missing package.json. Restore the package.json or remove the lockfile.',
         );
     }
 
     const [packageJson, lockfile] = await Promise.all([
         fs.readFile(pkgJsonPath, 'utf-8'),
-        fs.readFile(lockfilePath, 'utf-8'),
+        lockfileExists ? fs.readFile(lockfilePath, 'utf-8') : null,
     ]);
 
     return { packageJson, lockfile };

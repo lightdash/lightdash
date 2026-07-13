@@ -59,6 +59,7 @@ export class AppModel {
         status: AppVersionStatus,
         resources?: AppVersionResources,
         dependencies?: AppVersionDependencies,
+        vizSchema?: DataAppVizSchema,
     ): Promise<{ app: DbApp; version: DbAppVersion }> {
         return this.database.transaction(async (trx) => {
             const [appRow] = await trx(AppsTableName)
@@ -82,6 +83,13 @@ export class AppModel {
                               dependencies: JSON.stringify(
                                   dependencies,
                               ) as unknown as AppVersionDependencies,
+                          }
+                        : {}),
+                    ...(vizSchema
+                        ? {
+                              viz_schema: JSON.stringify(
+                                  vizSchema,
+                              ) as unknown as DataAppVizSchema,
                           }
                         : {}),
                 })
@@ -327,6 +335,7 @@ export class AppModel {
         createdByUserUuid: string,
         resources?: AppVersionResources,
         dependencies?: AppVersionDependencies,
+        vizSchema?: DataAppVizSchema,
     ): Promise<DbAppVersion> {
         const [row] = await this.database(AppVersionsTableName)
             .insert({
@@ -346,6 +355,13 @@ export class AppModel {
                           dependencies: JSON.stringify(
                               dependencies,
                           ) as unknown as AppVersionDependencies,
+                      }
+                    : {}),
+                ...(vizSchema
+                    ? {
+                          viz_schema: JSON.stringify(
+                              vizSchema,
+                          ) as unknown as DataAppVizSchema,
                       }
                     : {}),
             })

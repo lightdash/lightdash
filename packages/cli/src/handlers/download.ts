@@ -13,6 +13,7 @@ import {
     assertUnreachable,
     AuthorizationError,
     ChartAsCode,
+    computeCustomDependencies,
     ContentAsCodeType as ContentAsCodeTypeEnum,
     DashboardAsCode,
     generateSlug,
@@ -2003,10 +2004,26 @@ export const uploadHandler = async (
                         );
                         let customDeps: Record<string, string>;
                         try {
-                            ({ customDeps } = validateDataAppDependencies(
-                                rawDeps,
-                                { templateDependencies: templateDeps },
-                            ));
+                            // No lockfile on disk (the scaffold writes a
+                            // package.json but never a lockfile): compute the
+                            // custom set without the lockfile checks. Whether
+                            // that's acceptable is decided below.
+                            customDeps =
+                                rawDeps.lockfile === null
+                                    ? computeCustomDependencies(
+                                          rawDeps.packageJson,
+                                          templateDeps,
+                                      )
+                                    : validateDataAppDependencies(
+                                          {
+                                              packageJson: rawDeps.packageJson,
+                                              lockfile: rawDeps.lockfile,
+                                          },
+                                          {
+                                              templateDependencies:
+                                                  templateDeps,
+                                          },
+                                      ).customDeps;
                         } catch (depsErr) {
                             GlobalState.log(
                                 styles.error(
@@ -2019,6 +2036,16 @@ export const uploadHandler = async (
                         }
 
                         if (Object.keys(customDeps).length > 0) {
+                            if (rawDeps.lockfile === null) {
+                                GlobalState.log(
+                                    styles.error(
+                                        `Skipping "${subDir.name}": it declares custom dependencies but has no pnpm-lock.yaml. Run 'pnpm install' in the app folder to generate one, then upload again.`,
+                                    ),
+                                );
+                                appsFailed += 1;
+                                // eslint-disable-next-line no-continue
+                                continue;
+                            }
                             const warningLines = buildDepsWarningLines(
                                 customDeps,
                                 templateDeps,
@@ -2058,7 +2085,10 @@ export const uploadHandler = async (
                             codeToUpload = attachDependenciesToCode(
                                 code,
                                 customDeps,
-                                rawDeps,
+                                {
+                                    packageJson: rawDeps.packageJson,
+                                    lockfile: rawDeps.lockfile,
+                                },
                             );
                         }
                         // Empty custom set: upload payload identical to today's format.

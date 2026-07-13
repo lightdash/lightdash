@@ -1,6 +1,6 @@
 import { parse as parseYaml } from 'yaml';
 import { type ApiSuccess } from '../../types/api/success';
-import { type DataAppTemplate } from './types';
+import { type DataAppTemplate, type DataAppVizSchema } from './types';
 
 export const currentDataAppCodeVersion = 1 as const;
 
@@ -17,6 +17,11 @@ export type DataAppManifest = {
     // The app's stored template flavor (includes data_app_viz); null for
     // "Custom" or apps predating template persistence.
     template: Exclude<DataAppTemplate, 'custom'> | null;
+    // The declared viz schema of a data_app_viz version. Round-tripped through
+    // upload because the build-from-source pipeline has no generation run to
+    // re-emit it — without it the uploaded viz never appears in the viz picker.
+    // Omitted for non-viz apps and bundles downloaded before this field.
+    vizSchema?: DataAppVizSchema;
     downloadedAt: string; // ISO
     scaffoldingVersion?: string; // CLI/SDK version the vendored scaffolding came from (Phase 2)
 };
@@ -242,52 +247,19 @@ export function sanitizeAppPackageJsonScripts(
 }
 
 /**
- * Validates a declared dependency set against an optional template baseline.
- *
- * Rules enforced:
- *  1. `packageJson` parses as JSON with a `dependencies` object.
- *  2. Every spec is a registry semver spec (git+/file:/workspace:/http(s): rejected).
- *  3. Direct-dependency count ≤ MAX_DECLARED_DEPENDENCIES.
- *  4. `lockfile` is non-empty, ≤ MAX_LOCKFILE_BYTES, and mentions every custom
- *     package name (cheap consistency guard).
- *
- * Returns the "custom set": declared deps whose name+version differ from the
- * template baseline (new packages or version overrides).
+ * Parses a package.json's declared `dependencies` — validating the shape,
+ * that every spec is a registry semver spec, and the count cap — and returns
+ * the "custom set": declared deps whose name+version differ from the template
+ * baseline. Lockfile-independent: the CLI uses this on upload for folders
+ * that carry the scaffold package.json without a pnpm-lock.yaml.
  */
-export function validateDataAppDependencies(
-    deps: unknown,
-    opts: {
-        templateDependencies: Record<string, string>;
-        // When provided, lockfile `tarball:` resolution URLs must point at one
-        // of these hosts (the backend passes its registry egress allowlist).
-        allowedTarballHosts?: string[];
-    },
-): DataAppDepsValidationResult {
-    if (!deps || typeof deps !== 'object')
-        throw new Error('Invalid dependencies: not an object');
-
-    const d = deps as Partial<DataAppDependencies>;
-
-    if (typeof d.packageJson !== 'string' || d.packageJson.length === 0)
-        throw new Error(
-            'Invalid dependencies: packageJson must be a non-empty string',
-        );
-    if (typeof d.lockfile !== 'string' || d.lockfile.length === 0)
-        throw new Error(
-            'Invalid dependencies: lockfile must be a non-empty string',
-        );
-    if (Buffer.byteLength(d.lockfile, 'utf-8') > MAX_LOCKFILE_BYTES)
-        throw new Error(
-            `Invalid dependencies: lockfile exceeds ${MAX_LOCKFILE_BYTES / 1024 / 1024} MB limit`,
-        );
-    validateLockfileShape(d.lockfile);
-    if (opts.allowedTarballHosts !== undefined) {
-        validateLockfileTarballHosts(d.lockfile, opts.allowedTarballHosts);
-    }
-
+export function computeCustomDependencies(
+    packageJson: string,
+    templateDependencies: Record<string, string>,
+): Record<string, string> {
     let parsed: unknown;
     try {
-        parsed = JSON.parse(d.packageJson);
+        parsed = JSON.parse(packageJson);
     } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         throw new Error(
@@ -331,20 +303,71 @@ export function validateDataAppDependencies(
         }
     }
 
-    // Compute the custom set and validate lockfile mentions each custom name.
     const customDeps: Record<string, string> = {};
     for (const [name, spec] of entries) {
         // typeof spec already verified as string in the loop above.
-        if (
-            typeof spec === 'string' &&
-            opts.templateDependencies[name] !== spec
-        ) {
-            if (!d.lockfile.includes(name)) {
-                throw new Error(
-                    `Invalid dependencies: "${name}" is declared in package.json but not found in pnpm-lock.yaml. Run 'pnpm install --lockfile-only' to update the lockfile, then upload again`,
-                );
-            }
+        if (typeof spec === 'string' && templateDependencies[name] !== spec) {
             customDeps[name] = spec;
+        }
+    }
+    return customDeps;
+}
+
+/**
+ * Validates a declared dependency set against an optional template baseline.
+ *
+ * Rules enforced:
+ *  1. `packageJson` parses as JSON with a `dependencies` object.
+ *  2. Every spec is a registry semver spec (git+/file:/workspace:/http(s): rejected).
+ *  3. Direct-dependency count ≤ MAX_DECLARED_DEPENDENCIES.
+ *  4. `lockfile` is non-empty, ≤ MAX_LOCKFILE_BYTES, and mentions every custom
+ *     package name (cheap consistency guard).
+ *
+ * Returns the "custom set": declared deps whose name+version differ from the
+ * template baseline (new packages or version overrides).
+ */
+export function validateDataAppDependencies(
+    deps: unknown,
+    opts: {
+        templateDependencies: Record<string, string>;
+        // When provided, lockfile `tarball:` resolution URLs must point at one
+        // of these hosts (the backend passes its registry egress allowlist).
+        allowedTarballHosts?: string[];
+    },
+): DataAppDepsValidationResult {
+    if (!deps || typeof deps !== 'object')
+        throw new Error('Invalid dependencies: not an object');
+
+    const d = deps as Partial<DataAppDependencies>;
+
+    if (typeof d.packageJson !== 'string' || d.packageJson.length === 0)
+        throw new Error(
+            'Invalid dependencies: packageJson must be a non-empty string',
+        );
+    if (typeof d.lockfile !== 'string' || d.lockfile.length === 0)
+        throw new Error(
+            'Invalid dependencies: lockfile must be a non-empty string',
+        );
+    if (Buffer.byteLength(d.lockfile, 'utf-8') > MAX_LOCKFILE_BYTES)
+        throw new Error(
+            `Invalid dependencies: lockfile exceeds ${MAX_LOCKFILE_BYTES / 1024 / 1024} MB limit`,
+        );
+    validateLockfileShape(d.lockfile);
+    if (opts.allowedTarballHosts !== undefined) {
+        validateLockfileTarballHosts(d.lockfile, opts.allowedTarballHosts);
+    }
+
+    const customDeps = computeCustomDependencies(
+        d.packageJson,
+        opts.templateDependencies,
+    );
+
+    // Cheap consistency guard: the lockfile must mention each custom name.
+    for (const name of Object.keys(customDeps)) {
+        if (!d.lockfile.includes(name)) {
+            throw new Error(
+                `Invalid dependencies: "${name}" is declared in package.json but not found in pnpm-lock.yaml. Run 'pnpm install --lockfile-only' to update the lockfile, then upload again`,
+            );
         }
     }
 

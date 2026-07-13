@@ -299,6 +299,57 @@ describe('AppGenerateService.getAppCode', () => {
         });
     });
 
+    it('includes the version viz schema in the manifest for a data app viz', async () => {
+        const vizSchema = {
+            fields: [
+                {
+                    name: 'category',
+                    label: 'Category',
+                    type: 'dimension' as const,
+                    required: true,
+                },
+                {
+                    name: 'value',
+                    label: 'Value',
+                    type: 'metric' as const,
+                    required: true,
+                },
+            ],
+            configOptions: [],
+        };
+        const fakeS3 = makeFakeS3(sourceTarBuffer);
+        const appModel = {
+            getApp: vi
+                .fn()
+                .mockResolvedValue({ ...fakeApp, template: 'data_app_viz' }),
+            getLatestReadyVersion: vi.fn().mockResolvedValue({
+                ...fakeAppVersion,
+                viz_schema: vizSchema,
+            }),
+        };
+
+        const svc = buildService({ appModel, s3ClientOverride: fakeS3 });
+        const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID);
+
+        expect(result.manifest.template).toBe('data_app_viz');
+        expect(result.manifest.vizSchema).toEqual(vizSchema);
+    });
+
+    it('omits vizSchema from the manifest when the version has no schema', async () => {
+        const fakeS3 = makeFakeS3(sourceTarBuffer);
+        const appModel = {
+            getApp: vi.fn().mockResolvedValue(fakeApp),
+            getLatestReadyVersion: vi
+                .fn()
+                .mockResolvedValue({ ...fakeAppVersion, viz_schema: null }),
+        };
+
+        const svc = buildService({ appModel, s3ClientOverride: fakeS3 });
+        const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID);
+
+        expect(result.manifest).not.toHaveProperty('vizSchema');
+    });
+
     it('uses the provided version number instead of latest ready', async () => {
         const EXPLICIT_VERSION = 7;
         const fakeS3 = makeFakeS3(sourceTarBuffer, EXPLICIT_VERSION);
