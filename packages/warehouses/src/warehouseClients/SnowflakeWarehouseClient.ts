@@ -1246,7 +1246,12 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             SELECT
                 TABLE_CATALOG as "table_catalog",
                 TABLE_SCHEMA as "table_schema",
-                TABLE_NAME as "table_name"
+                TABLE_NAME as "table_name",
+                TABLE_TYPE as "table_type",
+                CASE
+                    WHEN TABLE_TYPE = 'BASE TABLE' THEN ROW_COUNT
+                    ELSE NULL
+                END as "row_count"
             FROM information_schema.tables
             WHERE TABLE_TYPE IN ('BASE TABLE', 'VIEW')
             ${whereSql}
@@ -1262,11 +1267,23 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             undefined,
             databaseName ? [databaseName] : undefined,
         );
-        return rows.map((row: Record<string, AnyType>) => ({
-            database: row.table_catalog,
-            schema: row.table_schema,
-            table: row.table_name,
-        }));
+        return rows.map((row: Record<string, AnyType>) => {
+            const parsedRowCount =
+                row.row_count === null || row.row_count === undefined
+                    ? null
+                    : Number(row.row_count);
+            const tableType: 'table' | 'view' =
+                row.table_type === 'VIEW' ? 'view' : 'table';
+            return {
+                database: row.table_catalog,
+                schema: row.table_schema,
+                table: row.table_name,
+                tableType,
+                rowCount: Number.isFinite(parsedRowCount)
+                    ? parsedRowCount
+                    : null,
+            };
+        });
     }
 
     async getFields(

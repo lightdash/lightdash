@@ -2,7 +2,9 @@ import {
     ApiConnectionDiagnosticResponse,
     ApiErrorPayload,
     ApiGrantScriptResponse,
+    ApiOnboardingProfileResponse,
     ApiOnboardingProjectStateResponse,
+    ApiScheduleOnboardingProfileResponse,
     assertRegisteredAccount,
     GrantScriptRequest,
     TestOnboardingConnectionRequest,
@@ -24,10 +26,11 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../auth/account';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 
-@Route('/api/v1/projects/{projectUuid}/onboarding/state')
+@Route('/api/v1/projects/{projectUuid}/onboarding')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Projects')
 export class OnboardingController extends BaseController {
@@ -37,7 +40,7 @@ export class OnboardingController extends BaseController {
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Get('/')
+    @Get('/state')
     @OperationId('GetOnboardingProjectState')
     async getState(
         @Path() projectUuid: UUID,
@@ -58,7 +61,7 @@ export class OnboardingController extends BaseController {
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
-    @Patch('/')
+    @Patch('/state')
     @OperationId('UpdateOnboardingProjectState')
     async updateState(
         @Path() projectUuid: UUID,
@@ -77,6 +80,40 @@ export class OnboardingController extends BaseController {
                     body.status,
                     body.result,
                 ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/profile')
+    @OperationId('ScheduleOnboardingProfile')
+    async scheduleProfile(
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiScheduleOnboardingProfileResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectProfileService()
+                .scheduleProfile(toSessionUser(req.account), projectUuid),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/profile')
+    @OperationId('GetOnboardingProfile')
+    async getProfile(
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiOnboardingProfileResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectProfileService()
+                .getProfile(toSessionUser(req.account), projectUuid),
         };
     }
 }

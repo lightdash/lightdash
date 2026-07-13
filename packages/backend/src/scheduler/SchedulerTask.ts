@@ -65,6 +65,7 @@ import {
     NotFoundError,
     NotificationFrequency,
     NotificationPayloadBase,
+    OnboardingProfilePayload,
     operatorActionValue,
     ParameterError,
     ParametersValuesMap,
@@ -173,6 +174,7 @@ import { WorkbookExportHelper } from '../services/ExcelService/WorkbookExportHel
 import type { FeatureFlagService } from '../services/FeatureFlag/FeatureFlagService';
 import { resolveOrganizationExportLimits } from '../services/OrganizationSettingsService/resolveExportLimits';
 import { PersistentDownloadFileService } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
+import { ProjectProfileService } from '../services/ProjectProfileService/ProjectProfileService';
 import { getDashboardParametersValuesMap } from '../services/ProjectService/parameters';
 import { ProjectService } from '../services/ProjectService/ProjectService';
 import { RenameService } from '../services/RenameService/RenameService';
@@ -205,6 +207,7 @@ export type SchedulerTaskArguments = {
     dashboardService: DashboardService;
     deployService: DeployService;
     projectService: ProjectService;
+    projectProfileService: ProjectProfileService;
     schedulerService: SchedulerService;
     unfurlService: UnfurlService;
     userService: UserService;
@@ -369,6 +372,8 @@ export default class SchedulerTask {
 
     protected readonly projectService: ProjectService;
 
+    protected readonly projectProfileService: ProjectProfileService;
+
     protected readonly schedulerService: SchedulerService;
 
     protected readonly unfurlService: UnfurlService;
@@ -419,6 +424,7 @@ export default class SchedulerTask {
         this.dashboardService = args.dashboardService;
         this.deployService = args.deployService;
         this.projectService = args.projectService;
+        this.projectProfileService = args.projectProfileService;
         this.schedulerService = args.schedulerService;
         this.unfurlService = args.unfurlService;
         this.userService = args.userService;
@@ -2099,6 +2105,60 @@ export default class SchedulerTask {
                 },
             });
             throw e;
+        }
+    }
+
+    protected async onboardingProfile(
+        jobId: string,
+        scheduledTime: Date,
+        payload: OnboardingProfilePayload,
+    ) {
+        const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> =
+            {
+                task: SCHEDULER_TASKS.ONBOARDING_PROFILE,
+                jobId,
+                scheduledTime,
+            };
+        try {
+            const user = await this.userService.getSessionByUserUuid(
+                payload.createdByUserUuid,
+            );
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                details: {
+                    createdByUserUuid: payload.createdByUserUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                    jobUuid: payload.jobUuid,
+                },
+                status: SchedulerJobStatus.STARTED,
+            });
+
+            await this.projectProfileService.runProfileJob(user, payload);
+
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                details: {
+                    createdByUserUuid: payload.createdByUserUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                    jobUuid: payload.jobUuid,
+                },
+                status: SchedulerJobStatus.COMPLETED,
+            });
+        } catch (error) {
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                details: {
+                    createdByUserUuid: payload.createdByUserUuid,
+                    error: getErrorMessage(error),
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                    jobUuid: payload.jobUuid,
+                },
+                status: SchedulerJobStatus.ERROR,
+            });
+            throw error;
         }
     }
 

@@ -1,6 +1,7 @@
 export enum JobType {
     COMPILE_PROJECT = 'COMPILE_PROJECT',
     CREATE_PROJECT = 'CREATE_PROJECT',
+    ONBOARDING_PROFILE = 'ONBOARDING_PROFILE',
 }
 
 export enum JobStatusType {
@@ -27,6 +28,10 @@ export enum JobStepType {
     COMPILING = 'COMPILING',
     CREATING_PROJECT = 'CREATING_PROJECT',
     CACHING = 'CACHING',
+    ONBOARDING_PROFILE_CONNECTING = 'ONBOARDING_PROFILE_CONNECTING',
+    ONBOARDING_PROFILE_LISTING_TABLES = 'ONBOARDING_PROFILE_LISTING_TABLES',
+    ONBOARDING_PROFILE_SAMPLING_COLUMNS = 'ONBOARDING_PROFILE_SAMPLING_COLUMNS',
+    ONBOARDING_PROFILE_INFERRING_RELATIONSHIPS = 'ONBOARDING_PROFILE_INFERRING_RELATIONSHIPS',
 }
 
 export const JobLabels = {
@@ -39,6 +44,11 @@ export const JobLabels = {
     COMPILING: 'Compiling',
     CREATING_PROJECT: 'Creating project',
     CACHING: 'Saving cache',
+    ONBOARDING_PROFILE_CONNECTING: 'Connecting',
+    ONBOARDING_PROFILE_LISTING_TABLES: 'Listing tables',
+    ONBOARDING_PROFILE_SAMPLING_COLUMNS: 'Sampling columns',
+    ONBOARDING_PROFILE_INFERRING_RELATIONSHIPS:
+        'Inferring entities and relationships',
 };
 
 export type BaseJob = {
@@ -65,7 +75,12 @@ type CreateProjectJob = BaseJob & {
     };
 };
 
-export type Job = CompileJob | CreateProjectJob;
+type OnboardingProfileJob = BaseJob & {
+    jobType: JobType.ONBOARDING_PROFILE;
+    jobResults?: undefined;
+};
+
+export type Job = CompileJob | CreateProjectJob | OnboardingProfileJob;
 
 export function isCompileJob(value: unknown): value is CompileJob {
     return (

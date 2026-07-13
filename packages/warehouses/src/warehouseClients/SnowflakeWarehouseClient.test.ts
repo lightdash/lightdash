@@ -116,6 +116,54 @@ describe('SnowflakeWarehouseClient', () => {
             expectedWarehouseSchema,
         );
     });
+
+    it('returns metadata row counts for tables and null for views', async () => {
+        const warehouse = new SnowflakeWarehouseClient(credentials);
+        const runQuery = vi.spyOn(warehouse, 'runQuery').mockResolvedValue({
+            fields: {},
+            rows: [
+                {
+                    table_catalog: 'ANALYTICS',
+                    table_schema: 'PUBLIC',
+                    table_name: 'ORDERS',
+                    table_type: 'BASE TABLE',
+                    row_count: 12800,
+                },
+                {
+                    table_catalog: 'ANALYTICS',
+                    table_schema: 'PUBLIC',
+                    table_name: 'LATEST_ORDERS',
+                    table_type: 'VIEW',
+                    row_count: null,
+                },
+            ],
+        });
+
+        await expect(warehouse.getAllTables()).resolves.toEqual([
+            {
+                database: 'ANALYTICS',
+                schema: 'PUBLIC',
+                table: 'ORDERS',
+                tableType: 'table',
+                rowCount: 12800,
+            },
+            {
+                database: 'ANALYTICS',
+                schema: 'PUBLIC',
+                table: 'LATEST_ORDERS',
+                tableType: 'view',
+                rowCount: null,
+            },
+        ]);
+        expect(runQuery).toHaveBeenCalledWith(
+            expect.stringContaining(
+                "WHEN TABLE_TYPE = 'BASE TABLE' THEN ROW_COUNT",
+            ),
+            {},
+            undefined,
+            undefined,
+        );
+    });
 });
 
 describe('mapSnowflakeDiagnosticError', () => {

@@ -1,4 +1,5 @@
 import type { ApiSuccess } from './api/success';
+import type { DimensionType } from './field';
 import type { CreateWarehouseCredentials } from './projects';
 
 export enum OnboardingStepType {
@@ -89,3 +90,56 @@ export type GrantScriptResult = {
 };
 
 export type ApiGrantScriptResponse = ApiSuccess<GrantScriptResult>;
+
+export type ProfiledColumn = {
+    name: string;
+    type: DimensionType;
+};
+
+export type ProfiledTable = {
+    database: string;
+    schema: string;
+    name: string;
+    tableType: 'table' | 'view' | null;
+    rowCount: number | null;
+    columns: ProfiledColumn[];
+};
+
+export type InferredEntity = {
+    database: string;
+    schema: string;
+    tableName: string;
+    label: string;
+    description: string;
+    rowCount: number | null;
+    columnCount: number;
+    primaryKey: string | null;
+    notes: string[];
+};
+
+export type InferredRelationship = {
+    fromTable: string;
+    fromColumn: string;
+    toTable: string;
+    toColumn: string;
+    type: 'many_to_one';
+    confidence: 'high' | 'low';
+};
+
+export type ProfileResult = {
+    tables: ProfiledTable[];
+    entities: InferredEntity[];
+    relationships: InferredRelationship[];
+    truncated: boolean;
+    profiledAt: string;
+};
+
+export type ProfileErrorResult = {
+    error: string;
+};
+
+export type ApiOnboardingProfileResponse = ApiSuccess<ProfileResult>;
+
+export type ApiScheduleOnboardingProfileResponse = ApiSuccess<{
+    jobUuid: string;
+}>;

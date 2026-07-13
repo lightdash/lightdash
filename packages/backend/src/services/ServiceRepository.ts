@@ -60,6 +60,7 @@ import { PivotTableService } from './PivotTableService/PivotTableService';
 import { ProjectCompileLogService } from './ProjectCompileLogService/ProjectCompileLogService';
 import { ProjectDbtSourcesService } from './ProjectDbtSourcesService';
 import { ProjectParametersService } from './ProjectParametersService';
+import { ProjectProfileService } from './ProjectProfileService/ProjectProfileService';
 import { ProjectService } from './ProjectService/ProjectService';
 import { PromoteService } from './PromoteService/PromoteService';
 import { PullRequestsService } from './PullRequestsService/PullRequestsService';
@@ -119,6 +120,7 @@ interface ServiceManifest {
     personalAccessTokenService: PersonalAccessTokenService;
     pinningService: PinningService;
     pivotTableService: PivotTableService;
+    projectProfileService: ProjectProfileService;
     projectService: ProjectService;
     savedChartService: SavedChartService;
     schedulerService: SchedulerService;
@@ -853,6 +855,21 @@ export class ServiceRepository
                         this.providers.appGenerateService
                             ? this.getAppGenerateService<AppGenerateService>()
                             : undefined,
+                }),
+        );
+    }
+
+    public getProjectProfileService(): ProjectProfileService {
+        return this.getService(
+            'projectProfileService',
+            () =>
+                new ProjectProfileService({
+                    jobModel: this.models.getJobModel(),
+                    onboardingProjectStateModel:
+                        this.models.getOnboardingProjectStateModel(),
+                    projectModel: this.models.getProjectModel(),
+                    projectService: this.getProjectService(),
+                    schedulerClient: this.clients.getSchedulerClient(),
                 }),
         );
     }

@@ -30670,6 +30670,7 @@
                     "uploadGsheetFromQuery",
                     "validateProject",
                     "compileProject",
+                    "onboardingProfile",
                     "createProjectWithCompile",
                     "testAndCompileProject",
                     "sqlRunner",
@@ -37998,6 +37999,216 @@
             },
             "UpdateOnboardingProjectStep": {
                 "$ref": "#/components/schemas/Pick_OnboardingProjectStep.step-or-status-or-result_"
+            },
+            "ApiSuccess__jobUuid-string__": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "jobUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["jobUuid"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiScheduleOnboardingProfileResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__jobUuid-string__"
+            },
+            "ProfiledColumn": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/DimensionType"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type", "name"],
+                "type": "object"
+            },
+            "ProfiledTable": {
+                "properties": {
+                    "columns": {
+                        "items": {
+                            "$ref": "#/components/schemas/ProfiledColumn"
+                        },
+                        "type": "array"
+                    },
+                    "rowCount": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "tableType": {
+                        "type": "string",
+                        "enum": ["table", "view", null],
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "schema": {
+                        "type": "string"
+                    },
+                    "database": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "columns",
+                    "rowCount",
+                    "tableType",
+                    "name",
+                    "schema",
+                    "database"
+                ],
+                "type": "object"
+            },
+            "InferredEntity": {
+                "properties": {
+                    "notes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "primaryKey": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "columnCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "rowCount": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "schema": {
+                        "type": "string"
+                    },
+                    "database": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "notes",
+                    "primaryKey",
+                    "columnCount",
+                    "rowCount",
+                    "description",
+                    "label",
+                    "tableName",
+                    "schema",
+                    "database"
+                ],
+                "type": "object"
+            },
+            "InferredRelationship": {
+                "properties": {
+                    "confidence": {
+                        "type": "string",
+                        "enum": ["high", "low"]
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["many_to_one"],
+                        "nullable": false
+                    },
+                    "toColumn": {
+                        "type": "string"
+                    },
+                    "toTable": {
+                        "type": "string"
+                    },
+                    "fromColumn": {
+                        "type": "string"
+                    },
+                    "fromTable": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "confidence",
+                    "type",
+                    "toColumn",
+                    "toTable",
+                    "fromColumn",
+                    "fromTable"
+                ],
+                "type": "object"
+            },
+            "ProfileResult": {
+                "properties": {
+                    "profiledAt": {
+                        "type": "string"
+                    },
+                    "truncated": {
+                        "type": "boolean"
+                    },
+                    "relationships": {
+                        "items": {
+                            "$ref": "#/components/schemas/InferredRelationship"
+                        },
+                        "type": "array"
+                    },
+                    "entities": {
+                        "items": {
+                            "$ref": "#/components/schemas/InferredEntity"
+                        },
+                        "type": "array"
+                    },
+                    "tables": {
+                        "items": {
+                            "$ref": "#/components/schemas/ProfiledTable"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "profiledAt",
+                    "truncated",
+                    "relationships",
+                    "entities",
+                    "tables"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_ProfileResult_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ProfileResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiOnboardingProfileResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_ProfileResult_"
             },
             "ConnectionCheckId": {
                 "type": "string",
@@ -64469,6 +64680,82 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/onboarding/profile": {
+            "post": {
+                "operationId": "ScheduleOnboardingProfile",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiScheduleOnboardingProfileResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "get": {
+                "operationId": "GetOnboardingProfile",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOnboardingProfileResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/onboarding/connection/test": {

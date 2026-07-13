@@ -101,6 +101,8 @@ export type WarehouseTables = {
     schema: string;
     table: string;
     partitionColumn?: PartitionColumn;
+    tableType?: 'table' | 'view' | null;
+    rowCount?: number | null;
 }[];
 
 export type WarehouseResults = {

@@ -38,6 +38,17 @@ export class OnboardingProjectStateModel {
         return rows.map(OnboardingProjectStateModel.convertRow);
     }
 
+    async find(
+        projectUuid: string,
+        step: OnboardingStepType,
+    ): Promise<OnboardingProjectStep | undefined> {
+        const row = await this.database(OnboardingProjectStateTableName)
+            .where('project_uuid', projectUuid)
+            .andWhere('step', step)
+            .first();
+        return row ? OnboardingProjectStateModel.convertRow(row) : undefined;
+    }
+
     async upsert(
         projectUuid: string,
         step: OnboardingStepType,

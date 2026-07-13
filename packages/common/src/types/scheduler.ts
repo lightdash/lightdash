@@ -760,6 +760,11 @@ export type CompileProjectPayload = TraceTaskBase & {
     compilationSource?: CompilationSource;
 };
 
+export type OnboardingProfilePayload = TraceTaskBase & {
+    createdByUserUuid: string;
+    jobUuid: string;
+};
+
 export type PreAggregateMaterializationTrigger =
     | 'compile'
     | 'cron'

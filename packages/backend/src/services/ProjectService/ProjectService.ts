@@ -1800,6 +1800,15 @@ export class ProjectService extends BaseService {
         return { warehouseClient: client, sshTunnel, tunnelConnectMs };
     }
 
+    async getWarehouseClientForUser(user: SessionUser, projectUuid: string) {
+        const credentials = await this.getWarehouseCredentials({
+            projectUuid,
+            userId: user.userUuid,
+            isRegisteredUser: true,
+        });
+        return this._getWarehouseClient(projectUuid, credentials);
+    }
+
     private async syncPreAggregateDefinitionsRegistry(
         projectUuid: string,
     ): Promise<void> {

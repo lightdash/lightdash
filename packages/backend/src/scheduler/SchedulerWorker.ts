@@ -843,6 +843,21 @@ export class SchedulerWorker extends SchedulerTask {
                     },
                 );
             },
+            [SCHEDULER_TASKS.ONBOARDING_PROFILE]: async (payload, helpers) => {
+                await SchedulerClient.processJob(
+                    SCHEDULER_TASKS.ONBOARDING_PROFILE,
+                    helpers.job.id,
+                    helpers.job.run_at,
+                    payload,
+                    async () => {
+                        await this.onboardingProfile(
+                            helpers.job.id,
+                            helpers.job.run_at,
+                            payload,
+                        );
+                    },
+                );
+            },
             [SCHEDULER_TASKS.MATERIALIZE_PRE_AGGREGATE]: async (
                 payload,
                 helpers,
