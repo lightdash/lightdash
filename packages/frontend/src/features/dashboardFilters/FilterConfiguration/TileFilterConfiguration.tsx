@@ -34,7 +34,7 @@ import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import { FilterActions } from './constants';
 import classes from './FilterConfiguration.module.css';
-import { getFilterTileRelation } from './utils';
+import { getFilterTileRelation, getValidSqlColumnReferences } from './utils';
 
 type TileWithTargetFields = {
     key: string;
@@ -239,9 +239,7 @@ const TileFilterConfiguration: FC<Props> = ({
             sqlChartTilesMetadata,
         ).reduce<TileWithTargetColumns[]>(
             (acc, [tileUuid, metadata], index) => {
-                const columns = metadata.columns.map(
-                    ({ reference }) => reference,
-                );
+                const columns = getValidSqlColumnReferences(metadata.columns);
                 const tile = tiles.find((t) => t.uuid === tileUuid);
                 if (!tile) {
                     return acc;
