@@ -6,11 +6,14 @@ import {
     ApiAlertAsCodeUpsertResponse,
     ApiChartAsCodeListResponse,
     ApiDashboardAsCodeListResponse,
+    ApiGoogleSheetsSyncAsCodeListResponse,
+    ApiGoogleSheetsSyncAsCodeUpsertResponse,
     ApiScheduledDeliveryAsCodeListResponse,
     ApiScheduledDeliveryAsCodeUpsertResponse,
     assertUnreachable,
     ChartAsCode,
     ChartAsCodeInternalization,
+    ChartGoogleSheetsSyncAsCode,
     ChartScheduledDeliveryAsCode,
     ChartSummary,
     ContentAsCodeType,
@@ -23,6 +26,7 @@ import {
     DashboardChartTileAsCode,
     DashboardDAO,
     DashboardFilterRule,
+    DashboardGoogleSheetsSyncAsCode,
     DashboardMarkdownTileAsCode,
     DashboardScheduledDeliveryAsCode,
     DashboardSqlChartTileAsCode,
@@ -40,6 +44,7 @@ import {
     isGoogleChatTarget,
     isMsTeamsTarget,
     isSchedulerCsvOptions,
+    isSchedulerGsheetsOptions,
     isSchedulerImageOptions,
     isSlackTarget,
     NotFoundError,
@@ -73,6 +78,7 @@ import {
     type FilterRule,
     type Filters,
     type FiltersInput,
+    type GoogleSheetsSyncAsCode,
     type SpaceSummaryBase,
 } from '@lightdash/common';
 import isEqual from 'lodash/isEqual';
@@ -1513,6 +1519,103 @@ export class CoderService extends BaseService {
         return null;
     }
 
+    private async transformGoogleSheetsSync(
+        scheduler: SchedulerAndTargets,
+    ): Promise<GoogleSheetsSyncAsCode | null> {
+        if (
+            !scheduler.slug ||
+            scheduler.format !== SchedulerFormat.GSHEETS ||
+            scheduler.thresholds?.length ||
+            !isSchedulerGsheetsOptions(scheduler.options)
+        ) {
+            return null;
+        }
+
+        const common = {
+            contentType: ContentAsCodeType.GOOGLE_SHEETS_SYNC as const,
+            version: currentVersion,
+            slug: scheduler.slug,
+            name: scheduler.name,
+            message: scheduler.message ?? null,
+            cron: scheduler.cron,
+            timezone: scheduler.timezone ?? null,
+            enabled: scheduler.enabled,
+            includeLinks: scheduler.includeLinks,
+            destination: {
+                spreadsheetId: scheduler.options.gdriveId,
+                spreadsheetName: scheduler.options.gdriveName,
+                organizationName: scheduler.options.gdriveOrganizationName,
+                url: scheduler.options.url,
+                tabName: scheduler.options.tabName ?? null,
+            },
+            downloadedAt: new Date(),
+        };
+
+        if (isChartScheduler(scheduler)) {
+            const chart = await this.savedChartModel.getSummary(
+                scheduler.savedChartUuid,
+            );
+            return {
+                ...common,
+                resource: { type: 'chart', slug: chart.slug },
+                filters: stripFilterIds(scheduler.filters),
+                parameters: scheduler.parameters ?? null,
+                customViewportWidth: null,
+                selectedTabs: null,
+            };
+        }
+
+        if (isDashboardScheduler(scheduler)) {
+            const dashboard = await this.dashboardModel.getByIdOrSlug(
+                scheduler.dashboardUuid,
+            );
+            return {
+                ...common,
+                resource: { type: 'dashboard', slug: dashboard.slug },
+                filters:
+                    CoderService.getDashboardScheduledDeliveryFiltersWithTileSlugs(
+                        dashboard,
+                        scheduler.filters,
+                    ),
+                parameters: scheduler.parameters ?? null,
+                customViewportWidth: scheduler.customViewportWidth ?? null,
+                selectedTabs:
+                    scheduler.selectedTabs?.map((tabUuid) =>
+                        CoderService.getDashboardTabSlug(dashboard, tabUuid),
+                    ) ?? null,
+            };
+        }
+
+        return null;
+    }
+
+    private static getScheduledContentNames(
+        contentType:
+            | ContentAsCodeType.SCHEDULED_DELIVERY
+            | ContentAsCodeType.ALERT
+            | ContentAsCodeType.GOOGLE_SHEETS_SYNC,
+    ): { singular: string; plural: string } {
+        switch (contentType) {
+            case ContentAsCodeType.SCHEDULED_DELIVERY:
+                return {
+                    singular: 'Scheduled delivery',
+                    plural: 'scheduled deliveries',
+                };
+            case ContentAsCodeType.ALERT:
+                return { singular: 'Alert', plural: 'alerts' };
+            case ContentAsCodeType.GOOGLE_SHEETS_SYNC:
+                return {
+                    singular: 'Google Sheets sync',
+                    plural: 'Google Sheets syncs',
+                };
+            default:
+                return assertUnreachable(
+                    contentType,
+                    'Unknown scheduled content type',
+                );
+        }
+    }
+
     async getScheduledDeliveries(
         user: SessionUser,
         projectUuid: string,
@@ -1530,13 +1633,22 @@ export class CoderService extends BaseService {
     async getScheduledDeliveries(
         user: SessionUser,
         projectUuid: string,
+        slugs: string[] | undefined,
+        contentType: ContentAsCodeType.GOOGLE_SHEETS_SYNC,
+    ): Promise<ApiGoogleSheetsSyncAsCodeListResponse['results']>;
+
+    async getScheduledDeliveries(
+        user: SessionUser,
+        projectUuid: string,
         slugs?: string[],
         contentType:
             | ContentAsCodeType.SCHEDULED_DELIVERY
-            | ContentAsCodeType.ALERT = ContentAsCodeType.SCHEDULED_DELIVERY,
+            | ContentAsCodeType.ALERT
+            | ContentAsCodeType.GOOGLE_SHEETS_SYNC = ContentAsCodeType.SCHEDULED_DELIVERY,
     ): Promise<
         | ApiScheduledDeliveryAsCodeListResponse['results']
         | ApiAlertAsCodeListResponse['results']
+        | ApiGoogleSheetsSyncAsCodeListResponse['results']
     > {
         const project = await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
@@ -1554,14 +1666,20 @@ export class CoderService extends BaseService {
                     projectUuid,
                     organizationUuid: project.organizationUuid,
                 }),
-            )
+            ) ||
+            (contentType === ContentAsCodeType.GOOGLE_SHEETS_SYNC &&
+                auditedAbility.cannot(
+                    'manage',
+                    subject('GoogleSheets', {
+                        projectUuid,
+                        organizationUuid: project.organizationUuid,
+                    }),
+                ))
         ) {
+            const { plural } =
+                CoderService.getScheduledContentNames(contentType);
             throw new ForbiddenError(
-                `You are not allowed to download ${
-                    contentType === ContentAsCodeType.ALERT
-                        ? 'alerts'
-                        : 'scheduled deliveries'
-                }`,
+                `You are not allowed to download ${plural}`,
             );
         }
 
@@ -1570,28 +1688,51 @@ export class CoderService extends BaseService {
         const filteredSchedulers = slugs?.length
             ? schedulers.filter((scheduler) => slugs.includes(scheduler.slug))
             : schedulers;
-        const matchingSchedulers = filteredSchedulers.filter((scheduler) =>
-            contentType === ContentAsCodeType.ALERT
-                ? Boolean(scheduler.thresholds?.length)
-                : !scheduler.thresholds?.length,
-        );
+        const matchingSchedulers = filteredSchedulers.filter((scheduler) => {
+            switch (contentType) {
+                case ContentAsCodeType.ALERT:
+                    return Boolean(scheduler.thresholds?.length);
+                case ContentAsCodeType.GOOGLE_SHEETS_SYNC:
+                    return (
+                        !scheduler.thresholds?.length &&
+                        scheduler.format === SchedulerFormat.GSHEETS
+                    );
+                case ContentAsCodeType.SCHEDULED_DELIVERY:
+                    return (
+                        !scheduler.thresholds?.length &&
+                        scheduler.format !== SchedulerFormat.GSHEETS
+                    );
+                default:
+                    return assertUnreachable(
+                        contentType,
+                        'Unknown scheduled content type',
+                    );
+            }
+        });
         const transformed = await Promise.all(
-            matchingSchedulers.map((scheduler) =>
-                contentType === ContentAsCodeType.ALERT
-                    ? this.transformAlert(scheduler)
-                    : this.transformScheduledDelivery(scheduler),
-            ),
+            matchingSchedulers.map((scheduler) => {
+                switch (contentType) {
+                    case ContentAsCodeType.ALERT:
+                        return this.transformAlert(scheduler);
+                    case ContentAsCodeType.GOOGLE_SHEETS_SYNC:
+                        return this.transformGoogleSheetsSync(scheduler);
+                    case ContentAsCodeType.SCHEDULED_DELIVERY:
+                        return this.transformScheduledDelivery(scheduler);
+                    default:
+                        return assertUnreachable(
+                            contentType,
+                            'Unknown scheduled content type',
+                        );
+                }
+            }),
         );
-        const content: Array<ScheduledDeliveryAsCode | AlertAsCode> = [];
+        const content: Array<
+            ScheduledDeliveryAsCode | AlertAsCode | GoogleSheetsSyncAsCode
+        > = [];
         const skipped: Array<{ name: string; reason: string }> = [];
-        const contentName =
-            contentType === ContentAsCodeType.ALERT
-                ? 'Alert'
-                : 'Scheduled delivery';
-        const unsupportedReason =
-            contentType === ContentAsCodeType.ALERT
-                ? 'Alerts as code support chart alerts with email or Slack targets'
-                : 'MVP supports chart/dashboard deliveries with email or Slack targets and CSV, XLSX, image, or PDF formats; secret/OAuth-backed targets are excluded';
+        const { singular: contentName } =
+            CoderService.getScheduledContentNames(contentType);
+        const unsupportedReason = `${contentName} as code supports chart and dashboard resources`;
 
         matchingSchedulers.forEach((scheduler, index) => {
             const item = transformed[index];
@@ -1609,6 +1750,12 @@ export class CoderService extends BaseService {
 
         if (contentType === ContentAsCodeType.ALERT) {
             return { alerts: content as AlertAsCode[], skipped };
+        }
+        if (contentType === ContentAsCodeType.GOOGLE_SHEETS_SYNC) {
+            return {
+                googleSheetsSyncs: content as GoogleSheetsSyncAsCode[],
+                skipped,
+            };
         }
         return {
             scheduledDeliveries: content as ScheduledDeliveryAsCode[],
@@ -1657,7 +1804,10 @@ export class CoderService extends BaseService {
 
     private async getScheduledDeliveryResource(
         projectUuid: string,
-        delivery: ScheduledDeliveryAsCode | AlertAsCode,
+        delivery:
+            | ScheduledDeliveryAsCode
+            | AlertAsCode
+            | GoogleSheetsSyncAsCode,
     ): Promise<
         | { type: 'chart'; uuid: string }
         | { type: 'dashboard'; uuid: string; dashboard: DashboardDAO }
@@ -1734,24 +1884,53 @@ export class CoderService extends BaseService {
         return delivery.resource.type === 'dashboard';
     }
 
+    private static isChartScheduledContent(
+        delivery:
+            | ScheduledDeliveryAsCode
+            | AlertAsCode
+            | GoogleSheetsSyncAsCode,
+    ): delivery is
+        | ChartScheduledDeliveryAsCode
+        | AlertAsCode
+        | ChartGoogleSheetsSyncAsCode {
+        return delivery.resource.type === 'chart';
+    }
+
+    private static isDashboardScheduledContent(
+        delivery:
+            | ScheduledDeliveryAsCode
+            | AlertAsCode
+            | GoogleSheetsSyncAsCode,
+    ): delivery is
+        | DashboardScheduledDeliveryAsCode
+        | DashboardGoogleSheetsSyncAsCode {
+        return delivery.resource.type === 'dashboard';
+    }
+
     private static scheduledContentIsEqual(
-        current: ScheduledDeliveryAsCode | AlertAsCode,
-        desired: ScheduledDeliveryAsCode | AlertAsCode,
+        current: ScheduledDeliveryAsCode | AlertAsCode | GoogleSheetsSyncAsCode,
+        desired: ScheduledDeliveryAsCode | AlertAsCode | GoogleSheetsSyncAsCode,
     ): boolean {
         const normalize = (
-            scheduledContent: ScheduledDeliveryAsCode | AlertAsCode,
+            scheduledContent:
+                | ScheduledDeliveryAsCode
+                | AlertAsCode
+                | GoogleSheetsSyncAsCode,
         ) => {
             const { downloadedAt, ...rest } = scheduledContent;
-            return {
-                ...rest,
-                targets: [...rest.targets].sort((left, right) =>
-                    CoderService.getScheduledDeliveryTargetKey(
-                        left,
-                    ).localeCompare(
-                        CoderService.getScheduledDeliveryTargetKey(right),
+            if ('targets' in rest) {
+                return {
+                    ...rest,
+                    targets: [...rest.targets].sort((left, right) =>
+                        CoderService.getScheduledDeliveryTargetKey(
+                            left,
+                        ).localeCompare(
+                            CoderService.getScheduledDeliveryTargetKey(right),
+                        ),
                     ),
-                ),
-            };
+                };
+            }
+            return rest;
         };
         return isEqual(normalize(current), normalize(desired));
     }
@@ -1760,14 +1939,21 @@ export class CoderService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         slug: string,
-        delivery: ScheduledDeliveryAsCode | AlertAsCode,
+        delivery:
+            | ScheduledDeliveryAsCode
+            | AlertAsCode
+            | GoogleSheetsSyncAsCode,
         force = false,
     ): Promise<
         | ApiScheduledDeliveryAsCodeUpsertResponse['results']
         | ApiAlertAsCodeUpsertResponse['results']
+        | ApiGoogleSheetsSyncAsCodeUpsertResponse['results']
     > {
         const isAlert = delivery.contentType === ContentAsCodeType.ALERT;
-        const contentName = isAlert ? 'Alert' : 'Scheduled delivery';
+        const isGoogleSheetsSync =
+            delivery.contentType === ContentAsCodeType.GOOGLE_SHEETS_SYNC;
+        const { singular: contentName, plural: contentPlural } =
+            CoderService.getScheduledContentNames(delivery.contentType);
         if (slug !== delivery.slug) {
             throw new ParameterError(
                 `${contentName} slug '${delivery.slug}' does not match path slug '${slug}'`,
@@ -1785,9 +1971,7 @@ export class CoderService extends BaseService {
             )
         ) {
             throw new ForbiddenError(
-                `You are not allowed to upload ${
-                    isAlert ? 'alerts' : 'scheduled deliveries'
-                }`,
+                `You are not allowed to upload ${contentPlural}`,
             );
         }
 
@@ -1803,6 +1987,9 @@ export class CoderService extends BaseService {
         if (
             existing &&
             (Boolean(existing.thresholds?.length) !== isAlert ||
+                isGoogleSheetsSync !==
+                    (!existing.thresholds?.length &&
+                        existing.format === SchedulerFormat.GSHEETS) ||
                 (resource.type === 'chart' &&
                     (!isChartScheduler(existing) ||
                         existing.savedChartUuid !== resource.uuid)) ||
@@ -1816,9 +2003,27 @@ export class CoderService extends BaseService {
         }
 
         if (existing) {
-            const current = isAlert
-                ? await this.transformAlert(existing)
-                : await this.transformScheduledDelivery(existing);
+            let current:
+                | ScheduledDeliveryAsCode
+                | AlertAsCode
+                | GoogleSheetsSyncAsCode
+                | null;
+            switch (delivery.contentType) {
+                case ContentAsCodeType.ALERT:
+                    current = await this.transformAlert(existing);
+                    break;
+                case ContentAsCodeType.GOOGLE_SHEETS_SYNC:
+                    current = await this.transformGoogleSheetsSync(existing);
+                    break;
+                case ContentAsCodeType.SCHEDULED_DELIVERY:
+                    current = await this.transformScheduledDelivery(existing);
+                    break;
+                default:
+                    current = assertUnreachable(
+                        delivery,
+                        'Unknown scheduled content type',
+                    );
+            }
             if (
                 !force &&
                 current &&
@@ -1828,14 +2033,16 @@ export class CoderService extends BaseService {
             }
         }
 
-        const targets = CoderService.getScheduledDeliveryTargets(delivery);
+        const targets = isGoogleSheetsSync
+            ? []
+            : CoderService.getScheduledDeliveryTargets(delivery);
         let filters: Filters | DashboardFilterRule[] | undefined;
-        if (isAlert || CoderService.isChartScheduledDelivery(delivery)) {
+        if (CoderService.isChartScheduledContent(delivery)) {
             filters = delivery.filters
                 ? normalizeFilterIds(delivery.filters)
                 : undefined;
         } else if (
-            CoderService.isDashboardScheduledDelivery(delivery) &&
+            CoderService.isDashboardScheduledContent(delivery) &&
             resource.type === 'dashboard'
         ) {
             filters =
@@ -1849,7 +2056,7 @@ export class CoderService extends BaseService {
             );
         }
         let selectedTabs: string[] | null | undefined;
-        if (isAlert) {
+        if (isAlert || delivery.resource.type === 'chart') {
             selectedTabs = null;
         } else if (resource.type === 'dashboard' && delivery.selectedTabs) {
             selectedTabs = delivery.selectedTabs.map((tabSlug) =>
@@ -1859,14 +2066,45 @@ export class CoderService extends BaseService {
             selectedTabs = delivery.selectedTabs;
         }
 
+        const formatAndOptions = (() => {
+            switch (delivery.contentType) {
+                case ContentAsCodeType.ALERT:
+                    return {
+                        format: SchedulerFormat.IMAGE,
+                        options: { withPdf: false },
+                    };
+                case ContentAsCodeType.GOOGLE_SHEETS_SYNC:
+                    return {
+                        format: SchedulerFormat.GSHEETS,
+                        options: {
+                            gdriveId: delivery.destination.spreadsheetId,
+                            gdriveName: delivery.destination.spreadsheetName,
+                            gdriveOrganizationName:
+                                delivery.destination.organizationName,
+                            url: delivery.destination.url,
+                            tabName: delivery.destination.tabName ?? undefined,
+                        },
+                    };
+                case ContentAsCodeType.SCHEDULED_DELIVERY:
+                    return {
+                        format: delivery.format,
+                        options: delivery.options,
+                    };
+                default:
+                    return assertUnreachable(
+                        delivery,
+                        'Unknown scheduled content type',
+                    );
+            }
+        })();
+
         const schedulerInput = {
             slug: delivery.slug,
             name: delivery.name,
             message: delivery.message ?? undefined,
             cron: delivery.cron,
             timezone: delivery.timezone ?? undefined,
-            format: isAlert ? SchedulerFormat.IMAGE : delivery.format,
-            options: isAlert ? { withPdf: false } : delivery.options,
+            ...formatAndOptions,
             filters,
             parameters: delivery.parameters ?? undefined,
             customViewportWidth: isAlert

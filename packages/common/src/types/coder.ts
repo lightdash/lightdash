@@ -38,6 +38,7 @@ export enum ContentAsCodeType {
     SPACE = 'space',
     SCHEDULED_DELIVERY = 'scheduled_delivery',
     ALERT = 'alert',
+    GOOGLE_SHEETS_SYNC = 'google_sheets_sync',
 }
 
 /**
@@ -411,6 +412,70 @@ export type ApiAlertAsCodeListResponse = {
 };
 
 export type ApiAlertAsCodeUpsertResponse = {
+    status: 'ok';
+    results: {
+        action:
+            | PromotionAction.CREATE
+            | PromotionAction.UPDATE
+            | PromotionAction.NO_CHANGES;
+    };
+};
+
+type GoogleSheetsSyncAsCodeBase = {
+    contentType: ContentAsCodeType.GOOGLE_SHEETS_SYNC;
+    version: number;
+    slug: string;
+    name: string;
+    message: string | null;
+    cron: string;
+    timezone: string | null;
+    enabled: boolean;
+    includeLinks: boolean;
+    destination: {
+        spreadsheetId: string;
+        spreadsheetName: string;
+        organizationName: string;
+        url: string;
+        tabName: string | null;
+    };
+    downloadedAt?: Date;
+};
+
+export type ChartGoogleSheetsSyncAsCode = GoogleSheetsSyncAsCodeBase & {
+    resource: {
+        type: 'chart';
+        slug: string;
+    };
+    filters: FiltersInput | null;
+    parameters: ParametersValuesMap | null;
+    customViewportWidth: null;
+    selectedTabs: null;
+};
+
+export type DashboardGoogleSheetsSyncAsCode = GoogleSheetsSyncAsCodeBase & {
+    resource: {
+        type: 'dashboard';
+        slug: string;
+    };
+    filters: Omit<DashboardFilterRule, 'id'>[] | null;
+    parameters: ParametersValuesMap | null;
+    customViewportWidth: number | null;
+    selectedTabs: string[] | null;
+};
+
+export type GoogleSheetsSyncAsCode =
+    | ChartGoogleSheetsSyncAsCode
+    | DashboardGoogleSheetsSyncAsCode;
+
+export type ApiGoogleSheetsSyncAsCodeListResponse = {
+    status: 'ok';
+    results: {
+        googleSheetsSyncs: GoogleSheetsSyncAsCode[];
+        skipped: ScheduledDeliveryAsCodeSkip[];
+    };
+};
+
+export type ApiGoogleSheetsSyncAsCodeUpsertResponse = {
     status: 'ok';
     results: {
         action:

@@ -114,6 +114,8 @@ import {
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
     type ApiDashboardAsCodeListResponse,
+    type ApiGoogleSheetsSyncAsCodeListResponse,
+    type ApiGoogleSheetsSyncAsCodeUpsertResponse,
     type ApiScheduledDeliveryAsCodeListResponse,
     type ApiScheduledDeliveryAsCodeUpsertResponse,
     type ApiSqlChartAsCodeListResponse,
@@ -1117,6 +1119,8 @@ type ApiResults =
     | ApiChartAsCodeListResponse['results']
     | ApiSqlChartAsCodeListResponse['results']
     | ApiDashboardAsCodeListResponse['results']
+    | ApiGoogleSheetsSyncAsCodeListResponse['results']
+    | ApiGoogleSheetsSyncAsCodeUpsertResponse['results']
     | ApiScheduledDeliveryAsCodeListResponse['results']
     | ApiScheduledDeliveryAsCodeUpsertResponse['results']
     | ApiChartAsCodeUpsertResponse['results']

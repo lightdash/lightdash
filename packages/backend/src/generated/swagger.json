@@ -35835,6 +35835,277 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ContentAsCodeType.GOOGLE_SHEETS_SYNC": {
+                "enum": ["google_sheets_sync"],
+                "type": "string"
+            },
+            "GoogleSheetsSyncAsCodeBase": {
+                "properties": {
+                    "downloadedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "destination": {
+                        "properties": {
+                            "tabName": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "url": {
+                                "type": "string"
+                            },
+                            "organizationName": {
+                                "type": "string"
+                            },
+                            "spreadsheetName": {
+                                "type": "string"
+                            },
+                            "spreadsheetId": {
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "tabName",
+                            "url",
+                            "organizationName",
+                            "spreadsheetName",
+                            "spreadsheetId"
+                        ],
+                        "type": "object"
+                    },
+                    "includeLinks": {
+                        "type": "boolean"
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "timezone": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "cron": {
+                        "type": "string"
+                    },
+                    "message": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "version": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentAsCodeType.GOOGLE_SHEETS_SYNC"
+                    }
+                },
+                "required": [
+                    "destination",
+                    "includeLinks",
+                    "enabled",
+                    "timezone",
+                    "cron",
+                    "message",
+                    "name",
+                    "slug",
+                    "version",
+                    "contentType"
+                ],
+                "type": "object"
+            },
+            "ChartGoogleSheetsSyncAsCode": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/GoogleSheetsSyncAsCodeBase"
+                    },
+                    {
+                        "properties": {
+                            "selectedTabs": {
+                                "type": "number",
+                                "enum": [null],
+                                "nullable": true
+                            },
+                            "customViewportWidth": {
+                                "type": "number",
+                                "enum": [null],
+                                "nullable": true
+                            },
+                            "parameters": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/ParametersValuesMap"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "filters": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/FiltersInput"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "resource": {
+                                "properties": {
+                                    "slug": {
+                                        "type": "string"
+                                    },
+                                    "type": {
+                                        "type": "string",
+                                        "enum": ["chart"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["slug", "type"],
+                                "type": "object"
+                            }
+                        },
+                        "required": [
+                            "selectedTabs",
+                            "customViewportWidth",
+                            "parameters",
+                            "filters",
+                            "resource"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "DashboardGoogleSheetsSyncAsCode": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/GoogleSheetsSyncAsCodeBase"
+                    },
+                    {
+                        "properties": {
+                            "selectedTabs": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array",
+                                "nullable": true
+                            },
+                            "customViewportWidth": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            },
+                            "parameters": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/ParametersValuesMap"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "filters": {
+                                "items": {
+                                    "$ref": "#/components/schemas/Omit_DashboardFilterRule.id_"
+                                },
+                                "type": "array",
+                                "nullable": true
+                            },
+                            "resource": {
+                                "properties": {
+                                    "slug": {
+                                        "type": "string"
+                                    },
+                                    "type": {
+                                        "type": "string",
+                                        "enum": ["dashboard"],
+                                        "nullable": false
+                                    }
+                                },
+                                "required": ["slug", "type"],
+                                "type": "object"
+                            }
+                        },
+                        "required": [
+                            "selectedTabs",
+                            "customViewportWidth",
+                            "parameters",
+                            "filters",
+                            "resource"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "GoogleSheetsSyncAsCode": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/ChartGoogleSheetsSyncAsCode"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DashboardGoogleSheetsSyncAsCode"
+                    }
+                ]
+            },
+            "ApiGoogleSheetsSyncAsCodeListResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "skipped": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ScheduledDeliveryAsCodeSkip"
+                                },
+                                "type": "array"
+                            },
+                            "googleSheetsSyncs": {
+                                "items": {
+                                    "$ref": "#/components/schemas/GoogleSheetsSyncAsCode"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["skipped", "googleSheetsSyncs"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiGoogleSheetsSyncAsCodeUpsertResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "action": {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/PromotionAction.CREATE"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PromotionAction.UPDATE"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PromotionAction.NO_CHANGES"
+                                    }
+                                ]
+                            }
+                        },
+                        "required": ["action"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "ApiChartAsCodeUpsertResponse": {
                 "properties": {
                     "results": {
@@ -62847,6 +63118,126 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/AlertAsCode"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/googleSheets/code": {
+            "get": {
+                "operationId": "getGoogleSheetsSyncsAsCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGoogleSheetsSyncAsCodeListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get Google Sheets syncs in code representation",
+                "summary": "List Google Sheets syncs as code",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "slugs",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/googleSheets/{slug}/code": {
+            "post": {
+                "operationId": "upsertGoogleSheetsSyncAsCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGoogleSheetsSyncAsCodeUpsertResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Upsert a Google Sheets sync from code representation",
+                "summary": "Upsert Google Sheets sync as code",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "slug",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "force",
+                        "required": false,
+                        "schema": {
+                            "default": false,
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/GoogleSheetsSyncAsCode"
                             }
                         }
                     }

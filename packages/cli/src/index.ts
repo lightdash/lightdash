@@ -730,6 +730,11 @@ program
     )
     .option('--alerts <slugs...>', 'specify alert slugs to download', [])
     .option(
+        '--google-sheets <slugs...>',
+        'specify Google Sheets sync slugs to download',
+        [],
+    )
+    .option(
         '--scheduled-deliveries <slugs...>',
         'specify scheduled delivery slugs to download',
         [],
@@ -763,6 +768,11 @@ program
     .option('--skip-charts', 'skip downloading charts', false)
     .option('--skip-dashboards', 'skip downloading dashboards', false)
     .option('--skip-alerts', 'skip downloading alerts', false)
+    .option(
+        '--skip-google-sheets',
+        'skip downloading Google Sheets syncs',
+        false,
+    )
     .option(
         '--skip-scheduled-deliveries',
         'skip downloading scheduled deliveries',
@@ -810,6 +820,11 @@ program
     )
     .option('--alerts <slugs...>', 'specify alert slugs to upload', [])
     .option(
+        '--google-sheets <slugs...>',
+        'specify Google Sheets sync slugs to upload',
+        [],
+    )
+    .option(
         '--scheduled-deliveries <slugs...>',
         'specify scheduled delivery slugs to upload',
         [],
@@ -837,6 +852,7 @@ program
     )
     .option('--public', 'Create new spaces as public instead of private', false)
     .option('--skip-alerts', 'skip uploading alerts', false)
+    .option('--skip-google-sheets', 'skip uploading Google Sheets syncs', false)
     .option(
         '--skip-scheduled-deliveries',
         'skip uploading scheduled deliveries',
