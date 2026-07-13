@@ -138,6 +138,10 @@
                         "type": "string"
                     },
                     "type": "array"
+                },
+                "requiredFiltersNote": {
+                    "description": "Editor-authored note shown to viewers while filter rules are unmet",
+                    "type": "string"
                 }
             },
             "required": ["isDateZoomDisabled"],
@@ -237,6 +241,10 @@
                                 "type": "string"
                             },
                             "type": "array"
+                        },
+                        "requiredGroupId": {
+                            "description": "Dashboard filters sharing a requiredGroupId form an \"any-one required\"\ngroup: the dashboard is locked until at least one member has a value.",
+                            "type": "string"
                         },
                         "singleValue": {
                             "type": "boolean"
@@ -842,6 +850,10 @@
                 "required": {
                     "description": "Whether this filter is required",
                     "type": "boolean"
+                },
+                "requiredGroupId": {
+                    "description": "Dashboard filters sharing a requiredGroupId form an \"any-one required\"\ngroup: the dashboard is locked until at least one member has a value.",
+                    "type": "string"
                 },
                 "settings": {
                     "description": "Additional settings for date/time filters"

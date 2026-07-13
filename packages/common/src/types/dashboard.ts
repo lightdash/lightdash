@@ -236,6 +236,8 @@ export type DashboardConfig = {
     dateZoomGranularities?: (DateGranularity | string)[];
     defaultDateZoomGranularity?: DateGranularity | string;
     dateZoomConfig?: DateZoomConfig;
+    /** Editor-authored note shown to viewers while filter rules are unmet */
+    requiredFiltersNote?: string;
 };
 
 export type Dashboard = {
