@@ -26,7 +26,7 @@ export const resolveSpaceSelection = (
         throw new ParameterError(
             `Space slug${
                 unknownSlugs.length > 1 ? 's' : ''
-            } not found in project: ${unknownSlugs.join(
+            } not found in project (or not visible to your credentials): ${unknownSlugs.join(
                 ', ',
             )}. Available space slugs: ${availableSlugs.join(', ')}`,
         );
