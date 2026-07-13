@@ -1,3 +1,10 @@
+## [0.3371.1](https://github.com/lightdash/lightdash/compare/0.3371.0...0.3371.1) (2026-07-13)
+
+
+### Bug Fixes
+
+* **e2e:** use semantic dashboard checkbox selectors ([#25482](https://github.com/lightdash/lightdash/issues/25482)) ([e83e3bd](https://github.com/lightdash/lightdash/commit/e83e3bdd427b06f3ceb828b22e2f27cff79a3f29)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.3371.0](https://github.com/lightdash/lightdash/compare/0.3370.0...0.3371.0) (2026-07-13)
 
 
