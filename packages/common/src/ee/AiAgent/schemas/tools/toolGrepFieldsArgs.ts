@@ -63,6 +63,8 @@ const grepFieldsPatternFieldSchema = z.object({
     label: z.string(),
     description: z.string().nullable(),
     hint: z.string().nullable(),
+    defaultTimeDimension: z.string().nullable(),
+    defaultTimeDimensionGranularity: z.string().nullable(),
     usageInVerifiedCharts: z.number(),
     matchLocality: z.enum(['name', 'description', 'hint', 'mixed']),
 });

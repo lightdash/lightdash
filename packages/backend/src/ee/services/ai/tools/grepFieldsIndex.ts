@@ -1,12 +1,43 @@
 import {
     convertFieldRefToFieldId,
+    getDefaultTimeDimension,
+    getFieldIdForDateDimension,
+    getItemId,
     isJoinModelRequiredFilter,
+    type CompiledMetric,
+    type CompiledTable,
     type Explore,
 } from '@lightdash/common';
 
 /** aiHint can be a string or string[]; flatten to one space-joined string. */
 const flatHint = (hint?: string | string[]): string =>
     Array.isArray(hint) ? hint.join(' ') : (hint ?? '');
+
+type DefaultTimeDimensionFieldIds = {
+    defaultTimeDimension: string;
+    defaultTimeDimensionGranularity: string;
+};
+
+export const getDefaultTimeDimensionFieldIds = (
+    metric: CompiledMetric,
+    table: CompiledTable | undefined,
+): DefaultTimeDimensionFieldIds | null => {
+    const defaultTimeDimension = getDefaultTimeDimension(metric, table);
+    if (!defaultTimeDimension) return null;
+    return {
+        defaultTimeDimension: getItemId({
+            table: metric.table,
+            name: defaultTimeDimension.field,
+        }),
+        defaultTimeDimensionGranularity: getItemId({
+            table: metric.table,
+            name: getFieldIdForDateDimension(
+                defaultTimeDimension.field,
+                defaultTimeDimension.interval,
+            ),
+        }),
+    };
+};
 
 /**
  * One-line summary of an explore's table filters, or null if none.
@@ -42,6 +73,8 @@ export type FieldEntry = {
     label: string;
     description: string;
     aiHint: string;
+    defaultTimeDimension: string | null;
+    defaultTimeDimensionGranularity: string | null;
     // Locality slices of the haystack, so callers can rank a match in the
     // field's own name/label above one buried in a description or hint.
     nameHaystack: string;
@@ -113,6 +146,10 @@ export const buildFieldIndex = (
                         .filter(Boolean)
                         .join('\n')
                         .toLowerCase();
+                    const defaultTimeDimensionFieldIds =
+                        kind === 'metric'
+                            ? getDefaultTimeDimensionFieldIds(field, table)
+                            : null;
                     entries.push({
                         exploreName: explore.name,
                         exploreLabel: explore.label,
@@ -122,6 +159,12 @@ export const buildFieldIndex = (
                         label: field.label,
                         description,
                         aiHint,
+                        defaultTimeDimension:
+                            defaultTimeDimensionFieldIds?.defaultTimeDimension ??
+                            null,
+                        defaultTimeDimensionGranularity:
+                            defaultTimeDimensionFieldIds?.defaultTimeDimensionGranularity ??
+                            null,
                         nameHaystack,
                         descHaystack,
                         hintHaystack,
@@ -310,7 +353,10 @@ const fieldLine = (f: FieldEntry): string => {
     const desc = f.description
         ? ` — ${f.description.replace(/\s+/g, ' ').slice(0, 140)}`
         : '';
-    return `  ${f.path}  [${f.kind} ${f.type}]${verified} ${f.label}${desc}`;
+    const defaultTimeDimension = f.defaultTimeDimension
+        ? ` default_time_dimension: ${f.defaultTimeDimension} default_time_dimension_granularity: ${f.defaultTimeDimensionGranularity}`
+        : '';
+    return `  ${f.path}  [${f.kind} ${f.type}]${verified} ${f.label}${defaultTimeDimension}${desc}`;
 };
 
 export const renderCandidateBlock = (candidates: FieldEntry[]): string => {

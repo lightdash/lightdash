@@ -10,6 +10,8 @@ const entry = (over: Partial<FieldEntry>): FieldEntry => ({
     label: 'A metric',
     description: '',
     aiHint: '',
+    defaultTimeDimension: null,
+    defaultTimeDimensionGranularity: null,
     nameHaystack: '',
     descHaystack: '',
     hintHaystack: '',

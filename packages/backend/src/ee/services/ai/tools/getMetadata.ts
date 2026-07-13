@@ -2,6 +2,7 @@ import {
     getFilterTypeFromItemType,
     getMetadataToolDefinition,
     isDimension,
+    isMetric,
     type CompiledField,
     type Explore,
     type GetMetadataResult,
@@ -11,7 +12,10 @@ import { tool } from 'ai';
 import { getExploreRequiredFilters } from '../utils/requiredFilters';
 import type { ExecuteStructuredToolResult } from '../utils/structuredToolResult';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
-import { summarizeRequiredFilters } from './grepFieldsIndex';
+import {
+    getDefaultTimeDimensionFieldIds,
+    summarizeRequiredFilters,
+} from './grepFieldsIndex';
 
 const toolDefinition = getMetadataToolDefinition.for('agent');
 
@@ -110,12 +114,21 @@ const findField = (
     return null;
 };
 
+const getResolvedDefaultTimeDimension = (
+    explore: Explore,
+    field: CompiledField,
+): ReturnType<typeof getDefaultTimeDimensionFieldIds> => {
+    if (!isMetric(field)) return null;
+    return getDefaultTimeDimensionFieldIds(field, explore.tables[field.table]);
+};
+
 const renderField = (
-    exploreId: string,
+    explore: Explore,
     fieldId: string,
     found: { field: CompiledField; isJoined: boolean },
 ): string => {
     const { field, isJoined } = found;
+    const exploreId = explore.name;
     const kind = isDimension(field) ? 'dimension' : 'metric';
     const lines = [
         `${exploreId}/${fieldId}  [${kind} ${field.type}]`,
@@ -129,6 +142,16 @@ const renderField = (
     }
     if (isDimension(field) && field.type === 'string') {
         lines.push(`  case-sensitive filters: ${field.caseSensitive ?? true}`);
+    }
+    const defaultTimeDimension = getResolvedDefaultTimeDimension(
+        explore,
+        field,
+    );
+    if (defaultTimeDimension) {
+        lines.push(
+            `  default_time_dimension: ${defaultTimeDimension.defaultTimeDimension}`,
+            `  default_time_dimension_granularity: ${defaultTimeDimension.defaultTimeDimensionGranularity}`,
+        );
     }
     if (field.description) {
         lines.push(
@@ -174,12 +197,17 @@ const buildExploreStructuredResult = (
 };
 
 const buildFieldStructuredResult = (
-    exploreId: string,
+    explore: Explore,
     fieldId: string,
     found: { field: CompiledField; isJoined: boolean },
 ): GetMetadataResult['fields'][number] => {
     const { field, isJoined } = found;
+    const exploreId = explore.name;
     const hint = flatHint(field.aiHint);
+    const defaultTimeDimension = getResolvedDefaultTimeDimension(
+        explore,
+        field,
+    );
     return {
         exploreId,
         fieldId,
@@ -194,6 +222,10 @@ const buildFieldStructuredResult = (
             isDimension(field) && field.type === 'string'
                 ? (field.caseSensitive ?? true)
                 : null,
+        defaultTimeDimension:
+            defaultTimeDimension?.defaultTimeDimension ?? null,
+        defaultTimeDimensionGranularity:
+            defaultTimeDimension?.defaultTimeDimensionGranularity ?? null,
         description: field.description
             ? collapse(field.description, FIELD_DESCRIPTION_MAX)
             : null,
@@ -253,13 +285,9 @@ export const executeGetMetadata = (
                             error,
                         });
                     } else {
-                        textBlocks.push(renderField(exploreId, fieldId, found));
+                        textBlocks.push(renderField(explore, fieldId, found));
                         fields.push(
-                            buildFieldStructuredResult(
-                                exploreId,
-                                fieldId,
-                                found,
-                            ),
+                            buildFieldStructuredResult(explore, fieldId, found),
                         );
                     }
                 }

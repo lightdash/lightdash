@@ -13,7 +13,7 @@ export const GET_METADATA_DESCRIPTION = ({
     return `Tool: ${getMetadata}
 
 Purpose:
-Get the full metadata for specific explores and/or fields that you already know the IDs of (typically from ${grepFields}). ${grepFields} is lean — it tells you WHICH fields exist; ${getMetadata} gives you the DETAIL you need to build a correct query: an explore's joined tables and table filters, and a field's filter type, case-sensitivity, hints, and whether it comes from a joined table.
+Get the full metadata for specific explores and/or fields that you already know the IDs of (typically from ${grepFields}). ${grepFields} is lean — it tells you WHICH fields exist; ${getMetadata} gives you the DETAIL you need to build a correct query: an explore's joined tables and table filters, and a field's filter type, case-sensitivity, resolved default time dimension, hints, and whether it comes from a joined table.
 
 Call this AFTER ${grepFields}, once you have narrowed down to the explore(s) and field(s) you intend to use, and BEFORE ${visualization}. You can ask for several explores and several fields across explores in a SINGLE call — batch everything you need at once instead of one request per item.
 
@@ -103,6 +103,8 @@ const getMetadataFieldFoundSchema = z.object({
     isFromJoinedTable: z.boolean(),
     joinedTableName: z.string().nullable(),
     caseSensitiveFilters: z.boolean().nullable(),
+    defaultTimeDimension: z.string().nullable(),
+    defaultTimeDimensionGranularity: z.string().nullable(),
     description: z.string().nullable(),
     hint: z.string().nullable(),
 });

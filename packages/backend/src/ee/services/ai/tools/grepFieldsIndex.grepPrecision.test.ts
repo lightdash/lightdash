@@ -2,7 +2,9 @@ import {
     DimensionType,
     FieldType,
     FilterOperator,
+    MetricType,
     SupportedDbtAdapter,
+    TimeFrames,
     type Explore,
     type ModelRequiredFilterRule,
 } from '@lightdash/common';
@@ -11,10 +13,24 @@ import {
     buildExploreIndex,
     buildFieldIndex,
     compileMatcher,
+    getDefaultTimeDimensionFieldIds,
     matchLocality,
     selectCandidateFields,
     summarizeRequiredFilters,
 } from './grepFieldsIndex';
+
+const makeMetric = (table: string, name: string) => ({
+    fieldType: FieldType.METRIC as const,
+    type: MetricType.SUM,
+    name,
+    label: name,
+    table,
+    tableLabel: table,
+    sql: `SUM(\${TABLE}.${name})`,
+    hidden: false,
+    compiledSql: `SUM(${table}.${name})`,
+    tablesReferences: [table],
+});
 
 type FieldSpec = {
     name: string;
@@ -101,6 +117,54 @@ describe('summarizeRequiredFilters', () => {
         expect(summarizeRequiredFilters(explore)).toBe(
             '⚠ table filters: required data_app_usage_timestamp inThePast [4]; suggested data_app_usage_role equals ["interactive_viewer"]',
         );
+    });
+});
+
+describe('getDefaultTimeDimensionFieldIds', () => {
+    it('returns fully qualified base and granular IDs using the resolved default interval', () => {
+        const explore = makeExplore({
+            name: 'orders',
+            fields: [{ name: 'created_at' }],
+        });
+        explore.tables.orders.defaultTimeDimension = {
+            field: 'created_at',
+            interval: undefined as unknown as TimeFrames,
+        };
+
+        expect(
+            getDefaultTimeDimensionFieldIds(
+                makeMetric('orders', 'revenue'),
+                explore.tables.orders,
+            ),
+        ).toEqual({
+            defaultTimeDimension: 'orders_created_at',
+            defaultTimeDimensionGranularity: 'orders_created_at_month',
+        });
+    });
+
+    it('prefers the metric-level default over the model default', () => {
+        const explore = makeExplore({
+            name: 'orders',
+            fields: [{ name: 'created_at' }, { name: 'shipped_at' }],
+        });
+        explore.tables.orders.defaultTimeDimension = {
+            field: 'created_at',
+            interval: TimeFrames.WEEK,
+        };
+        const metric = {
+            ...makeMetric('orders', 'revenue'),
+            defaultTimeDimension: {
+                field: 'shipped_at',
+                interval: TimeFrames.DAY,
+            },
+        };
+
+        expect(
+            getDefaultTimeDimensionFieldIds(metric, explore.tables.orders),
+        ).toEqual({
+            defaultTimeDimension: 'orders_shipped_at',
+            defaultTimeDimensionGranularity: 'orders_shipped_at_day',
+        });
     });
 });
 

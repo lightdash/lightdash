@@ -146,6 +146,9 @@ const groupOrderedHitsByExplore = (
             label: field.label,
             description: field.description || null,
             hint: field.aiHint || null,
+            defaultTimeDimension: field.defaultTimeDimension,
+            defaultTimeDimensionGranularity:
+                field.defaultTimeDimensionGranularity,
             usageInVerifiedCharts: field.verifiedUsage,
             matchLocality: matchLocality(field, matches),
         })),
@@ -174,7 +177,10 @@ const renderGroupedHits = (
                               .replace(/\s+/g, ' ')
                               .slice(0, 160)})`
                         : '';
-                    return `  ${field.path}  [${field.kind} ${field.fieldType}]${verified} ${field.label}${desc}${hint}`;
+                    const defaultTimeDimension = field.defaultTimeDimension
+                        ? ` default_time_dimension: ${field.defaultTimeDimension} default_time_dimension_granularity: ${field.defaultTimeDimensionGranularity}`
+                        : '';
+                    return `  ${field.path}  [${field.kind} ${field.fieldType}]${verified} ${field.label}${defaultTimeDimension}${desc}${hint}`;
                 })
                 .join('\n');
             const header = `  ${exploreName} (${exploreLabel})`;
