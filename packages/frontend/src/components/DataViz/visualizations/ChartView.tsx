@@ -1,6 +1,5 @@
 import { isVizTableConfig, type AllVizChartConfig } from '@lightdash/common';
-import { Box } from '@mantine-8/core';
-import { LoadingOverlay } from '@mantine/core';
+import { Box, LoadingOverlay } from '@mantine-8/core';
 import { type SerializedError } from '@reduxjs/toolkit';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { memo } from 'react';
@@ -55,7 +54,12 @@ const ChartView = memo<Props>(
         }
 
         return (
-            <Box h="100%" w="100%" data-testid={`chart-view-${config?.type}`}>
+            <Box
+                h="100%"
+                w="100%"
+                pos="relative"
+                data-testid={`chart-view-${config?.type}`}
+            >
                 <LoadingOverlay
                     visible={isLoading}
                     loaderProps={{ color: 'gray' }}

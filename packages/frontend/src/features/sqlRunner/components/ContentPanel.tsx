@@ -16,9 +16,10 @@ import {
     Text,
     ActionIcon,
     Indicator,
+    LoadingOverlay,
     SegmentedControl,
 } from '@mantine-8/core';
-import { LoadingOverlay, Tooltip, Transition } from '@mantine/core';
+import { Tooltip, Transition } from '@mantine/core';
 import { useElementSize, useHotkeys } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {

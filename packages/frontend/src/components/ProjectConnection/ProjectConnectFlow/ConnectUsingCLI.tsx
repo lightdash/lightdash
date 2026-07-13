@@ -3,8 +3,8 @@ import {
     TimeFrames,
     type OrganizationProject,
 } from '@lightdash/common';
-import { Button, Stack, Tabs, Text } from '@mantine-8/core';
-import { Avatar, LoadingOverlay } from '@mantine/core';
+import { Button, LoadingOverlay, Stack, Tabs, Text } from '@mantine-8/core';
+import { Avatar } from '@mantine/core';
 import { useOs } from '@mantine/hooks';
 import { Prism } from '@mantine/prism';
 import { IconChevronLeft, IconClock } from '@tabler/icons-react';
@@ -124,7 +124,7 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
             <ProjectCreationCard>
                 <LoadingOverlay
                     visible={!isTokenCreated || isTokenCreating}
-                    overlayBlur={2}
+                    overlayProps={{ blur: 2 }}
                 />
 
                 <Stack gap="xl">

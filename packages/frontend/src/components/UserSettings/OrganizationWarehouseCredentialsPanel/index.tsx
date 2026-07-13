@@ -1,6 +1,13 @@
 import { type OrganizationWarehouseCredentials } from '@lightdash/common';
-import { Group, Stack, Text, Title, Button } from '@mantine-8/core';
-import { LoadingOverlay } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Group,
+    LoadingOverlay,
+    Stack,
+    Text,
+    Title,
+} from '@mantine-8/core';
 import { IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useOrganizationWarehouseCredentials } from '../../../hooks/organization/useOrganizationWarehouseCredentials';
@@ -23,7 +30,11 @@ export const OrganizationWarehouseCredentialsPanel = () => {
     ] = useState<OrganizationWarehouseCredentials | undefined>(undefined);
 
     if (isLoading) {
-        return <LoadingOverlay visible={isLoading} />;
+        return (
+            <Box pos="relative" mih={120}>
+                <LoadingOverlay visible={isLoading} />
+            </Box>
+        );
     }
     return (
         <>
