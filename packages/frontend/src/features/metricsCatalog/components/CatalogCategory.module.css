@@ -1,3 +1,22 @@
+.base {
+    border: 1px solid var(--category-border-color);
+    background-color: var(--category-background-color);
+    color: var(--category-text-color);
+    cursor: pointer;
+    box-shadow: 0px -1px 0px 0px rgba(4, 4, 4, 0.04) inset;
+    outline: none;
+    font-size: 12px;
+    text-transform: none;
+    font-weight: 500;
+}
+
+.base:focus {
+    outline: 2px solid var(--category-focus-outline-color);
+    outline-offset: 2px;
+    background-color: var(--category-hover-background-color);
+    transition: background-color 200ms ease-in-out;
+}
+
 .removeButton:focus {
     background-color: color-mix(
         in srgb,
