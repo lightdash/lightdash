@@ -18,6 +18,7 @@ import {
     LightdashProjectConfig,
     ParseError,
     preAggregatePostProcessor,
+    translateMetricFlowMetrics,
     WarehouseCatalog,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
@@ -112,6 +113,71 @@ const getExploresFromLightdashYmlProject = async (
     );
 
     return validExplores;
+};
+
+/**
+ * Translate dbt MetricFlow definitions (`semantic_models` + `metrics`) from the
+ * manifest into Lightdash metrics and merge them into each model's meta so they
+ * compile through the normal explore pipeline. YAML-defined metrics take
+ * priority over translated ones on name collision. No-op when the manifest has
+ * no semantic models.
+ */
+const applyMetricFlowMetrics = (
+    models: DbtModelNode[],
+    manifest: DbtManifest,
+): DbtModelNode[] => {
+    const semanticModels = manifest.semantic_models;
+    if (!semanticModels || Object.keys(semanticModels).length === 0) {
+        return models;
+    }
+
+    const modelNamesByUniqueId = Object.fromEntries(
+        models.map((model) => [model.unique_id, model.name]),
+    );
+
+    const { metricsByModel, warnings, translatedCount, skippedCount } =
+        translateMetricFlowMetrics({
+            semanticModels,
+            metrics: manifest.metrics ?? {},
+            modelNamesByUniqueId,
+        });
+
+    warnings.forEach((warning) => GlobalState.debug(`> ${warning}`));
+
+    if (translatedCount === 0) {
+        if (skippedCount > 0) {
+            console.error(
+                styles.warning(
+                    `> Skipped ${skippedCount} unsupported MetricFlow metric(s). Run with --verbose for details.`,
+                ),
+            );
+        }
+        return models;
+    }
+
+    const skippedSuffix =
+        skippedCount > 0
+            ? ` (skipped ${skippedCount} unsupported, run with --verbose for details)`
+            : '';
+    console.error(
+        styles.info(
+            `> Translated ${translatedCount} MetricFlow metric(s) into Lightdash metrics${skippedSuffix}`,
+        ),
+    );
+
+    return models.map((model) => {
+        const modelMetrics = metricsByModel[model.name];
+        if (!modelMetrics) {
+            return model;
+        }
+        return {
+            ...model,
+            meta: {
+                ...model.meta,
+                metrics: { ...modelMetrics, ...model.meta.metrics },
+            },
+        };
+    });
 };
 
 /**
@@ -318,10 +384,9 @@ export const compile = async (options: CompileHandlerOptions) => {
             GlobalState.debug('> Skipping warehouse catalog');
         }
 
-        const validModelsWithTypes = attachTypesToModels(
-            validModels,
-            catalog,
-            false,
+        const validModelsWithTypes = applyMetricFlowMetrics(
+            attachTypesToModels(validModels, catalog, false),
+            manifest,
         );
 
         if (!isSupportedDbtAdapter(manifest.metadata)) {

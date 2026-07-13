@@ -11,6 +11,7 @@ import {
     type CompiledModelNode,
     type ParsedMetric,
 } from './dbtFromSchema';
+import { type DbtSemanticModel } from './dbtSemanticLayer';
 import { ParseError } from './errors';
 import { type JoinRelationship } from './explore';
 import {
@@ -489,7 +490,7 @@ export interface DbtManifest {
      */
     sources?: Record<string, AnyType>;
     macros?: Record<string, AnyType>;
-    semantic_models?: Record<string, AnyType>;
+    semantic_models?: Record<string, DbtSemanticModel>;
 }
 
 export interface DbtRawManifestMetadata {
