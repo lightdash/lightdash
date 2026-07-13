@@ -160,6 +160,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                         return <div>{option.label}</div>;
                     }}
                     rightSectionWidth={140}
+                    rightSectionPointerEvents="all"
                     rightSectionProps={{
                         style: {
                             justifyContent: 'flex-end',
