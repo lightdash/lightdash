@@ -634,7 +634,7 @@ const TileFilterConfiguration: FC<Props> = ({
                 checked={isAllChecked}
                 indeterminate={isIndeterminate}
                 label={
-                    <Text fw={500}>
+                    <Text fz="sm" fw={500}>
                         Select all{' '}
                         {isIndeterminate
                             ? ` (${
