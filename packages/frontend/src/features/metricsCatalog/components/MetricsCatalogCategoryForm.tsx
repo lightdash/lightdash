@@ -1,6 +1,13 @@
 import { type CatalogField, type Tag } from '@lightdash/common';
-import { Box, Group, Stack, Text, Button } from '@mantine-8/core';
-import { Popover, UnstyledButton, useMantineTheme } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Group,
+    Stack,
+    Text,
+    UnstyledButton,
+} from '@mantine-8/core';
+import { Popover, useMantineTheme } from '@mantine/core';
 import differenceBy from 'lodash/differenceBy';
 import filter from 'lodash/filter';
 import includes from 'lodash/includes';
@@ -253,7 +260,12 @@ export const MetricsCatalogCategoryForm: FC<Props> = memo(
                 closeOnClickOutside={!hasOpenSubPopover} // Prevent closing when sub-popover is open
             >
                 <Popover.Target>
-                    <UnstyledButton w="100%" pos="absolute" />
+                    <UnstyledButton
+                        aria-label="Edit metric categories"
+                        aria-expanded={opened}
+                        w="100%"
+                        pos="absolute"
+                    />
                 </Popover.Target>
                 <Popover.Dropdown p={0}>
                     <Stack px="sm" pt="sm" gap="xs">

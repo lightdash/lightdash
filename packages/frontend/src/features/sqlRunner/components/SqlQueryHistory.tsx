@@ -1,11 +1,11 @@
-import { Group, Stack, Text, ActionIcon } from '@mantine-8/core';
 import {
-    HoverCard,
-    Popover,
-    Tooltip,
+    ActionIcon,
+    Group,
+    Stack,
+    Text,
     UnstyledButton,
-    useMantineTheme,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { HoverCard, Popover, Tooltip, useMantineTheme } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { Editor } from '@monaco-editor/react';
 import {
@@ -19,6 +19,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useTimeAgo } from '../../../hooks/useTimeAgo';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSql } from '../store/sqlRunnerSlice';
+import styles from './SqlQueryHistory.module.css';
 
 type Props = {
     sql: string;
@@ -45,12 +46,7 @@ const SqlQueryHistoryItem: FC<Props> = ({ timestamp, sql }) => {
                     <UnstyledButton
                         data-testid="sql-query-history-item"
                         ref={hoverRef}
-                        sx={(theme) => ({
-                            padding: theme.spacing.xs,
-                            '&:hover': {
-                                backgroundColor: theme.colors.ldGray[0],
-                            },
-                        })}
+                        className={styles.historyItem}
                         onClick={() => {
                             dispatch(setSql(sql));
                         }}

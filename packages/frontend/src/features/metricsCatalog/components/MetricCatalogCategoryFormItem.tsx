@@ -5,16 +5,11 @@ import {
     Group,
     Stack,
     Text,
+    UnstyledButton,
     Button,
     ActionIcon,
 } from '@mantine-8/core';
-import {
-    Popover,
-    SimpleGrid,
-    TextInput,
-    Tooltip,
-    UnstyledButton,
-} from '@mantine/core';
+import { Popover, SimpleGrid, TextInput, Tooltip } from '@mantine/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
 import { IconCode, IconDots, IconTrash } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';

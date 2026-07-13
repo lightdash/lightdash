@@ -8,10 +8,11 @@ import {
     Stack,
     type BoxProps,
     Text,
+    UnstyledButton,
     ActionIcon,
     Highlight,
 } from '@mantine-8/core';
-import { ScrollArea, TextInput, Tooltip, UnstyledButton } from '@mantine/core';
+import { ScrollArea, TextInput, Tooltip } from '@mantine/core';
 import { useDebouncedValue, useHover } from '@mantine/hooks';
 import {
     IconChevronDown,
@@ -29,6 +30,7 @@ import { useIsTruncated } from '../../../hooks/useIsTruncated';
 import { useTables, type TablesBySchema } from '../hooks/useTables';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSql, toggleActiveTable } from '../store/sqlRunnerSlice';
+import styles from './Tables.module.css';
 
 const limitTableResults = 100;
 
@@ -95,20 +97,10 @@ const TableItem: FC<TableItemProps> = memo(
                     }}
                     w="100%"
                     p={4}
-                    sx={(theme) => ({
-                        fontSize: 14,
-                        borderRadius: theme.radius.sm,
-                        color: isActive ? 'ldGray.8' : 'ldGray.7',
-                        flex: 1,
-                        background: isActive
-                            ? theme.colors.ldGray[1]
-                            : 'transparent',
-                        '&:hover': {
-                            background: isActive
-                                ? theme.colors.ldGray[3]
-                                : theme.colors.ldGray[2],
-                        },
-                    })}
+                    flex={1}
+                    fz="sm"
+                    data-active={isActive || undefined}
+                    className={styles.tableButton}
                 >
                     <Tooltip
                         withinPortal
@@ -218,12 +210,7 @@ const Table: FC<{
         <Stack gap={0}>
             <UnstyledButton
                 onClick={() => setIsExpanded(!isExpanded)}
-                sx={(theme) => ({
-                    borderRadius: theme.radius.md,
-                    '&:hover': {
-                        background: theme.colors.ldGray[1],
-                    },
-                })}
+                className={styles.schemaButton}
             >
                 <Group wrap="nowrap" gap="two">
                     <Text p={6} fz="sm" c="ldGray.8">
