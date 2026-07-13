@@ -116,6 +116,10 @@ import {
     OnboardingTableName,
 } from '../database/entities/onboarding';
 import {
+    OnboardingProjectStateTable,
+    OnboardingProjectStateTableName,
+} from '../database/entities/onboardingProjectState';
+import {
     OpenIdIdentitiesTable,
     OpenIdIdentitiesTableName,
 } from '../database/entities/openIdIdentities';
@@ -525,6 +529,7 @@ declare module 'knex/types/tables' {
         [DashboardTileHeadingsTableName]: DashboardTileHeadingsTable;
         [DashboardTileDataAppsTableName]: DashboardTileDataAppsTable;
         [OnboardingTableName]: OnboardingTable;
+        [OnboardingProjectStateTableName]: OnboardingProjectStateTable;
         [OpenIdIdentitiesTableName]: OpenIdIdentitiesTable;
         [OrganizationMembershipsTableName]: OrganizationMembershipsTable;
         [PasswordResetTableName]: PasswordResetTable;

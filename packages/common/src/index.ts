@@ -140,6 +140,7 @@ export * from './types/metricQuery';
 export * from './types/metricsExplorer';
 export * from './types/notifications';
 export * from './types/oauth';
+export * from './types/onboarding';
 export * from './types/openIdIdentity';
 export * from './types/organization';
 export * from './types/organizationAccess';

@@ -5,6 +5,8 @@
  * If the feature flag is no longer in use, remove it from this enum.
  */
 export enum FeatureFlags {
+    AgenticOnboarding = 'agentic-onboarding',
+
     /* Show user groups */
     UserGroupsEnabled = 'user-groups-enabled',
 

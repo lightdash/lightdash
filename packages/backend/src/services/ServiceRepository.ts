@@ -45,6 +45,7 @@ import { LightdashAnalyticsService } from './LightdashAnalyticsService/Lightdash
 import { MetricsExplorerService } from './MetricsExplorerService/MetricsExplorerService';
 import { NotificationsService } from './NotificationsService/NotificationsService';
 import { OAuthService } from './OAuthService/OAuthService';
+import { OnboardingFlowService } from './OnboardingFlowService/OnboardingFlowService';
 import { OrganizationAccessService } from './OrganizationAccessService/OrganizationAccessService';
 import { OrganizationDesignService } from './OrganizationDesignService/OrganizationDesignService';
 import { OrganizationDomainVerificationService } from './OrganizationDomainVerificationService/OrganizationDomainVerificationService';
@@ -103,6 +104,7 @@ interface ServiceManifest {
     healthService: HealthService;
     notificationService: NotificationsService;
     oauthService: OAuthService;
+    onboardingFlowService: OnboardingFlowService;
 
     organizationDesignService: OrganizationDesignService;
     organizationService: OrganizationService;
@@ -581,6 +583,18 @@ export class ServiceRepository
                     userModel: this.models.getUserModel(),
                     oauthModel: this.models.getOauthModel(),
                     lightdashConfig: this.context.lightdashConfig,
+                }),
+        );
+    }
+
+    public getOnboardingFlowService(): OnboardingFlowService {
+        return this.getService(
+            'onboardingFlowService',
+            () =>
+                new OnboardingFlowService({
+                    onboardingProjectStateModel:
+                        this.models.getOnboardingProjectStateModel(),
+                    projectModel: this.models.getProjectModel(),
                 }),
         );
     }

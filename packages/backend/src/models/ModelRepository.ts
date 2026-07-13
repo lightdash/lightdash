@@ -27,6 +27,7 @@ import { MigrationModel } from './MigrationModel/MigrationModel';
 import { NotificationsModel } from './NotificationsModel/NotificationsModel';
 import { OAuth2Model } from './OAuth2Model';
 import { OnboardingModel } from './OnboardingModel/OnboardingModel';
+import { OnboardingProjectStateModel } from './OnboardingProjectStateModel';
 import { OpenIdIdentityModel } from './OpenIdIdentitiesModel';
 import { OrganizationAllowedEmailDomainsModel } from './OrganizationAllowedEmailDomainsModel';
 import { OrganizationDesignModel } from './OrganizationDesignModel';
@@ -95,6 +96,7 @@ export type ModelManifest = {
     notificationsModel: NotificationsModel;
     oauthModel: OAuth2Model;
     onboardingModel: OnboardingModel;
+    onboardingProjectStateModel: OnboardingProjectStateModel;
     openIdIdentityModel: OpenIdIdentityModel;
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
     organizationDesignModel: OrganizationDesignModel;
@@ -426,6 +428,13 @@ export class ModelRepository
         return this.getModel(
             'onboardingModel',
             () => new OnboardingModel({ database: this.database }),
+        );
+    }
+
+    public getOnboardingProjectStateModel(): OnboardingProjectStateModel {
+        return this.getModel(
+            'onboardingProjectStateModel',
+            () => new OnboardingProjectStateModel({ database: this.database }),
         );
     }
 
