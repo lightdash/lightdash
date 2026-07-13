@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { FeatureFlags, isCustomSqlDimension } from '@lightdash/common';
-import { Group } from '@mantine-8/core';
-import { ActionIcon, Button, Tooltip, Text } from '@mantine/core';
+import { Group, Text } from '@mantine-8/core';
+import { ActionIcon, Button, Tooltip } from '@mantine/core';
 import { IconCode, IconPlus } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import {
@@ -142,7 +142,7 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
     return (
         <Group mt="sm" mb="xs" pl={pl} pr="sm" justify="space-between">
             <Group gap="xs">
-                <Text fw={600} c={color}>
+                <Text fz="sm" fw={600} c={color}>
                     {label}
                 </Text>
                 {helpButton && (

@@ -1,5 +1,5 @@
-import { Box } from '@mantine-8/core';
-import { LoadingOverlay, Text } from '@mantine/core';
+import { Box, Text } from '@mantine-8/core';
+import { LoadingOverlay } from '@mantine/core';
 import { useTimeout } from '@mantine/hooks';
 import { IconGripHorizontal } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';

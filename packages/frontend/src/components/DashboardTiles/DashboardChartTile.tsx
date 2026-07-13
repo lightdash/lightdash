@@ -34,14 +34,13 @@ import {
     type SavedChart,
     type Series,
 } from '@lightdash/common';
-import { ActionIcon, Box, Group, Menu, Stack } from '@mantine-8/core';
+import { ActionIcon, Box, Group, Menu, Stack, Text } from '@mantine-8/core';
 import {
     Badge,
     HoverCard,
     Portal,
     Tooltip,
     useMantineColorScheme,
-    Text,
 } from '@mantine/core';
 import { useClipboard, useElementSize } from '@mantine/hooks';
 import {

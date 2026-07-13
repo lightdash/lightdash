@@ -1,5 +1,5 @@
-import { Flex, Stack } from '@mantine-8/core';
-import { ActionIcon, TextInput, type SystemProp, Text } from '@mantine/core';
+import { Flex, Stack, Text } from '@mantine-8/core';
+import { ActionIcon, TextInput, type SystemProp } from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import {

@@ -1,6 +1,6 @@
 import { type CatalogField } from '@lightdash/common';
-import { Box } from '@mantine-8/core';
-import { useMantineTheme, Text } from '@mantine/core';
+import { Box, Text } from '@mantine-8/core';
+import { useMantineTheme } from '@mantine/core';
 import MarkdownPreview, {
     type MarkdownPreviewProps,
 } from '@uiw/react-markdown-preview';

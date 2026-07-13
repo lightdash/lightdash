@@ -3,8 +3,8 @@ import {
     TimeFrames,
     type OrganizationProject,
 } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
-import { Avatar, Button, LoadingOverlay, Tabs, Text } from '@mantine/core';
+import { Stack, Text } from '@mantine-8/core';
+import { Avatar, Button, LoadingOverlay, Tabs } from '@mantine/core';
 import { useOs } from '@mantine/hooks';
 import { Prism } from '@mantine/prism';
 import { IconChevronLeft, IconClock } from '@tabler/icons-react';

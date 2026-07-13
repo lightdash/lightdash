@@ -6,7 +6,7 @@ import {
     validateOrganizationEmailDomains,
     type AllowedEmailDomains,
 } from '@lightdash/common';
-import { Flex, Stack } from '@mantine-8/core';
+import { Flex, Stack, Text } from '@mantine-8/core';
 import {
     ActionIcon,
     Button,
@@ -14,7 +14,6 @@ import {
     Select,
     Title,
     Tooltip,
-    Text,
 } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { IconHelpCircle, IconPlus, IconTrash } from '@tabler/icons-react';

@@ -1,4 +1,4 @@
-import { Group, Stack } from '@mantine-8/core';
+import { Group, Stack, Text } from '@mantine-8/core';
 import {
     ActionIcon,
     HoverCard,
@@ -6,7 +6,6 @@ import {
     Tooltip,
     UnstyledButton,
     useMantineTheme,
-    Text,
 } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { Editor } from '@monaco-editor/react';

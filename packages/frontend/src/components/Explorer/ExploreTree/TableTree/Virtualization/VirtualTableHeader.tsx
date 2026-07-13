@@ -1,5 +1,5 @@
-import { Group } from '@mantine-8/core';
-import { NavLink, Text, useMantineTheme } from '@mantine/core';
+import { Group, Text } from '@mantine-8/core';
+import { NavLink, useMantineTheme } from '@mantine/core';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { TableItemDetailPreview } from '../ItemDetailPreview';
@@ -70,11 +70,11 @@ const VirtualTableHeaderComponent: FC<VirtualTableHeaderProps> = ({
             tableMetadata={tableMetadata}
         >
             <Group gap="xs" wrap="nowrap">
-                <Text truncate fw={600}>
+                <Text truncate fz="sm" fw={600}>
                     {table.label}
                 </Text>
                 {!isExpanded && (
-                    <Text size="xs" color="ldGray.6" fw={400}>
+                    <Text size="xs" c="ldGray.6" fw={400}>
                         {fieldCount} {fieldCount === 1 ? 'field' : 'fields'}
                     </Text>
                 )}

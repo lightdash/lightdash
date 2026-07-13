@@ -1,6 +1,6 @@
 import { type NotificationDashboardComment } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
-import { Tooltip, useMantineTheme, Text } from '@mantine/core';
+import { Menu, Text } from '@mantine-8/core';
+import { Tooltip, useMantineTheme } from '@mantine/core';
 import { IconCircleFilled } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useCallback, type FC } from 'react';
@@ -31,6 +31,7 @@ const NotificationTime: FC<{ createdAt: Date }> = ({ createdAt }) => {
             }
         >
             <Text
+                fz="sm"
                 ta="right"
                 mb="one"
                 fw={500}
@@ -99,11 +100,11 @@ export const DashboardCommentsNotifications: FC<Props> = ({
                         />
                     }
                     onClick={() => handleOnNotificationClick(notification)}
-                    fz="xs"
+                    fz="sm"
                 >
                     <>
                         <NotificationTime createdAt={notification.createdAt} />
-                        <Text className={classes.notificationMessage}>
+                        <Text fz="sm" className={classes.notificationMessage}>
                             {notification.message}
                         </Text>
                     </>

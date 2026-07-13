@@ -8,7 +8,7 @@ import {
     type VizTableHeaderSortConfig,
     formatSql,
 } from '@lightdash/common';
-import { Box, Group, Stack } from '@mantine-8/core';
+import { Box, Group, Stack, Text } from '@mantine-8/core';
 import {
     ActionIcon,
     Indicator,
@@ -17,7 +17,6 @@ import {
     SegmentedControl,
     Tooltip,
     Transition,
-    Text,
 } from '@mantine/core';
 import { useElementSize, useHotkeys } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
@@ -483,7 +482,7 @@ export const ContentPanel: FC = () => {
                                                     >
                                                         <SqlEditorPreferencesPopover />
 
-                                                        <Text>SQL</Text>
+                                                        <Text fz="sm">SQL</Text>
                                                     </Group>
                                                 </Tooltip>
                                             ),
@@ -510,7 +509,9 @@ export const ContentPanel: FC = () => {
                                                                 IconChartHistogram
                                                             }
                                                         />
-                                                        <Text>Chart</Text>
+                                                        <Text fz="sm">
+                                                            Chart
+                                                        </Text>
                                                     </Group>
                                                 </Tooltip>
                                             ),

@@ -19,14 +19,13 @@ import {
     type DashboardTile,
     type ResultColumn,
 } from '@lightdash/common';
-import { Box, Flex, Group, Stack } from '@mantine-8/core';
+import { Box, Flex, Group, Stack, Text } from '@mantine-8/core';
 import {
     Button,
     Select,
     Tabs,
     Tooltip,
     type PopoverProps,
-    Text,
 } from '@mantine/core';
 import { IconRotate2, IconSql } from '@tabler/icons-react';
 import { produce } from 'immer';
@@ -466,11 +465,11 @@ const FilterConfiguration: FC<Props> = ({
                             <Group gap="xs">
                                 <FieldIcon item={selectedField} />
                                 {originalFilterRule?.label && !isEditMode ? (
-                                    <Text span fw={500}>
+                                    <Text span fz="sm" fw={500}>
                                         {originalFilterRule.label}
                                     </Text>
                                 ) : (
-                                    <FieldLabel item={selectedField} />
+                                    <FieldLabel item={selectedField} fz="sm" />
                                 )}
                             </Group>
                         ) : (
@@ -481,11 +480,11 @@ const FilterConfiguration: FC<Props> = ({
                                     color={'#0E5A8A'}
                                 />
                                 {originalFilterRule?.label && !isEditMode ? (
-                                    <Text span fw={500}>
+                                    <Text span fz="sm" fw={500}>
                                         {originalFilterRule.label}
                                     </Text>
                                 ) : (
-                                    <Text span fw={500}>
+                                    <Text span fz="sm" fw={500}>
                                         {draftFilterRule?.target.fieldId ||
                                             'SQL column'}
                                     </Text>

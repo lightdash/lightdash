@@ -3,16 +3,8 @@ import {
     type UserActivity as UserActivityResponse,
     type UserWithCount,
 } from '@lightdash/common';
-import { Box, Group, Stack } from '@mantine-8/core';
-import {
-    Anchor,
-    Button,
-    Card,
-    Table,
-    Title,
-    Tooltip,
-    Text,
-} from '@mantine/core';
+import { Box, Group, Stack, Text } from '@mantine-8/core';
+import { Anchor, Button, Card, Table, Title, Tooltip } from '@mantine/core';
 import { IconUsers } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link, useParams } from 'react-router';

@@ -1,6 +1,6 @@
 import type { CatalogMetricsTreeEdge } from '@lightdash/common';
-import { Box, Group } from '@mantine-8/core';
-import { Button, useMantineTheme, Text } from '@mantine/core';
+import { Box, Group, Text } from '@mantine-8/core';
+import { Button, useMantineTheme } from '@mantine/core';
 import { IconLayoutGridRemove } from '@tabler/icons-react';
 import {
     Background,

@@ -6,14 +6,13 @@ import {
     type ConditionalFormattingWithFilterOperator,
     type FilterableItem,
 } from '@lightdash/common';
-import { Group, Stack } from '@mantine-8/core';
+import { Group, Stack, Text } from '@mantine-8/core';
 import {
     ActionIcon,
     Collapse,
     Select,
     TextInput,
     Tooltip,
-    Text,
 } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconChevronDown, IconChevronUp, IconTrash } from '@tabler/icons-react';

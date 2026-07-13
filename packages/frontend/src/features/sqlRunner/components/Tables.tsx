@@ -1,5 +1,12 @@
 import { PartitionType, type PartitionColumn } from '@lightdash/common';
-import { Box, Center, Group, Stack, type BoxProps } from '@mantine-8/core';
+import {
+    Box,
+    Center,
+    Group,
+    Stack,
+    type BoxProps,
+    Text,
+} from '@mantine-8/core';
 import {
     ActionIcon,
     CopyButton,
@@ -9,7 +16,6 @@ import {
     TextInput,
     Tooltip,
     UnstyledButton,
-    Text,
 } from '@mantine/core';
 import { useDebouncedValue, useHover } from '@mantine/hooks';
 import {
@@ -121,19 +127,21 @@ const TableItem: FC<TableItemProps> = memo(
                         }}
                     >
                         {search.length > 2 ? (
-                            <Highlight
+                            <Text
                                 ref={truncatedRef}
-                                component={Text}
-                                highlight={search || ''}
                                 truncate
-                                sx={{
-                                    flex: 1,
-                                }}
+                                fz="sm"
+                                style={{ flex: 1 }}
                             >
-                                {table}
-                            </Highlight>
+                                <Highlight
+                                    component="span"
+                                    highlight={search || ''}
+                                >
+                                    {table}
+                                </Highlight>
+                            </Text>
                         ) : (
-                            <Text>{table}</Text>
+                            <Text fz="sm">{table}</Text>
                         )}
                     </Tooltip>
                 </UnstyledButton>

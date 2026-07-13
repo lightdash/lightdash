@@ -4,7 +4,7 @@ import {
     type Job,
     type JobStep,
 } from '@lightdash/common';
-import { Box, Group, Stack } from '@mantine-8/core';
+import { Box, Group, Stack, Text } from '@mantine-8/core';
 import {
     ActionIcon,
     Alert,
@@ -13,7 +13,6 @@ import {
     Loader,
     Title,
     type DefaultMantineColor,
-    Text,
 } from '@mantine/core';
 import { useInterval } from '@mantine/hooks';
 import {

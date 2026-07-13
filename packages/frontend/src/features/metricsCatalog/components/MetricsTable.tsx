@@ -5,8 +5,8 @@ import {
     type CatalogField,
     type CatalogItem,
 } from '@lightdash/common';
-import { Box, Center, Group } from '@mantine-8/core';
-import { Anchor, Divider, Paper, useMantineTheme, Text } from '@mantine/core';
+import { Box, Center, Group, Text } from '@mantine-8/core';
+import { Anchor, Divider, Paper, useMantineTheme } from '@mantine/core';
 import {
     IconArrowDown,
     IconArrowsSort,
@@ -512,23 +512,23 @@ export const MetricsTable: FC<MetricsTableProps> = ({
         renderBottomToolbar: () => (
             <Box
                 p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
-                fz="xs"
-                fw={500}
                 color="ldGray.8"
                 style={{
                     borderTop: `1px solid ${theme.colors.ldGray[3]}`,
                 }}
             >
                 {isFetching ? (
-                    <Text>Loading more...</Text>
+                    <Text fz="sm" fw={500}>
+                        Loading more...
+                    </Text>
                 ) : (
                     <Group gap="two">
-                        <Text>
+                        <Text fz="sm" fw={500}>
                             {hasNextPage
                                 ? 'Scroll for more metrics'
                                 : 'All metrics loaded'}
                         </Text>
-                        <Text fw={400} c="ldGray.6">
+                        <Text fz="sm" fw={400} c="ldGray.6">
                             {hasNextPage
                                 ? `(${flatData.length} loaded)`
                                 : `(${flatData.length})`}

@@ -5,16 +5,8 @@ import {
     type MetricExplorerQuery,
     type MetricWithAssociatedTimeDimension,
 } from '@lightdash/common';
-import { Group, Stack } from '@mantine-8/core';
-import {
-    Anchor,
-    Loader,
-    Paper,
-    Radio,
-    Select,
-    Tooltip,
-    Text,
-} from '@mantine/core';
+import { Group, Stack, Text } from '@mantine-8/core';
+import { Anchor, Loader, Paper, Radio, Select, Tooltip } from '@mantine/core';
 import { IconCalendar, IconStack } from '@tabler/icons-react';
 import { type UseQueryResult } from '@tanstack/react-query';
 import { useCallback, type FC } from 'react';
@@ -183,7 +175,7 @@ export const MetricExploreComparison: FC<Props> = ({
                                                 />
                                             </Paper>
 
-                                            <Text c="ldGray.7" fw={500}>
+                                            <Text fz="sm" c="ldGray.7" fw={500}>
                                                 {comparison.label}
                                             </Text>
                                         </Group>

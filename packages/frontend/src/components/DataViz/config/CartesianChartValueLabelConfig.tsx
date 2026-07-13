@@ -1,6 +1,6 @@
 import { ValueLabelPositionOptions } from '@lightdash/common';
-import { Box, Group } from '@mantine-8/core';
-import { Select, Text } from '@mantine/core';
+import { Box, Group, Text } from '@mantine-8/core';
+import { Select } from '@mantine/core';
 import {
     IconArrowDown,
     IconArrowLeft,

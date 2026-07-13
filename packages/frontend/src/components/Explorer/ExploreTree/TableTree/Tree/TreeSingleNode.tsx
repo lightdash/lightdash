@@ -17,14 +17,13 @@ import {
     type FilterableField,
     type Item,
 } from '@lightdash/common';
-import { Group } from '@mantine-8/core';
+import { Group, Text } from '@mantine-8/core';
 import {
     ActionIcon,
     Highlight,
     HoverCard,
     NavLink,
     Tooltip,
-    Text,
 } from '@mantine/core';
 import {
     IconAlertTriangle,
@@ -453,14 +452,14 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                         }
                     >
                         <HoverCard.Target>
-                            <Highlight
-                                component={Text}
-                                truncate
-                                sx={{ flexGrow: 1 }}
-                                highlight={searchQuery || ''}
-                            >
-                                {label}
-                            </Highlight>
+                            <Text truncate fz="sm" style={{ flexGrow: 1 }}>
+                                <Highlight
+                                    component="span"
+                                    highlight={searchQuery || ''}
+                                >
+                                    {label}
+                                </Highlight>
+                            </Text>
                         </HoverCard.Target>
                         <HoverCard.Dropdown
                             hidden={!isHover}

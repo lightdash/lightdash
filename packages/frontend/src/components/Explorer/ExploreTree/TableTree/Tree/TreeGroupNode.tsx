@@ -1,6 +1,6 @@
 import { hasIntersection } from '@lightdash/common';
-import { Group } from '@mantine-8/core';
-import { Badge, Highlight, HoverCard, NavLink, Text } from '@mantine/core';
+import { Group, Text } from '@mantine-8/core';
+import { Badge, Highlight, HoverCard, NavLink } from '@mantine/core';
 import { IconChevronRight } from '@tabler/icons-react';
 import intersectionBy from 'lodash/intersectionBy';
 import { memo, useCallback, useMemo, type FC } from 'react';
@@ -171,13 +171,14 @@ const TreeGroupNodeComponent: FC<Props> = ({ node }) => {
                         offset={80}
                     >
                         <HoverCard.Target>
-                            <Highlight
-                                component={Text}
-                                truncate
-                                highlight={searchQuery || ''}
-                            >
-                                {label}
-                            </Highlight>
+                            <Text truncate fz="sm">
+                                <Highlight
+                                    component="span"
+                                    highlight={searchQuery || ''}
+                                >
+                                    {label}
+                                </Highlight>
+                            </Text>
                         </HoverCard.Target>
                         <HoverCard.Dropdown
                             hidden={!isHover}

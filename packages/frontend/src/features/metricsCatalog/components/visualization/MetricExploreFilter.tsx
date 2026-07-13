@@ -4,8 +4,8 @@ import {
     type CompiledDimension,
     type FilterRule,
 } from '@lightdash/common';
-import { Group, Stack } from '@mantine-8/core';
-import { Button, Select, Text } from '@mantine/core';
+import { Group, Stack, Text } from '@mantine-8/core';
+import { Button, Select } from '@mantine/core';
 import { IconFilter, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';

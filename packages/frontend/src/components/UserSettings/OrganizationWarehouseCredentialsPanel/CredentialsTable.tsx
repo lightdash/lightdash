@@ -1,6 +1,6 @@
 import { type OrganizationWarehouseCredentials } from '@lightdash/common';
-import { Group } from '@mantine-8/core';
-import { ActionIcon, Paper, Table, Text } from '@mantine/core';
+import { Group, Text } from '@mantine-8/core';
+import { ActionIcon, Paper, Table } from '@mantine/core';
 import { IconEdit, IconTrash } from '@tabler/icons-react';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';

@@ -10,14 +10,8 @@ import {
     type ConditionalFormattingWithFilterOperator,
     type FilterableItem,
 } from '@lightdash/common';
-import { Accordion, Center, Group, Stack } from '@mantine-8/core';
-import {
-    SegmentedControl,
-    Select,
-    TextInput,
-    Tooltip,
-    Text,
-} from '@mantine/core';
+import { Accordion, Center, Group, Stack, Text } from '@mantine-8/core';
+import { SegmentedControl, Select, TextInput, Tooltip } from '@mantine/core';
 import differenceBy from 'lodash/differenceBy';
 import { useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
