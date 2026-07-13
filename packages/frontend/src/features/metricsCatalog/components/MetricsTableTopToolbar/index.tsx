@@ -21,6 +21,7 @@ import {
     type CatalogField,
 } from '@lightdash/common';
 import {
+    TextInput,
     Box,
     Center,
     Divider,
@@ -33,7 +34,7 @@ import {
     SegmentedControl,
     Badge,
 } from '@mantine-8/core';
-import { Popover, TextInput, Tooltip } from '@mantine/core';
+import { Popover, Tooltip } from '@mantine/core';
 import {
     IconEye,
     IconEyeOff,
@@ -71,6 +72,7 @@ import {
 } from '../../store/metricsCatalogSlice';
 import { MetricCatalogView } from '../../types';
 import CategoriesFilter from './CategoriesFilter';
+import classes from './MetricsTableTopToolbar.module.css';
 import OwnersFilter from './OwnersFilter';
 import TableFilter from './TableFilter';
 type MetricsTableTopToolbarProps = GroupProps & {
@@ -337,6 +339,7 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                     <TextInput
                         size="xs"
                         radius="md"
+                        classNames={{ input: classes.searchInput }}
                         styles={(theme) => ({
                             input: {
                                 height: 32,
@@ -349,20 +352,13 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                     ? theme.colors.ldGray[8]
                                     : theme.colors.ldGray[5],
                                 boxShadow: theme.shadows.subtle,
-                                border: `1px solid ${theme.colors.ldGray[3]}`,
-                                '&:hover': {
-                                    border: `1px solid ${theme.colors.ldGray[4]}`,
-                                },
-                                '&:focus': {
-                                    border: `1px solid ${theme.colors.blue[5]}`,
-                                },
                             },
                         })}
                         type="search"
                         variant="default"
                         placeholder="Search by name or description"
                         value={search ?? ''}
-                        icon={
+                        leftSection={
                             <MantineIcon
                                 size="md"
                                 color="ldGray.6"
@@ -370,9 +366,14 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                             />
                         }
                         onChange={(e) => setSearch(e.target.value)}
+                        rightSectionPointerEvents="all"
                         rightSection={
                             search && (
                                 <ActionIcon
+                                    aria-label="Clear search"
+                                    onMouseDown={(event) =>
+                                        event.preventDefault()
+                                    }
                                     onClick={clearSearch}
                                     variant="transparent"
                                     size="xs"

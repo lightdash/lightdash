@@ -1,6 +1,6 @@
 import { type VizColumn } from '@lightdash/common';
-import { ActionIcon } from '@mantine-8/core';
-import { ScrollArea, TextInput } from '@mantine/core';
+import { TextInput, ActionIcon } from '@mantine-8/core';
+import { ScrollArea } from '@mantine/core';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { type FC } from 'react';
 import {
@@ -46,17 +46,23 @@ const TableVisConfiguration: FC<{ columns: VizColumn[] }> = ({ columns }) => {
 
                         return (
                             <TextInput
+                                size="xs"
                                 key={reference}
                                 radius="md"
                                 value={columnsConfig[reference].label}
-                                icon={
+                                leftSection={
                                     fieldType && (
                                         <TableFieldIcon fieldType={fieldType} />
                                     )
                                 }
                                 readOnly={!columnsConfig[reference].visible}
+                                rightSectionPointerEvents="all"
                                 rightSection={
                                     <ActionIcon
+                                        aria-label="Toggle column visibility"
+                                        onMouseDown={(event) =>
+                                            event.preventDefault()
+                                        }
                                         variant="subtle"
                                         color="gray"
                                         onClick={() =>

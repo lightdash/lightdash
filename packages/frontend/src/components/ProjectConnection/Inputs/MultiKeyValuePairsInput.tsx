@@ -1,5 +1,5 @@
-import { Button, Flex, Stack, ActionIcon } from '@mantine-8/core';
-import { Input, TextInput } from '@mantine/core';
+import { TextInput, Button, Flex, Stack, ActionIcon } from '@mantine-8/core';
+import { Input } from '@mantine/core';
 import { IconHelpCircle, IconPlus, IconTrash } from '@tabler/icons-react';
 import get from 'lodash/get';
 import { useState, type ReactNode } from 'react';

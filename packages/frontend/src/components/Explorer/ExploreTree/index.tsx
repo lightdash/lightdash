@@ -8,8 +8,7 @@ import {
     type Explore,
     type Metric,
 } from '@lightdash/common';
-import { Loader, ActionIcon } from '@mantine-8/core';
-import { TextInput } from '@mantine/core';
+import { TextInput, Loader, ActionIcon } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import {
@@ -258,7 +257,8 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
     return (
         <>
             <TextInput
-                icon={<MantineIcon icon={IconSearch} />}
+                leftSection={<MantineIcon icon={IconSearch} />}
+                rightSectionPointerEvents={isPending ? 'none' : 'all'}
                 rightSection={
                     isPending ? (
                         <Loader
@@ -267,6 +267,8 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
                         />
                     ) : search ? (
                         <ActionIcon
+                            aria-label="Clear search"
+                            onMouseDown={(event) => event.preventDefault()}
                             variant="subtle"
                             color="gray"
                             onClick={handleClearSearch}

@@ -5,8 +5,7 @@ import {
     wrapResourceView,
     type ResourceViewItem,
 } from '@lightdash/common';
-import { Group, Stack, ActionIcon } from '@mantine-8/core';
-import { TextInput } from '@mantine/core';
+import { TextInput, Group, Stack, ActionIcon } from '@mantine-8/core';
 import { IconFolders, IconSearch, IconX } from '@tabler/icons-react';
 import Fuse from 'fuse.js';
 import { useMemo, useState, type FC } from 'react';
@@ -79,10 +78,13 @@ const MobileSpaces: FC = () => {
                     />
                 </Group>
                 <TextInput
-                    icon={<MantineIcon icon={IconSearch} />}
+                    leftSection={<MantineIcon icon={IconSearch} />}
+                    rightSectionPointerEvents="all"
                     rightSection={
                         search ? (
                             <ActionIcon
+                                aria-label="Clear search"
+                                onMouseDown={(event) => event.preventDefault()}
                                 variant="subtle"
                                 color="gray"
                                 onClick={() => setSearch('')}

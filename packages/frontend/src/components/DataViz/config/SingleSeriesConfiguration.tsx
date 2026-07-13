@@ -6,6 +6,7 @@ import {
     type ChartKind,
 } from '@lightdash/common';
 import {
+    TextInput,
     Box,
     Flex,
     Group,
@@ -13,7 +14,6 @@ import {
     Text,
     SegmentedControl,
 } from '@mantine-8/core';
-import { TextInput } from '@mantine/core';
 import { IconAlignLeft, IconAlignRight } from '@tabler/icons-react';
 import MantineIcon from '../../common/MantineIcon';
 import ColorSelector from '../../VisualizationConfigs/ColorSelector';
@@ -100,18 +100,19 @@ export const SingleSeriesConfiguration = ({
                                 />
                             </Box>
                             <TextInput
+                                size="xs"
                                 maw="100%"
                                 radius="md"
                                 value={label}
                                 onChange={(e) =>
                                     onLabelChange(reference, e.target.value)
                                 }
-                                sx={(theme) => ({
+                                flex={1}
+                                ml="xs"
+                                styles={(theme) => ({
                                     input: {
                                         border: `1px solid ${theme.colors.ldGray[2]}`,
                                     },
-                                    flex: 1,
-                                    marginLeft: theme.spacing.xs,
                                 })}
                             />
                         </Box>

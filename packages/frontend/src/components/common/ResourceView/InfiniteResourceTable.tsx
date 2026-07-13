@@ -14,6 +14,7 @@ import {
     type SpaceSummary,
 } from '@lightdash/common';
 import {
+    TextInput,
     Box,
     Divider,
     Group,
@@ -23,7 +24,7 @@ import {
     Anchor,
 } from '@mantine-8/core';
 import { useDebouncedCallback } from '@mantine-8/hooks';
-import { TextInput, Tooltip, useMantineTheme } from '@mantine/core';
+import { Tooltip, useMantineTheme } from '@mantine/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconAppWindow,
@@ -68,6 +69,7 @@ import MantineIcon from '../MantineIcon';
 import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
 import AdminContentViewFilter from './AdminContentViewFilter';
 import ContentTypeFilter from './ContentTypeFilter';
+import classes from './InfiniteResourceTable.module.css';
 import InfiniteResourceTableColumnName from './InfiniteResourceTableColumnName';
 import ResourceAccessInfo from './ResourceAccessInfo';
 import ResourceActionHandlers from './ResourceActionHandlers';
@@ -126,6 +128,7 @@ const DebouncedSearchInput = memo(
                 <TextInput
                     size="xs"
                     radius="md"
+                    classNames={{ input: classes.searchInput }}
                     styles={(inputTheme) => ({
                         input: {
                             height: 32,
@@ -138,20 +141,13 @@ const DebouncedSearchInput = memo(
                                 ? inputTheme.colors.ldGray[8]
                                 : inputTheme.colors.ldGray[5],
                             boxShadow: inputTheme.shadows.subtle,
-                            border: `1px solid ${inputTheme.colors.ldGray[3]}`,
-                            '&:hover': {
-                                border: `1px solid ${inputTheme.colors.ldGray[4]}`,
-                            },
-                            '&:focus': {
-                                border: `1px solid ${inputTheme.colors.blue[5]}`,
-                            },
                         },
                     })}
                     type="search"
                     variant="default"
                     placeholder="Search by name"
                     value={value}
-                    icon={
+                    leftSection={
                         <MantineIcon
                             size="md"
                             color="ldGray.6"
@@ -159,9 +155,12 @@ const DebouncedSearchInput = memo(
                         />
                     }
                     onChange={(e) => handleChange(e.target.value)}
+                    rightSectionPointerEvents="all"
                     rightSection={
                         value && (
                             <ActionIcon
+                                aria-label="Clear search"
+                                onMouseDown={(event) => event.preventDefault()}
                                 onClick={() => handleChange('')}
                                 variant="transparent"
                                 size="xs"

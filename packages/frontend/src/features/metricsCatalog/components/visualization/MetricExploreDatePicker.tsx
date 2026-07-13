@@ -5,6 +5,7 @@ import {
     type TimeDimensionConfig,
 } from '@lightdash/common';
 import {
+    TextInput,
     Box,
     Divider,
     Group,
@@ -14,7 +15,7 @@ import {
     Button,
     SegmentedControl,
 } from '@mantine-8/core';
-import { Popover, TextInput, Tooltip } from '@mantine/core';
+import { Popover, Tooltip } from '@mantine/core';
 import { DatePicker, MonthPicker, YearPicker } from '@mantine/dates';
 import { useCallback, useEffect, useRef, type FC } from 'react';
 import useTracking from '../../../../providers/Tracking/useTracking';

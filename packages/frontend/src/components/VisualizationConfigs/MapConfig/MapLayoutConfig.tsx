@@ -10,13 +10,14 @@ import {
     MapChartType,
 } from '@lightdash/common';
 import {
+    TextInput,
     Group,
     Loader,
     Stack,
     SegmentedControl,
     Select,
 } from '@mantine-8/core';
-import { Switch, TextInput } from '@mantine/core';
+import { Switch } from '@mantine/core';
 import { memo, useEffect, useMemo, type FC } from 'react';
 import {
     findMatchingProperty,
@@ -408,6 +409,7 @@ export const Layout: FC = memo(() => {
                             {isCustomMap ? (
                                 <>
                                     <TextInput
+                                        size="xs"
                                         label="Custom GeoJSON URL"
                                         placeholder="https://example.com/map.geojson"
                                         value={config.customGeoJsonUrl || ''}

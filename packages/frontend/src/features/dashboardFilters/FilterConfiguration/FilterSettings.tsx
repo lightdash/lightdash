@@ -8,6 +8,7 @@ import {
     type FilterRule,
 } from '@lightdash/common';
 import {
+    TextInput,
     ActionIcon,
     Box,
     Button,
@@ -17,7 +18,7 @@ import {
     Text,
     Select,
 } from '@mantine-8/core';
-import { Switch, TextInput, Tooltip, type PopoverProps } from '@mantine/core';
+import { Switch, Tooltip, type PopoverProps } from '@mantine/core';
 import { IconHelpCircle, IconX } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import FilterInputComponent from '../../../components/common/Filters/FilterInputs';
