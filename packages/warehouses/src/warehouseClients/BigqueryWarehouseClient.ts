@@ -31,6 +31,7 @@ import {
     WarehouseResults,
     WarehouseTypes,
 } from '@lightdash/common';
+import Big from 'big.js';
 import { pipeline, Transform } from 'stream';
 import {
     WarehouseCatalog,
@@ -84,6 +85,12 @@ const parseCell = (cell: AnyType) => {
         cell instanceof BigQueryTime
     ) {
         return new Date(cell.value);
+    }
+
+    // The SDK wraps NUMERIC/BIGNUMERIC in big.js instances; convert to number
+    // (accepting float precision, like the Postgres client's NUMERIC parser)
+    if (cell instanceof Big) {
+        return Number(cell);
     }
 
     return `${cell}`;

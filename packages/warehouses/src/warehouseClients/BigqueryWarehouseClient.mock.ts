@@ -4,6 +4,7 @@ import {
     CreateBigqueryCredentials,
     WarehouseTypes,
 } from '@lightdash/common';
+import Big from 'big.js';
 import { Readable } from 'stream';
 import { BigqueryFieldType } from './BigqueryWarehouseClient';
 
@@ -63,7 +64,8 @@ export const getTableResponse = {
 export const rows: Record<string, AnyType>[] = [
     {
         myStringColumn: 'string value',
-        myNumberColumn: 100,
+        // The SDK returns NUMERIC/BIGNUMERIC columns as big.js instances
+        myNumberColumn: new Big('100'),
         myDateColumn: new BigQueryDate('2021-03-10'),
         myTimestampColumn: new BigQueryTimestamp('1990-03-02T08:30:00.010Z'),
         myBooleanColumn: false,
