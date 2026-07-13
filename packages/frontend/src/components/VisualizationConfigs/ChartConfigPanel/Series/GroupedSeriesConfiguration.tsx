@@ -19,14 +19,15 @@ import {
     type Series,
     type TableCalculation,
 } from '@lightdash/common';
-import { Box, Group, Stack } from '@mantine-8/core';
-import { Checkbox, Select, Switch } from '@mantine/core';
+import { Box, Checkbox, Group, Stack } from '@mantine-8/core';
+import { Select, Switch } from '@mantine/core';
 import React, { useCallback, type FC } from 'react';
 import { createPortal } from 'react-dom';
 import type useCartesianChartConfig from '../../../../hooks/cartesianChartConfig/useCartesianChartConfig';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
 import { GrabIcon } from '../../common/GrabIcon';
+import compactStyles from '../../mantineTheme.module.css';
 import { ChartTypeSelect } from './ChartTypeSelect';
 import SingleSeriesConfiguration from './SingleSeriesConfiguration';
 
@@ -266,6 +267,10 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                         chartValue === CartesianSeriesType.AREA) && (
                         <Group gap="xs">
                             <Checkbox
+                                size="xs"
+                                classNames={{
+                                    label: compactStyles.compactCheckboxLabel,
+                                }}
                                 checked={Boolean(seriesGroup[0].showSymbol)}
                                 label="Show symbol"
                                 onChange={() => {
@@ -277,6 +282,10 @@ const GroupedSeriesConfiguration: FC<GroupedSeriesConfigurationProps> = ({
                                 }}
                             />
                             <Checkbox
+                                size="xs"
+                                classNames={{
+                                    label: compactStyles.compactCheckboxLabel,
+                                }}
                                 checked={seriesGroup[0].smooth}
                                 label="Smooth"
                                 onChange={() => {

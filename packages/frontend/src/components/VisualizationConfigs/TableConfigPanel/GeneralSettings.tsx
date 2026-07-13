@@ -6,6 +6,7 @@ import { isTableVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
 import { RowLimitControls } from '../common/RowLimitControls';
+import compactStyles from '../mantineTheme.module.css';
 import ColumnConfiguration from './ColumnConfiguration';
 import { MAX_PIVOTS } from './constants';
 import DroppableItemsList from './DroppableItemsList';
@@ -252,6 +253,10 @@ const GeneralSettings: FC = () => {
                 <Config.Heading>Display</Config.Heading>
 
                 <Checkbox
+                    size="xs"
+                    classNames={{
+                        label: compactStyles.compactCheckboxLabel,
+                    }}
                     label="Show table names"
                     checked={showTableNames}
                     onChange={() => {
@@ -259,6 +264,10 @@ const GeneralSettings: FC = () => {
                     }}
                 />
                 <Checkbox
+                    size="xs"
+                    classNames={{
+                        label: compactStyles.compactCheckboxLabel,
+                    }}
                     label="Show row numbers"
                     checked={!hideRowNumbers}
                     onChange={() => {
@@ -281,6 +290,10 @@ const GeneralSettings: FC = () => {
                 <Config.Heading>Results</Config.Heading>
                 {isPivotTableEnabled ? (
                     <Checkbox
+                        size="xs"
+                        classNames={{
+                            label: compactStyles.compactCheckboxLabel,
+                        }}
                         label="Show row totals"
                         checked={showRowCalculation}
                         onChange={() => {
@@ -289,6 +302,10 @@ const GeneralSettings: FC = () => {
                     />
                 ) : null}
                 <Checkbox
+                    size="xs"
+                    classNames={{
+                        label: compactStyles.compactCheckboxLabel,
+                    }}
                     label="Show column totals"
                     checked={showColumnCalculation}
                     onChange={() => {
@@ -296,6 +313,10 @@ const GeneralSettings: FC = () => {
                     }}
                 />
                 <Checkbox
+                    size="xs"
+                    classNames={{
+                        label: compactStyles.compactCheckboxLabel,
+                    }}
                     label="Show number of results"
                     checked={showResultsTotal}
                     onChange={() => {
@@ -318,6 +339,10 @@ const GeneralSettings: FC = () => {
                 >
                     <Box>
                         <Checkbox
+                            size="xs"
+                            classNames={{
+                                label: compactStyles.compactCheckboxLabel,
+                            }}
                             label="Show subtotals"
                             checked={
                                 canUseSubtotals &&
@@ -332,6 +357,10 @@ const GeneralSettings: FC = () => {
                     </Box>
                 </Tooltip>
                 <Checkbox
+                    size="xs"
+                    classNames={{
+                        label: compactStyles.compactCheckboxLabel,
+                    }}
                     ml="lg"
                     label="Expand subtotals by default"
                     checked={showSubtotalsExpanded ?? false}
@@ -360,6 +389,10 @@ const GeneralSettings: FC = () => {
                 >
                     <Box>
                         <Checkbox
+                            size="xs"
+                            classNames={{
+                                label: compactStyles.compactCheckboxLabel,
+                            }}
                             label="Group repeated row values"
                             checked={
                                 showSubtotals ||

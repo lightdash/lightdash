@@ -7,9 +7,16 @@ import {
     type DashboardFilterRule,
     type FilterRule,
 } from '@lightdash/common';
-import { Box, Group, Stack, Text, Button, ActionIcon } from '@mantine-8/core';
 import {
+    ActionIcon,
+    Box,
+    Button,
     Checkbox,
+    Group,
+    Stack,
+    Text,
+} from '@mantine-8/core';
+import {
     Select,
     Switch,
     TextInput,

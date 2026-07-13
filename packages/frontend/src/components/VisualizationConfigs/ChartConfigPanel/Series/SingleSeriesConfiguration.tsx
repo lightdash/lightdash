@@ -5,8 +5,15 @@ import {
     type CartesianChartLayout,
     type Series,
 } from '@lightdash/common';
-import { Box, Collapse, Group, Stack, ActionIcon } from '@mantine-8/core';
-import { Checkbox, Popover, Select } from '@mantine/core';
+import {
+    ActionIcon,
+    Box,
+    Checkbox,
+    Collapse,
+    Group,
+    Stack,
+} from '@mantine-8/core';
+import { Popover, Select } from '@mantine/core';
 import { useDebouncedState, useHover } from '@mantine/hooks';
 import {
     IconChevronDown,
@@ -23,6 +30,7 @@ import { useVisualizationContext } from '../../../LightdashVisualization/useVisu
 import ColorSelector from '../../ColorSelector';
 import { EditableText } from '../../common/EditableText';
 import { GrabIcon } from '../../common/GrabIcon';
+import compactStyles from '../../mantineTheme.module.css';
 import { ChartTypeSelect } from './ChartTypeSelect';
 
 type Props = {
@@ -247,6 +255,9 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                             <Stack gap="xs">
                                                 <Checkbox
                                                     size="xs"
+                                                    classNames={{
+                                                        label: compactStyles.compactCheckboxLabel,
+                                                    }}
                                                     checked={
                                                         series.label
                                                             ?.showValue ?? true
@@ -268,6 +279,9 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                                 />
                                                 <Checkbox
                                                     size="xs"
+                                                    classNames={{
+                                                        label: compactStyles.compactCheckboxLabel,
+                                                    }}
                                                     checked={
                                                         series.label
                                                             ?.showLabel ?? false
@@ -288,6 +302,9 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                                 />
                                                 <Checkbox
                                                     size="xs"
+                                                    classNames={{
+                                                        label: compactStyles.compactCheckboxLabel,
+                                                    }}
                                                     checked={
                                                         series.label
                                                             ?.showSeriesName ??
@@ -343,6 +360,10 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         type === CartesianSeriesType.AREA) && (
                         <Group gap="xs">
                             <Checkbox
+                                size="xs"
+                                classNames={{
+                                    label: compactStyles.compactCheckboxLabel,
+                                }}
                                 checked={Boolean(series.showSymbol)}
                                 label="Show symbol"
                                 onChange={() => {
@@ -353,6 +374,10 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                 }}
                             />
                             <Checkbox
+                                size="xs"
+                                classNames={{
+                                    label: compactStyles.compactCheckboxLabel,
+                                }}
                                 checked={series.smooth}
                                 label="Smooth"
                                 onChange={() => {

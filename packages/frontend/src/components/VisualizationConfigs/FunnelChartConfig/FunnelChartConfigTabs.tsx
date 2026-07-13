@@ -11,6 +11,7 @@ import {
 } from '@lightdash/common';
 import {
     Box,
+    Checkbox,
     Collapse,
     Group,
     Stack,
@@ -18,7 +19,6 @@ import {
     SegmentedControl,
 } from '@mantine-8/core';
 import {
-    Checkbox,
     MantineProvider,
     Switch,
     Tooltip,
@@ -31,6 +31,7 @@ import { useVisualizationContext } from '../../LightdashVisualization/useVisuali
 import { ColorPaletteSection } from '../common/ColorPaletteSection';
 import { Config } from '../common/Config';
 import { getVizConfigThemeOverride } from '../mantineTheme';
+import compactStyles from '../mantineTheme.module.css';
 import { StepConfig } from './StepConfig';
 
 export const ConfigTabs: FC = memo(() => {
@@ -211,6 +212,10 @@ export const ConfigTabs: FC = memo(() => {
 
                                 <Group gap="xs">
                                     <Checkbox
+                                        size="xs"
+                                        classNames={{
+                                            label: compactStyles.compactCheckboxLabel,
+                                        }}
                                         checked={labels?.showValue}
                                         onChange={(newValue) =>
                                             onLabelsChange({
@@ -223,6 +228,10 @@ export const ConfigTabs: FC = memo(() => {
                                     />
 
                                     <Checkbox
+                                        size="xs"
+                                        classNames={{
+                                            label: compactStyles.compactCheckboxLabel,
+                                        }}
                                         checked={labels?.showPercentage}
                                         onChange={(newValue) =>
                                             onLabelsChange({
