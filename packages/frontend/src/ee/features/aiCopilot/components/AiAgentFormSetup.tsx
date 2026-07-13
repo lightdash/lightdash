@@ -793,7 +793,7 @@ export const AiAgentFormSetup = ({
                                     </Group>
                                 }
                                 description={
-                                    'Agent can build new dashboards and charts and update existing ones — add or rearrange tiles, organize tabs, change filters, and more.'
+                                    'Agent can build new dashboards and charts and update existing ones — add or rearrange tiles, organize tabs, change filters, and more. Can also create scheduled deliveries, which go live as soon as they are created.'
                                 }
                                 {...form.getInputProps('enableContentTools', {
                                     type: 'checkbox',
