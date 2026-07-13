@@ -74,6 +74,13 @@ const getConnectionDefaults = (
                 database: undefined,
                 schema: nonEmpty(credentials.schema),
             };
+        case WarehouseTypes.DORIS:
+            // Doris addresses tables as `database.table`; the schema field
+            // is the database name (no separate catalog concept like Databricks).
+            return {
+                database: undefined,
+                schema: nonEmpty(credentials.schema),
+            };
         case WarehouseTypes.DUCKDB:
             if (credentials.connectionType === DuckdbConnectionType.DUCKLAKE) {
                 return {

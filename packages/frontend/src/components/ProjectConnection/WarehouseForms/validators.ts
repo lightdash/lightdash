@@ -238,4 +238,10 @@ export const createWarehouseValueValidators: Record<
         schema: required('Schema', hasNoWhiteSpaces),
         token: hasNoWhiteSpaces('Service token'),
     },
+    [WarehouseTypes.DORIS]: {
+        schema: required('Schema', hasNoWhiteSpaces),
+        host: required('Host', hasNoWhiteSpaces),
+        user: required('User', hasNoWhiteSpaces),
+        password: required('Password'),
+    },
 } as const;

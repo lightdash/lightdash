@@ -41,7 +41,7 @@
     "@lightdash/common": "workspace:*",
     "big.js": "6.1.1",
     "lodash": "4.18.1",
-    "mysql2": "^3.22.6",
+    "mysql2": "3.22.6",
     "node-fetch": "2.7.0",
     "pg": "8.13.1",
     "pg-cursor": "2.10.0",
