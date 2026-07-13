@@ -6,6 +6,7 @@ import {
     AiAgentReviewRemediationPreviewJobPayload,
     AiAgentReviewRemediationRunJobPayload,
     AiAgentReviewWritebackJobPayload,
+    AiDeepResearchPipelineJobPayload,
     AiWritebackPipelineJobPayload,
     AppBuildFromSourceJobPayload,
     AppGeneratePipelineJobPayload,
@@ -211,6 +212,20 @@ export class CommercialSchedulerClient extends SchedulerClient {
                 runAt: new Date(),
                 maxAttempts: 1,
                 jobKey: `ai-writeback:${payload.aiWritebackRunUuid}`,
+            },
+        );
+        return { jobId };
+    }
+
+    async aiDeepResearch(payload: AiDeepResearchPipelineJobPayload) {
+        const graphileClient = await this.graphileUtils;
+        const { id: jobId } = await graphileClient.addJob(
+            EE_SCHEDULER_TASKS.AI_DEEP_RESEARCH,
+            payload,
+            {
+                runAt: new Date(),
+                maxAttempts: 1,
+                jobKey: `ai-deep-research:${payload.aiDeepResearchRunUuid}`,
             },
         );
         return { jobId };

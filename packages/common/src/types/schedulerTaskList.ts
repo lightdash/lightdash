@@ -6,6 +6,7 @@ import {
     type AiAgentReviewRemediationPreviewJobPayload,
     type AiAgentReviewRemediationRunJobPayload,
     type AiAgentReviewWritebackJobPayload,
+    type AiDeepResearchJobPayload,
     type AiWritebackSource,
     type ChartReference,
     type DataAppClaudeModel,
@@ -80,6 +81,9 @@ export type AiWritebackPipelineJobPayload = TraceTaskBase & {
     source: AiWritebackSource;
 };
 
+export type AiDeepResearchPipelineJobPayload = TraceTaskBase &
+    AiDeepResearchJobPayload;
+
 export type AiAgentEditDbtProjectPipelineJobPayload = TraceTaskBase & {
     aiWritebackRunUuid: string;
     // Serializes back-to-back edits in the same thread: the pipeline job runs on
@@ -110,9 +114,11 @@ export const EE_SCHEDULER_TASKS = {
     APP_GENERATE_PIPELINE: 'appGeneratePipeline',
     APP_BUILD_FROM_SOURCE: 'appBuildFromSource',
     AI_WRITEBACK_PIPELINE: 'aiWritebackPipeline',
+    AI_DEEP_RESEARCH: 'aiDeepResearch',
     AI_AGENT_EDIT_DBT_PROJECT_PIPELINE: 'aiAgentEditDbtProjectPipeline',
     SWEEP_STALE_APP_LOCKS: 'sweepStaleAppLocks',
     SWEEP_STALE_AI_WRITEBACK_RUNS: 'sweepStaleAiWritebackRuns',
+    SWEEP_STALE_AI_DEEP_RESEARCH_RUNS: 'sweepStaleAiDeepResearchRuns',
     CLEAN_MCP_TOOL_CALLS: 'cleanMcpToolCalls',
 } as const;
 
@@ -213,8 +219,10 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.APP_BUILD_FROM_SOURCE]: AppBuildFromSourceJobPayload;
     [SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: TraceTaskBase;
     [SCHEDULER_TASKS.SWEEP_STALE_AI_WRITEBACK_RUNS]: TraceTaskBase;
+    [SCHEDULER_TASKS.SWEEP_STALE_AI_DEEP_RESEARCH_RUNS]: TraceTaskBase;
     [SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: TraceTaskBase;
     [SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE]: AiWritebackPipelineJobPayload;
+    [SCHEDULER_TASKS.AI_DEEP_RESEARCH]: AiDeepResearchPipelineJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_EDIT_DBT_PROJECT_PIPELINE]: AiAgentEditDbtProjectPipelineJobPayload;
 }
 
@@ -233,8 +241,10 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.APP_BUILD_FROM_SOURCE]: AppBuildFromSourceJobPayload;
     [EE_SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.SWEEP_STALE_AI_WRITEBACK_RUNS]: TraceTaskBase;
+    [EE_SCHEDULER_TASKS.SWEEP_STALE_AI_DEEP_RESEARCH_RUNS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: TraceTaskBase;
     [EE_SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE]: AiWritebackPipelineJobPayload;
+    [EE_SCHEDULER_TASKS.AI_DEEP_RESEARCH]: AiDeepResearchPipelineJobPayload;
     [EE_SCHEDULER_TASKS.AI_AGENT_EDIT_DBT_PROJECT_PIPELINE]: AiAgentEditDbtProjectPipelineJobPayload;
 }
 

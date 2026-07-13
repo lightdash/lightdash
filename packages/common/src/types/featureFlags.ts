@@ -120,6 +120,11 @@ export enum FeatureFlags {
     AiAutopilot = 'ai-autopilot',
 
     /**
+     * Enable long-running, read-only Deep Research investigations from AI chat.
+     */
+    AiDeepResearch = 'ai-deep-research',
+
+    /**
      * @deprecated Rolled out to all customers. Keep for persisted feature flag config only.
      */
     AiAgentRevamp = 'ai-agent-revamp',

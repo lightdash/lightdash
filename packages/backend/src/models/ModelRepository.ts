@@ -148,6 +148,7 @@ export type ModelManifest = {
     aiAgentDocumentModel: unknown;
     aiWritebackThreadModel: unknown;
     aiWritebackRunModel: unknown;
+    aiDeepResearchRunModel: unknown;
     sandboxRegistryModel: unknown;
     projectCiStatusModel: unknown;
     aiAgentReviewClassifierModel: unknown;
@@ -800,6 +801,10 @@ export class ModelRepository
 
     public getAiWritebackRunModel<ModelImplT>(): ModelImplT {
         return this.getModel('aiWritebackRunModel');
+    }
+
+    public getAiDeepResearchRunModel<ModelImplT>(): ModelImplT {
+        return this.getModel('aiDeepResearchRunModel');
     }
 
     public getSandboxRegistryModel<ModelImplT>(): ModelImplT {
