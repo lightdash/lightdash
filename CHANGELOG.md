@@ -1,3 +1,10 @@
+# [0.3368.0](https://github.com/lightdash/lightdash/compare/0.3367.0...0.3368.0) (2026-07-13)
+
+
+### Features
+
+* add scheduled deliveries as code ([#25429](https://github.com/lightdash/lightdash/issues/25429)) ([12cd1e5](https://github.com/lightdash/lightdash/commit/12cd1e57c8b46fa95d04da6ada98da8e2e103331))
+
 # [0.3367.0](https://github.com/lightdash/lightdash/compare/0.3366.0...0.3367.0) (2026-07-13)
 
 
