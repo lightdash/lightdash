@@ -47,7 +47,10 @@ import isEqual from 'lodash/isEqual';
 import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useDebounce } from 'react-use';
-import { type ContentTableInstance } from '../../../../components/common/ContentTable';
+import {
+    getColumnHeaderLabel,
+    type ContentTableInstance,
+} from '../../../../components/common/ContentTable';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useEmbed from '../../../../ee/providers/Embed/useEmbed';
 import useTracking from '../../../../providers/Tracking/useTracking';
@@ -474,9 +477,9 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                                                     <SortableColumn
                                                         key={column.id}
                                                         column={{
-                                                            name: column
-                                                                .columnDef
-                                                                .header as string,
+                                                            name: getColumnHeaderLabel(
+                                                                column,
+                                                            ),
                                                             uuid: column.id,
                                                             visible:
                                                                 column.getIsVisible(),
