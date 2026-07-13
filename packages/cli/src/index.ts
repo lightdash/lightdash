@@ -1057,6 +1057,14 @@ program
             .choices(Object.values(ValidationTarget))
             .default(Object.values(ValidationTarget)),
     )
+    .option(
+        '--include-spaces <spaceSlugs...>',
+        'Only report validation errors for charts and dashboards in these spaces (and their sub-spaces)',
+    )
+    .option(
+        '--exclude-spaces <spaceSlugs...>',
+        'Skip validation errors for charts and dashboards in these spaces (and their sub-spaces)',
+    )
     .action(validateHandler);
 
 program
