@@ -112,6 +112,8 @@ import {
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
     type ApiDashboardAsCodeListResponse,
+    type ApiScheduledDeliveryAsCodeListResponse,
+    type ApiScheduledDeliveryAsCodeUpsertResponse,
     type ApiSqlChartAsCodeListResponse,
 } from './coder';
 import {
@@ -1111,6 +1113,8 @@ type ApiResults =
     | ApiChartAsCodeListResponse['results']
     | ApiSqlChartAsCodeListResponse['results']
     | ApiDashboardAsCodeListResponse['results']
+    | ApiScheduledDeliveryAsCodeListResponse['results']
+    | ApiScheduledDeliveryAsCodeUpsertResponse['results']
     | ApiChartAsCodeUpsertResponse['results']
     | ApiGetMetricsTree['results']
     | ApiGetMetricsTreeResponse['results']

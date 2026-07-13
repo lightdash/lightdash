@@ -716,7 +716,7 @@ program
 
 program
     .command('download')
-    .description('Downloads charts and dashboards as code')
+    .description('Downloads project content as code')
     .option('--verbose', undefined, false)
     .option(
         '-c, --charts <charts...>',
@@ -729,13 +729,18 @@ program
         [],
     )
     .option(
+        '--scheduled-deliveries <slugs...>',
+        'specify scheduled delivery slugs to download',
+        [],
+    )
+    .option(
         '-l, --language-map',
         'generate a language maps for the downloaded charts and dashboards',
         false,
     )
     .option(
         '-p, --path <path>',
-        'specify a custom path to download charts and dashboards',
+        'specify a custom path to download content',
         undefined,
     )
     .option(
@@ -756,6 +761,11 @@ program
     )
     .option('--skip-charts', 'skip downloading charts', false)
     .option('--skip-dashboards', 'skip downloading dashboards', false)
+    .option(
+        '--skip-scheduled-deliveries',
+        'skip downloading scheduled deliveries',
+        false,
+    )
     .option(
         '--strip-pivot-series',
         'strip per-value pivot series config from chart YAML for portable downloads',
@@ -784,7 +794,7 @@ program
 
 program
     .command('upload')
-    .description('Uploads charts and dashboards as code')
+    .description('Uploads project content as code')
     .option('--verbose', undefined, false)
     .option(
         '-c, --charts <charts...>',
@@ -797,13 +807,18 @@ program
         [],
     )
     .option(
+        '--scheduled-deliveries <slugs...>',
+        'specify scheduled delivery slugs to upload',
+        [],
+    )
+    .option(
         '--force',
         'Force upload even if local files have not changed, use this when you want to upload files to a new project',
         false,
     )
     .option(
         '-p, --path <path>',
-        'specify a custom path to upload charts and dashboards from',
+        'specify a custom path to upload content from',
         undefined,
     )
     .option(
@@ -818,6 +833,11 @@ program
         false,
     )
     .option('--public', 'Create new spaces as public instead of private', false)
+    .option(
+        '--skip-scheduled-deliveries',
+        'skip uploading scheduled deliveries',
+        false,
+    )
     .option(
         '--concurrency <number>',
         'Number of parallel uploads (default: 1)',

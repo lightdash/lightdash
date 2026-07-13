@@ -15,11 +15,17 @@ import type {
     DashboardTileTypes,
     FilterRule,
     MetricQuery,
+    ParametersValuesMap,
     PromotionChanges,
     SavedChart,
+    SchedulerCsvOptions,
+    SchedulerFormat,
+    SchedulerImageOptions,
+    SchedulerPdfOptions,
     SqlChart,
 } from '..';
 import type { ContentVerificationInfo } from './contentVerification';
+import type { PromotionAction } from './promotion';
 
 export const currentVersion = 1;
 
@@ -28,6 +34,7 @@ export enum ContentAsCodeType {
     DASHBOARD = 'dashboard',
     SQL_CHART = 'sql_chart',
     SPACE = 'space',
+    SCHEDULED_DELIVERY = 'scheduled_delivery',
 }
 
 /**
@@ -278,6 +285,96 @@ export type SpaceAsCode = {
     spaceName: string;
     /** The space slug used for file naming and cross-referencing */
     slug: string;
+};
+
+export type ScheduledDeliveryTargetAsCode =
+    | {
+          type: 'email';
+          recipient: string;
+      }
+    | {
+          type: 'slack';
+          channel: string;
+      };
+
+export type ScheduledDeliveryFormatAsCode =
+    | {
+          format: SchedulerFormat.CSV | SchedulerFormat.XLSX;
+          options: SchedulerCsvOptions;
+      }
+    | {
+          format: SchedulerFormat.IMAGE;
+          options: SchedulerImageOptions;
+      }
+    | {
+          format: SchedulerFormat.PDF;
+          options: SchedulerPdfOptions;
+      };
+
+type ScheduledDeliveryAsCodeBase = {
+    contentType: ContentAsCodeType.SCHEDULED_DELIVERY;
+    version: number;
+    slug: string;
+    name: string;
+    message: string | null;
+    cron: string;
+    timezone: string | null;
+    enabled: boolean;
+    includeLinks: boolean;
+    targets: ScheduledDeliveryTargetAsCode[];
+    downloadedAt?: Date;
+};
+
+export type ChartScheduledDeliveryAsCode = ScheduledDeliveryFormatAsCode &
+    ScheduledDeliveryAsCodeBase & {
+        resource: {
+            type: 'chart';
+            slug: string;
+        };
+        filters: FiltersInput | null;
+        parameters: ParametersValuesMap | null;
+        customViewportWidth: null;
+        selectedTabs: null;
+    };
+
+export type DashboardScheduledDeliveryAsCode = ScheduledDeliveryFormatAsCode &
+    ScheduledDeliveryAsCodeBase & {
+        resource: {
+            type: 'dashboard';
+            slug: string;
+        };
+        filters: Omit<DashboardFilterRule, 'id'>[] | null;
+        parameters: ParametersValuesMap | null;
+        customViewportWidth: number | null;
+        /** Portable dashboard-tab slugs, resolved to UUIDs on upload. */
+        selectedTabs: string[] | null;
+    };
+
+export type ScheduledDeliveryAsCode =
+    | ChartScheduledDeliveryAsCode
+    | DashboardScheduledDeliveryAsCode;
+
+export type ScheduledDeliveryAsCodeSkip = {
+    name: string;
+    reason: string;
+};
+
+export type ApiScheduledDeliveryAsCodeListResponse = {
+    status: 'ok';
+    results: {
+        scheduledDeliveries: ScheduledDeliveryAsCode[];
+        skipped: ScheduledDeliveryAsCodeSkip[];
+    };
+};
+
+export type ApiScheduledDeliveryAsCodeUpsertResponse = {
+    status: 'ok';
+    results: {
+        action:
+            | PromotionAction.CREATE
+            | PromotionAction.UPDATE
+            | PromotionAction.NO_CHANGES;
+    };
 };
 
 export type ApiDashboardAsCodeListResponse = {

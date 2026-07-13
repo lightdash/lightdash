@@ -110,6 +110,7 @@ export type ThresholdOptions = {
 
 export type SchedulerBase = {
     schedulerUuid: string;
+    slug: string;
     name: string;
     message?: string;
     createdAt: Date;
@@ -306,6 +307,7 @@ export type UpdateSchedulerEmailTarget = Pick<
 export type CreateSchedulerAndTargets = Omit<
     Scheduler,
     | 'schedulerUuid'
+    | 'slug'
     | 'createdAt'
     | 'updatedAt'
     | 'createdByName'
@@ -313,6 +315,7 @@ export type CreateSchedulerAndTargets = Omit<
     | 'dashboardName'
     | 'savedSqlName'
 > & {
+    slug?: string;
     targets: CreateSchedulerTarget[];
     // Transient: carries the AI augmentation for an unsaved "send now" so the
     // worker can run it without a persisted row. Never written to the scheduler
@@ -341,6 +344,7 @@ export type UpdateSchedulerAndTargets = Pick<
     filters?: SchedulerFilters;
     parameters?: ParametersValuesMap;
     customViewportWidth?: number;
+    selectedTabs?: string[] | null;
     targets: Array<
         | CreateSchedulerTarget
         | UpdateSchedulerSlackTarget

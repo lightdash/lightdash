@@ -69,6 +69,7 @@ const interactiveViewer: SessionUser = {
 
 const chartSchedulerInPrivateSpace: ChartScheduler = {
     schedulerUuid: 'schedulerUuid',
+    slug: 'scheduler',
     name: 'scheduler',
     createdAt: new Date(),
     updatedAt: new Date(),

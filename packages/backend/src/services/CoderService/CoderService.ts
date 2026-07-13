@@ -3,19 +3,25 @@ import {
     AlreadyExistsError,
     ApiChartAsCodeListResponse,
     ApiDashboardAsCodeListResponse,
+    ApiScheduledDeliveryAsCodeListResponse,
+    ApiScheduledDeliveryAsCodeUpsertResponse,
     assertUnreachable,
     ChartAsCode,
     ChartAsCodeInternalization,
+    ChartScheduledDeliveryAsCode,
     ChartSummary,
     ContentAsCodeType,
     ContentType,
     CreateSavedChart,
+    CreateSchedulerTarget,
     currentVersion,
     DashboardAsCode,
     DashboardAsCodeInternalization,
     DashboardChartTileAsCode,
     DashboardDAO,
+    DashboardFilterRule,
     DashboardMarkdownTileAsCode,
+    DashboardScheduledDeliveryAsCode,
     DashboardSqlChartTileAsCode,
     DashboardTile,
     DashboardTileAsCode,
@@ -25,6 +31,14 @@ import {
     friendlyName,
     getContentAsCodePathFromLtreePath,
     getLtreePathFromContentAsCodePath,
+    isChartScheduler,
+    isDashboardScheduler,
+    isEmailTarget,
+    isGoogleChatTarget,
+    isMsTeamsTarget,
+    isSchedulerCsvOptions,
+    isSchedulerImageOptions,
+    isSlackTarget,
     NotFoundError,
     ParameterError,
     Project,
@@ -32,6 +46,11 @@ import {
     PromotionAction,
     PromotionChanges,
     SavedChartDAO,
+    ScheduledDeliveryAsCode,
+    ScheduledDeliveryFormatAsCode,
+    ScheduledDeliveryTargetAsCode,
+    SchedulerAndTargets,
+    SchedulerFormat,
     SessionUser,
     Space,
     SpaceAsCode,
@@ -52,6 +71,7 @@ import {
     type FiltersInput,
     type SpaceSummaryBase,
 } from '@lightdash/common';
+import isEqual from 'lodash/isEqual';
 import { v4 as uuidv4 } from 'uuid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -60,10 +80,14 @@ import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SavedSqlModel } from '../../models/SavedSqlModel';
+import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
+import { DashboardService } from '../DashboardService/DashboardService';
 import { PromoteService } from '../PromoteService/PromoteService';
+import { SavedChartService } from '../SavedChartsService/SavedChartService';
+import { SchedulerService } from '../SchedulerService/SchedulerService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { paginateAsCode } from './pagination';
 
@@ -75,6 +99,10 @@ type CoderServiceArguments = {
     savedSqlModel: SavedSqlModel;
     dashboardModel: DashboardModel;
     spaceModel: SpaceModel;
+    schedulerModel: SchedulerModel;
+    schedulerService: SchedulerService;
+    savedChartService: SavedChartService;
+    dashboardService: DashboardService;
     schedulerClient: SchedulerClient;
     promoteService: PromoteService;
     spacePermissionService: SpacePermissionService;
@@ -150,6 +178,14 @@ export class CoderService extends BaseService {
 
     spaceModel: SpaceModel;
 
+    schedulerModel: SchedulerModel;
+
+    schedulerService: SchedulerService;
+
+    savedChartService: SavedChartService;
+
+    dashboardService: DashboardService;
+
     schedulerClient: SchedulerClient;
 
     promoteService: PromoteService;
@@ -166,6 +202,10 @@ export class CoderService extends BaseService {
         savedSqlModel,
         dashboardModel,
         spaceModel,
+        schedulerModel,
+        schedulerService,
+        savedChartService,
+        dashboardService,
         schedulerClient,
         promoteService,
         spacePermissionService,
@@ -179,6 +219,10 @@ export class CoderService extends BaseService {
         this.savedSqlModel = savedSqlModel;
         this.dashboardModel = dashboardModel;
         this.spaceModel = spaceModel;
+        this.schedulerModel = schedulerModel;
+        this.schedulerService = schedulerService;
+        this.savedChartService = savedChartService;
+        this.dashboardService = dashboardService;
         this.schedulerClient = schedulerClient;
         this.promoteService = promoteService;
         this.spacePermissionService = spacePermissionService;
@@ -1205,6 +1249,527 @@ export class CoderService extends BaseService {
             total: sqlChartsTotal,
             offset: newOffset,
         };
+    }
+
+    private static getScheduledDeliveryTargetsAsCode(
+        scheduler: SchedulerAndTargets,
+    ): ScheduledDeliveryTargetAsCode[] | null {
+        const targets: ScheduledDeliveryTargetAsCode[] = [];
+        for (const target of scheduler.targets) {
+            if (isEmailTarget(target)) {
+                targets.push({ type: 'email', recipient: target.recipient });
+            } else if (isSlackTarget(target)) {
+                targets.push({ type: 'slack', channel: target.channel });
+            } else if (isMsTeamsTarget(target) || isGoogleChatTarget(target)) {
+                return null;
+            } else {
+                assertUnreachable(target, 'Unknown scheduled delivery target');
+            }
+        }
+        return targets;
+    }
+
+    private static getDashboardScheduledDeliveryFiltersWithTileSlugs(
+        dashboard: DashboardDAO,
+        filters: DashboardFilterRule[] | undefined,
+    ): Omit<DashboardFilterRule, 'id'>[] | null {
+        if (!filters) return null;
+        return filters.map((filter) => {
+            const tileTargets = Object.entries(filter.tileTargets ?? {}).reduce<
+                Record<string, DashboardTileTarget>
+            >((acc, [tileUuid, target]) => {
+                const tileSlug = CoderService.getChartSlugForTileUuid(
+                    dashboard,
+                    tileUuid,
+                );
+                return tileSlug ? { ...acc, [tileSlug]: target } : acc;
+            }, {});
+            return { ...filter, id: undefined, tileTargets };
+        });
+    }
+
+    private static getDashboardScheduledDeliveryFiltersWithTileUuids(
+        dashboard: DashboardDAO,
+        filters: Omit<DashboardFilterRule, 'id'>[] | null,
+    ): DashboardFilterRule[] | undefined {
+        if (!filters) return undefined;
+        return filters.map((filter) => {
+            const tileTargets = Object.entries(filter.tileTargets ?? {}).reduce<
+                Record<string, DashboardTileTarget>
+            >((acc, [tileSlug, target]) => {
+                const tileUuid = dashboard.tiles.find(
+                    (tile) =>
+                        CoderService.getChartSlugForTileUuid(
+                            dashboard,
+                            tile.uuid,
+                        ) === tileSlug,
+                )?.uuid;
+                if (!tileUuid) {
+                    throw new NotFoundError(
+                        `Dashboard tile '${tileSlug}' referenced by scheduled delivery was not found`,
+                    );
+                }
+                return { ...acc, [tileUuid]: target };
+            }, {});
+            return { ...filter, id: uuidv4(), tileTargets };
+        });
+    }
+
+    private static getDashboardTabBaseSlug(
+        tab: DashboardDAO['tabs'][number],
+    ): string {
+        const slug = tab.name
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+        return slug || `tab-${tab.order + 1}`;
+    }
+
+    static getDashboardTabSlug(
+        dashboard: Pick<DashboardDAO, 'tabs'>,
+        tabUuid: string,
+    ): string {
+        const tab = dashboard.tabs.find(({ uuid }) => uuid === tabUuid);
+        if (!tab) {
+            throw new NotFoundError(
+                `Dashboard tab '${tabUuid}' referenced by scheduled delivery was not found`,
+            );
+        }
+        const baseSlug = CoderService.getDashboardTabBaseSlug(tab);
+        const matchingTabs = dashboard.tabs.filter(
+            (candidate) =>
+                CoderService.getDashboardTabBaseSlug(candidate) === baseSlug,
+        );
+        if (matchingTabs.length === 1) return baseSlug;
+        const index = matchingTabs.findIndex(({ uuid }) => uuid === tabUuid);
+        return `${baseSlug}-${index + 1}`;
+    }
+
+    static getDashboardTabUuid(
+        dashboard: Pick<DashboardDAO, 'tabs'>,
+        tabSlug: string,
+    ): string {
+        const tab =
+            dashboard.tabs.find(
+                ({ uuid }) =>
+                    CoderService.getDashboardTabSlug(dashboard, uuid) ===
+                    tabSlug,
+            ) ?? dashboard.tabs.find(({ uuid }) => uuid === tabSlug);
+        if (!tab) {
+            throw new NotFoundError(
+                `Dashboard tab '${tabSlug}' referenced by scheduled delivery was not found`,
+            );
+        }
+        return tab.uuid;
+    }
+
+    private static getScheduledDeliveryFormat(
+        scheduler: SchedulerAndTargets,
+    ): ScheduledDeliveryFormatAsCode | null {
+        switch (scheduler.format) {
+            case SchedulerFormat.CSV:
+            case SchedulerFormat.XLSX:
+                return isSchedulerCsvOptions(scheduler.options)
+                    ? { format: scheduler.format, options: scheduler.options }
+                    : null;
+            case SchedulerFormat.IMAGE:
+                return isSchedulerImageOptions(scheduler.options)
+                    ? { format: scheduler.format, options: scheduler.options }
+                    : null;
+            case SchedulerFormat.PDF:
+                return { format: scheduler.format, options: {} };
+            case SchedulerFormat.GSHEETS:
+                return null;
+            default:
+                return assertUnreachable(
+                    scheduler.format,
+                    'Unknown scheduled delivery format',
+                );
+        }
+    }
+
+    private async transformScheduledDelivery(
+        scheduler: SchedulerAndTargets,
+    ): Promise<ScheduledDeliveryAsCode | null> {
+        if (
+            !scheduler.slug ||
+            (scheduler.thresholds && scheduler.thresholds.length > 0)
+        ) {
+            return null;
+        }
+        const targets =
+            CoderService.getScheduledDeliveryTargetsAsCode(scheduler);
+        if (!targets || targets.length === 0) return null;
+        const format = CoderService.getScheduledDeliveryFormat(scheduler);
+        if (!format) return null;
+
+        const common = {
+            contentType: ContentAsCodeType.SCHEDULED_DELIVERY as const,
+            version: currentVersion,
+            slug: scheduler.slug,
+            name: scheduler.name,
+            message: scheduler.message ?? null,
+            cron: scheduler.cron,
+            timezone: scheduler.timezone ?? null,
+            enabled: scheduler.enabled,
+            includeLinks: scheduler.includeLinks,
+            targets,
+            downloadedAt: new Date(),
+        };
+
+        if (isChartScheduler(scheduler)) {
+            const chart = await this.savedChartModel.getSummary(
+                scheduler.savedChartUuid,
+            );
+            return {
+                ...common,
+                ...format,
+                resource: { type: 'chart', slug: chart.slug },
+                filters: scheduler.filters ?? null,
+                parameters: scheduler.parameters ?? null,
+                customViewportWidth: null,
+                selectedTabs: null,
+            };
+        }
+
+        if (isDashboardScheduler(scheduler)) {
+            const dashboard = await this.dashboardModel.getByIdOrSlug(
+                scheduler.dashboardUuid,
+            );
+            return {
+                ...common,
+                ...format,
+                resource: { type: 'dashboard', slug: dashboard.slug },
+                filters:
+                    CoderService.getDashboardScheduledDeliveryFiltersWithTileSlugs(
+                        dashboard,
+                        scheduler.filters,
+                    ),
+                parameters: scheduler.parameters ?? null,
+                customViewportWidth: scheduler.customViewportWidth ?? null,
+                selectedTabs:
+                    scheduler.selectedTabs?.map((tabUuid) =>
+                        CoderService.getDashboardTabSlug(dashboard, tabUuid),
+                    ) ?? null,
+            };
+        }
+
+        return null;
+    }
+
+    async getScheduledDeliveries(
+        user: SessionUser,
+        projectUuid: string,
+        slugs?: string[],
+    ): Promise<ApiScheduledDeliveryAsCodeListResponse['results']> {
+        const project = await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('ContentAsCode', {
+                    projectUuid,
+                    organizationUuid: project.organizationUuid,
+                }),
+            ) ||
+            auditedAbility.cannot(
+                'manage',
+                subject('ScheduledDeliveries', {
+                    projectUuid,
+                    organizationUuid: project.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You are not allowed to download scheduled deliveries',
+            );
+        }
+
+        const schedulers =
+            await this.schedulerModel.getSchedulerForProject(projectUuid);
+        const filteredSchedulers = slugs?.length
+            ? schedulers.filter((scheduler) => slugs.includes(scheduler.slug))
+            : schedulers;
+        const transformed = await Promise.all(
+            filteredSchedulers.map((scheduler) =>
+                this.transformScheduledDelivery(scheduler),
+            ),
+        );
+        const scheduledDeliveries: ScheduledDeliveryAsCode[] = [];
+        const skipped: ApiScheduledDeliveryAsCodeListResponse['results']['skipped'] =
+            [];
+
+        filteredSchedulers.forEach((scheduler, index) => {
+            const delivery = transformed[index];
+            if (delivery) {
+                scheduledDeliveries.push(delivery);
+            } else {
+                skipped.push({
+                    name: scheduler.name,
+                    reason: scheduler.slug
+                        ? 'MVP supports chart/dashboard deliveries with email or Slack targets and CSV, XLSX, image, or PDF formats; alerts and secret/OAuth-backed targets are excluded'
+                        : 'Scheduled delivery is missing its portable identity and must be backfilled before export',
+                });
+            }
+        });
+
+        return { scheduledDeliveries, skipped };
+    }
+
+    private async getScheduledDeliveryResource(
+        projectUuid: string,
+        delivery: ScheduledDeliveryAsCode,
+    ): Promise<
+        | { type: 'chart'; uuid: string }
+        | { type: 'dashboard'; uuid: string; dashboard: DashboardDAO }
+    > {
+        if (delivery.resource.type === 'chart') {
+            const charts = await this.savedChartModel.find({
+                projectUuid,
+                slug: delivery.resource.slug,
+                includeOrphanChartsWithinDashboard: true,
+            });
+            if (charts.length === 0) {
+                throw new NotFoundError(
+                    `Chart '${delivery.resource.slug}' was not found`,
+                );
+            }
+            if (charts.length > 1) {
+                throw new ParameterError(
+                    `Multiple charts match slug '${delivery.resource.slug}'`,
+                );
+            }
+            return { type: 'chart', uuid: charts[0].uuid };
+        }
+
+        const dashboards = await this.dashboardModel.find({
+            projectUuid,
+            slug: delivery.resource.slug,
+        });
+        if (dashboards.length === 0) {
+            throw new NotFoundError(
+                `Dashboard '${delivery.resource.slug}' was not found`,
+            );
+        }
+        if (dashboards.length > 1) {
+            throw new ParameterError(
+                `Multiple dashboards match slug '${delivery.resource.slug}'`,
+            );
+        }
+        return {
+            type: 'dashboard',
+            uuid: dashboards[0].uuid,
+            dashboard: await this.dashboardModel.getByIdOrSlug(
+                dashboards[0].uuid,
+            ),
+        };
+    }
+
+    private static getScheduledDeliveryTargets(
+        delivery: ScheduledDeliveryAsCode,
+    ): CreateSchedulerTarget[] {
+        return delivery.targets.map((target) => {
+            switch (target.type) {
+                case 'email':
+                    return { recipient: target.recipient };
+                case 'slack':
+                    return { channel: target.channel };
+                default:
+                    return assertUnreachable(
+                        target,
+                        'Unknown scheduled delivery target',
+                    );
+            }
+        });
+    }
+
+    private static isChartScheduledDelivery(
+        delivery: ScheduledDeliveryAsCode,
+    ): delivery is ChartScheduledDeliveryAsCode {
+        return delivery.resource.type === 'chart';
+    }
+
+    private static isDashboardScheduledDelivery(
+        delivery: ScheduledDeliveryAsCode,
+    ): delivery is DashboardScheduledDeliveryAsCode {
+        return delivery.resource.type === 'dashboard';
+    }
+
+    private static scheduledDeliveriesAreEqual(
+        current: ScheduledDeliveryAsCode,
+        desired: ScheduledDeliveryAsCode,
+    ): boolean {
+        const getTargetKey = (target: ScheduledDeliveryTargetAsCode) => {
+            switch (target.type) {
+                case 'email':
+                    return `${target.type}:${target.recipient}`;
+                case 'slack':
+                    return `${target.type}:${target.channel}`;
+                default:
+                    return assertUnreachable(
+                        target,
+                        'Unknown scheduled delivery target',
+                    );
+            }
+        };
+        const normalize = (delivery: ScheduledDeliveryAsCode) => {
+            const { downloadedAt, ...rest } = delivery;
+            return {
+                ...rest,
+                targets: [...rest.targets].sort((left, right) =>
+                    getTargetKey(left).localeCompare(getTargetKey(right)),
+                ),
+            };
+        };
+        return isEqual(normalize(current), normalize(desired));
+    }
+
+    async upsertScheduledDelivery(
+        user: SessionUser,
+        projectUuid: string,
+        slug: string,
+        delivery: ScheduledDeliveryAsCode,
+        force = false,
+    ): Promise<ApiScheduledDeliveryAsCodeUpsertResponse['results']> {
+        if (slug !== delivery.slug) {
+            throw new ParameterError(
+                `Scheduled delivery slug '${delivery.slug}' does not match path slug '${slug}'`,
+            );
+        }
+        const project = await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('ContentAsCode', {
+                    projectUuid,
+                    organizationUuid: project.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You are not allowed to upload scheduled deliveries',
+            );
+        }
+
+        const resource = await this.getScheduledDeliveryResource(
+            projectUuid,
+            delivery,
+        );
+        const existing = await this.schedulerModel.findSchedulerByProjectSlug(
+            projectUuid,
+            slug,
+        );
+
+        if (
+            existing &&
+            ((resource.type === 'chart' &&
+                (!isChartScheduler(existing) ||
+                    existing.savedChartUuid !== resource.uuid)) ||
+                (resource.type === 'dashboard' &&
+                    (!isDashboardScheduler(existing) ||
+                        existing.dashboardUuid !== resource.uuid)))
+        ) {
+            throw new ParameterError(
+                `Scheduled delivery slug '${slug}' is already used by another resource in this project`,
+            );
+        }
+
+        if (existing) {
+            const current = await this.transformScheduledDelivery(existing);
+            if (
+                !force &&
+                current &&
+                CoderService.scheduledDeliveriesAreEqual(current, delivery)
+            ) {
+                return { action: PromotionAction.NO_CHANGES };
+            }
+        }
+
+        const targets = CoderService.getScheduledDeliveryTargets(delivery);
+        let filters: Filters | DashboardFilterRule[] | undefined;
+        if (CoderService.isChartScheduledDelivery(delivery)) {
+            filters = delivery.filters
+                ? normalizeFilterIds(delivery.filters)
+                : undefined;
+        } else if (
+            CoderService.isDashboardScheduledDelivery(delivery) &&
+            resource.type === 'dashboard'
+        ) {
+            filters =
+                CoderService.getDashboardScheduledDeliveryFiltersWithTileUuids(
+                    resource.dashboard,
+                    delivery.filters,
+                );
+        } else {
+            throw new ParameterError(
+                'Scheduled delivery resource type does not match its payload',
+            );
+        }
+        const schedulerInput = {
+            slug: delivery.slug,
+            name: delivery.name,
+            message: delivery.message ?? undefined,
+            cron: delivery.cron,
+            timezone: delivery.timezone ?? undefined,
+            format: delivery.format,
+            options: delivery.options,
+            filters,
+            parameters: delivery.parameters ?? undefined,
+            customViewportWidth: delivery.customViewportWidth ?? undefined,
+            selectedTabs:
+                resource.type === 'dashboard' && delivery.selectedTabs
+                    ? delivery.selectedTabs.map((tabSlug) =>
+                          CoderService.getDashboardTabUuid(
+                              resource.dashboard,
+                              tabSlug,
+                          ),
+                      )
+                    : delivery.selectedTabs,
+            thresholds: undefined,
+            enabled: delivery.enabled,
+            includeLinks: delivery.includeLinks,
+            targets,
+            appUuid: null,
+            appName: null,
+        };
+
+        if (!existing) {
+            const created =
+                resource.type === 'chart'
+                    ? await this.savedChartService.createScheduler(
+                          user,
+                          resource.uuid,
+                          schedulerInput,
+                      )
+                    : await this.dashboardService.createScheduler(
+                          user,
+                          resource.uuid,
+                          schedulerInput,
+                      );
+            if (!delivery.enabled) {
+                await this.schedulerService.setSchedulerEnabled(
+                    user,
+                    created.schedulerUuid,
+                    false,
+                );
+            }
+            return { action: PromotionAction.CREATE };
+        }
+
+        await this.schedulerService.updateScheduler(
+            user,
+            existing.schedulerUuid,
+            schedulerInput,
+        );
+        if (existing.enabled !== delivery.enabled) {
+            await this.schedulerService.setSchedulerEnabled(
+                user,
+                existing.schedulerUuid,
+                delivery.enabled,
+            );
+        }
+        return { action: PromotionAction.UPDATE };
     }
 
     private async syncVerification({
