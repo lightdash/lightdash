@@ -12,7 +12,6 @@ import {
     NavLink,
     Paper,
     Stack,
-    Text,
 } from '@mantine-8/core';
 import { useToggle } from '@mantine/hooks';
 import {
@@ -117,20 +116,23 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
             label={
                 isError ? (
                     <Stack gap={2}>
-                        <Text truncate fz="sm">
-                            <Highlight component="span" highlight={query ?? ''}>
-                                {displayLabel}
-                            </Highlight>
-                        </Text>
+                        <Highlight
+                            truncate
+                            fz="sm"
+                            fw={500}
+                            highlight={query ?? ''}
+                        >
+                            {displayLabel}
+                        </Highlight>
                         {showUnderlyingName && (
-                            <Text truncate fz="xs" c="ldGray.7">
-                                <Highlight
-                                    component="span"
-                                    highlight={query ?? ''}
-                                >
-                                    {explore.name}
-                                </Highlight>
-                            </Text>
+                            <Highlight
+                                truncate
+                                fz="xs"
+                                c="ldGray.7"
+                                highlight={query ?? ''}
+                            >
+                                {explore.name}
+                            </Highlight>
                         )}
                     </Stack>
                 ) : (
@@ -142,23 +144,24 @@ const ExploreNavLink: React.FC<ExploreNavLinkProps> = ({
                         offset={0}
                     >
                         <Stack gap={2}>
-                            <Text truncate fz="sm" fw={500} c="ldDark.8">
+                            <Highlight
+                                truncate
+                                fz="sm"
+                                fw={500}
+                                c="ldDark.8"
+                                highlight={query ?? ''}
+                            >
+                                {displayLabel}
+                            </Highlight>
+                            {showUnderlyingName && (
                                 <Highlight
-                                    component="span"
+                                    truncate
+                                    fz="xs"
+                                    c="ldGray.7"
                                     highlight={query ?? ''}
                                 >
-                                    {displayLabel}
+                                    {explore.name}
                                 </Highlight>
-                            </Text>
-                            {showUnderlyingName && (
-                                <Text truncate fz="xs" c="ldGray.7">
-                                    <Highlight
-                                        component="span"
-                                        highlight={query ?? ''}
-                                    >
-                                        {explore.name}
-                                    </Highlight>
-                                </Text>
                             )}
                         </Stack>
                     </TableItemDetailPreview>
