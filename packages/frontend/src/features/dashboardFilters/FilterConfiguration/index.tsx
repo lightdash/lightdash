@@ -19,8 +19,8 @@ import {
     type DashboardTile,
     type ResultColumn,
 } from '@lightdash/common';
-import { Box, Flex, Group, Stack, Text, Button } from '@mantine-8/core';
-import { Select, Tabs, Tooltip, type PopoverProps } from '@mantine/core';
+import { Box, Button, Flex, Group, Stack, Tabs, Text } from '@mantine-8/core';
+import { Select, Tooltip, type PopoverProps } from '@mantine/core';
 import { IconRotate2, IconSql } from '@tabler/icons-react';
 import { produce } from 'immer';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
@@ -379,7 +379,9 @@ const FilterConfiguration: FC<Props> = ({
         <Stack className={classes.inlineDropdowns}>
             <Tabs
                 value={selectedTabId}
-                onTabChange={(tabId: FilterTabs) => setSelectedTabId(tabId)}
+                onChange={(tabId) => {
+                    if (tabId) setSelectedTabId(tabId as FilterTabs);
+                }}
             >
                 {isCreatingNew || isEditMode || isTemporary ? (
                     <Tabs.List mb="md">

@@ -126,6 +126,7 @@ export const SingleSeriesConfiguration = ({
                     <SegmentedControl
                         sx={{ minWidth: '130px', flex: 1 }}
                         radius="md"
+                        fz="sm"
                         data={[
                             {
                                 value: 'left',
@@ -135,7 +136,7 @@ export const SingleSeriesConfiguration = ({
                                             icon={IconAlignLeft}
                                             color="ldDark.8"
                                         />
-                                        <Text>Left</Text>
+                                        <Text inherit>Left</Text>
                                     </Group>
                                 ),
                             },
@@ -147,7 +148,7 @@ export const SingleSeriesConfiguration = ({
                                         wrap="nowrap"
                                         justify="flex-end"
                                     >
-                                        <Text>Right</Text>
+                                        <Text inherit>Right</Text>
                                         <MantineIcon
                                             icon={IconAlignRight}
                                             color="ldDark.8"

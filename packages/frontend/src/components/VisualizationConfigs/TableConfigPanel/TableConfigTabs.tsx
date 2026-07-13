@@ -1,4 +1,5 @@
-import { MantineProvider, Tabs, useMantineColorScheme } from '@mantine/core';
+import { Tabs } from '@mantine-8/core';
+import { MantineProvider, useMantineColorScheme } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import { getVizConfigThemeOverride } from '../mantineTheme';
 import { ColumnCellDisplay } from './ColumnCellDisplay';

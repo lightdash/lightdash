@@ -9,11 +9,10 @@ import {
     type SankeyNodeLayout,
     type TableCalculation,
 } from '@lightdash/common';
-import { Stack, Text } from '@mantine-8/core';
+import { Stack, Tabs, Text } from '@mantine-8/core';
 import {
     MantineProvider,
     SegmentedControl,
-    Tabs,
     useMantineColorScheme,
 } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
