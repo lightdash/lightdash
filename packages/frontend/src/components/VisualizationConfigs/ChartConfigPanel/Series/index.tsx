@@ -16,8 +16,7 @@ import {
     type Series as SeriesType,
     type TableCalculation,
 } from '@lightdash/common';
-import { Checkbox, Divider, Stack } from '@mantine-8/core';
-import { Switch } from '@mantine/core';
+import { Checkbox, Divider, Stack, Switch } from '@mantine-8/core';
 import { produce } from 'immer';
 import React, { Fragment, useCallback, useMemo, type FC } from 'react';
 import { createPortal } from 'react-dom';
@@ -327,6 +326,10 @@ export const Series: FC<Props> = ({ items }) => {
                     <Config.Section>
                         <Stack gap="xs">
                             <Switch
+                                size="xs"
+                                classNames={{
+                                    label: compactStyles.compactCheckboxLabel,
+                                }}
                                 label="Apply custom colors"
                                 checked={customColorsEnabled}
                                 onChange={(e) => {

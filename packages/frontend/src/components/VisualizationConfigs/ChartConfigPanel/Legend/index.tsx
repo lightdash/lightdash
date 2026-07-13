@@ -16,9 +16,9 @@ import {
     Loader,
     Stack,
     SegmentedControl,
+    Switch,
 } from '@mantine-8/core';
 import { useDebouncedCallback } from '@mantine-8/hooks';
-import { Switch } from '@mantine/core';
 import { lazy, Suspense, useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import { useToggle } from 'react-use';
@@ -26,7 +26,9 @@ import UnitInput from '../../../common/UnitInput';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
+import compactStyles from '../../mantineTheme.module.css';
 import { UnitInputsGrid } from '../common/UnitInputsGrid';
+import classes from './Legend.module.css';
 import { ReferenceLines } from './ReferenceLines';
 import { TooltipSortConfig } from './TooltipSortConfig';
 
@@ -109,14 +111,13 @@ const PositionConfiguration: FC<MarginConfigurationProps> = ({
         <Config>
             <Config.Section>
                 <Switch
+                    size="xs"
                     labelPosition="left"
                     label={`Custom position`}
                     checked={!isAutoPosition}
                     onChange={toggleAuto}
-                    styles={{
-                        label: {
-                            paddingLeft: 0,
-                        },
+                    classNames={{
+                        label: `${compactStyles.compactCheckboxLabel} ${classes.leftPositionedSwitchLabel}`,
                     }}
                 />
 
@@ -209,6 +210,10 @@ export const Legend: FC<Props> = ({ items }) => {
                     <Group gap="xs" align="center">
                         <Config.Heading>Legend</Config.Heading>
                         <Switch
+                            size="xs"
+                            classNames={{
+                                label: compactStyles.compactCheckboxLabel,
+                            }}
                             checked={legendConfig.show ?? showDefault}
                             onChange={(e) =>
                                 handleChange('show', e.currentTarget.checked)

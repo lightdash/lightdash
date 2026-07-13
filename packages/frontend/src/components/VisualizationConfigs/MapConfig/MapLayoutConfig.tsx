@@ -16,8 +16,8 @@ import {
     Stack,
     SegmentedControl,
     Select,
+    Switch,
 } from '@mantine-8/core';
-import { Switch } from '@mantine/core';
 import { memo, useEffect, useMemo, type FC } from 'react';
 import {
     findMatchingProperty,
@@ -28,6 +28,7 @@ import FieldSelect from '../../common/FieldSelect';
 import { isMapVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
+import compactStyles from '../mantineTheme.module.css';
 import MapFieldConfiguration from './MapFieldConfiguration';
 
 // Get the label and description for the region field based on map type
@@ -394,6 +395,10 @@ export const Layout: FC = memo(() => {
                             <Config.Heading>Location</Config.Heading>
 
                             <Switch
+                                size="xs"
+                                classNames={{
+                                    label: compactStyles.compactCheckboxLabel,
+                                }}
                                 label="Custom region"
                                 checked={isCustomMap}
                                 onChange={(e) => {

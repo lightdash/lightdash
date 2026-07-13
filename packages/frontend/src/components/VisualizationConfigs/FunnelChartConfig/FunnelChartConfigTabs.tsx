@@ -17,13 +17,9 @@ import {
     Stack,
     Tabs,
     SegmentedControl,
-} from '@mantine-8/core';
-import {
-    MantineProvider,
     Switch,
-    Tooltip,
-    useMantineColorScheme,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { MantineProvider, Tooltip, useMantineColorScheme } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import { isFunnelVisualizationConfig } from '../../LightdashVisualization/types';
@@ -284,6 +280,10 @@ export const ConfigTabs: FC = memo(() => {
                             <Group>
                                 <Config.Heading>Show legend</Config.Heading>
                                 <Switch
+                                    size="xs"
+                                    classNames={{
+                                        label: compactStyles.compactCheckboxLabel,
+                                    }}
                                     checked={showLegend}
                                     onChange={toggleShowLegend}
                                 />

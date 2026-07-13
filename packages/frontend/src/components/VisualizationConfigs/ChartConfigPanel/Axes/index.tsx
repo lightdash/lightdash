@@ -15,10 +15,11 @@ import {
     Group,
     SegmentedControl,
     Stack,
+    Switch,
     Text,
     Select,
 } from '@mantine-8/core';
-import { NumberInput, Switch } from '@mantine/core';
+import { NumberInput } from '@mantine/core';
 import {
     IconChartBar,
     IconMinus,
@@ -226,6 +227,10 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                     {isNumericItem(xAxisField) && !dirtyLayout?.flipAxes && (
                         <>
                             <Switch
+                                size="xs"
+                                classNames={{
+                                    label: compactStyles.compactCheckboxLabel,
+                                }}
                                 label="Truncate x-axis"
                                 checked={
                                     dirtyEchartsConfig?.xAxis?.[0]
