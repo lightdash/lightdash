@@ -1,13 +1,6 @@
 import { type SqlChart } from '@lightdash/common';
-import { Group, Stack, Title } from '@mantine-8/core';
-import {
-    ActionIcon,
-    Button,
-    HoverCard,
-    Menu,
-    Paper,
-    Tooltip,
-} from '@mantine/core';
+import { Group, Paper, Stack, Title } from '@mantine-8/core';
+import { ActionIcon, Button, HoverCard, Menu, Tooltip } from '@mantine/core';
 import {
     IconArrowBack,
     IconDots,
@@ -39,6 +32,7 @@ import { DeleteSqlChartModal } from '../DeleteSqlChartModal';
 import { SaveSqlChartModal } from '../SaveSqlChartModal';
 import { SqlQueryBeforeSaveAlert } from '../SqlQueryBeforeSaveAlert';
 import { UpdateSqlChartModal } from '../UpdateSqlChartModal';
+import headerStyles from './HeaderPaper.module.css';
 
 export const HeaderEdit: FC = () => {
     const queryClient = useQueryClient();
@@ -162,13 +156,7 @@ export const HeaderEdit: FC = () => {
                 withBorder={false}
                 px="md"
                 py="xs"
-                sx={(theme) => ({
-                    borderBottom: `1px solid ${
-                        theme.colorScheme === 'dark'
-                            ? theme.colors.ldDark[8]
-                            : theme.colors.ldGray[3]
-                    }`,
-                })}
+                className={headerStyles.paper}
             >
                 <Group justify="space-between">
                     <Stack gap="none">

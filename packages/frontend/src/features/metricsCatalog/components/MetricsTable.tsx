@@ -5,8 +5,8 @@ import {
     type CatalogField,
     type CatalogItem,
 } from '@lightdash/common';
-import { Box, Center, Divider, Group, Text } from '@mantine-8/core';
-import { Anchor, Paper, useMantineTheme } from '@mantine/core';
+import { Box, Center, Divider, Group, Paper, Text } from '@mantine-8/core';
+import { Anchor, useMantineTheme } from '@mantine/core';
 import {
     IconArrowDown,
     IconArrowsSort,
@@ -249,7 +249,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({
     const mantinePaperProps = useMemo(
         () => ({
             shadow: undefined,
-            sx: {
+            style: {
                 border: `1px solid ${theme.colors.ldGray[2]}`,
                 borderRadius: theme.spacing.sm, // ! radius doesn't have rem(12) -> 0.75rem
                 boxShadow: theme.shadows.subtle,

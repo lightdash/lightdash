@@ -1,0 +1,31 @@
+.comparisonPaper {
+    cursor: pointer;
+    background-color: var(--mantine-color-background-0);
+    transition: all 200ms ease-in-out;
+}
+
+.comparisonPaper[data-with-border] {
+    border-color: var(--mantine-color-ldGray-2);
+}
+
+.comparisonPaper[data-selected] {
+    background-color: light-dark(
+        color-mix(
+            in srgb,
+            var(--mantine-color-ldGray-1) 70%,
+            var(--mantine-color-white)
+        ),
+        var(--mantine-color-ldDark-2)
+    );
+}
+
+.comparisonPaper[data-selected][data-with-border] {
+    border-color: var(--mantine-color-indigo-5);
+}
+
+.comparisonPaper:hover {
+    background-color: light-dark(
+        var(--mantine-color-ldGray-0),
+        var(--mantine-color-ldDark-3)
+    );
+}

@@ -1,12 +1,11 @@
 import { type OrganizationColorPalette } from '@lightdash/common';
-import { Flex, Group, Text } from '@mantine-8/core';
+import { Flex, Group, Paper, Text } from '@mantine-8/core';
 import {
     ActionIcon,
     Badge,
     Button,
     ColorSwatch,
     Menu,
-    Paper,
     Tooltip,
 } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';

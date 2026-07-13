@@ -1,6 +1,6 @@
 import { getFieldQuoteChar } from '@lightdash/common';
-import { Group, Stack } from '@mantine-8/core';
-import { ActionIcon, Paper, Tooltip } from '@mantine/core';
+import { Group, Paper, Stack } from '@mantine-8/core';
+import { ActionIcon, Tooltip } from '@mantine/core';
 import { IconLayoutSidebarLeftExpand } from '@tabler/icons-react';
 import { useEffect } from 'react';
 import { Provider } from 'react-redux';
@@ -198,6 +198,7 @@ const SqlRunner = ({
                     <Paper
                         shadow="none"
                         radius={0}
+                        withBorder={false}
                         px="sm"
                         py="lg"
                         style={{ flexGrow: 0 }}
