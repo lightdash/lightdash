@@ -37646,6 +37646,11 @@
                         "nullable": true,
                         "description": "Base lifetime (seconds) of this org's scheduled-delivery download links —\nthe default every channel inherits. Overrides the instance-wide\n`PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS` env; `null` inherits it. This\nfield is always resolved to an effective number in API responses (it\nfalls back to the env default), so the frontend can display it directly.\nA value over {@link S3_PRESIGNED_URL_MAX_EXPIRATION_SECONDS} transparently\nswitches that delivery to the persistent-download-URL system (the only\nway a link can outlive AWS's 7-day presigned ceiling)."
                     },
+                    "semanticLayerPgwireEnabled": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "description": "Per-org enablement of the semantic-layer Postgres wire integration\n(surfaced on the project settings page). Like impersonation this has no\ninstance/env default — it's opt-in only, so `null` (or no stored row)\nresolves to `false`."
+                    },
                     "supportImpersonationEnabled": {
                         "type": "boolean",
                         "nullable": true,
@@ -37671,6 +37676,7 @@
                     "scheduledDeliveryExpirationSecondsSlack",
                     "scheduledDeliveryExpirationSecondsEmail",
                     "scheduledDeliveryExpirationSeconds",
+                    "semanticLayerPgwireEnabled",
                     "supportImpersonationEnabled",
                     "oidcToEmailLinkingEnabled",
                     "oidcLinkingEnabled"
@@ -37708,6 +37714,11 @@
                         "type": "boolean",
                         "nullable": true,
                         "description": "Per-org consent for the Lightdash support team to impersonate users in\nthe org while helping with a support request. Unlike the OIDC toggles\nthis has no instance/env default — it's opt-in only, so `null` (or no\nstored row) resolves to `false`."
+                    },
+                    "semanticLayerPgwireEnabled": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "description": "Per-org enablement of the semantic-layer Postgres wire integration\n(surfaced on the project settings page). Like impersonation this has no\ninstance/env default — it's opt-in only, so `null` (or no stored row)\nresolves to `false`."
                     },
                     "scheduledDeliveryExpirationSeconds": {
                         "type": "number",
@@ -37943,6 +37954,25 @@
             },
             "Organization": {
                 "properties": {
+                    "pgWire": {
+                        "properties": {
+                            "port": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            },
+                            "host": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "enabled": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": ["port", "host", "enabled"],
+                        "type": "object",
+                        "description": "Postgres wire protocol connection details for the semantic layer, only\npopulated on the authenticated `GET /org` response (not the public health\nendpoint). `enabled` reflects whether the instance exposes a pgwire port;\n`host`/`port` are what clients use to connect."
+                    },
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
@@ -45774,7 +45804,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3368.0",
+        "version": "0.3371.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

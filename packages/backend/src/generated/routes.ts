@@ -37407,6 +37407,14 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                semanticLayerPgwireEnabled: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'boolean' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 supportImpersonationEnabled: {
                     dataType: 'union',
                     subSchemas: [
@@ -37470,6 +37478,14 @@ const models: TsoaRoute.Models = {
                     ],
                 },
                 supportImpersonationEnabled: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'boolean' },
+                        { dataType: 'enum', enums: [null] },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                semanticLayerPgwireEnabled: {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'boolean' },
@@ -37732,6 +37748,28 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                pgWire: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        port: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'double' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        host: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        enabled: { dataType: 'boolean', required: true },
+                    },
+                },
                 createdAt: { dataType: 'datetime' },
                 defaultProjectUuid: { dataType: 'string' },
                 needsProject: { dataType: 'boolean' },

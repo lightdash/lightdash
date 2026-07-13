@@ -61,6 +61,11 @@ describe('organization service', () => {
         expect(await organizationService.get(account)).toEqual({
             ...organization,
             needsProject: false,
+            pgWire: {
+                enabled: false,
+                host: 'test.lightdash.cloud',
+                port: null,
+            },
         });
     });
     it('Should return needsProject true if there are no projects in DB', async () => {
@@ -71,6 +76,11 @@ describe('organization service', () => {
         expect(await organizationService.get(account)).toEqual({
             ...organization,
             needsProject: true,
+            pgWire: {
+                enabled: false,
+                host: 'test.lightdash.cloud',
+                port: null,
+            },
         });
     });
 

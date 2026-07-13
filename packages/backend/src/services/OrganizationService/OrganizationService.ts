@@ -155,6 +155,24 @@ export class OrganizationService extends BaseService {
         return {
             ...organization,
             needsProject,
+            pgWire: this.getPgWireConnectionDetails(),
+        };
+    }
+
+    private getPgWireConnectionDetails(): Organization['pgWire'] {
+        const { port, host } = this.lightdashConfig.pgWire;
+        let resolvedHost = host ?? null;
+        if (resolvedHost === null) {
+            try {
+                resolvedHost = new URL(this.lightdashConfig.siteUrl).hostname;
+            } catch {
+                resolvedHost = null;
+            }
+        }
+        return {
+            enabled: port !== undefined,
+            host: resolvedHost,
+            port: port ?? null,
         };
     }
 

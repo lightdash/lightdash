@@ -662,6 +662,23 @@ export const useSettingsNavigation = (
                 });
             }
 
+            if (organization?.pgWire?.enabled) {
+                projectItems.push({
+                    label: 'Semantic layer',
+                    to: `${base}/semanticLayer`,
+                    icon: IconPlug,
+                    keywords: [
+                        'postgres',
+                        'pgwire',
+                        'connection',
+                        'sql',
+                        'bi',
+                    ],
+                    children: [],
+                    exact: true,
+                });
+            }
+
             if (
                 ability?.can(
                     'update',

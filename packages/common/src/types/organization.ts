@@ -41,6 +41,18 @@ export type Organization = {
      */
     defaultProjectUuid?: string;
     createdAt?: Date;
+
+    /**
+     * Postgres wire protocol connection details for the semantic layer, only
+     * populated on the authenticated `GET /org` response (not the public health
+     * endpoint). `enabled` reflects whether the instance exposes a pgwire port;
+     * `host`/`port` are what clients use to connect.
+     */
+    pgWire?: {
+        enabled: boolean;
+        host: string | null;
+        port: number | null;
+    };
 };
 
 export type CreateOrganization = Pick<Organization, 'name'>;
