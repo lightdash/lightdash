@@ -1,6 +1,7 @@
 import {
     AnyType,
     attachTypesToModels,
+    attachWarehouseColumnWarningsToExplores,
     convertExplores,
     DbtManifestVersion,
     DbtMetric,
@@ -18,6 +19,7 @@ import {
     getSchemaStructureFromDbtModels,
     InlineError,
     InlineErrorType,
+    isExploreError,
     isSupportedDbtAdapter,
     loadLightdashProjectConfig,
     loadProjectContextFile,
@@ -307,7 +309,28 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 },
             );
             Logger.info('Finished compiling explores');
-            return [...lazyExplores, ...failedExplores];
+            const lazyExploresWithWarnings =
+                attachWarehouseColumnWarningsToExplores(
+                    lazyExplores,
+                    this.cachedWarehouse.warehouseCatalog,
+                    adapterType !== 'snowflake',
+                );
+            const hasMissingColumnWarnings = lazyExploresWithWarnings.some(
+                (explore) =>
+                    !isExploreError(explore) &&
+                    explore.warnings?.some(
+                        (warning) =>
+                            warning.type ===
+                            InlineErrorType.MISSING_WAREHOUSE_COLUMN,
+                    ),
+            );
+            if (hasMissingColumnWarnings) {
+                throw new MissingCatalogEntryError(
+                    'Field sql references a column missing from the cached warehouse catalog; refreshing catalog',
+                    {},
+                );
+            }
+            return [...lazyExploresWithWarnings, ...failedExplores];
         } catch (e) {
             if (e instanceof MissingCatalogEntryError) {
                 Logger.info(
@@ -357,7 +380,13 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 Logger.info(
                     'Finished compiling explores after missing catalog error',
                 );
-                return [...explores, ...failedExplores];
+                const exploresWithWarnings =
+                    attachWarehouseColumnWarningsToExplores(
+                        explores,
+                        warehouseCatalog,
+                        adapterType !== 'snowflake',
+                    );
+                return [...exploresWithWarnings, ...failedExplores];
             }
             throw e;
         }

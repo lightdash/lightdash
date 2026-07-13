@@ -261,6 +261,17 @@ export const exploreWithoutMetric: Explore = {
     },
 };
 
+export const exploreWithMissingColumnWarning: Explore = {
+    ...explore,
+    warnings: [
+        {
+            type: InlineErrorType.MISSING_WAREHOUSE_COLUMN,
+            message:
+                'Metric "myMetric" references column "gone_column" which does not exist in table "table" in your warehouse. Queries using this metric will fail.',
+        },
+    ],
+};
+
 export const exploreWithJoin: Explore = {
     targetDatabase: SupportedDbtAdapter.POSTGRES,
     name: 'joined_explore',

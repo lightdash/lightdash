@@ -29,6 +29,7 @@ import {
     explore,
     exploreError,
     exploreWithJoin,
+    exploreWithMissingColumnWarning,
     exploreWithoutDimension,
     exploreWithoutMetric,
     project,
@@ -229,6 +230,28 @@ describe('validation', () => {
         expect(errors[0]!.error).toEqual(
             'Model "valid_explore" in metric "some_metric" has a dimension reference: ${is_completed} which matches no dimension',
         );
+    });
+
+    it('Should flag fields referencing warehouse columns that do not exist', async () => {
+        (
+            projectModel.findExploresFromCache as import('vitest').Mock
+        ).mockImplementationOnce(async () => [exploreWithMissingColumnWarning]);
+
+        const errors =
+            await validationService.generateValidation('projectUuid');
+
+        const tableErrors = errors.filter((ve) => ve.source === 'table');
+
+        expect(tableErrors).toHaveLength(1);
+        expect({ ...tableErrors[0], createdAt: undefined }).toEqual({
+            createdAt: undefined,
+            name: 'valid_explore',
+            modelName: 'valid_explore',
+            error: 'Metric "myMetric" references column "gone_column" which does not exist in table "table" in your warehouse. Queries using this metric will fail.',
+            errorType: 'model',
+            projectUuid: 'projectUuid',
+            source: 'table',
+        });
     });
 
     it('Should not show unselected table errors', async () => {

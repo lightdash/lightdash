@@ -8,11 +8,16 @@ import {
 } from '../types/field';
 import { DEFAULT_SPOTLIGHT_CONFIG } from '../types/lightdashProjectConfig';
 import { TimeFrames } from '../types/timeFrames';
-import { warehouseClientMock } from './exploreCompiler.mock';
+import {
+    exploreOneEmptyTableCompiled,
+    warehouseClientMock,
+} from './exploreCompiler.mock';
 import {
     attachTypesToModels,
+    attachWarehouseColumnWarningsToExplores,
     convertExplores,
     convertTable,
+    getReferencedTableColumns,
 } from './translator';
 import {
     DBT_METRIC,
@@ -2209,5 +2214,130 @@ describe('granularity_labels overrides', () => {
             expect(dims.created_week.timeIntervalLabel).toBeUndefined();
             expect(explore.granularityLabels).toBeUndefined();
         }
+    });
+});
+
+describe('getReferencedTableColumns', () => {
+    it('extracts a simple column reference', () => {
+        expect(getReferencedTableColumns('${TABLE}.result_id')).toEqual([
+            'result_id',
+        ]);
+    });
+    it('extracts columns wrapped in expressions', () => {
+        expect(
+            getReferencedTableColumns('SUM(CAST(${TABLE}.is_winner AS INT64))'),
+        ).toEqual(['is_winner']);
+    });
+    it('extracts multiple distinct columns and de-duplicates', () => {
+        expect(
+            getReferencedTableColumns('${TABLE}.a + ${TABLE}.b - ${TABLE}.a'),
+        ).toEqual(['a', 'b']);
+    });
+    it('returns the top-level column for struct/nested access', () => {
+        expect(getReferencedTableColumns('${TABLE}.address.city')).toEqual([
+            'address',
+        ]);
+    });
+    it('ignores field references to other models', () => {
+        expect(getReferencedTableColumns('${other_model.some_field}')).toEqual(
+            [],
+        );
+    });
+});
+
+describe('attachWarehouseColumnWarningsToExplores', () => {
+    const makeExplore = (fields: {
+        metrics?: Record<string, string>;
+        dimensions?: Record<string, string>;
+    }): Explore =>
+        ({
+            ...exploreOneEmptyTableCompiled,
+            name: 'a',
+            baseTable: 'a',
+            tables: {
+                a: {
+                    ...exploreOneEmptyTableCompiled.tables.a,
+                    database: 'db',
+                    schema: 'sch',
+                    sqlTable: '"db"."sch"."a"',
+                    metrics: Object.fromEntries(
+                        Object.entries(fields.metrics ?? {}).map(
+                            ([name, sql]) => [name, { name, sql }],
+                        ),
+                    ),
+                    dimensions: Object.fromEntries(
+                        Object.entries(fields.dimensions ?? {}).map(
+                            ([name, sql]) => [name, { name, sql }],
+                        ),
+                    ),
+                },
+            },
+        }) as unknown as Explore;
+
+    const catalog = {
+        db: { sch: { a: { existing_col: DimensionType.NUMBER } } },
+    };
+
+    it('flags a metric referencing a column missing from the catalog', () => {
+        const [explore] = attachWarehouseColumnWarningsToExplores(
+            [makeExplore({ metrics: { m: '${TABLE}.missing_col' } })],
+            catalog,
+        );
+        if ('errors' in explore) throw new Error('unexpected ExploreError');
+        expect(explore.warnings).toHaveLength(1);
+        expect(explore.warnings?.[0].type).toBe(
+            InlineErrorType.MISSING_WAREHOUSE_COLUMN,
+        );
+        expect(explore.warnings?.[0].message).toContain('missing_col');
+        expect(explore.tables.a.warnings).toHaveLength(1);
+    });
+
+    it('does not flag a metric referencing an existing column', () => {
+        const [explore] = attachWarehouseColumnWarningsToExplores(
+            [makeExplore({ metrics: { m: 'SUM(${TABLE}.existing_col)' } })],
+            catalog,
+        );
+        if ('errors' in explore) throw new Error('unexpected ExploreError');
+        expect(explore.warnings ?? []).toHaveLength(0);
+    });
+
+    it('flags dimensions referencing missing columns too', () => {
+        const [explore] = attachWarehouseColumnWarningsToExplores(
+            [makeExplore({ dimensions: { d: '${TABLE}.gone' } })],
+            catalog,
+        );
+        if ('errors' in explore) throw new Error('unexpected ExploreError');
+        expect(explore.warnings).toHaveLength(1);
+        expect(explore.warnings?.[0].message).toContain('Dimension "d"');
+    });
+
+    it('skips tables that are not present in the catalog', () => {
+        const [explore] = attachWarehouseColumnWarningsToExplores(
+            [makeExplore({ metrics: { m: '${TABLE}.missing_col' } })],
+            { db: { sch: {} } },
+        );
+        if ('errors' in explore) throw new Error('unexpected ExploreError');
+        expect(explore.warnings ?? []).toHaveLength(0);
+    });
+
+    it('matches case-insensitively when caseSensitiveMatching is false', () => {
+        const upperCatalog = {
+            DB: { SCH: { A: { EXISTING_COL: DimensionType.NUMBER } } },
+        };
+        const [flagged] = attachWarehouseColumnWarningsToExplores(
+            [makeExplore({ metrics: { m: '${TABLE}.other_col' } })],
+            upperCatalog,
+            false,
+        );
+        const [ok] = attachWarehouseColumnWarningsToExplores(
+            [makeExplore({ metrics: { m: '${TABLE}.existing_col' } })],
+            upperCatalog,
+            false,
+        );
+        if ('errors' in flagged || 'errors' in ok) {
+            throw new Error('unexpected ExploreError');
+        }
+        expect(flagged.warnings).toHaveLength(1);
+        expect(ok.warnings ?? []).toHaveLength(0);
     });
 });
