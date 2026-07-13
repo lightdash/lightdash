@@ -2,11 +2,10 @@ import type {
     ApiError,
     GeneratedFormulaTableCalculation,
 } from '@lightdash/common';
-import { Box, Button } from '@mantine-8/core';
+import { Box, Button, Flex } from '@mantine-8/core';
 import {
     Alert,
     Anchor,
-    Flex,
     ScrollArea,
     useMantineTheme,
     Text,

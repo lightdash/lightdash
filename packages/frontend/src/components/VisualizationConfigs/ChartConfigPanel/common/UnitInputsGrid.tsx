@@ -1,6 +1,6 @@
 import type { EchartsGrid, EchartsLegend } from '@lightdash/common';
-import { Center } from '@mantine-8/core';
-import { Badge, Flex, SimpleGrid } from '@mantine/core';
+import { Center, Flex } from '@mantine-8/core';
+import { Badge, SimpleGrid } from '@mantine/core';
 import { type FC } from 'react';
 import UnitInput from '../../../common/UnitInput';
 

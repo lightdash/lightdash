@@ -1,9 +1,8 @@
-import { Box, Group, Stack } from '@mantine-8/core';
+import { Box, Flex, Group, Stack } from '@mantine-8/core';
 import {
     Alert,
     Avatar,
     Button,
-    Flex,
     Loader,
     Title,
     Tooltip,

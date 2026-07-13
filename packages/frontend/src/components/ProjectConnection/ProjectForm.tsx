@@ -1,6 +1,6 @@
 import { ProjectType, type DbtProjectType } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
-import { Avatar, Flex, TextInput, Title, Text } from '@mantine/core';
+import { Flex, Stack } from '@mantine-8/core';
+import { Avatar, TextInput, Title, Text } from '@mantine/core';
 import { type FC } from 'react';
 import useApp from '../../providers/App/useApp';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
