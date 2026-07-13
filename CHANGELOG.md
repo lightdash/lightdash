@@ -1,3 +1,10 @@
+## [0.3365.2](https://github.com/lightdash/lightdash/compare/0.3365.1...0.3365.2) (2026-07-13)
+
+
+### Bug Fixes
+
+* **backend:** seed spotlight categories for the demo project ([#25433](https://github.com/lightdash/lightdash/issues/25433)) ([00f1a70](https://github.com/lightdash/lightdash/commit/00f1a70a620c50a58edf6030f393eaf9f5b099a7))
+
 ## [0.3365.1](https://github.com/lightdash/lightdash/compare/0.3365.0...0.3365.1) (2026-07-13)
 
 
