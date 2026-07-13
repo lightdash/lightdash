@@ -3,8 +3,8 @@ import {
     TimeFrames,
     type OrganizationProject,
 } from '@lightdash/common';
-import { Stack, Text } from '@mantine-8/core';
-import { Avatar, Button, LoadingOverlay, Tabs } from '@mantine/core';
+import { Button, Stack, Text } from '@mantine-8/core';
+import { Avatar, LoadingOverlay, Tabs } from '@mantine/core';
 import { useOs } from '@mantine/hooks';
 import { Prism } from '@mantine/prism';
 import { IconChevronLeft, IconClock } from '@tabler/icons-react';
@@ -115,7 +115,7 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                 variant="subtle"
                 size="sm"
                 top={-50}
-                leftIcon={<MantineIcon icon={IconChevronLeft} />}
+                leftSection={<MantineIcon icon={IconChevronLeft} />}
                 onClick={onBack}
             >
                 Back

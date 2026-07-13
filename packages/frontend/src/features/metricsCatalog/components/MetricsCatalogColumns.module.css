@@ -1,0 +1,4 @@
+.tableButton[data-disabled] {
+    font-weight: 400;
+    background-color: transparent;
+}

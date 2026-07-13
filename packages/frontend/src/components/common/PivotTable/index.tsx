@@ -34,8 +34,9 @@ import {
     Skeleton,
     type BoxProps,
     Text,
+    Button,
 } from '@mantine-8/core';
-import { Button, useMantineColorScheme } from '@mantine/core';
+import { useMantineColorScheme } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import {
     flexRender,
@@ -1998,8 +1999,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                             ) : (
                                                 <Group gap="two" wrap="nowrap">
                                                     <Button
-                                                        compact
-                                                        size="xs"
+                                                        size="compact-xs"
                                                         variant="subtle"
                                                         styles={(theme) => ({
                                                             root: {
@@ -2015,7 +2015,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                                                 fontFeatureSettings:
                                                                     "'tnum'",
                                                             },
-                                                            leftIcon: {
+                                                            section: {
                                                                 marginRight: 0,
                                                             },
                                                         })}
@@ -2026,7 +2026,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                                             e.preventDefault();
                                                             toggleExpander();
                                                         }}
-                                                        leftIcon={
+                                                        leftSection={
                                                             <MantineIcon
                                                                 size={14}
                                                                 icon={

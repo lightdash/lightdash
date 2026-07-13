@@ -8,10 +8,10 @@ import {
     Stack,
     Text,
     Title,
+    Button,
 } from '@mantine-8/core';
 import {
     Anchor,
-    Button,
     Highlight,
     MultiSelect,
     Radio,

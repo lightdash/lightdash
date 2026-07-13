@@ -1,11 +1,6 @@
 import { type CatalogField, type Tag } from '@lightdash/common';
-import { Box, Group, Stack, Text } from '@mantine-8/core';
-import {
-    Button,
-    Popover,
-    UnstyledButton,
-    useMantineTheme,
-} from '@mantine/core';
+import { Box, Group, Stack, Text, Button } from '@mantine-8/core';
+import { Popover, UnstyledButton, useMantineTheme } from '@mantine/core';
 import differenceBy from 'lodash/differenceBy';
 import filter from 'lodash/filter';
 import includes from 'lodash/includes';

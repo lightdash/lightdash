@@ -4,8 +4,8 @@ import {
     type CompiledDimension,
     type FilterRule,
 } from '@lightdash/common';
-import { Group, Stack, Text } from '@mantine-8/core';
-import { Button, Select } from '@mantine/core';
+import { Group, Stack, Text, Button } from '@mantine-8/core';
+import { Select } from '@mantine/core';
 import { IconFilter, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -19,6 +19,7 @@ import {
     getOperatorOptions,
 } from '../../utils/metricExploreFilter';
 import SelectItem from '../SelectItem';
+import styles from './MetricExploreButtons.module.css';
 import { MetricExploreFilterAutoComplete } from './MetricExploreFilterAutoComplete';
 
 type Props = {
@@ -199,25 +200,22 @@ export const MetricExploreFilter: FC<Props> = ({
                 <Group gap="xs">
                     <Button
                         variant="subtle"
-                        compact
+                        size="compact-xs"
                         color="dark"
-                        size="xs"
                         radius="md"
-                        rightIcon={
+                        rightSection={
                             <MantineIcon
                                 icon={IconX}
                                 color="ldGray.5"
                                 size={12}
                             />
                         }
-                        sx={{
-                            '&:hover': {
-                                backgroundColor: theme.colors.ldGray[1],
-                            },
+                        className={styles.clearButton}
+                        style={{
                             visibility: showClearButton,
                         }}
                         styles={{
-                            rightIcon: {
+                            section: {
                                 marginLeft: 4,
                             },
                         }}
@@ -294,10 +292,9 @@ export const MetricExploreFilter: FC<Props> = ({
             {filterState.fieldId && dimensionMetadata?.requiresValues && (
                 <Button
                     color={theme.colorScheme === 'dark' ? 'ldGray.2' : 'dark'}
-                    compact
-                    size="xs"
+                    size="compact-xs"
                     disabled={!canApplyFilter}
-                    sx={{
+                    style={{
                         boxShadow: theme.shadows.subtle,
                         alignSelf: 'flex-end',
                     }}

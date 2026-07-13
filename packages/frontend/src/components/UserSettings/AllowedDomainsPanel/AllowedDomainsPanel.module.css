@@ -1,0 +1,3 @@
+.addProjectButton[data-disabled='true'] {
+    pointer-events: all;
+}

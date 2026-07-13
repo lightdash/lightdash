@@ -2,11 +2,10 @@ import {
     DatabricksAuthenticationType,
     WarehouseTypes,
 } from '@lightdash/common';
-import { Group, Stack, Text } from '@mantine-8/core';
+import { Group, Stack, Text, Button } from '@mantine-8/core';
 import {
     ActionIcon,
     Anchor,
-    Button,
     PasswordInput,
     Select,
     TextInput,
@@ -31,6 +30,7 @@ import { useProjectFormContext } from '../useProjectFormContext';
 import DataTimezoneField from './DataTimezoneField';
 import { DatabricksDefaultValues } from './defaultValues';
 import { getSsoLabel, PERSONAL_ACCESS_TOKEN_LABEL } from './util';
+import styles from './WarehouseButtons.module.css';
 
 export const DatabricksSchemaInput: FC<{
     disabled: boolean;
@@ -78,8 +78,8 @@ const DatabricksSSOInput: FC<{
             variant="default"
             color="gray"
             disabled={disabled}
-            leftIcon={getWarehouseIcon(WarehouseTypes.DATABRICKS, 'sm')}
-            sx={{ ':hover': { textDecoration: 'underline' } }}
+            leftSection={getWarehouseIcon(WarehouseTypes.DATABRICKS, 'sm')}
+            className={styles.signInButton}
             fullWidth
         >
             Sign in with Databricks
@@ -377,7 +377,9 @@ const DatabricksForm: FC<{
                             disabled={disabled}
                             {...form.getInputProps(
                                 'warehouse.requireUserCredentials',
-                                { type: 'checkbox' },
+                                {
+                                    type: 'checkbox',
+                                },
                             )}
                         />
                         <DataTimezoneField disabled={disabled} />
@@ -441,11 +443,11 @@ const DatabricksForm: FC<{
                                     <Button
                                         variant="default"
                                         size="xs"
-                                        sx={(theme) => ({
+                                        style={(theme) => ({
                                             alignSelf: 'flex-end',
                                             boxShadow: theme.shadows.subtle,
                                         })}
-                                        leftIcon={
+                                        leftSection={
                                             <MantineIcon icon={IconPlus} />
                                         }
                                         onClick={addCompute}

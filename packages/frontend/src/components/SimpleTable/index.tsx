@@ -1,5 +1,4 @@
-import { Box, Flex, Text } from '@mantine-8/core';
-import { Button } from '@mantine/core';
+import { Box, Flex, Text, Button } from '@mantine-8/core';
 import { noop } from '@mantine/utils';
 import { IconAlertCircle, IconRefresh, IconTable } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
@@ -267,7 +266,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                         <Button
                             variant="default"
                             size={'xs'}
-                            leftIcon={<IconRefresh size={16} />}
+                            leftSection={<IconRefresh size={16} />}
                             onClick={triggerChunkErrorReload}
                         >
                             Refresh page

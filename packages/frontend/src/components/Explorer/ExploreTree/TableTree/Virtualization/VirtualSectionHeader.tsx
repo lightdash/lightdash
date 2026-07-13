@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { FeatureFlags, isCustomSqlDimension } from '@lightdash/common';
-import { Group, Text } from '@mantine-8/core';
-import { ActionIcon, Button, Tooltip } from '@mantine/core';
+import { Button, Group, Text } from '@mantine-8/core';
+import { ActionIcon, Tooltip } from '@mantine/core';
 import { IconCode, IconPlus } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, type FC } from 'react';
 import {
@@ -164,10 +164,9 @@ const VirtualSectionHeaderComponent: FC<VirtualSectionHeaderProps> = ({
                         position="left"
                     >
                         <Button
-                            size="xs"
                             variant="subtle"
-                            compact
-                            leftIcon={<MantineIcon icon={IconPlus} />}
+                            size="compact-xs"
+                            leftSection={<MantineIcon icon={IconPlus} />}
                             onClick={handleAddCustomDimension}
                             data-testid="VirtualSectionHeader/AddCustomDimensionButton"
                         >

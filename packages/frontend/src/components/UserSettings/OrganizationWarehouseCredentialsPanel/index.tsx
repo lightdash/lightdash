@@ -1,6 +1,6 @@
 import { type OrganizationWarehouseCredentials } from '@lightdash/common';
-import { Group, Stack, Text, Title } from '@mantine-8/core';
-import { Button, LoadingOverlay } from '@mantine/core';
+import { Group, Stack, Text, Title, Button } from '@mantine-8/core';
+import { LoadingOverlay } from '@mantine/core';
 import { IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useOrganizationWarehouseCredentials } from '../../../hooks/organization/useOrganizationWarehouseCredentials';
@@ -42,7 +42,7 @@ export const OrganizationWarehouseCredentialsPanel = () => {
                             </Stack>
                             <Button
                                 size="xs"
-                                leftIcon={<MantineIcon icon={IconPlus} />}
+                                leftSection={<MantineIcon icon={IconPlus} />}
                                 onClick={() => setIsCreatingCredentials(true)}
                             >
                                 Add new credentials

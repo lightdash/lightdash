@@ -1,4 +1,5 @@
-import { Button, Card, List, Tooltip } from '@mantine/core';
+import { Button } from '@mantine-8/core';
+import { Card, List, Tooltip } from '@mantine/core';
 import { type SuggestionProps } from '@tiptap/suggestion';
 import { forwardRef, useEffect, useImperativeHandle, useState } from 'react';
 import { type SuggestionsItem } from '../../types';
@@ -89,7 +90,7 @@ export const SuggestionList = forwardRef<
                             position="right"
                         >
                             <Button
-                                compact
+                                size="compact-sm"
                                 onClick={() => {
                                     if (item.disabled) return;
                                     selectItem(index);

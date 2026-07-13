@@ -5,8 +5,8 @@ import {
     type CompiledDimension,
     type MetricExplorerQuery,
 } from '@lightdash/common';
-import { Box, Group, Loader, Stack, Text } from '@mantine-8/core';
-import { Alert, Button, Select, Tooltip } from '@mantine/core';
+import { Box, Group, Loader, Stack, Text, Button } from '@mantine-8/core';
+import { Alert, Select, Tooltip } from '@mantine/core';
 import { IconInfoCircle, IconX } from '@tabler/icons-react';
 import { type UseQueryResult } from '@tanstack/react-query';
 import { useMemo, type FC } from 'react';
@@ -14,6 +14,7 @@ import MantineIcon from '../../../../components/common/MantineIcon';
 import { Blocks } from '../../../../svgs/metricsCatalog';
 import { useSelectStyles } from '../../styles/useSelectStyles';
 import SelectItem from '../SelectItem';
+import styles from './MetricExploreButtons.module.css';
 
 type Props = {
     query: MetricExplorerQuery;
@@ -51,25 +52,22 @@ export const MetricExploreSegmentationPicker: FC<Props> = ({
 
                 <Button
                     variant="subtle"
-                    compact
+                    size="compact-xs"
                     color="dark"
-                    size="xs"
                     radius="md"
-                    rightIcon={
+                    rightSection={
                         <MantineIcon icon={IconX} color="ldGray.5" size={12} />
                     }
-                    sx={(theme) => ({
+                    className={styles.clearButton}
+                    style={{
                         visibility:
                             !('segmentDimension' in query) ||
                             !query.segmentDimension
                                 ? 'hidden'
                                 : 'visible',
-                        '&:hover': {
-                            backgroundColor: theme.colors.ldGray[1],
-                        },
-                    })}
+                    }}
                     styles={{
-                        rightIcon: {
+                        section: {
                             marginLeft: 4,
                         },
                     }}

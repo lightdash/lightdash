@@ -9,9 +9,8 @@ import {
     XAxisSort,
     type ItemsMap,
 } from '@lightdash/common';
-import { Group, Stack, Text } from '@mantine-8/core';
+import { Group, Stack, Text, Button } from '@mantine-8/core';
 import {
-    Button,
     Checkbox,
     NumberInput,
     SegmentedControl,
@@ -171,9 +170,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
 
                     {isNumericItem(xAxisField) && (
                         <AxisMinMax
-                            label={`Auto ${
-                                dirtyLayout?.flipAxes ? 'y' : 'x'
-                            }-axis range`}
+                            label={`Auto ${dirtyLayout?.flipAxes ? 'y' : 'x'}-axis range`}
                             min={dirtyEchartsConfig?.xAxis?.[0]?.min}
                             max={dirtyEchartsConfig?.xAxis?.[0]?.max}
                             setMin={(newValue) => setXMinValue(0, newValue)}
@@ -356,9 +353,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
 
             <Config>
                 <Config.Section>
-                    <Config.Heading>{`${
-                        dirtyLayout?.flipAxes ? 'X' : 'Y'
-                    }-axis label (${
+                    <Config.Heading>{`${dirtyLayout?.flipAxes ? 'X' : 'Y'}-axis label (${
                         dirtyLayout?.flipAxes ? 'bottom' : 'left'
                     })`}</Config.Heading>
 
@@ -379,9 +374,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                     />
                     {showFirstAxisRange && (
                         <AxisMinMax
-                            label={`Auto ${
-                                dirtyLayout?.flipAxes ? 'x' : 'y'
-                            }-axis range`}
+                            label={`Auto ${dirtyLayout?.flipAxes ? 'x' : 'y'}-axis range`}
                             min={dirtyEchartsConfig?.yAxis?.[0]?.min}
                             max={dirtyEchartsConfig?.yAxis?.[0]?.max}
                             setMin={(newValue) => setYMinValue(0, newValue)}
@@ -402,9 +395,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
 
             <Config>
                 <Config.Section>
-                    <Config.Heading>{`${
-                        dirtyLayout?.flipAxes ? 'X' : 'Y'
-                    }-axis label (${
+                    <Config.Heading>{`${dirtyLayout?.flipAxes ? 'X' : 'Y'}-axis label (${
                         dirtyLayout?.flipAxes ? 'top' : 'right'
                     })`}</Config.Heading>
 
@@ -426,9 +417,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
 
                     {showSecondAxisRange && (
                         <AxisMinMax
-                            label={`Auto ${
-                                dirtyLayout?.flipAxes ? 'x' : 'y'
-                            }-axis range`}
+                            label={`Auto ${dirtyLayout?.flipAxes ? 'x' : 'y'}-axis range`}
                             min={dirtyEchartsConfig?.yAxis?.[1]?.min}
                             max={dirtyEchartsConfig?.yAxis?.[1]?.max}
                             setMin={(newValue) => setYMinValue(1, newValue)}

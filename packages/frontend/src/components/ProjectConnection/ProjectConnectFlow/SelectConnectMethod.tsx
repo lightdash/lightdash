@@ -1,5 +1,5 @@
-import { Stack, Text } from '@mantine-8/core';
-import { Avatar, Button } from '@mantine/core';
+import { Button, Stack, Text } from '@mantine-8/core';
+import { Avatar } from '@mantine/core';
 import {
     IconChecklist,
     IconChevronLeft,
@@ -36,7 +36,7 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
                 variant="subtle"
                 size="sm"
                 top={-50}
-                leftIcon={<MantineIcon icon={IconChevronLeft} />}
+                leftSection={<MantineIcon icon={IconChevronLeft} />}
                 onClick={onBack}
             >
                 Back
