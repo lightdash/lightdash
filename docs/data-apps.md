@@ -870,7 +870,7 @@ Opt-in flags on the existing `lightdash download` / `lightdash upload` commands 
 - **`lightdash download --apps <appUuids...>`** — download specific data apps into `lightdash/apps/<slug>/`; **`--include-apps`** downloads all of the project's apps (capped at `--apps-limit`, default 50). Each folder holds `lightdash-app.yml` (manifest) + the app's `src/` tree. The built `dist` is intentionally excluded — it's regenerated on upload.
 - **`lightdash upload --apps <appUuids...>`** — upload specific apps (matched by manifest `appUuid`); **`--include-apps`** uploads every `lightdash/apps/<slug>/` folder on disk. The server rebuilds the source. **Fire-and-forget:** the CLI posts and returns immediately — the app shows `building` in the UI until the server finishes.
 
-**Identity:** the manifest's `appUuid` is the source of truth (apps have no persistent slug; the `<slug>` folder name is derived from the app name via `generateSlug`). Uploading to the **same project** appends a new version of that app; uploading to a **different project** creates a new app there.
+**Identity:** the manifest's `appUuid` is the source of truth (apps have no persistent slug; the `<slug>` folder name is derived from the app name via `generateSlug`, with a stable `untitled-app-<uuid8>` fallback for unnamed apps so re-downloads reuse the same folder). Uploading to the **same project** appends a new version of that app; uploading to a **different project** creates a new app there.
 
 ### What the endpoints do
 
