@@ -1,12 +1,12 @@
 import { type VizColumn } from '@lightdash/common';
-import { ActionIcon } from '@mantine-8/core';
-import { ScrollArea, TextInput } from '@mantine/core';
+import { ActionIcon, ScrollArea, TextInput } from '@mantine-8/core';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { type FC } from 'react';
 import {
     useAppDispatch as useVizDispatch,
     useAppSelector as useVizSelector,
 } from '../../../features/sqlRunner/store/hooks';
+import scrollAreaClasses from '../../../styles/ScrollArea.module.css';
 import MantineIcon from '../../common/MantineIcon';
 import { Config } from '../../VisualizationConfigs/common/Config';
 import { TableFieldIcon } from '../Icons';
@@ -29,10 +29,10 @@ const TableVisConfiguration: FC<{ columns: VizColumn[] }> = ({ columns }) => {
     return (
         <ScrollArea
             offsetScrollbars
-            variant="primary"
-            className="only-vertical"
+            scrollbars="y"
+            classNames={{ content: scrollAreaClasses.verticalContent }}
             type="auto"
-            sx={{ flex: 1 }}
+            style={{ flex: 1 }}
             mb="md"
         >
             <Config>
@@ -46,17 +46,23 @@ const TableVisConfiguration: FC<{ columns: VizColumn[] }> = ({ columns }) => {
 
                         return (
                             <TextInput
+                                size="xs"
                                 key={reference}
                                 radius="md"
                                 value={columnsConfig[reference].label}
-                                icon={
+                                leftSection={
                                     fieldType && (
                                         <TableFieldIcon fieldType={fieldType} />
                                     )
                                 }
                                 readOnly={!columnsConfig[reference].visible}
+                                rightSectionPointerEvents="all"
                                 rightSection={
                                     <ActionIcon
+                                        aria-label="Toggle column visibility"
+                                        onMouseDown={(event) =>
+                                            event.preventDefault()
+                                        }
                                         variant="subtle"
                                         color="gray"
                                         onClick={() =>

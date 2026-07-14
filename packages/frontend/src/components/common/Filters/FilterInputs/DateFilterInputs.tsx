@@ -287,7 +287,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
 
                     <FilterUnitOfTimeAutoComplete
                         disabled={disabled}
-                        sx={{ flexShrink: 1, flexGrow: 3 }}
+                        style={{ flexShrink: 1, flexGrow: 3 }}
                         isTimestamp={isTimestamp}
                         minUnitOfTime={
                             isDimension(field) && field.timeInterval
@@ -296,7 +296,9 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                         }
                         unitOfTime={rule.settings?.unitOfTime}
                         completed={rule.settings?.completed || false}
-                        withinPortal={popoverProps?.withinPortal}
+                        comboboxProps={{
+                            withinPortal: popoverProps?.withinPortal,
+                        }}
                         onDropdownOpen={popoverProps?.onOpen}
                         onDropdownClose={popoverProps?.onClose}
                         onChange={(value) =>
@@ -328,7 +330,9 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                     showCompletedOptions={false}
                     data-autofocus={!rule.settings?.unitOfTime || undefined}
                     completed={false}
-                    withinPortal={popoverProps?.withinPortal}
+                    comboboxProps={{
+                        withinPortal: popoverProps?.withinPortal,
+                    }}
                     onDropdownOpen={popoverProps?.onOpen}
                     onDropdownClose={popoverProps?.onClose}
                     onChange={(value) =>
@@ -423,6 +427,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                     disabled={disabled}
                     unitOfTime={rule.settings?.unitOfTime}
                     field={field}
+                    popoverProps={popoverProps}
                     onChange={(unitOfTime) =>
                         onChange({
                             ...rule,

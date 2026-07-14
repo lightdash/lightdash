@@ -165,6 +165,10 @@ export const getToolCallChipLabel = (
             const args = toolArgs as ToolCreateContentArgs;
             return args.content?.slug ?? null;
         }
+        case 'createScheduledDelivery': {
+            const args = toolArgs as { name?: string };
+            return args.name ?? null;
+        }
         case 'exploreRepo': {
             const args = toolArgs as { command?: string; target?: string };
             if (args.target && args.command)
@@ -177,14 +181,15 @@ export const getToolCallChipLabel = (
         case 'runSavedChart':
         case 'generateHashes':
         case 'improveContext':
+            return null;
         case 'runContentQuery': {
             const args = toolArgs as ToolRunContentQueryArgs;
-            if (args.source.type === 'metricQuery')
+            if (args.source?.type === 'metricQuery')
                 return args.source.tableName;
-            if (args.source.type === 'dashboardChart') {
+            if (args.source?.type === 'dashboardChart') {
                 return `${args.source.dashboardSlug}: ${args.source.chartSlug}`;
             }
-            return args.source.chartSlug;
+            return args.source?.chartSlug ?? null;
         }
         case 'loadProjectContext': {
             const args = toolArgs as { search?: string | null };

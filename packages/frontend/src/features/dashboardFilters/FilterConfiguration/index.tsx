@@ -19,8 +19,17 @@ import {
     type DashboardTile,
     type ResultColumn,
 } from '@lightdash/common';
-import { Box, Button, Flex, Group, Stack, Tabs, Text } from '@mantine-8/core';
-import { Select, Tooltip, type PopoverProps } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Flex,
+    Group,
+    Stack,
+    Tabs,
+    Text,
+    Select,
+} from '@mantine-8/core';
+import { Tooltip, type PopoverProps } from '@mantine/core';
 import { IconRotate2, IconSql } from '@tabler/icons-react';
 import { produce } from 'immer';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
@@ -373,6 +382,13 @@ const FilterConfiguration: FC<Props> = ({
         ? 'A locked, required filter must have a value'
         : 'Filter field and value required';
 
+    // Render nested dropdowns inside the popover (not portaled) so selecting an
+    // option doesn't register as an outside click and close the whole popover.
+    const inlinePopoverProps = {
+        ...popoverProps,
+        withinPortal: false,
+    };
+
     return (
         // Make inline dropdowns flow in the panel (instead of absolute), so the
         // panel grows with them and Apply stays visible — PROD-2395 sketch.
@@ -426,10 +442,11 @@ const FilterConfiguration: FC<Props> = ({
                                     activeTabUuid={activeTabUuid}
                                     selectedField={selectedField}
                                     onChange={handleChangeField}
-                                    popoverProps={popoverProps}
+                                    popoverProps={inlinePopoverProps}
                                 />
                             ) : (
                                 <Select
+                                    allowDeselect={false}
                                     size="xs"
                                     label={
                                         <Text>
@@ -440,6 +457,12 @@ const FilterConfiguration: FC<Props> = ({
                                         </Text>
                                     }
                                     placeholder="Search column..."
+                                    comboboxProps={{
+                                        withinPortal:
+                                            inlinePopoverProps.withinPortal,
+                                    }}
+                                    onDropdownOpen={inlinePopoverProps.onOpen}
+                                    onDropdownClose={inlinePopoverProps.onClose}
                                     value={draftFilterRule?.target.fieldId}
                                     data={columnsOptions.map(
                                         ({ reference }) => reference,
@@ -496,7 +519,7 @@ const FilterConfiguration: FC<Props> = ({
                                 field={selectedField}
                                 filterRule={draftFilterRule}
                                 onChangeFilterRule={handleChangeFilterRule}
-                                popoverProps={popoverProps}
+                                popoverProps={inlinePopoverProps}
                             />
                         )}
 
@@ -527,7 +550,7 @@ const FilterConfiguration: FC<Props> = ({
                             field={selectedField}
                             tabs={tabs}
                             filterRule={draftFilterRule}
-                            popoverProps={popoverProps}
+                            popoverProps={inlinePopoverProps}
                             tiles={tiles}
                             availableTileFilters={availableTileFilters}
                             onChange={handleChangeTileConfiguration}

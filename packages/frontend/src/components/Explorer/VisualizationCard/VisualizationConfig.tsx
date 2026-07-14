@@ -1,8 +1,16 @@
 import { assertUnreachable, ChartType } from '@lightdash/common';
-import { Divider, Group, Loader, Text, ActionIcon } from '@mantine-8/core';
-import { ScrollArea, Tooltip } from '@mantine/core';
+import {
+    ActionIcon,
+    Divider,
+    Group,
+    Loader,
+    ScrollArea,
+    Text,
+} from '@mantine-8/core';
+import { Tooltip } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 import { lazy, Suspense, useMemo, type FC } from 'react';
+import scrollAreaClasses from '../../../styles/ScrollArea.module.css';
 import MantineIcon from '../../common/MantineIcon';
 import { ConfigTabs as BigNumberConfigTabs } from '../../VisualizationConfigs/BigNumberConfig/BigNumberConfigTabs';
 import { ConfigTabs as ChartConfigTabs } from '../../VisualizationConfigs/ChartConfigPanel/ConfigTabs';
@@ -95,9 +103,9 @@ const VisualizationConfig: FC<Props> = ({ chartType, onClose }) => {
 
             <ScrollArea
                 offsetScrollbars
-                variant="primary"
-                className="only-vertical"
-                sx={{ flex: 1 }}
+                scrollbars="y"
+                classNames={{ content: scrollAreaClasses.verticalContent }}
+                style={{ flex: 1 }}
                 type="hover"
                 scrollbarSize={8}
             >

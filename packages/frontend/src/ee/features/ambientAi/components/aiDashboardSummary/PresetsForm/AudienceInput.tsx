@@ -1,5 +1,5 @@
-import { Flex, Stack, Text, ActionIcon } from '@mantine-8/core';
-import { TextInput, type SystemProp } from '@mantine/core';
+import { TextInput, Flex, Stack, Text, ActionIcon } from '@mantine-8/core';
+import { type SystemProp } from '@mantine/core';
 import { type UseFormReturnType } from '@mantine/form';
 import { IconPlus, IconTrash } from '@tabler/icons-react';
 import {
@@ -70,8 +70,11 @@ const AudienceInput: FC<AudienceInputProps> = ({
                     w="100%"
                     placeholder="Type the summary audience"
                     value={inputAudience}
+                    rightSectionPointerEvents="all"
                     rightSection={
                         <ActionIcon
+                            aria-label="Add audience"
+                            onMouseDown={(event) => event.preventDefault()}
                             variant="subtle"
                             color="gray"
                             onClick={addAudience}

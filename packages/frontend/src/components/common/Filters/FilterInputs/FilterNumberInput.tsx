@@ -96,6 +96,7 @@ const FilterNumberInput: FC<Props> = ({
 
     return (
         <TextInput
+            radius="md"
             w="100%"
             size="xs"
             disabled={disabled}

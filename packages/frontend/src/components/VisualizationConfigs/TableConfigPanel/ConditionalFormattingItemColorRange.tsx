@@ -5,8 +5,7 @@ import {
     type ConditionalFormattingMinMax,
     type FilterableItem,
 } from '@lightdash/common';
-import { Group, Stack } from '@mantine-8/core';
-import { Select } from '@mantine/core';
+import { Group, Stack, Select } from '@mantine-8/core';
 import { IconPercentage } from '@tabler/icons-react';
 import capitalize from 'lodash/capitalize';
 import { startTransition, useCallback, type FC } from 'react';
@@ -60,7 +59,8 @@ const ConditionalFormattingItemColorRange: FC<Props> = ({
             {groups.map(([rangeName, minMaxName]) => (
                 <Group key={rangeName} gap="xs" wrap="nowrap" align="end">
                     <Select
-                        sx={{ flexBasis: '100%' }}
+                        allowDeselect={false}
+                        style={{ flexBasis: '100%' }}
                         label={`${capitalize(minMaxName)} value type`}
                         data={Object.values(RangeValue).map((value) => ({
                             value,

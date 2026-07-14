@@ -1,6 +1,6 @@
 import { WarehouseTypes } from '@lightdash/common';
-import { Stack, Anchor } from '@mantine-8/core';
-import { NumberInput, PasswordInput, Select, TextInput } from '@mantine/core';
+import { TextInput, Stack, Anchor, Select } from '@mantine-8/core';
+import { NumberInput, PasswordInput } from '@mantine/core';
 import React, { type FC } from 'react';
 import { useToggle } from 'react-use';
 import FormCollapseButton from '../FormCollapseButton';
@@ -110,6 +110,7 @@ const TrinoForm: FC<{
                         />
 
                         <Select
+                            allowDeselect={false}
                             name="warehouse.http_scheme"
                             {...form.getInputProps('warehouse.http_scheme')}
                             defaultValue={TrinoDefaultValues.http_scheme}

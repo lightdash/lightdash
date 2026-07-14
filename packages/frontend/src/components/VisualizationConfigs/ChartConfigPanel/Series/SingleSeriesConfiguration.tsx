@@ -12,8 +12,9 @@ import {
     Collapse,
     Group,
     Stack,
+    Select,
 } from '@mantine-8/core';
-import { Popover, Select } from '@mantine/core';
+import { Popover } from '@mantine/core';
 import { useDebouncedState, useHover } from '@mantine/hooks';
 import {
     IconChevronDown,
@@ -202,6 +203,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         />
 
                         <Select
+                            allowDeselect={false}
                             label={!isGrouped && 'Axis'}
                             value={String(series.yAxisIndex)}
                             data={[
@@ -222,6 +224,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                             }}
                         />
                         <Select
+                            allowDeselect={false}
                             label={!isGrouped && 'Value labels'}
                             value={series.label?.position || 'hidden'}
                             data={[

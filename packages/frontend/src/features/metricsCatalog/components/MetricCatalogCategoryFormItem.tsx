@@ -1,5 +1,6 @@
 import { getErrorMessage, type CatalogItem } from '@lightdash/common';
 import {
+    TextInput,
     Box,
     Divider,
     Group,
@@ -9,7 +10,7 @@ import {
     Button,
     ActionIcon,
 } from '@mantine-8/core';
-import { Popover, SimpleGrid, TextInput, Tooltip } from '@mantine/core';
+import { Popover, SimpleGrid, Tooltip } from '@mantine/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
 import { IconCode, IconDots, IconTrash } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';

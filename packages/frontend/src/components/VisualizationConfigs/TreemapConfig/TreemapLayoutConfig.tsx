@@ -8,8 +8,8 @@ import {
     type Metric,
     type TableCalculation,
 } from '@lightdash/common';
-import { Box, Group, Stack, Text } from '@mantine-8/core';
-import { Grid, NumberInput, Switch, Tooltip } from '@mantine/core';
+import { Box, Group, Stack, Switch, Text } from '@mantine-8/core';
+import { Grid, NumberInput, Tooltip } from '@mantine/core';
 import { IconHelpCircle } from '@tabler/icons-react';
 import FieldSelect from '../../common/FieldSelect';
 import MantineIcon from '../../common/MantineIcon';
@@ -18,6 +18,7 @@ import { useVisualizationContext } from '../../LightdashVisualization/useVisuali
 import ColorSelector from '../ColorSelector';
 import { Config } from '../common/Config';
 import { GrabIcon } from '../common/GrabIcon';
+import compactStyles from '../mantineTheme.module.css';
 import classes from './DndList.module.css';
 import { DraggablePortalHandler } from './DraggablePortalHandler';
 
@@ -203,6 +204,10 @@ export const Layout: React.FC = () => {
                             />
                         </Tooltip>
                         <Switch
+                            size="xs"
+                            classNames={{
+                                label: compactStyles.compactCheckboxLabel,
+                            }}
                             checked={useDynamicColors}
                             onChange={toggleDynamicColors}
                         />

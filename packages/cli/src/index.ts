@@ -45,6 +45,7 @@ import { setProjectHandler, unsetProjectHandler } from './handlers/setProject';
 import { setWarehouseHandler } from './handlers/setWarehouse';
 import { sqlHandler } from './handlers/sql';
 import { validateHandler } from './handlers/validate';
+import { warehouseCatalogHandler } from './handlers/warehouseCatalog';
 import * as styles from './styles';
 // Trigger CLI tests
 // Suppress AWS SDK V2 warning, imported by snowflake SDK
@@ -728,7 +729,18 @@ program
         'specify dashboard slugs, uuids or urls to download',
         [],
     )
+    .option('--agents <slugs...>', 'specify AI agent slugs to download', [])
+    .option(
+        '--include-agents',
+        "include all of the project's AI agents (enterprise)",
+        false,
+    )
     .option('--alerts <slugs...>', 'specify alert slugs to download', [])
+    .option(
+        '--virtual-views <slugs...>',
+        'specify virtual view slugs to download',
+        [],
+    )
     .option(
         '--google-sheets <slugs...>',
         'specify Google Sheets sync slugs to download',
@@ -767,15 +779,25 @@ program
     )
     .option('--skip-charts', 'skip downloading charts', false)
     .option('--skip-dashboards', 'skip downloading dashboards', false)
-    .option('--skip-alerts', 'skip downloading alerts', false)
+    .option('--include-alerts', 'include all alerts in the download', false)
     .option(
-        '--skip-google-sheets',
-        'skip downloading Google Sheets syncs',
+        '--include-virtual-views',
+        'include all virtual views in the download',
         false,
     )
     .option(
-        '--skip-scheduled-deliveries',
-        'skip downloading scheduled deliveries',
+        '--include-google-sheets',
+        'include all Google Sheets syncs in the download',
+        false,
+    )
+    .option(
+        '--include-scheduled-deliveries',
+        'include all scheduled deliveries in the download',
+        false,
+    )
+    .option(
+        '--include-all',
+        'include all optional content in the download',
         false,
     )
     .option(
@@ -794,12 +816,12 @@ program
     )
     .option(
         '--apps-limit <number>',
-        'Maximum number of data apps downloaded by --include-apps (default: 50)',
+        'Maximum number of data apps downloaded by --include-apps or --include-all (default: 50)',
         undefined,
     )
     .option(
         '--apps-only',
-        'Download only data apps (implies --skip-charts --skip-dashboards --skip-spaces). Requires --apps <appUuids...> or --include-apps.',
+        'Download only data apps (implies --skip-charts --skip-dashboards --skip-spaces). Requires --apps <appUuids...>, --include-apps, or --include-all.',
         false,
     )
     .action(downloadHandler);
@@ -818,7 +840,13 @@ program
         'specify dashboard slugs to force upload',
         [],
     )
+    .option('--agents <slugs...>', 'specify AI agent slugs to upload', [])
     .option('--alerts <slugs...>', 'specify alert slugs to upload', [])
+    .option(
+        '--virtual-views <slugs...>',
+        'specify virtual view slugs to upload',
+        [],
+    )
     .option(
         '--google-sheets <slugs...>',
         'specify Google Sheets sync slugs to upload',
@@ -831,7 +859,7 @@ program
     )
     .option(
         '--force',
-        'Force upload even if local files have not changed, use this when you want to upload files to a new project',
+        'Force upload unchanged files and allow destructive virtual-view column changes',
         false,
     )
     .option(
@@ -851,7 +879,9 @@ program
         false,
     )
     .option('--public', 'Create new spaces as public instead of private', false)
+    .option('--skip-agents', 'skip uploading AI agents', false)
     .option('--skip-alerts', 'skip uploading alerts', false)
+    .option('--skip-virtual-views', 'skip uploading virtual views', false)
     .option('--skip-google-sheets', 'skip uploading Google Sheets syncs', false)
     .option(
         '--skip-scheduled-deliveries',
@@ -1338,6 +1368,41 @@ ${styles.bold('Examples:')}
         'cli',
     )
     .action(lintHandler);
+
+program
+    .command('warehouse-catalog')
+    .description(
+        "Explore the selected project's raw warehouse databases, schemas, tables, and fields",
+    )
+    .option('--database <name>', 'Filter by exact database name')
+    .option('--schema <name>', 'Filter by exact schema name')
+    .option('--table <name>', 'Filter by exact table name')
+    .option(
+        '--include-fields',
+        'Include field names and Lightdash types for one fully qualified table',
+        false,
+    )
+    .option(
+        '--refresh',
+        'Refetch warehouse metadata and refresh the server catalog cache first',
+        false,
+    )
+    .option('--json', 'Emit machine-readable JSON instead of a table', false)
+    .option('--verbose', 'Show detailed output', false)
+    .addHelpText(
+        'after',
+        `
+${styles.bold('Examples:')}
+  ${styles.title('⚡')} lightdash ${styles.bold('warehouse-catalog')}
+  ${styles.title('⚡')} lightdash ${styles.bold(
+      'warehouse-catalog',
+  )} --database analytics --schema public
+  ${styles.title('⚡')} lightdash ${styles.bold(
+      'warehouse-catalog',
+  )} --database analytics --schema public --table orders --include-fields --json
+`,
+    )
+    .action(warehouseCatalogHandler);
 
 program
     .command('pre-aggregate-audit')

@@ -15,9 +15,11 @@ import {
     Group,
     SegmentedControl,
     Stack,
+    Switch,
     Text,
+    Select,
 } from '@mantine-8/core';
-import { NumberInput, Select, Switch } from '@mantine/core';
+import { NumberInput } from '@mantine/core';
 import {
     IconChartBar,
     IconMinus,
@@ -39,8 +41,8 @@ import { AxisMinMax } from './AxisMinMax';
 
 const XAxisSortSelectItem = forwardRef<
     HTMLDivElement,
-    { icon: Icon; label: string; mirrorIcon: boolean }
->(({ icon, label, mirrorIcon, ...others }, ref) => (
+    { icon: Icon; label: string; mirrorIcon?: boolean }
+>(({ icon, label, mirrorIcon = false, ...others }, ref) => (
     <Group ref={ref} gap="xs" {...others} wrap="nowrap">
         <MantineIcon
             style={mirrorIcon ? { transform: 'rotateY(180deg)' } : undefined}
@@ -125,6 +127,38 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
         dirtyChartType === CartesianSeriesType.BAR &&
         getAxisTypeFromField(xAxisField) === 'category';
 
+    const xAxisSortOptions = [
+        { value: XAxisSort.DEFAULT, label: 'Default', icon: IconMinus },
+        {
+            value: XAxisSort.DEFAULT_REVERSED,
+            label: 'Default (reversed)',
+            icon: IconSwitchHorizontal,
+        },
+        {
+            value: XAxisSort.ASCENDING,
+            label: 'Ascending',
+            icon: IconSortAscending,
+        },
+        {
+            value: XAxisSort.DESCENDING,
+            label: 'Descending',
+            icon: IconSortDescending,
+        },
+        {
+            value: XAxisSort.BAR_TOTALS_ASCENDING,
+            label: 'Bars ascending',
+            icon: IconChartBar,
+            disabled: !canSortByBarTotals,
+        },
+        {
+            value: XAxisSort.BAR_TOTALS_DESCENDING,
+            label: 'Bars descending',
+            icon: IconChartBar,
+            mirrorIcon: true,
+            disabled: !canSortByBarTotals,
+        },
+    ];
+
     const showXAxis =
         dirtyLayout?.showXAxis !== undefined ? dirtyLayout?.showXAxis : true;
     // Legacy showYAxis is used as fallback for independent axis controls
@@ -193,6 +227,10 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                     {isNumericItem(xAxisField) && !dirtyLayout?.flipAxes && (
                         <>
                             <Switch
+                                size="xs"
+                                classNames={{
+                                    label: compactStyles.compactCheckboxLabel,
+                                }}
                                 label="Truncate x-axis"
                                 checked={
                                     dirtyEchartsConfig?.xAxis?.[0]
@@ -222,46 +260,24 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                         <Group gap="xs">
                             <Config.Label>Sort</Config.Label>
                             <Select
+                                allowDeselect={false}
                                 value={getXAxisSort(
                                     dirtyEchartsConfig?.xAxis?.[0],
                                 )}
-                                onChange={setXAxisSort}
-                                itemComponent={XAxisSortSelectItem}
-                                data={[
-                                    {
-                                        value: XAxisSort.DEFAULT,
-                                        label: 'Default',
-                                        icon: IconMinus,
-                                    },
-                                    {
-                                        value: XAxisSort.DEFAULT_REVERSED,
-                                        label: 'Default (reversed)',
-                                        icon: IconSwitchHorizontal,
-                                    },
-                                    {
-                                        value: XAxisSort.ASCENDING,
-                                        label: 'Ascending',
-                                        icon: IconSortAscending,
-                                    },
-                                    {
-                                        value: XAxisSort.DESCENDING,
-                                        label: 'Descending',
-                                        icon: IconSortDescending,
-                                    },
-                                    {
-                                        value: XAxisSort.BAR_TOTALS_ASCENDING,
-                                        label: 'Bars ascending',
-                                        icon: IconChartBar,
-                                        disabled: !canSortByBarTotals,
-                                    },
-                                    {
-                                        value: XAxisSort.BAR_TOTALS_DESCENDING,
-                                        label: 'Bars descending',
-                                        icon: IconChartBar,
-                                        mirrorIcon: true,
-                                        disabled: !canSortByBarTotals,
-                                    },
-                                ]}
+                                onChange={(value) =>
+                                    value && setXAxisSort(value as XAxisSort)
+                                }
+                                renderOption={({ option }) => {
+                                    const sortOption = xAxisSortOptions.find(
+                                        ({ value }) => value === option.value,
+                                    );
+                                    return sortOption ? (
+                                        <XAxisSortSelectItem {...sortOption} />
+                                    ) : (
+                                        option.label
+                                    );
+                                }}
+                                data={xAxisSortOptions}
                             />
                         </Group>
                         {!dirtyLayout?.flipAxes && (

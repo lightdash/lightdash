@@ -421,6 +421,13 @@ export const lightdashConfigMock: LightdashConfig = {
         azureSandboxesAiWritebackDiskImage: null,
         e2bCodingAgentTemplateName: 'lightdash-ai-coding-agent',
         e2bCodingAgentTemplateTag: '',
+        otel: {
+            enabled: false,
+            endpoint: '',
+            protocol: 'http/protobuf',
+            exportIntervalMs: 1000,
+            auth: { type: 'none' },
+        },
         dependencyRegistryHosts: ['registry.npmjs.org'],
         dependencyInstallTimeoutMs: 120_000,
         dependencyMinReleaseAgeDays: 0,

@@ -1,5 +1,6 @@
 import { SnowflakeAuthenticationType, WarehouseTypes } from '@lightdash/common';
 import {
+    TextInput,
     Anchor,
     Button,
     FileInput,
@@ -7,14 +8,9 @@ import {
     Radio,
     Stack,
     Text,
-} from '@mantine-8/core';
-import {
-    NumberInput,
-    PasswordInput,
     Select,
-    TextInput,
-    Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { NumberInput, PasswordInput, Tooltip } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useToggle } from 'react-use';
@@ -246,6 +242,7 @@ const SnowflakeForm: FC<{
                 )}
                 {useOrgCredentials && snowflakeOrgCredentials.length > 0 && (
                     <Select
+                        allowDeselect={false}
                         label="Organization credentials"
                         description="Select which organization credentials to use for this project"
                         placeholder="Select credentials"
@@ -281,6 +278,7 @@ const SnowflakeForm: FC<{
 
                         <Group gap="sm">
                             <Select
+                                allowDeselect={false}
                                 name="warehouse.authenticationType"
                                 {...form.getInputProps(
                                     'warehouse.authenticationType',

@@ -1,14 +1,13 @@
 import { CartesianSeriesType } from '@lightdash/common';
-import { Select, type SelectProps } from '@mantine/core';
+import { type SelectProps, Select } from '@mantine-8/core';
 import {
     IconChartArea,
     IconChartAreaLine,
     IconChartBar,
     IconChartDots,
     IconChartLine,
-    type Icon,
 } from '@tabler/icons-react';
-import { forwardRef, useMemo, type FC } from 'react';
+import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../common/MantineIcon';
 
 const CHART_TYPE_OPTIONS = [
@@ -21,20 +20,6 @@ const CHART_TYPE_OPTIONS = [
         icon: IconChartDots,
     },
 ];
-
-interface ItemProps extends React.ComponentPropsWithoutRef<'div'> {
-    icon: Icon;
-    label: string;
-    description: string;
-}
-
-const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
-    ({ icon, ...others }: ItemProps, ref) => (
-        <div ref={ref} {...others}>
-            <MantineIcon icon={icon} />
-        </div>
-    ),
-);
 
 type Props = {
     chartValue: string;
@@ -66,12 +51,22 @@ export const ChartTypeSelect: FC<Props> = ({
 
     return (
         <Select
+            allowDeselect={false}
             label={showLabel && 'Type'}
             value={chartValue}
             data={options}
             onChange={onChange}
-            itemComponent={SelectItem}
-            icon={
+            renderOption={({ option }) => {
+                const chartType = options.find(
+                    ({ value }) => value === option.value,
+                );
+                return chartType ? (
+                    <MantineIcon icon={chartType.icon} />
+                ) : (
+                    option.label
+                );
+            }}
+            leftSection={
                 selectedChartIcon && (
                     <MantineIcon color="ldGray.8" icon={selectedChartIcon} />
                 )

@@ -1,4 +1,4 @@
-import { DbtManifest, getErrorMessage } from '@lightdash/common';
+import { DbtManifest, getErrorMessage, ParseError } from '@lightdash/common';
 import { promises as fs } from 'fs';
 import fetch from 'node-fetch';
 import * as path from 'path';
@@ -29,7 +29,11 @@ export const loadManifestFromFile = async (
         return manifest;
     } catch (err: unknown) {
         const msg = getErrorMessage(err);
-        throw new Error(`Could not load manifest from ${filename}:\n  ${msg}`);
+        // ParseError is a LightdashError: an unreadable manifest is user
+        // input, so the CLI reports it without a stack trace / bug-report link
+        throw new ParseError(
+            `Could not load manifest from ${filename}:\n  ${msg}`,
+        );
     }
 };
 
@@ -62,7 +66,7 @@ export const loadManifestFromUrl = async (
         return manifest;
     } catch (err: unknown) {
         const msg = getErrorMessage(err);
-        throw new Error(`Could not load manifest from ${url}:\n  ${msg}`);
+        throw new ParseError(`Could not load manifest from ${url}:\n  ${msg}`);
     }
 };
 

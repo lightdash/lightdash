@@ -8,6 +8,7 @@ import {
     NotFoundError,
     ParameterError,
     type AiDeepResearchBudget,
+    type AiDeepResearchEffort,
     type AiDeepResearchEvent,
     type AiDeepResearchEventPayloadMap,
     type AiDeepResearchEventsPage,
@@ -25,7 +26,10 @@ import {
     type DbAiDeepResearchEvent,
     type DbAiDeepResearchRun,
 } from '../../database/entities/aiDeepResearch';
-import { type AiDeepResearchRunModel } from '../../models/AiDeepResearchRunModel';
+import {
+    type AiDeepResearchRunModel,
+    type DbAiDeepResearchEventWithCursor,
+} from '../../models/AiDeepResearchRunModel';
 import { type CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 
 const MAX_EVENT_PAGE_SIZE = 100;
@@ -111,17 +115,17 @@ const toEvent = (row: DbAiDeepResearchEvent): AiDeepResearchEvent => {
     }
 };
 
-const encodeEventCursor = (event: AiDeepResearchEvent): string =>
+const encodeEventCursor = (event: DbAiDeepResearchEventWithCursor): string =>
     Buffer.from(
         JSON.stringify({
-            createdAt: event.createdAt,
-            eventUuid: event.aiDeepResearchEventUuid,
+            createdAt: event.cursor_created_at,
+            eventUuid: event.ai_deep_research_event_uuid,
         } satisfies EventCursorPayload),
     ).toString('base64url');
 
 const decodeEventCursor = (
     cursor: string | undefined,
-): { createdAt: Date; eventUuid: string } | null => {
+): EventCursorPayload | null => {
     if (!cursor) {
         return null;
     }
@@ -141,18 +145,63 @@ const decodeEventCursor = (
             throw new Error('Invalid cursor payload');
         }
 
-        const createdAt = new Date(parsed.createdAt);
+        const createdAt = new Date(`${parsed.createdAt.replace(' ', 'T')}Z`);
         if (
+            !/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{6}$/.test(
+                parsed.createdAt,
+            ) ||
             Number.isNaN(createdAt.getTime()) ||
             !isValidUuid(parsed.eventUuid)
         ) {
             throw new Error('Invalid cursor values');
         }
-        return { createdAt, eventUuid: parsed.eventUuid };
+        return { createdAt: parsed.createdAt, eventUuid: parsed.eventUuid };
     } catch {
         throw new ParameterError('Invalid Deep Research event cursor');
     }
 };
+
+export const AI_DEEP_RESEARCH_BUDGETS_BY_EFFORT: Record<
+    AiDeepResearchEffort,
+    AiDeepResearchBudget
+> = {
+    low: {
+        maxRuntimeMs: 15 * 60 * 1_000,
+        maxTokens: 150_000,
+        maxToolCalls: 50,
+        maxWarehouseQueries: 10,
+        maxResultRows: 5_000,
+    },
+    medium: {
+        maxRuntimeMs: 30 * 60 * 1_000,
+        maxTokens: 500_000,
+        maxToolCalls: 125,
+        maxWarehouseQueries: 25,
+        maxResultRows: 10_000,
+    },
+    high: {
+        maxRuntimeMs: 45 * 60 * 1_000,
+        maxTokens: 1_000_000,
+        maxToolCalls: 250,
+        maxWarehouseQueries: 50,
+        maxResultRows: 25_000,
+    },
+    xhigh: {
+        maxRuntimeMs: 55 * 60 * 1_000,
+        maxTokens: 2_000_000,
+        maxToolCalls: 500,
+        maxWarehouseQueries: 100,
+        maxResultRows: 50_000,
+    },
+};
+
+export const AI_DEEP_RESEARCH_DEFAULT_EFFORT: AiDeepResearchEffort = 'medium';
+
+export const AI_DEEP_RESEARCH_DEFAULT_BUDGET =
+    AI_DEEP_RESEARCH_BUDGETS_BY_EFFORT[AI_DEEP_RESEARCH_DEFAULT_EFFORT];
+
+export const AI_DEEP_RESEARCH_MAX_BUDGET =
+    AI_DEEP_RESEARCH_BUDGETS_BY_EFFORT.xhigh;
 
 const assertValidBudget = (budget: AiDeepResearchBudget): void => {
     if (
@@ -162,6 +211,16 @@ const assertValidBudget = (budget: AiDeepResearchBudget): void => {
     ) {
         throw new ParameterError(
             'Deep Research budget limits must be positive integers',
+        );
+    }
+    const exceededBudget = Object.entries(budget).find(
+        ([key, value]) =>
+            value >
+            AI_DEEP_RESEARCH_MAX_BUDGET[key as keyof AiDeepResearchBudget],
+    );
+    if (exceededBudget) {
+        throw new ParameterError(
+            `Deep Research ${exceededBudget[0]} exceeds the server limit`,
         );
     }
 };
@@ -237,7 +296,8 @@ export class AiDeepResearchService extends BaseService {
         user: SessionUser;
         projectUuid: string;
         prompt: string;
-        budget: AiDeepResearchBudget;
+        effort?: AiDeepResearchEffort;
+        budget?: AiDeepResearchBudget;
         aiThreadUuid?: string;
         promptUuid?: string;
         toolCallId?: string;
@@ -248,7 +308,12 @@ export class AiDeepResearchService extends BaseService {
         if (args.prompt.trim().length === 0) {
             throw new ParameterError('Deep Research prompt is required');
         }
-        assertValidBudget(args.budget);
+        const budget =
+            args.budget ??
+            AI_DEEP_RESEARCH_BUDGETS_BY_EFFORT[
+                args.effort ?? AI_DEEP_RESEARCH_DEFAULT_EFFORT
+            ];
+        assertValidBudget(budget);
 
         await this.assertCanViewProject(args.user, args.projectUuid);
         const featureFlag = await this.featureFlagModel.get({
@@ -267,7 +332,7 @@ export class AiDeepResearchService extends BaseService {
             promptUuid: args.promptUuid ?? null,
             toolCallId: args.toolCallId ?? null,
             prompt: args.prompt.trim(),
-            budget: args.budget,
+            budget,
         });
 
         try {
@@ -334,13 +399,14 @@ export class AiDeepResearchService extends BaseService {
             cursor: decodeEventCursor(args.cursor),
             limit,
         });
-        const events = rows.slice(0, limit).map(toEvent);
+        const pageRows = rows.slice(0, limit);
+        const events = pageRows.map(toEvent);
         return {
             events,
             nextCursor:
-                rows.length > limit && events.length > 0
-                    ? encodeEventCursor(events[events.length - 1])
-                    : null,
+                pageRows.length > 0
+                    ? encodeEventCursor(pageRows[pageRows.length - 1])
+                    : (args.cursor ?? null),
         };
     }
 

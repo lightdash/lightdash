@@ -7,8 +7,10 @@ import {
     ForbiddenError,
     LightdashError,
     ProjectType,
+    SpaceMemberRole,
     type LightdashUserWithAbilityRules,
     type PossibleAbilities,
+    type Project,
 } from '@lightdash/common';
 import fetch, { BodyInit } from 'node-fetch';
 import { URL } from 'url';
@@ -114,6 +116,106 @@ export const getUserContext =
             url: `/api/v1/user`,
             body: undefined,
         });
+
+export type ContentAsCodeUploadPermissions = {
+    charts: boolean;
+    dashboards: boolean;
+    virtualViews: boolean;
+    alerts: boolean;
+    scheduledDeliveries: boolean;
+    googleSheets: boolean;
+    dataApps: boolean;
+};
+
+export const getContentAsCodeUploadPermissions = async (
+    projectUuid: string,
+): Promise<ContentAsCodeUploadPermissions> => {
+    const [user, project] = await Promise.all([
+        getUserContext(),
+        lightdashApi<Project>({
+            method: 'GET',
+            url: `/api/v1/projects/${projectUuid}`,
+            body: undefined,
+        }),
+    ]);
+    const ability = new Ability<PossibleAbilities>(user.abilityRules);
+
+    if (
+        ability.cannot(
+            'manage',
+            subject('ContentAsCode', {
+                organizationUuid: project.organizationUuid,
+                projectUuid: project.projectUuid,
+                upstreamProjectUuid: project.upstreamProjectUuid,
+                type: project.type,
+                createdByUserUuid: project.createdByUserUuid,
+            }),
+        )
+    ) {
+        throw new ForbiddenError(
+            `You don't have permission to upload content as code to project "${project.name}". The manage:ContentAsCode permission is required.`,
+        );
+    }
+
+    const baseSubject = {
+        organizationUuid: project.organizationUuid,
+        projectUuid: project.projectUuid,
+    };
+    const accessibleResourceSubject = {
+        ...baseSubject,
+        upstreamProjectUuid: project.upstreamProjectUuid,
+        type: project.type,
+        createdByUserUuid: project.createdByUserUuid,
+        inheritsFromOrgOrProject: true,
+        access: [
+            {
+                userUuid: user.userUuid,
+                role: SpaceMemberRole.ADMIN,
+            },
+        ],
+    };
+    const canManageScheduledDeliveries = ability.can(
+        'manage',
+        subject('ScheduledDeliveries', {
+            ...baseSubject,
+            userUuid: user.userUuid,
+        }),
+    );
+    const canCreateScheduledDeliveries = ability.can(
+        'create',
+        subject('ScheduledDeliveries', { ...baseSubject }),
+    );
+
+    return {
+        charts: ability.can(
+            'manage',
+            subject('SavedChart', { ...accessibleResourceSubject }),
+        ),
+        dashboards: ability.can(
+            'manage',
+            subject('Dashboard', { ...accessibleResourceSubject }),
+        ),
+        virtualViews: ability.can(
+            'create',
+            subject('VirtualView', { ...baseSubject }),
+        ),
+        alerts: canManageScheduledDeliveries || canCreateScheduledDeliveries,
+        scheduledDeliveries:
+            canManageScheduledDeliveries || canCreateScheduledDeliveries,
+        googleSheets:
+            (canManageScheduledDeliveries || canCreateScheduledDeliveries) &&
+            ability.can('manage', subject('GoogleSheets', { ...baseSubject })),
+        dataApps:
+            ability.can(
+                'create',
+                subject('DataApp', { ...accessibleResourceSubject }),
+            ) ||
+            ability.can(
+                'manage',
+                subject('DataApp', { ...accessibleResourceSubject }),
+            ),
+    };
+};
 
 export const checkProjectCreationPermission = async (
     upstreamProjectUuid: string | undefined,

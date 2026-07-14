@@ -22,6 +22,24 @@ Commands:
 
 eg: `ligthdash test` Runs `dbt test`
 
+## AI agents as code
+
+AI-agent project configuration can be downloaded into
+`lightdash/ai-agents/<slug>.yml` and applied to another project:
+
+```shell
+lightdash download --include-agents
+lightdash upload
+```
+
+Use `--agents <slugs...>` on either command to select specific agents. The
+files manage the agent name, description, image URL, instructions, semantic
+tags, data/content/user-context flags, self-improvement flag, and model config.
+The YAML `version` identifies the as-code schema, while `agentVersion` preserves
+the AI agent runtime version.
+Access lists, Slack integrations, MCP servers, documents, conversations, and
+other runtime state stay managed in the target environment.
+
 ## Development
 
 First build the package

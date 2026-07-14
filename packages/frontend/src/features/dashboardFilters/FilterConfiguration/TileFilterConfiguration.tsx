@@ -3,7 +3,6 @@ import {
     isDashboardChartTileType,
     isDashboardFieldTarget,
     isDashboardSqlChartTile,
-    isField,
     matchFieldByType,
     matchFieldByTypeAndName,
     matchFieldExact,
@@ -23,8 +22,9 @@ import {
     Text,
     ActionIcon,
     Checkbox,
+    Select,
 } from '@mantine-8/core';
-import { Select, Tooltip, type PopoverProps } from '@mantine/core';
+import { Tooltip, type PopoverProps } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../../components/common/FieldSelect';
@@ -33,9 +33,10 @@ import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import { FilterActions } from './constants';
 import classes from './FilterConfiguration.module.css';
-import { getFilterTileRelation } from './utils';
+import { getFilterTileRelation, getValidSqlColumnReferences } from './utils';
 
 type TileWithTargetFields = {
+    targetType: 'field';
     key: string;
     label: string;
     checked: boolean;
@@ -50,6 +51,7 @@ type TileWithTargetFields = {
 };
 
 type TileWithTargetColumns = {
+    targetType: 'sqlColumn';
     key: string;
     label: string;
     checked: boolean;
@@ -215,6 +217,7 @@ const TileFilterConfiguration: FC<Props> = ({
                         : false;
 
                     return {
+                        targetType: 'field',
                         key: tileUuid + index,
                         label: tileLabel,
                         checked: !!selectedField || !!invalidField,
@@ -238,9 +241,7 @@ const TileFilterConfiguration: FC<Props> = ({
             sqlChartTilesMetadata,
         ).reduce<TileWithTargetColumns[]>(
             (acc, [tileUuid, metadata], index) => {
-                const columns = metadata.columns.map(
-                    ({ reference }) => reference,
-                );
+                const columns = getValidSqlColumnReferences(metadata.columns);
                 const tile = tiles.find((t) => t.uuid === tileUuid);
                 if (!tile) {
                     return acc;
@@ -284,6 +285,7 @@ const TileFilterConfiguration: FC<Props> = ({
                     tileLabel = tile.properties.title;
                 }
                 acc.push({
+                    targetType: 'sqlColumn',
                     key: tileUuid + index,
                     label: tileLabel,
                     checked: !!selectedField || !!invalidField,
@@ -513,14 +515,12 @@ const TileFilterConfiguration: FC<Props> = ({
                                     mt="sm"
                                     display={!value.checked ? 'none' : 'auto'}
                                 >
-                                    {isField(value.selectedField) ? (
+                                    {value.targetType === 'field' ? (
                                         <FieldSelect
                                             size="xs"
                                             disabled={!value.checked}
                                             item={value.selectedField}
-                                            items={
-                                                value.sortedFilters as Field[]
-                                            }
+                                            items={value.sortedFilters ?? []}
                                             comboboxProps={{
                                                 withinPortal:
                                                     popoverProps?.withinPortal,
@@ -553,13 +553,21 @@ const TileFilterConfiguration: FC<Props> = ({
                                             w="100%"
                                             size="xs"
                                             searchable
-                                            dropdownComponent="div"
-                                            icon={undefined}
+                                            withScrollArea={false}
+                                            leftSection={undefined}
                                             allowDeselect={false}
-                                            value={value.selectedField}
-                                            data={
-                                                value.sortedFilters as string[]
+                                            comboboxProps={{
+                                                withinPortal:
+                                                    popoverProps?.withinPortal,
+                                            }}
+                                            onDropdownOpen={
+                                                popoverProps?.onOpen
                                             }
+                                            onDropdownClose={
+                                                popoverProps?.onClose
+                                            }
+                                            value={value.selectedField ?? null}
+                                            data={value.sortedFilters}
                                             onChange={(newField) => {
                                                 onChange(
                                                     FilterActions.ADD,

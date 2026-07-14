@@ -220,6 +220,10 @@ const GeneralSettings: FC = () => {
                     >
                         <Box>
                             <Switch
+                                size="xs"
+                                classNames={{
+                                    label: compactStyles.compactCheckboxLabel,
+                                }}
                                 disabled={!isPivotTableEnabled || showSubtotals}
                                 label="Show metrics as rows"
                                 labelPosition="right"

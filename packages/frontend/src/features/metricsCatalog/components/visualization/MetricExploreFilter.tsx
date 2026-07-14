@@ -4,11 +4,11 @@ import {
     type CompiledDimension,
     type FilterRule,
 } from '@lightdash/common';
-import { Group, Stack, Text, Button } from '@mantine-8/core';
-import { Select } from '@mantine/core';
+import { Group, Stack, Text, Button, Select } from '@mantine-8/core';
 import { IconFilter, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { groupComboboxItems } from '../../../../components/common/Select/utils';
 import {
     useFilterSelectStyles,
     useOperatorSelectStyles,
@@ -235,22 +235,29 @@ export const MetricExploreFilter: FC<Props> = ({
             >
                 <Group gap={0} wrap="nowrap">
                     <Select
+                        allowDeselect={false}
                         placeholder="Filter by"
-                        icon={<MantineIcon icon={IconFilter} />}
+                        leftSection={<MantineIcon icon={IconFilter} />}
                         searchable
-                        withinPortal
+                        comboboxProps={{ withinPortal: true }}
                         radius="md"
                         size="xs"
-                        data={
+                        data={groupComboboxItems(
                             dimensions?.map((dimension) => ({
                                 value: getItemId(dimension),
                                 label: dimension.label,
                                 group: dimension.tableLabel,
-                            })) ?? []
-                        }
+                            })) ?? [],
+                        )}
                         disabled={dimensions?.length === 0}
                         value={filterState.fieldId}
-                        itemComponent={SelectItem}
+                        renderOption={({ option, checked }) => (
+                            <SelectItem
+                                value={option.value}
+                                label={option.label}
+                                selected={checked ?? false}
+                            />
+                        )}
                         onChange={handleDimensionChange}
                         data-selected={!!filterState.fieldId}
                         data-no-values={!showValuesSection ? 'true' : 'false'}
@@ -259,11 +266,16 @@ export const MetricExploreFilter: FC<Props> = ({
 
                     {filterState.fieldId && (
                         <Select
+                            allowDeselect={false}
                             placeholder="Condition"
-                            withinPortal
+                            comboboxProps={{ withinPortal: true }}
                             data={operatorOptions}
                             value={filterState.operator}
-                            onChange={handleOperatorChange}
+                            onChange={(value) =>
+                                handleOperatorChange(
+                                    value as FilterOperator | null,
+                                )
+                            }
                             size="xs"
                             radius="md"
                             classNames={operatorSelectClasses}

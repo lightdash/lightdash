@@ -7,6 +7,7 @@ import {
     Text,
 } from '@mantine-8/core';
 import { type FC } from 'react';
+import compactStyles from '../mantineTheme.module.css';
 
 const MODE_OPTIONS = [
     { label: 'Show', value: 'show' },
@@ -26,6 +27,8 @@ type Props = {
 export const RowLimitControls: FC<Props> = ({ rowLimit, onRowLimitChange }) => (
     <>
         <Switch
+            size="xs"
+            classNames={{ label: compactStyles.compactCheckboxLabel }}
             label="Limit displayed rows"
             checked={rowLimit !== undefined}
             onChange={(e) =>

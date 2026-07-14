@@ -1,5 +1,13 @@
-import { Stack, Title, Button, SegmentedControl } from '@mantine-8/core';
-import { Card, Select, Switch, TextInput } from '@mantine/core';
+import {
+    TextInput,
+    Stack,
+    Title,
+    Button,
+    SegmentedControl,
+    Select,
+    Switch,
+} from '@mantine-8/core';
+import { Card } from '@mantine/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 interface FormCardProps {
@@ -33,6 +41,7 @@ export function FormCard({ hasError = false }: FormCardProps) {
                         error={errorMessage}
                     />
                     <Select
+                        allowDeselect={false}
                         radius="md"
                         label="Login options"
                         placeholder="Select"

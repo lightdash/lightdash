@@ -112,11 +112,7 @@ export const getMantine8ThemeOverride = (
     const { colors, components, ...legacyTheme } =
         getMantine6ThemeOverride(colorScheme);
 
-    const {
-        Button: _Button,
-        ScrollArea: _ScrollArea,
-        ...legacyComponentsTheme
-    } = components;
+    const { Button: _Button, ...legacyComponentsTheme } = components;
 
     return {
         ...legacyTheme,
@@ -270,6 +266,11 @@ export const getMantine8ThemeOverride = (
                 defaultProps: {
                     radius: 'md',
                 },
+                styles: (theme) => ({
+                    input: { fontFamily: theme.fontFamily },
+                    option: { fontFamily: theme.fontFamily },
+                    groupLabel: { fontFamily: theme.fontFamily },
+                }),
                 vars: (theme, props) => {
                     if (props.variant === 'subtle')
                         return subtleInputStyles(theme);

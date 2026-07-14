@@ -2,6 +2,8 @@ import { type ExploreWarningReport } from '../compiler/compilationReport';
 // Note: EE types removed from direct import to avoid circular module resolution
 // They are still available via the re-export below: export * from './ee';
 import type {
+    ApiAgentAsCodeListResponse,
+    ApiAgentAsCodeUpsertResponse,
     ApiAgentSuggestionsResponse,
     ApiAiAgentAdminConversationsResponse,
     ApiAiAgentAdminPromptActivityResponse,
@@ -119,6 +121,8 @@ import {
     type ApiScheduledDeliveryAsCodeListResponse,
     type ApiScheduledDeliveryAsCodeUpsertResponse,
     type ApiSqlChartAsCodeListResponse,
+    type ApiVirtualViewAsCodeListResponse,
+    type ApiVirtualViewAsCodeUpsertResponse,
 } from './coder';
 import {
     type ApiChartContentResponse,
@@ -299,7 +303,10 @@ import {
     type ApiSingleValidationResponse,
     type ValidationResponse,
 } from './validation';
-import { type ApiWarehouseTableFields } from './warehouse';
+import {
+    type ApiWarehouseTableFields,
+    type ApiWarehouseTablesCatalog,
+} from './warehouse';
 
 export type ApiGetDashboardPreAggregateAuditResponse = {
     status: 'ok';
@@ -1099,6 +1106,7 @@ type ApiResults =
     | ApiCatalogAnalyticsResults
     | ApiPromotionChangesResponse['results']
     | ApiWarehouseTableFields['results']
+    | ApiWarehouseTablesCatalog['results']
     | ApiTogglePinnedItem['results']
     | ApiOrganizationMemberProfiles['results']
     | ApiSqlChart['results']
@@ -1114,6 +1122,8 @@ type ApiResults =
     | ApiGroupListResponse['results']
     | ApiPullRequestsResponse['results']
     | ApiCreateTagResponse['results']
+    | ApiAgentAsCodeListResponse['results']
+    | ApiAgentAsCodeUpsertResponse['results']
     | ApiAlertAsCodeListResponse['results']
     | ApiAlertAsCodeUpsertResponse['results']
     | ApiChartAsCodeListResponse['results']
@@ -1123,6 +1133,8 @@ type ApiResults =
     | ApiGoogleSheetsSyncAsCodeUpsertResponse['results']
     | ApiScheduledDeliveryAsCodeListResponse['results']
     | ApiScheduledDeliveryAsCodeUpsertResponse['results']
+    | ApiVirtualViewAsCodeListResponse['results']
+    | ApiVirtualViewAsCodeUpsertResponse['results']
     | ApiChartAsCodeUpsertResponse['results']
     | ApiGetMetricsTree['results']
     | ApiGetMetricsTreeResponse['results']

@@ -1,5 +1,6 @@
 import { PartitionType, type PartitionColumn } from '@lightdash/common';
 import {
+    TextInput,
     Box,
     Center,
     CopyButton,
@@ -11,8 +12,9 @@ import {
     UnstyledButton,
     ActionIcon,
     Highlight,
+    ScrollArea,
 } from '@mantine-8/core';
-import { ScrollArea, TextInput, Tooltip } from '@mantine/core';
+import { Tooltip } from '@mantine/core';
 import { useDebouncedValue, useHover } from '@mantine/hooks';
 import {
     IconChevronDown,
@@ -27,6 +29,7 @@ import isEmpty from 'lodash/isEmpty';
 import { memo, useEffect, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
+import scrollAreaClasses from '../../../styles/ScrollArea.module.css';
 import { useTables, type TablesBySchema } from '../hooks/useTables';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSql, toggleActiveTable } from '../store/sqlRunnerSlice';
@@ -82,6 +85,7 @@ const TableItem: FC<TableItemProps> = memo(
         return (
             <Box ref={hoverRef} pos="relative" {...rest}>
                 <UnstyledButton
+                    ff="inherit"
                     onClick={() => {
                         if (!sql || sql.match(/SELECT \* FROM (.+)/)) {
                             dispatch(
@@ -211,6 +215,7 @@ const Table: FC<{
             <UnstyledButton
                 onClick={() => setIsExpanded(!isExpanded)}
                 className={styles.schemaButton}
+                ff="inherit"
             >
                 <Group wrap="nowrap" gap="two">
                     <Text p={6} fz="sm" c="ldGray.8">
@@ -347,16 +352,21 @@ export const Tables: FC = () => {
                     <TextInput
                         size="xs"
                         disabled={!data && !debouncedSearch}
-                        icon={
+                        leftSection={
                             isLoading ? (
                                 <Loader size="xs" />
                             ) : (
                                 <MantineIcon icon={IconSearch} />
                             )
                         }
+                        rightSectionPointerEvents="all"
                         rightSection={
                             search ? (
                                 <ActionIcon
+                                    aria-label="Clear search"
+                                    onMouseDown={(event) =>
+                                        event.preventDefault()
+                                    }
                                     variant="subtle"
                                     color="gray"
                                     size="xs"
@@ -381,10 +391,10 @@ export const Tables: FC = () => {
 
             <ScrollArea
                 offsetScrollbars
-                variant="primary"
-                className="only-vertical"
+                scrollbars="y"
+                classNames={{ content: scrollAreaClasses.verticalContent }}
                 pl="sm"
-                sx={{ flex: 1 }}
+                style={{ flex: 1 }}
                 type="auto"
                 scrollbarSize={8}
             >

@@ -9,8 +9,15 @@ import {
     MapChartLocation,
     MapChartType,
 } from '@lightdash/common';
-import { Group, Loader, Stack, SegmentedControl } from '@mantine-8/core';
-import { Select, Switch, TextInput } from '@mantine/core';
+import {
+    TextInput,
+    Group,
+    Loader,
+    Stack,
+    SegmentedControl,
+    Select,
+    Switch,
+} from '@mantine-8/core';
 import { memo, useEffect, useMemo, type FC } from 'react';
 import {
     findMatchingProperty,
@@ -21,6 +28,7 @@ import FieldSelect from '../../common/FieldSelect';
 import { isMapVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
+import compactStyles from '../mantineTheme.module.css';
 import MapFieldConfiguration from './MapFieldConfiguration';
 
 // Get the label and description for the region field based on map type
@@ -387,6 +395,10 @@ export const Layout: FC = memo(() => {
                             <Config.Heading>Location</Config.Heading>
 
                             <Switch
+                                size="xs"
+                                classNames={{
+                                    label: compactStyles.compactCheckboxLabel,
+                                }}
                                 label="Custom region"
                                 checked={isCustomMap}
                                 onChange={(e) => {
@@ -402,6 +414,7 @@ export const Layout: FC = memo(() => {
                             {isCustomMap ? (
                                 <>
                                     <TextInput
+                                        size="xs"
                                         label="Custom GeoJSON URL"
                                         placeholder="https://example.com/map.geojson"
                                         value={config.customGeoJsonUrl || ''}
@@ -454,6 +467,7 @@ export const Layout: FC = memo(() => {
                                 </>
                             ) : (
                                 <Select
+                                    allowDeselect={false}
                                     label="Map region"
                                     disabled={isCustomMap}
                                     data={mapTypeOptions}

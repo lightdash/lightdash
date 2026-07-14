@@ -4,14 +4,14 @@ import {
     DucklakeDataPathType,
     WarehouseTypes,
 } from '@lightdash/common';
-import { Stack, SegmentedControl } from '@mantine-8/core';
 import {
-    NumberInput,
-    PasswordInput,
+    TextInput,
+    Stack,
+    SegmentedControl,
     Select,
     Switch,
-    TextInput,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { NumberInput, PasswordInput } from '@mantine/core';
 import { type FC } from 'react';
 import { useToggle } from 'react-use';
 import FormCollapseButton from '../FormCollapseButton';
@@ -125,6 +125,7 @@ const DucklakeFields: FC<{ disabled: boolean }> = ({ disabled }) => {
                 disabled={disabled}
             />
             <Select
+                allowDeselect={false}
                 label="Catalog backend"
                 description="Database that stores DuckLake catalog metadata."
                 data={CATALOG_TYPE_OPTIONS}
@@ -200,6 +201,7 @@ const DucklakeFields: FC<{ disabled: boolean }> = ({ disabled }) => {
             )}
 
             <Select
+                allowDeselect={false}
                 label="Data path backend"
                 description="Where DuckLake stores Parquet data files."
                 data={DATA_PATH_TYPE_OPTIONS}

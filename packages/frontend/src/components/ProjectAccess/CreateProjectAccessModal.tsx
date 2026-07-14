@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import { validateEmail, type InviteLink } from '@lightdash/common';
-import { Button, Group } from '@mantine-8/core';
-import { Select } from '@mantine/core';
+import { Button, Group, Select } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { IconUserPlus } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
@@ -17,6 +16,7 @@ import {
     PageType,
 } from '../../types/Events';
 import MantineModal from '../common/MantineModal';
+import { groupComboboxItems } from '../common/Select/utils';
 import InviteSuccess from '../UserSettings/UsersAndGroupsPanel/InviteSuccess';
 
 interface Props {
@@ -49,6 +49,7 @@ const CreateProjectAccessModal: FC<Props> = ({
     const [emailOptions, setEmailOptions] = useState<
         { value: string; label: string }[]
     >([]);
+    const [emailSearch, setEmailSearch] = useState('');
 
     useEffect(() => {
         if (organizationUsers) {
@@ -83,6 +84,21 @@ const CreateProjectAccessModal: FC<Props> = ({
             projectUuid,
         }),
     );
+    const searchedEmail = emailSearch.trim();
+    const canCreateEmail =
+        userCanInviteUsersToOrganization &&
+        validateEmail(searchedEmail) &&
+        !emailOptions.some(({ label }) => label === searchedEmail);
+    const userOptions = canCreateEmail
+        ? [
+              ...emailOptions,
+              {
+                  value: searchedEmail,
+                  label: searchedEmail,
+                  isCreateOption: true,
+              },
+          ]
+        : emailOptions;
 
     const formId = 'add-user-to-project';
 
@@ -118,50 +134,53 @@ const CreateProjectAccessModal: FC<Props> = ({
                 >
                     <Group align="flex-end" gap="xs">
                         <Select
+                            allowDeselect={false}
                             name="email"
-                            withinPortal
+                            comboboxProps={{ withinPortal: true }}
                             radius="md"
                             label="Enter user email address"
                             placeholder="example@gmail.com"
-                            nothingFound="Nothing found"
+                            nothingFoundMessage={
+                                validateEmail(searchedEmail) &&
+                                !userCanInviteUsersToOrganization
+                                    ? 'You need to be an organization admin to add new users.'
+                                    : 'Nothing found'
+                            }
                             searchable
-                            creatable
                             required
                             disabled={isLoading}
-                            getCreateLabel={(query) => {
-                                if (validateEmail(query)) {
-                                    return (
-                                        <span style={{ wordBreak: 'keep-all' }}>
-                                            This user is not a member of your
-                                            organization. You need to be an
-                                            organization admin to add new users
-                                            to your organization.
-                                        </span>
-                                    );
-                                }
-                                return null;
+                            searchValue={emailSearch}
+                            onSearchChange={setEmailSearch}
+                            data={userOptions}
+                            renderOption={({ option }) => {
+                                const isCreateOption =
+                                    'isCreateOption' in option &&
+                                    option.isCreateOption;
+                                return isCreateOption ? (
+                                    <span style={{ wordBreak: 'keep-all' }}>
+                                        This user is not a member of your
+                                        organization. Select to invite them.
+                                    </span>
+                                ) : (
+                                    option.label
+                                );
                             }}
-                            onCreate={(query) => {
-                                if (
-                                    validateEmail(query) &&
-                                    userCanInviteUsersToOrganization
-                                ) {
-                                    return query;
-                                }
-                            }}
-                            data={emailOptions}
                             {...form.getInputProps('userId')}
-                            sx={{ flexGrow: 1 }}
+                            style={{ flexGrow: 1 }}
                         />
 
                         <Select
-                            data={roles}
+                            allowDeselect={false}
+                            data={groupComboboxItems(roles)}
                             disabled={isLoading}
                             required
                             radius="md"
                             placeholder="Select role"
-                            dropdownPosition="bottom"
-                            withinPortal
+                            comboboxProps={{
+                                withinPortal: true,
+                                position: 'bottom',
+                                middlewares: { flip: false },
+                            }}
                             {...form.getInputProps('roleId')}
                         />
                     </Group>

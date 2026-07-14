@@ -11,14 +11,16 @@ import {
     type FilterableItem,
 } from '@lightdash/common';
 import {
+    TextInput,
     Accordion,
     Center,
     Group,
     Stack,
     Text,
     SegmentedControl,
+    Select,
 } from '@mantine-8/core';
-import { Select, TextInput, Tooltip } from '@mantine/core';
+import { Tooltip } from '@mantine/core';
 import differenceBy from 'lodash/differenceBy';
 import { useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
@@ -283,6 +285,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                         )}
                     <Group wrap="nowrap" gap="xs">
                         <Select
+                            allowDeselect={false}
                             value={rule.operator}
                             data={filterOperatorOptions}
                             size="xs"
@@ -295,6 +298,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                         />
 
                         <Select
+                            allowDeselect={false}
                             display={field && filterType ? 'none' : 'block'}
                             placeholder="Value(s)"
                             data={[]}

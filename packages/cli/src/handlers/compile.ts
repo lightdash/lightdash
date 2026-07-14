@@ -431,8 +431,7 @@ export const compile = async (options: CompileHandlerOptions) => {
         );
     }
 
-    const metricsCount =
-        dbtMetrics === null ? 0 : Object.values(dbtMetrics).length;
+    const metricsCount = dbtMetrics ? Object.values(dbtMetrics).length : 0;
     await LightdashAnalytics.track({
         event: 'compile.completed',
         properties: {

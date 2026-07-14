@@ -1,16 +1,16 @@
 import { isDimension, type FilterableItem } from '@lightdash/common';
 import {
+    TextInput,
     Group,
     Loader,
     Stack,
     Text,
     ActionIcon,
     Highlight,
+    ScrollArea,
 } from '@mantine-8/core';
 import {
     MultiSelect,
-    ScrollArea,
-    TextInput,
     Tooltip,
     type MultiSelectProps,
     type MultiSelectValueProps,
@@ -451,6 +451,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                         readOnly
                         value={`${values.length.toLocaleString()} values selected`}
                         disabled={disabled}
+                        rightSectionPointerEvents="all"
                         rightSection={
                             disabled ? null : (
                                 <Tooltip
@@ -458,6 +459,10 @@ const FilterStringAutoComplete: FC<Props> = ({
                                     label="Edit filter values"
                                 >
                                     <ActionIcon
+                                        aria-label="Edit filter values"
+                                        onMouseDown={(event) =>
+                                            event.preventDefault()
+                                        }
                                         variant="subtle"
                                         color="gray"
                                         size="sm"

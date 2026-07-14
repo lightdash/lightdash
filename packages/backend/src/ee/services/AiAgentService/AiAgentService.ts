@@ -2845,6 +2845,7 @@ export class AiAgentService extends BaseService {
             tags: body.tags,
             integrations: body.integrations,
             instruction: body.instruction,
+            imageUrl: body.imageUrl,
             // Admin-only agents ignore the user/group lists; clear them so the
             // contradictory "admin-only + specific users" state never persists.
             groupAccess: body.adminOnly ? [] : body.groupAccess,
@@ -7727,6 +7728,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             resolveUrl: toolsRuntime.resolveUrl,
             editContent: toolsRuntime.editContent,
             createContent: toolsRuntime.createContent,
+            createScheduledDelivery: toolsRuntime.createScheduledDelivery,
             validateContent: toolsRuntime.validateContent,
             getDashboardCharts: toolsRuntime.getDashboardCharts,
             findFields: toolsRuntime.findFields,
@@ -7915,6 +7917,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             resolveUrl,
             editContent,
             createContent,
+            createScheduledDelivery,
             validateContent,
             getDashboardCharts,
             findFields,
@@ -8308,6 +8311,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 ? user.userUuid
                 : null,
             useSlackStreamCard: Boolean(options.onSlackStepProgress),
+            slackChannelId: isSlackPrompt(prompt)
+                ? prompt.slackChannelId
+                : null,
             warehouseType,
             warehouseSchema,
             availableSkills,
@@ -8362,6 +8368,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             resolveUrl,
             editContent,
             createContent,
+            createScheduledDelivery,
             validateContent,
             getDashboardCharts,
             findFields,

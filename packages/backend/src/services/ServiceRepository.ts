@@ -155,6 +155,7 @@ interface ServiceManifest {
     appGenerateService: unknown;
     embedService: unknown;
     aiService: unknown;
+    aiAgentCoderService: unknown;
     aiAgentService: unknown;
     aiAgentToolsService: unknown;
     aiAgentAdminService: unknown;
@@ -1163,6 +1164,7 @@ export class ServiceRepository
                     spacePermissionService: this.getSpacePermissionService(),
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
+                    projectService: this.getProjectService(),
                 }),
         );
     }
@@ -1380,6 +1382,12 @@ export class ServiceRepository
 
     public getAiService<AiServiceImplT>(): AiServiceImplT {
         return this.getService('aiService');
+    }
+
+    public getAiAgentCoderService<
+        AiAgentCoderServiceImplT,
+    >(): AiAgentCoderServiceImplT {
+        return this.getService('aiAgentCoderService');
     }
 
     public getAiAgentService<AiAgentServiceImplT>(): AiAgentServiceImplT {

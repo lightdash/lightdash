@@ -1,12 +1,14 @@
 import { RedshiftAuthenticationType, WarehouseTypes } from '@lightdash/common';
-import { CopyButton, Stack, Button, ActionIcon, Anchor } from '@mantine-8/core';
 import {
-    NumberInput,
-    PasswordInput,
-    Select,
     TextInput,
-    Tooltip,
-} from '@mantine/core';
+    CopyButton,
+    Stack,
+    Button,
+    ActionIcon,
+    Anchor,
+    Select,
+} from '@mantine-8/core';
+import { NumberInput, PasswordInput, Tooltip } from '@mantine/core';
 import { IconCheck, IconCopy } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
 import { useToggle } from 'react-use';
@@ -241,6 +243,7 @@ const RedshiftForm: FC<{
                         />
 
                         <Select
+                            allowDeselect={false}
                             name="warehouse.sslmode"
                             {...form.getInputProps('warehouse.sslmode')}
                             defaultValue={RedshiftDefaultValues.sslmode}
@@ -356,6 +359,7 @@ const RedshiftForm: FC<{
                                         label="Generated SSH Public Key"
                                         readOnly={true}
                                         disabled={disabled}
+                                        rightSectionPointerEvents="all"
                                         rightSection={
                                             <>
                                                 <CopyButton
@@ -372,6 +376,12 @@ const RedshiftForm: FC<{
                                                             position="right"
                                                         >
                                                             <ActionIcon
+                                                                aria-label="Copy SSH tunnel public key"
+                                                                onMouseDown={(
+                                                                    event,
+                                                                ) =>
+                                                                    event.preventDefault()
+                                                                }
                                                                 variant="subtle"
                                                                 color={
                                                                     copied

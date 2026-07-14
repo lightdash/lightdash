@@ -118,6 +118,10 @@ import type { ProjectService } from '../../../services/ProjectService/ProjectSer
 import type { PromoteService } from '../../../services/PromoteService/PromoteService';
 import type { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
+import {
+    getOtelTraceHeaders,
+    runWithOtelSpanContext,
+} from '../../../tracing/tracing';
 import { type ExternalConnectionModel } from '../../models/ExternalConnectionModel';
 import type { SandboxRegistryModel } from '../../models/SandboxRegistryModel';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
@@ -158,6 +162,10 @@ import {
     describeClaudeCodeEnv,
 } from './claudeCodeEnv';
 import {
+    buildClaudeCodeOtelEnv,
+    claudeCodeOtelAllowedHosts,
+} from './claudeCodeOtelEnv';
+import {
     addClaudeUsage,
     ClaudeStreamProcessor,
     ZERO_CLAUDE_USAGE,
@@ -171,6 +179,7 @@ import {
     copyDesignIntoSandbox,
     type DesignSandboxCopyResult,
 } from './designSandboxCopy';
+import { resolveOtelExportHeaders } from './gcpOtelAuth';
 import { readDesignForDownload } from './readDesignForDownload';
 import { readS3ObjectAsBuffer } from './s3Utils';
 import {
@@ -524,6 +533,35 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
+     * Builds the Claude Code OTEL env injected into the sandbox for this build,
+     * minting fresh OTLP export auth headers (e.g. a GCP bearer token) at
+     * execute/resume time. Telemetry is strictly non-fatal: when it is disabled
+     * or header minting fails, returns an empty env so generation proceeds
+     * untraced. `traceparent` nests the sandbox spans under the backend's
+     * `DataApp.generate` parent.
+     */
+    private async resolveSandboxOtelEnv(
+        appUuid: string,
+        traceparent: string | undefined,
+    ): Promise<Record<string, string>> {
+        const { otel } = this.lightdashConfig.appRuntime;
+        if (!otel.enabled) {
+            return {};
+        }
+        try {
+            const headers = await resolveOtelExportHeaders(otel.auth);
+            return buildClaudeCodeOtelEnv(otel, headers, traceparent);
+        } catch (error) {
+            this.logger.warn(
+                `App ${appUuid}: OTEL tracing disabled for this build — failed to resolve export headers: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+            return {};
+        }
+    }
+
+    /**
      * The sandbox manager over the provider selected by `SANDBOX_PROVIDER`
      * (e2b | docker). Memoized — the feature talks only to the manager for
      * lifecycle (acquire/resume/suspend/destroy via the stable `sandbox_uuid`)
@@ -635,6 +673,9 @@ export class AppGenerateService extends BaseService {
                 allow: [
                     ...claudeCodeAllowedHosts(copilot),
                     ...extraEgressHosts,
+                    ...claudeCodeOtelAllowedHosts(
+                        this.lightdashConfig.appRuntime.otel,
+                    ),
                 ],
             },
         };
@@ -3119,19 +3160,47 @@ export class AppGenerateService extends BaseService {
         }, HEARTBEAT_INTERVAL_MS);
 
         try {
-            await this.runPipelineStages(
-                sandbox,
-                payload,
-                s3Client,
-                bucket,
-                durations,
-                overallStart,
-                currentStatus,
-                wasResumed,
-                claudeCodeEnv,
-                imageIds,
-                chartReferences,
-                versionDeps,
+            // Parent span for the whole build: the sandbox's Claude Code spans
+            // (one per LLM request / tool call) nest under it via the injected
+            // TRACEPARENT, forming a single per-build waterfall. The OTEL export
+            // env is resolved inside the span so TRACEPARENT reflects this
+            // parent, and freshly per execution so a resumed sandbox always
+            // exports with a non-expired auth token.
+            await runWithOtelSpanContext(
+                {
+                    name: 'DataApp.generate',
+                    attributes: {
+                        'app.uuid': appUuid,
+                        'app.version': version,
+                        'project.uuid': projectUuid,
+                        'organization.uuid': payload.organizationUuid,
+                        'user.uuid': payload.userUuid,
+                        'app.is_iteration': isIteration,
+                        ...(process.env.LIGHTDASH_INSTALL_ID
+                            ? { installId: process.env.LIGHTDASH_INSTALL_ID }
+                            : {}),
+                    },
+                },
+                async () => {
+                    const otelEnv = await this.resolveSandboxOtelEnv(
+                        appUuid,
+                        getOtelTraceHeaders().traceparent,
+                    );
+                    await this.runPipelineStages(
+                        sandbox,
+                        payload,
+                        s3Client,
+                        bucket,
+                        durations,
+                        overallStart,
+                        currentStatus,
+                        wasResumed,
+                        { ...claudeCodeEnv, ...otelEnv },
+                        imageIds,
+                        chartReferences,
+                        versionDeps,
+                    );
+                },
             );
         } finally {
             clearInterval(heartbeat);

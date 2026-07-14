@@ -1,3 +1,138 @@
+## [0.3378.1](https://github.com/lightdash/lightdash/compare/0.3378.0...0.3378.1) (2026-07-14)
+
+
+### Bug Fixes
+
+* **e2e:** repair app e2e specs broken by Mantine 8 Select/Checkbox migration ([#25519](https://github.com/lightdash/lightdash/issues/25519)) ([8d4b533](https://github.com/lightdash/lightdash/commit/8d4b53363e9981e2da163e5a4e7621e4206019a1))
+
+# [0.3378.0](https://github.com/lightdash/lightdash/compare/0.3377.1...0.3378.0) (2026-07-14)
+
+
+### Bug Fixes
+
+* **cli:** friendly errors for missing metrics key and unreadable manifest ([#25511](https://github.com/lightdash/lightdash/issues/25511)) ([d519cc8](https://github.com/lightdash/lightdash/commit/d519cc824937242cc7e42885dd2f6756c820bb9d))
+
+
+### Features
+
+* add warehouse catalog CLI command ([#25517](https://github.com/lightdash/lightdash/issues/25517)) ([5366e10](https://github.com/lightdash/lightdash/commit/5366e10a9cf0a94672ae3e68d7d3711ba98bd249))
+* **ai:** expose the Deep Research API ([#25524](https://github.com/lightdash/lightdash/issues/25524)) ([53bf60f](https://github.com/lightdash/lightdash/commit/53bf60fde0e52f1dfc8ac2f3d2542d9c70f97144))
+
+## [0.3377.1](https://github.com/lightdash/lightdash/compare/0.3377.0...0.3377.1) (2026-07-14)
+
+
+### Bug Fixes
+
+* **frontend:** pin per-tile SQL column select to filter panel ([#25505](https://github.com/lightdash/lightdash/issues/25505)) ([0f51deb](https://github.com/lightdash/lightdash/commit/0f51deb8ed576f5a1dc6f276df7f10da168bc96e)), closes [#25504](https://github.com/lightdash/lightdash/issues/25504)
+
+# [0.3377.0](https://github.com/lightdash/lightdash/compare/0.3376.1...0.3377.0) (2026-07-14)
+
+
+### Bug Fixes
+
+* **frontend:** tolerate partial create_saved_chart_version url state ([#25515](https://github.com/lightdash/lightdash/issues/25515)) ([4af487f](https://github.com/lightdash/lightdash/commit/4af487fe6ac493e5aefead8be228a8223299e97b)), closes [#25510](https://github.com/lightdash/lightdash/issues/25510)
+
+
+### Features
+
+* **deep-research:** run managed investigations ([#25514](https://github.com/lightdash/lightdash/issues/25514)) ([676e5f0](https://github.com/lightdash/lightdash/commit/676e5f099bdddfe090e22e1c5e86ff462edcf019))
+
+## [0.3376.1](https://github.com/lightdash/lightdash/compare/0.3376.0...0.3376.1) (2026-07-14)
+
+
+### Bug Fixes
+
+* **ai-agents:** stop runSql tool calls crashing the agent chat bubble ([#25509](https://github.com/lightdash/lightdash/issues/25509)) ([46a872e](https://github.com/lightdash/lightdash/commit/46a872e1bdb6e1c405fb661d103353b8a94f8dfd)), closes [#25361](https://github.com/lightdash/lightdash/issues/25361) [#25508](https://github.com/lightdash/lightdash/issues/25508)
+
+# [0.3376.0](https://github.com/lightdash/lightdash/compare/0.3375.3...0.3376.0) (2026-07-14)
+
+
+### Features
+
+* add project-scoped AI agent config as code ([#25501](https://github.com/lightdash/lightdash/issues/25501)) ([6f4b8b1](https://github.com/lightdash/lightdash/commit/6f4b8b14a26eb74d5b3d23d7c2e788661ae8a241)), closes [#16763](https://github.com/lightdash/lightdash/issues/16763)
+
+## [0.3375.3](https://github.com/lightdash/lightdash/compare/0.3375.2...0.3375.3) (2026-07-14)
+
+
+### Bug Fixes
+
+* pivot row totals missing for rows beyond the first 500 index values ([#25507](https://github.com/lightdash/lightdash/issues/25507)) ([2f5a89f](https://github.com/lightdash/lightdash/commit/2f5a89f09fa1bed83ef7d9004ce01c4eca638e9f))
+
+## [0.3375.2](https://github.com/lightdash/lightdash/compare/0.3375.1...0.3375.2) (2026-07-14)
+
+
+### Bug Fixes
+
+* azure sandbox execs timeout too early ([#25431](https://github.com/lightdash/lightdash/issues/25431)) ([eede544](https://github.com/lightdash/lightdash/commit/eede54402500c7da69c06df643f64205af8c4eca))
+
+## [0.3375.1](https://github.com/lightdash/lightdash/compare/0.3375.0...0.3375.1) (2026-07-14)
+
+
+### Bug Fixes
+
+* **frontend:** filter dropdowns close the whole popover on select ([#25504](https://github.com/lightdash/lightdash/issues/25504)) ([bcab287](https://github.com/lightdash/lightdash/commit/bcab2873f09ba85c6ee945630a48d6791cb6258b))
+* **mcp:** accept bearer authentication for PATs ([#25495](https://github.com/lightdash/lightdash/issues/25495)) ([96002a7](https://github.com/lightdash/lightdash/commit/96002a70f11d1f2e80f912e48941a4f11096137d))
+* **scheduler:** cap AI delivery summary content and reuse delivery query results ([#25497](https://github.com/lightdash/lightdash/issues/25497)) ([b8248cd](https://github.com/lightdash/lightdash/commit/b8248cd4abcd905584a4c23f4024bbacb8ab49f9))
+
+# [0.3375.0](https://github.com/lightdash/lightdash/compare/0.3374.1...0.3375.0) (2026-07-14)
+
+
+### Features
+
+* add virtual views as code ([#25493](https://github.com/lightdash/lightdash/issues/25493)) ([bf41f77](https://github.com/lightdash/lightdash/commit/bf41f77203064eeefb28dcc29cf912ee6dee080d))
+* make scheduled content downloads opt-in ([#25500](https://github.com/lightdash/lightdash/issues/25500)) ([2ce53f2](https://github.com/lightdash/lightdash/commit/2ce53f2e8dc8f91e893fdeca9f789a54325eae78)), closes [#25493](https://github.com/lightdash/lightdash/issues/25493)
+
+## [0.3374.1](https://github.com/lightdash/lightdash/compare/0.3374.0...0.3374.1) (2026-07-14)
+
+
+### Bug Fixes
+
+* apply data timezone to BigQuery via time_zone connection property ([#25496](https://github.com/lightdash/lightdash/issues/25496)) ([1db5f44](https://github.com/lightdash/lightdash/commit/1db5f44e144ab7397ed41cec7fadfaef98e039c2))
+* **frontend:** crash on dashboard filter 'Chart tiles' tab with unmatched tiles ([#25499](https://github.com/lightdash/lightdash/issues/25499)) ([1f50042](https://github.com/lightdash/lightdash/commit/1f500427483518bed88b6b530f72355a3f2b39f3))
+
+# [0.3374.0](https://github.com/lightdash/lightdash/compare/0.3373.0...0.3374.0) (2026-07-14)
+
+
+### Features
+
+* **ai:** agent tool to create scheduled deliveries ([#25438](https://github.com/lightdash/lightdash/issues/25438)) ([dd07880](https://github.com/lightdash/lightdash/commit/dd07880ef80b336f80ff23160bd67983666b48e0))
+
+# [0.3373.0](https://github.com/lightdash/lightdash/compare/0.3372.0...0.3373.0) (2026-07-14)
+
+
+### Features
+
+* **data-apps:** trace sandbox builds with Claude Code OTEL + per-execution GCP auth ([#24873](https://github.com/lightdash/lightdash/issues/24873)) ([1e9e548](https://github.com/lightdash/lightdash/commit/1e9e5482db2eba537fe115bd2393b787a9ec7646)), closes [/linear.app/lightdash/issue/GLITCH-521/trace-data-app-generation-with-claude-code-otel#agent-session-6dc594b4](https://github.com//linear.app/lightdash/issue/GLITCH-521/trace-data-app-generation-with-claude-code-otel/issues/agent-session-6dc594b4) [/linear.app/lightdash/issue/GLITCH-521/trace-data-app-generation-with-claude-code-otel#agent-session-6dc594b4](https://github.com//linear.app/lightdash/issue/GLITCH-521/trace-data-app-generation-with-claude-code-otel/issues/agent-session-6dc594b4) [/linear.app/lightdash/issue/GLITCH-521/trace-data-app-generation-with-claude-code-otel#agent-session-6dc594b4](https://github.com//linear.app/lightdash/issue/GLITCH-521/trace-data-app-generation-with-claude-code-otel/issues/agent-session-6dc594b4) [/linear.app/lightdash/issue/GLITCH-521/trace-data-app-generation-with-claude-code-otel#agent-session-6dc594b4](https://github.com//linear.app/lightdash/issue/GLITCH-521/trace-data-app-generation-with-claude-code-otel/issues/agent-session-6dc594b4)
+
+# [0.3372.0](https://github.com/lightdash/lightdash/compare/0.3371.3...0.3372.0) (2026-07-14)
+
+
+### Features
+
+* **cli:** remove experimental warning for dbt Cloud CLI ([#25488](https://github.com/lightdash/lightdash/issues/25488)) ([69790e8](https://github.com/lightdash/lightdash/commit/69790e8d16c9f40f9628fac145691097094bf323)), closes [/linear.app/lightdash/issue/PROD-2760/cli-remove-experimental-feature-warning-for-dbt-cloud#agent-session-3af6dce0](https://github.com//linear.app/lightdash/issue/PROD-2760/cli-remove-experimental-feature-warning-for-dbt-cloud/issues/agent-session-3af6dce0)
+
+## [0.3371.3](https://github.com/lightdash/lightdash/compare/0.3371.2...0.3371.3) (2026-07-13)
+
+
+### Bug Fixes
+
+* **frontend:** restore metrics catalog category colors after Badge v8 migration ([#25491](https://github.com/lightdash/lightdash/issues/25491)) ([dd1ea71](https://github.com/lightdash/lightdash/commit/dd1ea71bd5dac95c404962131b0c9cd3ecb97ba2)), closes [#25462](https://github.com/lightdash/lightdash/issues/25462)
+
+## [0.3371.2](https://github.com/lightdash/lightdash/compare/0.3371.1...0.3371.2) (2026-07-13)
+
+
+### Bug Fixes
+
+* **frontend:** enable dashboard value mode toggle ([#25489](https://github.com/lightdash/lightdash/issues/25489)) ([b846bb3](https://github.com/lightdash/lightdash/commit/b846bb3fe91aaf1d5de15000ff30bf147bd42068))
+* **frontend:** polish migrated input styling ([#25486](https://github.com/lightdash/lightdash/issues/25486)) ([446c9a4](https://github.com/lightdash/lightdash/commit/446c9a4b041572af062c54840f303a522b960e3b))
+
+## [0.3371.1](https://github.com/lightdash/lightdash/compare/0.3371.0...0.3371.1) (2026-07-13)
+
+
+### Bug Fixes
+
+* **e2e:** use semantic dashboard checkbox selectors ([#25482](https://github.com/lightdash/lightdash/issues/25482)) ([e83e3bd](https://github.com/lightdash/lightdash/commit/e83e3bdd427b06f3ceb828b22e2f27cff79a3f29)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.3371.0](https://github.com/lightdash/lightdash/compare/0.3370.0...0.3371.0) (2026-07-13)
 
 

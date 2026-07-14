@@ -131,12 +131,32 @@ export const useDateZoomGranularitySearch = ():
     return standardMatch ?? dateZoomParam;
 };
 
-// To handle older url params where exploreName wasn't required
+// Url params come from outside the app (old agent share links, hand-crafted
+// urls), so any key can be missing: older urls lack exploreName, and links
+// generated from AI answers can omit chartConfig, tableConfig, or metricQuery
+// sub-fields entirely.
 type BackwardsCompatibleCreateSavedChartVersionUrlParam = Omit<
     CreateSavedChartVersion,
-    'metricQuery'
+    'metricQuery' | 'chartConfig' | 'tableConfig'
 > & {
-    metricQuery: Omit<MetricQuery, 'exploreName'> & { exploreName?: string };
+    chartConfig?: CreateSavedChartVersion['chartConfig'];
+    tableConfig?: CreateSavedChartVersion['tableConfig'];
+    metricQuery: Omit<
+        MetricQuery,
+        | 'exploreName'
+        | 'dimensions'
+        | 'metrics'
+        | 'filters'
+        | 'sorts'
+        | 'tableCalculations'
+    > & {
+        exploreName?: string;
+        dimensions?: MetricQuery['dimensions'];
+        metrics?: MetricQuery['metrics'];
+        filters?: MetricQuery['filters'];
+        sorts?: MetricQuery['sorts'];
+        tableCalculations?: MetricQuery['tableCalculations'];
+    };
 };
 
 export const parseChartFromExplorerSearchParams = (
@@ -151,12 +171,21 @@ export const parseChartFromExplorerSearchParams = (
             JSON.parse(chartConfigSearchParam);
         return {
             ...parsedValue,
+            chartConfig:
+                parsedValue.chartConfig ??
+                DEFAULT_EMPTY_EXPLORE_CONFIG.chartConfig,
             tableConfig: parsedValue.tableConfig ?? { columnOrder: [] },
             metricQuery: {
                 ...parsedValue.metricQuery,
                 exploreName:
                     parsedValue.metricQuery.exploreName ||
                     parsedValue.tableName,
+                dimensions: parsedValue.metricQuery.dimensions ?? [],
+                metrics: parsedValue.metricQuery.metrics ?? [],
+                filters: parsedValue.metricQuery.filters ?? {},
+                sorts: parsedValue.metricQuery.sorts ?? [],
+                tableCalculations:
+                    parsedValue.metricQuery.tableCalculations ?? [],
                 customDimensions:
                     parsedValue.metricQuery.customDimensions?.map<CustomDimension>(
                         (customDimension) => {

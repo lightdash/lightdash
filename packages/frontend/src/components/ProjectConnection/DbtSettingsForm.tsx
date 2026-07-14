@@ -4,8 +4,7 @@ import {
     DbtProjectTypeLabels,
     WarehouseTypes,
 } from '@lightdash/common';
-import { Stack, Anchor } from '@mantine-8/core';
-import { Select, TextInput } from '@mantine/core';
+import { TextInput, Stack, Anchor, Select } from '@mantine-8/core';
 import { useMemo, useState, type FC } from 'react';
 import useApp from '../../providers/App/useApp';
 import AzureDevOpsForm from './DbtForms/AzureDevOpsForm';
@@ -180,15 +179,16 @@ const DbtSettingsForm: FC<DbtSettingsFormProps> = ({
         >
             <Stack style={{ marginTop: '8px' }}>
                 <Select
+                    allowDeselect={false}
                     name="dbt.type"
                     {...form.getInputProps('dbt.type')}
-                    onChange={(value: DbtProjectType) => {
-                        form.getInputProps('dbt.type').onChange(value);
-                        if (value) {
-                            form.setValues({
-                                dbt: dbtDefaults.formValues[value],
-                            });
-                        }
+                    onChange={(value) => {
+                        if (!value) return;
+                        const dbtType = value as DbtProjectType;
+                        form.getInputProps('dbt.type').onChange(dbtType);
+                        form.setValues({
+                            dbt: dbtDefaults.formValues[dbtType],
+                        });
                     }}
                     defaultValue={DbtProjectType.GITHUB}
                     label="Type"

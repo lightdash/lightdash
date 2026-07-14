@@ -35,11 +35,13 @@ import {
     type ChartAsCode,
     type DashboardAsCode,
     type FieldValueSearchResult,
+    type SchedulerAiAugmentation,
 } from '@lightdash/common';
 import * as JsonPatch from 'fast-json-patch';
 import Logger from '../../../logging/logger';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
+import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import { JobModel } from '../../../models/JobModel/JobModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
@@ -71,6 +73,7 @@ import type { BuiltInSkills } from '../ai/skills/builtInSkills';
 import {
     AnalyzeFieldImpactFn,
     CreateContentFn,
+    CreateScheduledDeliveryFn,
     DescribeWarehouseTableFn,
     EditContentFn,
     FindContentFn,
@@ -109,6 +112,7 @@ import {
 } from '../ai/utils/populateCustomMetricsSQL';
 import { getExploreRequiredFilters } from '../ai/utils/requiredFilters';
 import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
+import type { SchedulerAiAugmentationService } from '../SchedulerAiAugmentationService/SchedulerAiAugmentationService';
 
 type AgentListContentResult = Awaited<ReturnType<ListContentFn>>;
 type AgentListContentItem = AgentListContentResult['items'][number];
@@ -187,6 +191,7 @@ export type AiAgentToolsRuntime = {
     resolveUrl: ResolveUrlFn;
     editContent: EditContentFn;
     createContent: CreateContentFn;
+    createScheduledDelivery: CreateScheduledDeliveryFn;
     validateContent: ValidateContentFn;
     listKnowledgeDocuments: ListKnowledgeDocumentsFn;
     getKnowledgeDocumentContent: (args: {
@@ -241,6 +246,7 @@ type AiAgentToolsServiceDependencies = {
     spaceService: SpaceService;
     spaceModel: SpaceModel;
     dashboardService: DashboardService;
+    dashboardModel: DashboardModel;
     savedChartService: SavedChartService;
     savedChartModel: SavedChartModel;
     coderService: CoderService;
@@ -251,6 +257,9 @@ type AiAgentToolsServiceDependencies = {
     featureFlagService: FeatureFlagService;
     previewDeploySetupService: PreviewDeploySetupService;
     shareService: ShareService;
+    // Lazy to break the construction cycle: schedulerAiAugmentationService →
+    // aiAgentService → aiAgentToolsService.
+    getSchedulerAiAugmentationService: () => SchedulerAiAugmentationService;
     lightdashConfig: {
         siteUrl: string;
         ai: { copilot: { maxQueryLimit: number } };
@@ -282,6 +291,8 @@ export class AiAgentToolsService extends BaseService {
 
     private readonly dashboardService: DashboardService;
 
+    private readonly dashboardModel: DashboardModel;
+
     private readonly savedChartService: SavedChartService;
 
     private readonly savedChartModel: SavedChartModel;
@@ -299,6 +310,8 @@ export class AiAgentToolsService extends BaseService {
     private readonly previewDeploySetupService: PreviewDeploySetupService;
 
     private readonly shareService: ShareService;
+
+    private readonly getSchedulerAiAugmentationService: () => SchedulerAiAugmentationService;
 
     private readonly lightdashConfig: AiAgentToolsServiceDependencies['lightdashConfig'];
 
@@ -349,6 +362,7 @@ export class AiAgentToolsService extends BaseService {
         spaceService,
         spaceModel,
         dashboardService,
+        dashboardModel,
         savedChartService,
         savedChartModel,
         coderService,
@@ -358,6 +372,7 @@ export class AiAgentToolsService extends BaseService {
         featureFlagService,
         previewDeploySetupService,
         shareService,
+        getSchedulerAiAugmentationService,
         lightdashConfig,
     }: AiAgentToolsServiceDependencies) {
         super();
@@ -374,6 +389,7 @@ export class AiAgentToolsService extends BaseService {
         this.spaceService = spaceService;
         this.spaceModel = spaceModel;
         this.dashboardService = dashboardService;
+        this.dashboardModel = dashboardModel;
         this.savedChartService = savedChartService;
         this.savedChartModel = savedChartModel;
         this.coderService = coderService;
@@ -383,6 +399,8 @@ export class AiAgentToolsService extends BaseService {
         this.featureFlagService = featureFlagService;
         this.previewDeploySetupService = previewDeploySetupService;
         this.shareService = shareService;
+        this.getSchedulerAiAugmentationService =
+            getSchedulerAiAugmentationService;
         this.lightdashConfig = lightdashConfig;
     }
 
@@ -520,6 +538,8 @@ export class AiAgentToolsService extends BaseService {
             resolveUrl: (args) => this.resolveUrl(context, args),
             editContent: (args) => this.editContent(context, args),
             createContent: (args) => this.createContent(context, args),
+            createScheduledDelivery: (args) =>
+                this.createScheduledDelivery(context, args),
             validateContent: (args) => this.validateContent(args),
             listKnowledgeDocuments: () => this.listKnowledgeDocuments(context),
             getKnowledgeDocumentContent: (args) =>
@@ -1181,6 +1201,19 @@ export class AiAgentToolsService extends BaseService {
         return `/projects/${context.projectUuid}/spaces/${uuid}`;
     }
 
+    private static getScheduledDeliveryUrl(
+        context: AiAgentToolsRuntimeContext,
+        type: 'dashboard' | 'chart',
+        resourceUuid: string,
+        schedulerUuid: string,
+    ) {
+        const basePath =
+            type === 'dashboard'
+                ? `/projects/${context.projectUuid}/dashboards/${resourceUuid}/view`
+                : `/projects/${context.projectUuid}/saved/${resourceUuid}/view`;
+        return `${basePath}?scheduler_uuid=${schedulerUuid}`;
+    }
+
     private static getDataAppUrl(
         context: AiAgentToolsRuntimeContext,
         uuid: string,
@@ -1630,6 +1663,137 @@ export class AiAgentToolsService extends BaseService {
         content,
     }: Parameters<ValidateContentFn>[0]): ReturnType<ValidateContentFn> {
         return this.aiAgentContentValidation.validateContent(type, content);
+    }
+
+    private createScheduledDelivery(
+        context: AiAgentToolsRuntimeContext,
+        args: Parameters<CreateScheduledDeliveryFn>[0],
+    ): ReturnType<CreateScheduledDeliveryFn> {
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(
+                context,
+            )}.createScheduledDelivery`,
+            {
+                resourceType: args.resourceType,
+                resourceUuidOrSlug: args.resourceUuidOrSlug,
+            },
+            async () => {
+                const notFoundMessage = `${
+                    args.resourceType === 'chart' ? 'Chart' : 'Dashboard'
+                } "${args.resourceUuidOrSlug}" was not found`;
+                // Model-level lookups: the service getters record a view event
+                // per call. User authz is enforced by createScheduler.
+                let scheduler;
+                let resourceUuid;
+                switch (args.resourceType) {
+                    case 'chart': {
+                        const chart = await this.savedChartModel.get(
+                            args.resourceUuidOrSlug,
+                            undefined,
+                            { projectUuid: context.projectUuid },
+                        );
+                        if (
+                            !AiAgentToolsService.hasAgentSpaceAccess(
+                                context.spaceAccess,
+                                chart.spaceUuid,
+                            )
+                        ) {
+                            throw new NotFoundError(notFoundMessage);
+                        }
+                        resourceUuid = chart.uuid;
+                        scheduler =
+                            await this.savedChartService.createScheduler(
+                                context.user,
+                                chart.uuid,
+                                args.scheduler,
+                            );
+                        break;
+                    }
+                    case 'dashboard': {
+                        const dashboard =
+                            await this.dashboardModel.getByIdOrSlug(
+                                args.resourceUuidOrSlug,
+                                { projectUuid: context.projectUuid },
+                            );
+                        if (
+                            !AiAgentToolsService.hasAgentSpaceAccess(
+                                context.spaceAccess,
+                                dashboard.spaceUuid,
+                            )
+                        ) {
+                            throw new NotFoundError(notFoundMessage);
+                        }
+                        resourceUuid = dashboard.uuid;
+                        scheduler = await this.dashboardService.createScheduler(
+                            context.user,
+                            dashboard.uuid,
+                            args.scheduler,
+                        );
+                        break;
+                    }
+                    default:
+                        return assertUnreachable(
+                            args.resourceType,
+                            'Invalid resource type',
+                        );
+                }
+                const href = AiAgentToolsService.getScheduledDeliveryUrl(
+                    context,
+                    args.resourceType,
+                    resourceUuid,
+                    scheduler.schedulerUuid,
+                );
+
+                if (args.aiAugmentationPrompt === null) {
+                    return {
+                        scheduler,
+                        resourceUuid,
+                        href,
+                        aiAugmentationAttached: false,
+                        warnings: [],
+                    };
+                }
+
+                const augmentation: SchedulerAiAugmentation = context.agentUuid
+                    ? {
+                          type: 'agent',
+                          prompt: args.aiAugmentationPrompt,
+                          agentUuid: context.agentUuid,
+                          sourceThreadUuid: null,
+                      }
+                    : {
+                          type: 'fast_model',
+                          prompt: args.aiAugmentationPrompt,
+                      };
+
+                try {
+                    await this.getSchedulerAiAugmentationService().upsertAugmentation(
+                        context.user,
+                        scheduler.schedulerUuid,
+                        augmentation,
+                    );
+                    return {
+                        scheduler,
+                        resourceUuid,
+                        href,
+                        aiAugmentationAttached: true,
+                        warnings: [],
+                    };
+                } catch (error) {
+                    return {
+                        scheduler,
+                        resourceUuid,
+                        href,
+                        aiAugmentationAttached: false,
+                        warnings: [
+                            `AI augmentation could not be attached: ${getErrorMessage(
+                                error,
+                            )}. The delivery was created WITHOUT it — the user can add or fix the augmentation from the Scheduled deliveries UI, or remove the delivery there.`,
+                        ],
+                    };
+                }
+            },
+        );
     }
 
     private runAsyncQuery(
