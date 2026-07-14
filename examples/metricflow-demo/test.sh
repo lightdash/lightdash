@@ -3,8 +3,8 @@
 # → dbt manifest → Lightdash metrics via the CLI compile pipeline.
 #
 # Requirements: uv (https://docs.astral.sh/uv/), node, and for the legacy
-# project a running postgres (Lightdash docker-dev, localhost:5532).
-# See README.md for details.
+# project a running postgres (defaults to localhost:5432; override with
+# PGHOST/PGPORT/PGUSER/PGPASSWORD/PGDATABASE). See README.md for details.
 set -euo pipefail
 cd "$(dirname "$0")"
 REPO_ROOT="$(cd ../.. && pwd)"
