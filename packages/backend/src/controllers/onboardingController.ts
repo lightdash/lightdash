@@ -2,6 +2,8 @@ import {
     ApiConnectionDiagnosticResponse,
     ApiErrorPayload,
     ApiGrantScriptResponse,
+    ApiOnboardingConnectCodeResponse,
+    ApiOnboardingConnectionDepositResponse,
     ApiOnboardingDashboardResponse,
     ApiOnboardingProfileResponse,
     ApiOnboardingProjectStateResponse,
@@ -10,6 +12,7 @@ import {
     ApiScheduleOnboardingProfileResponse,
     ApiScheduleOnboardingSemanticLayerResponse,
     assertRegisteredAccount,
+    DepositOnboardingConnectionRequest,
     GrantScriptRequest,
     TestOnboardingConnectionRequest,
     UpdateOnboardingProjectStep,
@@ -210,12 +213,43 @@ export class OnboardingController extends BaseController {
                 .getDashboard(toSessionUser(req.account), projectUuid),
         };
     }
+
+    @Middlewares([isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/connect-code')
+    @OperationId('CreateOnboardingConnectCode')
+    async createConnectCode(
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiOnboardingConnectCodeResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getOnboardingConnectionService()
+                .createConnectCode(req.account, projectUuid),
+        };
+    }
 }
 
 @Route('/api/v1/onboarding/connection')
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Onboarding')
 export class OnboardingConnectionController extends BaseController {
+    @SuccessResponse('200', 'Success')
+    @Post('/deposit')
+    @OperationId('DepositOnboardingConnection')
+    async depositConnection(
+        @Body() body: DepositOnboardingConnectionRequest,
+    ): Promise<ApiOnboardingConnectionDepositResponse> {
+        return {
+            status: 'ok',
+            results: await this.services
+                .getOnboardingConnectionService()
+                .depositConnection(body),
+        };
+    }
+
     /**
      * Test draft warehouse credentials without persisting them.
      * @summary Test connection

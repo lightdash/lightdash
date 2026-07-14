@@ -12,6 +12,7 @@ export enum OnboardingStepType {
 
 export enum OnboardingStepStatus {
     PENDING = 'pending',
+    PENDING_CONFIGURATION = 'pending_configuration',
     IN_PROGRESS = 'in_progress',
     COMPLETED = 'completed',
     ERROR = 'error',
@@ -77,6 +78,58 @@ export type ApiConnectionDiagnosticResponse =
 export type TestOnboardingConnectionRequest = {
     warehouseConnection: CreateWarehouseCredentials;
 };
+
+export type OnboardingConnectCodeResult = {
+    code: string;
+    expiresAt: Date;
+};
+
+export type ApiOnboardingConnectCodeResponse =
+    ApiSuccess<OnboardingConnectCodeResult>;
+
+export type OnboardingConnectionRequiredValue = 'database' | 'warehouse';
+
+export type OnboardingConnectionValueSource = 'flag' | 'default' | 'missing';
+
+export type OnboardingConnectionValues = {
+    database: string | null;
+    warehouse: string | null;
+    role: string | null;
+    schema: string | null;
+};
+
+export type OnboardingConnectionValueSources = {
+    database: OnboardingConnectionValueSource;
+    warehouse: OnboardingConnectionValueSource;
+    role: OnboardingConnectionValueSource;
+    schema: OnboardingConnectionValueSource;
+};
+
+export type OnboardingConnectionInventory = {
+    databases: string[];
+    warehouses: string[];
+    roles: string[];
+};
+
+export type DepositOnboardingConnectionRequest = {
+    code: string;
+    warehouseConnection: CreateWarehouseCredentials;
+    connectionValues: OnboardingConnectionValues;
+    connectionValueSources: OnboardingConnectionValueSources;
+    inventory: OnboardingConnectionInventory;
+};
+
+export type OnboardingConnectionDepositResult = {
+    stepStatus: OnboardingStepStatus;
+    connectionValues: OnboardingConnectionValues;
+    connectionValueSources: OnboardingConnectionValueSources;
+    inventory: OnboardingConnectionInventory;
+    missingConnectionValues: OnboardingConnectionRequiredValue[];
+    diagnostic: ConnectionDiagnosticResult | null;
+};
+
+export type ApiOnboardingConnectionDepositResponse =
+    ApiSuccess<OnboardingConnectionDepositResult>;
 
 export type GrantScriptRequest = {
     roleName: string;

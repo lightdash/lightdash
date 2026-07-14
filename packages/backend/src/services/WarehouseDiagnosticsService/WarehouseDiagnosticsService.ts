@@ -375,6 +375,12 @@ export class WarehouseDiagnosticsService extends BaseService {
         credentials: CreateWarehouseCredentials,
     ): Promise<ConnectionDiagnosticResult> {
         this.assertCanCreateProject(account);
+        return this.diagnoseConnection(credentials);
+    }
+
+    async diagnoseConnection(
+        credentials: CreateWarehouseCredentials,
+    ): Promise<ConnectionDiagnosticResult> {
         if (credentials.type !== WarehouseTypes.SNOWFLAKE) {
             return this.testGenericConnection(credentials);
         }

@@ -45,6 +45,7 @@ import { LightdashAnalyticsService } from './LightdashAnalyticsService/Lightdash
 import { MetricsExplorerService } from './MetricsExplorerService/MetricsExplorerService';
 import { NotificationsService } from './NotificationsService/NotificationsService';
 import { OAuthService } from './OAuthService/OAuthService';
+import { OnboardingConnectionService } from './OnboardingConnectionService/OnboardingConnectionService';
 import { OnboardingDashboardService } from './OnboardingDashboardService/OnboardingDashboardService';
 import { OnboardingFlowService } from './OnboardingFlowService/OnboardingFlowService';
 import { OrganizationAccessService } from './OrganizationAccessService/OrganizationAccessService';
@@ -108,6 +109,7 @@ interface ServiceManifest {
     healthService: HealthService;
     notificationService: NotificationsService;
     oauthService: OAuthService;
+    onboardingConnectionService: OnboardingConnectionService;
     onboardingDashboardService: OnboardingDashboardService;
     onboardingFlowService: OnboardingFlowService;
 
@@ -603,6 +605,24 @@ export class ServiceRepository
                     onboardingProjectStateModel:
                         this.models.getOnboardingProjectStateModel(),
                     projectModel: this.models.getProjectModel(),
+                }),
+        );
+    }
+
+    public getOnboardingConnectionService(): OnboardingConnectionService {
+        return this.getService(
+            'onboardingConnectionService',
+            () =>
+                new OnboardingConnectionService({
+                    onboardingConnectCodeModel:
+                        this.models.getOnboardingConnectCodeModel(),
+                    onboardingProjectStateModel:
+                        this.models.getOnboardingProjectStateModel(),
+                    projectModel: this.models.getProjectModel(),
+                    projectService: this.getProjectService(),
+                    userService: this.getUserService(),
+                    warehouseDiagnosticsService:
+                        this.getWarehouseDiagnosticsService(),
                 }),
         );
     }

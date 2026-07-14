@@ -26,6 +26,7 @@ import { McpContextModel } from './McpContextModel';
 import { MigrationModel } from './MigrationModel/MigrationModel';
 import { NotificationsModel } from './NotificationsModel/NotificationsModel';
 import { OAuth2Model } from './OAuth2Model';
+import { OnboardingConnectCodeModel } from './OnboardingConnectCodeModel';
 import { OnboardingModel } from './OnboardingModel/OnboardingModel';
 import { OnboardingProjectStateModel } from './OnboardingProjectStateModel';
 import { OpenIdIdentityModel } from './OpenIdIdentitiesModel';
@@ -95,6 +96,7 @@ export type ModelManifest = {
     migrationModel: MigrationModel;
     notificationsModel: NotificationsModel;
     oauthModel: OAuth2Model;
+    onboardingConnectCodeModel: OnboardingConnectCodeModel;
     onboardingModel: OnboardingModel;
     onboardingProjectStateModel: OnboardingProjectStateModel;
     openIdIdentityModel: OpenIdIdentityModel;
@@ -425,6 +427,13 @@ export class ModelRepository
         return this.getModel(
             'oauthModel',
             () => new OAuth2Model(this.database),
+        );
+    }
+
+    public getOnboardingConnectCodeModel(): OnboardingConnectCodeModel {
+        return this.getModel(
+            'onboardingConnectCodeModel',
+            () => new OnboardingConnectCodeModel({ database: this.database }),
         );
     }
 

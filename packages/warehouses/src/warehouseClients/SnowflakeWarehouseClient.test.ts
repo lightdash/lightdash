@@ -1,4 +1,8 @@
-import { CreateSnowflakeCredentials, DimensionType } from '@lightdash/common';
+import {
+    CreateSnowflakeCredentials,
+    DimensionType,
+    SnowflakeAuthenticationType,
+} from '@lightdash/common';
 import { createConnection } from 'snowflake-sdk';
 import { Readable } from 'stream';
 import type { Mock } from 'vitest';
@@ -162,6 +166,133 @@ describe('SnowflakeWarehouseClient', () => {
             {},
             undefined,
             undefined,
+        );
+    });
+
+    it('replaces an existing named PAT and scopes the new token to a role', async () => {
+        const execute = vi.fn(
+            ({ sqlText, complete }: { sqlText: string; complete: Mock }) => {
+                let rows: Record<string, string>[] = [];
+                if (sqlText.startsWith('SHOW USER')) {
+                    rows = [{ name: 'LIGHTDASH_ONBOARDING_11111111' }];
+                } else if (sqlText.startsWith('ALTER USER ADD')) {
+                    rows = [{ TOKEN_SECRET: 'pat-secret' }];
+                }
+                complete(
+                    undefined,
+                    { getColumns: () => queryColumnsMock },
+                    rows,
+                );
+            },
+        );
+        vi.mocked(createConnection).mockImplementationOnce(
+            () =>
+                ({
+                    connectAsync: vi.fn((callback) => {
+                        callback(undefined, {});
+                    }),
+                    execute,
+                }) as never,
+        );
+        const warehouse = new SnowflakeWarehouseClient({
+            ...credentials,
+            authenticationType: SnowflakeAuthenticationType.EXTERNAL_BROWSER,
+        });
+
+        await expect(
+            warehouse.createProgrammaticAccessToken(
+                'LIGHTDASH_ONBOARDING_11111111',
+                365,
+                1440,
+                "ANALYTICS'ROLE",
+            ),
+        ).resolves.toEqual({
+            tokenName: 'LIGHTDASH_ONBOARDING_11111111',
+            tokenSecret: 'pat-secret',
+        });
+        expect(execute).toHaveBeenNthCalledWith(
+            2,
+            expect.objectContaining({
+                sqlText:
+                    'ALTER USER REMOVE PROGRAMMATIC ACCESS TOKEN LIGHTDASH_ONBOARDING_11111111',
+            }),
+        );
+        expect(execute).toHaveBeenNthCalledWith(
+            3,
+            expect.objectContaining({
+                sqlText: expect.stringContaining(
+                    "ROLE_RESTRICTION = 'ANALYTICS''ROLE'",
+                ),
+            }),
+        );
+    });
+
+    it('discovers session defaults and capped inventory for external browser sessions', async () => {
+        const execute = vi.fn(
+            ({ sqlText, complete }: { sqlText: string; complete: Mock }) => {
+                let rows: Record<string, string | null>[] = [];
+                if (sqlText.startsWith('SELECT CURRENT_ROLE')) {
+                    rows = [
+                        {
+                            ROLE: 'ANALYST',
+                            WAREHOUSE: 'TRANSFORMING',
+                            DATABASE: 'ANALYTICS',
+                            SCHEMA: 'PUBLIC',
+                        },
+                    ];
+                } else if (sqlText.startsWith('SHOW DATABASES')) {
+                    rows = Array.from({ length: 125 }, (_, index) => ({
+                        name: `DATABASE_${index}`,
+                    }));
+                } else if (sqlText.startsWith('SHOW WAREHOUSES')) {
+                    rows = [{ name: 'TRANSFORMING' }];
+                } else if (sqlText.startsWith('SHOW GRANTS')) {
+                    rows = [{ role: 'ANALYST' }, { role: 'REPORTER' }];
+                }
+                complete(
+                    undefined,
+                    { getColumns: () => queryColumnsMock },
+                    rows,
+                );
+            },
+        );
+        vi.mocked(createConnection).mockImplementationOnce(
+            () =>
+                ({
+                    connectAsync: vi.fn((callback) => {
+                        callback(undefined, {});
+                    }),
+                    execute,
+                }) as never,
+        );
+        const warehouse = new SnowflakeWarehouseClient({
+            ...credentials,
+            authenticationType: SnowflakeAuthenticationType.EXTERNAL_BROWSER,
+        });
+
+        await expect(
+            warehouse.getSessionDiscovery('user.name@example.com'),
+        ).resolves.toEqual({
+            defaults: {
+                role: 'ANALYST',
+                warehouse: 'TRANSFORMING',
+                database: 'ANALYTICS',
+                schema: 'PUBLIC',
+            },
+            inventory: {
+                databases: Array.from(
+                    { length: 100 },
+                    (_, index) => `DATABASE_${index}`,
+                ),
+                warehouses: ['TRANSFORMING'],
+                roles: ['ANALYST', 'REPORTER', 'PUBLIC'],
+            },
+        });
+        expect(execute).toHaveBeenCalledWith(
+            expect.objectContaining({
+                sqlText:
+                    'SHOW GRANTS TO USER "user.name@example.com" LIMIT 100',
+            }),
         );
     });
 });

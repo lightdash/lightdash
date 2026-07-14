@@ -96,6 +96,25 @@ const normaliseSnowflakeType = (type: string): string => {
 };
 
 const EXTERNAL_BROWSER_AUTHENTICATOR = 'EXTERNALBROWSER';
+const SESSION_DISCOVERY_LIMIT = 100;
+
+export type SnowflakeSessionDefaults = {
+    role: string | null;
+    warehouse: string | null;
+    database: string | null;
+    schema: string | null;
+};
+
+export type SnowflakeSessionInventory = {
+    databases: string[];
+    warehouses: string[];
+    roles: string[];
+};
+
+export type SnowflakeSessionDiscovery = {
+    defaults: SnowflakeSessionDefaults;
+    inventory: SnowflakeSessionInventory;
+};
 
 export type SnowflakeDiagnosticErrorCategory =
     | 'account_identifier'
@@ -123,6 +142,30 @@ const DIAGNOSTIC_MESSAGES: Record<SnowflakeDiagnosticErrorCategory, string> = {
         'Snowflake blocked this connection because of a network policy.',
     unknown: 'Snowflake could not complete the connection check.',
 };
+
+const getSnowflakeRowValue = (
+    row: Record<string, AnyType>,
+    name: string,
+): string | null => {
+    const resultValue = row[name] ?? row[name.toUpperCase()];
+    return typeof resultValue === 'string' ? resultValue : null;
+};
+
+const listSnowflakeNames = (rows: AnyType[]): string[] =>
+    rows
+        .flatMap((row) => {
+            const value = getSnowflakeRowValue(
+                row as Record<string, AnyType>,
+                'name',
+            );
+            return value ? [value] : [];
+        })
+        .slice(0, SESSION_DISCOVERY_LIMIT);
+
+const snowflakeIdentifier = (value: string): string =>
+    /^[A-Za-z_][A-Za-z0-9_$]*$/.test(value)
+        ? value
+        : `"${value.replace(/"/g, '""')}"`;
 
 export const mapSnowflakeDiagnosticError = (
     error: unknown,
@@ -420,9 +463,11 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         this.connectionOptions = {
             account: credentials.account,
             ...authenticationOptions,
-            database: credentials.database,
-            schema: credentials.schema,
-            warehouse: credentials.warehouse,
+            ...(credentials.database ? { database: credentials.database } : {}),
+            ...(credentials.schema ? { schema: credentials.schema } : {}),
+            ...(credentials.warehouse
+                ? { warehouse: credentials.warehouse }
+                : {}),
             ...(credentials.accessUrl?.length
                 ? { accessUrl: credentials.accessUrl }
                 : {}),
@@ -616,6 +661,59 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         }
     }
 
+    async getSessionDiscovery(
+        user: string,
+    ): Promise<SnowflakeSessionDiscovery> {
+        const connection = await this.createExternalBrowserConnection();
+        const defaultsResult = await this.executeStatements(
+            connection,
+            'SELECT CURRENT_ROLE() AS role, CURRENT_WAREHOUSE() AS warehouse, CURRENT_DATABASE() AS database, CURRENT_SCHEMA() AS schema',
+        );
+        const defaultsRow = (defaultsResult.rows[0] ?? {}) as Record<
+            string,
+            AnyType
+        >;
+        const databasesResult = await this.executeStatements(
+            connection,
+            `SHOW DATABASES LIMIT ${SESSION_DISCOVERY_LIMIT}`,
+        );
+        const warehousesResult = await this.executeStatements(
+            connection,
+            `SHOW WAREHOUSES LIMIT ${SESSION_DISCOVERY_LIMIT}`,
+        );
+        const grantsResult = await this.executeStatements(
+            connection,
+            `SHOW GRANTS TO USER ${snowflakeIdentifier(
+                user,
+            )} LIMIT ${SESSION_DISCOVERY_LIMIT}`,
+        );
+        const roles = [
+            ...new Set([
+                ...grantsResult.rows.flatMap((row) => {
+                    const role = getSnowflakeRowValue(
+                        row as Record<string, AnyType>,
+                        'role',
+                    );
+                    return role ? [role] : [];
+                }),
+                'PUBLIC',
+            ]),
+        ].slice(0, SESSION_DISCOVERY_LIMIT);
+        return {
+            defaults: {
+                role: getSnowflakeRowValue(defaultsRow, 'role'),
+                warehouse: getSnowflakeRowValue(defaultsRow, 'warehouse'),
+                database: getSnowflakeRowValue(defaultsRow, 'database'),
+                schema: getSnowflakeRowValue(defaultsRow, 'schema'),
+            },
+            inventory: {
+                databases: listSnowflakeNames(databasesResult.rows),
+                warehouses: listSnowflakeNames(warehousesResult.rows),
+                roles,
+            },
+        };
+    }
+
     async listDiagnosticTables(
         session: SnowflakeDiagnosticSession,
     ): Promise<SnowflakeDiagnosticTables> {
@@ -680,6 +778,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         tokenName: string = `lightdash_pat_${Date.now()}`,
         daysToExpiry: number = 1,
         minsToBypassNetworkPolicy: number = 1440,
+        roleRestriction: string | null = null,
     ): Promise<{ tokenSecret: string; tokenName: string }> {
         if (
             this.connectionOptions.authenticator !==
@@ -693,27 +792,49 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         const connection = await this.createExternalBrowserConnection();
 
         try {
-            // MINS_TO_BYPASS_NETWORK_POLICY_REQUIREMENT allows PAT to work without network policy
-            // This is needed for human users who are not subject to a network policy
-            const sqlText = `ALTER USER ADD PAT ${tokenName} DAYS_TO_EXPIRY = ${daysToExpiry} MINS_TO_BYPASS_NETWORK_POLICY_REQUIREMENT = ${minsToBypassNetworkPolicy} COMMENT = 'Lightdash backend access token'`;
+            if (!/^[A-Za-z_][A-Za-z0-9_$]*$/.test(tokenName)) {
+                throw new UnexpectedServerError('Invalid Snowflake PAT name');
+            }
+            const existingTokens = await this.executeStatements(
+                connection,
+                'SHOW USER PROGRAMMATIC ACCESS TOKENS',
+            );
+            const tokenExists = existingTokens.rows.some((row) =>
+                Object.entries(row).some(
+                    ([key, value]) =>
+                        key.toLowerCase() === 'name' &&
+                        String(value).toUpperCase() === tokenName.toUpperCase(),
+                ),
+            );
+            if (tokenExists) {
+                await this.executeStatements(
+                    connection,
+                    `ALTER USER REMOVE PROGRAMMATIC ACCESS TOKEN ${tokenName}`,
+                );
+            }
+            const roleClause = roleRestriction
+                ? ` ROLE_RESTRICTION = '${roleRestriction.replace(/'/g, "''")}'`
+                : '';
+            const sqlText = `ALTER USER ADD PROGRAMMATIC ACCESS TOKEN ${tokenName}${roleClause} DAYS_TO_EXPIRY = ${daysToExpiry} MINS_TO_BYPASS_NETWORK_POLICY_REQUIREMENT = ${minsToBypassNetworkPolicy} COMMENT = 'Lightdash backend access token'`;
 
             const result = await this.executeStatements(connection, sqlText);
 
-            // The ALTER USER ADD PAT command returns a row with the token_secret
             if (!result.rows || result.rows.length === 0) {
                 throw new UnexpectedServerError(
                     'Failed to create PAT: no result returned',
                 );
             }
 
-            const tokenSecret = result.rows[0]?.token_secret;
+            const tokenSecret = Object.entries(result.rows[0] ?? {}).find(
+                ([key]) => key.toLowerCase() === 'token_secret',
+            )?.[1];
             if (!tokenSecret) {
                 throw new UnexpectedServerError(
                     'Failed to create PAT: token_secret not found in result',
                 );
             }
 
-            return { tokenSecret, tokenName };
+            return { tokenSecret: String(tokenSecret), tokenName };
         } catch (e: unknown) {
             // Note: External browser connections are not destroyed as they're cached
             // for the lifetime of the client, but we still need proper error handling

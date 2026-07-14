@@ -17,6 +17,7 @@ import {
 import { getDiagnosticsHint } from './error';
 import GlobalState from './globalState';
 import { compileHandler } from './handlers/compile';
+import { connectSnowflakeHandler } from './handlers/connectSnowflake';
 import { refreshHandler } from './handlers/dbt/refresh';
 import { dbtRunHandler } from './handlers/dbt/run';
 import { deployHandler } from './handlers/deploy';
@@ -173,6 +174,21 @@ ${styles.bold('Examples:')}
   )} ${styles.secondary('-- logs in to a Lightdash instance')}
 `,
     );
+
+program
+    .command('connect-snowflake')
+    .description(
+        'Connects an onboarding project to Snowflake using browser-based SSO',
+    )
+    .requiredOption('--code <one-time-code>', 'One-time Lightdash connect code')
+    .requiredOption('--url <lightdash-url>', 'Lightdash instance URL')
+    .requiredOption('--account <account>', 'Snowflake account identifier')
+    .requiredOption('--user <username>', 'Snowflake username')
+    .option('--database <database>', 'Snowflake database override')
+    .option('--warehouse <warehouse>', 'Snowflake warehouse override')
+    .option('--role <role>', 'Snowflake role override')
+    .option('--schema <schema>', 'Snowflake schema override')
+    .action(connectSnowflakeHandler);
 
 // LOGIN
 program

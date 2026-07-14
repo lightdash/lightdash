@@ -37919,7 +37919,13 @@
                 "type": "string"
             },
             "OnboardingStepStatus": {
-                "enum": ["pending", "in_progress", "completed", "error"],
+                "enum": [
+                    "pending",
+                    "pending_configuration",
+                    "in_progress",
+                    "completed",
+                    "error"
+                ],
                 "type": "string"
             },
             "OnboardingProjectStep": {
@@ -38497,6 +38503,108 @@
             "ApiOnboardingDashboardResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_DashboardBuildResult_"
             },
+            "OnboardingConnectCodeResult": {
+                "properties": {
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "code": {
+                        "type": "string"
+                    }
+                },
+                "required": ["expiresAt", "code"],
+                "type": "object"
+            },
+            "ApiSuccess_OnboardingConnectCodeResult_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/OnboardingConnectCodeResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiOnboardingConnectCodeResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_OnboardingConnectCodeResult_"
+            },
+            "OnboardingConnectionValues": {
+                "properties": {
+                    "schema": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "role": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "warehouse": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "database": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["schema", "role", "warehouse", "database"],
+                "type": "object"
+            },
+            "OnboardingConnectionValueSource": {
+                "type": "string",
+                "enum": ["flag", "default", "missing"]
+            },
+            "OnboardingConnectionValueSources": {
+                "properties": {
+                    "schema": {
+                        "$ref": "#/components/schemas/OnboardingConnectionValueSource"
+                    },
+                    "role": {
+                        "$ref": "#/components/schemas/OnboardingConnectionValueSource"
+                    },
+                    "warehouse": {
+                        "$ref": "#/components/schemas/OnboardingConnectionValueSource"
+                    },
+                    "database": {
+                        "$ref": "#/components/schemas/OnboardingConnectionValueSource"
+                    }
+                },
+                "required": ["schema", "role", "warehouse", "database"],
+                "type": "object"
+            },
+            "OnboardingConnectionInventory": {
+                "properties": {
+                    "roles": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "warehouses": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "databases": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["roles", "warehouses", "databases"],
+                "type": "object"
+            },
+            "OnboardingConnectionRequiredValue": {
+                "type": "string",
+                "enum": ["database", "warehouse"]
+            },
             "ConnectionCheckId": {
                 "type": "string",
                 "enum": [
@@ -38579,6 +38687,89 @@
                     }
                 },
                 "required": ["checks", "status"],
+                "type": "object"
+            },
+            "OnboardingConnectionDepositResult": {
+                "properties": {
+                    "diagnostic": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ConnectionDiagnosticResult"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "missingConnectionValues": {
+                        "items": {
+                            "$ref": "#/components/schemas/OnboardingConnectionRequiredValue"
+                        },
+                        "type": "array"
+                    },
+                    "inventory": {
+                        "$ref": "#/components/schemas/OnboardingConnectionInventory"
+                    },
+                    "connectionValueSources": {
+                        "$ref": "#/components/schemas/OnboardingConnectionValueSources"
+                    },
+                    "connectionValues": {
+                        "$ref": "#/components/schemas/OnboardingConnectionValues"
+                    },
+                    "stepStatus": {
+                        "$ref": "#/components/schemas/OnboardingStepStatus"
+                    }
+                },
+                "required": [
+                    "diagnostic",
+                    "missingConnectionValues",
+                    "inventory",
+                    "connectionValueSources",
+                    "connectionValues",
+                    "stepStatus"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_OnboardingConnectionDepositResult_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/OnboardingConnectionDepositResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiOnboardingConnectionDepositResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_OnboardingConnectionDepositResult_"
+            },
+            "DepositOnboardingConnectionRequest": {
+                "properties": {
+                    "inventory": {
+                        "$ref": "#/components/schemas/OnboardingConnectionInventory"
+                    },
+                    "connectionValueSources": {
+                        "$ref": "#/components/schemas/OnboardingConnectionValueSources"
+                    },
+                    "connectionValues": {
+                        "$ref": "#/components/schemas/OnboardingConnectionValues"
+                    },
+                    "warehouseConnection": {
+                        "$ref": "#/components/schemas/CreateWarehouseCredentials"
+                    },
+                    "code": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "inventory",
+                    "connectionValueSources",
+                    "connectionValues",
+                    "warehouseConnection",
+                    "code"
+                ],
                 "type": "object"
             },
             "ApiSuccess_ConnectionDiagnosticResult_": {
@@ -65244,6 +65435,85 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/onboarding/connect-code": {
+            "post": {
+                "operationId": "CreateOnboardingConnectCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOnboardingConnectCodeResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/onboarding/connection/deposit": {
+            "post": {
+                "operationId": "DepositOnboardingConnection",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOnboardingConnectionDepositResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Onboarding"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DepositOnboardingConnectionRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/onboarding/connection/test": {
