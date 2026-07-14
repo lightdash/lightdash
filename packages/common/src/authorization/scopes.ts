@@ -399,6 +399,14 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'manage:ProjectHomepage',
+        description: 'Create, edit and publish project homepages',
+        isEnterprise: true,
+        group: ScopeGroup.CONTENT,
+        dependencies: [{ name: 'view:Project' }],
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'manage:DeletedContent',
         description:
             'Manage soft-deleted content (restore, permanently delete)',

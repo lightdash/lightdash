@@ -389,5 +389,9 @@ export const projectMemberAbilities: Record<
         can('manage', 'DeletedContent', {
             projectUuid: member.projectUuid,
         });
+
+        can('manage', 'ProjectHomepage', {
+            projectUuid: member.projectUuid,
+        });
     },
 };

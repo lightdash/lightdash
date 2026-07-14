@@ -168,6 +168,7 @@ const BASE_ROLE_SCOPES = {
         'manage:Project', // Required for managing non-private spaces
         'manage:SavedChart', // All saved charts
         'manage:DeletedContent', // Soft-deleted content management
+        'manage:ProjectHomepage', // Curated project homepages (EE)
         'view:AiAgentThread', // All threads in project
         'manage:AiAgentThread', // All threads in project
         'manage:ScheduledDeliveries',
