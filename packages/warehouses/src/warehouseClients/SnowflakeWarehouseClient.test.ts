@@ -1,4 +1,5 @@
 import {
+    AnyType,
     CreateSnowflakeCredentials,
     DimensionType,
     SnowflakeAuthenticationType,
@@ -421,7 +422,7 @@ describe('SnowflakeWarehouseClient', () => {
     it('discovers session defaults and capped inventory for external browser sessions', async () => {
         const execute = vi.fn(
             ({ sqlText, complete }: { sqlText: string; complete: Mock }) => {
-                let rows: Record<string, string | null>[] = [];
+                let rows: Record<string, AnyType>[] = [];
                 if (sqlText.startsWith('SELECT CURRENT_USER')) {
                     rows = [
                         {
@@ -435,9 +436,18 @@ describe('SnowflakeWarehouseClient', () => {
                 } else if (sqlText.startsWith('SHOW DATABASES')) {
                     rows = Array.from({ length: 125 }, (_, index) => ({
                         name: `DATABASE_${index}`,
+                        comment: index === 0 ? 'Primary analytics' : '',
+                        kind: index === 1 ? 'IMPORTED DATABASE' : 'STANDARD',
                     }));
                 } else if (sqlText.startsWith('SHOW WAREHOUSES')) {
-                    rows = [{ name: 'TRANSFORMING' }];
+                    rows = [
+                        {
+                            name: 'TRANSFORMING',
+                            size: 'X-Small',
+                            state: 'SUSPENDED',
+                            auto_suspend: '300',
+                        },
+                    ];
                 } else if (sqlText.startsWith('SHOW GRANTS')) {
                     rows = [{ role: 'ANALYST' }, { role: 'REPORTER' }];
                 }
@@ -473,18 +483,87 @@ describe('SnowflakeWarehouseClient', () => {
                 schema: 'PUBLIC',
             },
             inventory: {
-                databases: Array.from(
-                    { length: 100 },
-                    (_, index) => `DATABASE_${index}`,
-                ),
-                warehouses: ['TRANSFORMING'],
-                roles: ['ANALYST', 'REPORTER', 'PUBLIC'],
+                databases: Array.from({ length: 100 }, (_, index) => ({
+                    name: `DATABASE_${index}`,
+                    comment: index === 0 ? 'Primary analytics' : null,
+                    kind: index === 1 ? 'IMPORTED DATABASE' : 'STANDARD',
+                })),
+                warehouses: [
+                    {
+                        name: 'TRANSFORMING',
+                        size: 'X-Small',
+                        state: 'SUSPENDED',
+                        autoSuspendSeconds: 300,
+                    },
+                ],
+                roles: [
+                    { name: 'ANALYST', isDefault: true },
+                    { name: 'REPORTER', isDefault: false },
+                    { name: 'PUBLIC', isDefault: false },
+                ],
             },
         });
         expect(execute).toHaveBeenCalledWith(
             expect.objectContaining({
                 sqlText:
                     'SHOW GRANTS TO USER "user.name@example.com" LIMIT 100',
+            }),
+        );
+    });
+
+    it('summarizes visible schemas from metadata without information schema', async () => {
+        const execute = vi.fn(
+            ({ sqlText, complete }: { sqlText: string; complete: Mock }) => {
+                let rows: Record<string, AnyType>[] = [];
+                if (sqlText.startsWith('SHOW SCHEMAS')) {
+                    rows = [
+                        { name: 'INFORMATION_SCHEMA' },
+                        { name: 'PUBLIC' },
+                        { NAME: 'FINANCE' },
+                    ];
+                } else if (sqlText.startsWith('SHOW TABLES')) {
+                    rows = [
+                        { schema_name: 'PUBLIC', name: 'ORDERS' },
+                        { SCHEMA_NAME: 'PUBLIC', NAME: 'CUSTOMERS' },
+                        { schema_name: 'FINANCE', name: 'INVOICES' },
+                        {
+                            schema_name: 'INFORMATION_SCHEMA',
+                            name: 'TABLES',
+                        },
+                    ];
+                }
+                complete(
+                    undefined,
+                    { getColumns: () => queryColumnsMock },
+                    rows,
+                );
+            },
+        );
+        vi.mocked(createConnection).mockImplementationOnce(
+            () =>
+                ({
+                    connect: vi.fn((callback) => callback(undefined, {})),
+                    execute,
+                }) as never,
+        );
+        const warehouse = new SnowflakeWarehouseClient(credentials);
+
+        await expect(
+            warehouse.getSchemaSummaries('Analytics DB'),
+        ).resolves.toEqual([
+            { name: 'PUBLIC', tableCount: 2 },
+            { name: 'FINANCE', tableCount: 1 },
+        ]);
+        expect(execute).toHaveBeenNthCalledWith(
+            1,
+            expect.objectContaining({
+                sqlText: 'SHOW SCHEMAS IN DATABASE "Analytics DB"',
+            }),
+        );
+        expect(execute).toHaveBeenNthCalledWith(
+            2,
+            expect.objectContaining({
+                sqlText: 'SHOW TABLES IN DATABASE "Analytics DB" LIMIT 10000',
             }),
         );
     });

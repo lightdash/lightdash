@@ -247,8 +247,25 @@ const parseOAuthTokenResponse = async (
         !('access_token' in body) ||
         typeof body.access_token !== 'string'
     ) {
+        const oauthError =
+            typeof body === 'object' &&
+            body !== null &&
+            'error' in body &&
+            typeof body.error === 'string'
+                ? body.error
+                : null;
+        const oauthMessage =
+            typeof body === 'object' &&
+            body !== null &&
+            'message' in body &&
+            typeof body.message === 'string'
+                ? body.message
+                : null;
+        const detail = [`http ${response.status}`, oauthError, oauthMessage]
+            .filter(Boolean)
+            .join(', ');
         throw new WarehouseConnectionError(
-            'Snowflake OAuth token refresh failed',
+            `Snowflake OAuth token refresh failed (${detail})`,
         );
     }
     const refreshToken =
@@ -304,9 +321,26 @@ export type SnowflakeSessionDefaults = {
 };
 
 export type SnowflakeSessionInventory = {
-    databases: string[];
-    warehouses: string[];
-    roles: string[];
+    databases: {
+        name: string;
+        comment: string | null;
+        kind: string | null;
+    }[];
+    warehouses: {
+        name: string;
+        size: string | null;
+        state: string | null;
+        autoSuspendSeconds: number | null;
+    }[];
+    roles: {
+        name: string;
+        isDefault: boolean;
+    }[];
+};
+
+export type SnowflakeSchemaSummary = {
+    name: string;
+    tableCount: number;
 };
 
 export type SnowflakeSessionDiscovery = {
@@ -350,14 +384,65 @@ const getSnowflakeRowValue = (
     return typeof resultValue === 'string' ? resultValue : null;
 };
 
-const listSnowflakeNames = (rows: AnyType[]): string[] =>
+const getSnowflakeRowNumber = (
+    row: Record<string, AnyType>,
+    name: string,
+): number | null => {
+    const resultValue = row[name] ?? row[name.toUpperCase()];
+    if (typeof resultValue === 'number') {
+        return Number.isFinite(resultValue) ? resultValue : null;
+    }
+    if (typeof resultValue !== 'string' || resultValue.trim() === '') {
+        return null;
+    }
+    const parsed = Number(resultValue);
+    return Number.isFinite(parsed) ? parsed : null;
+};
+
+const listSnowflakeDatabases = (
+    rows: AnyType[],
+): SnowflakeSessionInventory['databases'] =>
     rows
-        .flatMap((row) => {
-            const value = getSnowflakeRowValue(
-                row as Record<string, AnyType>,
-                'name',
-            );
-            return value ? [value] : [];
+        .flatMap((rawRow) => {
+            const row = rawRow as Record<string, AnyType>;
+            const name = getSnowflakeRowValue(row, 'name');
+            if (!name) {
+                return [];
+            }
+            return [
+                {
+                    name,
+                    comment:
+                        getSnowflakeRowValue(row, 'comment')?.trim() === ''
+                            ? null
+                            : getSnowflakeRowValue(row, 'comment'),
+                    kind: getSnowflakeRowValue(row, 'kind'),
+                },
+            ];
+        })
+        .slice(0, SESSION_DISCOVERY_LIMIT);
+
+const listSnowflakeWarehouses = (
+    rows: AnyType[],
+): SnowflakeSessionInventory['warehouses'] =>
+    rows
+        .flatMap((rawRow) => {
+            const row = rawRow as Record<string, AnyType>;
+            const name = getSnowflakeRowValue(row, 'name');
+            if (!name) {
+                return [];
+            }
+            return [
+                {
+                    name,
+                    size: getSnowflakeRowValue(row, 'size'),
+                    state: getSnowflakeRowValue(row, 'state'),
+                    autoSuspendSeconds: getSnowflakeRowNumber(
+                        row,
+                        'auto_suspend',
+                    ),
+                },
+            ];
         })
         .slice(0, SESSION_DISCOVERY_LIMIT);
 
@@ -967,8 +1052,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 sessionUser,
             )} LIMIT ${SESSION_DISCOVERY_LIMIT}`,
         );
-        const roles = [
+        const defaultRole = getSnowflakeRowValue(defaultsRow, 'role');
+        const grantedRoles = [
             ...new Set([
+                ...(defaultRole ? [defaultRole] : []),
                 ...grantsResult.rows.flatMap((row) => {
                     const role = getSnowflakeRowValue(
                         row as Record<string, AnyType>,
@@ -976,9 +1063,15 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                     );
                     return role ? [role] : [];
                 }),
-                'PUBLIC',
             ]),
-        ].slice(0, SESSION_DISCOVERY_LIMIT);
+        ].filter((role) => role !== 'PUBLIC');
+        const roles = [
+            ...grantedRoles.slice(0, SESSION_DISCOVERY_LIMIT - 1),
+            'PUBLIC',
+        ].map((name) => ({
+            name,
+            isDefault: name === defaultRole,
+        }));
         return {
             user: sessionUser,
             defaults: {
@@ -988,11 +1081,55 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 schema: getSnowflakeRowValue(defaultsRow, 'schema'),
             },
             inventory: {
-                databases: listSnowflakeNames(databasesResult.rows),
-                warehouses: listSnowflakeNames(warehousesResult.rows),
+                databases: listSnowflakeDatabases(databasesResult.rows),
+                warehouses: listSnowflakeWarehouses(warehousesResult.rows),
                 roles,
             },
         };
+    }
+
+    async getSchemaSummaries(
+        database: string,
+    ): Promise<SnowflakeSchemaSummary[]> {
+        const connection = await this.getConnection();
+        const databaseIdentifier = snowflakeIdentifier(database);
+        const schemasResult = await this.executeStatements(
+            connection,
+            `SHOW SCHEMAS IN DATABASE ${databaseIdentifier}`,
+        );
+        const tablesResult = await this.executeStatements(
+            connection,
+            `SHOW TABLES IN DATABASE ${databaseIdentifier} LIMIT 10000`,
+        );
+        const tableCounts = new Map<string, number>();
+        schemasResult.rows.forEach((rawRow) => {
+            const name = getSnowflakeRowValue(
+                rawRow as Record<string, AnyType>,
+                'name',
+            );
+            if (name && name.toUpperCase() !== 'INFORMATION_SCHEMA') {
+                tableCounts.set(name, 0);
+            }
+        });
+        tablesResult.rows.forEach((rawRow) => {
+            const schemaName = getSnowflakeRowValue(
+                rawRow as Record<string, AnyType>,
+                'schema_name',
+            );
+            if (
+                schemaName &&
+                schemaName.toUpperCase() !== 'INFORMATION_SCHEMA'
+            ) {
+                tableCounts.set(
+                    schemaName,
+                    (tableCounts.get(schemaName) ?? 0) + 1,
+                );
+            }
+        });
+        return [...tableCounts].map(([name, tableCount]) => ({
+            name,
+            tableCount,
+        }));
     }
 
     getOAuthTokens(): SnowflakeOAuthTokens | null {
@@ -1035,6 +1172,34 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     ): Promise<void> {
         try {
             await this.executeStatements(session.connection, 'SELECT 1');
+        } catch (error) {
+            throw new SnowflakeDiagnosticError(error);
+        }
+    }
+
+    async useDiagnosticWarehouse(
+        session: SnowflakeDiagnosticSession,
+        warehouse: string,
+    ): Promise<void> {
+        try {
+            await this.executeStatements(
+                session.connection,
+                `USE WAREHOUSE ${snowflakeIdentifier(warehouse)}`,
+            );
+        } catch (error) {
+            throw new SnowflakeDiagnosticError(error);
+        }
+    }
+
+    async useDiagnosticDatabase(
+        session: SnowflakeDiagnosticSession,
+        database: string,
+    ): Promise<void> {
+        try {
+            await this.executeStatements(
+                session.connection,
+                `USE DATABASE ${snowflakeIdentifier(database)}`,
+            );
         } catch (error) {
             throw new SnowflakeDiagnosticError(error);
         }

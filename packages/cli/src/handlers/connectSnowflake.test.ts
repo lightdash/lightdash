@@ -6,8 +6,10 @@ import {
     type ConnectionDiagnosticResult,
     type CreateSnowflakeCredentials,
     type OnboardingConnectionDepositResult,
+    type OnboardingConnectionInventory,
     type OnboardingConnectionValues,
 } from '@lightdash/common';
+import type { SnowflakeSessionDiscovery } from '@lightdash/warehouses';
 import fetch, { Response } from 'node-fetch';
 import {
     connectSnowflakeHandler,
@@ -35,13 +37,25 @@ const connectionValueSources = {
     schema: 'default' as const,
 };
 
-const inventory = {
-    databases: ['analytics'],
-    warehouses: ['lightdash_wh'],
-    roles: ['lightdash_role', 'PUBLIC'],
+const inventory: OnboardingConnectionInventory = {
+    databases: [
+        { name: 'analytics', comment: 'Analytics data', kind: 'STANDARD' },
+    ],
+    warehouses: [
+        {
+            name: 'lightdash_wh',
+            size: 'X-Small',
+            state: 'STARTED',
+            autoSuspendSeconds: 300,
+        },
+    ],
+    roles: [
+        { name: 'lightdash_role', isDefault: true },
+        { name: 'PUBLIC', isDefault: false },
+    ],
 };
 
-const discovery = {
+const discovery: SnowflakeSessionDiscovery = {
     user: 'lightdash_user',
     defaults: connectionValues,
     inventory,
@@ -284,20 +298,24 @@ describe('connectSnowflakeHandler', () => {
         );
     });
 
-    it('caps deposited inventory lists at 100 names', async () => {
-        const manyDatabases = Array.from(
-            { length: 125 },
-            (_, index) => `database_${index}`,
-        );
-        const manyWarehouses = Array.from(
-            { length: 110 },
-            (_, index) => `warehouse_${index}`,
-        );
-        const manyRoles = Array.from(
-            { length: 101 },
-            (_, index) => `role_${index}`,
-        );
+    it('caps deposited rich inventory lists at 100 entries', async () => {
+        const manyDatabases = Array.from({ length: 125 }, (_, index) => ({
+            name: `database_${index}`,
+            comment: index === 99 ? 'last included database' : null,
+            kind: 'STANDARD',
+        }));
+        const manyWarehouses = Array.from({ length: 110 }, (_, index) => ({
+            name: `warehouse_${index}`,
+            size: 'X-Small',
+            state: 'SUSPENDED',
+            autoSuspendSeconds: 60,
+        }));
+        const manyRoles = Array.from({ length: 101 }, (_, index) => ({
+            name: `role_${index}`,
+            isDefault: index === 0,
+        }));
         getSessionDiscovery.mockResolvedValueOnce({
+            user: options.user!,
             defaults: connectionValues,
             inventory: {
                 databases: manyDatabases,
@@ -308,15 +326,19 @@ describe('connectSnowflakeHandler', () => {
         fetchMock.mockImplementationOnce(async (_url, init) => {
             const body = JSON.parse(String(init?.body)) as {
                 inventory: {
-                    databases: string[];
-                    warehouses: string[];
-                    roles: string[];
+                    databases: typeof manyDatabases;
+                    warehouses: typeof manyWarehouses;
+                    roles: typeof manyRoles;
                 };
             };
             expect(body.inventory.databases).toHaveLength(100);
             expect(body.inventory.warehouses).toHaveLength(100);
             expect(body.inventory.roles).toHaveLength(100);
-            expect(body.inventory.databases[99]).toEqual('database_99');
+            expect(body.inventory.databases[99]).toEqual({
+                name: 'database_99',
+                comment: 'last included database',
+                kind: 'STANDARD',
+            });
             return responseFor(completedDepositResult);
         });
 
