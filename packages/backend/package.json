@@ -27,9 +27,10 @@
         "test:integration": "vitest run --config vitest.config.integration.ts",
         "test:integration:dev": "vitest run --config vitest.config.integration.ts --watch",
         "linter": "NODE_OPTIONS=--max-old-space-size=8192 eslint -c .eslintrc.js --ignore-path ./../../.gitignore --rulesdir eslint-rules",
+        "type-aware-linter": "oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
         "formatter": "oxfmt",
-        "lint": "pnpm run linter ./src",
-        "fix-lint": "pnpm run linter ./src --fix",
+        "lint": "pnpm run linter ./src && pnpm run type-aware-linter ./src",
+        "fix-lint": "pnpm run linter ./src --fix && pnpm run type-aware-linter ./src --fix",
         "format": "oxfmt ./src --check",
         "fix-format": "oxfmt ./src",
         "create-migration": "tsx src/scripts/create-migration.ts",
@@ -228,6 +229,8 @@
         "eslint-plugin-jsdoc": "62.5.0",
         "knex-mock-client": "1.11.0",
         "nodemon": "3.1.9",
+        "oxlint": "1.57.0",
+        "oxlint-tsgolint": "0.18.1",
         "typescript": "7.0.2",
         "zod-to-json-schema": "3.25.1"
     }
