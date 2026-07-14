@@ -11,17 +11,29 @@ const HIGH_PRIVILEGE_ROLES = ['ACCOUNTADMIN', 'SYSADMIN', 'SECURITYADMIN'];
 const isHighPrivilegeRole = (role: string): boolean =>
     HIGH_PRIVILEGE_ROLES.includes(role.trim().toUpperCase());
 
-const LeastPrivilegeGuidance: FC = () => {
+type LeastPrivilegeGuidanceProps = {
+    initialRoleName?: string;
+    initialDatabase?: string;
+    initialWarehouse?: string;
+};
+
+const LeastPrivilegeGuidance: FC<LeastPrivilegeGuidanceProps> = ({
+    initialRoleName,
+    initialDatabase,
+    initialWarehouse,
+}) => {
     const form = useFormContext();
     const warehouse = form.values.warehouse;
     const isSnowflake = warehouse?.type === WarehouseTypes.SNOWFLAKE;
 
-    const [roleName, setRoleName] = useState('LIGHTDASH_ROLE');
+    const [roleName, setRoleName] = useState(
+        initialRoleName || 'LIGHTDASH_ROLE',
+    );
     const [databaseName, setDatabaseName] = useState(
-        isSnowflake ? (warehouse.database ?? '') : '',
+        initialDatabase ?? (isSnowflake ? (warehouse.database ?? '') : ''),
     );
     const [warehouseName, setWarehouseName] = useState(
-        isSnowflake ? (warehouse.warehouse ?? '') : '',
+        initialWarehouse ?? (isSnowflake ? (warehouse.warehouse ?? '') : ''),
     );
 
     const grantScript = useGrantScript();

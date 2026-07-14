@@ -6,10 +6,12 @@ import { useReducedMotion } from '@mantine-8/hooks';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import StepChecklist, { type StepChecklistItem } from './StepChecklist';
 
-const REVEAL_STAGGER_MS = 250;
-const RUNNING_STAGGER_MS = 500;
+const MIN_REPLAY_MS = 250;
+const MAX_REPLAY_MS = 1200;
 
-const DEFAULT_CHECKS: { id: ConnectionCheckId; label: string }[] = [
+type ExpectedCheck = { id: ConnectionCheckId; label: string };
+
+const DEFAULT_CHECKS: ExpectedCheck[] = [
     { id: 'resolve_host', label: 'Resolve host' },
     { id: 'open_connection', label: 'Open secure connection' },
     { id: 'authenticate', label: 'Authenticate' },
@@ -17,29 +19,24 @@ const DEFAULT_CHECKS: { id: ConnectionCheckId; label: string }[] = [
     { id: 'select_1', label: 'Run select 1' },
 ];
 
+const clampReplayDelay = (durationMs: number | null): number => {
+    if (durationMs === null) return MIN_REPLAY_MS;
+    return Math.min(MAX_REPLAY_MS, Math.max(MIN_REPLAY_MS, durationMs));
+};
+
 type ConnectionTestChecklistProps = {
     result: ConnectionDiagnosticResult | null;
     isLoading: boolean;
+    expectedChecks?: ExpectedCheck[];
 };
 
 const ConnectionTestChecklist: FC<ConnectionTestChecklistProps> = ({
     result,
     isLoading,
+    expectedChecks = DEFAULT_CHECKS,
 }) => {
     const reducedMotion = useReducedMotion();
-    const [runningPointer, setRunningPointer] = useState(0);
     const [revealedCount, setRevealedCount] = useState(0);
-
-    useEffect(() => {
-        if (!isLoading || result) return undefined;
-        setRunningPointer(0);
-        const interval = setInterval(() => {
-            setRunningPointer((prev) =>
-                Math.min(prev + 1, DEFAULT_CHECKS.length - 1),
-            );
-        }, RUNNING_STAGGER_MS);
-        return () => clearInterval(interval);
-    }, [isLoading, result]);
 
     const revealLimit = useMemo(() => {
         if (!result) return 0;
@@ -56,28 +53,35 @@ const ConnectionTestChecklist: FC<ConnectionTestChecklistProps> = ({
             setRevealedCount(revealLimit);
             return undefined;
         }
+        // Replay each check as "running" for a delay scaled to how long it
+        // actually took, then flip it to its final status one at a time.
         setRevealedCount(0);
-        const interval = setInterval(() => {
-            setRevealedCount((prev) => {
-                if (prev >= revealLimit) {
-                    clearInterval(interval);
-                    return prev;
-                }
-                return prev + 1;
-            });
-        }, REVEAL_STAGGER_MS);
-        return () => clearInterval(interval);
+        let cancelled = false;
+        let timeoutId: ReturnType<typeof setTimeout>;
+        const scheduleNext = (index: number) => {
+            if (cancelled || index >= revealLimit) return;
+            const delay = clampReplayDelay(
+                result.checks[index]?.durationMs ?? null,
+            );
+            timeoutId = setTimeout(() => {
+                if (cancelled) return;
+                setRevealedCount(index + 1);
+                scheduleNext(index + 1);
+            }, delay);
+        };
+        scheduleNext(0);
+        return () => {
+            cancelled = true;
+            clearTimeout(timeoutId);
+        };
     }, [result, revealLimit, reducedMotion]);
 
     const items = useMemo<StepChecklistItem[]>(() => {
         if (!result) {
-            return DEFAULT_CHECKS.map((check, index) => ({
+            return expectedChecks.map((check, index) => ({
                 id: check.id,
                 label: check.label,
-                status:
-                    isLoading && index === runningPointer
-                        ? 'running'
-                        : 'pending',
+                status: isLoading && index === 0 ? 'running' : 'pending',
                 durationMs: null,
             }));
         }
@@ -106,7 +110,7 @@ const ConnectionTestChecklist: FC<ConnectionTestChecklistProps> = ({
                 durationMs: null,
             };
         });
-    }, [result, isLoading, runningPointer, revealedCount, revealLimit]);
+    }, [result, isLoading, revealedCount, revealLimit, expectedChecks]);
 
     return (
         <StepChecklist items={items} hasFailure={result?.status === 'failed'} />
