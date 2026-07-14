@@ -45,6 +45,7 @@ import {
     UnexpectedServerError,
     UpdateMetadata,
     UpdateProject,
+    UpdateProjectDetails,
     UpdateQueryTimezoneSettings,
     UpdateSchedulerSettings,
     UpdateVirtualViewPayload,
@@ -766,6 +767,20 @@ export class ProjectModel {
                 data.warehouseConnection,
             );
         });
+    }
+
+    async updateDetails(
+        projectUuid: string,
+        details: UpdateProjectDetails,
+    ): Promise<void> {
+        const updatedProjects = await this.database(ProjectTableName)
+            .where('project_uuid', projectUuid)
+            .update(details)
+            .returning('project_uuid');
+
+        if (updatedProjects.length === 0) {
+            throw new NotFoundError('Project not found');
+        }
     }
 
     async getExpiredPreviewProjects(): Promise<

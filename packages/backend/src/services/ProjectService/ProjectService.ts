@@ -141,6 +141,7 @@ import {
     ProjectGroupAccess,
     ProjectMemberProfile,
     ProjectMemberRole,
+    ProjectSummary,
     ProjectType,
     QueryExecutionContext,
     RegisteredAccount,
@@ -169,6 +170,7 @@ import {
     UpdateDefaultUserSpaces,
     UpdateMetadata,
     UpdateProject,
+    UpdateProjectDetails,
     UpdateProjectMember,
     UpdateQueryTimezoneSettings,
     UpdateSchedulerSettings,
@@ -2998,6 +3000,35 @@ export class ProjectService extends BaseService {
         return {
             jobUuid: job.jobUuid,
         };
+    }
+
+    async updateProjectDetails(
+        projectUuid: string,
+        account: Account,
+        details: UpdateProjectDetails,
+    ): Promise<ProjectSummary> {
+        assertIsAccountWithOrg(account);
+        const updatedDetails = { ...details };
+        if (details.name !== undefined) {
+            const trimmedName = details.name.trim();
+            if (trimmedName.length === 0) {
+                throw new ParameterError('Project name cannot be empty');
+            }
+            updatedDetails.name = trimmedName;
+        }
+        if (Object.keys(updatedDetails).length === 0) {
+            throw new ParameterError('No project details to update');
+        }
+
+        const project = await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(account);
+        if (auditedAbility.cannot('update', subject('Project', project))) {
+            throw new ForbiddenError();
+        }
+
+        await this.projectModel.updateDetails(projectUuid, updatedDetails);
+
+        return { ...project, ...updatedDetails };
     }
 
     /*
