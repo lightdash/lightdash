@@ -117,6 +117,7 @@ type MockRolesModel = {
     updateRole: MockFn;
     deleteRole: MockFn;
     removeScopeFromRole: MockFn;
+    removeScopesFromRole: MockFn;
     getOrganizationRoleAssignments: MockFn;
     getOrganizationAdmins: MockFn;
     upsertOrganizationUserRoleAssignment: MockFn;
@@ -144,6 +145,7 @@ export const mockRolesModel: MockRolesModel = {
     updateRole: vi.fn(),
     deleteRole: vi.fn(),
     removeScopeFromRole: vi.fn(),
+    removeScopesFromRole: vi.fn(),
     getOrganizationRoleAssignments: vi.fn(),
     getOrganizationAdmins: vi.fn(),
     upsertOrganizationUserRoleAssignment: vi.fn(),

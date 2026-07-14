@@ -2,14 +2,18 @@ import { Ability, subject } from '@casl/ability';
 import {
     Account,
     AddScopesToRole,
+    ApiCustomRoleAsCodeUpsertResponse,
     CreateRole,
+    CustomRoleAsCode,
     ForbiddenError,
+    getAllScopeMap,
     isScopeAssignableAtLevel,
     isSystemRole,
     NotFoundError,
     OrganizationMemberRole,
     ParameterError,
     ProjectMemberRole,
+    PromotionAction,
     Role,
     RoleAssignee,
     RoleAssignment,
@@ -235,6 +239,69 @@ export class RolesService extends BaseService {
         }
     }
 
+    private static validateCustomRoleAsCode(role: CustomRoleAsCode): void {
+        const expectedKeys = [
+            'version',
+            'name',
+            'description',
+            'level',
+            'scopes',
+        ];
+        const unknownKeys = Object.keys(role).filter(
+            (key) => !expectedKeys.includes(key),
+        );
+        if (unknownKeys.length > 0) {
+            throw new ParameterError(
+                `Unknown custom role fields: ${unknownKeys.sort().join(', ')}`,
+            );
+        }
+        if (role.version !== 1) {
+            throw new ParameterError(
+                `Unsupported custom role as-code version ${role.version}`,
+            );
+        }
+        RolesService.validateRoleName(role.name);
+        if (role.description !== null && typeof role.description !== 'string') {
+            throw new ParameterError(
+                'Custom role description must be a string or null',
+            );
+        }
+        if (role.level !== 'project' && role.level !== 'organization') {
+            throw new ParameterError(
+                'Custom role level must be "project" or "organization"',
+            );
+        }
+        if (
+            !Array.isArray(role.scopes) ||
+            !role.scopes.every(
+                (scope) => typeof scope === 'string' && scope.length > 0,
+            )
+        ) {
+            throw new ParameterError(
+                'Custom role scopes must be a list of non-empty strings',
+            );
+        }
+        const duplicateScopes = role.scopes.filter(
+            (scope, index) => role.scopes.indexOf(scope) !== index,
+        );
+        if (duplicateScopes.length > 0) {
+            throw new ParameterError(
+                `Duplicate custom role scopes: ${[...new Set(duplicateScopes)]
+                    .sort()
+                    .join(', ')}`,
+            );
+        }
+        const scopeMap = getAllScopeMap({ isEnterprise: true });
+        const unknownScopes = role.scopes.filter(
+            (scope) => !Object.prototype.hasOwnProperty.call(scopeMap, scope),
+        );
+        if (unknownScopes.length > 0) {
+            throw new ParameterError(
+                `Unknown custom role scopes: ${unknownScopes.sort().join(', ')}`,
+            );
+        }
+    }
+
     private static validateScopesLevel(
         scopeNames: string[],
         level: RoleLevel,
@@ -290,6 +357,106 @@ export class RolesService extends BaseService {
         );
     }
 
+    async getCustomRolesAsCode(
+        account: Account,
+        organizationUuid: string,
+    ): Promise<CustomRoleAsCode[]> {
+        const roles = (await this.getRolesByOrganizationUuid(
+            account,
+            organizationUuid,
+            true,
+            'user',
+        )) as RoleWithScopes[];
+
+        return roles.map((role) => ({
+            version: 1,
+            name: role.name,
+            description: role.description,
+            level: role.level,
+            scopes: [...role.scopes].sort(),
+        }));
+    }
+
+    async upsertCustomRoleAsCode(
+        account: Account,
+        organizationUuid: string,
+        desiredRole: CustomRoleAsCode,
+    ): Promise<ApiCustomRoleAsCodeUpsertResponse['results']> {
+        const auditedAbility = this.createAuditedAbility(account);
+        RolesService.validateOrganizationAccess(
+            account,
+            auditedAbility,
+            organizationUuid,
+        );
+        RolesService.validateCustomRoleAsCode(desiredRole);
+
+        const existingRoles =
+            await this.rolesModel.getRolesWithScopesByOrganizationUuid(
+                organizationUuid,
+                'user',
+            );
+        const existingRole = existingRoles.find(
+            (role) => role.name === desiredRole.name,
+        );
+
+        if (!existingRole) {
+            RolesService.validateScopesLevel(
+                desiredRole.scopes,
+                desiredRole.level,
+            );
+            await this.createRole(account, organizationUuid, {
+                name: desiredRole.name,
+                description: desiredRole.description ?? undefined,
+                level: desiredRole.level,
+                scopes: desiredRole.scopes,
+            });
+            return { action: PromotionAction.CREATE };
+        }
+
+        if (existingRole.level !== desiredRole.level) {
+            throw new ParameterError(
+                `Cannot change custom role "${desiredRole.name}" level from ${existingRole.level} to ${desiredRole.level}. Create a new role instead.`,
+            );
+        }
+
+        const existingScopes = new Set(existingRole.scopes);
+        const desiredScopes = new Set(desiredRole.scopes);
+        const scopesToAdd = desiredRole.scopes.filter(
+            (scope) => !existingScopes.has(scope),
+        );
+        const scopesToRemove = existingRole.scopes
+            .filter((scope) => !desiredScopes.has(scope))
+            .sort();
+        const descriptionChanged =
+            existingRole.description !== desiredRole.description;
+
+        RolesService.validateScopesLevel(scopesToAdd, desiredRole.level);
+
+        if (
+            scopesToAdd.length === 0 &&
+            scopesToRemove.length === 0 &&
+            !descriptionChanged
+        ) {
+            return { action: PromotionAction.NO_CHANGES };
+        }
+
+        await this.updateRole(
+            account,
+            organizationUuid,
+            existingRole.roleUuid,
+            {
+                ...(descriptionChanged
+                    ? { description: desiredRole.description }
+                    : {}),
+                scopes: {
+                    add: scopesToAdd,
+                    remove: scopesToRemove,
+                },
+            },
+        );
+        return { action: PromotionAction.UPDATE };
+    }
+
     async createRole(
         account: Account,
         organizationUuid: string,
@@ -316,7 +483,7 @@ export class RolesService extends BaseService {
                     organizationUuid,
                     {
                         name,
-                        description: description || null,
+                        description: description ?? null,
                         level,
                         created_by: account.user?.id,
                     },
@@ -370,10 +537,13 @@ export class RolesService extends BaseService {
         }
 
         await this.rolesModel.db.transaction(async (tx: Knex.Transaction) => {
-            if (name || description) {
+            if (name !== undefined || description !== undefined) {
                 await this.rolesModel.updateRole(
                     roleUuid,
-                    { name, description },
+                    {
+                        ...(name !== undefined ? { name } : {}),
+                        ...(description !== undefined ? { description } : {}),
+                    },
                     tx,
                 );
             }

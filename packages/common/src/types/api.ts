@@ -248,6 +248,10 @@ import { type ApiRenameFieldsResponse, type ApiRenameResponse } from './rename';
 import { type MostPopularAndRecentlyUpdated } from './resourceViewItem';
 import { type ResultColumns, type ResultRow } from './results';
 import {
+    type ApiCustomRoleAsCodeListResponse,
+    type ApiCustomRoleAsCodeUpsertResponse,
+} from './roles';
+import {
     type ApiCalculateSubtotalsResponse,
     type ApiCalculateTotalResponse,
     type ChartHistory,
@@ -1124,6 +1128,8 @@ type ApiResults =
     | ApiCreateTagResponse['results']
     | ApiAgentAsCodeListResponse['results']
     | ApiAgentAsCodeUpsertResponse['results']
+    | ApiCustomRoleAsCodeListResponse['results']
+    | ApiCustomRoleAsCodeUpsertResponse['results']
     | ApiAlertAsCodeListResponse['results']
     | ApiAlertAsCodeUpsertResponse['results']
     | ApiChartAsCodeListResponse['results']
