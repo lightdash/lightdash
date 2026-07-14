@@ -58,6 +58,7 @@ import { OrgAiCopilotConfigResolver } from './services/ai/OrgAiCopilotConfigReso
 import { BuiltInSkills } from './services/ai/skills/builtInSkills';
 import { AiAgentContentValidation } from './services/ai/utils/AiAgentContentValidation';
 import { AiAgentAdminService } from './services/AiAgentAdminService';
+import { AiAgentCoderService } from './services/AiAgentCoderService/AiAgentCoderService';
 import { AiAgentDocumentService } from './services/AiAgentDocumentService';
 import { AiAgentReviewClassifierService } from './services/AiAgentReviewClassifierService';
 import { AiAgentReviewNotificationService } from './services/AiAgentReviewNotificationService';
@@ -280,6 +281,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         featureFlagService: repository.getFeatureFlagService(),
                         aiModelCatalog,
                     }),
+                }),
+            aiAgentCoderService: ({ models, context }) =>
+                new AiAgentCoderService({
+                    lightdashConfig: context.lightdashConfig,
+                    aiAgentModel: models.getAiAgentModel(),
+                    projectModel: models.getProjectModel(),
                 }),
             aiAgentToolsService: ({ models, repository, context }) =>
                 new AiAgentToolsService({

@@ -37,6 +37,7 @@ export enum ContentAsCodeType {
     DASHBOARD = 'dashboard',
     SQL_CHART = 'sql_chart',
     SPACE = 'space',
+    AI_AGENT = 'ai_agent',
     SCHEDULED_DELIVERY = 'scheduled_delivery',
     ALERT = 'alert',
     GOOGLE_SHEETS_SYNC = 'google_sheets_sync',

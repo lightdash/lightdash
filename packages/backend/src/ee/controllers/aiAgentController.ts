@@ -1,7 +1,10 @@
 import {
+    AgentAsCode,
     AiAgentThreadFilters,
     AiArtifactTSOACompat,
     AiClonedThreadCreatedFrom,
+    ApiAgentAsCodeListResponse,
+    ApiAgentAsCodeUpsertResponse,
     ApiAgentReadinessScoreResponse,
     ApiAgentSuggestionsResponse,
     ApiAiAgentArtifactResponseTSOACompat,
@@ -93,6 +96,7 @@ import {
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
 import Logger from '../../logging/logger';
+import { type AiAgentCoderService } from '../services/AiAgentCoderService/AiAgentCoderService';
 import { type AiAgentService } from '../services/AiAgentService/AiAgentService';
 
 @Route('/api/v1/projects/{projectUuid}/aiAgents')
@@ -125,6 +129,58 @@ export class AiAgentController extends BaseController {
             results: await this.getAiAgentService().listAgents(
                 toSessionUser(req.account),
                 projectUuid,
+            ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/code')
+    @OperationId('getAiAgentsAsCode')
+    async getAiAgentsAsCode(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Query() ids?: string[],
+        @Query() offset?: number,
+    ): Promise<ApiAgentAsCodeListResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+
+        return {
+            status: 'ok',
+            results: await this.getAiAgentCoderService().downloadAgents(
+                toSessionUser(req.account),
+                projectUuid,
+                ids,
+                offset,
+            ),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/code')
+    @OperationId('upsertAiAgentsAsCode')
+    async upsertAiAgentsAsCode(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: { agents: AgentAsCode[] },
+        @Query() force?: boolean,
+    ): Promise<ApiAgentAsCodeUpsertResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+
+        return {
+            status: 'ok',
+            results: await this.getAiAgentCoderService().upsertAgents(
+                toSessionUser(req.account),
+                projectUuid,
+                body.agents,
+                force,
             ),
         };
     }
@@ -2036,5 +2092,9 @@ export class AiAgentController extends BaseController {
 
     protected getAiAgentService() {
         return this.services.getAiAgentService<AiAgentService>();
+    }
+
+    protected getAiAgentCoderService() {
+        return this.services.getAiAgentCoderService<AiAgentCoderService>();
     }
 }
