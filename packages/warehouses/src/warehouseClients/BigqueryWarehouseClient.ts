@@ -328,12 +328,19 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
         options: {
             values?: AnyType[];
             tags?: Record<string, string>;
+            timezone?: string;
         },
     ) {
         return this.client.createQueryJob({
             query,
             params: options?.values,
             useLegacySql: false,
+            // BigQuery has no session timezone; the `time_zone` connection
+            // property is the per-job equivalent — naive DATETIME coercions
+            // and offset-less literals are read in this zone.
+            connectionProperties: options?.timezone
+                ? [{ key: 'time_zone', value: options.timezone }]
+                : undefined,
             maximumBytesBilled: this.credentials.maximumBytesBilled
                 ? `${this.credentials.maximumBytesBilled}`
                 : undefined,
@@ -685,7 +692,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
     }
 
     async executeAsyncQuery(
-        { sql, tags }: WarehouseExecuteAsyncQueryArgs,
+        { sql, tags, timezone }: WarehouseExecuteAsyncQueryArgs,
         resultsStreamCallback?: (
             rows: WarehouseResults['rows'],
             fields: WarehouseResults['fields'],
@@ -695,6 +702,7 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
             const queryPhaseStart = performance.now();
             const [job] = await this.createJob(sql, {
                 tags,
+                timezone,
             });
 
             if (!job.id) {

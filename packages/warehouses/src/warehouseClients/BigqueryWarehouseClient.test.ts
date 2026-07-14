@@ -32,6 +32,38 @@ describe('BigqueryWarehouseClient', () => {
             1,
         );
     });
+    it('expect createQueryJob to set the time_zone connection property when a timezone is passed', async () => {
+        const warehouse = new BigqueryWarehouseClient(credentials);
+
+        (warehouse.client.createQueryJob as Mock) = vi.fn(
+            () => createJobResponse,
+        );
+
+        await warehouse.runQuery('fake sql', undefined, 'Asia/Tokyo');
+
+        expect(warehouse.client.createQueryJob as Mock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                connectionProperties: [
+                    { key: 'time_zone', value: 'Asia/Tokyo' },
+                ],
+            }),
+        );
+    });
+    it('expect createQueryJob to omit connection properties when no timezone is passed', async () => {
+        const warehouse = new BigqueryWarehouseClient(credentials);
+
+        (warehouse.client.createQueryJob as Mock) = vi.fn(
+            () => createJobResponse,
+        );
+
+        await warehouse.runQuery('fake sql');
+
+        expect(warehouse.client.createQueryJob as Mock).toHaveBeenCalledWith(
+            expect.objectContaining({
+                connectionProperties: undefined,
+            }),
+        );
+    });
     it('expect schema with bigquery types mapped to dimension types', async () => {
         const getTableMock = vi
             .fn()
