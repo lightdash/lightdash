@@ -92,7 +92,7 @@ import { VERSION } from './version';
 
 // Express Request/User type augmentations live in src/@types/express.d.ts
 // so they're picked up as ambient declarations regardless of which file is
-// the compilation entry point (e.g. knex seed/migrate via ts-node).
+// the compilation entry point (e.g. knex seed/migrate via sucrase).
 
 initOtelTracing();
 

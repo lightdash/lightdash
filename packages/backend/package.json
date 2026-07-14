@@ -230,7 +230,6 @@
         "eslint-plugin-jsdoc": "62.5.0",
         "knex-mock-client": "1.11.0",
         "nodemon": "3.1.9",
-        "ts-node": "10.9.2",
         "typescript": "npm:@typescript/typescript6@6.0.1",
         "typescript-7": "npm:typescript@7.0.1-rc",
         "zod-to-json-schema": "3.25.1"
