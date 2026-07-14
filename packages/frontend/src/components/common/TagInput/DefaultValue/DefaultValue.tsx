@@ -60,7 +60,7 @@ export function DefaultValue({
                     onMouseDown={onRemove}
                     size={buttonSizes[size]}
                     radius={2}
-                    c="blue"
+                    c="ldDark.5"
                     variant="transparent"
                     iconSize="70%"
                     className={classes.defaultValueRemove}
