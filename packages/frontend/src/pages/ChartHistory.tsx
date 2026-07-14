@@ -222,7 +222,10 @@ const ChartHistory = () => {
                                                         closeOnClickOutside
                                                     >
                                                         <Menu.Target>
-                                                            <ActionIcon variant="subtle">
+                                                            <ActionIcon
+                                                                variant="subtle"
+                                                                color="gray"
+                                                            >
                                                                 <IconDots
                                                                     size={16}
                                                                 />
