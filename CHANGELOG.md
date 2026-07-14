@@ -1,3 +1,11 @@
+## [0.3374.1](https://github.com/lightdash/lightdash/compare/0.3374.0...0.3374.1) (2026-07-14)
+
+
+### Bug Fixes
+
+* apply data timezone to BigQuery via time_zone connection property ([#25496](https://github.com/lightdash/lightdash/issues/25496)) ([1db5f44](https://github.com/lightdash/lightdash/commit/1db5f44e144ab7397ed41cec7fadfaef98e039c2))
+* **frontend:** crash on dashboard filter 'Chart tiles' tab with unmatched tiles ([#25499](https://github.com/lightdash/lightdash/issues/25499)) ([1f50042](https://github.com/lightdash/lightdash/commit/1f500427483518bed88b6b530f72355a3f2b39f3))
+
 # [0.3374.0](https://github.com/lightdash/lightdash/compare/0.3373.0...0.3374.0) (2026-07-14)
 
 
