@@ -124,7 +124,11 @@ export type DownloadHandlerOptions = {
     skipGoogleSheets: boolean;
     skipScheduledDeliveries: boolean;
     skipVirtualViews: boolean;
+    includeAlerts: boolean;
+    includeGoogleSheets: boolean;
+    includeScheduledDeliveries: boolean;
     includeVirtualViews: boolean;
+    includeAll: boolean;
     appsOnly?: boolean; // download only: implies skipCharts + skipDashboards + skipSpaces
     stripPivotSeries: boolean; // Strip per-value pivot series config for portable chart YAML
     validate?: boolean; // Validate charts and dashboards after upload
@@ -1268,8 +1272,11 @@ export const downloadHandler = async (
 ): Promise<void> => {
     GlobalState.setVerbose(options.verbose);
 
+    const includeAll = options.includeAll === true;
+    const includeApps = options.includeApps === true || includeAll;
+    const includeAllOptionalContent = includeAll && !options.appsOnly;
     const { limit: appsLimit, noEffectWarning: appsLimitWarning } =
-        resolveAppsLimit(options.appsLimit, options.includeApps === true);
+        resolveAppsLimit(options.appsLimit, includeApps);
     if (appsLimitWarning) {
         GlobalState.log(styles.warning(appsLimitWarning));
     }
@@ -1277,7 +1284,7 @@ export const downloadHandler = async (
     if (options.appsOnly) {
         const appsOnlySelection = selectAppsToDownload({
             apps: Array.isArray(options.apps) ? options.apps : undefined,
-            includeApps: options.includeApps === true,
+            includeApps,
         });
         if (appsOnlySelection.mode === 'none') {
             throw new ParameterError(
@@ -1287,9 +1294,9 @@ export const downloadHandler = async (
         options.skipCharts = true;
         options.skipDashboards = true;
         options.skipSpaces = true;
-        options.skipAlerts = true;
-        options.skipGoogleSheets = true;
-        options.skipScheduledDeliveries = true;
+        options.includeAlerts = false;
+        options.includeGoogleSheets = false;
+        options.includeScheduledDeliveries = false;
         options.includeVirtualViews = false;
     }
 
@@ -1355,7 +1362,11 @@ export const downloadHandler = async (
         let allMetadataEntries: MetadataEntry[] = [];
         let allSpaces: SpaceAsCode[] = [];
 
-        if (options.includeVirtualViews || options.virtualViews.length > 0) {
+        if (
+            includeAllOptionalContent ||
+            options.includeVirtualViews ||
+            options.virtualViews.length > 0
+        ) {
             spinner.start(`Downloading virtual views`);
             const total = await downloadVirtualViews(
                 projectId,
@@ -1502,73 +1513,64 @@ export const downloadHandler = async (
             }
         }
 
-        if (!options.skipAlerts) {
-            if (hasFilters && options.alerts.length === 0) {
-                GlobalState.log(
-                    styles.warning(`No alert filters provided, skipping`),
-                );
-            } else {
-                spinner.start(`Downloading alerts`);
-                const alertTotal = await downloadScheduledContent(
-                    projectId,
-                    options.alerts,
-                    ContentAsCodeTypeEnum.ALERT,
-                    options.path,
-                );
-                spinner.succeed(`Downloaded ${alertTotal} alerts`);
-            }
+        if (
+            includeAllOptionalContent ||
+            options.includeAlerts ||
+            options.alerts.length > 0
+        ) {
+            spinner.start(`Downloading alerts`);
+            const alertTotal = await downloadScheduledContent(
+                projectId,
+                options.alerts,
+                ContentAsCodeTypeEnum.ALERT,
+                options.path,
+            );
+            spinner.succeed(`Downloaded ${alertTotal} alerts`);
         }
 
-        if (!options.skipScheduledDeliveries) {
-            if (hasFilters && options.scheduledDeliveries.length === 0) {
-                GlobalState.log(
-                    styles.warning(
-                        `No scheduled delivery filters provided, skipping`,
-                    ),
-                );
-            } else {
-                spinner.start(`Downloading scheduled deliveries`);
-                const scheduledDeliveryTotal = await downloadScheduledContent(
-                    projectId,
-                    options.scheduledDeliveries,
-                    ContentAsCodeTypeEnum.SCHEDULED_DELIVERY,
-                    options.path,
-                );
-                spinner.succeed(
-                    `Downloaded ${scheduledDeliveryTotal} scheduled deliveries`,
-                );
-            }
+        if (
+            includeAllOptionalContent ||
+            options.includeScheduledDeliveries ||
+            options.scheduledDeliveries.length > 0
+        ) {
+            spinner.start(`Downloading scheduled deliveries`);
+            const scheduledDeliveryTotal = await downloadScheduledContent(
+                projectId,
+                options.scheduledDeliveries,
+                ContentAsCodeTypeEnum.SCHEDULED_DELIVERY,
+                options.path,
+            );
+            spinner.succeed(
+                `Downloaded ${scheduledDeliveryTotal} scheduled deliveries`,
+            );
         }
 
-        if (!options.skipGoogleSheets) {
-            if (hasFilters && options.googleSheets.length === 0) {
-                GlobalState.log(
-                    styles.warning(
-                        `No Google Sheets sync filters provided, skipping`,
-                    ),
-                );
-            } else {
-                spinner.start(`Downloading Google Sheets syncs`);
-                const googleSheetsTotal = await downloadScheduledContent(
-                    projectId,
-                    options.googleSheets,
-                    ContentAsCodeTypeEnum.GOOGLE_SHEETS_SYNC,
-                    options.path,
-                );
-                spinner.succeed(
-                    `Downloaded ${googleSheetsTotal} Google Sheets ${googleSheetsTotal === 1 ? 'sync' : 'syncs'}`,
-                );
-            }
+        if (
+            includeAllOptionalContent ||
+            options.includeGoogleSheets ||
+            options.googleSheets.length > 0
+        ) {
+            spinner.start(`Downloading Google Sheets syncs`);
+            const googleSheetsTotal = await downloadScheduledContent(
+                projectId,
+                options.googleSheets,
+                ContentAsCodeTypeEnum.GOOGLE_SHEETS_SYNC,
+                options.path,
+            );
+            spinner.succeed(
+                `Downloaded ${googleSheetsTotal} Google Sheets ${googleSheetsTotal === 1 ? 'sync' : 'syncs'}`,
+            );
         }
 
-        // Download data apps (enterprise, opt-in via --apps / --include-apps)
+        // Download data apps (enterprise, opt-in via --apps / --include-apps / --include-all)
         const appsSelection = selectAppsToDownload({
             apps: Array.isArray(options.apps) ? options.apps : undefined,
-            includeApps: options.includeApps === true,
+            includeApps,
         });
 
         if (appsSelection.mode !== 'none') {
             let appUuidsToDownload: string[];
+            let appListingError: string | null = null;
 
             if (appsSelection.mode === 'explicit') {
                 appUuidsToDownload = appsSelection.appUuids;
@@ -1587,14 +1589,23 @@ export const downloadHandler = async (
                     listedAppUuids = projectApps.map((app) => app.appUuid);
                 } catch (listErr) {
                     if (!shouldFallBackToSpaceScopedListing(listErr)) {
-                        throw listErr;
+                        if (!includeAllOptionalContent) {
+                            throw listErr;
+                        }
+                        appListingError = getErrorMessage(listErr);
+                        spinner.fail(
+                            `Error downloading data apps: ${appListingError}`,
+                        );
+                        listedAppUuids = [];
+                    } else {
+                        GlobalState.log(
+                            styles.warning(
+                                'This server does not support project-wide app listing; only apps that are in a space will be included.',
+                            ),
+                        );
+                        listedAppUuids =
+                            await listAppUuidsViaContentApi(projectId);
                     }
-                    GlobalState.log(
-                        styles.warning(
-                            'This server does not support project-wide app listing; only apps that are in a space will be included.',
-                        ),
-                    );
-                    listedAppUuids = await listAppUuidsViaContentApi(projectId);
                 }
 
                 const { appUuids: cappedAppUuids, truncatedCount } =
@@ -1615,7 +1626,9 @@ export const downloadHandler = async (
             }
 
             if (appUuidsToDownload.length === 0) {
-                spinner.succeed(`No data apps found in project`);
+                if (appListingError === null) {
+                    spinner.succeed(`No data apps found in project`);
+                }
             } else {
                 spinner.start(
                     `Downloading ${appUuidsToDownload.length} data app(s)…`,

@@ -772,20 +772,25 @@ program
     )
     .option('--skip-charts', 'skip downloading charts', false)
     .option('--skip-dashboards', 'skip downloading dashboards', false)
-    .option('--skip-alerts', 'skip downloading alerts', false)
+    .option('--include-alerts', 'include all alerts in the download', false)
     .option(
         '--include-virtual-views',
         'include all virtual views in the download',
         false,
     )
     .option(
-        '--skip-google-sheets',
-        'skip downloading Google Sheets syncs',
+        '--include-google-sheets',
+        'include all Google Sheets syncs in the download',
         false,
     )
     .option(
-        '--skip-scheduled-deliveries',
-        'skip downloading scheduled deliveries',
+        '--include-scheduled-deliveries',
+        'include all scheduled deliveries in the download',
+        false,
+    )
+    .option(
+        '--include-all',
+        'include all optional content in the download',
         false,
     )
     .option(
@@ -804,12 +809,12 @@ program
     )
     .option(
         '--apps-limit <number>',
-        'Maximum number of data apps downloaded by --include-apps (default: 50)',
+        'Maximum number of data apps downloaded by --include-apps or --include-all (default: 50)',
         undefined,
     )
     .option(
         '--apps-only',
-        'Download only data apps (implies --skip-charts --skip-dashboards --skip-spaces). Requires --apps <appUuids...> or --include-apps.',
+        'Download only data apps (implies --skip-charts --skip-dashboards --skip-spaces). Requires --apps <appUuids...>, --include-apps, or --include-all.',
         false,
     )
     .action(downloadHandler);
