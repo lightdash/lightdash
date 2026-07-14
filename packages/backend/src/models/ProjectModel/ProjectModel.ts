@@ -58,6 +58,7 @@ import {
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
 import { Knex } from 'knex';
+import isEqual from 'lodash/isEqual';
 import NodeCache from 'node-cache';
 import { DatabaseError } from 'pg';
 import { v4 as uuidv4 } from 'uuid';
@@ -1554,6 +1555,10 @@ export class ProjectModel {
             {},
             async () =>
                 this.database.transaction(async (trx) => {
+                    await ProjectModel.lockAndEnsureCachedExplores(
+                        trx,
+                        projectUuid,
+                    );
                     // Get custom explores/virtual views before deleting them
                     const virtualViews = await trx(CachedExploreTableName)
                         .select('explore')
@@ -3606,7 +3611,13 @@ export class ProjectModel {
 
     async createVirtualView(
         projectUuid: string,
-        { name, sql, columns, parameterValues }: CreateVirtualViewPayload,
+        {
+            name,
+            label,
+            sql,
+            columns,
+            parameterValues,
+        }: CreateVirtualViewPayload,
         warehouseClient: WarehouseClient,
     ): Promise<Explore> {
         const virtualView = createVirtualView(
@@ -3614,40 +3625,30 @@ export class ProjectModel {
             sql,
             columns,
             warehouseClient,
-            undefined, // label
+            label,
             parameterValues,
         );
 
-        // insert virtual view into cached_explore
-        await this.database(CachedExploreTableName)
-            .insert({
+        await this.database.transaction(async (trx) => {
+            await ProjectModel.lockAndEnsureCachedExplores(trx, projectUuid);
+            const existing = await trx(CachedExploreTableName)
+                .select('name')
+                .where('project_uuid', projectUuid)
+                .andWhere('name', virtualView.name)
+                .first();
+            if (existing) {
+                throw new AlreadyExistsError(
+                    `Explore "${virtualView.name}" already exists`,
+                );
+            }
+            await trx(CachedExploreTableName).insert({
                 project_uuid: projectUuid,
                 name: virtualView.name,
                 table_names: Object.keys(virtualView.tables || {}),
                 explore: virtualView,
-            })
-            .onConflict(['project_uuid', 'name'])
-            .merge()
-            .returning(['name', 'cached_explore_uuid']);
-
-        // append virtual view to cached_explores
-        await this.database(CachedExploresTableName)
-            .where('project_uuid', projectUuid)
-            .update({
-                explores: this.database.raw(
-                    `
-                CASE
-                    WHEN explores IS NULL THEN ?::jsonb
-                    ELSE explores || ?::jsonb
-                END
-            `,
-                    [
-                        JSON.stringify([virtualView]),
-                        JSON.stringify([virtualView]),
-                    ],
-                ),
-            })
-            .returning('*');
+            });
+            await ProjectModel.rebuildCachedExplores(trx, projectUuid);
+        });
 
         return virtualView;
     }
@@ -3657,6 +3658,7 @@ export class ProjectModel {
         exploreName: string,
         payload: UpdateVirtualViewPayload,
         warehouseClient: WarehouseClient,
+        expectedExplore?: Explore,
     ) {
         const translatedToExplore = createVirtualView(
             exploreName,
@@ -3667,78 +3669,78 @@ export class ProjectModel {
             payload.parameterValues,
         );
 
-        // insert into cached_explore
-        await this.database(CachedExploreTableName)
-            .update({
-                project_uuid: projectUuid,
-                name: exploreName,
-                table_names: Object.keys(translatedToExplore.tables || {}),
-                explore: translatedToExplore,
-            })
-            .where('project_uuid', projectUuid)
-            .andWhere('name', exploreName)
-            .returning(['name', 'cached_explore_uuid']);
-
-        // append to cached_explores if it doesn't exist; otherwise, update
-        await this.database(CachedExploresTableName)
-            .where('project_uuid', projectUuid)
-            .update({
-                explores: this.database.raw(
-                    `
-                    CASE
-                        WHEN explores IS NULL THEN ?::jsonb
-                        ELSE (
-                            SELECT jsonb_agg(
-                                CASE
-                                    WHEN (value->>'name') = ? THEN ?::jsonb
-                                    ELSE value
-                                END
-                            )
-                            FROM jsonb_array_elements(
-                                CASE
-                                    WHEN jsonb_typeof(explores) = 'array' THEN explores
-                                    ELSE '[]'::jsonb
-                                END
-                            )
-                        )
-                    END
-                `,
-                    [
-                        JSON.stringify([translatedToExplore]),
-                        translatedToExplore.name,
-                        JSON.stringify(translatedToExplore),
-                    ],
-                ),
-            })
-            .returning('*');
+        await this.database.transaction(async (trx) => {
+            await ProjectModel.lockAndEnsureCachedExplores(trx, projectUuid);
+            const existing = await trx(CachedExploreTableName)
+                .select<{ explore: Explore | ExploreError }[]>('explore')
+                .where('project_uuid', projectUuid)
+                .andWhere('name', exploreName)
+                .first();
+            if (!existing || existing.explore.type !== ExploreType.VIRTUAL) {
+                throw new NotFoundError(
+                    `Virtual view "${exploreName}" does not exist`,
+                );
+            }
+            if (
+                expectedExplore &&
+                !isEqual(existing.explore, expectedExplore)
+            ) {
+                throw new ParameterError(
+                    'Virtual view changed concurrently; download and retry',
+                );
+            }
+            await trx(CachedExploreTableName)
+                .update({
+                    table_names: Object.keys(translatedToExplore.tables || {}),
+                    explore: translatedToExplore,
+                })
+                .where('project_uuid', projectUuid)
+                .andWhere('name', exploreName);
+            await ProjectModel.rebuildCachedExplores(trx, projectUuid);
+        });
 
         return translatedToExplore;
     }
 
     async deleteVirtualView(projectUuid: string, name: string) {
-        // remove from cached_explore
-        await this.database(CachedExploreTableName)
-            .where('project_uuid', projectUuid)
-            .whereRaw("explore->>'type' = ?", [ExploreType.VIRTUAL])
-            .andWhere('name', name)
-            .delete();
+        await this.database.transaction(async (trx) => {
+            await ProjectModel.lockAndEnsureCachedExplores(trx, projectUuid);
+            await trx(CachedExploreTableName)
+                .where('project_uuid', projectUuid)
+                .whereRaw("explore->>'type' = ?", [ExploreType.VIRTUAL])
+                .andWhere('name', name)
+                .delete();
+            await ProjectModel.rebuildCachedExplores(trx, projectUuid);
+        });
+    }
 
-        // Remove from cached_explores
-        await this.database(CachedExploresTableName)
+    private static async lockAndEnsureCachedExplores(
+        trx: Transaction,
+        projectUuid: string,
+    ): Promise<void> {
+        await trx(CachedExploresTableName)
+            .insert({ project_uuid: projectUuid, explores: [] })
+            .onConflict('project_uuid')
+            .ignore();
+        await trx(CachedExploresTableName)
+            .where('project_uuid', projectUuid)
+            .forUpdate()
+            .first();
+    }
+
+    private static async rebuildCachedExplores(
+        trx: Transaction,
+        projectUuid: string,
+    ): Promise<void> {
+        const cachedExplores = await trx(CachedExploreTableName)
+            .select<{ explore: Explore | ExploreError }[]>('explore')
+            .where('project_uuid', projectUuid)
+            .orderBy('name');
+        await trx(CachedExploresTableName)
             .where('project_uuid', projectUuid)
             .update({
-                explores: this.database.raw(
-                    `
-                    (
-                        SELECT COALESCE(
-                            jsonb_agg(explore_obj),
-                            '[]'::jsonb
-                        )
-                        FROM jsonb_array_elements(explores) AS explore_obj
-                        WHERE explore_obj->>'name' != ?
-                    )
-                `,
-                    [name],
+                explores: JSON.stringify(
+                    cachedExplores.map(({ explore }) => explore),
                 ),
             });
     }

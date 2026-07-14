@@ -16797,10 +16797,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -16809,8 +16809,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "tableName",
                                                                         "label",
+                                                                        "tableName",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -16833,28 +16833,28 @@
                                                                                         "items": {},
                                                                                         "type": "array"
                                                                                     },
+                                                                                    "required": {
+                                                                                        "type": "boolean"
+                                                                                    },
+                                                                                    "tableName": {
+                                                                                        "type": "string"
+                                                                                    },
                                                                                     "fieldRef": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "fieldId": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
-                                                                                        "type": "string"
-                                                                                    },
                                                                                     "operator": {
                                                                                         "type": "string"
-                                                                                    },
-                                                                                    "required": {
-                                                                                        "type": "boolean"
                                                                                     }
                                                                                 },
                                                                                 "required": [
+                                                                                    "required",
+                                                                                    "tableName",
                                                                                     "fieldRef",
                                                                                     "fieldId",
-                                                                                    "tableName",
-                                                                                    "operator",
-                                                                                    "required"
+                                                                                    "operator"
                                                                                 ],
                                                                                 "type": "object"
                                                                             },
@@ -16936,15 +16936,15 @@
                                                                             ],
                                                                             "type": "object"
                                                                         },
+                                                                        "error": {
+                                                                            "type": "string"
+                                                                        },
                                                                         "status": {
                                                                             "type": "string",
                                                                             "enum": [
                                                                                 "error",
                                                                                 "success"
                                                                             ]
-                                                                        },
-                                                                        "error": {
-                                                                            "type": "string"
                                                                         },
                                                                         "results": {
                                                                             "items": {
@@ -16967,10 +16967,10 @@
                                                                                     "fieldType": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
+                                                                                    "label": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "label": {
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "name": {
@@ -16979,8 +16979,8 @@
                                                                                 },
                                                                                 "required": [
                                                                                     "fieldType",
-                                                                                    "tableName",
                                                                                     "label",
+                                                                                    "tableName",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -17102,24 +17102,24 @@
                                                                                 "fieldFilterType": {
                                                                                     "type": "string"
                                                                                 },
+                                                                                "fieldType": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                        "dimension",
+                                                                                        "metric"
+                                                                                    ]
+                                                                                },
                                                                                 "description": {
                                                                                     "type": "string",
                                                                                     "nullable": true
                                                                                 },
-                                                                                "fieldType": {
-                                                                                    "type": "string",
-                                                                                    "enum": [
-                                                                                        "metric",
-                                                                                        "dimension"
-                                                                                    ]
-                                                                                },
-                                                                                "table": {
+                                                                                "label": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "fieldId": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "label": {
+                                                                                "table": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "name": {
@@ -17131,11 +17131,11 @@
                                                                                 "caseSensitiveFilters",
                                                                                 "fieldValueType",
                                                                                 "fieldFilterType",
-                                                                                "description",
                                                                                 "fieldType",
-                                                                                "table",
-                                                                                "fieldId",
+                                                                                "description",
                                                                                 "label",
+                                                                                "fieldId",
+                                                                                "table",
                                                                                 "name"
                                                                             ],
                                                                             "type": "object"
@@ -17156,28 +17156,28 @@
                                                                                             "items": {},
                                                                                             "type": "array"
                                                                                         },
+                                                                                        "required": {
+                                                                                            "type": "boolean"
+                                                                                        },
+                                                                                        "tableName": {
+                                                                                            "type": "string"
+                                                                                        },
                                                                                         "fieldRef": {
                                                                                             "type": "string"
                                                                                         },
                                                                                         "fieldId": {
                                                                                             "type": "string"
                                                                                         },
-                                                                                        "tableName": {
-                                                                                            "type": "string"
-                                                                                        },
                                                                                         "operator": {
                                                                                             "type": "string"
-                                                                                        },
-                                                                                        "required": {
-                                                                                            "type": "boolean"
                                                                                         }
                                                                                     },
                                                                                     "required": [
+                                                                                        "required",
+                                                                                        "tableName",
                                                                                         "fieldRef",
                                                                                         "fieldId",
-                                                                                        "tableName",
-                                                                                        "operator",
-                                                                                        "required"
+                                                                                        "operator"
                                                                                     ],
                                                                                     "type": "object"
                                                                                 },
@@ -17317,22 +17317,22 @@
                                                         ],
                                                         "type": "object"
                                                     },
+                                                    "href": {
+                                                        "type": "string"
+                                                    },
                                                     "warnings": {
                                                         "items": {
                                                             "type": "string"
                                                         },
                                                         "type": "array"
                                                     },
-                                                    "href": {
-                                                        "type": "string"
-                                                    },
-                                                    "slug": {
-                                                        "type": "string"
-                                                    },
                                                     "status": {
                                                         "type": "string",
                                                         "enum": ["success"],
                                                         "nullable": false
+                                                    },
+                                                    "slug": {
+                                                        "type": "string"
                                                     },
                                                     "uuid": {
                                                         "type": "string"
@@ -17343,10 +17343,10 @@
                                                 },
                                                 "required": [
                                                     "versionUuids",
-                                                    "warnings",
                                                     "href",
-                                                    "slug",
+                                                    "warnings",
                                                     "status",
+                                                    "slug",
                                                     "uuid",
                                                     "name"
                                                 ],
@@ -17508,13 +17508,13 @@
                                                     "href": {
                                                         "type": "string"
                                                     },
-                                                    "slug": {
-                                                        "type": "string"
-                                                    },
                                                     "status": {
                                                         "type": "string",
                                                         "enum": ["success"],
                                                         "nullable": false
+                                                    },
+                                                    "slug": {
+                                                        "type": "string"
                                                     },
                                                     "name": {
                                                         "type": "string"
@@ -17522,8 +17522,8 @@
                                                 },
                                                 "required": [
                                                     "href",
-                                                    "slug",
                                                     "status",
+                                                    "slug",
                                                     "name"
                                                 ],
                                                 "type": "object"
@@ -17584,10 +17584,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -17596,8 +17596,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "tableName",
                                                                         "label",
+                                                                        "tableName",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -17607,8 +17607,8 @@
                                                             "type": {
                                                                 "type": "string",
                                                                 "enum": [
-                                                                    "metric",
                                                                     "dimension",
+                                                                    "metric",
                                                                     null
                                                                 ],
                                                                 "nullable": true
@@ -29793,6 +29793,10 @@
                     "sql": {
                         "type": "string"
                     },
+                    "label": {
+                        "type": "string",
+                        "description": "Optional display label. Defaults to a friendly version of name."
+                    },
                     "name": {
                         "type": "string"
                     }
@@ -34640,22 +34644,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "chart": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ContentAsCodeType.SPACE": {
@@ -35223,22 +35227,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -35285,6 +35289,145 @@
                             "missingIds",
                             "dashboards"
                         ],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ContentAsCodeType.VIRTUAL_VIEW": {
+                "enum": ["virtual_view"],
+                "type": "string"
+            },
+            "VirtualViewAsCode": {
+                "properties": {
+                    "parameters": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ParametersValuesMap"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "columns": {
+                        "items": {
+                            "$ref": "#/components/schemas/ResultColumn"
+                        },
+                        "type": "array"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Mutable display label."
+                    },
+                    "slug": {
+                        "type": "string",
+                        "description": "Immutable project-scoped explore name used by downstream content."
+                    },
+                    "version": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentAsCodeType.VIRTUAL_VIEW"
+                    }
+                },
+                "required": [
+                    "parameters",
+                    "columns",
+                    "sql",
+                    "name",
+                    "slug",
+                    "version",
+                    "contentType"
+                ],
+                "type": "object"
+            },
+            "VirtualViewAsCodeSkip": {
+                "properties": {
+                    "reason": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    }
+                },
+                "required": ["reason", "slug"],
+                "type": "object"
+            },
+            "ApiVirtualViewAsCodeListResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "missingSlugs": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "skipped": {
+                                "items": {
+                                    "$ref": "#/components/schemas/VirtualViewAsCodeSkip"
+                                },
+                                "type": "array"
+                            },
+                            "virtualViews": {
+                                "items": {
+                                    "$ref": "#/components/schemas/VirtualViewAsCode"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["missingSlugs", "skipped", "virtualViews"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "PromotionAction.CREATE": {
+                "enum": ["create"],
+                "type": "string"
+            },
+            "PromotionAction.UPDATE": {
+                "enum": ["update"],
+                "type": "string"
+            },
+            "PromotionAction.NO_CHANGES": {
+                "enum": ["no changes"],
+                "type": "string"
+            },
+            "ApiVirtualViewAsCodeUpsertResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "action": {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/PromotionAction.CREATE"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PromotionAction.UPDATE"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PromotionAction.NO_CHANGES"
+                                    }
+                                ]
+                            }
+                        },
+                        "required": ["action"],
                         "type": "object"
                     },
                     "status": {
@@ -35628,18 +35771,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "PromotionAction.CREATE": {
-                "enum": ["create"],
-                "type": "string"
-            },
-            "PromotionAction.UPDATE": {
-                "enum": ["update"],
-                "type": "string"
-            },
-            "PromotionAction.NO_CHANGES": {
-                "enum": ["no changes"],
-                "type": "string"
             },
             "ApiScheduledDeliveryAsCodeUpsertResponse": {
                 "properties": {
@@ -45774,7 +45905,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3368.0",
+        "version": "0.3371.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -62882,6 +63013,126 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/virtualViews/code": {
+            "get": {
+                "operationId": "getVirtualViewsAsCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiVirtualViewAsCodeListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get virtual views in code representation",
+                "summary": "List virtual views as code",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "slugs",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/virtualViews/{slug}/code": {
+            "post": {
+                "operationId": "upsertVirtualViewAsCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiVirtualViewAsCodeUpsertResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Upsert a virtual view from code representation",
+                "summary": "Upsert virtual view as code",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "slug",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "force",
+                        "required": false,
+                        "schema": {
+                            "default": false,
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/VirtualViewAsCode"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/scheduledDeliveries/code": {

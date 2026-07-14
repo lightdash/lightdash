@@ -9,9 +9,18 @@ import {
 import { promises as fs } from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { vi } from 'vitest';
+import GlobalState from '../globalState';
+import { lightdashApi } from './dbt/apiClient';
 import { testHelpers } from './download';
 
-const { getDashboardChartSlugs, sanitizeChartForDownload } = testHelpers;
+vi.mock('./dbt/apiClient', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('./dbt/apiClient')>()),
+    lightdashApi: vi.fn(),
+}));
+
+const { getDashboardChartSlugs, sanitizeChartForDownload, upsertVirtualViews } =
+    testHelpers;
 
 type LooseDashboard = DashboardAsCode & { needsUpdating: boolean };
 
@@ -232,5 +241,109 @@ describe('sanitizeChartForDownload', () => {
             xRef: { field: 'events_date_day' },
             yRef: { field: 'orders_count' },
         });
+    });
+});
+
+describe('upsertVirtualViews', () => {
+    let tmpDir: string;
+    const virtualView = (slug: string) => `columns:
+  - name: order_id
+contentType: virtual_view
+name: ${slug}
+parameters: null
+slug: ${slug}
+sql: SELECT 1 AS order_id
+version: 1
+`;
+
+    beforeEach(async () => {
+        vi.mocked(lightdashApi).mockReset();
+        tmpDir = await fs.mkdtemp(
+            path.join(os.tmpdir(), 'virtual-views-test-'),
+        );
+        await fs.mkdir(path.join(tmpDir, 'virtual-views'));
+    });
+
+    afterEach(async () => {
+        vi.restoreAllMocks();
+        await fs.rm(tmpDir, { recursive: true, force: true });
+    });
+
+    it('continues uploading after one virtual view is denied', async () => {
+        await fs.writeFile(
+            path.join(tmpDir, 'virtual-views', 'a-denied.yml'),
+            virtualView('a-denied'),
+        );
+        await fs.writeFile(
+            path.join(tmpDir, 'virtual-views', 'b-allowed.yml'),
+            virtualView('b-allowed'),
+        );
+        vi.mocked(lightdashApi)
+            .mockRejectedValueOnce(new Error('Forbidden'))
+            .mockResolvedValueOnce({ action: 'create' } as never);
+
+        const changes = await upsertVirtualViews(
+            'project-uuid',
+            [],
+            {},
+            false,
+            true,
+            tmpDir,
+        );
+
+        expect(lightdashApi).toHaveBeenCalledTimes(2);
+        expect(changes).toEqual({
+            'virtual views with errors': 1,
+            'virtual views created': 1,
+        });
+    });
+
+    it('does not report missing permissions when there are no local virtual views', async () => {
+        const logSpy = vi
+            .spyOn(GlobalState, 'log')
+            .mockImplementation(() => undefined);
+
+        const changes = await upsertVirtualViews(
+            'project-uuid',
+            [],
+            {},
+            false,
+            false,
+            tmpDir,
+        );
+
+        expect(changes).toEqual({});
+        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(logSpy).not.toHaveBeenCalled();
+    });
+
+    it('reports one category error without uploading when local virtual views are forbidden', async () => {
+        const logSpy = vi
+            .spyOn(GlobalState, 'log')
+            .mockImplementation(() => undefined);
+        await fs.writeFile(
+            path.join(tmpDir, 'virtual-views', 'a-denied.yml'),
+            virtualView('a-denied'),
+        );
+        await fs.writeFile(
+            path.join(tmpDir, 'virtual-views', 'b-denied.yml'),
+            virtualView('b-denied'),
+        );
+
+        const changes = await upsertVirtualViews(
+            'project-uuid',
+            [],
+            {},
+            false,
+            false,
+            tmpDir,
+        );
+
+        expect(changes).toEqual({});
+        expect(lightdashApi).not.toHaveBeenCalled();
+        expect(logSpy).toHaveBeenCalledOnce();
+        expect(logSpy).toHaveBeenCalledWith(
+            expect.stringContaining('Error uploading virtual views'),
+        );
     });
 });

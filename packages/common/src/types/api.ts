@@ -119,6 +119,8 @@ import {
     type ApiScheduledDeliveryAsCodeListResponse,
     type ApiScheduledDeliveryAsCodeUpsertResponse,
     type ApiSqlChartAsCodeListResponse,
+    type ApiVirtualViewAsCodeListResponse,
+    type ApiVirtualViewAsCodeUpsertResponse,
 } from './coder';
 import {
     type ApiChartContentResponse,
@@ -1123,6 +1125,8 @@ type ApiResults =
     | ApiGoogleSheetsSyncAsCodeUpsertResponse['results']
     | ApiScheduledDeliveryAsCodeListResponse['results']
     | ApiScheduledDeliveryAsCodeUpsertResponse['results']
+    | ApiVirtualViewAsCodeListResponse['results']
+    | ApiVirtualViewAsCodeUpsertResponse['results']
     | ApiChartAsCodeUpsertResponse['results']
     | ApiGetMetricsTree['results']
     | ApiGetMetricsTreeResponse['results']

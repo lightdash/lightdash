@@ -100,6 +100,7 @@ import {
     isFilterableDimension,
     isJwtUser,
     isNotNull,
+    isReservedParameterName,
     isUserWithOrg,
     isValidTimezone,
     ItemsMap,
@@ -8709,6 +8710,7 @@ export class ProjectService extends BaseService {
         account: Account,
         projectUuid: string,
         payload: CreateVirtualViewPayload,
+        resolveParameterValues = true,
     ) {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -8742,15 +8744,17 @@ export class ProjectService extends BaseService {
             await this.getWarehouseCredentials({
                 projectUuid,
                 userId: account.user.id,
-                isRegisteredUser: true,
+                isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
             }),
         );
-        const effectiveParameterValues =
-            await this.resolveVirtualViewParameters(
-                projectUuid,
-                payload.sql,
-                payload.parameterValues,
-            );
+        const effectiveParameterValues = resolveParameterValues
+            ? await this.resolveVirtualViewParameters(
+                  projectUuid,
+                  payload.sql,
+                  payload.parameterValues,
+              )
+            : payload.parameterValues;
 
         const virtualView = await this.projectModel.createVirtualView(
             projectUuid,
@@ -8780,14 +8784,21 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         exploreName: string,
         payload: UpdateVirtualViewPayload,
+        resolveParameterValues = true,
+        expectedExplore?: Explore,
     ) {
-        const virtualView = await this.findExplores({
+        const explores = await this.findExplores({
             account,
             projectUuid,
             exploreNames: [exploreName],
         });
+        const virtualView = explores[exploreName];
 
-        if (!virtualView) {
+        if (
+            !virtualView ||
+            isExploreError(virtualView) ||
+            virtualView.type !== ExploreType.VIRTUAL
+        ) {
             throw new NotFoundError('Virtual view not found');
         }
 
@@ -8818,12 +8829,13 @@ export class ProjectService extends BaseService {
             }),
         );
 
-        const effectiveParameterValues =
-            await this.resolveVirtualViewParameters(
-                projectUuid,
-                payload.sql,
-                payload.parameterValues,
-            );
+        const effectiveParameterValues = resolveParameterValues
+            ? await this.resolveVirtualViewParameters(
+                  projectUuid,
+                  payload.sql,
+                  payload.parameterValues,
+              )
+            : payload.parameterValues;
 
         const updatedExplore = await this.projectModel.updateVirtualView(
             projectUuid,
@@ -8833,6 +8845,7 @@ export class ProjectService extends BaseService {
                 parameterValues: effectiveParameterValues,
             },
             warehouseClient,
+            expectedExplore,
         );
 
         this.analytics.trackAccount(account, {
@@ -9764,6 +9777,40 @@ export class ProjectService extends BaseService {
             ),
         );
         return Object.keys(filtered).length > 0 ? filtered : undefined;
+    }
+
+    async validateVirtualViewParameterReferences(
+        projectUuid: string,
+        sql: string,
+        parameterValues?: ParametersValuesMap,
+    ): Promise<void> {
+        const references = getParameterReferences(sql);
+        const definitions = await this.projectParametersModel.find(projectUuid);
+        const definitionsByName = new Map(
+            definitions.map((definition) => [definition.name, definition]),
+        );
+        const unknown = references.filter(
+            (name) =>
+                !definitionsByName.has(name) && !isReservedParameterName(name),
+        );
+        if (unknown.length > 0) {
+            throw new ParameterError(
+                `Virtual view references unknown parameters: ${unknown.join(', ')}`,
+            );
+        }
+        const missing = references.filter((name) => {
+            const definition = definitionsByName.get(name);
+            if (!definition && isReservedParameterName(name)) return false;
+            return (
+                !(name in (parameterValues ?? {})) &&
+                definition?.config.default === undefined
+            );
+        });
+        if (missing.length > 0) {
+            throw new ParameterError(
+                `Virtual view is missing values for required parameters: ${missing.join(', ')}`,
+            );
+        }
     }
 
     static isChartEmbed(account: Account) {

@@ -18,6 +18,7 @@ import type {
     NotificationFrequency,
     ParametersValuesMap,
     PromotionChanges,
+    ResultColumn,
     SavedChart,
     SchedulerCsvOptions,
     SchedulerFormat,
@@ -39,6 +40,7 @@ export enum ContentAsCodeType {
     SCHEDULED_DELIVERY = 'scheduled_delivery',
     ALERT = 'alert',
     GOOGLE_SHEETS_SYNC = 'google_sheets_sync',
+    VIRTUAL_VIEW = 'virtual_view',
 }
 
 /**
@@ -289,6 +291,42 @@ export type SpaceAsCode = {
     spaceName: string;
     /** The space slug used for file naming and cross-referencing */
     slug: string;
+};
+
+export type VirtualViewAsCode = {
+    contentType: ContentAsCodeType.VIRTUAL_VIEW;
+    version: number;
+    /** Immutable project-scoped explore name used by downstream content. */
+    slug: string;
+    /** Mutable display label. */
+    name: string;
+    sql: string;
+    columns: ResultColumn[];
+    parameters: ParametersValuesMap | null;
+};
+
+export type VirtualViewAsCodeSkip = {
+    slug: string;
+    reason: string;
+};
+
+export type ApiVirtualViewAsCodeListResponse = {
+    status: 'ok';
+    results: {
+        virtualViews: VirtualViewAsCode[];
+        skipped: VirtualViewAsCodeSkip[];
+        missingSlugs: string[];
+    };
+};
+
+export type ApiVirtualViewAsCodeUpsertResponse = {
+    status: 'ok';
+    results: {
+        action:
+            | PromotionAction.CREATE
+            | PromotionAction.UPDATE
+            | PromotionAction.NO_CHANGES;
+    };
 };
 
 export type ScheduledDeliveryTargetAsCode =
