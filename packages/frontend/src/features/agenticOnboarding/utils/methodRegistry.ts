@@ -17,17 +17,17 @@ export type ConnectMethodDescriptor = {
 
 const SNOWFLAKE_METHODS: ConnectMethodDescriptor[] = [
     {
-        id: ConnectMethodId.KEYPAIR,
-        label: 'Key-pair authentication',
-        description:
-            'A durable service credential — best for production and scheduled refreshes.',
-        recommended: true,
-    },
-    {
         id: ConnectMethodId.CLI_SSO,
         label: 'Sign in with Snowflake SSO',
         description:
-            'Authenticate as yourself using our CLI — no admin required.',
+            'Authenticate as yourself in the browser — no password, no admin setup required.',
+        recommended: true,
+    },
+    {
+        id: ConnectMethodId.KEYPAIR,
+        label: 'Key-pair authentication',
+        description:
+            'A service credential for production — requires generating a key pair.',
         recommended: false,
     },
     {

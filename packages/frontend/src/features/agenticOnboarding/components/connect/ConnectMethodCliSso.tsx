@@ -169,7 +169,7 @@ const ConnectMethodCliSso: FC = () => {
                 <Text size="sm" c="dimmed">
                     We'll give you two commands to run in your terminal. Our CLI
                     signs you into Snowflake in your browser and creates a
-                    durable, read-only credential — no admin required.
+                    secure, revocable connection — no admin required.
                 </Text>
 
                 {phase === 'form' && (

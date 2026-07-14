@@ -6,17 +6,17 @@ import {
 } from './methodRegistry';
 
 describe('methodRegistry', () => {
-    it('orders Snowflake methods easiest-first with key-pair recommended', () => {
+    it('orders Snowflake methods with SSO first and recommended', () => {
         const methods = getMethodsForWarehouse(WarehouseTypes.SNOWFLAKE);
         expect(methods.map((m) => m.id)).toEqual([
-            ConnectMethodId.KEYPAIR,
             ConnectMethodId.CLI_SSO,
+            ConnectMethodId.KEYPAIR,
             ConnectMethodId.PASSWORD,
             ConnectMethodId.PASTE,
             ConnectMethodId.MANUAL,
         ]);
         expect(methods.filter((m) => m.recommended).map((m) => m.id)).toEqual([
-            ConnectMethodId.KEYPAIR,
+            ConnectMethodId.CLI_SSO,
         ]);
     });
 
