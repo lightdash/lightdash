@@ -6,13 +6,11 @@ import {
     convertModelMetric,
     convertToAiHints,
     convertToGroups,
-    isV9MetricRef,
     patchPathParts,
     SupportedDbtAdapter,
     type DbtColumnLightdashDimension,
     type DbtColumnMetadata,
     type DbtExploreLightdashAdditionalDimension,
-    type DbtMetric,
     type DbtModelColumn,
     type DbtModelNode,
     type LineageGraph,
@@ -35,16 +33,11 @@ import {
     DimensionType,
     FieldType,
     friendlyName,
-    MetricType,
-    parseMetricType,
     type Dimension,
     type Metric,
     type Source,
 } from '../types/field';
-import {
-    parseFilters,
-    parseModelRequiredFilters,
-} from '../types/filterGrammar';
+import { parseModelRequiredFilters } from '../types/filterGrammar';
 import {
     type CustomGranularity,
     type LightdashProjectConfig,
@@ -68,8 +61,6 @@ import {
 } from '../utils/timeFrames';
 import { ExploreCompiler } from './exploreCompiler';
 import {
-    getCategoriesFromResource,
-    getSpotlightConfigurationForResource,
     resolveAdditionalTimeIntervals,
     resolveGranularityLabels,
 } from './lightdashProjectConfig';
@@ -431,113 +422,6 @@ const generateTableLineage = (
     );
 };
 
-/**
- * @deprecated This function uses the old dbt metrics format.
- */
-const convertDbtMetricToLightdashMetric = (
-    metric: DbtMetric,
-    tableName: string,
-    tableLabel: string,
-    spotlightConfig: LightdashProjectConfig['spotlight'],
-    modelCategories: string[] | undefined,
-): Metric => {
-    let sql: string;
-    let type: MetricType;
-    if (metric.calculation_method === 'derived') {
-        type = MetricType.NUMBER;
-        const referencedMetrics = new Set(
-            (metric.metrics || []).map((m) => m[0]),
-        );
-        if (!metric.expression) {
-            throw new ParseError(
-                `dbt derived metric "${metric.name}" must have the expression field set`,
-            );
-        }
-        sql = metric.expression;
-
-        referencedMetrics.forEach((ref) => {
-            const re = new RegExp(`\\b${ref}\\b`, 'g');
-            // eslint-disable-next-line no-useless-escape
-            sql = sql.replace(re, `\$\{${ref}\}`);
-        });
-    } else {
-        try {
-            type = parseMetricType(metric.calculation_method);
-        } catch (e) {
-            throw new ParseError(
-                `Cannot parse metric '${metric.unique_id}: type ${metric.calculation_method} is not a valid Lightdash metric type`,
-            );
-        }
-        sql = defaultSql(metric.name);
-        if (metric.expression) {
-            const isSingleColumnName = /^[a-zA-Z0-9_]+$/g.test(
-                metric.expression,
-            );
-            if (isSingleColumnName) {
-                sql = defaultSql(metric.expression);
-            } else {
-                sql = metric.expression;
-            }
-        }
-    }
-    if (metric.filters && metric.filters.length > 0) {
-        const filterSql = metric.filters
-            .map(
-                (filter) =>
-                    // eslint-disable-next-line no-useless-escape
-                    `(\$\{TABLE\}.${filter.field} ${filter.operator} ${filter.value})`,
-            )
-            .join(' AND ');
-        sql = `CASE WHEN ${filterSql} THEN ${sql} ELSE NULL END`;
-    }
-    const groups: string[] = convertToGroups(
-        metric.meta?.groups,
-        metric.meta?.group_label,
-    );
-    const spotlightVisibility = spotlightConfig.default_visibility;
-
-    const spotlightCategories = getCategoriesFromResource(
-        'metric',
-        metric.name,
-        spotlightConfig,
-        Array.from(new Set([...(modelCategories || [])])),
-    );
-
-    return {
-        fieldType: FieldType.METRIC,
-        type,
-        name: metric.name,
-        label: metric.label || friendlyName(metric.name),
-        table: tableName,
-        tableLabel,
-        sql,
-        description: metric.description,
-        source: undefined,
-        hidden: !!metric.meta?.hidden,
-        round: metric.meta?.round,
-        compact: metric.meta?.compact,
-        format: metric.meta?.format,
-        separator: metric.meta?.separator,
-        groups,
-        percentile: metric.meta?.percentile,
-        showUnderlyingValues: metric.meta?.show_underlying_values,
-        filters: parseFilters(metric.meta?.filters),
-        ...(metric.meta?.urls ? { urls: metric.meta.urls } : {}),
-        ...(metric.meta && metric.meta.tags
-            ? {
-                  tags: Array.isArray(metric.meta.tags)
-                      ? metric.meta.tags
-                      : [metric.meta.tags],
-              }
-            : {}),
-        ...getSpotlightConfigurationForResource({
-            visibility: spotlightVisibility,
-            categories: spotlightCategories,
-            owner: metric.meta?.spotlight?.owner,
-        }),
-    };
-};
-
 function normalizePrimaryKey(
     primaryKey: DbtModelNode['meta']['primary_key'],
 ): string[] | undefined {
@@ -721,7 +605,6 @@ function validateSets(
 export const convertTable = (
     adapterType: SupportedDbtAdapter,
     model: DbtModelNode,
-    dbtMetrics: DbtMetric[],
     spotlightConfig: LightdashProjectConfig['spotlight'],
     startOfWeek?: WeekDay | null,
     disableTimestampConversion?: boolean,
@@ -1018,26 +901,7 @@ export const convertTable = (
         ]),
     );
 
-    const convertedDbtMetrics = Object.fromEntries(
-        dbtMetrics.map((metric) => [
-            metric.name,
-            convertDbtMetricToLightdashMetric(
-                metric,
-                model.name,
-                tableLabel,
-                {
-                    ...spotlightConfig,
-                    default_visibility:
-                        meta.spotlight?.visibility ??
-                        spotlightConfig.default_visibility,
-                },
-                meta.spotlight?.categories,
-            ),
-        ]),
-    );
-
     const allMetrics: Record<string, Metric> = Object.values({
-        ...convertedDbtMetrics,
         ...modelMetrics,
         ...metrics,
     }).reduce(
@@ -1153,34 +1017,6 @@ const translateDbtModelsToTableLineage = (
     );
 };
 
-const modelCanUseMetric = (
-    metricName: string,
-    modelName: string,
-    metrics: DbtMetric[],
-): boolean => {
-    const metric = metrics.find((m) => m.name === metricName);
-    if (!metric) {
-        return false;
-    }
-    const modelRef = metric?.refs?.[0];
-    if (modelRef) {
-        const modelRefName = isV9MetricRef(modelRef)
-            ? modelRef.name
-            : modelRef[0];
-        if (modelRefName === modelName) {
-            return true;
-        }
-    }
-
-    if (metric.calculation_method === 'derived') {
-        const referencedMetrics = (metric.metrics || []).map((m) => m[0]);
-        return referencedMetrics.every((m) =>
-            modelCanUseMetric(m, modelName, metrics),
-        );
-    }
-    return false;
-};
-
 export type ExplorePostProcessor = (
     compiledExplores: Explore[],
     context: {
@@ -1199,7 +1035,6 @@ export const convertExplores = async (
     models: DbtModelNode[],
     loadSources: boolean,
     adapterType: SupportedDbtAdapter,
-    metrics: DbtMetric[],
     warehouseSqlBuilder: WarehouseSqlBuilder,
     lightdashProjectConfig: LightdashProjectConfig,
     options?: ConvertExploresOptions,
@@ -1234,15 +1069,9 @@ export const convertExplores = async (
 
             // If there are any errors compiling the table return an ExploreError
             try {
-                // base dimensions and metrics
-                // TODO: remove old metrics handling
-                const tableMetrics = metrics.filter((metric) =>
-                    modelCanUseMetric(metric.name, model.name, metrics),
-                );
                 const table = convertTable(
                     adapterType,
                     model,
-                    tableMetrics,
                     lightdashProjectConfig.spotlight,
                     warehouseSqlBuilder.getStartOfWeek(),
                     disableTimestampConversion,

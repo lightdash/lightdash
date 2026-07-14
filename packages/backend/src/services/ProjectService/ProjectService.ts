@@ -6203,9 +6203,7 @@ export class ProjectService extends BaseService {
                 Sentry.captureException(e);
             }
             this.logger.error(
-                `Failed to compile all explores:${
-                    e instanceof Error ? e.stack : e
-                }`,
+                `Failed to compile all explores:${e instanceof Error ? e.stack : e}`,
             );
             const errorResponse =
                 e instanceof Error
@@ -9538,7 +9536,6 @@ export class ProjectService extends BaseService {
             dbtModelNode,
             false,
             warehouseClient.getAdapterType(),
-            [],
             warehouseClient,
             {
                 spotlight: {

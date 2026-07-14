@@ -1,0 +1,16 @@
+config:
+  send_anonymous_usage_stats: false
+
+metricflow_demo_legacy:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('PGHOST', 'localhost') }}"
+      port: "{{ env_var('PGPORT', '5532') | as_number }}"
+      user: "{{ env_var('PGUSER', 'postgres') }}"
+      pass: "{{ env_var('PGPASSWORD', 'password') }}"
+      dbname: "{{ env_var('PGDATABASE', 'postgres') }}"
+      schema: metricflow_demo_legacy
+      threads: 4
+      sslmode: disable

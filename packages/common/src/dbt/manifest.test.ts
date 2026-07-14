@@ -301,7 +301,9 @@ describe('combineManifestSources (N-way fold)', () => {
                 } as unknown as DbtManifest['docs'],
                 sources: { 'source.p': { id: 'p' } },
                 macros: { 'macro.p': { id: 'p' } },
-                semantic_models: { 'sm.p': { id: 'p' } },
+                semantic_models: {
+                    'sm.p': { id: 'p' },
+                } as unknown as DbtManifest['semantic_models'],
             },
         );
         const secondary = buildManifest(
@@ -315,7 +317,9 @@ describe('combineManifestSources (N-way fold)', () => {
                 } as unknown as DbtManifest['docs'],
                 sources: { 'source.s': { id: 's' } },
                 macros: { 'macro.s': { id: 's' } },
-                semantic_models: { 'sm.s': { id: 's' } },
+                semantic_models: {
+                    'sm.s': { id: 's' },
+                } as unknown as DbtManifest['semantic_models'],
             },
         );
 

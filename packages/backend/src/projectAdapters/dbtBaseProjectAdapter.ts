@@ -4,7 +4,6 @@ import {
     attachWarehouseColumnWarningsToExplores,
     convertExplores,
     DbtManifestVersion,
-    DbtMetric,
     DbtModelNode,
     DbtPackages,
     DbtRawModelNode,
@@ -259,18 +258,6 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 manifestVersion,
             );
 
-        // Validate metrics in the manifest - compile fails if any invalid
-        const metrics = DbtBaseProjectAdapter._validateDbtMetrics(
-            manifestVersion,
-            [
-                DbtManifestVersion.V10,
-                DbtManifestVersion.V11,
-                DbtManifestVersion.V12,
-            ].includes(manifestVersion)
-                ? []
-                : Object.values(manifest.metrics),
-        );
-
         const lightdashProjectConfig =
             await this.getLightdashProjectConfig(trackingParams);
 
@@ -299,7 +286,6 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 lazyTypedModels,
                 loadSources,
                 adapterType,
-                metrics,
                 this.warehouseClient,
                 lightdashProjectConfig,
                 {
@@ -368,7 +354,6 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     typedModels,
                     loadSources,
                     adapterType,
-                    metrics,
                     this.warehouseClient,
                     lightdashProjectConfig,
                     {
@@ -390,23 +375,6 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             }
             throw e;
         }
-    }
-
-    static _validateDbtMetrics(
-        version: DbtManifestVersion,
-        metrics: DbtMetric[],
-    ): DbtMetric[] {
-        const validator = new ManifestValidator(version);
-        metrics.forEach((metric) => {
-            const [isValid, errorMessage] = validator.isDbtMetricValid(metric);
-            if (!isValid) {
-                throw new ParseError(
-                    `Could not parse dbt metric with id ${metric.unique_id}: ${errorMessage}`,
-                    {},
-                );
-            }
-        });
-        return metrics;
     }
 
     static _validateDbtModel(

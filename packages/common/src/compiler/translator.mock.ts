@@ -1,9 +1,4 @@
-import {
-    type DbtMetric,
-    type DbtModelColumn,
-    type DbtModelNode,
-    type V9MetricRef,
-} from '../types/dbt';
+import { type DbtModelColumn, type DbtModelNode } from '../types/dbt';
 import { type Table } from '../types/explore';
 import { DimensionType, FieldType, MetricType } from '../types/field';
 import type { LightdashProjectConfig } from '../types/lightdashProjectConfig';
@@ -40,69 +35,6 @@ export const INVALID_ID_COLUMN_NAMES = [
     'my_fave_column',
     '12345_id',
 ];
-
-export const DBT_METRIC: DbtMetric = {
-    fqn: [],
-    expression: '',
-    unique_id: 'dbt_metric_1',
-    package_name: '',
-    path: '',
-    original_file_path: '',
-    model: "ref('myTable')",
-    name: 'dbt_metric_1',
-    description: 'Description',
-    label: 'Label',
-    calculation_method: MetricType.SUM,
-    timestamp: '',
-    filters: [],
-    time_grains: [],
-    dimensions: [],
-    refs: [['myTable']],
-};
-
-export const DBT_METRIC_WITH_FILTER: DbtMetric = {
-    ...DBT_METRIC,
-    name: 'dbt_metric_4',
-    filters: [
-        {
-            field: 'column_filter',
-            operator: '>=',
-            value: '123',
-        },
-        {
-            field: 'column_filter',
-            operator: '<=',
-            value: '456',
-        },
-    ],
-};
-
-export const DBT_METRIC_WITH_SQL_FIELD: DbtMetric = {
-    ...DBT_METRIC,
-    name: 'dbt_metric_2',
-    expression: 'dim1',
-};
-
-export const DBT_METRIC_WITH_CUSTOM_SQL: DbtMetric = {
-    ...DBT_METRIC,
-    name: 'dbt_metric_3',
-    calculation_method: MetricType.NUMBER,
-    expression: 'dim1 + dim2',
-};
-
-export const DBT_METRIC_DERIVED: DbtMetric = {
-    ...DBT_METRIC,
-    name: 'dbt_metric_5',
-    calculation_method: 'derived',
-    expression: 'dbt_metric_11 / dbt_metric_1',
-    refs: [],
-    metrics: [['dbt_metric_11'], ['dbt_metric_1']], // one per each reference
-};
-
-export const DBT_V9_METRIC: DbtMetric & { refs: V9MetricRef[] } = {
-    ...DBT_METRIC,
-    refs: [{ name: 'myTable' }],
-};
 
 const ID_COLUMN_WITHOUT_METRICS: DbtModelColumn = {
     name: 'user_id',
@@ -582,169 +514,6 @@ export const LIGHTDASH_TABLE_WITHOUT_AUTO_METRICS: Omit<Table, 'lineageGraph'> =
                 colors: undefined,
                 index: 0,
                 isIntervalBase: false,
-            },
-        },
-    };
-
-export const LIGHTDASH_TABLE_WITH_DBT_METRICS: Omit<Table, 'lineageGraph'> = {
-    ...LIGHTDASH_TABLE_WITHOUT_AUTO_METRICS,
-    metrics: {
-        dbt_metric_1: {
-            description: 'Description',
-            fieldType: FieldType.METRIC,
-            hidden: false,
-            label: 'Label',
-            name: 'dbt_metric_1',
-            sql: '${TABLE}.dbt_metric_1',
-            table: 'myTable',
-            tableLabel: 'My table',
-            type: MetricType.SUM,
-            format: undefined,
-            round: undefined,
-            percentile: undefined,
-            compact: undefined,
-            separator: undefined,
-            showUnderlyingValues: undefined,
-            source: undefined,
-            groups: [],
-            filters: [],
-            index: 0,
-            spotlight: {
-                visibility: 'show',
-                categories: [],
-            },
-        },
-        dbt_metric_2: {
-            description: 'Description',
-            fieldType: FieldType.METRIC,
-            hidden: false,
-            label: 'Label',
-            name: 'dbt_metric_2',
-            sql: '${TABLE}.dim1',
-            table: 'myTable',
-            tableLabel: 'My table',
-            type: MetricType.SUM,
-            format: undefined,
-            round: undefined,
-            percentile: undefined,
-            compact: undefined,
-            separator: undefined,
-            showUnderlyingValues: undefined,
-            source: undefined,
-            groups: [],
-            filters: [],
-            index: 1,
-            spotlight: {
-                visibility: 'show',
-                categories: [],
-            },
-        },
-        dbt_metric_3: {
-            description: 'Description',
-            fieldType: FieldType.METRIC,
-            hidden: false,
-            label: 'Label',
-            name: 'dbt_metric_3',
-            sql: 'dim1 + dim2',
-            table: 'myTable',
-            tableLabel: 'My table',
-            type: MetricType.NUMBER,
-            format: undefined,
-            round: undefined,
-            percentile: undefined,
-            compact: undefined,
-            separator: undefined,
-            showUnderlyingValues: undefined,
-            source: undefined,
-            groups: [],
-            filters: [],
-            index: 2,
-            spotlight: {
-                visibility: 'show',
-                categories: [],
-            },
-        },
-        dbt_metric_4: {
-            description: 'Description',
-            fieldType: FieldType.METRIC,
-            hidden: false,
-            label: 'Label',
-            name: 'dbt_metric_4',
-            sql: 'CASE WHEN (${TABLE}.column_filter >= 123) AND (${TABLE}.column_filter <= 456) THEN ${TABLE}.dbt_metric_4 ELSE NULL END',
-            table: 'myTable',
-            tableLabel: 'My table',
-            type: MetricType.SUM,
-            format: undefined,
-            round: undefined,
-            percentile: undefined,
-            compact: undefined,
-            separator: undefined,
-            showUnderlyingValues: undefined,
-            source: undefined,
-            groups: [],
-            filters: [],
-            index: 3,
-            spotlight: {
-                visibility: 'show',
-                categories: [],
-            },
-        },
-        dbt_metric_5: {
-            description: 'Description',
-            fieldType: FieldType.METRIC,
-            hidden: false,
-            label: 'Label',
-            name: 'dbt_metric_5',
-            sql: '${dbt_metric_11} / ${dbt_metric_1}',
-            table: 'myTable',
-            tableLabel: 'My table',
-            type: MetricType.NUMBER,
-            format: undefined,
-            round: undefined,
-            percentile: undefined,
-            compact: undefined,
-            separator: undefined,
-            showUnderlyingValues: undefined,
-            source: undefined,
-            groups: [],
-            filters: [],
-            index: 4,
-            spotlight: {
-                visibility: 'show',
-                categories: [],
-            },
-        },
-    },
-};
-
-export const LIGHTDASH_TABLE_WITH_DBT_V9_METRICS: Omit<Table, 'lineageGraph'> =
-    {
-        ...LIGHTDASH_TABLE_WITHOUT_AUTO_METRICS,
-        metrics: {
-            dbt_metric_1: {
-                description: 'Description',
-                fieldType: FieldType.METRIC,
-                hidden: false,
-                label: 'Label',
-                name: 'dbt_metric_1',
-                sql: '${TABLE}.dbt_metric_1',
-                table: 'myTable',
-                tableLabel: 'My table',
-                type: MetricType.SUM,
-                format: undefined,
-                round: undefined,
-                percentile: undefined,
-                compact: undefined,
-                separator: undefined,
-                showUnderlyingValues: undefined,
-                source: undefined,
-                groups: [],
-                filters: [],
-                index: 0,
-                spotlight: {
-                    visibility: 'show',
-                    categories: [],
-                },
             },
         },
     };
@@ -1750,30 +1519,17 @@ export const MODEL_WITH_NO_CATEGORIES: DbtModelNode = {
 
 export const LIGHTDASH_TABLE_WITH_NO_CATEGORIES: Omit<Table, 'lineageGraph'> = {
     ...LIGHTDASH_TABLE_WITH_METRICS,
-    metrics: {
-        ...{
-            dbt_metric_1: {
-                ...LIGHTDASH_TABLE_WITH_DBT_METRICS.metrics.dbt_metric_1,
-                spotlight: {
-                    ...LIGHTDASH_TABLE_WITH_DBT_METRICS.metrics.dbt_metric_1
-                        .spotlight,
-                    visibility: 'hide',
+    metrics: Object.fromEntries(
+        Object.entries(LIGHTDASH_TABLE_WITH_METRICS.metrics).map(
+            ([key, metric]) => [
+                key,
+                {
+                    ...metric,
+                    spotlight: { ...metric.spotlight, visibility: 'hide' },
                 },
-            },
-        },
-        ...Object.fromEntries(
-            Object.entries(LIGHTDASH_TABLE_WITH_METRICS.metrics).map(
-                ([key, metric]) => [
-                    key,
-                    {
-                        ...metric,
-                        spotlight: { ...metric.spotlight, visibility: 'hide' },
-                        index: (metric.index ?? 0) + 1,
-                    },
-                ],
-            ),
+            ],
         ),
-    },
+    ),
     dimensions: LIGHTDASH_TABLE_WITH_METRICS.dimensions,
 };
 

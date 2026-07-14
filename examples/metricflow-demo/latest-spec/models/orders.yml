@@ -1,0 +1,108 @@
+# ── Latest MetricFlow spec (dbt Fusion / dbt platform / dbt Core 1.12+) ──────
+# The semantic model is enabled inline on the model; entities and dimensions
+# live on the model's columns; measures are replaced by simple metrics with
+# top-level agg/expr keys (no type_params wrapper).
+# https://docs.getdbt.com/docs/build/latest-metrics-spec
+models:
+  - name: orders
+    description: One row per order. Base model for the MetricFlow semantic model.
+    semantic_model:
+      enabled: true
+      name: orders
+    agg_time_dimension: ordered_at
+    columns:
+      - name: order_id
+        entity:
+          type: primary
+          name: order
+      - name: customer_id
+        entity:
+          type: foreign
+          name: customer
+      - name: ordered_at
+        granularity: day
+        dimension:
+          type: time
+      - name: status
+        dimension:
+          type: categorical
+    metrics:
+      # ── Supported aggregations (translate to Lightdash metrics) ──
+      - name: total_revenue
+        label: Total revenue
+        description: Sum of all order amounts
+        type: simple
+        agg: sum
+        expr: amount
+      - name: order_count
+        label: Order count
+        type: simple
+        agg: count
+        expr: order_id
+      - name: unique_customers
+        label: Unique customers
+        description: Distinct customers who placed an order
+        type: simple
+        agg: count_distinct
+        expr: customer_id
+      - name: average_order_value
+        label: Average order value
+        type: simple
+        agg: average
+        expr: amount
+      - name: median_order_value
+        label: Median order value
+        type: simple
+        agg: median
+        expr: amount
+      - name: max_order_value
+        label: Largest order
+        type: simple
+        agg: max
+        expr: amount
+      - name: min_order_value
+        label: Smallest order
+        type: simple
+        agg: min
+        expr: amount
+      - name: p95_order_value
+        label: P95 order value
+        type: simple
+        agg: percentile
+        # Latest spec authors percentile on the 0-100 scale
+        percentile: 95.0
+        expr: amount
+      # ── Unsupported shapes (skipped with a warning on deploy) ──
+      - name: completed_revenue
+        label: Completed revenue
+        description: Filtered metrics cannot be translated to Lightdash.
+        type: simple
+        agg: sum
+        expr: amount
+        filter: |
+          {{ Dimension('order__status') }} = 'completed'
+      - name: food_order_count
+        label: Food order count
+        type: simple
+        agg: sum_boolean
+        expr: is_food_order
+
+# Advanced (multi-metric) shapes still live in a top-level metrics: block in
+# the latest spec — all currently skipped by the Lightdash translation.
+metrics:
+  - name: revenue_per_order
+    label: Revenue per order (ratio)
+    type: ratio
+    numerator: total_revenue
+    denominator: order_count
+  - name: revenue_per_customer
+    label: Revenue per customer (derived)
+    type: derived
+    expr: total_revenue / unique_customers
+    input_metrics:
+      - name: total_revenue
+      - name: unique_customers
+  - name: cumulative_revenue
+    label: Cumulative revenue
+    type: cumulative
+    input_metric: total_revenue

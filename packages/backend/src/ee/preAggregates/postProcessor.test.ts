@@ -38,7 +38,6 @@ describe('pre-aggregates metadata parsing', () => {
             ],
             false,
             SupportedDbtAdapter.POSTGRES,
-            [],
             warehouseClientMock,
             {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
@@ -64,7 +63,6 @@ describe('pre-aggregates metadata parsing', () => {
             [{ ...model, meta: {} }],
             false,
             SupportedDbtAdapter.POSTGRES,
-            [],
             warehouseClientMock,
             {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
@@ -106,7 +104,6 @@ describe('pre-aggregates metadata parsing', () => {
             ],
             false,
             SupportedDbtAdapter.POSTGRES,
-            [],
             warehouseClientMock,
             {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
@@ -142,7 +139,6 @@ describe('pre-aggregates metadata parsing', () => {
             ],
             false,
             SupportedDbtAdapter.POSTGRES,
-            [],
             warehouseClientMock,
             {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
@@ -184,7 +180,6 @@ describe('pre-aggregate virtual explore generation', () => {
             ],
             false,
             SupportedDbtAdapter.POSTGRES,
-            [],
             warehouseClientMock,
             {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
@@ -234,7 +229,6 @@ describe('pre-aggregate virtual explore generation', () => {
             ],
             false,
             SupportedDbtAdapter.POSTGRES,
-            [],
             warehouseClientMock,
             {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
@@ -297,7 +291,6 @@ describe('pre-aggregate virtual explore generation', () => {
             ],
             false,
             SupportedDbtAdapter.POSTGRES,
-            [],
             warehouseClientMock,
             {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
@@ -351,7 +344,6 @@ describe('pre-aggregate virtual explore generation', () => {
             ],
             false,
             SupportedDbtAdapter.POSTGRES,
-            [],
             warehouseClientMock,
             {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
@@ -388,7 +380,6 @@ describe('pre-aggregate virtual explore generation', () => {
             ],
             false,
             SupportedDbtAdapter.POSTGRES,
-            [],
             warehouseClientMock,
             {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
@@ -432,7 +423,6 @@ describe('pre-aggregate virtual explore generation', () => {
             ],
             false,
             SupportedDbtAdapter.POSTGRES,
-            [],
             warehouseClientMock,
             {
                 spotlight: DEFAULT_SPOTLIGHT_CONFIG,
