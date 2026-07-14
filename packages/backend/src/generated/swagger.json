@@ -14305,6 +14305,176 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ContentAsCodeType.AI_AGENT": {
+                "enum": ["ai_agent"],
+                "type": "string"
+            },
+            "AgentAsCode": {
+                "properties": {
+                    "downloadedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "modelConfig": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AiAgentModelConfig"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "enableUserContext": {
+                        "type": "boolean"
+                    },
+                    "enableContentTools": {
+                        "type": "boolean"
+                    },
+                    "enableSelfImprovement": {
+                        "type": "boolean"
+                    },
+                    "enableDataAccess": {
+                        "type": "boolean"
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
+                    "instruction": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "imageUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "agentVersion": {
+                        "type": "number",
+                        "enum": [1, 2]
+                    },
+                    "version": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentAsCodeType.AI_AGENT"
+                    }
+                },
+                "required": [
+                    "modelConfig",
+                    "enableUserContext",
+                    "enableContentTools",
+                    "enableSelfImprovement",
+                    "enableDataAccess",
+                    "tags",
+                    "instruction",
+                    "imageUrl",
+                    "description",
+                    "name",
+                    "slug",
+                    "agentVersion",
+                    "version",
+                    "contentType"
+                ],
+                "type": "object"
+            },
+            "ApiAgentAsCodeListResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "offset": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "total": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "missingIds": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "agents": {
+                                "items": {
+                                    "$ref": "#/components/schemas/AgentAsCode"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["offset", "total", "missingIds", "agents"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "AgentAsCodeUpsertChanges": {
+                "properties": {
+                    "deleted": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "unchanged": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "updated": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "created": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["deleted", "unchanged", "updated", "created"],
+                "type": "object"
+            },
+            "ApiAgentAsCodeUpsertResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AgentAsCodeUpsertChanges"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "AiAgentUserPreferences": {
                 "properties": {
                     "defaultAgentUuid": {
@@ -16722,6 +16892,7 @@
                     "resolveUrl",
                     "editContent",
                     "createContent",
+                    "createScheduledDelivery",
                     "runContentQuery",
                     "improveContext",
                     "listProjects",
@@ -16797,10 +16968,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -16809,8 +16980,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "tableName",
                                                                         "label",
+                                                                        "tableName",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -16833,28 +17004,28 @@
                                                                                         "items": {},
                                                                                         "type": "array"
                                                                                     },
+                                                                                    "required": {
+                                                                                        "type": "boolean"
+                                                                                    },
+                                                                                    "tableName": {
+                                                                                        "type": "string"
+                                                                                    },
                                                                                     "fieldRef": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "fieldId": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
-                                                                                        "type": "string"
-                                                                                    },
                                                                                     "operator": {
                                                                                         "type": "string"
-                                                                                    },
-                                                                                    "required": {
-                                                                                        "type": "boolean"
                                                                                     }
                                                                                 },
                                                                                 "required": [
+                                                                                    "required",
+                                                                                    "tableName",
                                                                                     "fieldRef",
                                                                                     "fieldId",
-                                                                                    "tableName",
-                                                                                    "operator",
-                                                                                    "required"
+                                                                                    "operator"
                                                                                 ],
                                                                                 "type": "object"
                                                                             },
@@ -16936,15 +17107,15 @@
                                                                             ],
                                                                             "type": "object"
                                                                         },
+                                                                        "error": {
+                                                                            "type": "string"
+                                                                        },
                                                                         "status": {
                                                                             "type": "string",
                                                                             "enum": [
                                                                                 "error",
                                                                                 "success"
                                                                             ]
-                                                                        },
-                                                                        "error": {
-                                                                            "type": "string"
                                                                         },
                                                                         "results": {
                                                                             "items": {
@@ -16967,10 +17138,10 @@
                                                                                     "fieldType": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "tableName": {
+                                                                                    "label": {
                                                                                         "type": "string"
                                                                                     },
-                                                                                    "label": {
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "name": {
@@ -16979,8 +17150,8 @@
                                                                                 },
                                                                                 "required": [
                                                                                     "fieldType",
-                                                                                    "tableName",
                                                                                     "label",
+                                                                                    "tableName",
                                                                                     "name"
                                                                                 ],
                                                                                 "type": "object"
@@ -17082,6 +17253,10 @@
                                                         "anyOf": [
                                                             {
                                                                 "properties": {
+                                                                    "rationale": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
                                                                     "fields": {
                                                                         "items": {
                                                                             "properties": {
@@ -17096,55 +17271,51 @@
                                                                                         "not_applicable"
                                                                                     ]
                                                                                 },
+                                                                                "fieldFilterType": {
+                                                                                    "type": "string"
+                                                                                },
                                                                                 "fieldValueType": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "fieldFilterType": {
-                                                                                    "type": "string"
+                                                                                "fieldType": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                        "dimension",
+                                                                                        "metric"
+                                                                                    ]
                                                                                 },
                                                                                 "description": {
                                                                                     "type": "string",
                                                                                     "nullable": true
                                                                                 },
-                                                                                "fieldType": {
-                                                                                    "type": "string",
-                                                                                    "enum": [
-                                                                                        "metric",
-                                                                                        "dimension"
-                                                                                    ]
-                                                                                },
-                                                                                "table": {
+                                                                                "label": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "fieldId": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "label": {
+                                                                                "name": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "name": {
+                                                                                "table": {
                                                                                     "type": "string"
                                                                                 }
                                                                             },
                                                                             "required": [
                                                                                 "isFromJoinedTable",
                                                                                 "caseSensitiveFilters",
-                                                                                "fieldValueType",
                                                                                 "fieldFilterType",
-                                                                                "description",
+                                                                                "fieldValueType",
                                                                                 "fieldType",
-                                                                                "table",
-                                                                                "fieldId",
+                                                                                "description",
                                                                                 "label",
-                                                                                "name"
+                                                                                "fieldId",
+                                                                                "name",
+                                                                                "table"
                                                                             ],
                                                                             "type": "object"
                                                                         },
                                                                         "type": "array"
-                                                                    },
-                                                                    "rationale": {
-                                                                        "type": "string",
-                                                                        "nullable": true
                                                                     },
                                                                     "explore": {
                                                                         "properties": {
@@ -17156,28 +17327,28 @@
                                                                                             "items": {},
                                                                                             "type": "array"
                                                                                         },
+                                                                                        "required": {
+                                                                                            "type": "boolean"
+                                                                                        },
+                                                                                        "tableName": {
+                                                                                            "type": "string"
+                                                                                        },
                                                                                         "fieldRef": {
                                                                                             "type": "string"
                                                                                         },
                                                                                         "fieldId": {
                                                                                             "type": "string"
                                                                                         },
-                                                                                        "tableName": {
-                                                                                            "type": "string"
-                                                                                        },
                                                                                         "operator": {
                                                                                             "type": "string"
-                                                                                        },
-                                                                                        "required": {
-                                                                                            "type": "boolean"
                                                                                         }
                                                                                     },
                                                                                     "required": [
+                                                                                        "required",
+                                                                                        "tableName",
                                                                                         "fieldRef",
                                                                                         "fieldId",
-                                                                                        "tableName",
-                                                                                        "operator",
-                                                                                        "required"
+                                                                                        "operator"
                                                                                     ],
                                                                                     "type": "object"
                                                                                 },
@@ -17216,8 +17387,8 @@
                                                                     }
                                                                 },
                                                                 "required": [
-                                                                    "fields",
                                                                     "rationale",
+                                                                    "fields",
                                                                     "explore",
                                                                     "status"
                                                                 ],
@@ -17231,10 +17402,10 @@
                                                                     "candidates": {
                                                                         "items": {
                                                                             "properties": {
-                                                                                "exploreLabel": {
+                                                                                "reason": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "reason": {
+                                                                                "exploreLabel": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "exploreName": {
@@ -17242,8 +17413,8 @@
                                                                                 }
                                                                             },
                                                                             "required": [
-                                                                                "exploreLabel",
                                                                                 "reason",
+                                                                                "exploreLabel",
                                                                                 "exploreName"
                                                                             ],
                                                                             "type": "object"
@@ -17382,15 +17553,15 @@
                                                                     "type": "string",
                                                                     "nullable": true
                                                                 },
+                                                                "repository": {
+                                                                    "type": "string",
+                                                                    "nullable": true
+                                                                },
                                                                 "isPrimary": {
                                                                     "type": "boolean"
                                                                 },
                                                                 "projectDbtSourceUuid": {
                                                                     "type": "string"
-                                                                },
-                                                                "repository": {
-                                                                    "type": "string",
-                                                                    "nullable": true
                                                                 },
                                                                 "name": {
                                                                     "type": "string"
@@ -17399,9 +17570,9 @@
                                                             "required": [
                                                                 "projectSubPath",
                                                                 "branch",
+                                                                "repository",
                                                                 "isPrimary",
                                                                 "projectDbtSourceUuid",
-                                                                "repository",
                                                                 "name"
                                                             ],
                                                             "type": "object"
@@ -17411,6 +17582,32 @@
                                                     },
                                                     "needsDbtSourceSelection": {
                                                         "type": "boolean",
+                                                        "nullable": true
+                                                    },
+                                                    "steps": {
+                                                        "items": {
+                                                            "properties": {
+                                                                "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                        "search",
+                                                                        "read",
+                                                                        "edit",
+                                                                        "compile",
+                                                                        "stage"
+                                                                    ]
+                                                                },
+                                                                "label": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "kind",
+                                                                "label"
+                                                            ],
+                                                            "type": "object"
+                                                        },
+                                                        "type": "array",
                                                         "nullable": true
                                                     },
                                                     "previewUrl": {
@@ -17440,32 +17637,6 @@
                                                         ],
                                                         "nullable": true
                                                     },
-                                                    "steps": {
-                                                        "items": {
-                                                            "properties": {
-                                                                "kind": {
-                                                                    "type": "string",
-                                                                    "enum": [
-                                                                        "search",
-                                                                        "read",
-                                                                        "edit",
-                                                                        "compile",
-                                                                        "stage"
-                                                                    ]
-                                                                },
-                                                                "label": {
-                                                                    "type": "string"
-                                                                }
-                                                            },
-                                                            "required": [
-                                                                "kind",
-                                                                "label"
-                                                            ],
-                                                            "type": "object"
-                                                        },
-                                                        "type": "array",
-                                                        "nullable": true
-                                                    },
                                                     "prUrl": {
                                                         "type": "string",
                                                         "nullable": true
@@ -17485,9 +17656,9 @@
                                                         "type": "string",
                                                         "enum": [
                                                             "unknown",
-                                                            "unsupported_source_control",
                                                             "github_not_installed",
                                                             "gitlab_not_installed",
+                                                            "unsupported_source_control",
                                                             "pull_request_not_open",
                                                             "git_write_permission",
                                                             null
@@ -17551,9 +17722,9 @@
                                                         "type": "string",
                                                         "enum": [
                                                             "error",
-                                                            "rejected",
                                                             "success",
-                                                            "timeout"
+                                                            "timeout",
+                                                            "rejected"
                                                         ]
                                                     }
                                                 },
@@ -22910,6 +23081,104 @@
                 "required": ["name"],
                 "type": "object"
             },
+            "CustomRoleAsCode": {
+                "properties": {
+                    "scopes": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "level": {
+                        "$ref": "#/components/schemas/RoleLevel"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "version": {
+                        "type": "number",
+                        "enum": [1],
+                        "nullable": false
+                    }
+                },
+                "required": [
+                    "scopes",
+                    "level",
+                    "description",
+                    "name",
+                    "version"
+                ],
+                "type": "object"
+            },
+            "ApiCustomRoleAsCodeListResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "customRoles": {
+                                "items": {
+                                    "$ref": "#/components/schemas/CustomRoleAsCode"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["customRoles"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "PromotionAction.CREATE": {
+                "enum": ["create"],
+                "type": "string"
+            },
+            "PromotionAction.UPDATE": {
+                "enum": ["update"],
+                "type": "string"
+            },
+            "PromotionAction.NO_CHANGES": {
+                "enum": ["no changes"],
+                "type": "string"
+            },
+            "ApiCustomRoleAsCodeUpsertResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "action": {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/PromotionAction.CREATE"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PromotionAction.UPDATE"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PromotionAction.NO_CHANGES"
+                                    }
+                                ]
+                            }
+                        },
+                        "required": ["action"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "UpdateRole": {
                 "properties": {
                     "scopes": {
@@ -22931,7 +23200,8 @@
                         "type": "object"
                     },
                     "description": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     },
                     "name": {
                         "type": "string"
@@ -23787,6 +24057,23 @@
             },
             "ApiAiDeepResearchRunResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiDeepResearchRun_"
+            },
+            "AiDeepResearchEffort": {
+                "type": "string",
+                "enum": ["high", "medium", "low", "xhigh"]
+            },
+            "AiDeepResearchRequestBody": {
+                "properties": {
+                    "effort": {
+                        "$ref": "#/components/schemas/AiDeepResearchEffort",
+                        "description": "Server-owned execution budget tier. Defaults to medium."
+                    },
+                    "prompt": {
+                        "type": "string"
+                    }
+                },
+                "required": ["prompt"],
+                "type": "object"
             },
             "AiDeepResearchPhase": {
                 "type": "string",
@@ -29793,6 +30080,10 @@
                     "sql": {
                         "type": "string"
                     },
+                    "label": {
+                        "type": "string",
+                        "description": "Optional display label. Defaults to a friendly version of name."
+                    },
                     "name": {
                         "type": "string"
                     }
@@ -33067,6 +33358,59 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ProjectSummary": {
+                "properties": {
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "upstreamProjectUuid": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/ProjectType"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "createdByUserUuid",
+                    "type",
+                    "name",
+                    "projectUuid",
+                    "organizationUuid"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_ProjectSummary_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ProjectSummary"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "UpdateProjectDetails": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
             "ApiChartListResponse": {
                 "properties": {
                     "results": {
@@ -35296,6 +35640,133 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "ContentAsCodeType.VIRTUAL_VIEW": {
+                "enum": ["virtual_view"],
+                "type": "string"
+            },
+            "VirtualViewAsCode": {
+                "properties": {
+                    "parameters": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ParametersValuesMap"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "columns": {
+                        "items": {
+                            "$ref": "#/components/schemas/ResultColumn"
+                        },
+                        "type": "array"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Mutable display label."
+                    },
+                    "slug": {
+                        "type": "string",
+                        "description": "Immutable project-scoped explore name used by downstream content."
+                    },
+                    "version": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "contentType": {
+                        "$ref": "#/components/schemas/ContentAsCodeType.VIRTUAL_VIEW"
+                    }
+                },
+                "required": [
+                    "parameters",
+                    "columns",
+                    "sql",
+                    "name",
+                    "slug",
+                    "version",
+                    "contentType"
+                ],
+                "type": "object"
+            },
+            "VirtualViewAsCodeSkip": {
+                "properties": {
+                    "reason": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    }
+                },
+                "required": ["reason", "slug"],
+                "type": "object"
+            },
+            "ApiVirtualViewAsCodeListResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "missingSlugs": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "skipped": {
+                                "items": {
+                                    "$ref": "#/components/schemas/VirtualViewAsCodeSkip"
+                                },
+                                "type": "array"
+                            },
+                            "virtualViews": {
+                                "items": {
+                                    "$ref": "#/components/schemas/VirtualViewAsCode"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["missingSlugs", "skipped", "virtualViews"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiVirtualViewAsCodeUpsertResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "action": {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/PromotionAction.CREATE"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PromotionAction.UPDATE"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PromotionAction.NO_CHANGES"
+                                    }
+                                ]
+                            }
+                        },
+                        "required": ["action"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "SchedulerFormat.CSV": {
                 "enum": ["csv"],
                 "type": "string"
@@ -35628,18 +36099,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "PromotionAction.CREATE": {
-                "enum": ["create"],
-                "type": "string"
-            },
-            "PromotionAction.UPDATE": {
-                "enum": ["update"],
-                "type": "string"
-            },
-            "PromotionAction.NO_CHANGES": {
-                "enum": ["no changes"],
-                "type": "string"
             },
             "ApiScheduledDeliveryAsCodeUpsertResponse": {
                 "properties": {
@@ -37646,6 +38105,11 @@
                         "nullable": true,
                         "description": "Base lifetime (seconds) of this org's scheduled-delivery download links —\nthe default every channel inherits. Overrides the instance-wide\n`PERSISTENT_DOWNLOAD_URL_EXPIRATION_SECONDS` env; `null` inherits it. This\nfield is always resolved to an effective number in API responses (it\nfalls back to the env default), so the frontend can display it directly.\nA value over {@link S3_PRESIGNED_URL_MAX_EXPIRATION_SECONDS} transparently\nswitches that delivery to the persistent-download-URL system (the only\nway a link can outlive AWS's 7-day presigned ceiling)."
                     },
+                    "semanticLayerPgwireEnabled": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "description": "Per-org enablement of the semantic-layer Postgres wire integration\n(surfaced on the project settings page). Like impersonation this has no\ninstance/env default — it's opt-in only, so `null` (or no stored row)\nresolves to `false`."
+                    },
                     "supportImpersonationEnabled": {
                         "type": "boolean",
                         "nullable": true,
@@ -37671,6 +38135,7 @@
                     "scheduledDeliveryExpirationSecondsSlack",
                     "scheduledDeliveryExpirationSecondsEmail",
                     "scheduledDeliveryExpirationSeconds",
+                    "semanticLayerPgwireEnabled",
                     "supportImpersonationEnabled",
                     "oidcToEmailLinkingEnabled",
                     "oidcLinkingEnabled"
@@ -37708,6 +38173,11 @@
                         "type": "boolean",
                         "nullable": true,
                         "description": "Per-org consent for the Lightdash support team to impersonate users in\nthe org while helping with a support request. Unlike the OIDC toggles\nthis has no instance/env default — it's opt-in only, so `null` (or no\nstored row) resolves to `false`."
+                    },
+                    "semanticLayerPgwireEnabled": {
+                        "type": "boolean",
+                        "nullable": true,
+                        "description": "Per-org enablement of the semantic-layer Postgres wire integration\n(surfaced on the project settings page). Like impersonation this has no\ninstance/env default — it's opt-in only, so `null` (or no stored row)\nresolves to `false`."
                     },
                     "scheduledDeliveryExpirationSeconds": {
                         "type": "number",
@@ -37943,6 +38413,25 @@
             },
             "Organization": {
                 "properties": {
+                    "pgWire": {
+                        "properties": {
+                            "port": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            },
+                            "host": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "enabled": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": ["port", "host", "enabled"],
+                        "type": "object",
+                        "description": "Postgres wire protocol connection details for the semantic layer, only\npopulated on the authenticated `GET /org` response (not the public health\nendpoint). `enabled` reflects whether the instance exposes a pgwire port;\n`host`/`port` are what clients use to connect."
+                    },
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
@@ -45774,7 +46263,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3371.3",
+        "version": "0.3376.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -48157,6 +48646,127 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ApiCreateAiAgent"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgents/code": {
+            "get": {
+                "operationId": "getAiAgentsAsCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAgentAsCodeListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "ids",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "offset",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "upsertAiAgentsAsCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAgentAsCodeUpsertResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "force",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "agents": {
+                                        "items": {
+                                            "$ref": "#/components/schemas/AgentAsCode"
+                                        },
+                                        "type": "array"
+                                    }
+                                },
+                                "required": ["agents"],
+                                "type": "object"
                             }
                         }
                     }
@@ -52753,6 +53363,96 @@
                 ]
             }
         },
+        "/api/v2/orgs/{orgUuid}/roles/code": {
+            "get": {
+                "operationId": "GetCustomRolesAsCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiCustomRoleAsCodeListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get custom roles in code representation",
+                "summary": "List custom roles as code",
+                "tags": ["v2", "Custom Roles"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "orgUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "UpsertCustomRoleAsCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiCustomRoleAsCodeUpsertResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Upsert a custom role from code representation",
+                "summary": "Upsert custom role as code",
+                "tags": ["v2", "Custom Roles"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "orgUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/CustomRoleAsCode"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v2/orgs/{orgUuid}/roles/{roleUuid}": {
             "patch": {
                 "operationId": "UpdateOrganizationRole",
@@ -53068,6 +53768,217 @@
                         "required": true,
                         "schema": {
                             "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/ee/projects/{projectUuid}/ai-deep-research": {
+            "post": {
+                "operationId": "createAiDeepResearchRun",
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiDeepResearchRunResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Start a durable Deep Research investigation.",
+                "summary": "Start Deep Research run",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AiDeepResearchRequestBody"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}": {
+            "get": {
+                "operationId": "getAiDeepResearchRun",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiDeepResearchRunResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the durable state and result of a Deep Research run.",
+                "summary": "Get Deep Research run",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "aiDeepResearchRunUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/events": {
+            "get": {
+                "operationId": "listAiDeepResearchEvents",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiDeepResearchEventsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List persisted progress for a Deep Research run in chronological order.\nPass the returned cursor unchanged to receive only newer events. The\ncursor remains usable when no new events are available.",
+                "summary": "List Deep Research events",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "aiDeepResearchRunUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "cursor",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "limit",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/cancel": {
+            "post": {
+                "operationId": "cancelAiDeepResearchRun",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiDeepResearchRunResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Cancel a queued run immediately or request cancellation for a running run.",
+                "summary": "Cancel Deep Research run",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "aiDeepResearchRunUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]
@@ -60753,6 +61664,57 @@
                 ]
             }
         },
+        "/api/v1/projects/{projectUuid}/details": {
+            "patch": {
+                "operationId": "UpdateProjectDetails",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccess_ProjectSummary_"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Update simple project details without changing its connection configuration",
+                "summary": "Update project details",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateProjectDetails"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/projects/{projectUuid}/charts": {
             "get": {
                 "operationId": "ListChartsInProject",
@@ -62882,6 +63844,126 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/virtualViews/code": {
+            "get": {
+                "operationId": "getVirtualViewsAsCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiVirtualViewAsCodeListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get virtual views in code representation",
+                "summary": "List virtual views as code",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "slugs",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/virtualViews/{slug}/code": {
+            "post": {
+                "operationId": "upsertVirtualViewAsCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiVirtualViewAsCodeUpsertResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Upsert a virtual view from code representation",
+                "summary": "Upsert virtual view as code",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "slug",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "force",
+                        "required": false,
+                        "schema": {
+                            "default": false,
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/VirtualViewAsCode"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/scheduledDeliveries/code": {
