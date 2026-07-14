@@ -1,3 +1,10 @@
+# [0.3372.0](https://github.com/lightdash/lightdash/compare/0.3371.3...0.3372.0) (2026-07-14)
+
+
+### Features
+
+* **cli:** remove experimental warning for dbt Cloud CLI ([#25488](https://github.com/lightdash/lightdash/issues/25488)) ([69790e8](https://github.com/lightdash/lightdash/commit/69790e8d16c9f40f9628fac145691097094bf323)), closes [/linear.app/lightdash/issue/PROD-2760/cli-remove-experimental-feature-warning-for-dbt-cloud#agent-session-3af6dce0](https://github.com//linear.app/lightdash/issue/PROD-2760/cli-remove-experimental-feature-warning-for-dbt-cloud/issues/agent-session-3af6dce0)
+
 ## [0.3371.3](https://github.com/lightdash/lightdash/compare/0.3371.2...0.3371.3) (2026-07-13)
 
 
