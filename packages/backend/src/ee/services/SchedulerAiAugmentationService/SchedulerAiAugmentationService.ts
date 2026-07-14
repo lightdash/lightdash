@@ -1,4 +1,5 @@
 import {
+    AI_DEFAULT_MAX_QUERY_LIMIT,
     applyDimensionOverrides,
     assertUnreachable,
     CreateSchedulerAndTargets,
@@ -21,14 +22,77 @@ import {
 import { fromSession } from '../../../auth/account/account';
 import { DashboardModel } from '../../../models/DashboardModel/DashboardModel';
 import { UserModel } from '../../../models/UserModel';
+import type { SchedulerDeliveryQuery } from '../../../scheduler/SchedulerTask';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { SCHEDULER_POLLING_OPTIONS } from '../../../services/AsyncQueryService/types';
 import { getDashboardParametersValuesMap } from '../../../services/ProjectService/parameters';
 import { SchedulerService } from '../../../services/SchedulerService/SchedulerService';
 import { SchedulerAiAugmentationModel } from '../../models/SchedulerAiAugmentationModel';
 import { convertQueryResultsToCsv } from '../ai/utils/convertQueryResultsToCsv';
+import { truncateCsvAtRowBoundary } from '../ai/utils/truncation';
 import type { AiAgentService } from '../AiAgentService/AiAgentService';
 import type { AiService } from '../AiService/AiService';
+
+const MAX_ROWS_PER_CHART = AI_DEFAULT_MAX_QUERY_LIMIT;
+// Rough character proxy for the model's context window; keeps the one-shot
+// summary prompt well under provider token limits even for wide tables.
+const MAX_CONTENT_CHARS = 300_000;
+
+type SectionAccumulator = {
+    parts: string[];
+    remainingChars: number;
+    omittedCharts: string[];
+};
+
+const emptySectionAccumulator = (): SectionAccumulator => ({
+    parts: [],
+    remainingChars: MAX_CONTENT_CHARS,
+    omittedCharts: [],
+});
+
+const appendCsvSection = (
+    acc: SectionAccumulator,
+    title: string | null,
+    csv: string,
+    rowsTruncated: boolean,
+): SectionAccumulator => {
+    const heading = title === null ? '' : `## ${title}\n`;
+    const available = acc.remainingChars - heading.length;
+    const charsTruncated = csv.length > available;
+    const body = charsTruncated
+        ? truncateCsvAtRowBoundary(csv, available)
+        : csv;
+    const note =
+        charsTruncated || rowsTruncated
+            ? '\n[Data truncated — only part of the rows are included]'
+            : '';
+    const section = `${heading}${body}${note}`;
+    return {
+        parts: [...acc.parts, section],
+        remainingChars: acc.remainingChars - section.length,
+        omittedCharts: acc.omittedCharts,
+    };
+};
+
+const omitSection = (
+    acc: SectionAccumulator,
+    title: string,
+): SectionAccumulator => ({
+    ...acc,
+    omittedCharts: [...acc.omittedCharts, title],
+});
+
+const serializeSections = (acc: SectionAccumulator): string =>
+    [
+        ...acc.parts,
+        ...(acc.omittedCharts.length > 0
+            ? [
+                  `[Charts omitted because the data exceeds the size limit: ${acc.omittedCharts.join(
+                      ', ',
+                  )}]`,
+              ]
+            : []),
+    ].join('\n\n');
 
 type Dependencies = {
     schedulerAiAugmentationModel: SchedulerAiAugmentationModel;
@@ -149,9 +213,11 @@ export class SchedulerAiAugmentationService {
     async runForDelivery({
         scheduler,
         createdBy,
+        deliveryQueries,
     }: {
         scheduler: SchedulerAndTargets | CreateSchedulerAndTargets;
         createdBy: string;
+        deliveryQueries?: SchedulerDeliveryQuery[];
     }): Promise<string | null> {
         const augmentation = hasSchedulerUuid(scheduler)
             ? await this.schedulerAiAugmentationModel.find(
@@ -202,6 +268,7 @@ export class SchedulerAiAugmentationService {
                     scheduler,
                     createdBy,
                     augmentation.prompt,
+                    deliveryQueries,
                 );
             default:
                 return assertUnreachable(
@@ -219,6 +286,7 @@ export class SchedulerAiAugmentationService {
         scheduler: SchedulerAndTargets | CreateSchedulerAndTargets,
         createdBy: string,
         prompt: string,
+        deliveryQueries: SchedulerDeliveryQuery[] | undefined,
     ): Promise<string> {
         const dashboard = scheduler.dashboardUuid
             ? await this.dashboardModel.getByIdOrSlug(scheduler.dashboardUuid)
@@ -235,17 +303,13 @@ export class SchedulerAiAugmentationService {
         }
 
         const account = fromSession(creator);
-        const content = dashboard
-            ? await this.getDashboardDeliveryContent(
-                  account,
-                  dashboard,
-                  scheduler,
-              )
-            : await this.getChartDeliveryContent(
-                  account,
-                  scheduler,
-                  projectUuid,
-              );
+        const content = await this.getDeliveryContent({
+            account,
+            projectUuid,
+            dashboard,
+            scheduler,
+            deliveryQueries,
+        });
 
         return this.aiService.generateDeliverySummary(creator, {
             prompt,
@@ -254,9 +318,73 @@ export class SchedulerAiAugmentationService {
         });
     }
 
+    // Prefers the delivery's own query results (CSV/XLSX formats) so the
+    // summary describes exactly the data the delivery sends without hitting
+    // the warehouse again. Image/PDF deliveries carry no reusable queries, so
+    // those fall back to re-running the delivery's queries.
+    private async getDeliveryContent({
+        account,
+        projectUuid,
+        dashboard,
+        scheduler,
+        deliveryQueries,
+    }: {
+        account: Account;
+        projectUuid: string;
+        dashboard: DashboardDAO | null;
+        scheduler: SchedulerAndTargets | CreateSchedulerAndTargets;
+        deliveryQueries: SchedulerDeliveryQuery[] | undefined;
+    }): Promise<string> {
+        if (deliveryQueries && deliveryQueries.length > 0) {
+            return this.getDeliveryQueriesContent(
+                account,
+                projectUuid,
+                deliveryQueries,
+            );
+        }
+        if (dashboard) {
+            return this.getDashboardDeliveryContent(
+                account,
+                dashboard,
+                scheduler,
+            );
+        }
+        return this.getChartDeliveryContent(account, scheduler, projectUuid);
+    }
+
+    // Reads the stored results of the queries the delivery already executed.
+    // Sequential so we never hold every chart's results in memory at once.
+    private async getDeliveryQueriesContent(
+        account: Account,
+        projectUuid: string,
+        deliveryQueries: SchedulerDeliveryQuery[],
+    ): Promise<string> {
+        const sections = await deliveryQueries.reduce<
+            Promise<SectionAccumulator>
+        >(async (accPromise, { chartName, queryUuid }) => {
+            const acc = await accPromise;
+            if (acc.remainingChars <= 0) return omitSection(acc, chartName);
+            const { rows, fields, truncated } =
+                await this.asyncQueryService.getRawAsyncQueryResults({
+                    account,
+                    projectUuid,
+                    queryUuid,
+                    maxRows: MAX_ROWS_PER_CHART,
+                });
+            return appendCsvSection(
+                acc,
+                chartName,
+                convertQueryResultsToCsv({ rows, fields }),
+                truncated,
+            );
+        }, Promise.resolve(emptySectionAccumulator()));
+
+        return serializeSections(sections);
+    }
+
     // Re-runs the delivery's query with the scheduler's filter/parameter
     // overrides applied and serialises the rows to CSV, so the fast model
-    // summarises exactly what the delivery sends (for any format).
+    // summarises what the delivery renders (image/PDF formats).
     private async getChartDeliveryContent(
         account: Account,
         scheduler: SchedulerAndTargets | CreateSchedulerAndTargets,
@@ -280,7 +408,15 @@ export class SchedulerAiAugmentationService {
                 },
                 SCHEDULER_POLLING_OPTIONS,
             );
-        return convertQueryResultsToCsv({ rows, fields });
+        const limitedRows = rows.slice(0, MAX_ROWS_PER_CHART);
+        return serializeSections(
+            appendCsvSection(
+                emptySectionAccumulator(),
+                null,
+                convertQueryResultsToCsv({ rows: limitedRows, fields }),
+                limitedRows.length < rows.length,
+            ),
+        );
     }
 
     private async getDashboardDeliveryContent(
@@ -312,10 +448,13 @@ export class SchedulerAiAugmentationService {
             .filter((tile) => tile.properties.savedChartUuid)
             .filter((tile) => isTileInSelectedTabs(tile, selectedTabs));
 
-        // Sequential so we never hold every chart's results in memory at once.
-        const sections = await chartTiles.reduce<Promise<string[]>>(
+        // Sequential so we never hold every chart's results in memory at once,
+        // and charts past the character budget are skipped without querying.
+        const sections = await chartTiles.reduce<Promise<SectionAccumulator>>(
             async (accPromise, tile) => {
                 const acc = await accPromise;
+                const chartName = tile.properties.chartName ?? 'Untitled chart';
+                if (acc.remainingChars <= 0) return omitSection(acc, chartName);
                 const chartUuid = tile.properties.savedChartUuid!;
                 const { rows, fields } =
                     await this.asyncQueryService.executeDashboardChartQueryAndGetResults(
@@ -332,19 +471,17 @@ export class SchedulerAiAugmentationService {
                         },
                         SCHEDULER_POLLING_OPTIONS,
                     );
-                acc.push(
-                    `## ${
-                        tile.properties.chartName ?? 'Untitled chart'
-                    }\n${convertQueryResultsToCsv({
-                        rows,
-                        fields,
-                    })}`,
+                const limitedRows = rows.slice(0, MAX_ROWS_PER_CHART);
+                return appendCsvSection(
+                    acc,
+                    chartName,
+                    convertQueryResultsToCsv({ rows: limitedRows, fields }),
+                    limitedRows.length < rows.length,
                 );
-                return acc;
             },
-            Promise.resolve([]),
+            Promise.resolve(emptySectionAccumulator()),
         );
 
-        return sections.join('\n\n');
+        return serializeSections(sections);
     }
 }

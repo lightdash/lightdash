@@ -6480,15 +6480,18 @@ export class AsyncQueryService extends ProjectService {
         account,
         projectUuid,
         queryUuid,
+        maxRows,
     }: {
         account: Account;
         projectUuid: string;
         queryUuid: string;
+        maxRows?: number;
     }): Promise<{
         rows: Record<string, unknown>[];
         fields: ItemsMap;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
         displayTimezone: string | null;
+        truncated: boolean;
     }> {
         const queryHistory = await this.getAsyncQueryHistory({
             account,
@@ -6520,11 +6523,12 @@ export class AsyncQueryService extends ProjectService {
         ).getDownloadStream(queryHistory.resultsFileName);
 
         const rows: Record<string, unknown>[] = [];
-        await streamJsonlData<void>({
+        const { truncated } = await streamJsonlData<void>({
             readStream: resultsStream,
             onRow: (rawRow) => {
                 rows.push(rawRow);
             },
+            maxLines: maxRows,
         });
 
         return {
@@ -6533,6 +6537,7 @@ export class AsyncQueryService extends ProjectService {
             pivotDetails:
                 AsyncQueryService.getPivotDetailsFromQueryHistory(queryHistory),
             displayTimezone: queryHistory.metricQuery.timezone ?? null,
+            truncated,
         };
     }
 
