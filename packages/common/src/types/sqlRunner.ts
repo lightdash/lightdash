@@ -324,6 +324,8 @@ export type ApiCreateVirtualView = {
 
 export type CreateVirtualViewPayload = {
     name: string;
+    /** Optional display label. Defaults to a friendly version of name. */
+    label?: string;
     sql: string;
     columns: VizColumn[];
     parameterValues?: ParametersValuesMap;

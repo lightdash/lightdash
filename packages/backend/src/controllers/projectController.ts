@@ -29,6 +29,8 @@ import {
     ApiSqlChartAsCodeUpsertResponse,
     ApiSqlQueryResults,
     ApiSuccessEmpty,
+    ApiVirtualViewAsCodeListResponse,
+    ApiVirtualViewAsCodeUpsertResponse,
     assertRegisteredAccount,
     CalculateTotalFromQuery,
     ChartAsCode,
@@ -51,6 +53,7 @@ import {
     UpdateMetadata,
     UpdateProjectMember,
     UserWarehouseCredentials,
+    VirtualViewAsCode,
     type ApiCalculateSubtotalsResponse,
     type ApiCreateDashboardResponse,
     type ApiCreateDashboardWithChartsResponse,
@@ -1507,6 +1510,64 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
                     ids,
                     offset,
                     languageMap,
+                ),
+        };
+    }
+
+    /**
+     * Get virtual views in code representation
+     * @summary List virtual views as code
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/virtualViews/code')
+    @OperationId('getVirtualViewsAsCode')
+    async getVirtualViewsAsCode(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query() slugs?: string[],
+    ): Promise<ApiVirtualViewAsCodeListResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getCoderService()
+                .getVirtualViews(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    slugs,
+                ),
+        };
+    }
+
+    /**
+     * Upsert a virtual view from code representation
+     * @summary Upsert virtual view as code
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/virtualViews/{slug}/code')
+    @OperationId('upsertVirtualViewAsCode')
+    async upsertVirtualViewAsCode(
+        @Path() projectUuid: string,
+        @Path() slug: string,
+        @Body() virtualView: VirtualViewAsCode,
+        @Request() req: express.Request,
+        @Query() force: boolean = false,
+    ): Promise<ApiVirtualViewAsCodeUpsertResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getCoderService()
+                .upsertVirtualView(
+                    req.account,
+                    projectUuid,
+                    slug,
+                    virtualView,
+                    force,
                 ),
         };
     }

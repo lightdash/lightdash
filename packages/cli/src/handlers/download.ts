@@ -17,6 +17,8 @@ import {
     ApiScheduledDeliveryAsCodeListResponse,
     ApiScheduledDeliveryAsCodeUpsertResponse,
     ApiSqlChartAsCodeListResponse,
+    ApiVirtualViewAsCodeListResponse,
+    ApiVirtualViewAsCodeUpsertResponse,
     assertUnreachable,
     AuthorizationError,
     ChartAsCode,
@@ -35,6 +37,7 @@ import {
     ScheduledDeliveryAsCode,
     SqlChartAsCode,
     validateDataAppDependencies,
+    VirtualViewAsCode,
     type DataAppCodeDownload,
     type SpaceAsCode,
 } from '@lightdash/common';
@@ -82,6 +85,7 @@ import {
 } from './apps/scaffolding';
 import {
     checkLightdashVersion,
+    getContentAsCodeUploadPermissions,
     lightdashApi,
     setGzipEnabled,
 } from './dbt/apiClient';
@@ -100,6 +104,7 @@ export type DownloadHandlerOptions = {
     alerts: string[];
     googleSheets: string[];
     scheduledDeliveries: string[];
+    virtualViews: string[];
     apps?: string[]; // specific app UUIDs (enterprise); absent = no explicit selection
     includeApps?: boolean; // download: all of the project's apps, capped at --apps-limit; upload: all app folders on disk
     appsLimit?: string; // download only: cap for the --include-apps listing (default 50); raw string from commander
@@ -118,6 +123,8 @@ export type DownloadHandlerOptions = {
     skipAlerts: boolean;
     skipGoogleSheets: boolean;
     skipScheduledDeliveries: boolean;
+    skipVirtualViews: boolean;
+    includeVirtualViews: boolean;
     appsOnly?: boolean; // download only: implies skipCharts + skipDashboards + skipSpaces
     stripPivotSeries: boolean; // Strip per-value pivot series config for portable chart YAML
     validate?: boolean; // Validate charts and dashboards after upload
@@ -876,6 +883,169 @@ const getAlertsFolder = (customPath?: string): string =>
 const getGoogleSheetsFolder = (customPath?: string): string =>
     path.join(getDownloadFolder(customPath), 'google-sheets');
 
+const getVirtualViewsFolder = (customPath?: string): string =>
+    path.join(getDownloadFolder(customPath), 'virtual-views');
+
+function getPromoteAction(action: PromotionAction) {
+    switch (action) {
+        case PromotionAction.CREATE:
+            return 'created';
+        case PromotionAction.UPDATE:
+            return 'updated';
+        case PromotionAction.DELETE:
+            return 'deleted';
+        case PromotionAction.NO_CHANGES:
+            return 'skipped';
+        default:
+            assertUnreachable(action, `Unknown promotion action: ${action}`);
+    }
+    return 'skipped';
+}
+
+const downloadVirtualViews = async (
+    projectId: string,
+    slugs: string[],
+    customPath?: string,
+): Promise<number> => {
+    const folder = getVirtualViewsFolder(customPath);
+    await fs.mkdir(folder, { recursive: true });
+    const query = new URLSearchParams(
+        slugs.map((slug) => ['slugs', slug] as [string, string]),
+    ).toString();
+    const results = await lightdashApi<
+        ApiVirtualViewAsCodeListResponse['results']
+    >({
+        method: 'GET',
+        url: `/api/v1/projects/${projectId}/virtualViews/code${
+            query ? `?${query}` : ''
+        }`,
+        body: undefined,
+    });
+    for (const virtualView of results.virtualViews) {
+        await fs.writeFile(
+            path.join(folder, `${encodeURIComponent(virtualView.slug)}.yml`),
+            yaml.dump(virtualView, { quotingType: '"', sortKeys: true }),
+        );
+    }
+    results.skipped.forEach(({ slug, reason }) =>
+        GlobalState.log(
+            styles.warning(`Skipped virtual view "${slug}": ${reason}`),
+        ),
+    );
+    results.missingSlugs.forEach((slug) =>
+        GlobalState.log(styles.warning(`Virtual view "${slug}" was not found`)),
+    );
+    return results.virtualViews.length;
+};
+
+const readVirtualViewFiles = async (
+    customPath?: string,
+): Promise<VirtualViewAsCode[]> => {
+    const folder = getVirtualViewsFolder(customPath);
+    try {
+        const entries = await fs.readdir(folder, { withFileTypes: true });
+        const virtualViews: VirtualViewAsCode[] = [];
+        for (const entry of entries) {
+            if (
+                entry.isFile() &&
+                (entry.name.endsWith('.yml') || entry.name.endsWith('.yaml'))
+            ) {
+                const parsed = yaml.load(
+                    await fs.readFile(path.join(folder, entry.name), 'utf-8'),
+                ) as VirtualViewAsCode;
+                if (parsed.contentType !== ContentAsCodeTypeEnum.VIRTUAL_VIEW) {
+                    throw new ParameterError(
+                        `Invalid virtual view contentType in ${entry.name}`,
+                    );
+                }
+                virtualViews.push(parsed);
+            }
+        }
+        const duplicates = Object.entries(groupBy(virtualViews, 'slug'))
+            .filter(([, items]) => items.length > 1)
+            .map(([slug]) => slug);
+        if (duplicates.length > 0) {
+            throw new ParameterError(
+                `Duplicate virtual view slugs: ${duplicates.join(', ')}`,
+            );
+        }
+        return virtualViews;
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+        throw error;
+    }
+};
+
+const upsertVirtualViews = async (
+    projectId: string,
+    slugs: string[],
+    changes: Record<string, number>,
+    force: boolean,
+    canUpload: boolean,
+    customPath?: string,
+): Promise<Record<string, number>> => {
+    const virtualViews = await readVirtualViewFiles(customPath);
+    const selected = slugs.length
+        ? virtualViews.filter(({ slug }) => slugs.includes(slug))
+        : virtualViews;
+    const selectedSlugs = new Set(selected.map(({ slug }) => slug));
+    slugs
+        .filter((slug) => !selectedSlugs.has(slug))
+        .forEach((slug) =>
+            GlobalState.log(
+                styles.warning(`Virtual view "${slug}" was not found locally`),
+            ),
+        );
+    if (selected.length > 0 && !canUpload) {
+        GlobalState.log(
+            styles.error(
+                `Error uploading virtual views: the create:VirtualView permission is required`,
+            ),
+        );
+        return changes;
+    }
+    for (const virtualView of selected.sort((left, right) =>
+        left.slug.localeCompare(right.slug),
+    )) {
+        try {
+            if (
+                virtualView.version !== 1 ||
+                !virtualView.slug?.trim() ||
+                !virtualView.name?.trim() ||
+                !virtualView.sql?.trim() ||
+                !Array.isArray(virtualView.columns) ||
+                virtualView.columns.length === 0 ||
+                !Object.prototype.hasOwnProperty.call(virtualView, 'parameters')
+            ) {
+                throw new ParameterError(
+                    `Invalid virtual view definition for "${virtualView.slug ?? 'unknown'}"`,
+                );
+            }
+
+            const result = await lightdashApi<
+                ApiVirtualViewAsCodeUpsertResponse['results']
+            >({
+                method: 'POST',
+                url: `/api/v1/projects/${projectId}/virtualViews/${encodeURIComponent(
+                    virtualView.slug,
+                )}/code?force=${force}`,
+                body: JSON.stringify(virtualView),
+            });
+            const action = `virtual views ${getPromoteAction(result.action)}`;
+            changes[action] = (changes[action] ?? 0) + 1;
+        } catch (error) {
+            const errorKey = 'virtual views with errors';
+            changes[errorKey] = (changes[errorKey] ?? 0) + 1;
+            GlobalState.log(
+                styles.error(
+                    `Error upserting virtual view:\n\t"${virtualView.name}" (slug: "${virtualView.slug}")\n\t${getErrorMessage(error)}`,
+                ),
+            );
+        }
+    }
+    return changes;
+};
+
 type ScheduledContentAsCode =
     | ScheduledDeliveryAsCode
     | AlertAsCode
@@ -917,22 +1087,6 @@ const getScheduledContentConfig = (
                 'Unknown scheduled content type',
             );
     }
-};
-
-const getPromoteAction = (action: PromotionAction) => {
-    switch (action) {
-        case PromotionAction.CREATE:
-            return 'created';
-        case PromotionAction.UPDATE:
-            return 'updated';
-        case PromotionAction.DELETE:
-            return 'deleted';
-        case PromotionAction.NO_CHANGES:
-            return 'skipped';
-        default:
-            assertUnreachable(action, `Unknown promotion action: ${action}`);
-    }
-    return 'skipped';
 };
 
 const downloadScheduledContent = async (
@@ -1026,6 +1180,7 @@ const upsertScheduledContent = async (
     changes: Record<string, number>,
     force: boolean,
     contentType: ScheduledContentType,
+    canUpload: boolean,
     customPath?: string,
 ): Promise<Record<string, number>> => {
     const config = getScheduledContentConfig(contentType, customPath);
@@ -1039,6 +1194,19 @@ const upsertScheduledContent = async (
     const filteredContent = slugs.length
         ? scheduledContent.filter((item) => slugs.includes(item.slug))
         : scheduledContent;
+
+    if (filteredContent.length > 0 && !canUpload) {
+        const requiredPermission =
+            contentType === ContentAsCodeTypeEnum.GOOGLE_SHEETS_SYNC
+                ? 'the manage:GoogleSheets permission is required'
+                : 'scheduled delivery permissions are required';
+        GlobalState.log(
+            styles.error(
+                `Error uploading ${config.plural}: ${requiredPermission}`,
+            ),
+        );
+        return changes;
+    }
 
     for (const item of filteredContent) {
         try {
@@ -1122,6 +1290,7 @@ export const downloadHandler = async (
         options.skipAlerts = true;
         options.skipGoogleSheets = true;
         options.skipScheduledDeliveries = true;
+        options.includeVirtualViews = false;
     }
 
     await checkLightdashVersion();
@@ -1177,13 +1346,24 @@ export const downloadHandler = async (
             options.dashboards.length > 0 ||
             options.alerts.length > 0 ||
             options.googleSheets.length > 0 ||
-            options.scheduledDeliveries.length > 0;
+            options.scheduledDeliveries.length > 0 ||
+            options.virtualViews.length > 0;
 
         // When downloading specific charts or dashboards, skip space metadata
         const skipSpaces = options.skipSpaces || hasFilters;
 
         let allMetadataEntries: MetadataEntry[] = [];
         let allSpaces: SpaceAsCode[] = [];
+
+        if (options.includeVirtualViews || options.virtualViews.length > 0) {
+            spinner.start(`Downloading virtual views`);
+            const total = await downloadVirtualViews(
+                projectId,
+                options.virtualViews,
+                options.path,
+            );
+            spinner.succeed(`Downloaded ${total} virtual views`);
+        }
 
         // Download regular charts and SQL charts
         if (!options.skipCharts) {
@@ -1815,6 +1995,7 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
     changes: Record<string, number>,
     force: boolean,
     slugs: string[],
+    canUpload: boolean,
     customPath?: string,
     skipSpaceCreate?: boolean,
     publicSpaceCreate?: boolean,
@@ -1846,6 +2027,17 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
         missingItems.forEach((slug) => {
             GlobalState.log(styles.warning(`No ${type} with slug: "${slug}"`));
         });
+    }
+
+    if (filteredItems.length > 0 && !canUpload) {
+        const requiredPermission =
+            type === 'charts' ? 'manage:SavedChart' : 'manage:Dashboard';
+        GlobalState.log(
+            styles.error(
+                `Error uploading ${type}: the ${requiredPermission} permission is required`,
+            ),
+        );
+        return { changes, total: filteredItems.length };
     }
 
     if (concurrency <= 1) {
@@ -2051,7 +2243,11 @@ export const uploadHandler = async (
         },
     });
 
+    let uploadResource = 'content as code';
     try {
+        const uploadPermissions =
+            await getContentAsCodeUploadPermissions(projectId);
+
         // If any filter is provided, we skip those items without filters
         // eg: if a --charts filter is provided, we skip dashboards if no --dashboards filter is provided
         const hasFilters =
@@ -2059,9 +2255,11 @@ export const uploadHandler = async (
             options.dashboards.length > 0 ||
             options.alerts.length > 0 ||
             options.googleSheets.length > 0 ||
-            options.scheduledDeliveries.length > 0;
+            options.scheduledDeliveries.length > 0 ||
+            options.virtualViews.length > 0;
 
         // Discover loose YAML files (outside charts/ and dashboards/) classified by contentType
+        uploadResource = 'content files';
         const looseFiles = await readLooseCodeFiles(options.path);
         if (looseFiles.charts.length > 0) {
             GlobalState.log(
@@ -2075,6 +2273,7 @@ export const uploadHandler = async (
         }
 
         // Always include the charts from dashboards if includeCharts is true regardless of the charts filters
+        uploadResource = 'dashboard chart dependencies';
         const chartSlugs = options.includeCharts
             ? Array.from(
                   new Set([
@@ -2102,6 +2301,7 @@ export const uploadHandler = async (
         }
 
         // Read space definition files to preserve original space names during upload
+        uploadResource = 'space definitions';
         const spaceNames = await readSpaceNames(options.path);
         if (Object.keys(spaceNames).length > 0) {
             GlobalState.log(
@@ -2109,11 +2309,32 @@ export const uploadHandler = async (
             );
         }
 
+        if (!options.skipVirtualViews) {
+            if (hasFilters && options.virtualViews.length === 0) {
+                GlobalState.log(
+                    styles.warning(
+                        `No virtual view filters provided, skipping`,
+                    ),
+                );
+            } else {
+                uploadResource = 'virtual views';
+                changes = await upsertVirtualViews(
+                    projectId,
+                    options.virtualViews,
+                    changes,
+                    options.force,
+                    uploadPermissions.virtualViews,
+                    options.path,
+                );
+            }
+        }
+
         if (hasFilters && chartSlugs.length === 0) {
             GlobalState.log(
                 styles.warning(`No charts filters provided, skipping`),
             );
         } else {
+            uploadResource = 'charts';
             const { changes: chartChanges, total } =
                 await upsertResources<ChartAsCode>(
                     'charts',
@@ -2121,6 +2342,7 @@ export const uploadHandler = async (
                     changes,
                     options.force,
                     chartSlugs,
+                    uploadPermissions.charts,
                     options.path,
                     options.skipSpaceCreate,
                     options.public,
@@ -2138,6 +2360,7 @@ export const uploadHandler = async (
                 styles.warning(`No dashboard filters provided, skipping`),
             );
         } else {
+            uploadResource = 'dashboards';
             const { changes: dashboardChanges, total } =
                 await upsertResources<DashboardAsCode>(
                     'dashboards',
@@ -2145,6 +2368,7 @@ export const uploadHandler = async (
                     changes,
                     options.force,
                     options.dashboards,
+                    uploadPermissions.dashboards,
                     options.path,
                     options.skipSpaceCreate,
                     options.public,
@@ -2163,12 +2387,14 @@ export const uploadHandler = async (
                     styles.warning(`No alert filters provided, skipping`),
                 );
             } else {
+                uploadResource = 'alerts';
                 changes = await upsertScheduledContent(
                     projectId,
                     options.alerts,
                     changes,
                     options.force,
                     ContentAsCodeTypeEnum.ALERT,
+                    uploadPermissions.alerts,
                     options.path,
                 );
             }
@@ -2182,12 +2408,14 @@ export const uploadHandler = async (
                     ),
                 );
             } else {
+                uploadResource = 'scheduled deliveries';
                 changes = await upsertScheduledContent(
                     projectId,
                     options.scheduledDeliveries,
                     changes,
                     options.force,
                     ContentAsCodeTypeEnum.SCHEDULED_DELIVERY,
+                    uploadPermissions.scheduledDeliveries,
                     options.path,
                 );
             }
@@ -2201,12 +2429,14 @@ export const uploadHandler = async (
                     ),
                 );
             } else {
+                uploadResource = 'Google Sheets syncs';
                 changes = await upsertScheduledContent(
                     projectId,
                     options.googleSheets,
                     changes,
                     options.force,
                     ContentAsCodeTypeEnum.GOOGLE_SHEETS_SYNC,
+                    uploadPermissions.googleSheets,
                     options.path,
                 );
             }
@@ -2225,7 +2455,14 @@ export const uploadHandler = async (
         let appsFailed = 0;
         let appsSkipped = 0;
 
-        if (shouldUploadApps) {
+        if (shouldUploadApps && !uploadPermissions.dataApps) {
+            GlobalState.log(
+                styles.error(
+                    `Error uploading data apps: create:DataApp or manage:DataApp permission is required`,
+                ),
+            );
+        } else if (shouldUploadApps) {
+            uploadResource = 'data apps';
             // --include-apps uploads every folder on disk; explicit UUIDs
             // filter folders by their manifest appUuid
             const filterUuids: Set<string> | null =
@@ -2540,7 +2777,9 @@ export const uploadHandler = async (
         logUploadChanges(changes);
     } catch (error) {
         GlobalState.log(
-            styles.error(`\nError downloading: ${getErrorMessage(error)}`),
+            styles.error(
+                `\nError uploading ${uploadResource}: ${getErrorMessage(error)}`,
+            ),
         );
         await LightdashAnalytics.track({
             event: 'download.error',
@@ -2557,4 +2796,5 @@ export const uploadHandler = async (
 export const testHelpers = {
     getDashboardChartSlugs,
     sanitizeChartForDownload,
+    upsertVirtualViews,
 };
