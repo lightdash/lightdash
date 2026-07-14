@@ -24,6 +24,7 @@ import {
     IconCircleCheck,
     IconCopy,
     IconEye,
+    IconLayoutGrid,
     IconPencil,
     IconPlus,
     IconSend,
@@ -51,6 +52,7 @@ import {
     usePublishHomepage,
     useUpdateHomepageDraft,
 } from './hooks/useProjectHomepage';
+import { PresetsModal } from './PresetsModal';
 import { PublishedHomepage } from './PublishedHomepage';
 
 type Props = {
@@ -81,6 +83,7 @@ export const HomepageEditor: FC<Props> = ({
     );
     const deleteMutation = useDeleteHomepage(projectUuid);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isPresetsModalOpen, setIsPresetsModalOpen] = useState(false);
 
     const isAiEnabled = useAiAgentButtonVisibility();
     const availableBlocks = blockLibrary.filter(
@@ -173,6 +176,13 @@ export const HomepageEditor: FC<Props> = ({
                             </Menu.Item>
                         </Menu.Dropdown>
                     </Menu>
+                    <Button
+                        variant="default"
+                        leftSection={<MantineIcon icon={IconLayoutGrid} />}
+                        onClick={() => setIsPresetsModalOpen(true)}
+                    >
+                        Presets
+                    </Button>
                 </Group>
                 <Group gap="sm">
                     {isDirty ? (
@@ -405,6 +415,11 @@ export const HomepageEditor: FC<Props> = ({
                     </Stack>
                 </Group>
             )}
+            <PresetsModal
+                opened={isPresetsModalOpen}
+                onClose={() => setIsPresetsModalOpen(false)}
+                onApply={setDraft}
+            />
             <MantineModal
                 opened={isDeleteModalOpen}
                 onClose={() =>
