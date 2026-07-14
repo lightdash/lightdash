@@ -1,3 +1,10 @@
+## [0.3382.1](https://github.com/lightdash/lightdash/compare/0.3382.0...0.3382.1) (2026-07-14)
+
+
+### Bug Fixes
+
+* make dashboard table overflow menu gray instead of blue ([#25559](https://github.com/lightdash/lightdash/issues/25559)) ([8f4decc](https://github.com/lightdash/lightdash/commit/8f4decc46339efa10ae3137ca72dd989ec0491db))
+
 # [0.3382.0](https://github.com/lightdash/lightdash/compare/0.3381.0...0.3382.0) (2026-07-14)
 
 
