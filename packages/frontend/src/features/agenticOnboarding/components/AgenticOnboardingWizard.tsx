@@ -62,6 +62,11 @@ const WizardContent: FC = () => {
     if (guard === 'redirect') {
         return <Navigate to="/" replace />;
     }
+    // A project-scoped URL the user can't access (404/forbidden) must not render
+    // a broken wizard — send them home instead.
+    if (projectUuid && stateQuery.isError) {
+        return <Navigate to="/" replace />;
+    }
 
     return (
         <Container size="md" py="xl">

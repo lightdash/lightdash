@@ -21,8 +21,8 @@ const deriveStepFromPath = (pathname: string): OnboardingStepType => {
     return OnboardingStepType.CONNECT;
 };
 
-const STEP_PATH_SEGMENT: Record<OnboardingStepType, string | null> = {
-    [OnboardingStepType.CONNECT]: null,
+const STEP_PATH_SEGMENT: Record<OnboardingStepType, string> = {
+    [OnboardingStepType.CONNECT]: 'connect',
     [OnboardingStepType.PROFILE]: 'profile',
     [OnboardingStepType.SEMANTIC_LAYER]: 'semantic-layer',
     [OnboardingStepType.DASHBOARD]: 'dashboard',
@@ -61,12 +61,19 @@ const OnboardingWizardProvider: FC<React.PropsWithChildren<{}>> = ({
             const params = new URLSearchParams();
             if (next.warehouse) params.set('warehouse', next.warehouse);
             if (next.method) params.set('method', next.method);
+            const account = new URLSearchParams(location.search).get('account');
+            if (account) params.set('account', account);
             const query = params.toString();
-            void navigate(`/createProject${query ? `?${query}` : ''}`, {
+            // Once a project exists, method switching must stay on the
+            // project-scoped route or the entry guard bounces to home.
+            const base = projectUuidParam
+                ? `/createProject/${projectUuidParam}/connect`
+                : '/createProject';
+            void navigate(`${base}${query ? `?${query}` : ''}`, {
                 replace: true,
             });
         },
-        [navigate],
+        [navigate, projectUuidParam, location.search],
     );
 
     const selectWarehouse = useCallback(
@@ -96,13 +103,30 @@ const OnboardingWizardProvider: FC<React.PropsWithChildren<{}>> = ({
     const goToProjectStep = useCallback(
         (nextProjectUuid: string, nextStep: OnboardingStepType) => {
             const segment = STEP_PATH_SEGMENT[nextStep];
-            if (!segment) {
-                void navigate('/createProject', { replace: true });
-                return;
-            }
-            void navigate(`/createProject/${nextProjectUuid}/${segment}`);
+            // The connect step is driven by the warehouse/method query params, so
+            // preserve them; later steps don't need them.
+            const suffix =
+                nextStep === OnboardingStepType.CONNECT ? location.search : '';
+            void navigate(
+                `/createProject/${nextProjectUuid}/${segment}${suffix}`,
+            );
         },
-        [navigate],
+        [navigate, location.search],
+    );
+
+    const goToProjectConnect = useCallback(
+        (nextProjectUuid: string, account: string | null) => {
+            const params = new URLSearchParams(location.search);
+            if (account) params.set('account', account);
+            const query = params.toString();
+            void navigate(
+                `/createProject/${nextProjectUuid}/connect${
+                    query ? `?${query}` : ''
+                }`,
+                { replace: true, state: { justCreated: true } },
+            );
+        },
+        [navigate, location.search],
     );
 
     const value = useMemo<OnboardingWizardContextValue>(
@@ -119,6 +143,7 @@ const OnboardingWizardProvider: FC<React.PropsWithChildren<{}>> = ({
             clearMethod,
             clearWarehouse,
             goToProjectStep,
+            goToProjectConnect,
         }),
         [
             step,
@@ -132,6 +157,7 @@ const OnboardingWizardProvider: FC<React.PropsWithChildren<{}>> = ({
             clearMethod,
             clearWarehouse,
             goToProjectStep,
+            goToProjectConnect,
         ],
     );
 
