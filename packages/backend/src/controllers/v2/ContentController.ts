@@ -50,6 +50,7 @@ export class ContentController extends BaseController {
         @Request() req: express.Request,
         @Query() projectUuids?: string[],
         @Query() spaceUuids?: string[],
+        @Query() uuids?: string[],
         @Query() parentSpaceUuid?: string,
         @Query() contentTypes?: ContentType[],
         @Query() pageSize?: number,
@@ -68,6 +69,7 @@ export class ContentController extends BaseController {
                 {
                     projectUuids,
                     spaceUuids,
+                    uuids,
                     contentTypes,
                     search,
                     includePersonalDataApps,
