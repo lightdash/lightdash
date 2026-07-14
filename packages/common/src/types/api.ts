@@ -175,6 +175,7 @@ import {
     type GrantScriptResult,
     type OnboardingConnectCodeResult,
     type OnboardingConnectionDepositResult,
+    type OnboardingConnectionValidationResult,
     type OnboardingProjectState,
     type ProfileResult,
     type SemanticLayerResult,
@@ -1017,6 +1018,7 @@ type ApiResults =
     | GrantScriptResult
     | OnboardingConnectCodeResult
     | OnboardingConnectionDepositResult
+    | OnboardingConnectionValidationResult
     | SemanticLayerResult
     | ProfileResult
     | DashboardBuildResult

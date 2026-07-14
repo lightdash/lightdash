@@ -46,6 +46,8 @@ export type ConnectionCheckId =
     | 'resolve_host'
     | 'open_connection'
     | 'authenticate'
+    | 'use_warehouse'
+    | 'use_database'
     | 'list_schemas'
     | 'select_1';
 
@@ -109,11 +111,47 @@ export type OnboardingConnectionValueSources = {
     schema: OnboardingConnectionValueSource;
 };
 
-export type OnboardingConnectionInventory = {
-    databases: string[];
-    warehouses: string[];
-    roles: string[];
+export type OnboardingInventoryDatabase = {
+    name: string;
+    comment: string | null;
+    kind: string | null;
 };
+
+export type OnboardingInventoryWarehouse = {
+    name: string;
+    size: string | null;
+    state: string | null;
+    autoSuspendSeconds: number | null;
+};
+
+export type OnboardingInventoryRole = {
+    name: string;
+    isDefault: boolean;
+};
+
+export type OnboardingConnectionInventory = {
+    databases: OnboardingInventoryDatabase[];
+    warehouses: OnboardingInventoryWarehouse[];
+    roles: OnboardingInventoryRole[];
+};
+
+export type OnboardingSchemaSummary = {
+    name: string;
+    tableCount: number;
+};
+
+export type ValidateOnboardingConnectionRequest = {
+    connectionValues: OnboardingConnectionValues;
+};
+
+export type OnboardingConnectionValidationResult = {
+    diagnostic: ConnectionDiagnosticResult;
+    schemas: OnboardingSchemaSummary[] | null;
+    inventory: OnboardingConnectionInventory | null;
+};
+
+export type ApiOnboardingConnectionValidationResponse =
+    ApiSuccess<OnboardingConnectionValidationResult>;
 
 export type DepositOnboardingConnectionRequest = {
     code: string;
