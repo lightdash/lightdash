@@ -3,6 +3,7 @@ import {
     Pill,
     PillsInput,
     ScrollArea,
+    Text,
     useCombobox,
     type ComboboxProps,
     type PillsInputProps,
@@ -356,13 +357,18 @@ export const MultiSelectCombobox = forwardRef<HTMLInputElement, Props>(
                                     <Combobox.Option
                                         value={CREATE_VALUE}
                                         data-create-option
-                                        fz="sm"
+                                        fz="xs"
+                                        fw={500}
+                                        c="dark"
                                         ff="inherit"
                                         px="sm"
                                         py="xxs"
                                     >
-                                        {createLabel ??
-                                            `Add "${trimmedSearch}"`}
+                                        {createLabel ?? (
+                                            <Text c="indigo">
+                                                Add "${trimmedSearch}"
+                                            </Text>
+                                        )}
                                     </Combobox.Option>
                                 )}
                                 {!hasOptions && nothingFoundMessage && (

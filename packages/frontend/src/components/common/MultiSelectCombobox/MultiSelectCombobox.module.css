@@ -1,14 +1,27 @@
 .option[data-combobox-active] {
     background-color: var(
         --multi-select-selected-background,
-        var(--mantine-primary-color-filled)
+        var(--mantine-color-ldGray-3)
     );
-    color: var(--multi-select-selected-color, var(--mantine-color-white));
+    color: var(--multi-select-selected-color, var(--mantine-color-ldGray-7));
+    font-weight: 500;
 }
 
 .option[data-combobox-active]:hover {
     background-color: var(
         --multi-select-selected-hover-background,
-        var(--mantine-primary-color-filled-hover)
+        var(--mantine-color-ldGray-3)
     );
+}
+
+.option[data-combobox-selected] {
+    background-color: var(--mantine-color-ldGray-3);
+    color: var(--mantine-color-ldGray-7);
+    font-weight: 500;
+}
+
+.option:hover {
+    background-color: var(--mantine-color-ldGray-1);
+    transition: background-color var(--ld-transition-duration)
+        var(--ld-transition-timing-function);
 }

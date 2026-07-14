@@ -111,8 +111,20 @@ const comboboxOptionStyles = (theme: MantineTheme) => ({
         fontSize: theme.fontSizes.sm,
         padding: `${theme.spacing.xxs} ${theme.spacing.sm}`,
         '&[data-combobox-active]': {
-            backgroundColor: 'var(--mantine-primary-color-filled)',
-            color: 'var(--mantine-color-white)',
+            backgroundColor: 'var(--mantine-color-ldGray-5)',
+            color: 'var(--mantine-color-ldGray-7)',
+            fontWeight: 500,
+        },
+        '&[data-combobox-active]:hover': {
+            backgroundColor: 'var(--mantine-color-ldGray-0)',
+        },
+        '&[data-combobox-selected]': {
+            backgroundColor: 'var(--mantine-color-ldGray-5)',
+            color: 'var(--mantine-color-ldGray-7)',
+            fontWeight: 500,
+        },
+        '&:hover': {
+            backgroundColor: 'var(--mantine-color-ldGray-0)',
         },
     },
     groupLabel: {
@@ -181,14 +193,20 @@ export const getMantine8ThemeOverride = (
                     },
                     ...(props.variant === 'outline'
                         ? {
-                              root: {
-                                  border: `1px solid ${theme.colors.ldGray[2]}`,
-                                  color: theme.colors.ldGray[7],
-                                  '&:hover': {
-                                      backgroundColor: theme.colors.ldGray[1],
-                                  },
-                              },
-                          }
+                            root: {
+                                border: `1px solid ${theme.colors.ldGray[2]}`,
+                                color: theme.colors.ldGray[7],
+                                '&:hover': {
+                                    backgroundColor: theme.colors.ldGray[1],
+                                },
+                                '&:focus': {
+                                    backgroundColor: theme.colors.ldGray[1],
+                                },
+                                '&:active': {
+                                    backgroundColor: theme.colors.ldGray[4],
+                                },
+                            },
+                        }
                         : {}),
                 }),
             }),

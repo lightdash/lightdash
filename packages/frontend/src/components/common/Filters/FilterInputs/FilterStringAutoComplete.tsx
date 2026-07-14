@@ -412,10 +412,10 @@ const FilterStringAutoComplete: FC<Props> = ({
                                 <Group gap="xxs">
                                     <MantineIcon
                                         icon={IconPlus}
-                                        color="blue.6"
+                                        color="blue.7"
                                         size="sm"
                                     />
-                                    <Text c="blue.6">
+                                    <Text c="blue.7" fz="sm" fw={500}>
                                         Add "{search.trim()}"
                                     </Text>
                                 </Group>
