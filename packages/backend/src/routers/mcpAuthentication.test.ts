@@ -13,8 +13,13 @@ const runMiddleware = (authorization?: string) => {
 };
 
 describe('aliasMcpBearerPersonalAccessToken', () => {
-    it('aliases a Bearer PAT to ApiKey authentication', () => {
-        const result = runMiddleware('Bearer ldpat_token');
+    it.each([
+        'Bearer ldpat_token',
+        'bearer ldpat_token',
+        'BEARER ldpat_token',
+        'Bearer  ldpat_token',
+    ])('aliases a Bearer PAT to ApiKey authentication', (authorization) => {
+        const result = runMiddleware(authorization);
 
         expect(result.authorization).toBe('ApiKey ldpat_token');
         expect(result.next).toHaveBeenCalledOnce();
@@ -24,6 +29,8 @@ describe('aliasMcpBearerPersonalAccessToken', () => {
         'ApiKey ldpat_token',
         'Bearer ldsvc_token',
         'Bearer oauth-token',
+        'Bearer',
+        '',
         undefined,
     ])('leaves other authorization values unchanged', (authorization) => {
         const result = runMiddleware(authorization);
