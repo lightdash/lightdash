@@ -99,6 +99,16 @@ export type OnboardingStepClickedEvent = {
     };
 };
 
+export type OnboardingStepAnalyticsEvent = {
+    name:
+        | EventName.ONBOARDING_STEP_VIEWED
+        | EventName.ONBOARDING_STEP_COMPLETED
+        | EventName.ONBOARDING_STEP_FAILED;
+    properties: {
+        step: 'connect' | 'profile' | 'semantic_layer' | 'dashboard';
+    };
+};
+
 export type LandingRunQueryClickedEvent = {
     name: EventName.LANDING_RUN_QUERY_CLICKED;
     properties: {
@@ -557,6 +567,7 @@ export type EventData =
     | GlobalSearchOpenEvent
     | GlobalSearchClosedEvent
     | OnboardingStepClickedEvent
+    | OnboardingStepAnalyticsEvent
     | CrossFilterDashboardAppliedEvent
     | ViewUnderlyingDataClickedEvent
     | DrillByClickedEvent

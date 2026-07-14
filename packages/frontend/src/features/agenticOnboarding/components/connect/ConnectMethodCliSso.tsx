@@ -23,6 +23,7 @@ import MantineIcon from '../../../../components/common/MantineIcon';
 import { useFormContext } from '../../../../components/ProjectConnection/formContext';
 import { SnowflakeDefaultValues } from '../../../../components/ProjectConnection/WarehouseForms/defaultValues';
 import { useOnboardingWizard } from '../../context/wizardContext';
+import { useConfigureConnection } from '../../hooks/useConfigureConnection';
 import { useConnectCode } from '../../hooks/useConnectCode';
 import { useCreateOnboardingProject } from '../../hooks/useCreateOnboardingProject';
 import { findStep, useOnboardingState } from '../../hooks/useOnboardingState';
@@ -48,6 +49,7 @@ const ConnectMethodCliSso: FC = () => {
 
     const [phase, setPhase] = useState<Phase>('form');
     const [projectUuid, setProjectUuid] = useState<string | null>(null);
+    const configureConnection = useConfigureConnection(projectUuid);
     const [secondsRemaining, setSecondsRemaining] = useState<number | null>(
         null,
     );
@@ -143,6 +145,23 @@ const ConnectMethodCliSso: FC = () => {
     const inventory = CONNECT_STEP_RESULT_INVENTORY(
         connectStep?.result ?? null,
     );
+
+    const handleSubmitConfiguration = async () => {
+        if (!projectUuid) return;
+        const depositResult = await configureConnection.mutateAsync({
+            connectionValues: {
+                database: configValues.database,
+                warehouse: configValues.warehouse,
+                role: configValues.role,
+                schema: null,
+            },
+        });
+        if (depositResult.stepStatus === OnboardingStepStatus.COMPLETED) {
+            wizard.goToProjectStep(projectUuid, OnboardingStepType.PROFILE);
+        } else {
+            setPhase('waiting');
+        }
+    };
 
     return (
         <MethodScreenLayout title="Sign in with Snowflake SSO">
@@ -273,9 +292,15 @@ const ConnectMethodCliSso: FC = () => {
                                 }))
                             }
                         />
-                        {/* TODO(5b): submit selected configuration values —
-                            the deposit-configuration endpoint ships in phase 5b. */}
-                        <Button disabled style={{ alignSelf: 'flex-end' }}>
+                        <Button
+                            style={{ alignSelf: 'flex-end' }}
+                            loading={configureConnection.isLoading}
+                            disabled={
+                                !configValues.database ||
+                                !configValues.warehouse
+                            }
+                            onClick={() => void handleSubmitConfiguration()}
+                        >
                             Continue
                         </Button>
                     </Stack>

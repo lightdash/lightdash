@@ -19,14 +19,33 @@ const STEP_LABELS: Record<OnboardingStepType, string> = {
 
 type OnboardingStepperProps = {
     step: OnboardingStepType;
+    completedSteps?: OnboardingStepType[];
+    onStepSelect?: (step: OnboardingStepType) => void;
 };
 
-const OnboardingStepper: FC<OnboardingStepperProps> = ({ step }) => {
+const OnboardingStepper: FC<OnboardingStepperProps> = ({
+    step,
+    completedSteps = [],
+    onStepSelect,
+}) => {
     const activeIndex = STEP_ORDER.indexOf(step);
+
+    const handleStepClick = (index: number) => {
+        const targetStep = STEP_ORDER[index];
+        // Only allow navigating back to already-completed steps.
+        if (
+            onStepSelect &&
+            index < activeIndex &&
+            completedSteps.includes(targetStep)
+        ) {
+            onStepSelect(targetStep);
+        }
+    };
 
     return (
         <Stepper
             active={activeIndex}
+            onStepClick={handleStepClick}
             allowNextStepsSelect={false}
             size="sm"
             className={styles.stepper}
