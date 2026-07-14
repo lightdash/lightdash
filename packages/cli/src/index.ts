@@ -6,7 +6,7 @@ import {
     RenameType,
     ValidationTarget,
 } from '@lightdash/common';
-import { InvalidArgumentError, Option, program } from 'commander';
+import { InvalidArgumentError, Option, program, type Command } from 'commander';
 import { validate } from 'uuid';
 import {
     DEFAULT_DBT_PROFILES_DIR as defaultProfilesDir,
@@ -714,9 +714,41 @@ program
     .option('--verbose', undefined, false)
     .action(stopPreviewHandler);
 
-program
+const ORGANIZATION_MODE_OPTIONS = new Set(['organization', 'path', 'verbose']);
+
+const withOrganizationMode =
+    <Options extends { organization: boolean }>(
+        handler: (options: Options) => Promise<void>,
+    ) =>
+    async (options: Options, command: Command): Promise<void> => {
+        if (options.organization) {
+            const conflictingOption = Object.keys(options).find(
+                (optionName) => {
+                    const source = command.getOptionValueSource(optionName);
+                    return (
+                        !ORGANIZATION_MODE_OPTIONS.has(optionName) &&
+                        source !== undefined &&
+                        source !== 'default'
+                    );
+                },
+            );
+            if (conflictingOption) {
+                const conflictingFlag = conflictingOption.replace(
+                    /[A-Z]/g,
+                    (letter) => `-${letter.toLowerCase()}`,
+                );
+                command.error(
+                    `error: option '--organization' cannot be used with option '--${conflictingFlag}'`,
+                    { code: 'commander.conflictingOption' },
+                );
+            }
+        }
+        await handler(options);
+    };
+
+const downloadCommand = program
     .command('download')
-    .description('Downloads project content as code')
+    .description('Downloads project or organization content as code')
     .option('--verbose', undefined, false)
     .option(
         '-c, --charts <charts...>',
@@ -823,11 +855,17 @@ program
         'Download only data apps (implies --skip-charts --skip-dashboards --skip-spaces). Requires --apps <appUuids...>, --include-apps, or --include-all.',
         false,
     )
-    .action(downloadHandler);
+    .option(
+        '--organization',
+        'download all organization-scoped resources without selecting a project',
+        false,
+    );
 
-program
+downloadCommand.action(withOrganizationMode(downloadHandler));
+
+const uploadCommand = program
     .command('upload')
-    .description('Uploads project content as code')
+    .description('Uploads project or organization content as code')
     .option('--verbose', undefined, false)
     .option(
         '-c, --charts <charts...>',
@@ -913,7 +951,13 @@ program
         'Always create a new app from the uploaded code instead of updating the app referenced by lightdash-app.yml.',
         false,
     )
-    .action(uploadHandler);
+    .option(
+        '--organization',
+        'upload all organization-scoped resources without selecting a project',
+        false,
+    );
+
+uploadCommand.action(withOrganizationMode(uploadHandler));
 
 program
     .command('deploy')

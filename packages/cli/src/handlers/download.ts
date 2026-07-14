@@ -86,6 +86,7 @@ import {
     buildStaticAuthoringFiles,
     loadTemplateDependencies,
 } from './apps/scaffolding';
+import { getDownloadFolder } from './contentAsCodePaths';
 import {
     checkLightdashVersion,
     getContentAsCodeUploadPermissions,
@@ -98,6 +99,10 @@ import {
     readMetadataFile,
     writeMetadataFile,
 } from './metadataFile';
+import {
+    downloadOrganizationContent,
+    uploadOrganizationContent,
+} from './organizationContent';
 import { logSelectedProject, selectProject } from './selectProject';
 
 export type DownloadHandlerOptions = {
@@ -140,18 +145,10 @@ export type DownloadHandlerOptions = {
     validate?: boolean; // Validate charts and dashboards after upload
     concurrency: number;
     gzip?: boolean;
+    organization: boolean;
 };
 
 type FolderScheme = 'flat' | 'nested';
-
-const getDownloadFolder = (customPath?: string): string => {
-    if (customPath) {
-        return path.isAbsolute(customPath)
-            ? customPath
-            : path.join(process.cwd(), customPath);
-    }
-    return path.join(process.cwd(), 'lightdash');
-};
 
 const shouldDownloadAiAgents = ({
     includeAll,
@@ -1439,6 +1436,8 @@ export const downloadHandler = async (
 ): Promise<void> => {
     GlobalState.setVerbose(options.verbose);
 
+    const isOrganizationDownload = options.organization === true;
+
     const includeAll = options.includeAll === true;
     const includeApps = options.includeApps === true || includeAll;
     const includeAllOptionalContent = includeAll && !options.appsOnly;
@@ -1475,6 +1474,14 @@ export const downloadHandler = async (
         throw new AuthorizationError(
             `Not logged in. Run 'lightdash login --help'`,
         );
+    }
+
+    if (isOrganizationDownload) {
+        await downloadOrganizationContent({
+            customPath: options.path,
+            config,
+        });
+        return;
     }
 
     const projectSelection = await selectProject(config, options.project);
@@ -2395,6 +2402,9 @@ export const uploadHandler = async (
     options: DownloadHandlerOptions,
 ): Promise<void> => {
     GlobalState.setVerbose(options.verbose);
+
+    const isOrganizationUpload = options.organization === true;
+
     if (options.gzip) {
         setGzipEnabled(true);
     }
@@ -2404,6 +2414,14 @@ export const uploadHandler = async (
         throw new AuthorizationError(
             `Not logged in. Run 'lightdash login --help'`,
         );
+    }
+
+    if (isOrganizationUpload) {
+        await uploadOrganizationContent({
+            customPath: options.path,
+            config,
+        });
+        return;
     }
 
     const projectSelection = await selectProject(config, options.project);

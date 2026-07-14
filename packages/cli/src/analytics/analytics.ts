@@ -311,6 +311,45 @@ type CliContentAsCode = BaseTrack &
                   error: string;
               };
           }
+        | {
+              event: 'download.started' | 'upload.started';
+              properties: {
+                  userId?: string;
+                  organizationId: string;
+                  scope: 'organization';
+              };
+          }
+        | {
+              event: 'download.completed';
+              properties: {
+                  userId?: string;
+                  organizationId: string;
+                  scope: 'organization';
+                  customRolesNum: number;
+                  timeToCompleted: number;
+              };
+          }
+        | {
+              event: 'upload.completed';
+              properties: {
+                  userId?: string;
+                  organizationId: string;
+                  scope: 'organization';
+                  customRolesCreated: number;
+                  customRolesUpdated: number;
+                  customRolesUnchanged: number;
+                  timeToCompleted: number;
+              };
+          }
+        | {
+              event: 'download.error' | 'upload.error';
+              properties: {
+                  userId?: string;
+                  organizationId: string;
+                  scope: 'organization';
+                  error: string;
+              };
+          }
     );
 
 type CliLightdashConfigLoaded = BaseTrack & {
