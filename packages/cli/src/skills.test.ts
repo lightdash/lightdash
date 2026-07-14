@@ -147,7 +147,7 @@ describe('developing-in-lightdash catalog workflow', () => {
             'If there is no usable Lightdash catalog connection and the user has no authenticated warehouse CLI, stop: the catalog cannot be inspected safely, so this workflow cannot continue.',
         );
         expect(workflow).toContain(
-            'The direct CLI supplies evidence for the YAML; it does not configure the Lightdash project\'s warehouse connection.',
+            "The direct CLI supplies evidence for the YAML; it does not configure the Lightdash project's warehouse connection.",
         );
     });
 });
