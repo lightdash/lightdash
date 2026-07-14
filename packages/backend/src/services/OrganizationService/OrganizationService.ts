@@ -155,6 +155,43 @@ export class OrganizationService extends BaseService {
         return {
             ...organization,
             needsProject,
+            pgWire: this.getPgWireConnectionDetails(
+                account,
+                account.organization.organizationUuid,
+            ),
+        };
+    }
+
+    private getPgWireConnectionDetails(
+        account: Account,
+        organizationUuid: string,
+    ): Organization['pgWire'] {
+        const { port, host } = this.lightdashConfig.pgWire;
+        const enabled = port !== undefined;
+
+        // The connection details (host/port) are infra endpoints, so only
+        // expose them to org admins. `enabled` is a capability flag every org
+        // member needs to gate the settings tab, so it's returned to all.
+        const isOrgAdmin = this.createAuditedAbility(account).can(
+            'manage',
+            subject('Organization', { organizationUuid }),
+        );
+        if (!isOrgAdmin) {
+            return { enabled, host: null, port: null };
+        }
+
+        let resolvedHost = host ?? null;
+        if (resolvedHost === null) {
+            try {
+                resolvedHost = new URL(this.lightdashConfig.siteUrl).hostname;
+            } catch {
+                resolvedHost = null;
+            }
+        }
+        return {
+            enabled,
+            host: resolvedHost,
+            port: port ?? null,
         };
     }
 
