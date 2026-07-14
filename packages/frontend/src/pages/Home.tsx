@@ -1,10 +1,12 @@
 import { subject } from '@casl/ability';
 import { DbtProjectType, ProjectType } from '@lightdash/common';
-import { Stack } from '@mantine-8/core';
+import { Button, Group, Stack } from '@mantine-8/core';
+import { IconEdit } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useParams } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import { useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
+import MantineIcon from '../components/common/MantineIcon';
 import Page from '../components/common/Page/Page';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { HomepageContentPanel } from '../components/Home/HomepageContentPanel';
@@ -27,12 +29,14 @@ import {
     useMostPopularAndRecentlyUpdated,
     useProject,
 } from '../hooks/useProject';
+import { Can } from '../providers/Ability';
 import useApp from '../providers/App/useApp';
 import { FavoritesProvider } from '../providers/Favorites/FavoritesProvider';
 import { PinnedItemsProvider } from '../providers/PinnedItems/PinnedItemsProvider';
 
 const Home: FC = () => {
     const params = useParams<{ projectUuid: string }>();
+    const navigate = useNavigate();
     const selectedProjectUuid = params.projectUuid;
     const project = useProject(selectedProjectUuid);
     const onboarding = useOnboardingStatus();
@@ -87,10 +91,34 @@ const Home: FC = () => {
     if (isHomepageBuilderEnabled && publishedHomepage.data) {
         return (
             <Page withFixedContent withPaddedContent withFooter>
-                <PublishedHomepage
-                    config={publishedHomepage.data.config}
-                    projectUuid={project.data.projectUuid}
-                />
+                <Stack gap="md">
+                    <Can
+                        I="manage"
+                        this={subject('ProjectHomepage', {
+                            organizationUuid: project.data.organizationUuid,
+                            projectUuid: project.data.projectUuid,
+                        })}
+                    >
+                        <Group justify="flex-end">
+                            <Button
+                                variant="default"
+                                size="xs"
+                                leftSection={<MantineIcon icon={IconEdit} />}
+                                onClick={() =>
+                                    navigate(
+                                        `/projects/${project.data.projectUuid}/homepage-builder`,
+                                    )
+                                }
+                            >
+                                Customize homepage
+                            </Button>
+                        </Group>
+                    </Can>
+                    <PublishedHomepage
+                        config={publishedHomepage.data.config}
+                        projectUuid={project.data.projectUuid}
+                    />
+                </Stack>
             </Page>
         );
     }
