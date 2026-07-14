@@ -116,6 +116,7 @@ const UnderlyingDataHeaderContextMenu: FC<
                         <ActionIcon
                             size="xs"
                             variant="light"
+                            color="gray"
                             bg="transparent"
                             aria-label="Context menu"
                         >

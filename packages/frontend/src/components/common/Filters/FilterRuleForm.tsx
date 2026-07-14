@@ -254,7 +254,7 @@ const FilterRuleForm: FC<Props> = memo(
                         >
                             <Menu.Target>
                                 <Box>
-                                    <ActionIcon variant="subtle">
+                                    <ActionIcon variant="subtle" color="gray">
                                         <IconDots size="20" />
                                     </ActionIcon>
                                 </Box>
