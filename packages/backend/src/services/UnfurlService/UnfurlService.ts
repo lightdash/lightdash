@@ -770,6 +770,14 @@ export class UnfurlService extends BaseService {
                 const cookie = await this.getUserCookie(authUserUuid);
                 const pdfBuffers: Buffer[] = [];
 
+                // Tab-invariant details resolved once against the original
+                // selection, so an empty tab's per-tab tile set never hits
+                // validateSelectedTabs and kills the whole export.
+                const details = await this.unfurlDetails(
+                    minimalUrl,
+                    selectedTabs,
+                );
+
                 for (const [index, { tab }] of tabRenders.entries()) {
                     const tabUrl = new URL(minimalUrl);
                     // Tile sets the screenshot waits on (e.g. Loom tiles) must
@@ -808,12 +816,6 @@ export class UnfurlService extends BaseService {
                         };
                     }
                     const tabSelectedTabs = tab ? [tab.uuid] : selectedTabs;
-
-                    // eslint-disable-next-line no-await-in-loop
-                    const details = await this.unfurlDetails(
-                        tabUrl.href,
-                        tabSelectedTabs,
-                    );
 
                     // eslint-disable-next-line no-await-in-loop
                     const result = await this.saveScreenshot({
