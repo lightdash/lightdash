@@ -86,7 +86,7 @@ const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
                                 disabled
                                     ? 'dimmed'
                                     : selected
-                                      ? 'ldGray.0'
+                                      ? 'ldGray.9'
                                       : 'ldGray.8'
                             }
                             fw={500}
