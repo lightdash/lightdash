@@ -11,6 +11,7 @@ import {
     DashboardTileTypes,
     isDashboardScheduler,
     isTileInSelectedTabs,
+    isTileInSelectedTabsStrict,
     SessionStorageKeys,
 } from '@lightdash/common';
 import { Stack, Text, Title } from '@mantine-8/core';
@@ -408,6 +409,15 @@ const MinimalDashboard: FC = () => {
                 // exports surface legacy tiles on the first tab, matching the backend rule in
                 // isTileInSelectedTabs (PROD-2505).
                 if (schedulerTabsSelected) {
+                    // Per-tab PDF export: orphan tiles render only on the page
+                    // whose selection carries the `null` sentinel (the first
+                    // tab), not on every page.
+                    if (showExportHeader) {
+                        return isTileInSelectedTabsStrict(
+                            tile,
+                            schedulerTabsSelected,
+                        );
+                    }
                     return isTileInSelectedTabs(tile, schedulerTabsSelected);
                 }
 
@@ -436,7 +446,13 @@ const MinimalDashboard: FC = () => {
             );
             return tabAIndex - tabBIndex;
         });
-    }, [dashboard?.tiles, schedulerTabsSelected, activeTab, sortedTabs]);
+    }, [
+        dashboard?.tiles,
+        schedulerTabsSelected,
+        showExportHeader,
+        activeTab,
+        sortedTabs,
+    ]);
 
     const layouts = useMemo(() => {
         return {

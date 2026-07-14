@@ -12,6 +12,7 @@ import {
     isDashboardChartTileType,
     isDashboardSqlChartTile,
     isTileInSelectedTabs,
+    isTileInSelectedTabsStrict,
     LightdashMode,
     LightdashPage,
     LightdashRequestMethodHeader,
@@ -745,7 +746,7 @@ export class UnfurlService extends BaseService {
         pdfFile: { source: string; fileName: string };
         pdfPageCount: number;
     }> {
-        return Sentry.startSpan(
+        return traceSpan(
             {
                 op: 'unfurl.pdf_per_tab',
                 name: 'UnfurlService.unfurlPdfPerTab',
@@ -761,7 +762,7 @@ export class UnfurlService extends BaseService {
                         ? [{ tab: null }]
                         : tabs.map((tab) => ({ tab }));
                 if (tabRenders.length === 0) {
-                    throw new Error(
+                    throw new ParameterError(
                         `Page-per-tab PDF requested for dashboard ${dashboardUuid} but none of the selected tabs exist`,
                     );
                 }
@@ -771,6 +772,14 @@ export class UnfurlService extends BaseService {
 
                 for (const [index, { tab }] of tabRenders.entries()) {
                     const tabUrl = new URL(minimalUrl);
+                    // Tile sets the screenshot waits on (e.g. Loom tiles) must
+                    // match what the page actually renders, so non-first pages
+                    // don't block on orphan tiles that only appear on page one.
+                    let strictTileUuids: {
+                        chartTileUuids: (string | null)[];
+                        sqlChartTileUuids: (string | null)[];
+                        loomTileUuids: (string | null)[];
+                    } | null = null;
                     if (tab) {
                         // Orphan tiles (tabUuid null) always render on the first page
                         const tabSelection: (string | null)[] =
@@ -780,6 +789,23 @@ export class UnfurlService extends BaseService {
                             JSON.stringify(tabSelection),
                         );
                         tabUrl.searchParams.set('exportHeader', 'true');
+
+                        const renderedTiles = dashboard.tiles.filter((tile) =>
+                            isTileInSelectedTabsStrict(tile, tabSelection),
+                        );
+                        strictTileUuids = {
+                            chartTileUuids: renderedTiles
+                                .filter(isDashboardChartTileType)
+                                .map((t) => t.properties.savedChartUuid),
+                            sqlChartTileUuids: renderedTiles
+                                .filter(isDashboardSqlChartTile)
+                                .map((t) => t.properties.savedSqlUuid),
+                            loomTileUuids: renderedTiles
+                                .filter(
+                                    (t) => t.type === DashboardTileTypes.LOOM,
+                                )
+                                .map((t) => t.uuid),
+                        };
                     }
                     const tabSelectedTabs = tab ? [tab.uuid] : selectedTabs;
 
@@ -801,9 +827,15 @@ export class UnfurlService extends BaseService {
                         gridWidth,
                         resourceUuid: details?.resourceUuid,
                         resourceName: details?.title,
-                        chartTileUuids: details?.chartTileUuids,
-                        sqlChartTileUuids: details?.sqlChartTileUuids,
-                        loomTileUuids: details?.loomTileUuids,
+                        chartTileUuids:
+                            strictTileUuids?.chartTileUuids ??
+                            details?.chartTileUuids,
+                        sqlChartTileUuids:
+                            strictTileUuids?.sqlChartTileUuids ??
+                            details?.sqlChartTileUuids,
+                        loomTileUuids:
+                            strictTileUuids?.loomTileUuids ??
+                            details?.loomTileUuids,
                         context,
                         contextId,
                         selectedTabs: tabSelectedTabs,
