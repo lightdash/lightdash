@@ -8,7 +8,8 @@ export type OrganizationBrandLogo = {
      */
     type: string;
     /**
-     * Theme the asset is designed for, e.g. 'light' or 'dark'
+     * Colour of the artwork itself: 'light' is a light/white logo (for dark
+     * backgrounds), 'dark' is a dark logo (for light backgrounds).
      */
     theme: string | null;
     url: string;
@@ -58,6 +59,20 @@ export type UpdateOrganizationBrandRequest = {
      * Company domain or website URL, e.g. 'acme.com'
      */
     domain: string;
+};
+
+/**
+ * The editable brand payload persisted when the user saves their brand
+ * appearance. Unlike a fetch, this does not call Brandfetch — it stores the
+ * values exactly as edited in the settings form.
+ */
+export type SaveOrganizationBrandRequest = {
+    domain: string;
+    name: string | null;
+    description: string | null;
+    logos: OrganizationBrandLogo[];
+    colors: OrganizationBrandColor[];
+    fonts: OrganizationBrandFont[];
 };
 
 export type ApiOrganizationBrandResponse = {

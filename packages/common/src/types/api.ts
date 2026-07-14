@@ -571,6 +571,7 @@ export type HealthState = {
         overrideColorPalette: string[] | undefined;
         overrideColorPaletteName: string | undefined;
     };
+    hasBrandfetch: boolean;
     isCustomRolesEnabled: boolean;
     embedding: {
         enabled: boolean;
