@@ -6,6 +6,7 @@ import { AthenaSqlBuilder } from './warehouseClients/AthenaWarehouseClient';
 import { BigquerySqlBuilder } from './warehouseClients/BigqueryWarehouseClient';
 import { ClickhouseSqlBuilder } from './warehouseClients/ClickhouseWarehouseClient';
 import { DatabricksSqlBuilder } from './warehouseClients/DatabricksWarehouseClient';
+import { DorisSqlBuilder } from './warehouseClients/DorisWarehouseClient';
 import { DuckdbSqlBuilder } from './warehouseClients/DuckdbWarehouseClient';
 import { PostgresSqlBuilder } from './warehouseClients/PostgresWarehouseClient';
 import { RedshiftSqlBuilder } from './warehouseClients/RedshiftWarehouseClient';
@@ -46,6 +47,8 @@ export const warehouseSqlBuilderFromType = (
             return new AthenaSqlBuilder(...args);
         case SupportedDbtAdapter.SPARK:
             return new DatabricksSqlBuilder(...args);
+        case SupportedDbtAdapter.DORIS:
+            return new DorisSqlBuilder(...args);
         default:
             const never: never = adapterType;
             throw new Error(`Unsupported adapter type: ${adapterType}`);

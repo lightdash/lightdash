@@ -100,6 +100,9 @@ const convertTimezone = (
         case SupportedDbtAdapter.CLICKHOUSE:
             // DateTime: stored in server timezone, returns in server timezone
             return timestampSql;
+        case SupportedDbtAdapter.DORIS:
+            // Doris DATETIME has no timezone; values are returned as stored.
+            return timestampSql;
         default:
             return assertUnreachable(
                 adapterType,

@@ -1541,7 +1541,8 @@ export class ProjectService extends BaseService {
             }
             case WarehouseTypes.POSTGRES:
             case WarehouseTypes.TRINO:
-            case WarehouseTypes.CLICKHOUSE: {
+            case WarehouseTypes.CLICKHOUSE:
+            case WarehouseTypes.DORIS: {
                 return {
                     ...credentials,
                     password: '',
@@ -1888,6 +1889,7 @@ export class ProjectService extends BaseService {
             case WarehouseTypes.BIGQUERY:
             case WarehouseTypes.TRINO:
             case WarehouseTypes.CLICKHOUSE:
+            case WarehouseTypes.DORIS:
             case WarehouseTypes.ATHENA:
             case WarehouseTypes.DUCKDB:
                 credentialsWithOverrides = warehouseSshCredentials;
@@ -2474,6 +2476,7 @@ export class ProjectService extends BaseService {
                     case WarehouseTypes.REDSHIFT:
                     case WarehouseTypes.TRINO:
                     case WarehouseTypes.CLICKHOUSE:
+                    case WarehouseTypes.DORIS:
                     case WarehouseTypes.ATHENA:
                     case WarehouseTypes.DUCKDB:
                         break;
@@ -7268,6 +7271,8 @@ export class ProjectService extends BaseService {
                 return credentials.dbname;
             case WarehouseTypes.CLICKHOUSE:
                 return ''; // Clickhouse doesn't have a database
+            case WarehouseTypes.DORIS:
+                return ''; // Doris addresses the database via schema
             case WarehouseTypes.SNOWFLAKE:
                 return credentials.database.toLowerCase();
             case WarehouseTypes.DATABRICKS:

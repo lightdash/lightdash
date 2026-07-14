@@ -287,6 +287,17 @@ export function getIntervalSyntax(
             intervalExpression = `${func}(${columnWithInterval}, INTERVAL ${chValue} ${chGranularity})`;
             break;
         }
+        case SupportedDbtAdapter.DORIS: {
+            // Doris (MySQL-style) uses DATE_ADD/DATE_SUB with INTERVAL.
+            // Doris doesn't support QUARTER interval, convert to months.
+            const [dorisValue, dorisGranularity] = normalizeIntervalGranularity(
+                value,
+                granularity,
+            );
+            const func = isAdd ? 'DATE_ADD' : 'DATE_SUB';
+            intervalExpression = `${func}(${columnWithInterval}, INTERVAL ${dorisValue} ${dorisGranularity})`;
+            break;
+        }
         default:
             // Default to standard SQL interval syntax
             intervalExpression = `${columnWithInterval} ${

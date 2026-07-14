@@ -5,7 +5,8 @@ packages:
 
 minimumReleaseAge: 4320 # 3 days — supply chain protection (matches .npmrc min-release-age)
 minimumReleaseAgeExclude:
-  # Renovate security update: hono@4.12.18 || 4.12.21 || 4.12.25
+  # Security fix: mysql2@3.22.6 (fixes Snyk vulnerabilities)
+  - mysql2@3.22.6  # Renovate security update: hono@4.12.18 || 4.12.21 || 4.12.25
   - hono@4.12.18 || 4.12.21 || 4.12.25
   # Renovate security update: nunjucks@3.2.4
   - nunjucks@3.2.4

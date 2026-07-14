@@ -19,6 +19,8 @@ const WAREHOUSE_HINTS: Record<WarehouseTypes, string> = {
         'Athena SQL dialect (Presto-compatible). Use SEQUENCE() + UNNEST for arrays, approx_percentile for percentiles, regexp_like for regex.',
     [WarehouseTypes.DUCKDB]:
         'DuckDB SQL dialect (Postgres-compatible). Use generate_series, UNNEST for arrays, quantile_cont for medians, regexp_matches for regex. DuckLake-configured projects expose tables under an attached catalog and follow the project schema.',
+    [WarehouseTypes.DORIS]:
+        'Apache Doris SQL dialect (MySQL-compatible). Backtick identifiers, use DATE_TRUNC(dt, "unit"), DATE_ADD(dt, INTERVAL n UNIT), PERCENTILE(col, p) / PERCENTILE_APPROX for percentiles, EXPLODE/LATERAL VIEW for arrays.',
 };
 
 export const getRunSqlSection = (

@@ -20,6 +20,9 @@ const getSqlFormatterDialect = (
             return 'spark';
         case WarehouseTypes.CLICKHOUSE:
             return 'clickhouse';
+        case WarehouseTypes.DORIS:
+            // Doris is MySQL-protocol compatible; format with the MySQL dialect.
+            return 'mysql';
         case WarehouseTypes.POSTGRES:
             return 'postgresql';
         case WarehouseTypes.REDSHIFT:

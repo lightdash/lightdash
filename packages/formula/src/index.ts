@@ -38,6 +38,7 @@ export const SUPPORTED_DIALECTS = [
     'clickhouse',
     'athena',
     'trino',
+    'doris',
 ] as const satisfies readonly Dialect[];
 
 type MissingSupportedDialect = Exclude<

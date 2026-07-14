@@ -214,6 +214,14 @@ export const dateTruncTimezoneConversions: Record<
         castAsDate: (sql) => `CAST(${sql} AS DATE)`,
         castToInstant: clickhouseCastToInstant,
     },
+    // Doris (MySQL-compatible): CONVERT_TZ(dt, from_tz, to_tz) shifts a naive
+    // DATETIME between zones. Stored values are treated as UTC.
+    [SupportedDbtAdapter.DORIS]: {
+        toProjectTz: (sql, tz) => `CONVERT_TZ(${sql}, 'UTC', '${tz}')`,
+        toUTC: (sql, tz) => `CONVERT_TZ(${sql}, '${tz}', 'UTC')`,
+        castAsDate: (sql) => `CAST(${sql} AS DATE)`,
+        castToInstant: identityCastToInstant,
+    },
 };
 
 // EXTRACT returns a number/string, so no `toUTC` inverse — one-way shift only.
@@ -269,6 +277,9 @@ export const dateExtractsTimezoneConversions: Record<
     },
     [SupportedDbtAdapter.CLICKHOUSE]: {
         toExtractInputTz: (sql, tz) => `toTimeZone(${sql}, '${tz}')`,
+    },
+    [SupportedDbtAdapter.DORIS]: {
+        toExtractInputTz: (sql, tz) => `CONVERT_TZ(${sql}, 'UTC', '${tz}')`,
     },
 };
 
@@ -732,6 +743,102 @@ const clickhouseConfig: WarehouseConfig = {
     },
 };
 
+const dorisConfig: WarehouseConfig = {
+    // Doris speaks MySQL SQL. date_trunc(datetime, unit) accepts lower-case
+    // units 'second'..'year'. Sub-second (MILLISECOND) is not supported.
+    getSqlForTruncatedDate: (timeFrame, originalSql, _, startOfWeek) => {
+        const unit = timeFrame.toLowerCase();
+        if (timeFrame === TimeFrames.WEEK && isWeekDay(startOfWeek)) {
+            // date_trunc('week') anchors on Monday; shift to honour startOfWeek.
+            const intervalDiff = startOfWeek;
+            return `DATE_ADD(DATE_TRUNC(DATE_SUB(${originalSql}, INTERVAL ${intervalDiff} DAY), 'week'), INTERVAL ${intervalDiff} DAY)`;
+        }
+        switch (timeFrame) {
+            case TimeFrames.SECOND:
+            case TimeFrames.MINUTE:
+            case TimeFrames.HOUR:
+            case TimeFrames.DAY:
+            case TimeFrames.WEEK:
+            case TimeFrames.MONTH:
+            case TimeFrames.QUARTER:
+            case TimeFrames.YEAR:
+                return `DATE_TRUNC(${originalSql}, '${unit}')`;
+            default:
+                throw new ParseError(
+                    `Cannot recognise truncate function for ${timeFrame}`,
+                );
+        }
+    },
+    getSqlForDatePart: (
+        timeFrame: TimeFrames,
+        originalSql: string,
+        _,
+        startOfWeek,
+    ) => {
+        // Doris/MySQL native date-part functions.
+        const dorisTimeFrameMap: Record<TimeFrames, string | null> = {
+            ...nullTimeFrameMap,
+            [TimeFrames.DAY_OF_WEEK_INDEX]: 'DAYOFWEEK',
+            [TimeFrames.DAY_OF_MONTH_NUM]: 'DAYOFMONTH',
+            [TimeFrames.DAY_OF_YEAR_NUM]: 'DAYOFYEAR',
+            [TimeFrames.WEEK_NUM]: 'WEEK',
+            [TimeFrames.MONTH_NUM]: 'MONTH',
+            [TimeFrames.QUARTER_NUM]: 'QUARTER',
+            [TimeFrames.YEAR_NUM]: 'YEAR',
+            [TimeFrames.HOUR_OF_DAY_NUM]: 'HOUR',
+            [TimeFrames.MINUTE_OF_HOUR_NUM]: 'MINUTE',
+        };
+
+        // DAYOFWEEK in Doris/MySQL: 1=Sunday .. 7=Saturday.
+        // TODO(doris): verify startOfWeek mapping against Lightdash WeekDay.
+        if (
+            timeFrame === TimeFrames.DAY_OF_WEEK_INDEX &&
+            isWeekDay(startOfWeek)
+        ) {
+            const nativeOffset = (startOfWeek + 1) % 7;
+            return `MOD(DAYOFWEEK(${originalSql}) - 1 - ${nativeOffset} + 7, 7) + 1`;
+        }
+
+        // WEEK(date, 3) is ISO 8601 (Monday-base, 1-53), matching truncation.
+        if (timeFrame === TimeFrames.WEEK_NUM && isWeekDay(startOfWeek)) {
+            return `WEEK(DATE_SUB(${originalSql}, INTERVAL ${startOfWeek} DAY), 3)`;
+        }
+
+        const extractFunction = dorisTimeFrameMap[timeFrame];
+        if (!extractFunction) {
+            throw new ParseError(
+                `Cannot recognise extract function for ${timeFrame}`,
+            );
+        }
+        return `${extractFunction}(${originalSql})`;
+    },
+    getSqlForDatePartName: (
+        timeFrame: TimeFrames,
+        originalSql: string,
+        _type,
+        timezone,
+    ) => {
+        const sql = timezone
+            ? dateExtractsTimezoneConversions[
+                  SupportedDbtAdapter.DORIS
+              ].toExtractInputTz(originalSql, timezone)
+            : originalSql;
+        const timeFrameExpressions: Record<TimeFrames, string | null> = {
+            ...nullTimeFrameMap,
+            [TimeFrames.DAY_OF_WEEK_NAME]: `DAYNAME(${sql})`,
+            [TimeFrames.MONTH_NAME]: `MONTHNAME(${sql})`,
+            [TimeFrames.QUARTER_NAME]: `CONCAT('Q', CAST(QUARTER(${sql}) AS STRING))`,
+        };
+        const formatExpression = timeFrameExpressions[timeFrame];
+        if (!formatExpression) {
+            throw new ParseError(
+                `Cannot recognise format expression for ${timeFrame}`,
+            );
+        }
+        return formatExpression;
+    },
+};
+
 const warehouseConfigs: Record<SupportedDbtAdapter, WarehouseConfig> = {
     [SupportedDbtAdapter.BIGQUERY]: bigqueryConfig,
     [SupportedDbtAdapter.SNOWFLAKE]: snowflakeConfig,
@@ -743,6 +850,7 @@ const warehouseConfigs: Record<SupportedDbtAdapter, WarehouseConfig> = {
     [SupportedDbtAdapter.TRINO]: trinoConfig,
     [SupportedDbtAdapter.ATHENA]: trinoConfig, // Athena uses Trino SQL dialect
     [SupportedDbtAdapter.CLICKHOUSE]: clickhouseConfig,
+    [SupportedDbtAdapter.DORIS]: dorisConfig,
 };
 
 /**

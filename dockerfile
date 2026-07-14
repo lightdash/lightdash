@@ -136,6 +136,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-clickhouse~=1.9.0" \
     "dbt-athena~=1.10.0" \
     "dbt-duckdb~=1.10.0" \
+    "dbt-doris~=1.0.0" \
     && ln -s /usr/local/dbt1.10/bin/dbt /usr/local/bin/dbt1.10 \
     && python3 -m venv /usr/local/dbt1.11 \
     && /usr/local/dbt1.11/bin/pip install \
@@ -149,6 +150,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-clickhouse~=1.9.0" \
     "dbt-athena~=1.10.0" \
     "dbt-duckdb~=1.10.0" \
+    "dbt-doris~=1.0.0" \
     && ln -s /usr/local/dbt1.11/bin/dbt /usr/local/bin/dbt1.11 \
     && python3 -m venv /usr/local/dbt1.12 \
 # dbt 1.12 has no stable PyPI release yet: pin latest pre-releases, and skip
@@ -163,6 +165,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     "dbt-clickhouse~=1.9.0" \
     "dbt-athena~=1.10.0" \
     "dbt-duckdb~=1.10.0" \
+    "dbt-doris~=1.0.0" \
     && ln -s /usr/local/dbt1.12/bin/dbt /usr/local/bin/dbt1.12
 
 # -----------------------------

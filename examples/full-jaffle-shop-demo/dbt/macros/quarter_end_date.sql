@@ -9,6 +9,8 @@
     ({{ quarter_start_column }} + interval '3' month - interval '1' day)
   {% elif target.type == 'clickhouse' %}
     addDays(addMonths({{ quarter_start_column }}, 3), -1)
+  {% elif target.type == 'doris' %}
+    DATE_SUB(DATE_ADD({{ quarter_start_column }}, INTERVAL 3 MONTH), INTERVAL 1 DAY)
   {% elif target.type == 'databricks' %}
     DATE_ADD(ADD_MONTHS({{ quarter_start_column }}, 3), -1)
   {% else %}

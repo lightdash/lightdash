@@ -8,6 +8,7 @@ import {
     type CreateBigqueryCredentials,
     type CreateClickhouseCredentials,
     type CreateDatabricksCredentials,
+    type CreateDorisCredentials,
     type CreateDuckdbCredentials,
     type CreateDuckdbMotherduckCredentials,
     type CreatePostgresCredentials,
@@ -38,7 +39,8 @@ export type UserWarehouseCredentials = {
               | CreatePostgresCredentials
               | CreateSnowflakeCredentials
               | CreateTrinoCredentials
-              | CreateClickhouseCredentials,
+              | CreateClickhouseCredentials
+              | CreateDorisCredentials,
               'type' | 'user'
           >
         | Pick<CreateBigqueryCredentials, 'type'>
@@ -76,6 +78,7 @@ export type UserWarehouseCredentialsWithSecrets = Pick<
           >
         | Pick<CreateTrinoCredentials, 'type' | 'user' | 'password'>
         | Pick<CreateClickhouseCredentials, 'type' | 'user' | 'password'>
+        | Pick<CreateDorisCredentials, 'type' | 'user' | 'password'>
         | Pick<
               CreateBigqueryCredentials,
               'type' | 'keyfileContents' | 'authenticationType'

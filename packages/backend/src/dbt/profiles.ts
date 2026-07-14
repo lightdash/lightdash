@@ -312,6 +312,23 @@ const credentialsTarget = (
                     [envVar('password')]: credentials.password,
                 },
             };
+        case WarehouseTypes.DORIS:
+            // dbt-doris profile uses `username` (not `user`) and addresses the
+            // database via `schema`.
+            return {
+                target: {
+                    type: WarehouseTypes.DORIS,
+                    host: credentials.host,
+                    port: credentials.port,
+                    username: envVarReference('user'),
+                    password: envVarReference('password'),
+                    schema: credentials.schema,
+                },
+                environment: {
+                    [envVar('user')]: credentials.user,
+                    [envVar('password')]: credentials.password,
+                },
+            };
         case WarehouseTypes.DUCKDB: {
             if (
                 credentials.connectionType === DuckdbConnectionType.MOTHERDUCK

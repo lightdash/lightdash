@@ -1,0 +1,5 @@
+services:
+    lightdash:
+        image: lightdash-doris:local
+        pull_policy: never
+        platform: linux/arm64
