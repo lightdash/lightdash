@@ -773,25 +773,37 @@ export default class SchedulerTask {
                         options.pagePerTab === true;
 
                     if (pagePerTab && dashboardUuid) {
+                        // Experiment (feature/prod-484-css-paged): pick the
+                        // page-per-tab strategy at runtime so the benchmark can
+                        // flip between Approach A (per-tab sessions) and
+                        // Approach B (single css-paged render) via env var.
+                        const pagePerTabArgs = {
+                            minimalUrl: minimalRenderUrl.href,
+                            dashboardUuid,
+                            imageId: pdfId,
+                            authUserUuid: userUuid,
+                            gridWidth:
+                                isDashboardScheduler(scheduler) &&
+                                scheduler.customViewportWidth
+                                    ? scheduler.customViewportWidth
+                                    : undefined,
+                            context: ScreenshotContext.SCHEDULED_DELIVERY,
+                            contextId: jobId,
+                            selectedTabs,
+                            sendNowSchedulerDashboardFilters:
+                                exportOptions?.dashboardFilters,
+                            sendNowSchedulerFilters,
+                            sendNowSchedulerParameters,
+                        };
                         const perTabResult =
-                            await this.unfurlService.unfurlPdfPerTab({
-                                minimalUrl: minimalRenderUrl.href,
-                                dashboardUuid,
-                                imageId: pdfId,
-                                authUserUuid: userUuid,
-                                gridWidth:
-                                    isDashboardScheduler(scheduler) &&
-                                    scheduler.customViewportWidth
-                                        ? scheduler.customViewportWidth
-                                        : undefined,
-                                context: ScreenshotContext.SCHEDULED_DELIVERY,
-                                contextId: jobId,
-                                selectedTabs,
-                                sendNowSchedulerDashboardFilters:
-                                    exportOptions?.dashboardFilters,
-                                sendNowSchedulerFilters,
-                                sendNowSchedulerParameters,
-                            });
+                            process.env.LIGHTDASH_PAGE_PER_TAB_STRATEGY ===
+                            'css'
+                                ? await this.unfurlService.unfurlPdfCssPaged(
+                                      pagePerTabArgs,
+                                  )
+                                : await this.unfurlService.unfurlPdfPerTab(
+                                      pagePerTabArgs,
+                                  );
                         pdfFile = perTabResult.pdfFile;
                         pdfPageCount = perTabResult.pdfPageCount;
                     } else {

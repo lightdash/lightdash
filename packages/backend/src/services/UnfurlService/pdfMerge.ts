@@ -23,3 +23,11 @@ export const mergePdfBuffers = async (
     }
     return Buffer.from(await merged.save());
 };
+
+/**
+ * Number of pages in a PDF buffer.
+ */
+export const countPdfPages = async (buffer: Buffer): Promise<number> => {
+    const doc = await PDFDocument.load(new Uint8Array(buffer));
+    return doc.getPageCount();
+};
