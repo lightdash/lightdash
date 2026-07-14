@@ -1,5 +1,5 @@
 import { assertUnreachable } from '@lightdash/common';
-import { google } from 'googleapis';
+import { GoogleAuth } from 'google-auth-library';
 import type { DataAppOtelAuthConfig } from '../../../config/parseConfig';
 import { runWithOtelSpanContext } from '../../../tracing/tracing';
 
@@ -30,11 +30,11 @@ export type GcpAccessTokenMinter = () => Promise<string | null | undefined>;
 // The GoogleAuth client is memoized so we reuse its credential discovery + token
 // cache across builds; `getAccessToken()` still returns a fresh (auto-refreshed)
 // token on each call.
-let cachedAuth: InstanceType<typeof google.auth.GoogleAuth> | undefined;
+let cachedAuth: GoogleAuth | undefined;
 
 const defaultMintGcpAccessToken: GcpAccessTokenMinter = () => {
     if (!cachedAuth) {
-        cachedAuth = new google.auth.GoogleAuth({ scopes: GCP_OTLP_SCOPES });
+        cachedAuth = new GoogleAuth({ scopes: GCP_OTLP_SCOPES });
     }
     return cachedAuth.getAccessToken();
 };

@@ -131,6 +131,7 @@
         "fast-json-patch": "3.1.1",
         "fs-extra": "10.0.0",
         "fuse.js": "6.5.3",
+        "google-auth-library": "10.2.1",
         "googleapis": "105.0.0",
         "graphile-worker": "0.13.0",
         "graphql": "16.8.1",
