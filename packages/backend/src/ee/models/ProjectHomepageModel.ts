@@ -1,6 +1,7 @@
 import {
     NotFoundError,
     type HomepageConfig,
+    type HomepageRecentlyViewedItem,
     type ProjectHomepage,
     type PublishedProjectHomepage,
 } from '@lightdash/common';
@@ -119,6 +120,55 @@ export class ProjectHomepageModel {
             throw new NotFoundError('Homepage not found');
         }
         return ProjectHomepageModel.mapDbHomepage(row);
+    }
+
+    // Derived from the existing analytics view events — no separate tracking
+    async getRecentlyViewed(
+        projectUuid: string,
+        userUuid: string,
+        limit: number = 8,
+    ): Promise<HomepageRecentlyViewedItem[]> {
+        const { rows } = await this.database.raw<{
+            rows: Array<{
+                content_type: 'chart' | 'dashboard';
+                content_uuid: string;
+                viewed_at: Date;
+            }>;
+        }>(
+            `
+            SELECT content_type, content_uuid, max(viewed_at) AS viewed_at
+            FROM (
+                SELECT 'chart' AS content_type,
+                       acv.chart_uuid AS content_uuid,
+                       acv.timestamp AS viewed_at
+                FROM analytics_chart_views acv
+                JOIN saved_queries sq ON sq.saved_query_uuid = acv.chart_uuid
+                JOIN spaces s ON s.space_id = sq.space_id
+                JOIN projects p ON p.project_id = s.project_id
+                WHERE acv.user_uuid = :userUuid
+                  AND p.project_uuid = :projectUuid
+                UNION ALL
+                SELECT 'dashboard' AS content_type,
+                       adv.dashboard_uuid AS content_uuid,
+                       adv.timestamp AS viewed_at
+                FROM analytics_dashboard_views adv
+                JOIN dashboards d ON d.dashboard_uuid = adv.dashboard_uuid
+                JOIN spaces s ON s.space_id = d.space_id
+                JOIN projects p ON p.project_id = s.project_id
+                WHERE adv.user_uuid = :userUuid
+                  AND p.project_uuid = :projectUuid
+            ) views
+            GROUP BY content_type, content_uuid
+            ORDER BY viewed_at DESC
+            LIMIT :limit
+            `,
+            { userUuid, projectUuid, limit },
+        );
+        return rows.map((row) => ({
+            contentType: row.content_type,
+            uuid: row.content_uuid,
+            viewedAt: row.viewed_at,
+        }));
     }
 
     // Publishing promotes the homepage to the project default viewers land on

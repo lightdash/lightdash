@@ -5,6 +5,7 @@ import {
     type ApiProjectHomepageResponse,
     type ApiProjectHomepagesResponse,
     type ApiPublishedHomepageResponse,
+    type ApiRecentlyViewedResponse,
     type ApiSuccessEmpty,
     type CreateProjectHomepageRequest,
     type UpdateProjectHomepageDraftRequest,
@@ -81,6 +82,25 @@ export class ProjectHomepageController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
                 homepageUuid,
+            ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/recently-viewed')
+    @OperationId('getHomepageRecentlyViewed')
+    async getRecentlyViewed(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiRecentlyViewedResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getHomepageService().getRecentlyViewed(
+                toSessionUser(req.account),
+                projectUuid,
             ),
         };
     }

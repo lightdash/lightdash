@@ -117,6 +117,7 @@ const makeService = ({
             getDefault: vi.fn().mockResolvedValue(undefined),
             getByUuid: vi.fn().mockResolvedValue(makeHomepage()),
             getPublishedDefault: vi.fn().mockResolvedValue(undefined),
+            getRecentlyViewed: vi.fn().mockResolvedValue([]),
             list: vi.fn().mockResolvedValue([]),
             create: vi.fn().mockResolvedValue(makeHomepage()),
             updateDraft: vi.fn().mockResolvedValue(makeHomepage()),
