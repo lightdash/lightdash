@@ -1,3 +1,13 @@
+# [0.3381.0](https://github.com/lightdash/lightdash/compare/0.3380.0...0.3381.0) (2026-07-14)
+
+
+### Features
+
+* add custom roles as code ([#25520](https://github.com/lightdash/lightdash/issues/25520)) ([bad6d01](https://github.com/lightdash/lightdash/commit/bad6d015d456e6869e1f75b75aa33deb8b786a1d)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* add dashboard filter requirements module (unmounted) ([#25305](https://github.com/lightdash/lightdash/issues/25305)) ([2934bd7](https://github.com/lightdash/lightdash/commit/2934bd7b84b5f7a478a4507719ccf23590f72230))
+* **cli:** rename selected project ([#25538](https://github.com/lightdash/lightdash/issues/25538)) ([dd0fdef](https://github.com/lightdash/lightdash/commit/dd0fdefa1d23c636b6b1c325e8396270863dcd1b))
+* **deep-research:** gate runs with a dedicated scope ([#25539](https://github.com/lightdash/lightdash/issues/25539)) ([1e70ae1](https://github.com/lightdash/lightdash/commit/1e70ae19b86f934dbe33a30a35ec067968f8586a))
+
 # [0.3380.0](https://github.com/lightdash/lightdash/compare/0.3379.0...0.3380.0) (2026-07-14)
 
 
