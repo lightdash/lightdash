@@ -55,4 +55,10 @@ describe('mergePdfBuffers', () => {
         expect(doc.getPage(0).getSize().height).toBeCloseTo(1875, 0);
         expect(doc.getPage(0).getSize().width).toBeCloseTo(1050, 0);
     });
+
+    it('throws on an empty list of buffers', async () => {
+        await expect(mergePdfBuffers([], 'Empty')).rejects.toThrow(
+            'Cannot merge an empty list of PDF buffers',
+        );
+    });
 });

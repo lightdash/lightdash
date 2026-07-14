@@ -1,9 +1,8 @@
 import { PDFDocument } from 'pdf-lib';
 
 /**
- * Merges single-page per-tab PDFs into one document, preserving each page's
- * own size (per-tab auto height). Input buffers may carry cropPdfToClip's
- * incremental updates; pdf-lib re-serializes them cleanly.
+ * Merges single-page per-tab PDFs into one document, preserving each
+ * page's own size (per-tab auto height).
  */
 export const mergePdfBuffers = async (
     buffers: Buffer[],
