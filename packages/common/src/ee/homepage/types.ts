@@ -29,11 +29,39 @@ export type HomepageCollectionBlock = {
     config: { title: string; items: HomepageCollectionItemRef[] };
 };
 
+export type HomepageResourceKind = 'video' | 'doc' | 'link';
+
+export type HomepageResourceItem = {
+    title: string;
+    url: string;
+    kind: HomepageResourceKind;
+};
+
+export type HomepageResourcesBlock = {
+    id: string;
+    type: 'resources';
+    config: { title: string; items: HomepageResourceItem[] };
+};
+
+export type HomepageAnnouncementItem = {
+    text: string;
+    date: string;
+    author: string;
+};
+
+export type HomepageAnnouncementsBlock = {
+    id: string;
+    type: 'announcements';
+    config: { title: string; items: HomepageAnnouncementItem[] };
+};
+
 export type HomepageBlock =
     | HomepageMarkdownBlock
     | HomepageHeroBlock
     | HomepageAiBlock
-    | HomepageCollectionBlock;
+    | HomepageCollectionBlock
+    | HomepageResourcesBlock
+    | HomepageAnnouncementsBlock;
 
 export type HomepageRow = {
     id: string;
