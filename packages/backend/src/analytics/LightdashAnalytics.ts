@@ -2038,6 +2038,16 @@ export type AiAgentUpdatedEvent = BaseTrack & {
     };
 };
 
+export type AiAgentSlackChannelLinkedEvent = BaseTrack & {
+    event: 'ai_agent.slack_channel_linked';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+    };
+};
+
 export type AiAgentDocumentCreatedEvent = BaseTrack & {
     event: 'ai_agent_document.created';
     userId: string;
@@ -2589,6 +2599,7 @@ type TypedEvent =
     | AiAgentGithubMcpConnectedEvent
     | AiAgentDeletedEvent
     | AiAgentUpdatedEvent
+    | AiAgentSlackChannelLinkedEvent
     | AiAgentDocumentCreatedEvent
     | AiAgentDocumentUpdatedEvent
     | AiAgentDocumentDeletedEvent
