@@ -230,7 +230,7 @@ describe('SnowflakeWarehouseClient', () => {
         expect(fetchClient).toHaveBeenCalledWith(
             'https://account.region.snowflakecomputing.com/oauth/token-request',
             expect.objectContaining({
-                body: 'grant_type=refresh_token&refresh_token=refresh-token&client_id=LOCAL_APPLICATION',
+                body: 'grant_type=refresh_token&refresh_token=refresh-token&client_id=LOCAL_APPLICATION&client_secret=LOCAL_APPLICATION',
             }),
         );
     });

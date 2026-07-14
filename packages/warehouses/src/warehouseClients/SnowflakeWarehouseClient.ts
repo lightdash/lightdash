@@ -307,6 +307,10 @@ export const refreshSnowflakeOAuthToken = async (
                 grant_type: 'refresh_token',
                 refresh_token: credentials.refreshToken,
                 client_id: LOCAL_APPLICATION_CLIENT_ID,
+                // snowflake-sdk authenticates the built-in local application
+                // via ClientSecretPost with this placeholder secret; refresh
+                // requests without it fail client authentication
+                client_secret: LOCAL_APPLICATION_CLIENT_ID,
             }).toString(),
         },
     );
