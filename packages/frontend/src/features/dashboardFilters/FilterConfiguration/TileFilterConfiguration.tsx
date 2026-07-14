@@ -556,6 +556,16 @@ const TileFilterConfiguration: FC<Props> = ({
                                             withScrollArea={false}
                                             leftSection={undefined}
                                             allowDeselect={false}
+                                            comboboxProps={{
+                                                withinPortal:
+                                                    popoverProps?.withinPortal,
+                                            }}
+                                            onDropdownOpen={
+                                                popoverProps?.onOpen
+                                            }
+                                            onDropdownClose={
+                                                popoverProps?.onClose
+                                            }
                                             value={value.selectedField ?? null}
                                             data={value.sortedFilters}
                                             onChange={(newField) => {
