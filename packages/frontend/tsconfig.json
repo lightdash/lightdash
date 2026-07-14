@@ -28,7 +28,7 @@
             ]
         },
         "noUncheckedIndexedAccess": false, // TODO fix errors, then enable
-        "tsBuildInfoFile": "dist/.tsgo.tsbuildinfo"
+        "tsBuildInfoFile": "dist/.tsbuildinfo"
     },
     "include": ["./src", "./sdk/index.tsx", "./vite-env.d.ts"],
     "references": [
