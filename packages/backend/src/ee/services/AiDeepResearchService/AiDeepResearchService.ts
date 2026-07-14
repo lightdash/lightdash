@@ -268,6 +268,41 @@ export class AiDeepResearchService extends BaseService {
         }
     }
 
+    private async assertCanCreateRun(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<void> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const ability = this.createAuditedAbility(user);
+        if (
+            ability.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            ) ||
+            ability.cannot(
+                'create',
+                subject('AiDeepResearch', { organizationUuid, projectUuid }),
+            ) ||
+            ability.cannot(
+                'create',
+                subject('PersonalAccessToken', {
+                    organizationUuid,
+                    metadata: { userUuid: user.userUuid },
+                }),
+            ) ||
+            ability.cannot(
+                'delete',
+                subject('PersonalAccessToken', {
+                    organizationUuid,
+                    metadata: { userUuid: user.userUuid },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+    }
+
     private async findCreatorOwnedRun(
         user: SessionUser,
         projectUuid: string,
@@ -315,7 +350,7 @@ export class AiDeepResearchService extends BaseService {
             ];
         assertValidBudget(budget);
 
-        await this.assertCanViewProject(args.user, args.projectUuid);
+        await this.assertCanCreateRun(args.user, args.projectUuid);
         const featureFlag = await this.featureFlagModel.get({
             user: args.user,
             featureFlagId: FeatureFlags.AiDeepResearch,

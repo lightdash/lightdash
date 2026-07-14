@@ -1,4 +1,9 @@
-import { ContentType, type SessionUser } from '@lightdash/common';
+import { Ability, AbilityBuilder } from '@casl/ability';
+import {
+    ContentType,
+    type MemberAbility,
+    type SessionUser,
+} from '@lightdash/common';
 import { AiAgentService } from './AiAgentService';
 
 vi.mock('../ai/AiAgentMcpRuntimeClient', () => ({
@@ -70,12 +75,26 @@ const buildService = ({
             model: 'test',
         }),
         getArtifactQuestion: vi.fn().mockResolvedValue('Existing question'),
+        getVerifiedSavedArtifactContent: vi.fn().mockResolvedValue([
+            {
+                contentType: 'chart',
+                contentUuid: 'chart-uuid',
+                name: 'Verified chart',
+                spaceUuid: 'space-uuid',
+            },
+        ]),
+    };
+    const projectModel = {
+        getSummary: vi.fn().mockResolvedValue({
+            organizationUuid: ORGANIZATION_UUID,
+        }),
     };
     const featureFlagService = {
         get: vi.fn().mockResolvedValue({ enabled: true }),
     };
     const service = new AiAgentService({
         aiAgentModel,
+        projectModel,
         contentVerificationModel,
         analytics,
         featureFlagService,
@@ -97,6 +116,32 @@ const setVerified = (service: AiAgentService, verified: boolean) =>
     });
 
 describe('AiAgentService content verification bridge', () => {
+    it('allows view-only access when listing verified AI artifacts', async () => {
+        const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
+        can('view', 'ContentVerification', {
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PROJECT_UUID,
+        });
+        const viewOnlyUser = { ...user, ability: build() } as SessionUser;
+        const { service, aiAgentModel } = buildService({
+            artifact: makeArtifact({}),
+        });
+
+        await expect(
+            service.getVerifiedSavedArtifactContent(viewOnlyUser, PROJECT_UUID),
+        ).resolves.toEqual([
+            {
+                contentType: 'chart',
+                contentUuid: 'chart-uuid',
+                name: 'Verified chart',
+                spaceUuid: 'space-uuid',
+            },
+        ]);
+        expect(
+            aiAgentModel.getVerifiedSavedArtifactContent,
+        ).toHaveBeenCalledWith(PROJECT_UUID);
+    });
+
     it('verifying an artifact saved as a chart (via prompt) writes a chart verification and tracks source ai_artifact', async () => {
         const { service, contentVerificationModel, analytics } = buildService({
             artifact: makeArtifact({}),

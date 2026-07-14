@@ -78,6 +78,13 @@ const userWithProjectAccess = (): SessionUser => {
         organizationUuid: 'org-1',
         projectUuid: 'project-1',
     });
+    can('create', 'AiDeepResearch', {
+        organizationUuid: 'org-1',
+        projectUuid: 'project-1',
+    });
+    can('manage', 'PersonalAccessToken', {
+        organizationUuid: 'org-1',
+    });
     return {
         userUuid: 'user-1',
         organizationUuid: 'org-1',
@@ -284,6 +291,145 @@ describe('AiDeepResearchService', () => {
                     prompt: 'Investigate revenue',
                 }),
             ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(model.create).not.toHaveBeenCalled();
+        });
+
+        it('rejects run creation without the Deep Research scope', async () => {
+            const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
+            can('view', 'Project', {
+                organizationUuid: 'org-1',
+                projectUuid: 'project-1',
+            });
+            can('manage', 'PersonalAccessToken', {
+                organizationUuid: 'org-1',
+            });
+            const user = {
+                ...userWithProjectAccess(),
+                ability: build(),
+            } as SessionUser;
+            const { service, model, featureFlagModel } = buildService();
+
+            await expect(
+                service.createRun({
+                    user,
+                    projectUuid: 'project-1',
+                    prompt: 'Investigate revenue',
+                }),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(featureFlagModel.get).not.toHaveBeenCalled();
+            expect(model.create).not.toHaveBeenCalled();
+        });
+
+        it('rejects run creation without permission to create the temporary PAT', async () => {
+            const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
+            can('view', 'Project', {
+                organizationUuid: 'org-1',
+                projectUuid: 'project-1',
+            });
+            can('create', 'AiDeepResearch', {
+                organizationUuid: 'org-1',
+                projectUuid: 'project-1',
+            });
+            const user = {
+                ...userWithProjectAccess(),
+                ability: build(),
+            } as SessionUser;
+            const { service, model, featureFlagModel } = buildService();
+
+            await expect(
+                service.createRun({
+                    user,
+                    projectUuid: 'project-1',
+                    prompt: 'Investigate revenue',
+                }),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(featureFlagModel.get).not.toHaveBeenCalled();
+            expect(model.create).not.toHaveBeenCalled();
+        });
+
+        it('rejects run creation without permission to delete the temporary PAT', async () => {
+            const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
+            can('view', 'Project', {
+                organizationUuid: 'org-1',
+                projectUuid: 'project-1',
+            });
+            can('create', 'AiDeepResearch', {
+                organizationUuid: 'org-1',
+                projectUuid: 'project-1',
+            });
+            can('create', 'PersonalAccessToken', {
+                organizationUuid: 'org-1',
+            });
+            const user = {
+                ...userWithProjectAccess(),
+                ability: build(),
+            } as SessionUser;
+            const { service, model, featureFlagModel } = buildService();
+
+            await expect(
+                service.createRun({
+                    user,
+                    projectUuid: 'project-1',
+                    prompt: 'Investigate revenue',
+                }),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(featureFlagModel.get).not.toHaveBeenCalled();
+            expect(model.create).not.toHaveBeenCalled();
+        });
+
+        it('rejects a Deep Research scope granted for another project', async () => {
+            const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
+            can('view', 'Project', {
+                organizationUuid: 'org-1',
+                projectUuid: 'project-1',
+            });
+            can('create', 'AiDeepResearch', {
+                organizationUuid: 'org-1',
+                projectUuid: 'project-2',
+            });
+            can('manage', 'PersonalAccessToken', {
+                organizationUuid: 'org-1',
+            });
+            const user = {
+                ...userWithProjectAccess(),
+                ability: build(),
+            } as SessionUser;
+            const { service, model, featureFlagModel } = buildService();
+
+            await expect(
+                service.createRun({
+                    user,
+                    projectUuid: 'project-1',
+                    prompt: 'Investigate revenue',
+                }),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(featureFlagModel.get).not.toHaveBeenCalled();
+            expect(model.create).not.toHaveBeenCalled();
+        });
+
+        it('rejects run creation without project view permission', async () => {
+            const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
+            can('create', 'AiDeepResearch', {
+                organizationUuid: 'org-1',
+                projectUuid: 'project-1',
+            });
+            can('manage', 'PersonalAccessToken', {
+                organizationUuid: 'org-1',
+            });
+            const user = {
+                ...userWithProjectAccess(),
+                ability: build(),
+            } as SessionUser;
+            const { service, model, featureFlagModel } = buildService();
+
+            await expect(
+                service.createRun({
+                    user,
+                    projectUuid: 'project-1',
+                    prompt: 'Investigate revenue',
+                }),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(featureFlagModel.get).not.toHaveBeenCalled();
             expect(model.create).not.toHaveBeenCalled();
         });
 

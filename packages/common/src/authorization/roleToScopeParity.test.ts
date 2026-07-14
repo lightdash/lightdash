@@ -78,6 +78,7 @@ const ENTERPRISE_SUBJECTS = new Set([
     'OrganizationAiAgent',
     'AiAgentDocument',
     'AiAgentThread',
+    'AiDeepResearch',
     'ContentAsCode',
     'PreAggregation',
     'ExternalConnection',
