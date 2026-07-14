@@ -19,6 +19,7 @@ import {
     ParameterError,
     QueryHistoryStatus,
     RequestMethod,
+    resolveExportTabs,
     SCREENSHOT_SELECTORS,
     ScreenshotError,
     SessionStorageKeys,
@@ -29,6 +30,7 @@ import {
     validateSelectedTabs,
     type DashboardFilterRule,
     type DashboardFilters,
+    type DashboardTab,
     type ParametersValuesMap,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -68,6 +70,7 @@ import { getAuthenticationToken } from '../../routers/headlessBrowser';
 import { traceSpan } from '../../tracing/tracing';
 import { BaseService } from '../BaseService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
+import { mergePdfBuffers } from './pdfMerge';
 
 const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const uuidRegex = new RegExp(uuid, 'g');
@@ -712,6 +715,136 @@ export class UnfurlService extends BaseService {
             imageUrl,
             pdfFile,
         };
+    }
+
+    async unfurlPdfPerTab({
+        minimalUrl,
+        dashboardUuid,
+        imageId,
+        authUserUuid,
+        gridWidth,
+        context,
+        contextId,
+        selectedTabs,
+        sendNowSchedulerDashboardFilters,
+        sendNowSchedulerFilters,
+        sendNowSchedulerParameters,
+    }: {
+        minimalUrl: string;
+        dashboardUuid: string;
+        imageId: string;
+        authUserUuid: string;
+        gridWidth: number | undefined;
+        context: ScreenshotContext;
+        contextId?: unknown;
+        selectedTabs: string[] | null;
+        sendNowSchedulerDashboardFilters?: DashboardFilters;
+        sendNowSchedulerFilters?: DashboardFilterRule[];
+        sendNowSchedulerParameters?: ParametersValuesMap;
+    }): Promise<{
+        pdfFile: { source: string; fileName: string };
+        pdfPageCount: number;
+    }> {
+        return Sentry.startSpan(
+            {
+                op: 'unfurl.pdf_per_tab',
+                name: 'UnfurlService.unfurlPdfPerTab',
+            },
+            async (span) => {
+                const dashboard =
+                    await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+                const tabs = resolveExportTabs(dashboard.tabs, selectedTabs);
+                // Stale flag on an untabbed dashboard: behave exactly like today
+                // (single stacked render, no header).
+                const tabRenders: { tab: DashboardTab | null }[] =
+                    dashboard.tabs.length === 0
+                        ? [{ tab: null }]
+                        : tabs.map((tab) => ({ tab }));
+                if (tabRenders.length === 0) {
+                    throw new Error(
+                        `Page-per-tab PDF requested for dashboard ${dashboardUuid} but none of the selected tabs exist`,
+                    );
+                }
+
+                const cookie = await this.getUserCookie(authUserUuid);
+                const pdfBuffers: Buffer[] = [];
+
+                for (const [index, { tab }] of tabRenders.entries()) {
+                    const tabUrl = new URL(minimalUrl);
+                    if (tab) {
+                        // Orphan tiles (tabUuid null) always render on the first page
+                        const tabSelection: (string | null)[] =
+                            index === 0 ? [tab.uuid, null] : [tab.uuid];
+                        tabUrl.searchParams.set(
+                            'selectedTabs',
+                            JSON.stringify(tabSelection),
+                        );
+                        tabUrl.searchParams.set('exportHeader', 'true');
+                    }
+                    const tabSelectedTabs = tab ? [tab.uuid] : selectedTabs;
+
+                    // eslint-disable-next-line no-await-in-loop
+                    const details = await this.unfurlDetails(
+                        tabUrl.href,
+                        tabSelectedTabs,
+                    );
+
+                    // eslint-disable-next-line no-await-in-loop
+                    const result = await this.saveScreenshot({
+                        authUserUuid,
+                        imageId: `${imageId}-tab-${index}`,
+                        cookie,
+                        url: tabUrl.href,
+                        lightdashPage: LightdashPage.DASHBOARD,
+                        chartType: details?.chartType,
+                        organizationUuid: details?.organizationUuid,
+                        gridWidth,
+                        resourceUuid: details?.resourceUuid,
+                        resourceName: details?.title,
+                        chartTileUuids: details?.chartTileUuids,
+                        sqlChartTileUuids: details?.sqlChartTileUuids,
+                        loomTileUuids: details?.loomTileUuids,
+                        context,
+                        contextId,
+                        selectedTabs: tabSelectedTabs,
+                        sendNowSchedulerDashboardFilters,
+                        sendNowSchedulerFilters,
+                        sendNowSchedulerParameters,
+                        outputFormat: 'pdf',
+                        withPdf: false,
+                    });
+                    if (!result?.pdfBuffer) {
+                        throw new Error(
+                            `Unable to render PDF page for ${
+                                tab ? `tab "${tab.name}" of ` : ''
+                            }dashboard "${dashboard.name}"`,
+                        );
+                    }
+                    pdfBuffers.push(result.pdfBuffer);
+                }
+
+                const merged = await mergePdfBuffers(
+                    pdfBuffers,
+                    dashboard.name,
+                );
+                const pdfFile = await this.uploadPdf(
+                    imageId,
+                    merged,
+                    dashboard.name,
+                );
+
+                span.setAttributes({
+                    tabsCount: tabs.length,
+                    pdfPageCount: pdfBuffers.length,
+                    pagePerTab: true,
+                });
+                this.logger.info(
+                    `UnfurlService unfurlPdfPerTab rendered ${pdfBuffers.length} pages for dashboard ${dashboardUuid} - unfurlId: ${imageId}`,
+                );
+
+                return { pdfFile, pdfPageCount: pdfBuffers.length };
+            },
+        );
     }
 
     async exportDashboard(
