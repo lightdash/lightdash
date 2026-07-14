@@ -1,6 +1,6 @@
 ---
 name: developing-in-lightdash
-description: Use when working with Lightdash YAML files, dbt models with Lightdash metadata, the lightdash CLI (deploy, upload, download, preview, lint, sql, set-warehouse), or creating/editing charts, dashboards, metrics, and dimensions as code
+description: Use when working with Lightdash YAML files, dbt models with Lightdash metadata, the lightdash CLI (deploy, upload, download, preview, lint, warehouse-catalog, sql, set-warehouse), or creating/editing charts, dashboards, metrics, and dimensions as code
 ---
 
 # Developing in Lightdash
@@ -10,7 +10,7 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 ## When to Use
 
 - Working with Lightdash YAML files (charts, dashboards, models as code)
-- Using the `lightdash` CLI (`deploy`, `upload`, `download`, `preview`, `lint`, `sql`)
+- Using the `lightdash` CLI (`deploy`, `upload`, `download`, `preview`, `lint`, `warehouse-catalog`, `sql`)
 - Defining metrics, dimensions, joins, or tables in dbt or pure Lightdash projects
 - Creating or editing charts and dashboards as code
 
@@ -20,7 +20,8 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 
 | Task | Commands | References |
 |------|----------|------------|
-| Explore data warehouse | `lightdash sql` to execute raw sql, read .csv results | [CLI Reference](./resources/cli-reference.md) |
+| Discover warehouse tables and fields | `lightdash warehouse-catalog --json` | [CLI Reference](./resources/cli-reference.md) |
+| Explore data warehouse values | `lightdash sql` to execute raw sql, read .csv results | [CLI Reference](./resources/cli-reference.md) |
 | Define metrics & dimensions | Edit dbt YAML or Lightdash YAML | [Metrics](./resources/metrics-reference.md), [Dimensions](./resources/dimensions-reference.md) |
 | Create charts | `lightdash download`, edit YAML, `lightdash upload` | [Chart Types](#chart-types) |
 | Add period comparisons | Add PoP additional metrics to chart YAML | [Period over Period](./resources/period-over-period-reference.md) |
@@ -218,6 +219,7 @@ lightdash stop-preview --name "my-feature"
 | `lightdash download` | Download charts/dashboards as YAML |
 | `lightdash lint` | Validate YAML locally |
 | `lightdash preview` | Create temporary test project |
+| `lightdash warehouse-catalog --json` | Discover raw warehouse tables |
 | `lightdash sql "..." -o file.csv` | Run SQL queries against warehouse |
 | `lightdash run-chart -p chart.yml` | Execute chart YAML query against warehouse |
 

@@ -45,6 +45,7 @@ import { setProjectHandler, unsetProjectHandler } from './handlers/setProject';
 import { setWarehouseHandler } from './handlers/setWarehouse';
 import { sqlHandler } from './handlers/sql';
 import { validateHandler } from './handlers/validate';
+import { warehouseCatalogHandler } from './handlers/warehouseCatalog';
 import * as styles from './styles';
 // Trigger CLI tests
 // Suppress AWS SDK V2 warning, imported by snowflake SDK
@@ -1367,6 +1368,41 @@ ${styles.bold('Examples:')}
         'cli',
     )
     .action(lintHandler);
+
+program
+    .command('warehouse-catalog')
+    .description(
+        "Explore the selected project's raw warehouse databases, schemas, tables, and fields",
+    )
+    .option('--database <name>', 'Filter by exact database name')
+    .option('--schema <name>', 'Filter by exact schema name')
+    .option('--table <name>', 'Filter by exact table name')
+    .option(
+        '--include-fields',
+        'Include field names and Lightdash types for one fully qualified table',
+        false,
+    )
+    .option(
+        '--refresh',
+        'Refetch warehouse metadata and refresh the server catalog cache first',
+        false,
+    )
+    .option('--json', 'Emit machine-readable JSON instead of a table', false)
+    .option('--verbose', 'Show detailed output', false)
+    .addHelpText(
+        'after',
+        `
+${styles.bold('Examples:')}
+  ${styles.title('⚡')} lightdash ${styles.bold('warehouse-catalog')}
+  ${styles.title('⚡')} lightdash ${styles.bold(
+      'warehouse-catalog',
+  )} --database analytics --schema public
+  ${styles.title('⚡')} lightdash ${styles.bold(
+      'warehouse-catalog',
+  )} --database analytics --schema public --table orders --include-fields --json
+`,
+    )
+    .action(warehouseCatalogHandler);
 
 program
     .command('pre-aggregate-audit')
