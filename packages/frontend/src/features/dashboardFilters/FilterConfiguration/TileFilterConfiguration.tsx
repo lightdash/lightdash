@@ -3,7 +3,6 @@ import {
     isDashboardChartTileType,
     isDashboardFieldTarget,
     isDashboardSqlChartTile,
-    isField,
     matchFieldByType,
     matchFieldByTypeAndName,
     matchFieldExact,
@@ -37,6 +36,7 @@ import classes from './FilterConfiguration.module.css';
 import { getFilterTileRelation, getValidSqlColumnReferences } from './utils';
 
 type TileWithTargetFields = {
+    targetType: 'field';
     key: string;
     label: string;
     checked: boolean;
@@ -51,6 +51,7 @@ type TileWithTargetFields = {
 };
 
 type TileWithTargetColumns = {
+    targetType: 'sqlColumn';
     key: string;
     label: string;
     checked: boolean;
@@ -216,6 +217,7 @@ const TileFilterConfiguration: FC<Props> = ({
                         : false;
 
                     return {
+                        targetType: 'field',
                         key: tileUuid + index,
                         label: tileLabel,
                         checked: !!selectedField || !!invalidField,
@@ -283,6 +285,7 @@ const TileFilterConfiguration: FC<Props> = ({
                     tileLabel = tile.properties.title;
                 }
                 acc.push({
+                    targetType: 'sqlColumn',
                     key: tileUuid + index,
                     label: tileLabel,
                     checked: !!selectedField || !!invalidField,
@@ -512,14 +515,12 @@ const TileFilterConfiguration: FC<Props> = ({
                                     mt="sm"
                                     display={!value.checked ? 'none' : 'auto'}
                                 >
-                                    {isField(value.selectedField) ? (
+                                    {value.targetType === 'field' ? (
                                         <FieldSelect
                                             size="xs"
                                             disabled={!value.checked}
                                             item={value.selectedField}
-                                            items={
-                                                value.sortedFilters as Field[]
-                                            }
+                                            items={value.sortedFilters ?? []}
                                             comboboxProps={{
                                                 withinPortal:
                                                     popoverProps?.withinPortal,
@@ -555,10 +556,8 @@ const TileFilterConfiguration: FC<Props> = ({
                                             withScrollArea={false}
                                             leftSection={undefined}
                                             allowDeselect={false}
-                                            value={value.selectedField}
-                                            data={
-                                                value.sortedFilters as string[]
-                                            }
+                                            value={value.selectedField ?? null}
+                                            data={value.sortedFilters}
                                             onChange={(newField) => {
                                                 onChange(
                                                     FilterActions.ADD,
