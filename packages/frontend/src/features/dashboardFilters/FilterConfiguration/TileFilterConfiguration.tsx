@@ -560,7 +560,9 @@ const TileFilterConfiguration: FC<Props> = ({
                                                 withinPortal:
                                                     popoverProps?.withinPortal,
                                             }}
-                                            onDropdownOpen={popoverProps?.onOpen}
+                                            onDropdownOpen={
+                                                popoverProps?.onOpen
+                                            }
                                             onDropdownClose={
                                                 popoverProps?.onClose
                                             }
