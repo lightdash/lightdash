@@ -1,30 +1,14 @@
-import {
-    assertUnreachable,
-    type HomepageBlock,
-    type HomepageConfig,
-} from '@lightdash/common';
-import { Box, Group, Stack, useMantineColorScheme } from '@mantine-8/core';
-import MarkdownPreview from '@uiw/react-markdown-preview';
+import { type HomepageBlock, type HomepageConfig } from '@lightdash/common';
+import { Box, Group, Stack } from '@mantine-8/core';
 import { type FC } from 'react';
-import rehypeExternalLinks from 'rehype-external-links';
+import { getBlockDefinition } from './blocks/registry';
 
+// Unknown block types render nothing so newer configs degrade gracefully
 const BlockRenderer: FC<{ block: HomepageBlock }> = ({ block }) => {
-    const { colorScheme } = useMantineColorScheme();
-    switch (block.type) {
-        case 'markdown':
-            return (
-                <Box data-color-mode={colorScheme} w="100%">
-                    <MarkdownPreview
-                        source={block.config.content}
-                        rehypePlugins={[
-                            [rehypeExternalLinks, { target: '_blank' }],
-                        ]}
-                    />
-                </Box>
-            );
-        default:
-            return assertUnreachable(block.type, 'Unknown homepage block');
-    }
+    const definition = getBlockDefinition(block.type);
+    if (!definition) return null;
+    const { View } = definition;
+    return <View block={block} />;
 };
 
 type Props = {
