@@ -1938,6 +1938,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                baseUpdatedAt: { dataType: 'datetime', required: true },
                 draftConfig: { ref: 'HomepageConfig', required: true },
                 name: { dataType: 'string' },
             },

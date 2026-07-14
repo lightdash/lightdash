@@ -10,6 +10,7 @@ import {
     Title,
 } from '@mantine-8/core';
 import { IconArrowLeft } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useState, type FC } from 'react';
 import { useParams, useSearchParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -103,6 +104,8 @@ const CreateHomepageForm: FC<{
 export const HomepageBuilderPage: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [searchParams, setSearchParams] = useSearchParams();
+    const queryClient = useQueryClient();
+    const [editorEpoch, setEditorEpoch] = useState(0);
     const selectedHomepageUuid = searchParams.get('homepage') ?? undefined;
     const isCreating = searchParams.get('create') === '1';
     const { user } = useApp();
@@ -156,7 +159,7 @@ export const HomepageBuilderPage: FC = () => {
                 />
             ) : (
                 <HomepageEditor
-                    key={homepage.data.homepageUuid}
+                    key={`${homepage.data.homepageUuid}-${editorEpoch}`}
                     homepage={homepage.data}
                     projectUuid={projectUuid}
                     homepages={homepages.data ?? []}
@@ -165,6 +168,14 @@ export const HomepageBuilderPage: FC = () => {
                     }
                     onCreateNew={() => setSearchParams({ create: '1' })}
                     onDeleted={() => setSearchParams({})}
+                    onConflictReload={async () => {
+                        await queryClient.refetchQueries([
+                            'project_homepage',
+                            projectUuid,
+                            'builder',
+                        ]);
+                        setEditorEpoch((epoch) => epoch + 1);
+                    }}
                 />
             )}
         </Page>

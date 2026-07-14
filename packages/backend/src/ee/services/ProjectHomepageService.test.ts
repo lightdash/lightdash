@@ -223,6 +223,7 @@ describe('ProjectHomepageService', () => {
                         },
                     ],
                 },
+                baseUpdatedAt: NOW,
             }),
         ).rejects.toThrow(ParameterError);
     });
@@ -241,6 +242,7 @@ describe('ProjectHomepageService', () => {
         await expect(
             service.updateDraft(makeAdminUser(), PROJECT_UUID, HOMEPAGE_UUID, {
                 draftConfig: validConfig,
+                baseUpdatedAt: NOW,
             }),
         ).rejects.toThrow(NotFoundError);
     });

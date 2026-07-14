@@ -144,6 +144,8 @@ export type CreateProjectHomepageRequest = {
 export type UpdateProjectHomepageDraftRequest = {
     name?: string;
     draftConfig: HomepageConfig;
+    /** Compare-and-set token: the updatedAt the client based its edit on */
+    baseUpdatedAt: Date;
 };
 
 export type ApiProjectHomepageResponse = ApiSuccess<ProjectHomepage>;

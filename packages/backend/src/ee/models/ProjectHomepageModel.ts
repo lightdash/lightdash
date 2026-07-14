@@ -1,4 +1,5 @@
 import {
+    ConflictError,
     NotFoundError,
     type HomepageConfig,
     type HomepageRecentlyViewedItem,
@@ -106,10 +107,19 @@ export class ProjectHomepageModel {
 
     async updateDraft(
         homepageUuid: string,
-        update: { name?: string; draftConfig: HomepageConfig },
+        update: {
+            name?: string;
+            draftConfig: HomepageConfig;
+            baseUpdatedAt: Date;
+        },
     ): Promise<ProjectHomepage> {
         const [row] = await this.database(HomepagesTableName)
             .where({ homepage_uuid: homepageUuid })
+            // JS dates are ms-precision; Postgres stores µs — compare at ms
+            .whereRaw(
+                "date_trunc('milliseconds', updated_at) = date_trunc('milliseconds', ?::timestamp)",
+                [update.baseUpdatedAt],
+            )
             .update({
                 ...(update.name !== undefined ? { name: update.name } : {}),
                 draft_config: update.draftConfig,
@@ -117,6 +127,14 @@ export class ProjectHomepageModel {
             })
             .returning('*');
         if (!row) {
+            const exists = await this.database(HomepagesTableName)
+                .where({ homepage_uuid: homepageUuid })
+                .first();
+            if (exists) {
+                throw new ConflictError(
+                    'This homepage was changed somewhere else',
+                );
+            }
             throw new NotFoundError('Homepage not found');
         }
         return ProjectHomepageModel.mapDbHomepage(row);
