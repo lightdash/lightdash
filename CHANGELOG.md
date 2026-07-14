@@ -1,3 +1,10 @@
+## [0.3375.3](https://github.com/lightdash/lightdash/compare/0.3375.2...0.3375.3) (2026-07-14)
+
+
+### Bug Fixes
+
+* pivot row totals missing for rows beyond the first 500 index values ([#25507](https://github.com/lightdash/lightdash/issues/25507)) ([2f5a89f](https://github.com/lightdash/lightdash/commit/2f5a89f09fa1bed83ef7d9004ce01c4eca638e9f))
+
 ## [0.3375.2](https://github.com/lightdash/lightdash/compare/0.3375.1...0.3375.2) (2026-07-14)
 
 
