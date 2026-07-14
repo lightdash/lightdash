@@ -20,6 +20,7 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 
 | Task | Commands | References |
 |------|----------|------------|
+| Create a pure Lightdash project from warehouse metadata | Use Lightdash or an already-authenticated warehouse CLI to inspect catalog metadata and aggregate profiles | [Creating from a Warehouse Catalog](./resources/creating-from-warehouse-catalog.md) |
 | Discover warehouse tables and fields | `lightdash warehouse-catalog --json` | [CLI Reference](./resources/cli-reference.md) |
 | Explore data warehouse values | `lightdash sql` to execute raw sql, read .csv results | [CLI Reference](./resources/cli-reference.md) |
 | Define metrics & dimensions | Edit dbt YAML or Lightdash YAML | [Metrics](./resources/metrics-reference.md), [Dimensions](./resources/dimensions-reference.md) |
@@ -160,6 +161,10 @@ Read the CSV and use the **exact values** in your filter YAML. This applies to a
 4. **Deploy**: `lightdash deploy`
 
 See [Metrics Reference](./resources/metrics-reference.md) and [Dimensions Reference](./resources/dimensions-reference.md) for configuration options.
+
+### Creating a Pure Lightdash Project from a Warehouse Catalog
+
+When the prepared project has no usable dbt project and the task is to bootstrap a semantic layer from warehouse metadata, **always read and follow [Creating from a Warehouse Catalog](./resources/creating-from-warehouse-catalog.md) before inspecting data or writing YAML**. This applies whether warehouse access comes from the selected Lightdash project or an already-authenticated warehouse CLI such as Snowflake CLI or `bq`. Do not use that workflow when an existing dbt semantic layer can be extended.
 
 ### Editing Charts
 
@@ -337,6 +342,7 @@ See [Workflows Reference](./resources/workflows-reference.md) for detailed examp
 ## Resources
 
 ### Semantic Layer
+- [Creating from a Warehouse Catalog](./resources/creating-from-warehouse-catalog.md)
 - [Dimensions Reference](./resources/dimensions-reference.md)
 - [Metrics Reference](./resources/metrics-reference.md)
 - [Tables Reference](./resources/tables-reference.md)

@@ -102,3 +102,52 @@ describe('effective-dbt-sql skill content policy', () => {
         expect(body).toMatch(/does not prescribe|not in scope/);
     });
 });
+
+describe('developing-in-lightdash catalog workflow', () => {
+    const skillDir = path.join(SKILLS_DIR, 'developing-in-lightdash');
+    const skillMd = fs.readFileSync(path.join(skillDir, 'SKILL.md'), 'utf-8');
+    const workflowPath = path.join(
+        skillDir,
+        'resources',
+        'creating-from-warehouse-catalog.md',
+    );
+    const workflow = fs.readFileSync(workflowPath, 'utf-8');
+
+    it('routes catalog bootstrapping through the conditional workflow', () => {
+        expect(skillMd).toContain(
+            './resources/creating-from-warehouse-catalog.md',
+        );
+        expect(skillMd).toMatch(
+            /no usable dbt project[\s\S]*always read and follow/i,
+        );
+    });
+
+    it('keeps the workflow credential-safe, additive, and project-pinned', () => {
+        expect(workflow).toContain(
+            'Never request, read, print, copy, or edit warehouse credentials.',
+        );
+        expect(workflow).toContain(
+            'Immediately before deploy, the selected UUID must equal `EXPECTED_PROJECT_UUID`.',
+        );
+        expect(workflow).toContain(
+            'On reruns, merge into the existing model by name: update evidenced definitions, add missing definitions, and never duplicate a dimension, metric, join, or model.',
+        );
+        expect(workflow).toContain(
+            'A rerun with unchanged evidence should produce no YAML diff.',
+        );
+    });
+
+    it('supports existing Snowflake and GCP CLI connections safely', () => {
+        expect(workflow).toMatch(
+            /already-authenticated warehouse CLI session[^.]+for read-only metadata and aggregate queries\./,
+        );
+        expect(workflow).toContain('snow sql --format json');
+        expect(workflow).toContain('bq query --use_legacy_sql=false --dry_run');
+        expect(workflow).toContain(
+            'If there is no usable Lightdash catalog connection and the user has no authenticated warehouse CLI, stop: the catalog cannot be inspected safely, so this workflow cannot continue.',
+        );
+        expect(workflow).toContain(
+            'The direct CLI supplies evidence for the YAML; it does not configure the Lightdash project\'s warehouse connection.',
+        );
+    });
+});
