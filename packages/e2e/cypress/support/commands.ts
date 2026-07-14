@@ -145,10 +145,7 @@ Cypress.Commands.add(
     'selectMantine',
     (inputName: string, optionLabel: string) => {
         // Mantine 8 Select puts `name` on a hidden input right after the Select root
-        cy.get(`input[name="${inputName}"]`)
-            .prev()
-            .find('input')
-            .click(); // open dropdown
+        cy.get(`input[name="${inputName}"]`).prev().find('input').click(); // open dropdown
         cy.findByRole('option', { name: optionLabel }).click();
     },
 );
