@@ -12,7 +12,7 @@
         "outDir": "dist",
         "rootDir": "src",
         "composite": false,
-        "tsBuildInfoFile": "dist/.tsgo.tsbuildinfo",
+        "tsBuildInfoFile": "dist/.tsbuildinfo",
         "importHelpers": true,
         "isolatedModules": true,
         "experimentalDecorators": true,

@@ -2,7 +2,7 @@
     "extends": "./tsconfig.json",
     "compilerOptions": {
         "incremental": true,
-        "tsBuildInfoFile": "dist/.tsgo.tsbuildinfo"
+        "tsBuildInfoFile": "dist/.tsbuildinfo"
     },
     "include": ["src"],
     "exclude": ["src/**/*.test.ts"]

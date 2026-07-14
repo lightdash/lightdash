@@ -10,7 +10,7 @@
         "outDir": "dist/types",
         "rootDir": "src",
         "composite": true,
-        "tsBuildInfoFile": "dist/types/.tsgo.tsbuildinfo",
+        "tsBuildInfoFile": "dist/types/.tsbuildinfo",
         "importHelpers": true,
         "moduleResolution": "bundler",
         "paths": {
