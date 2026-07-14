@@ -172,6 +172,12 @@ export enum FeatureFlags {
     LockDashboardFilters = 'lock-dashboard-filters',
 
     /**
+     * Filter requirement groups + the guided locked-dashboard UX; off = legacy
+     * required-filter behavior and `requiredGroupId` is ignored.
+     */
+    DashboardFilterRequirements = 'dashboard-filter-requirements',
+
+    /**
      * Gate the "Schedule delivery" entry point for data apps. Disabled by
      * default while the screenshot pipeline is producing blank pages in
      * production. Enable per-org once the underlying rendering issue is

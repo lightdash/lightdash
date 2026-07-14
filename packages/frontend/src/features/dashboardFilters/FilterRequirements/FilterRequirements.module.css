@@ -1,0 +1,48 @@
+.requirementsButton {
+    border-style: dashed;
+}
+
+/* Yellow signals the requirement system; dark theme matches the design's
+   yellow-6 text, light theme uses yellow-9 for readable contrast */
+.requirementsButtonActive {
+    border-color: alpha(var(--mantine-color-yellow-6), 0.35);
+
+    @mixin light {
+        color: var(--mantine-color-yellow-9);
+        background-color: var(--mantine-color-yellow-0);
+    }
+    @mixin dark {
+        color: var(--mantine-color-yellow-6);
+        background-color: alpha(var(--mantine-color-yellow-9), 0.25);
+    }
+}
+
+.ruleRow {
+    padding: var(--mantine-spacing-xs);
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+}
+
+.memberChip {
+    padding: 2px 4px 2px 8px;
+    border: 1px solid alpha(var(--mantine-color-yellow-6), 0.35);
+    border-radius: 100px;
+    max-width: 100%;
+
+    @mixin light {
+        background-color: var(--mantine-color-yellow-0);
+    }
+    @mixin dark {
+        background-color: alpha(var(--mantine-color-yellow-6), 0.1);
+    }
+}
+
+.addFilterInput {
+    border-style: dashed;
+    border-radius: 100px;
+}
+
+.saveBar {
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+    border-top: 1px solid var(--mantine-color-default-border);
+}
