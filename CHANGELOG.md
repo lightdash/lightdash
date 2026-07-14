@@ -1,3 +1,10 @@
+## [0.3376.1](https://github.com/lightdash/lightdash/compare/0.3376.0...0.3376.1) (2026-07-14)
+
+
+### Bug Fixes
+
+* **ai-agents:** stop runSql tool calls crashing the agent chat bubble ([#25509](https://github.com/lightdash/lightdash/issues/25509)) ([46a872e](https://github.com/lightdash/lightdash/commit/46a872e1bdb6e1c405fb661d103353b8a94f8dfd)), closes [#25361](https://github.com/lightdash/lightdash/issues/25361) [#25508](https://github.com/lightdash/lightdash/issues/25508)
+
 # [0.3376.0](https://github.com/lightdash/lightdash/compare/0.3375.3...0.3376.0) (2026-07-14)
 
 
