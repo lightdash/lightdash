@@ -7,11 +7,13 @@ import { Button, Group, Select, Stack, Text, TextInput } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { IconKey } from '@tabler/icons-react';
 import { addDays } from 'date-fns';
+import { zodResolver } from 'mantine-form-zod-resolver';
 import { useMemo, type FC } from 'react';
-import Callout from '../../common/Callout';
-import MantineModal from '../../common/MantineModal';
+import { z } from 'zod';
 import { useServiceAccounts } from '../../../ee/features/serviceAccounts/useServiceAccounts';
 import useToaster from '../../../hooks/toaster/useToaster';
+import Callout from '../../common/Callout';
+import MantineModal from '../../common/MantineModal';
 
 export type GeneratedToken = {
     token: string;
@@ -70,12 +72,19 @@ export const GenerateTokenModal: FC<Props> = ({
     const { createAccount } = useServiceAccounts();
     const { showToastError } = useToaster();
 
+    const validationSchema = z.object({
+        description: z.string().min(1, { message: 'Description is required' }),
+        expiresAt: z.string(),
+        role: z.nativeEnum(ProjectMemberRole),
+    });
+
     const form = useForm({
         initialValues: {
             description: 'Semantic layer connection',
             expiresAt: '90',
             role: ProjectMemberRole.INTERACTIVE_VIEWER as ProjectMemberRole,
         },
+        validate: zodResolver(validationSchema),
     });
 
     const expiresLabel = useMemo(
@@ -170,11 +179,7 @@ export const GenerateTokenModal: FC<Props> = ({
                             Project · role
                         </Text>
                         <Group grow align="flex-start" wrap="nowrap">
-                            <TextInput
-                                readOnly
-                                value={projectName}
-                                disabled
-                            />
+                            <TextInput readOnly value={projectName} disabled />
                             <Select
                                 data={ROLE_OPTIONS}
                                 allowDeselect={false}

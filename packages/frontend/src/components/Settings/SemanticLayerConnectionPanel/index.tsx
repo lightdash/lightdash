@@ -295,7 +295,8 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
                                                     </Text>
                                                     <Text c="ldGray.6" fz="xs">
                                                         Generated for{' '}
-                                                        {generated.description} ·{' '}
+                                                        {generated.description}{' '}
+                                                        ·{' '}
                                                         {generated.expiresLabel}
                                                     </Text>
                                                 </Stack>
@@ -416,7 +417,9 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
                                 <Select
                                     label="SSL mode"
                                     description="SSL support is coming soon."
-                                    data={[{ value: 'disable', label: 'disable' }]}
+                                    data={[
+                                        { value: 'disable', label: 'disable' },
+                                    ]}
                                     value="disable"
                                     disabled
                                 />
