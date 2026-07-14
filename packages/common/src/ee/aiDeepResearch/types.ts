@@ -37,6 +37,21 @@ export type AiDeepResearchBudget = {
     maxResultRows: number;
 };
 
+export const AI_DEEP_RESEARCH_EFFORTS = [
+    'low',
+    'medium',
+    'high',
+    'xhigh',
+] as const;
+
+export type AiDeepResearchEffort = (typeof AI_DEEP_RESEARCH_EFFORTS)[number];
+
+export type AiDeepResearchRequestBody = {
+    prompt: string;
+    /** Server-owned execution budget tier. Defaults to medium. */
+    effort?: AiDeepResearchEffort;
+};
+
 export type AiDeepResearchConfidence = 'low' | 'medium' | 'high';
 
 export type AiDeepResearchEvidence = {

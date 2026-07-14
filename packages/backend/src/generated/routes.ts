@@ -23601,6 +23601,32 @@ const models: TsoaRoute.Models = {
         type: { ref: 'ApiSuccess_AiDeepResearchRun_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiDeepResearchEffort: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['high'] },
+                { dataType: 'enum', enums: ['medium'] },
+                { dataType: 'enum', enums: ['low'] },
+                { dataType: 'enum', enums: ['xhigh'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiDeepResearchRequestBody: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                effort: { ref: 'AiDeepResearchEffort' },
+                prompt: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     AiDeepResearchPhase: {
         dataType: 'refAlias',
         type: {
@@ -61094,6 +61120,73 @@ export function RegisterRoutes(app: Router) {
                     next,
                     validatedArgs,
                     successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsAiDeepResearchController_createRun: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'AiDeepResearchRequestBody',
+        },
+    };
+    app.post(
+        '/api/v1/ee/projects/:projectUuid/ai-deep-research',
+        ...fetchMiddlewares<RequestHandler>(AiDeepResearchController),
+        ...fetchMiddlewares<RequestHandler>(
+            AiDeepResearchController.prototype.createRun,
+        ),
+
+        async function AiDeepResearchController_createRun(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsAiDeepResearchController_createRun,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<AiDeepResearchController>(
+                        AiDeepResearchController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'createRun',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 202,
                 });
             } catch (err) {
                 return next(err);

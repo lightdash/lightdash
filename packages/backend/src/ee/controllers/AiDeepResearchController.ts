@@ -1,13 +1,14 @@
 import {
     assertRegisteredAccount,
+    type AiDeepResearchRequestBody,
     type ApiAiDeepResearchEventsResponse,
     type ApiAiDeepResearchRunResponse,
     type ApiErrorPayload,
     type UUID,
 } from '@lightdash/common';
 import {
+    Body,
     Get,
-    Hidden,
     Middlewares,
     OperationId,
     Path,
@@ -23,14 +24,44 @@ import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
+    unauthorisedInDemo,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
 import { AiDeepResearchService } from '../services/AiDeepResearchService/AiDeepResearchService';
 
 @Route('/api/v1/ee/projects/{projectUuid}/ai-deep-research')
-@Hidden()
 @Response<ApiErrorPayload>('default', 'Error')
 export class AiDeepResearchController extends BaseController {
+    /**
+     * Start a durable Deep Research investigation.
+     * @summary Start Deep Research run
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('202', 'Accepted')
+    @Post('/')
+    @OperationId('createAiDeepResearchRun')
+    async createRun(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Body() body: AiDeepResearchRequestBody,
+    ): Promise<ApiAiDeepResearchRunResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(202);
+        return {
+            status: 'ok',
+            results: await this.getAiDeepResearchService().createRun({
+                user: toSessionUser(req.account),
+                projectUuid,
+                prompt: body.prompt,
+                effort: body.effort,
+            }),
+        };
+    }
+
     /**
      * Get the durable state and result of a Deep Research run.
      * @summary Get Deep Research run
@@ -58,6 +89,8 @@ export class AiDeepResearchController extends BaseController {
 
     /**
      * List persisted progress for a Deep Research run in chronological order.
+     * Pass the returned cursor unchanged to receive only newer events. The
+     * cursor remains usable when no new events are available.
      * @summary List Deep Research events
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])

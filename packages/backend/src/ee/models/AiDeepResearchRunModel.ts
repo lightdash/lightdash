@@ -33,8 +33,12 @@ type CreateAiDeepResearchRun = {
 };
 
 type EventCursor = {
-    createdAt: Date;
+    createdAt: string;
     eventUuid: string;
+};
+
+export type DbAiDeepResearchEventWithCursor = DbAiDeepResearchEvent & {
+    cursor_created_at: string;
 };
 
 type Queryable = Knex | Knex.Transaction;
@@ -382,15 +386,22 @@ export class AiDeepResearchRunModel {
         aiDeepResearchRunUuid: string;
         cursor: EventCursor | null;
         limit: number;
-    }): Promise<DbAiDeepResearchEvent[]> {
+    }): Promise<DbAiDeepResearchEventWithCursor[]> {
         const query = this.database<AiDeepResearchEventsTable>(
             AiDeepResearchEventsTableName,
-        ).where('ai_deep_research_run_uuid', args.aiDeepResearchRunUuid);
+        )
+            .select(
+                '*',
+                this.database.raw(
+                    `to_char(created_at, 'YYYY-MM-DD HH24:MI:SS.US') as cursor_created_at`,
+                ),
+            )
+            .where('ai_deep_research_run_uuid', args.aiDeepResearchRunUuid);
 
         const pageQuery = args.cursor
             ? query.andWhere(
                   this.database.raw(
-                      '(created_at, ai_deep_research_event_uuid) > (?, ?)',
+                      '(created_at, ai_deep_research_event_uuid) > (?::timestamp, ?::uuid)',
                       [args.cursor.createdAt, args.cursor.eventUuid],
                   ),
               )
