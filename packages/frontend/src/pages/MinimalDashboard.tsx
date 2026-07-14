@@ -13,6 +13,7 @@ import {
     isTileInSelectedTabs,
     SessionStorageKeys,
 } from '@lightdash/common';
+import { Stack, Text, Title } from '@mantine-8/core';
 import { useSessionStorage } from '@mantine/hooks';
 import { IconLayoutDashboard } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
@@ -64,6 +65,7 @@ type MinimalDashboardContentProps = {
     canNavigateBetweenTabs: boolean;
     tabsWithUrls: TabWithUrls[];
     activeTab: DashboardTab | null;
+    exportHeaderTab: DashboardTab | null;
 };
 
 const renderDashboardTile = (tile: Dashboard['tiles'][number]) => {
@@ -146,6 +148,7 @@ const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
     canNavigateBetweenTabs,
     tabsWithUrls,
     activeTab,
+    exportHeaderTab,
 }) => {
     const dashboard = useDashboardContext((c) => c.dashboard);
     const isDashboardLoading = useDashboardContext((c) => c.isDashboardLoading);
@@ -206,46 +209,52 @@ const MinimalDashboardContent: FC<MinimalDashboardContentProps> = ({
                 />
             )}
 
-            {isTabEmpty ? (
-                <SuboptimalState
-                    icon={IconLayoutDashboard}
-                    title="Tab is empty"
-                    mt="40px"
-                />
-            ) : (
-                // Wrapper is the deterministic screenshot/PDF target used by
-                // UnfurlService — it must encompass all grids so multi-tab
-                // exports are captured fully.
-                <div className={DASHBOARD_GRID_CLASS}>
-                    {tabGroups ? (
-                        // Multi-tab export: one grid per tab so each tab
-                        // keeps its own y=0 origin and react-grid-layout's
-                        // vertical compact cannot flow tiles from one tab
-                        // into another tab's empty cells.
-                        tabGroups.map((group) => (
-                            <ResponsiveGridLayout
-                                key={group.key}
-                                {...gridProps}
-                                layouts={group.layouts}
-                            >
-                                {group.tiles.map((tile) => (
-                                    <div key={tile.uuid}>
-                                        {renderDashboardTile(tile)}
-                                    </div>
-                                ))}
-                            </ResponsiveGridLayout>
-                        ))
-                    ) : (
-                        <ResponsiveGridLayout {...gridProps} layouts={layouts}>
-                            {filteredAndSortedDashboardTiles.map((tile) => (
+            {/* Wrapper is the deterministic screenshot/PDF target used by
+                UnfurlService — it must encompass all grids (and the empty
+                state) so multi-tab exports are captured fully. */}
+            <div className={DASHBOARD_GRID_CLASS}>
+                {exportHeaderTab && dashboard && (
+                    <Stack gap={0} p="md">
+                        <Title order={3}>{dashboard.name}</Title>
+                        <Text size="sm" c="ldGray.6">
+                            {exportHeaderTab.name}
+                        </Text>
+                    </Stack>
+                )}
+                {isTabEmpty ? (
+                    <SuboptimalState
+                        icon={IconLayoutDashboard}
+                        title="Tab is empty"
+                        mt="40px"
+                    />
+                ) : tabGroups ? (
+                    // Multi-tab export: one grid per tab so each tab
+                    // keeps its own y=0 origin and react-grid-layout's
+                    // vertical compact cannot flow tiles from one tab
+                    // into another tab's empty cells.
+                    tabGroups.map((group) => (
+                        <ResponsiveGridLayout
+                            key={group.key}
+                            {...gridProps}
+                            layouts={group.layouts}
+                        >
+                            {group.tiles.map((tile) => (
                                 <div key={tile.uuid}>
                                     {renderDashboardTile(tile)}
                                 </div>
                             ))}
                         </ResponsiveGridLayout>
-                    )}
-                </div>
-            )}
+                    ))
+                ) : (
+                    <ResponsiveGridLayout {...gridProps} layouts={layouts}>
+                        {filteredAndSortedDashboardTiles.map((tile) => (
+                            <div key={tile.uuid}>
+                                {renderDashboardTile(tile)}
+                            </div>
+                        ))}
+                    </ResponsiveGridLayout>
+                )}
+            </div>
 
             <ScreenshotProgressIndicator
                 expectedTileUuids={expectedScreenshotTileUuids}
@@ -347,6 +356,20 @@ const MinimalDashboard: FC = () => {
         }
         return undefined;
     }, [schedulerTabs]);
+
+    const showExportHeader = useSearchParams('exportHeader') === 'true';
+
+    // Header renders only for single-tab export renders (per-tab PDF pages).
+    // The orphan-tile marker `null` may accompany the first tab's uuid.
+    const exportHeaderTab = useMemo(() => {
+        if (!showExportHeader || !schedulerTabsSelected || !dashboard)
+            return null;
+        const tabUuids = (schedulerTabsSelected as (string | null)[]).filter(
+            (t): t is string => t !== null,
+        );
+        if (tabUuids.length !== 1) return null;
+        return dashboard.tabs.find((tab) => tab.uuid === tabUuids[0]) ?? null;
+    }, [showExportHeader, schedulerTabsSelected, dashboard]);
 
     const generateTabUrl = useCallback(
         (tabId: string) =>
@@ -542,6 +565,7 @@ const MinimalDashboard: FC = () => {
                 canNavigateBetweenTabs={canNavigateBetweenTabs}
                 tabsWithUrls={tabsWithUrls}
                 activeTab={activeTab}
+                exportHeaderTab={exportHeaderTab}
             />
         </DashboardProvider>
     );
