@@ -1,12 +1,13 @@
 import { type OrganizationWarehouseCredentials } from '@lightdash/common';
 import {
+    Box,
     Button,
     Group,
     LoadingOverlay,
     Stack,
     Text,
     Title,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { IconDatabaseCog, IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useOrganizationWarehouseCredentials } from '../../../hooks/organization/useOrganizationWarehouseCredentials';
@@ -29,15 +30,19 @@ export const OrganizationWarehouseCredentialsPanel = () => {
     ] = useState<OrganizationWarehouseCredentials | undefined>(undefined);
 
     if (isLoading) {
-        return <LoadingOverlay visible={isLoading} />;
+        return (
+            <Box pos="relative" mih={120}>
+                <LoadingOverlay visible={isLoading} />
+            </Box>
+        );
     }
     return (
         <>
             <Stack mb="lg">
                 {credentials && credentials.length > 0 ? (
                     <>
-                        <Group position="apart">
-                            <Stack spacing="one">
+                        <Group justify="space-between">
+                            <Stack gap="one">
                                 <Title order={5}>
                                     Organization warehouse credentials
                                 </Title>
@@ -48,7 +53,7 @@ export const OrganizationWarehouseCredentialsPanel = () => {
                             </Stack>
                             <Button
                                 size="xs"
-                                leftIcon={<MantineIcon icon={IconPlus} />}
+                                leftSection={<MantineIcon icon={IconPlus} />}
                                 onClick={() => setIsCreatingCredentials(true)}
                             >
                                 Add new credentials

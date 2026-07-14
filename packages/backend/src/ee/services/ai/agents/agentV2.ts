@@ -15,6 +15,10 @@ import {
     type Output,
     type ToolSet,
 } from 'ai';
+import {
+    emitAiUsage,
+    languageModelUsageToTokens,
+} from '../../../../analytics/aiUsage';
 import Logger from '../../../../logging/logger';
 import { getSystemPromptV2 } from '../prompts/systemV2';
 import { getAnalyzeFieldImpact } from '../tools/analyzeFieldImpact';
@@ -54,6 +58,7 @@ import { getLoadProjectContext } from '../tools/loadProjectContext';
 import { getLoadSkill } from '../tools/loadSkill';
 import { getReadContent } from '../tools/readContent';
 import { getReadPinnedThread } from '../tools/readPinnedThread';
+import { getResolveUrl } from '../tools/resolveUrl';
 import { getRunContentQuery } from '../tools/runContentQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
@@ -72,7 +77,11 @@ import {
     AiAgentStepCapReachedError,
     getUserFacingErrorMessage,
 } from '../utils/errorMessages';
-import { summarizeToolCall, summarizeToolResult } from '../utils/toolSummaries';
+import {
+    isPendingToolResult,
+    summarizeToolCall,
+    summarizeToolResult,
+} from '../utils/toolSummaries';
 import { getDiscoverFields } from './discoverFields/tool';
 import { buildQueryRetryStepOverride } from './queryRetryCap';
 import { getAgentTelemetryConfig, getAiAgentModelName } from './telemetry';
@@ -382,6 +391,10 @@ export const getAgentTools = (
         readContent: dependencies.readContent,
     });
 
+    const resolveUrl = getResolveUrl({
+        resolveUrl: dependencies.resolveUrl,
+    });
+
     const generateVisualization = getGenerateVisualization({
         updateProgress: dependencies.updateProgress,
         runAsyncQuery: dependencies.runAsyncQuery,
@@ -588,12 +601,13 @@ export const getAgentTools = (
         ...(grepFields ? { grepFields } : { discoverFields }),
         ...(getMetadata ? { getMetadata } : {}),
         analyzeFieldImpact,
-        ...(args.enableSearchSemanticLayer ? { searchSemanticLayer } : {}),
+        searchSemanticLayer,
         listProjects,
         getProjectInfo,
         listKnowledgeDocuments,
         getKnowledgeDocumentContent,
         readPinnedThread,
+        resolveUrl,
         ...(enableContentTools
             ? {
                   readContent,
@@ -729,7 +743,6 @@ const getAgentMessages = (
             knowledgeDocuments: args.knowledgeDocuments,
             hasProjectContext,
             enableDataAccess: args.enableDataAccess,
-            enableSearchSemanticLayer: args.enableSearchSemanticLayer,
             enableAiWriteback: args.enableAiWriteback,
             writebackAttribution: args.writebackAttribution,
             enableCodingAgent: args.enableCodingAgent,
@@ -834,6 +847,10 @@ export const generateAgentResponse = async ({
             tools,
             logger,
         });
+        const telemetry = getAgentTelemetryConfig(
+            'generateAgentResponse',
+            args,
+        );
         const result = await generateText({
             ...defaultAgentOptions,
             ...args.callOptions,
@@ -934,7 +951,11 @@ export const generateAgentResponse = async ({
                                         ),
                                         toolResult.toolName,
                                         toolResult.toolCallId,
-                                        'complete',
+                                        isPendingToolResult(
+                                            toolResult.output as AnyType,
+                                        )
+                                            ? 'in_progress'
+                                            : 'complete',
                                     )
                                     .catch((error) => {
                                         Logger.debug(
@@ -961,11 +982,10 @@ export const generateAgentResponse = async ({
                     promptUuid: args.promptUuid,
                 });
             },
-            experimental_telemetry: getAgentTelemetryConfig(
-                'generateAgentResponse',
-                args,
-            ),
+            experimental_telemetry: telemetry,
         });
+
+        emitAiUsage(telemetry, languageModelUsageToTokens(result.totalUsage));
 
         logger(
             'Generate Agent Response',
@@ -1094,6 +1114,7 @@ export const streamAgentResponse = async ({
             }
             return interrupted;
         };
+        const telemetry = getAgentTelemetryConfig('streamAgentResponse', args);
         const result = streamText({
             ...defaultAgentOptions,
             ...args.callOptions,
@@ -1220,7 +1241,11 @@ export const streamAgentResponse = async ({
                                 ),
                                 event.chunk.toolName,
                                 event.chunk.toolCallId,
-                                'complete',
+                                isPendingToolResult(
+                                    event.chunk.output as AnyType,
+                                )
+                                    ? 'in_progress'
+                                    : 'complete',
                             )
                             .catch((error) => {
                                 Logger.debug(
@@ -1303,7 +1328,14 @@ export const streamAgentResponse = async ({
                         });
                 }
             },
-            onFinish: async ({ usage, steps, reasoning, finishReason }) => {
+            onFinish: async ({
+                usage,
+                totalUsage,
+                steps,
+                reasoning,
+                finishReason,
+            }) => {
+                emitAiUsage(telemetry, languageModelUsageToTokens(totalUsage));
                 logger(
                     'On Finish',
                     `Stream finished. Updating prompt with response. finishReason: ${finishReason}, steps: ${steps.length}`,
@@ -1348,7 +1380,7 @@ export const streamAgentResponse = async ({
                         projectId: args.agentSettings.projectUuid,
                         aiAgentId: args.agentSettings.uuid,
                         agentName: args.agentSettings.name,
-                        usageTokensCount: usage.totalTokens ?? 0,
+                        usageTokensCount: totalUsage.totalTokens ?? 0,
                         stepsCount: steps.length,
                         model:
                             typeof args.model === 'string'
@@ -1402,10 +1434,7 @@ export const streamAgentResponse = async ({
 
                 void cleanupMcpClients();
             },
-            experimental_telemetry: getAgentTelemetryConfig(
-                'streamAgentResponse',
-                args,
-            ),
+            experimental_telemetry: telemetry,
         });
 
         logger('Stream Agent Response', 'Returning stream result.');

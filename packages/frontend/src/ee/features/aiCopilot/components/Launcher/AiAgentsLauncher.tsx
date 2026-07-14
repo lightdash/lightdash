@@ -4,7 +4,10 @@ import { useEffect, useRef, type FC } from 'react';
 import { useMatches } from 'react-router';
 import { useActiveProjectUuid } from '../../../../../hooks/useActiveProject';
 import { useAiAgentButtonVisibility } from '../../hooks/useAiAgentsButtonVisibility';
-import { resetActivePanel } from '../../store/aiAgentLauncherSlice';
+import {
+    resetActivePanel,
+    setActiveAgent,
+} from '../../store/aiAgentLauncherSlice';
 import {
     useAiAgentStoreDispatch,
     useAiAgentStoreSelector,
@@ -12,6 +15,7 @@ import {
 import { AiSavedChartPreviewPanel } from '../ChatElements/AiSavedChartPreviewPanel';
 import styles from './AiAgentsLauncher.module.css';
 import {
+    getLauncherAgentUuid,
     getLauncherPanelAgent,
     isLauncherAgentAvailable,
 } from './launcherAgentSelection';
@@ -44,7 +48,8 @@ const AiAgentsLauncherInner: FC = () => {
 
     const isAiAgentEnabled = useAiAgentButtonVisibility();
 
-    const { agents, selectedAgent } = useDefaultAiAgent(activeProjectUuid);
+    const { agents, selectedAgent, isResolving } =
+        useDefaultAiAgent(activeProjectUuid);
 
     const dispatch = useAiAgentStoreDispatch();
     const mode = useAiAgentStoreSelector((state) => state.aiAgentLauncher.mode);
@@ -56,6 +61,9 @@ const AiAgentsLauncherInner: FC = () => {
     );
     const savedChartPreview = useAiAgentStoreSelector(
         (state) => state.aiArtifact.savedChart,
+    );
+    const currentDashboard = useAiAgentStoreSelector(
+        (state) => state.aiAgentLauncher.currentDashboard,
     );
     const { dock } = useLauncherDock(activeProjectUuid);
 
@@ -84,6 +92,29 @@ const AiAgentsLauncherInner: FC = () => {
             dispatch(resetActivePanel());
         }
     }, [activeAgentUuid, agents, dispatch, selectedAgent]);
+
+    useEffect(() => {
+        if (
+            mode !== 'panel-open' ||
+            activeAgentUuid !== null ||
+            activeThreadId !== null ||
+            isResolving ||
+            !selectedAgent
+        ) {
+            return;
+        }
+        const resolvedAgentUuid = getLauncherAgentUuid(selectedAgent);
+        if (resolvedAgentUuid) {
+            dispatch(setActiveAgent(resolvedAgentUuid));
+        }
+    }, [
+        mode,
+        activeAgentUuid,
+        activeThreadId,
+        isResolving,
+        selectedAgent,
+        dispatch,
+    ]);
 
     const isAllowed =
         Boolean(activeProjectUuid) && isAiAgentEnabled && agents.length > 0;
@@ -120,17 +151,26 @@ const AiAgentsLauncherInner: FC = () => {
     }
     const transitionSavedChartPreview =
         activeSavedChartPreview ?? lastSavedChartPreviewRef.current;
+    const isDashboardPage = currentDashboard?.projectUuid === activeProjectUuid;
 
-    // The launcher has no persistent affordance: it appears only when the
-    // user opens a panel (via AskAiAgentMenuItem) or has active dock items.
     if (!isAllowed || !activeProjectUuid) return null;
-    if (!isPanelOpenSafe && dock.length === 0) return null;
+    if (
+        !isPanelOpenSafe &&
+        dock.length === 0 &&
+        (!selectedAgent || !isDashboardPage)
+    ) {
+        return null;
+    }
 
     const panelAgent = getLauncherPanelAgent(safeActiveAgentUuid, agents);
 
     return (
         <div className={styles.root}>
-            <LauncherDock projectUuid={activeProjectUuid} agents={agents} />
+            <LauncherDock
+                projectUuid={activeProjectUuid}
+                agents={agents}
+                selectedAgent={selectedAgent}
+            />
             {transitionSavedChartPreview && (
                 <Transition
                     mounted={

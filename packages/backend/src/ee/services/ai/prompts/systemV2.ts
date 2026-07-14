@@ -1,6 +1,5 @@
 import {
-    AiAgentDocumentStructuredSummary,
-    AiAgentDocumentSummary,
+    AiAgentDocumentContext,
     AiWritebackAttribution,
     Explore,
     WarehouseTypes,
@@ -27,17 +26,22 @@ import { SEARCH_SEMANTIC_LAYER_SECTION } from './systemV2SearchSemanticLayer';
 import { renderAvailableSkills } from './systemV2Skills';
 import { SYSTEM_PROMPT_TEMPLATE } from './systemV2Template';
 
+const escapeXmlText = (value: string): string =>
+    value
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;');
+
 export const getSystemPromptV2 = (args: {
     availableExplores: Explore[];
     availableSkills?: AiAgentSkillReference[];
-    knowledgeDocuments?: AiAgentDocumentSummary[];
+    knowledgeDocuments?: AiAgentDocumentContext[];
     hasProjectContext?: boolean;
     instructions?: string;
     agentName?: string;
     requestingUser?: AiAgentRequestingUser | null;
     date?: string;
     enableDataAccess?: boolean;
-    enableSearchSemanticLayer?: boolean;
     enableAiWriteback?: boolean;
     writebackAttribution?: AiWritebackAttribution | null;
     enableCodingAgent?: boolean;
@@ -62,7 +66,6 @@ export const getSystemPromptV2 = (args: {
         requestingUser = null,
         date = moment().utc().format('YYYY-MM-DD'),
         enableDataAccess = false,
-        enableSearchSemanticLayer = false,
         enableAiWriteback = false,
         writebackAttribution = null,
         enableCodingAgent = false,
@@ -86,7 +89,7 @@ export const getSystemPromptV2 = (args: {
         ? ''
         : '\n- You cannot execute raw SQL or add custom SQL expressions to a query.';
 
-    const renderKnowledgeDocument = (doc: AiAgentDocumentSummary): string => {
+    const renderKnowledgeDocument = (doc: AiAgentDocumentContext): string => {
         const { summary } = doc;
         const children: string[] = [
             xmlBuilder('description', null, summary.description),
@@ -111,12 +114,21 @@ export const getSystemPromptV2 = (args: {
         if (summary.warning) {
             children.push(xmlBuilder('warning', null, summary.warning));
         }
+        const fullContent = doc.content ?? '';
+        const hasFullContent =
+            doc.alwaysIncludeInContext && fullContent.length > 0;
+        if (hasFullContent) {
+            children.push(
+                xmlBuilder('full_content', null, escapeXmlText(fullContent)),
+            );
+        }
         return xmlBuilder(
             'knowledge_document',
             {
                 uuid: doc.uuid,
                 name: doc.name,
                 relevance: summary.relevance,
+                full_content_included: hasFullContent,
             },
             ...children,
         );
@@ -175,7 +187,7 @@ export const getSystemPromptV2 = (args: {
         )
         .replace(
             '{{search_semantic_layer_section}}',
-            enableSearchSemanticLayer ? SEARCH_SEMANTIC_LAYER_SECTION : '',
+            SEARCH_SEMANTIC_LAYER_SECTION,
         )
         .replace(
             '{{data_access_section}}',
@@ -227,7 +239,10 @@ export const getSystemPromptV2 = (args: {
               '- The user message may already include a "Candidate fields pre-grepped from the catalog" block. Read it FIRST — if it contains the fields you need, use them directly and skip calling grepFields. Only call grepFields when those candidates do not cover the question or you need a different angle.',
               '- When you do call grepFields, pass several patterns in ONE call (the `patterns` array) covering the different angles of the question at once — e.g. `["revenue|sales", "country|region"]`. Do not grep one pattern, wait, then grep another.',
               '- Use meaningful keywords, not long natural-language phrases. Read the returned fieldIds and pick the single explore that answers at the right grain before building a query.',
-              "- Once you have narrowed down to the explore(s) and field(s) you intend to use, call `getMetadata` (batching all of them in one call) to get the detail you need to build a correct query — an explore's joined tables and required filters, and a field's filter type, case-sensitivity and hints. grepFields tells you what exists; getMetadata tells you how to use it.",
+              "- Once you have narrowed down to the explore(s) and field(s) you intend to use, call `getMetadata` (batching all of them in one call) to get the detail you need to build a correct query — an explore's joined tables and table filters, and a field's filter type, case-sensitivity, default time dimension and hints. grepFields tells you what exists; getMetadata tells you how to use it.",
+              "- Respect a metric's default time dimension, if it has one, unless the user explicitly requests a different time dimension.",
+              '- Table filters marked `required` are hard constraints: they are always applied to queries on that table. You may provide a compatible filter on the same field when the user asks for a specific range, e.g. if `created_at inThePast [4 weeks]` is required, `created_at inThePast [10 months]` or `created_at inThePast [2 days]` is compatible.',
+              '- Table filters marked `suggested` are soft suggestions: apply them unless the user asks for a different range or scope.',
               '- If your literal patterns miss, grepFields automatically returns the closest catalog matches (fuzzy search, verified fields first) under "No exact grep matches" — use those rather than re-grepping a long list of synonyms.',
               '- Once you have the fieldIds you need, build the query. Do NOT re-grep for fields you already found, and do not call grepFields again between generateVisualization attempts — if a query fails, fix the query itself (filters, metric, grain), not the discovery. If you need a filter value you are unsure of (e.g. which status string exists), use searchFieldValues rather than guessing.',
           ].join('\n')

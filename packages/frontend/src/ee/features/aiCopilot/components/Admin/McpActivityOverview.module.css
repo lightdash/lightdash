@@ -1,0 +1,172 @@
+/* Container-based (not viewport-based) so the rail responds to the actual
+   content width, which changes when the settings sidebar collapses */
+.layout {
+    container-type: inline-size;
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-md);
+}
+
+.strip {
+    display: none;
+}
+
+.columns {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--mantine-spacing-md);
+}
+
+.tableArea {
+    flex: 1;
+    min-width: 0;
+}
+
+.rail {
+    width: 300px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-md);
+    position: sticky;
+    top: var(--mantine-spacing-md);
+}
+
+/* Narrow: tiles become a strip above the table and the cards re-flow into
+   a grid below it, so the table keeps priority but nothing is lost */
+@container (max-width: 65em) {
+    .columns {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .rail {
+        width: 100%;
+        position: static;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        order: -1;
+    }
+
+    .rail .tileRow {
+        display: none;
+    }
+
+    /* Full-width row so long error messages keep a comfortable measure */
+    .rail > *:last-child {
+        grid-column: 1 / -1;
+    }
+
+    .strip {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: var(--mantine-spacing-md);
+    }
+}
+
+@container (max-width: 40em) {
+    .rail {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.tileRow {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--mantine-spacing-xs);
+}
+
+/* Matches the border/radius/shadow McpActivityTable sets on its paper */
+.card {
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: var(--mantine-spacing-sm);
+    box-shadow: var(--mantine-shadow-subtle);
+}
+
+/* Radius only — border and background come from Paper's dotted variant */
+.dottedCard {
+    border-radius: var(--mantine-spacing-sm);
+}
+
+.statLabel {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--mantine-color-ldGray-6);
+}
+
+.statValue {
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 1.4;
+    font-variant-numeric: tabular-nums;
+}
+
+.num {
+    font-variant-numeric: tabular-nums;
+    flex-shrink: 0;
+}
+
+.truncatingGroup {
+    min-width: 0;
+}
+
+.noShrink {
+    flex-shrink: 0;
+}
+
+.barTrack {
+    height: 3px;
+    border-radius: 2px;
+    background: var(--mantine-color-ldGray-2);
+    overflow: hidden;
+}
+
+.barFill {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--mantine-color-ldGray-5);
+    width: var(--tool-share);
+}
+
+.agentDot,
+.errorDot,
+.okDot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.agentDot {
+    background: var(--mantine-color-ldGray-4);
+}
+
+.errorDot {
+    background: var(--mantine-color-red-6);
+}
+
+.okDot {
+    background: var(--mantine-color-green-6);
+}
+
+.errorRow {
+    display: block;
+    width: 100%;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+    text-align: left;
+}
+
+.errorRow + .errorRow {
+    border-top: 1px solid var(--mantine-color-ldGray-2);
+}
+
+.errorRow:hover {
+    background: var(--mantine-color-ldGray-0);
+}
+
+.errorRow:focus-visible {
+    outline: 2px solid var(--mantine-color-blue-5);
+    outline-offset: -2px;
+}

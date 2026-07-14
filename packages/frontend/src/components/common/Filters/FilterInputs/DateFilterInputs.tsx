@@ -10,7 +10,8 @@ import {
     type BaseFilterRule,
     type DateFilterRule,
 } from '@lightdash/common';
-import { Flex, NumberInput, Text } from '@mantine/core';
+import { Flex, Text } from '@mantine-8/core';
+import { NumberInput } from '@mantine/core';
 import dayjs from 'dayjs';
 import { type FilterInputsProps } from '.';
 import useFiltersContext from '../useFiltersContext';
@@ -67,8 +68,8 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                         return (
                             <Flex align="center" gap="xs" w="100%">
                                 <Text
-                                    color="dimmed"
-                                    sx={{ whiteSpace: 'nowrap' }}
+                                    c="dimmed"
+                                    style={{ whiteSpace: 'nowrap' }}
                                     size="xs"
                                 >
                                     week commencing
@@ -286,7 +287,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
 
                     <FilterUnitOfTimeAutoComplete
                         disabled={disabled}
-                        sx={{ flexShrink: 1, flexGrow: 3 }}
+                        style={{ flexShrink: 1, flexGrow: 3 }}
                         isTimestamp={isTimestamp}
                         minUnitOfTime={
                             isDimension(field) && field.timeInterval
@@ -295,7 +296,9 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                         }
                         unitOfTime={rule.settings?.unitOfTime}
                         completed={rule.settings?.completed || false}
-                        withinPortal={popoverProps?.withinPortal}
+                        comboboxProps={{
+                            withinPortal: popoverProps?.withinPortal,
+                        }}
                         onDropdownOpen={popoverProps?.onOpen}
                         onDropdownClose={popoverProps?.onClose}
                         onChange={(value) =>
@@ -327,7 +330,9 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                     showCompletedOptions={false}
                     data-autofocus={!rule.settings?.unitOfTime || undefined}
                     completed={false}
-                    withinPortal={popoverProps?.withinPortal}
+                    comboboxProps={{
+                        withinPortal: popoverProps?.withinPortal,
+                    }}
                     onDropdownOpen={popoverProps?.onOpen}
                     onDropdownClose={popoverProps?.onClose}
                     onChange={(value) =>

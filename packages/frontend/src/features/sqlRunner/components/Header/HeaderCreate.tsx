@@ -1,15 +1,7 @@
 import { subject } from '@casl/ability';
 import { DbtProjectType } from '@lightdash/common';
-import {
-    ActionIcon,
-    Button,
-    Group,
-    Menu,
-    Paper,
-    Stack,
-    Text,
-    Tooltip,
-} from '@mantine/core';
+import { Group, Paper, Stack, Text, Button, ActionIcon } from '@mantine-8/core';
+import { Menu, Tooltip } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import {
     IconBrandGithub,
@@ -40,6 +32,7 @@ import {
 import { ChartErrorsAlert } from '../ChartErrorsAlert';
 import { SaveSqlChartModal } from '../SaveSqlChartModal';
 import { WriteBackToDbtModal } from '../WriteBackToDbtModal';
+import headerStyles from './HeaderPaper.module.css';
 
 type CtaAction = 'save' | 'createVirtualView' | 'writeBackToDbt';
 
@@ -269,16 +262,10 @@ export const HeaderCreate: FC = () => {
                 withBorder={false}
                 px="md"
                 py="xs"
-                sx={(theme) => ({
-                    borderBottom: `1px solid ${
-                        theme.colorScheme === 'dark'
-                            ? theme.colors.ldDark[8]
-                            : theme.colors.ldGray[3]
-                    }`,
-                })}
+                className={headerStyles.paper}
             >
-                <Group position="apart">
-                    <Group spacing="two">
+                <Group justify="space-between">
+                    <Group gap="two">
                         {hasAnyAction && (
                             <EditableText
                                 size="md"
@@ -292,13 +279,13 @@ export const HeaderCreate: FC = () => {
                         )}
                     </Group>
 
-                    <Group spacing="xs">
+                    <Group gap="xs">
                         {hasAnyAction && (
                             <Button.Group>
                                 <Button
                                     variant="default"
                                     size="xs"
-                                    leftIcon={getCtaIcon(ctaAction)}
+                                    leftSection={getCtaIcon(ctaAction)}
                                     disabled={isCtaDisabled}
                                     onClick={handleCtaClick}
                                 >
@@ -340,7 +327,7 @@ export const HeaderCreate: FC = () => {
                                             disabled={canSaveChart}
                                         >
                                             <Group
-                                                sx={{
+                                                style={{
                                                     cursor: 'pointer',
                                                 }}
                                             >
@@ -352,7 +339,7 @@ export const HeaderCreate: FC = () => {
                                                         );
                                                     }}
                                                 >
-                                                    <Stack spacing="two">
+                                                    <Stack gap="two">
                                                         <Text
                                                             fz="xs"
                                                             fw={600}
@@ -395,7 +382,7 @@ export const HeaderCreate: FC = () => {
                                             disabled={canCreateVirtualView}
                                         >
                                             <Group
-                                                sx={{
+                                                style={{
                                                     cursor: 'pointer',
                                                 }}
                                             >
@@ -409,7 +396,7 @@ export const HeaderCreate: FC = () => {
                                                         );
                                                     }}
                                                 >
-                                                    <Stack spacing="two">
+                                                    <Stack gap="two">
                                                         <Text
                                                             fw={600}
                                                             fz="xs"
@@ -462,7 +449,7 @@ export const HeaderCreate: FC = () => {
                                             }}
                                         >
                                             <Group
-                                                sx={{
+                                                style={{
                                                     cursor: 'pointer',
                                                 }}
                                             >
@@ -477,7 +464,7 @@ export const HeaderCreate: FC = () => {
                                                         );
                                                     }}
                                                 >
-                                                    <Stack spacing="two">
+                                                    <Stack gap="two">
                                                         <Text
                                                             fw={600}
                                                             fz="xs"

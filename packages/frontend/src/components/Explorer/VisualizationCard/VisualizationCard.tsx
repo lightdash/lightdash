@@ -12,7 +12,8 @@ import {
     type EChartsSeries,
     type FieldId,
 } from '@lightdash/common';
-import { Button, useMantineColorScheme } from '@mantine/core';
+import { Button } from '@mantine-8/core';
+import { useMantineColorScheme } from '@mantine/core';
 import { useElementSize } from '@mantine/hooks';
 import {
     IconLayoutSidebarLeftCollapse,
@@ -397,7 +398,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
                                                 ? closeVisualizationConfig
                                                 : openVisualizationConfig
                                         }
-                                        rightIcon={
+                                        rightSection={
                                             <MantineIcon
                                                 icon={
                                                     isVisualizationConfigOpen

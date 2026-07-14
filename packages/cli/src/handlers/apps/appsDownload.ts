@@ -1,6 +1,46 @@
-import { type DataAppCodeDownload } from '@lightdash/common';
+import {
+    getErrorMessage,
+    LightdashError,
+    ParameterError,
+    type DataAppCodeDownload,
+} from '@lightdash/common';
 
-export const MAX_INCLUDE_APPS = 10;
+export const DEFAULT_APPS_LIMIT = 50;
+
+/**
+ * Resolves the --apps-limit flag. Commander passes the raw string (or
+ * undefined when the flag was not given, so an explicit flag is
+ * distinguishable from the default). Throws ParameterError on anything
+ * that is not a positive integer.
+ */
+export const resolveAppsLimit = (
+    rawLimit: string | undefined,
+    includeApps: boolean,
+): { limit: number; noEffectWarning: string | null } => {
+    if (rawLimit === undefined) {
+        return { limit: DEFAULT_APPS_LIMIT, noEffectWarning: null };
+    }
+    if (!/^\d+$/.test(rawLimit) || parseInt(rawLimit, 10) < 1) {
+        throw new ParameterError(
+            `--apps-limit must be a positive integer, got "${rawLimit}".`,
+        );
+    }
+    return {
+        limit: parseInt(rawLimit, 10),
+        noEffectWarning: includeApps
+            ? null
+            : '--apps-limit only applies to --include-apps; explicit --apps UUIDs are never capped.',
+    };
+};
+
+/**
+ * The project-wide apps listing endpoint 404s on servers that predate it
+ * (or builds without EE routes) — fall back to the space-scoped content
+ * API listing there. Other errors (401/403/5xx) are real and propagate;
+ * in particular 403 means data apps are disabled on the instance.
+ */
+export const shouldFallBackToSpaceScopedListing = (err: unknown): boolean =>
+    err instanceof LightdashError && err.statusCode === 404;
 
 export type AppsDownloadSelection =
     | { mode: 'none' }
@@ -8,9 +48,9 @@ export type AppsDownloadSelection =
     | { mode: 'list-all'; extraAppUuids: string[] };
 
 /**
- * Explicit UUIDs (--apps) are fetched directly (works for apps not in any
- * space); only --include-apps lists apps via the space-scoped content API,
- * which omits apps that were never added to a space.
+ * Explicit UUIDs (--apps) are fetched directly; --include-apps lists every
+ * app in the project via the project-wide apps endpoint, falling back to
+ * the space-scoped content API on servers that predate it.
  */
 export const selectAppsToDownload = (request: {
     apps?: string[];
@@ -28,9 +68,10 @@ export const selectAppsToDownload = (request: {
 
 export const capListedApps = (
     listedUuids: string[],
+    limit: number,
 ): { appUuids: string[]; truncatedCount: number } => ({
-    appUuids: listedUuids.slice(0, MAX_INCLUDE_APPS),
-    truncatedCount: Math.max(0, listedUuids.length - MAX_INCLUDE_APPS),
+    appUuids: listedUuids.slice(0, limit),
+    truncatedCount: Math.max(0, listedUuids.length - limit),
 });
 
 /**
@@ -49,6 +90,40 @@ export const ensureDownloadedAppContext = (
 };
 
 export type AppDownloadFailure = { appUuid: string; message: string };
+
+export type AppDownloadErrorOutcome =
+    | { kind: 'skip-not-built' }
+    | { kind: 'fail'; message: string };
+
+/**
+ * A 404 saying the app has no ready version means it exists but never
+ * finished a successful build — nothing to download, so it's a skip, not a
+ * failure. Everything else fails the app, preferring the server's own
+ * message over a canned guess.
+ */
+export const classifyAppDownloadError = (
+    err: unknown,
+): AppDownloadErrorOutcome => {
+    if (err instanceof LightdashError) {
+        if (
+            err.statusCode === 404 &&
+            err.message.includes('no ready version')
+        ) {
+            return { kind: 'skip-not-built' };
+        }
+        if (err.message) {
+            return { kind: 'fail', message: err.message };
+        }
+        if (err.statusCode === 404) {
+            return {
+                kind: 'fail',
+                message:
+                    'App not found. It may not exist on this server, or data apps may not be enabled.',
+            };
+        }
+    }
+    return { kind: 'fail', message: getErrorMessage(err) };
+};
 
 /**
  * Shown when a newly created app's folder manifest was NOT retargeted —
@@ -108,8 +183,14 @@ export const appsDownloadSummary = (
     total: number,
     failures: AppDownloadFailure[],
     appsDir: string,
+    skippedNotBuiltCount: number,
 ): { ok: boolean; message: string; failureLines: string[] } => {
-    const base = `Downloaded ${successCount} of ${total} data app(s) to ${appsDir}`;
+    const attempted = total - skippedNotBuiltCount;
+    const skippedSuffix =
+        skippedNotBuiltCount > 0
+            ? ` (${skippedNotBuiltCount} skipped: no built version)`
+            : '';
+    const base = `Downloaded ${successCount} of ${attempted} data app(s) to ${appsDir}${skippedSuffix}`;
     if (failures.length === 0) {
         return { ok: true, message: base, failureLines: [] };
     }

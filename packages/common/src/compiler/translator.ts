@@ -51,7 +51,11 @@ import {
 } from '../types/lightdashProjectConfig';
 import { OrderFieldsByStrategy, type GroupType } from '../types/table';
 import { type TimeFrames } from '../types/timeFrames';
-import { type WarehouseSqlBuilder } from '../types/warehouse';
+import {
+    type WarehouseCatalog,
+    type WarehouseSqlBuilder,
+    type WarehouseTableSchema,
+} from '../types/warehouse';
 import assertUnreachable from '../utils/assertUnreachable';
 import {
     getDefaultTimeFrames,
@@ -1641,3 +1645,134 @@ export const getSchemaStructureFromDbtModels = (
         schema,
         table: alias || name,
     }));
+
+/**
+ * Extracts the physical column names referenced via `${TABLE}.column` in a
+ * field's (metric or dimension) templated sql. These are the columns passed
+ * through verbatim by the compiler (${TABLE} resolves to the table alias),
+ * so they are never validated against the warehouse catalog anywhere else.
+ * Nested/struct access (`${TABLE}.struct.field`) yields the top-level column.
+ */
+export const getReferencedTableColumns = (sql: string): string[] => {
+    const pattern = /\$\{TABLE\}\.("?)([a-zA-Z_][a-zA-Z0-9_]*)\1/g;
+    const columns = new Set<string>();
+    for (const match of sql.matchAll(pattern)) {
+        columns.add(match[2]);
+    }
+    return [...columns];
+};
+
+const findCatalogTableColumns = (
+    warehouseCatalog: WarehouseCatalog,
+    database: string,
+    schema: string,
+    tableNames: string[],
+    caseSensitiveMatching: boolean,
+): WarehouseTableSchema | undefined => {
+    const eq = (a: string, b: string) =>
+        caseSensitiveMatching ? a === b : a.toLowerCase() === b.toLowerCase();
+    const databaseMatch = Object.keys(warehouseCatalog).find((db) =>
+        eq(db, database),
+    );
+    if (!databaseMatch) return undefined;
+    const schemaMatch = Object.keys(warehouseCatalog[databaseMatch]).find((s) =>
+        eq(s, schema),
+    );
+    if (!schemaMatch) return undefined;
+    const tableMatch = Object.keys(
+        warehouseCatalog[databaseMatch][schemaMatch],
+    ).find((t) => tableNames.some((tableName) => eq(t, tableName)));
+    if (!tableMatch) return undefined;
+    return warehouseCatalog[databaseMatch][schemaMatch][tableMatch];
+};
+
+// Physical relation name from a sql identifier e.g. `db`.`schema`.`table` -> table
+const getTableNameFromSqlTable = (sqlTable: string): string => {
+    const parts = sqlTable.split('.');
+    return (parts[parts.length - 1] ?? sqlTable).replace(/[`"[\]]/g, '');
+};
+
+/**
+ * Walks compiled explores and flags metrics/dimensions whose sql references a
+ * `${TABLE}.column` that does not exist in the warehouse catalog. Such fields
+ * compile cleanly but fail 100% of the time at query time. Findings are added
+ * as non-fatal `MISSING_WAREHOUSE_COLUMN` warnings to the affected table and
+ * explore so compile/deploy/validation can surface them.
+ *
+ * Tables missing from the catalog (ephemeral models, virtual views, or when the
+ * catalog was skipped) are left untouched to avoid false positives.
+ */
+export const attachWarehouseColumnWarningsToExplores = (
+    explores: (Explore | ExploreError)[],
+    warehouseCatalog: WarehouseCatalog,
+    caseSensitiveMatching: boolean = true,
+): (Explore | ExploreError)[] =>
+    explores.map((explore) => {
+        if (isExploreError(explore) || explore.tables === undefined) {
+            return explore;
+        }
+        const exploreWarnings: InlineError[] = [];
+        const tables = Object.fromEntries(
+            Object.entries(explore.tables).map(([tableName, table]) => {
+                const catalogColumns = findCatalogTableColumns(
+                    warehouseCatalog,
+                    table.database,
+                    table.schema,
+                    [tableName, getTableNameFromSqlTable(table.sqlTable)],
+                    caseSensitiveMatching,
+                );
+                if (catalogColumns === undefined) {
+                    return [tableName, table];
+                }
+                const columnExists = (columnName: string) =>
+                    Object.keys(catalogColumns).some((c) =>
+                        caseSensitiveMatching
+                            ? c === columnName
+                            : c.toLowerCase() === columnName.toLowerCase(),
+                    );
+                const fieldWarnings: InlineError[] = [];
+                const checkField = (
+                    fieldType: 'Metric' | 'Dimension',
+                    fieldName: string,
+                    fieldSql: string | undefined,
+                ) => {
+                    if (!fieldSql) return;
+                    getReferencedTableColumns(fieldSql).forEach(
+                        (columnName) => {
+                            if (!columnExists(columnName)) {
+                                fieldWarnings.push({
+                                    type: InlineErrorType.MISSING_WAREHOUSE_COLUMN,
+                                    message: `${fieldType} "${fieldName}" references column "${columnName}" which does not exist in table "${tableName}" in your warehouse. Queries using this ${fieldType.toLowerCase()} will fail.`,
+                                });
+                            }
+                        },
+                    );
+                };
+                Object.values(table.metrics).forEach((metric) =>
+                    checkField('Metric', metric.name, metric.sql),
+                );
+                Object.values(table.dimensions).forEach((dimension) =>
+                    checkField('Dimension', dimension.name, dimension.sql),
+                );
+                if (fieldWarnings.length === 0) {
+                    return [tableName, table];
+                }
+                exploreWarnings.push(...fieldWarnings);
+                return [
+                    tableName,
+                    {
+                        ...table,
+                        warnings: [...(table.warnings ?? []), ...fieldWarnings],
+                    },
+                ];
+            }),
+        );
+        if (exploreWarnings.length === 0) {
+            return explore;
+        }
+        return {
+            ...explore,
+            tables,
+            warnings: [...(explore.warnings ?? []), ...exploreWarnings],
+        };
+    });

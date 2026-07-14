@@ -9,18 +9,17 @@ import {
     formatSql,
 } from '@lightdash/common';
 import {
-    ActionIcon,
     Box,
     Group,
-    Indicator,
-    LoadingOverlay,
     Paper,
-    SegmentedControl,
     Stack,
     Text,
-    Tooltip,
-    Transition,
-} from '@mantine/core';
+    ActionIcon,
+    Indicator,
+    LoadingOverlay,
+    SegmentedControl,
+} from '@mantine-8/core';
+import { Tooltip, Transition } from '@mantine/core';
 import { useElementSize, useHotkeys } from '@mantine/hooks';
 import { notifications } from '@mantine/notifications';
 import {
@@ -87,6 +86,7 @@ import {
 import { prepareAndFetchChartData, runSqlQuery } from '../store/thunks';
 import { ChartDownload } from './Download/ChartDownload';
 import ResultsDownloadButton from './Download/ResultsDownloadButton';
+import styles from './ResizeHandle.module.css';
 import { SqlEditor } from './SqlEditor';
 import { SqlEditorPreferencesPopover } from './SqlEditorPreferencesPopover';
 import { SqlQueryHistory } from './SqlQueryHistory';
@@ -440,21 +440,18 @@ export const ContentPanel: FC = () => {
     } = useParameters(projectUuid, Array.from(parameterReferences ?? []));
 
     return (
-        <Stack spacing="none" style={{ flex: 1, overflow: 'hidden' }}>
+        <Stack gap="none" style={{ flex: 1, overflow: 'hidden' }}>
             <Tooltip.Group>
                 <Paper
                     shadow="none"
                     radius={0}
+                    withBorder={false}
                     px="md"
                     py={6}
-                    sx={(theme) => ({
-                        borderWidth: '0 0 1px 1px',
-                        borderStyle: 'solid',
-                        borderColor: theme.colors.ldGray[3],
-                    })}
+                    className={styles.toolbarPaper}
                 >
-                    <Group position="apart">
-                        <Group position="apart">
+                    <Group justify="space-between">
+                        <Group justify="space-between">
                             <Indicator
                                 color="red.6"
                                 offset={10}
@@ -478,10 +475,13 @@ export const ContentPanel: FC = () => {
                                                     withinPortal
                                                     label="You haven't run this query yet."
                                                 >
-                                                    <Group spacing={4} noWrap>
+                                                    <Group
+                                                        gap={4}
+                                                        wrap="nowrap"
+                                                    >
                                                         <SqlEditorPreferencesPopover />
 
-                                                        <Text>SQL</Text>
+                                                        <Text fz="sm">SQL</Text>
                                                     </Group>
                                                 </Tooltip>
                                             ),
@@ -498,39 +498,46 @@ export const ContentPanel: FC = () => {
                                                     withinPortal
                                                     label="Run a query to see the chart"
                                                 >
-                                                    <Group spacing={4} noWrap>
+                                                    <Group
+                                                        gap={4}
+                                                        wrap="nowrap"
+                                                    >
                                                         <MantineIcon
                                                             color="ldGray.6"
                                                             icon={
                                                                 IconChartHistogram
                                                             }
                                                         />
-                                                        <Text>Chart</Text>
+                                                        <Text fz="sm">
+                                                            Chart
+                                                        </Text>
                                                     </Group>
                                                 </Tooltip>
                                             ),
                                         },
                                     ]}
                                     value={activeEditorTab}
-                                    onChange={(value: EditorTabs) => {
+                                    onChange={(value) => {
+                                        const editorTab = value as EditorTabs;
+
                                         if (isLoadingSqlQuery) {
                                             return;
                                         }
 
                                         if (
-                                            value ===
+                                            editorTab ===
                                                 EditorTabs.VISUALIZATION &&
                                             !queryResults?.results
                                         ) {
                                             return;
                                         }
 
-                                        dispatch(setActiveEditorTab(value));
+                                        dispatch(setActiveEditorTab(editorTab));
                                     }}
                                 />
                             </Indicator>
                         </Group>
-                        <Group spacing="xs">
+                        <Group gap="xs">
                             <Parameters
                                 isEditMode={false}
                                 parameters={projectParameters}
@@ -631,26 +638,13 @@ export const ContentPanel: FC = () => {
                             ref={inputSectionRef}
                             shadow="none"
                             radius={0}
+                            withBorder={false}
                             style={{ flex: 1 }}
-                            sx={(theme) => ({
-                                borderWidth: '0 0 0 1px',
-                                borderStyle: 'solid',
-                                borderColor: theme.colors.ldGray[3],
-                                overflow: 'auto',
-                                backgroundColor:
-                                    theme.colorScheme === 'dark'
-                                        ? theme.colors.dark[6]
-                                        : 'white',
-                            })}
+                            className={styles.inputPaper}
                         >
                             <Box
-                                style={{ flex: 1 }}
-                                pt={
-                                    activeEditorTab === EditorTabs.SQL
-                                        ? 'md'
-                                        : 0
-                                }
-                                sx={{
+                                style={{
+                                    flex: 1,
                                     position: 'absolute',
                                     overflowY: isVizTableConfig(
                                         currentVizConfig,
@@ -660,6 +654,11 @@ export const ContentPanel: FC = () => {
                                     height: inputSectionHeight,
                                     width: inputSectionWidth,
                                 }}
+                                pt={
+                                    activeEditorTab === EditorTabs.SQL
+                                        ? 'md'
+                                        : 0
+                                }
                             >
                                 <ConditionalVisibility
                                     isVisible={
@@ -809,21 +808,7 @@ export const ContentPanel: FC = () => {
                         hidden={hideResultsPanel}
                         component={PanelResizeHandle}
                         h={15}
-                        sx={(theme) => ({
-                            transition: 'background-color 0.2s ease-in-out',
-                            cursor: 'row-resize',
-                            display: hideResultsPanel ? 'none' : 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            '&:hover': {
-                                backgroundColor: theme.colors.ldGray[2],
-                            },
-                            '&[data-resize-handle-state="drag"]': {
-                                backgroundColor: theme.colors.ldGray[3],
-                            },
-                            borderLeft: `1px solid ${theme.colors.ldGray[3]}`,
-                            gap: 5,
-                        })}
+                        className={styles.resultsResizeHandle}
                     >
                         <MantineIcon
                             color="gray"
@@ -860,7 +845,7 @@ export const ContentPanel: FC = () => {
                         <Box
                             h="100%"
                             pos="relative"
-                            sx={{
+                            style={{
                                 overflow: 'auto',
                             }}
                         >
@@ -899,8 +884,8 @@ export const ContentPanel: FC = () => {
                                                     {hasReachedPivotColumnLimit &&
                                                         maxColumnLimit && (
                                                             <Group
-                                                                position="center"
-                                                                spacing="xs"
+                                                                justify="center"
+                                                                gap="xs"
                                                             >
                                                                 <MantineIcon
                                                                     color="gray"

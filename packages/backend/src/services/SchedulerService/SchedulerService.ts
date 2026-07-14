@@ -175,18 +175,22 @@ export class SchedulerService extends BaseService {
 
     public async getSchedulerProjectContext(
         scheduler: Scheduler | CreateSchedulerAndTargets,
-    ): Promise<{ projectUuid: string; organizationUuid: string }> {
+    ): Promise<{
+        projectUuid: string;
+        organizationUuid: string;
+        spaceUuid: string | null;
+    }> {
         if (isChartScheduler(scheduler)) {
-            const { projectUuid, organizationUuid } =
+            const { projectUuid, organizationUuid, spaceUuid } =
                 await this.savedChartModel.getSummary(scheduler.savedChartUuid);
-            return { projectUuid, organizationUuid };
+            return { projectUuid, organizationUuid, spaceUuid };
         }
         if (isDashboardScheduler(scheduler)) {
-            const { projectUuid, organizationUuid } =
+            const { projectUuid, organizationUuid, spaceUuid } =
                 await this.dashboardModel.getByIdOrSlug(
                     scheduler.dashboardUuid,
                 );
-            return { projectUuid, organizationUuid };
+            return { projectUuid, organizationUuid, spaceUuid };
         }
         if (isSqlChartScheduler(scheduler)) {
             const sqlChart = await this.savedSqlModel.getByUuid(
@@ -196,6 +200,7 @@ export class SchedulerService extends BaseService {
             return {
                 projectUuid: sqlChart.project.projectUuid,
                 organizationUuid: sqlChart.organization.organizationUuid,
+                spaceUuid: sqlChart.space.uuid,
             };
         }
         if (isAppScheduler(scheduler)) {
@@ -206,6 +211,7 @@ export class SchedulerService extends BaseService {
             return {
                 projectUuid: app.project_uuid,
                 organizationUuid: app.organization_uuid,
+                spaceUuid: null,
             };
         }
         throw new ParameterError('Invalid scheduler type');
@@ -290,7 +296,11 @@ export class SchedulerService extends BaseService {
         sendNow: boolean = false,
     ): Promise<{
         scheduler: Scheduler;
-        resource: { projectUuid: string; organizationUuid: string };
+        resource: {
+            projectUuid: string;
+            organizationUuid: string;
+            spaceUuid: string | null;
+        };
     }> {
         // admins can manage all scheduled deliveries,
         // everyone below can only manage their own scheduled deliveries
@@ -349,7 +359,11 @@ export class SchedulerService extends BaseService {
         schedulerUuid: string,
     ): Promise<{
         scheduler: Scheduler;
-        resource: { projectUuid: string; organizationUuid: string };
+        resource: {
+            projectUuid: string;
+            organizationUuid: string;
+            spaceUuid: string | null;
+        };
     }> {
         return this.checkUserCanUpdateSchedulerResource(user, schedulerUuid);
     }
@@ -1332,6 +1346,7 @@ export class SchedulerService extends BaseService {
         }
     }
 
+    /** @deprecated Only used by the deprecated scheduler jobs endpoint, which will be removed without replacement. */
     async getScheduledJobs(
         user: SessionUser,
         schedulerUuid: string,
@@ -1382,6 +1397,7 @@ export class SchedulerService extends BaseService {
         await this.schedulerModel.updateGsheetExportProgress(jobId, progress);
     }
 
+    /** @deprecated Only used by the deprecated scheduler logs endpoint; use getSchedulerRuns instead. */
     async getSchedulerLogs(
         user: SessionUser,
         projectUuid: string,

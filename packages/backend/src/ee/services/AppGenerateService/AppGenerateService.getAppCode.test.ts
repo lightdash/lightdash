@@ -147,12 +147,15 @@ function makeFakeS3(tarBuffer: Buffer, expectedVersion: number = VERSION) {
 
 // ── service factory ───────────────────────────────────────────────────────────
 
+const analyticsTrackSpy = vi.fn();
+
 function buildService(overrides: {
     appModel?: Record<string, unknown>;
     s3ClientOverride?: { client: never; bucket: string };
     projectModel?: Record<string, unknown>;
     projectParametersModel?: Record<string, unknown>;
     organizationDesignModel?: Record<string, unknown>;
+    customDependenciesEnabled?: boolean;
 }): AppGenerateService {
     const {
         appModel = {},
@@ -160,6 +163,7 @@ function buildService(overrides: {
         projectModel = {},
         projectParametersModel = {},
         organizationDesignModel = {},
+        customDependenciesEnabled = true,
     } = overrides;
 
     // Default mocks for context-assembly methods so existing tests don't break
@@ -193,8 +197,10 @@ function buildService(overrides: {
     };
 
     const svc = new AppGenerateService({
-        lightdashConfig: {} as never,
-        analytics: {} as never,
+        lightdashConfig: {
+            appRuntime: { customDependenciesEnabled },
+        } as never,
+        analytics: { track: analyticsTrackSpy } as never,
         analyticsModel: {} as never,
         catalogModel: {} as never,
         appModel: fullAppModel as never,
@@ -212,6 +218,7 @@ function buildService(overrides: {
         promoteService: {} as never,
         externalConnectionModel: {} as never,
         sandboxRegistryModel: {} as never,
+        orgAiCopilotConfigResolver: {} as never,
     });
 
     if (s3ClientOverride) {
@@ -235,6 +242,7 @@ describe('AppGenerateService.getAppCode', () => {
 
     beforeEach(() => {
         vi.mocked(assertCanViewApp).mockResolvedValue(undefined);
+        analyticsTrackSpy.mockClear();
     });
 
     it('returns a DataAppCode with manifest and extracted source files for the latest ready version', async () => {
@@ -274,6 +282,72 @@ describe('AppGenerateService.getAppCode', () => {
         expect(Buffer.from(themeFile!.contentBase64, 'base64').toString()).toBe(
             'export const theme = {};',
         );
+
+        expect(analyticsTrackSpy).toHaveBeenCalledWith({
+            event: 'data_app.downloaded',
+            userId: fakeUser.userUuid,
+            properties: expect.objectContaining({
+                organizationId: ORG_UUID,
+                projectId: PROJECT_UUID,
+                appUuid: APP_UUID,
+                version: VERSION,
+                versionPinned: false,
+                fileCount: 2,
+                sourceBytes: expect.any(Number),
+                hasCustomDependencies: false,
+            }),
+        });
+    });
+
+    it('includes the version viz schema in the manifest for a data app viz', async () => {
+        const vizSchema = {
+            fields: [
+                {
+                    name: 'category',
+                    label: 'Category',
+                    type: 'dimension' as const,
+                    required: true,
+                },
+                {
+                    name: 'value',
+                    label: 'Value',
+                    type: 'metric' as const,
+                    required: true,
+                },
+            ],
+            configOptions: [],
+        };
+        const fakeS3 = makeFakeS3(sourceTarBuffer);
+        const appModel = {
+            getApp: vi
+                .fn()
+                .mockResolvedValue({ ...fakeApp, template: 'data_app_viz' }),
+            getLatestReadyVersion: vi.fn().mockResolvedValue({
+                ...fakeAppVersion,
+                viz_schema: vizSchema,
+            }),
+        };
+
+        const svc = buildService({ appModel, s3ClientOverride: fakeS3 });
+        const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID);
+
+        expect(result.manifest.template).toBe('data_app_viz');
+        expect(result.manifest.vizSchema).toEqual(vizSchema);
+    });
+
+    it('omits vizSchema from the manifest when the version has no schema', async () => {
+        const fakeS3 = makeFakeS3(sourceTarBuffer);
+        const appModel = {
+            getApp: vi.fn().mockResolvedValue(fakeApp),
+            getLatestReadyVersion: vi
+                .fn()
+                .mockResolvedValue({ ...fakeAppVersion, viz_schema: null }),
+        };
+
+        const svc = buildService({ appModel, s3ClientOverride: fakeS3 });
+        const result = await svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID);
+
+        expect(result.manifest).not.toHaveProperty('vizSchema');
     });
 
     it('uses the provided version number instead of latest ready', async () => {
@@ -283,6 +357,11 @@ describe('AppGenerateService.getAppCode', () => {
         const appModel = {
             getApp: vi.fn().mockResolvedValue(fakeApp),
             getLatestReadyVersion: vi.fn(),
+            getVersion: vi.fn().mockResolvedValue({
+                ...fakeAppVersion,
+                version: EXPLICIT_VERSION,
+                dependencies: null,
+            }),
         };
 
         const svc = buildService({ appModel, s3ClientOverride: fakeS3 });
@@ -296,6 +375,42 @@ describe('AppGenerateService.getAppCode', () => {
         expect(result.manifest.version).toBe(EXPLICIT_VERSION);
         expect(appModel.getLatestReadyVersion).not.toHaveBeenCalled();
         expect(result.files).toHaveLength(2);
+
+        expect(analyticsTrackSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: 'data_app.downloaded',
+                properties: expect.objectContaining({
+                    version: EXPLICIT_VERSION,
+                    versionPinned: true,
+                }),
+            }),
+        );
+    });
+
+    it('refuses to download an app with custom deps when the kill-switch is off', async () => {
+        const fakeS3 = makeFakeS3(sourceTarBuffer, 3);
+        const appModel = {
+            getApp: vi.fn().mockResolvedValue(fakeApp),
+            getLatestReadyVersion: vi.fn(),
+            getVersion: vi.fn().mockResolvedValue({
+                ...fakeAppVersion,
+                version: 3,
+                dependencies: {
+                    custom: [{ name: 'deck.gl', version: '9.3.5' }],
+                    lockfileHash: 'abc',
+                },
+            }),
+        };
+
+        const svc = buildService({
+            appModel,
+            s3ClientOverride: fakeS3,
+            customDependenciesEnabled: false,
+        });
+
+        await expect(
+            svc.getAppCode(fakeUser, PROJECT_UUID, APP_UUID, 3),
+        ).rejects.toThrow('LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED');
     });
 
     it('throws NotFoundError when no ready version exists and version is omitted', async () => {

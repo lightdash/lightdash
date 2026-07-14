@@ -124,8 +124,24 @@ vi.mock('../src/features/comments', () => ({
     }),
 }));
 
+vi.mock('../src/pages/MetricsCatalog', async () => {
+    const ReactModule = await import('react');
+
+    return {
+        default: () =>
+            ReactModule.createElement('div', {
+                'data-testid': 'metrics-catalog-page',
+            }),
+    };
+});
+
 import { FilterOperator } from '@lightdash/common';
-import { AiAgent, Dashboard, createLightdashApiClient } from './index';
+import {
+    AiAgent,
+    Dashboard,
+    MetricsCatalog,
+    createLightdashApiClient,
+} from './index';
 
 describe('SDK Dashboard - URL Sync Behavior', () => {
     const mockToken =
@@ -406,6 +422,26 @@ describe('SDK AI agent', () => {
         expect(onThreadChange).toHaveBeenCalledWith({
             threadUuid: 'test-thread-uuid',
         });
+    });
+});
+
+describe('SDK metrics catalog', () => {
+    const mockToken =
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb250ZW50Ijp7InR5cGUiOiJtZXRyaWNzQ2F0YWxvZyIsInByb2plY3RVdWlkIjoidGVzdC1wcm9qZWN0LXV1aWQifX0.test';
+
+    it('renders the metrics catalog for the token project', async () => {
+        const { getByTestId } = render(
+            <MetricsCatalog
+                token={mockToken}
+                instanceUrl="http://localhost:3000"
+            />,
+        );
+
+        await waitFor(() => {
+            expect(getByTestId('metrics-catalog-page')).toBeTruthy();
+        });
+
+        expect(mockNavigate).not.toHaveBeenCalled();
     });
 });
 

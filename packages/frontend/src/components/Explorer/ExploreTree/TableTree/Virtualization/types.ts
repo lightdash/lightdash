@@ -182,7 +182,7 @@ export interface FlattenTreeOptions {
     // Selected fields (for determining if missing field is dimension or metric)
     selectedDimensions: string[];
 
-    // Active fields (for pinning selected items to top)
+    // Active fields are excluded from the tree — they render in the pinned "Selected" section
     activeFields: Set<string>;
 
     // Git integration

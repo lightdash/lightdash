@@ -16,6 +16,7 @@ import {
     SIDEBAR_RESIZE_HANDLE_WIDTH,
     SIDEBAR_TOGGLE_RESERVE,
 } from './components/common/Page/constants';
+import { LD_FIELD_COLORS } from './mantineTheme';
 
 // Bridges JS layout constants to global CSS variables so CSS modules can
 // reference them without re-declaring the literal values.
@@ -34,6 +35,15 @@ export const cssVariablesResolver: CSSVariablesResolver = () => ({
         '--dashboard-header-zindex': `${DASHBOARD_HEADER_ZINDEX}`,
         '--dashboard-tab-height': `${DASHBOARD_TAB_HEIGHT}px`,
         '--dashboard-tabs-zindex': `${DASHBOARD_TABS_ZINDEX}`,
+        '--ld-field-dimension-bg': LD_FIELD_COLORS.dimension.bg,
+        '--ld-field-dimension-bg-hover': LD_FIELD_COLORS.dimension.bgHover,
+        '--ld-field-dimension-color': LD_FIELD_COLORS.dimension.color,
+        '--ld-field-metric-bg': LD_FIELD_COLORS.metric.bg,
+        '--ld-field-metric-bg-hover': LD_FIELD_COLORS.metric.bgHover,
+        '--ld-field-metric-color': LD_FIELD_COLORS.metric.color,
+        '--ld-field-default-bg': LD_FIELD_COLORS.DEFAULT.bg,
+        '--ld-field-default-bg-hover': LD_FIELD_COLORS.DEFAULT.bgHover,
+        '--ld-field-default-color': LD_FIELD_COLORS.DEFAULT.color,
     },
     light: {},
     dark: {},

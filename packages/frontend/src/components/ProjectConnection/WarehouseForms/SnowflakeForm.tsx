@@ -1,18 +1,16 @@
 import { SnowflakeAuthenticationType, WarehouseTypes } from '@lightdash/common';
 import {
+    TextInput,
     Anchor,
     Button,
     FileInput,
     Group,
-    NumberInput,
-    PasswordInput,
     Radio,
-    Select,
     Stack,
     Text,
-    TextInput,
-    Tooltip,
-} from '@mantine/core';
+    Select,
+} from '@mantine-8/core';
+import { NumberInput, PasswordInput, Tooltip } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useToggle } from 'react-use';
@@ -40,6 +38,7 @@ import {
     PASSWORD_LABEL,
     PRIVATE_KEY_LABEL,
 } from './util';
+import styles from './WarehouseButtons.module.css';
 
 export const SnowflakeSchemaInput: FC<{
     disabled: boolean;
@@ -57,7 +56,7 @@ export const SnowflakeSchemaInput: FC<{
     );
 };
 
-export const SnowflakeSSOInput: FC<{
+const SnowflakeSSOInput: FC<{
     isAuthenticated: boolean;
     disabled: boolean;
     openLoginPopup: () => void;
@@ -72,8 +71,8 @@ export const SnowflakeSSOInput: FC<{
             variant="default"
             color="gray"
             disabled={disabled}
-            leftIcon={getWarehouseIcon(WarehouseTypes.SNOWFLAKE, 'sm')}
-            sx={{ ':hover': { textDecoration: 'underline' } }}
+            leftSection={getWarehouseIcon(WarehouseTypes.SNOWFLAKE, 'sm')}
+            className={styles.signInButton}
         >
             Sign in with Snowflake
         </Button>
@@ -243,6 +242,7 @@ const SnowflakeForm: FC<{
                 )}
                 {useOrgCredentials && snowflakeOrgCredentials.length > 0 && (
                     <Select
+                        allowDeselect={false}
                         label="Organization credentials"
                         description="Select which organization credentials to use for this project"
                         placeholder="Select credentials"
@@ -276,8 +276,9 @@ const SnowflakeForm: FC<{
                             labelProps={{ style: { marginTop: '8px' } }}
                         />
 
-                        <Group spacing="sm">
+                        <Group gap="sm">
                             <Select
+                                allowDeselect={false}
                                 name="warehouse.authenticationType"
                                 {...form.getInputProps(
                                     'warehouse.authenticationType',
@@ -288,9 +289,10 @@ const SnowflakeForm: FC<{
                                 description={
                                     isSsoEnabled &&
                                     isLoadingAuth ? null : isAuthenticated ? (
-                                        <Text mt="0" color="gray" fs="xs">
+                                        <Text mt="0" c="gray" fs="xs">
                                             You are connected to Snowflake,{' '}
                                             <Anchor
+                                                inherit
                                                 href="#"
                                                 onClick={() => {
                                                     openLoginPopup();
@@ -369,7 +371,9 @@ const SnowflakeForm: FC<{
                                     disabled={disabled}
                                     {...form.getInputProps(
                                         'warehouse.requireUserCredentials',
-                                        { type: 'checkbox' },
+                                        {
+                                            type: 'checkbox',
+                                        },
                                     )}
                                 />
                             </>
@@ -382,8 +386,6 @@ const SnowflakeForm: FC<{
                                         'warehouse.privateKey',
                                     )}
                                     label="Private Key File"
-                                    // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
-                                    // @ts-ignore
                                     placeholder={
                                         !requireSecrets
                                             ? '**************'
@@ -394,6 +396,7 @@ const SnowflakeForm: FC<{
                                             This is the .p8 private key file.
                                             You can see{' '}
                                             <Anchor
+                                                inherit
                                                 target="_blank"
                                                 href="https://docs.snowflake.com/en/user-guide/key-pair-auth#generate-the-private-key"
                                                 rel="noreferrer"
@@ -529,7 +532,9 @@ const SnowflakeForm: FC<{
                                         disabled={disabled}
                                         {...form.getInputProps(
                                             'warehouse.requireUserCredentials',
-                                            { type: 'checkbox' },
+                                            {
+                                                type: 'checkbox',
+                                            },
                                         )}
                                     />
                                 )}
@@ -544,6 +549,7 @@ const SnowflakeForm: FC<{
                                             hour timeout limit You can see more
                                             details in{' '}
                                             <Anchor
+                                                inherit
                                                 target="_blank"
                                                 href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#client_session_keep_alive"
                                                 rel="noreferrer"
@@ -558,7 +564,9 @@ const SnowflakeForm: FC<{
                                     disabled={disabled}
                                     {...form.getInputProps(
                                         'warehouse.clientSessionKeepAlive',
-                                        { type: 'checkbox' },
+                                        {
+                                            type: 'checkbox',
+                                        },
                                     )}
                                 />
 
@@ -574,6 +582,7 @@ const SnowflakeForm: FC<{
                                             parameter. You can see more details
                                             in{' '}
                                             <Anchor
+                                                inherit
                                                 target="_blank"
                                                 href="https://docs.getdbt.com/reference/warehouse-profiles/snowflake-profile#query_tag"
                                                 rel="noreferrer"

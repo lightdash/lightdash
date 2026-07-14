@@ -4,17 +4,15 @@ import {
     type UserWithCount,
 } from '@lightdash/common';
 import {
-    Anchor,
     Box,
-    Button,
-    Card,
     Group,
     Stack,
-    Table,
     Text,
     Title,
-    Tooltip,
-} from '@mantine/core';
+    Button,
+    Anchor,
+} from '@mantine-8/core';
+import { Card, Table, Tooltip } from '@mantine/core';
 import { IconUsers } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link, useParams } from 'react-router';
@@ -51,7 +49,7 @@ const VisualizationCard = ({
             }}
             withBorder
         >
-            <Text sx={{ float: 'left' }} fw={600} mb={10}>
+            <Text style={{ float: 'left' }} fw={600} mb={10}>
                 {description}
             </Text>
             {children}
@@ -64,11 +62,11 @@ const BigNumberVis: FC<{ value: number | string; label: string }> = ({
     label,
 }) => {
     return (
-        <Stack h="100%" justify="center" spacing={0}>
+        <Stack h="100%" justify="center" gap={0}>
             <Title order={1} size={56} fw={500}>
                 {value}
             </Title>
-            <Title order={4} fw={500} color="gray">
+            <Title order={4} fw={500} c="gray">
                 {label}
             </Title>
         </Stack>
@@ -102,7 +100,7 @@ const showTableViews = ({
                 return (
                     <tr key={`${key}-${view.uuid}`}>
                         <td>
-                            <Anchor component={Link} to={to}>
+                            <Anchor inherit component={Link} to={to}>
                                 {view.name}
                             </Anchor>
                         </td>
@@ -234,7 +232,7 @@ const UserActivity: FC = () => {
 
     return (
         <Page title={`User activity for ${project?.name}`} withFitContent>
-            <Group mt={10} mb={30} position="apart">
+            <Group mt={10} mb={30} justify="space-between">
                 <PageBreadcrumbs
                     items={[
                         {
@@ -286,7 +284,7 @@ const UserActivity: FC = () => {
                 </Tooltip>
             </Group>
             <Box
-                sx={{
+                style={{
                     display: 'grid',
                     gridTemplateColumns: '300px 300px 300px 300px',
                     gridTemplateRows: '200px 200px 400px 400px 400px 400px',
@@ -451,6 +449,7 @@ const UserActivity: FC = () => {
                                         <td>{user.lastName}</td>
                                         <td>
                                             <Anchor
+                                                inherit
                                                 component={Link}
                                                 to={getDashboardLink(
                                                     projectUuid,

@@ -8,19 +8,18 @@ import {
     type FilterRule,
 } from '@lightdash/common';
 import {
+    TextInput,
     ActionIcon,
     Box,
     Button,
     Checkbox,
     Group,
-    Select,
     Stack,
-    Switch,
     Text,
-    TextInput,
-    Tooltip,
-    type PopoverProps,
-} from '@mantine/core';
+    Select,
+    Switch,
+} from '@mantine-8/core';
+import { Tooltip, type PopoverProps } from '@mantine/core';
 import { IconHelpCircle, IconX } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import FilterInputComponent from '../../../components/common/Filters/FilterInputs';
@@ -101,7 +100,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
 
     return (
         <Stack>
-            <Stack spacing="xs">
+            <Stack gap="xs">
                 {isEditMode && (
                     <TextInput
                         label="Filter label"
@@ -127,16 +126,24 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                 )}
 
                 <Select
+                    allowDeselect={false}
                     size="xs"
                     data={filterOperatorOptions}
-                    withinPortal={popoverProps?.withinPortal}
+                    comboboxProps={{ withinPortal: popoverProps?.withinPortal }}
                     onDropdownOpen={popoverProps?.onOpen}
                     onDropdownClose={popoverProps?.onClose}
-                    onChange={handleChangeFilterOperator}
+                    onChange={(value) =>
+                        value &&
+                        handleChangeFilterOperator(
+                            value as FilterRule['operator'],
+                        )
+                    }
                     value={filterRule.operator}
-                    itemComponent={({ label, value, ...others }) => {
+                    renderOption={({ option }) => {
                         const description =
-                            filterOperatorDescription[value as FilterOperator];
+                            filterOperatorDescription[
+                                option.value as FilterOperator
+                            ];
                         if (description) {
                             return (
                                 <Tooltip
@@ -146,13 +153,14 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                     maw={300}
                                     withinPortal
                                 >
-                                    <div {...others}>{label}</div>
+                                    <div>{option.label}</div>
                                 </Tooltip>
                             );
                         }
-                        return <div {...others}>{label}</div>;
+                        return <div>{option.label}</div>;
                     }}
                     rightSectionWidth={140}
+                    rightSectionPointerEvents="all"
                     rightSectionProps={{
                         style: {
                             justifyContent: 'flex-end',
@@ -163,10 +171,9 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                         supportsSingleValue(filterType, filterRule.operator) &&
                         isEditMode && (
                             <Button
-                                compact
-                                size="xs"
+                                size="compact-xs"
                                 variant={'light'}
-                                rightIcon={
+                                rightSection={
                                     <Tooltip
                                         variant="xs"
                                         label={
@@ -208,7 +215,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                 )}
 
                 {(showValueInput || filterRule.required) && (
-                    <Group spacing="xs" noWrap align="flex-start">
+                    <Group gap="xs" wrap="nowrap" align="flex-start">
                         <Box style={{ flex: 1 }}>
                             <FilterInputComponent
                                 popoverProps={popoverProps}
@@ -271,7 +278,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                     <>
                         {filterRule.required &&
                             (filterRule?.values || []).length > 0 && (
-                                <Text size="xs" color={'ldGray.7'}>
+                                <Text size="xs" c={'ldGray.7'}>
                                     Temporary filter values for required filters
                                     will be removed on dashboard save
                                 </Text>

@@ -1,6 +1,14 @@
 import { generateObject, LanguageModel } from 'ai';
 import { z } from 'zod';
-import { getAiCallTelemetry } from '../utils/aiCallTelemetry';
+import {
+    emitAiUsage,
+    languageModelUsageToTokens,
+} from '../../../../analytics/aiUsage';
+import {
+    AiCallAttribution,
+    getAiCallTelemetry,
+    getLanguageModelAttribution,
+} from '../utils/aiCallTelemetry';
 
 const ProjectRoutingSchema = z.object({
     reasoning: z
@@ -28,6 +36,7 @@ export async function routeProjectForSlack(
     model: LanguageModel,
     projects: { projectUuid: string; name: string }[],
     userQuery: string,
+    telemetry?: AiCallAttribution,
 ): Promise<string | null> {
     if (projects.length === 0) {
         return null;
@@ -40,12 +49,15 @@ export async function routeProjectForSlack(
         )
         .join('\n');
 
+    const telemetryConfig = getAiCallTelemetry({
+        functionId: 'routeProjectForSlack',
+        feature: 'project-router',
+        ...getLanguageModelAttribution(model),
+        ...telemetry,
+    });
     const result = await generateObject({
         model,
-        experimental_telemetry: getAiCallTelemetry({
-            functionId: 'routeProjectForSlack',
-            feature: 'project-router',
-        }),
+        experimental_telemetry: telemetryConfig,
         schema: ProjectRoutingSchema,
         messages: [
             {
@@ -68,6 +80,7 @@ Rules:
             },
         ],
     });
+    emitAiUsage(telemetryConfig, languageModelUsageToTokens(result.usage));
 
     const { projectUuid } = result.object;
     if (

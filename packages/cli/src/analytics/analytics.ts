@@ -331,6 +331,8 @@ type CliValidateStarted = BaseTrack & {
         projectId: string;
         isPreview: boolean;
         validationTargets: string[];
+        includedSpacesCount: number;
+        excludedSpacesCount: number;
     };
 };
 /** `success` indicates whether 0 validation errors were found, not whether the process ran without crashing (crashes fire `validate.error` instead). */
@@ -341,6 +343,8 @@ type CliValidateCompleted = BaseTrack & {
         projectId: string;
         isPreview: boolean;
         validationTargets: string[];
+        includedSpacesCount: number;
+        excludedSpacesCount: number;
         durationMs: number;
         success: boolean;
         totalErrors: number;

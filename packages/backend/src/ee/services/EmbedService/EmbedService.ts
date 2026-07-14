@@ -98,6 +98,7 @@ import { SpacePermissionService } from '../../../services/SpaceService/SpacePerm
 import { getFilteredExplore } from '../../../services/UserAttributesService/UserAttributeUtils';
 import { wrapSentryTransaction } from '../../../utils';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
+import { QueryComposer } from '../../../utils/QueryBuilder/QueryComposer';
 import { SubtotalsCalculator } from '../../../utils/SubtotalsCalculator';
 import { EmbedDashboardViewed, EmbedQueryViewed } from '../../analytics';
 import { EmbedModel } from '../../models/EmbedModel';
@@ -217,6 +218,8 @@ export class EmbedService extends BaseService {
             urlPath = `/embed/${projectUuid}/app/${jwtData.content.appUuid}#${jwtToken}`;
         } else if (jwtData.content.type === 'aiAgent') {
             urlPath = `/embed/${projectUuid}/ai-agents/${jwtData.content.agentUuid}/threads#${jwtToken}`;
+        } else if (jwtData.content.type === 'metricsCatalog') {
+            urlPath = `/embed/${projectUuid}/metrics#${jwtToken}`;
         } else {
             urlPath = `/embed/${projectUuid}#${jwtToken}`;
         }
@@ -302,6 +305,7 @@ export class EmbedService extends BaseService {
         return this.getConfig(account, projectUuid);
     }
 
+    /** @deprecated Superseded by updateConfig (PATCH /api/v1/embed/{projectUuid}/config). */
     async updateDashboards(
         account: SessionAccount,
         projectUuid: string,
@@ -509,6 +513,15 @@ export class EmbedService extends BaseService {
                 type: 'aiAgent',
                 explores: [],
                 agentUuid: decodedToken.content.agentUuid,
+            };
+        }
+
+        if (decodedToken.content.type === 'metricsCatalog') {
+            return {
+                dashboardUuid: undefined,
+                chartUuids: [],
+                type: 'metricsCatalog',
+                explores: [],
             };
         }
 
@@ -1037,23 +1050,25 @@ export class EmbedService extends BaseService {
             filteredExplore,
         );
 
-        const compiledQuery = await ProjectService._compileQuery({
-            metricQuery,
-            explore: filteredExplore,
-            warehouseSqlBuilder: warehouseClient,
-            intrinsicUserAttributes,
-            userAttributes,
-            timezone,
-            dateZoom: dateZoomGranularity
-                ? {
-                      granularity: dateZoomGranularity,
-                  }
-                : undefined,
-            parameters: combinedParameters,
-            availableParameterDefinitions,
-            useTimezoneAwareDateTrunc,
-            columnTimezone: getColumnTimezone(warehouseClient.credentials),
-        });
+        const compiledQuery = new QueryComposer(
+            { metricQuery },
+            {
+                explore: filteredExplore,
+                warehouseSqlBuilder: warehouseClient,
+                intrinsicUserAttributes,
+                userAttributes,
+                timezone,
+                dateZoom: dateZoomGranularity
+                    ? {
+                          granularity: dateZoomGranularity,
+                      }
+                    : undefined,
+                parameters: combinedParameters,
+                availableParameterDefinitions,
+                useTimezoneAwareDateTrunc,
+                columnTimezone: getColumnTimezone(warehouseClient.credentials),
+            },
+        ).compile();
 
         const results =
             await this.projectService.getResultsFromCacheOrWarehouse({
@@ -1462,6 +1477,7 @@ export class EmbedService extends BaseService {
         });
     }
 
+    /** @deprecated Only used by the deprecated embed chart-and-results endpoint; use executeAsyncDashboardTileQuery instead. */
     async getChartAndResults(
         projectUuid: string,
         account: AnonymousAccount,
@@ -1683,6 +1699,10 @@ export class EmbedService extends BaseService {
                 throw new ForbiddenError(
                     'AI agent embeds cannot access saved charts',
                 );
+            case 'metricsCatalog':
+                throw new ForbiddenError(
+                    'Metrics catalog embeds cannot access saved charts',
+                );
             case 'apiAccess':
                 throw new ForbiddenError(
                     'API access embeds cannot access saved charts',
@@ -1766,6 +1786,7 @@ export class EmbedService extends BaseService {
         };
     }
 
+    /** @deprecated Superseded by AsyncQueryService.executeAsyncCalculateTotalFromQueryHistory. */
     async calculateTotalFromSavedChart(
         account: AnonymousAccount,
         projectUuid: string,
@@ -1847,7 +1868,7 @@ export class EmbedService extends BaseService {
         }
     }
 
-    /** @deprecated Superseded by the V2 calculate-total path (kind 'columnSubtotal'). */
+    /** @deprecated Superseded by AsyncQueryService.executeAsyncCalculateTotalFromQueryHistory (kind 'columnSubtotal'). */
     async calculateSubtotalsFromSavedChart(
         account: AnonymousAccount,
         projectUuid: string,
@@ -1985,6 +2006,7 @@ export class EmbedService extends BaseService {
     /**
      * Calculate totals from a raw metric query in embed context.
      * This is used when exploring data directly (not from a saved chart).
+     * @deprecated Superseded by AsyncQueryService.executeAsyncCalculateTotalFromQueryHistory.
      */
     async calculateTotalFromQuery(
         account: AnonymousAccount,
@@ -2064,7 +2086,7 @@ export class EmbedService extends BaseService {
     /**
      * Calculate subtotals from a raw metric query in embed context.
      * This is used when exploring data directly (not from a saved chart).
-     * @deprecated Superseded by the V2 calculate-total path (kind 'columnSubtotal').
+     * @deprecated Superseded by AsyncQueryService.executeAsyncCalculateTotalFromQueryHistory (kind 'columnSubtotal').
      */
     async calculateSubtotalsFromQuery(
         account: AnonymousAccount,

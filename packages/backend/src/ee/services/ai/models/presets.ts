@@ -17,6 +17,8 @@ export type ModelPreset<P extends ModelPresetProvider> = {
     // `thinking.type: 'enabled'` + `budgetTokens` API; 'adaptive' uses the newer
     // `effort` API (required by Claude Opus 4.7+). Ignored unless supportsReasoning.
     reasoningStyle?: ReasoningStyle;
+    // Excluded from model pickers unless the org's own provider key can access it
+    hiddenUnlessKeyAccess?: boolean;
     callOptions: CallSettings;
     providerOptions: ProviderOptionsMap[P] | undefined;
 };
@@ -40,7 +42,7 @@ export const MODEL_PRESETS: {
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
-                parallelToolCalls: true,
+                parallelToolCalls: false,
             },
         },
         {
@@ -56,7 +58,7 @@ export const MODEL_PRESETS: {
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
-                parallelToolCalls: true,
+                parallelToolCalls: false,
             },
         },
         {
@@ -70,7 +72,7 @@ export const MODEL_PRESETS: {
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
-                parallelToolCalls: true,
+                parallelToolCalls: false,
             },
         },
         {
@@ -84,7 +86,7 @@ export const MODEL_PRESETS: {
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
-                parallelToolCalls: true,
+                parallelToolCalls: false,
             },
         },
         {
@@ -98,7 +100,7 @@ export const MODEL_PRESETS: {
             callOptions: {},
             providerOptions: {
                 // strictJsonSchema: provider default is true
-                parallelToolCalls: true,
+                parallelToolCalls: false,
                 reasoningEffort: 'minimal',
             },
         },
@@ -113,6 +115,19 @@ export const MODEL_PRESETS: {
             contextWindowTokens: 200000,
             supportsReasoning: true,
             reasoningStyle: 'adaptive',
+            callOptions: {},
+            providerOptions: undefined,
+        },
+        {
+            name: 'claude-opus-4-8',
+            provider: 'anthropic',
+            modelId: 'claude-opus-4-8',
+            displayName: 'Claude Opus 4.8',
+            description: 'Most intelligent Opus model for complex tasks',
+            contextWindowTokens: 200000,
+            supportsReasoning: true,
+            reasoningStyle: 'adaptive',
+            hiddenUnlessKeyAccess: true,
             callOptions: {},
             providerOptions: undefined,
         },
@@ -248,6 +263,19 @@ export function matchesPreset(
     name: string,
 ): boolean {
     return preset.name === name || preset.modelId === name;
+}
+
+// Whether a provider's /v1/models listing grants access to a base model id.
+// Matches the exact id or a dated variant of it — e.g. "claude-opus-4-8" is
+// granted by "claude-opus-4-8" or "claude-opus-4-8-20260115", but not by
+// "claude-opus-4-80".
+export function keyGrantsModel(
+    accessibleModelIds: readonly string[],
+    baseModelId: string,
+): boolean {
+    return accessibleModelIds.some(
+        (id) => id === baseModelId || id.startsWith(`${baseModelId}-`),
+    );
 }
 
 export function getModelPreset<T extends ModelPresetProvider>(

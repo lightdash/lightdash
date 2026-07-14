@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import { ProjectType } from '@lightdash/common';
-import { Alert, SimpleGrid, Stack, Text } from '@mantine/core';
+import { Alert, Stack, Text } from '@mantine-8/core';
+import { SimpleGrid } from '@mantine/core';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
@@ -63,7 +64,7 @@ const SelectWarehouse: FC<SelectWarehouseProps> = ({
                         </Alert>
                     )}
 
-                    <Text color="dimmed">Select your warehouse:</Text>
+                    <Text c="dimmed">Select your warehouse:</Text>
 
                     <SimpleGrid cols={2} spacing="sm">
                         {WarehouseTypeLabels.map((item) => (

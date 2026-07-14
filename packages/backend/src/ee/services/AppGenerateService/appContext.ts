@@ -1,7 +1,6 @@
 import { type DataAppContextFile } from '@lightdash/common';
 
 export const CONTEXT_PREFIX = '.lightdash/context/';
-export const THEME_ASSET_CAP = 30;
 
 export const contextFile = (
     relPath: string,

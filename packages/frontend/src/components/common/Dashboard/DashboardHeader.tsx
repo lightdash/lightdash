@@ -875,7 +875,7 @@ const DashboardHeader = memo(
                                                         }
                                                         onClick={() =>
                                                             getPromoteDashboardDiff(
-                                                                dashboardUuid,
+                                                                dashboard.uuid,
                                                             )
                                                         }
                                                     >
@@ -1011,7 +1011,7 @@ const DashboardHeader = memo(
                                         resetPromoteDashboardDiff();
                                     }}
                                     onConfirm={() => {
-                                        promoteDashboard(dashboardUuid);
+                                        promoteDashboard(dashboard.uuid);
                                     }}
                                 />
                             )}

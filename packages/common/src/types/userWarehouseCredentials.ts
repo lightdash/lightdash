@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
     DatabricksAuthenticationType,
+    RedshiftAuthenticationType,
     SnowflakeAuthenticationType,
     WarehouseTypes,
     type CreateAthenaCredentials,
@@ -30,7 +31,10 @@ export type UserWarehouseCredentials = {
     updatedAt: Date;
     credentials:
         | Pick<
-              | CreateRedshiftCredentials
+              CreateRedshiftCredentials,
+              'type' | 'user' | 'authenticationType' | 'assumeRoleArn'
+          >
+        | Pick<
               | CreatePostgresCredentials
               | CreateSnowflakeCredentials
               | CreateTrinoCredentials
@@ -50,6 +54,17 @@ export type UserWarehouseCredentialsWithSecrets = Pick<
 > & {
     credentials:
         | Pick<CreateRedshiftCredentials, 'type' | 'user' | 'password'>
+        | Pick<
+              CreateRedshiftCredentials,
+              | 'type'
+              | 'user'
+              | 'authenticationType'
+              | 'accessKeyId'
+              | 'secretAccessKey'
+              | 'sessionToken'
+              | 'assumeRoleArn'
+              | 'assumeRoleExternalId'
+          >
         | Pick<CreatePostgresCredentials, 'type' | 'user' | 'password'>
         | Pick<
               CreateSnowflakeCredentials,
@@ -93,6 +108,48 @@ export type UpsertUserWarehouseCredentials = {
     credentials: UserWarehouseCredentialsWithSecrets['credentials'];
 };
 
+export type RedshiftAwsSsoStartRequest = {
+    projectUuid?: string;
+    startUrl?: string;
+    region?: string;
+};
+
+export type RedshiftAwsSsoStartResults = {
+    verificationUri: string;
+    verificationUriComplete: string;
+    userCode: string;
+    expiresIn: number;
+    interval: number;
+};
+
+export type RedshiftAwsSsoStartResponse = {
+    status: 'ok';
+    results: RedshiftAwsSsoStartResults;
+};
+
+export type RedshiftAwsSsoCompleteRequest = {
+    accountId?: string;
+    roleName?: string;
+    projectUuid?: string;
+    projectName?: string;
+    credentialsName?: string;
+    databaseUser?: string;
+};
+
+export type RedshiftAwsSsoCompleteResults =
+    | {
+          status: 'pending';
+      }
+    | {
+          status: 'authenticated';
+          credentials: UserWarehouseCredentials;
+      };
+
+export type RedshiftAwsSsoCompleteResponse = {
+    status: 'ok';
+    results: RedshiftAwsSsoCompleteResults;
+};
+
 // Zod schema for validating Snowflake SSO user warehouse credentials
 // Requires refreshToken and disallows token field
 export const snowflakeSsoUserCredentialsSchema = z
@@ -133,3 +190,42 @@ export const bigquerySsoUserCredentialsSchema = z
             .passthrough(),
     })
     .passthrough();
+
+export const redshiftIamUserCredentialsSchema = z
+    .object({
+        type: z.literal(WarehouseTypes.REDSHIFT),
+        authenticationType: z.union([
+            z.literal(RedshiftAuthenticationType.IAM),
+            z.literal(RedshiftAuthenticationType.IAM_BROWSER),
+        ]),
+        user: z.string().optional(),
+        password: z.string().optional(),
+        accessKeyId: z.string().optional(),
+        secretAccessKey: z.string().optional(),
+        sessionToken: z.string().optional(),
+        assumeRoleArn: z.string().optional(),
+        assumeRoleExternalId: z.string().optional(),
+    })
+    .strict()
+    .superRefine((credentials, ctx) => {
+        const hasAccessKeyId = !!credentials.accessKeyId;
+        const hasSecretAccessKey = !!credentials.secretAccessKey;
+        const hasStaticCredentials = hasAccessKeyId && hasSecretAccessKey;
+        const hasAssumeRole = !!credentials.assumeRoleArn;
+
+        if (hasAccessKeyId !== hasSecretAccessKey) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message:
+                    'Redshift IAM credentials require both AWS access key ID and secret access key.',
+            });
+        }
+
+        if (!hasStaticCredentials && !hasAssumeRole) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message:
+                    'Redshift IAM credentials require an assume-role ARN or AWS access keys.',
+            });
+        }
+    });

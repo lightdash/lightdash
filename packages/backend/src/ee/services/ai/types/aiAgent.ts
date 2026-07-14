@@ -1,6 +1,6 @@
 import {
     AiAgent,
-    AiAgentDocumentSummary,
+    AiAgentDocumentContext,
     AiMcpServer,
     AiMcpServerConnectionStatus,
     AiWritebackAttribution,
@@ -49,6 +49,7 @@ import {
     ReadContentFn,
     ReadPinnedThreadFn,
     RecordSqlApprovalFn,
+    ResolveUrlFn,
     RunAsyncQueryFn,
     RunSavedChartQueryFn,
     RunSqlJobFn,
@@ -99,7 +100,7 @@ export type AiAgentRequestingUser = {
 export type AiAgentArgs = AnyAiModel & {
     agentSettings: AiAgent;
     requestingUser: AiAgentRequestingUser | null;
-    knowledgeDocuments: AiAgentDocumentSummary[];
+    knowledgeDocuments: AiAgentDocumentContext[];
     projectContext: ProjectContextEntry[];
     // Whether the project_context feature is on for this turn (Control = off).
     projectContextEnabled: boolean;
@@ -114,7 +115,6 @@ export type AiAgentArgs = AnyAiModel & {
     enableDataAccess: boolean;
     enableSelfImprovement: boolean;
     enableContentTools: boolean;
-    enableSearchSemanticLayer: boolean;
     enableAiWriteback: boolean;
     // Only on inside review-remediation work threads: lets the agent open/update
     // the project_context.yml PR via the deterministic editProjectContext tool.
@@ -183,6 +183,7 @@ export type AiAgentDependencies = {
     listContent: ListContentFn;
     findContent: FindContentFn;
     readContent: ReadContentFn;
+    resolveUrl: ResolveUrlFn;
     editContent: EditContentFn;
     createContent: CreateContentFn;
     validateContent: ValidateContentFn;

@@ -105,7 +105,9 @@ const credentialsTarget = (
 
             if (
                 credentials.authenticationType ===
-                RedshiftAuthenticationType.IAM
+                    RedshiftAuthenticationType.IAM ||
+                credentials.authenticationType ===
+                    RedshiftAuthenticationType.IAM_BROWSER
             ) {
                 if (!credentials.region) {
                     throw new ParameterError(

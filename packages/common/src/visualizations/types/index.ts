@@ -346,6 +346,8 @@ export type EChartsSeries = {
         fontWeight?: string;
         position?: 'left' | 'top' | 'right' | 'bottom' | 'inside';
         formatter?: (param: { data: Record<string, unknown> }) => string;
+        textBorderColor?: string;
+        textBorderWidth?: number;
     };
     labelLayout?:
         | {

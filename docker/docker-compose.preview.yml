@@ -109,6 +109,7 @@ services:
             EMAIL_SMTP_USER: ${EMAIL_SMTP_SENDER_USER}
             DBT_CLOUD_ENVIRONMENT_ID: ${DBT_CLOUD_ENVIRONMENT_ID}
             DBT_CLOUD_BEARER_TOKEN: ${DBT_CLOUD_BEARER_TOKEN}
+            BRANDFETCH_API_KEY: ${BRANDFETCH_API_KEY}
         ports:
             - '8080:8080'
         command: ['pnpm', 'start']

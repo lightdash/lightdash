@@ -5,24 +5,32 @@ description: Use when editing a downloaded Lightdash data app on your machine �
 
 # Developing Lightdash Data Apps Locally
 
-You are editing a Lightdash **data app** that was downloaded with `lightdash download --apps`.
+You are editing a Lightdash **data app** that was downloaded with the Lightdash CLI (`lightdash download`).
 
 ## The only way to reach data is the SDK
 
 - All data access goes through `@lightdash/query-sdk` (a postMessage bridge to Lightdash). There is **no** `fetch`, no REST calls, no other network access at runtime — anything else is blocked.
 - For the SDK surface (query builder, `useLightdash`, filters, downloads), read the `lightdash-data-app` skill in this folder.
 
+## Library boundaries — build with what's preinstalled
+
+- The app builds against a **fixed template dependency set** — see `package.json` (React, Recharts, d3 + d3-cloud/d3-sankey, Radix primitives, Tailwind, lucide-react, date-fns, html-to-image, jspdf, and more). **Design within this set**; it covers almost all data-app needs.
+- Adding new npm packages only works when the Lightdash instance has custom dependencies enabled — **assume it does not**. When disabled, upload rejects new dependencies and apps that declare them cannot be downloaded. Do not attempt `pnpm add` to find out; ask the user whether their instance has custom dependencies enabled before considering a new library.
+- Do **not** work around a missing library by vendoring its source into `src/`, inlining minified code, or fetching code at runtime. If the template set genuinely cannot express what's asked, say so and let the user decide.
+
 ## The edit → build → upload loop
 
 1. Edit files under `src/` only.
 2. Optionally, `pnpm install` then `pnpm build` to check it compiles. This is an **optional local pre-check** — see below.
-3. `lightdash upload --apps` — the **server** rebuilds and serves the app. The server rebuild, not your local build, is what ships.
+3. `lightdash upload --apps <appUuid>` (the `appUuid` from this folder's `lightdash-app.yml`) — the **server** rebuilds and serves the app. The server rebuild, not your local build, is what ships.
 
 ## The local build is optional — never fight a failing install
 
 - If `pnpm install` fails (registry policy, an unavailable pinned SDK version, no network access), **skip the local build entirely and go straight to upload**. The server rebuild is authoritative and surfaces build errors on the app page.
 - Do **not** modify machine configuration, `.npmrc` files, registry settings, or the project's dependency files to force an install to work.
 - A missing `node_modules` is a normal state, not a problem to fix. Never run installs just because it is absent.
+- **Exception — adding a dependency** (only on instances with custom dependencies enabled — see "Library boundaries" above). Upload rejects new dependencies unless `pnpm-lock.yaml` was regenerated to match `package.json`, so dependency resolution MUST succeed locally. Use `pnpm add <pkg>`, or after editing `package.json` run `pnpm install --lockfile-only` (updates the lockfile without installing). If resolution fails, **stop and report the exact pnpm error to the user** — never hand-edit `package.json` and proceed without the lockfile; the upload will fail.
+- **Never run dependency lifecycle scripts.** The app's `.npmrc` sets `ignore-scripts=true` — leave it. A downloaded app can be authored by someone else, and their dependencies' install scripts must not execute on this machine. Explicit `pnpm build`/`pnpm dev` still work.
 
 ## Project context (read-only reference)
 
@@ -35,4 +43,6 @@ You are editing a Lightdash **data app** that was downloaded with `lightdash dow
 
 ## Read-only files
 
-Root config (`package.json`, `vite.config.js`, `tailwind.config.js`, `tsconfig.json`, etc.) is reference only. Editing it has **no effect** — the server rebuilds against its trusted template. Adding dependencies or changing the build is not supported yet.
+Most root config is reference only — editing it has **no effect** because the server rebuilds against its trusted template. This applies to `vite.config.js`, `tailwind.config.js`, `tsconfig.json`, and other build/tooling files.
+
+`package.json` is **partially editable** only when custom dependencies are enabled on the Lightdash instance — see "Library boundaries" above; treat it as read-only otherwise. When enabled, you may add npm dependencies with `pnpm add <pkg>` — registry packages with plain semver versions only (no git/file/url specs), up to 60 direct dependencies, and `pnpm-lock.yaml` must be updated alongside (see the exception above — this is the one step that must succeed locally). On upload the CLI warns which packages will be installed in the build sandbox; install scripts never run. Other root config (vite/tailwind/tsconfig) remains read-only.

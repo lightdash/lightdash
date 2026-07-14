@@ -1268,6 +1268,7 @@ export type LightdashConfig = {
     trustProxy: boolean;
     databaseConnectionUri?: string;
     smtp: SmtpConfig | undefined;
+    postmark: PostmarkConfig;
     rudder: RudderConfig;
     mode: LightdashMode;
     license: {
@@ -1350,6 +1351,9 @@ export type LightdashConfig = {
         queueTimeoutMs: number;
     };
     slack?: SlackConfig;
+    brandfetch?: {
+        apiKey: string;
+    };
     scheduler: {
         enabled: boolean;
         concurrency: number;
@@ -1580,6 +1584,10 @@ export type HeadlessBrowserConfig = {
     browserEndpoint: string;
     maxScreenshotRetries: number;
     retryBaseDelayMs: number;
+    // How long to wait for page content (tiles/charts) to be ready before
+    // screenshotting. The browser container's own session timeout (browserless
+    // TIMEOUT env) must be >= this value or it becomes the binding limit.
+    screenshotTimeoutMs: number;
 };
 export type S3Config = {
     region: string;
@@ -1755,6 +1763,57 @@ export type AppRuntimeConfig = {
      * `auth` selects how export headers are minted (see `gcpOtelAuth.ts`).
      */
     otel: DataAppOtelConfig;
+    /**
+     * When false, uploads that declare a non-empty custom dependency set are
+     * rejected at the API boundary with a clear error, and builds/iterations
+     * of versions with stored custom deps refuse to run. Template-only
+     * uploads (no declared dependencies) are always accepted. Env var
+     * `LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED`; defaults to `false` while
+     * the feature rolls out — set to `true` to enable on an instance.
+     */
+    customDependenciesEnabled: boolean;
+    /**
+     * NPM registry hosts added to the sandbox egress allowlist when a version
+     * has a custom dependency set (`app_versions.dependencies` non-null).
+     * Template-only builds never gain these hosts. Comma-separated env var
+     * `LIGHTDASH_APP_DEPENDENCY_REGISTRY_HOSTS`; defaults to the public npm
+     * registry.
+     */
+    dependencyRegistryHosts: string[];
+    /**
+     * Timeout in milliseconds for the `pnpm install` step that runs before the
+     * Vite build when a version has custom dependencies. Defaults to 2 minutes.
+     */
+    dependencyInstallTimeoutMs: number;
+    /**
+     * Minimum age (in days) a declared custom dependency's resolved version
+     * must have since publication, checked against npm registry metadata at
+     * upload time. Guards against freshly-published (potentially compromised)
+     * versions. Env var `LIGHTDASH_APP_DEPENDENCY_MIN_RELEASE_AGE_DAYS`.
+     *
+     * `0` (default) disables the check — deliberately off, matching the rest
+     * of the custom-dependencies feature, since enabling it adds registry
+     * round-trips and can block legitimate recent releases. When you do turn
+     * it on, `3` is a sensible starting point: it mirrors this repo's own
+     * `minimum-release-age=3d` npm policy.
+     */
+    dependencyMinReleaseAgeDays: number;
+    /**
+     * When true, every resolved package in a custom-dependency upload's
+     * lockfile (direct + transitive) is checked against the OSV
+     * malicious-packages feed at upload time; known-malicious versions are
+     * rejected. Only runs for uploads that already passed the custom-deps
+     * gates, so orgs not using custom deps are unaffected.
+     *
+     * Env var `LIGHTDASH_APP_DEPENDENCY_MALWARE_CHECK_ENABLED`; defaults to
+     * `true`. It is precise (matches only OSV `MAL-` advisories, so
+     * near-zero false positives), which is why it is the one dependency guard
+     * that defaults on. The check FAILS CLOSED — if OSV can't be reached the
+     * upload is rejected — so an instance whose backend has no egress to
+     * `api.osv.dev` (air-gapped, or during an OSV outage) must set this to
+     * `false` to keep uploading custom-dependency apps.
+     */
+    dependencyMalwareCheckEnabled: boolean;
 };
 
 export type DataAppOtelConfig = {
@@ -1937,6 +1996,26 @@ export type SmtpConfig = {
     inlineImageCid: boolean;
 };
 
+/**
+ * Cloud-only email whitelabelling (see FeatureFlags.EmailWhitelabel).
+ *
+ * `accountToken` is the Postmark *account*-level API token used to drive the
+ * Domains API (create a sender domain, fetch its DKIM + return-path DNS
+ * records, trigger verification). Sending itself stays over SMTP; this token is
+ * only for provisioning. When it is undefined the feature is unavailable
+ * (self-hosted instances that don't own a Postmark account can't self-serve).
+ */
+export type PostmarkConfig = {
+    accountToken: string | undefined;
+    /**
+     * The default return-path subdomain label Postmark uses for custom
+     * return-paths (its CNAME points at `pm.mtasv.net`). Configurable so a
+     * customer with an existing `pm-bounces` record can be given a different
+     * label.
+     */
+    returnPathSubdomain: string;
+};
+
 const DEFAULT_JOB_TIMEOUT = 1000 * 60 * 10; // 10 minutes
 
 const parseSandboxProvider = (
@@ -2102,6 +2181,36 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
         e2bCodingAgentTemplateTag:
             process.env.E2B_CODING_AGENT_TEMPLATE_TAG ?? (VERSION as string),
         otel: parseDataAppOtelConfig(),
+        customDependenciesEnabled:
+            process.env.LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED === 'true',
+        dependencyRegistryHosts: (
+            process.env.LIGHTDASH_APP_DEPENDENCY_REGISTRY_HOSTS ||
+            'registry.npmjs.org'
+        )
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean)
+            .map((host) => {
+                // These feed the sandbox egress allowlist — fail loudly on
+                // anything that isn't a plain hostname.
+                if (!/^[a-zA-Z0-9][a-zA-Z0-9.-]*$/.test(host)) {
+                    throw new ParseError(
+                        `Cannot parse environment variable "LIGHTDASH_APP_DEPENDENCY_REGISTRY_HOSTS". "${host}" is not a valid hostname`,
+                    );
+                }
+                return host;
+            }),
+        dependencyInstallTimeoutMs:
+            getIntegerFromEnvironmentVariable(
+                'LIGHTDASH_APP_DEPENDENCY_INSTALL_TIMEOUT_MS',
+            ) ?? 120_000,
+        dependencyMinReleaseAgeDays:
+            getIntegerFromEnvironmentVariable(
+                'LIGHTDASH_APP_DEPENDENCY_MIN_RELEASE_AGE_DAYS',
+            ) ?? 0,
+        dependencyMalwareCheckEnabled:
+            process.env.LIGHTDASH_APP_DEPENDENCY_MALWARE_CHECK_ENABLED !==
+            'false',
     };
 };
 
@@ -2296,6 +2405,11 @@ export const parseConfig = (): LightdashConfig => {
                       process.env.EMAIL_SMTP_IMAGE_INLINE_CID === 'true',
               }
             : undefined,
+        postmark: {
+            accountToken: process.env.POSTMARK_ACCOUNT_TOKEN || undefined,
+            returnPathSubdomain:
+                process.env.POSTMARK_RETURN_PATH_SUBDOMAIN || 'pm-bounces',
+        },
         rudder: {
             writeKey:
                 process.env.RUDDERSTACK_ANALYTICS_DISABLED === 'true'
@@ -2599,6 +2713,10 @@ export const parseConfig = (): LightdashConfig => {
                 process.env.HEADLESS_BROWSER_MAX_SCREENSHOT_RETRIES || '5',
                 10,
             ),
+            screenshotTimeoutMs: parseInt(
+                process.env.HEADLESS_BROWSER_SCREENSHOT_TIMEOUT_MS || '180000',
+                10,
+            ),
             retryBaseDelayMs: parseInt(
                 process.env.HEADLESS_BROWSER_RETRY_BASE_DELAY_MS || '3000',
                 10,
@@ -2637,6 +2755,11 @@ export const parseConfig = (): LightdashConfig => {
             linkShareImagePreviewEnabled:
                 process.env.SLACK_LINK_SHARE_IMAGE_PREVIEW_ENABLED !== 'false',
         },
+        brandfetch: process.env.BRANDFETCH_API_KEY
+            ? {
+                  apiKey: process.env.BRANDFETCH_API_KEY,
+              }
+            : undefined,
         scheduler: {
             enabled: process.env.SCHEDULER_ENABLED !== 'false',
             concurrency: parseInt(process.env.SCHEDULER_CONCURRENCY || '3', 10),

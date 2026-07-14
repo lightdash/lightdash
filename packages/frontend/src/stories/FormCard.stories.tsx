@@ -1,13 +1,13 @@
 import {
+    TextInput,
+    Stack,
+    Title,
     Button,
-    Card,
     SegmentedControl,
     Select,
-    Stack,
     Switch,
-    TextInput,
-    Title,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { Card } from '@mantine/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 
 interface FormCardProps {
@@ -41,6 +41,7 @@ export function FormCard({ hasError = false }: FormCardProps) {
                         error={errorMessage}
                     />
                     <Select
+                        allowDeselect={false}
                         radius="md"
                         label="Login options"
                         placeholder="Select"
@@ -51,15 +52,15 @@ export function FormCard({ hasError = false }: FormCardProps) {
                     <SegmentedControl
                         radius="md"
                         data={['Option 1', 'Option 2', 'Option 3']}
-                        sx={{
+                        style={{
                             alignSelf: 'flex-start',
                         }}
                     />
                     <Button
                         type="submit"
                         radius="md"
-                        variant="darkPrimary"
-                        sx={{
+                        variant="dark"
+                        style={{
                             alignSelf: 'flex-end',
                         }}
                     >

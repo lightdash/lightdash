@@ -16,6 +16,7 @@ export const buildManifest = (args: {
     name: string;
     description: string;
     template: DataAppManifest['template'];
+    vizSchema?: DataAppManifest['vizSchema'];
     downloadedAt: string;
 }): DataAppManifest => ({ codeVersion: 1, ...args });
 

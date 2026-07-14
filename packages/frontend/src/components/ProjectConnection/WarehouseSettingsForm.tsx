@@ -1,5 +1,5 @@
 import { WarehouseTypes } from '@lightdash/common';
-import { Select } from '@mantine/core';
+import { Select } from '@mantine-8/core';
 import { type FC } from 'react';
 import { useFormContext } from './formContext';
 import AthenaForm from './WarehouseForms/AthenaForm';
@@ -59,6 +59,7 @@ const WarehouseSettingsForm: FC<WarehouseSettingsFormProps> = ({
         >
             {isProjectUpdate && (
                 <Select
+                    allowDeselect={false}
                     defaultValue={WarehouseTypes.BIGQUERY}
                     label="Type"
                     data={Object.entries(WarehouseTypeLabels).map(
@@ -69,11 +70,12 @@ const WarehouseSettingsForm: FC<WarehouseSettingsFormProps> = ({
                     )}
                     required
                     {...form.getInputProps('warehouse.type')}
-                    onChange={(value: WarehouseTypes) => {
+                    onChange={(value) => {
                         if (!value) return;
+                        const warehouseType = value as WarehouseTypes;
 
                         form.setValues({
-                            warehouse: warehouseDefaultValues[value],
+                            warehouse: warehouseDefaultValues[warehouseType],
                         });
                     }}
                     disabled={disabled}

@@ -3,18 +3,31 @@ import {
     Box,
     Button,
     Flex,
+    Group,
     Input,
-    SegmentedControl,
     Stack,
     Text,
     Textarea,
     TextInput,
+    UnstyledButton,
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
-import { type FC } from 'react';
+import {
+    IconAlertTriangleFilled,
+    IconBuilding,
+    IconCircleCheckFilled,
+    IconCircleXFilled,
+    IconFolder,
+} from '@tabler/icons-react';
+import { type FC, useState } from 'react';
 import { Link } from 'react-router';
+import MantineIcon from '../../../../../components/common/MantineIcon';
 import { SettingsCard } from '../../../../../components/common/Settings/SettingsCard';
 import { validateRoleName, validateScopes } from '../../utils/roleValidation';
+import {
+    getScopeDependencyStatusCounts,
+    type DependencyStatus,
+} from '../../utils/scopeUtils';
 import { ScopeSelector } from '../ScopeSelector';
 import { type RoleFormValues } from '../types';
 import styles from './RoleBuilder.module.css';
@@ -48,6 +61,38 @@ type Props = {
      */
     rederiveScopesOnLevelChange?: boolean;
 };
+
+const dependencyStatusItems = [
+    { key: 'full', icon: IconCircleCheckFilled, color: 'green' },
+    { key: 'partial', icon: IconAlertTriangleFilled, color: 'yellow' },
+    { key: 'empty', icon: IconCircleXFilled, color: 'red' },
+] as const satisfies Array<{
+    key: DependencyStatus;
+    icon: typeof IconCircleCheckFilled;
+    color: string;
+}>;
+
+const roleLevelOptions = [
+    {
+        value: 'project',
+        title: 'Project role',
+        description:
+            'Assigned per project. A user or group can hold different project roles on different projects.',
+        icon: IconFolder,
+    },
+    {
+        value: 'organization',
+        title: 'Organization role',
+        description:
+            'Grants access to organization-wide admin settings, applied across the whole org. Any project-scoped permissions you add here will apply to every project.',
+        icon: IconBuilding,
+    },
+] as const satisfies Array<{
+    value: RoleLevel;
+    title: string;
+    description: string;
+    icon: typeof IconFolder;
+}>;
 
 /**
  * Allows admins to create and edit roles. Includes a selectable list of scopes to assign to the role.
@@ -84,6 +129,8 @@ export const RoleBuilder: FC<Props> = ({
             scopes: validateScopes,
         },
     });
+    const [dependencyStatus, setDependencyStatus] =
+        useState<DependencyStatus>();
 
     const handleSubmit = form.onSubmit((values) => {
         const scopeNames = Object.entries(values.scopes)
@@ -130,10 +177,20 @@ export const RoleBuilder: FC<Props> = ({
     const isLevelDisabled = isWorking || mode === 'edit' || levelLocked;
     const levelHint =
         mode === 'edit'
-            ? "Type can't be changed after creation."
+            ? "Role type can't be changed after creation."
             : levelLocked
               ? levelLockedHint
               : undefined;
+
+    const dependencyStatusCounts = getScopeDependencyStatusCounts({
+        level: form.values.level,
+        scopes: form.values.scopes || {},
+    });
+    const handleDependencyStatusClick = (status: DependencyStatus) => {
+        setDependencyStatus((currentStatus) =>
+            currentStatus === status ? undefined : status,
+        );
+    };
 
     return (
         <form onSubmit={handleSubmit} className={styles.container}>
@@ -141,6 +198,105 @@ export const RoleBuilder: FC<Props> = ({
                 <Stack gap="xs" className={styles.contentStack}>
                     <SettingsCard>
                         <Stack gap="md">
+                            <Stack gap="xs">
+                                <Stack gap="two">
+                                    <Input.Label>Role type</Input.Label>
+                                    <Text fz="sm" c="dimmed">
+                                        Choose where this role can be assigned.
+                                        This can't be changed after the role is
+                                        created.
+                                    </Text>
+                                    {levelHint && (
+                                        <Text fz="xs" c="dimmed">
+                                            {levelHint}
+                                        </Text>
+                                    )}
+                                </Stack>
+                                <Group
+                                    gap="md"
+                                    align="stretch"
+                                    className={styles.roleLevelOptions}
+                                >
+                                    {roleLevelOptions.map((option) => {
+                                        const isSelected =
+                                            form.values.level === option.value;
+
+                                        return (
+                                            <UnstyledButton
+                                                key={option.value}
+                                                className={
+                                                    styles.roleLevelOption
+                                                }
+                                                data-selected={isSelected}
+                                                aria-pressed={isSelected}
+                                                disabled={isLevelDisabled}
+                                                onClick={() =>
+                                                    handleLevelChange(
+                                                        option.value,
+                                                    )
+                                                }
+                                            >
+                                                <Group
+                                                    align="flex-start"
+                                                    justify="space-between"
+                                                    wrap="nowrap"
+                                                    gap="md"
+                                                >
+                                                    <Group
+                                                        align="flex-start"
+                                                        wrap="nowrap"
+                                                        gap="md"
+                                                    >
+                                                        <Box
+                                                            className={
+                                                                styles.roleLevelIcon
+                                                            }
+                                                        >
+                                                            <MantineIcon
+                                                                icon={
+                                                                    option.icon
+                                                                }
+                                                                size="md"
+                                                            />
+                                                        </Box>
+                                                        <Stack gap="xs">
+                                                            <Text fw={600}>
+                                                                {option.title}
+                                                            </Text>
+                                                            <Text
+                                                                fz="sm"
+                                                                c="dimmed"
+                                                                lh={1.45}
+                                                            >
+                                                                {
+                                                                    option.description
+                                                                }
+                                                            </Text>
+                                                        </Stack>
+                                                    </Group>
+                                                    <Box
+                                                        className={
+                                                            styles.roleLevelIndicator
+                                                        }
+                                                        data-selected={
+                                                            isSelected
+                                                        }
+                                                    >
+                                                        {isSelected ? (
+                                                            <MantineIcon
+                                                                icon={
+                                                                    IconCircleCheckFilled
+                                                                }
+                                                                size="md"
+                                                            />
+                                                        ) : null}
+                                                    </Box>
+                                                </Group>
+                                            </UnstyledButton>
+                                        );
+                                    })}
+                                </Group>
+                            </Stack>
                             <TextInput
                                 label="Role name"
                                 placeholder="e.g., Finance Analyst"
@@ -155,29 +311,6 @@ export const RoleBuilder: FC<Props> = ({
                                 disabled={isWorking}
                                 {...form.getInputProps('description')}
                             />
-                            <Stack gap="two">
-                                <Input.Label>Type</Input.Label>
-                                <SegmentedControl
-                                    data={[
-                                        {
-                                            value: 'project',
-                                            label: 'Project',
-                                        },
-                                        {
-                                            value: 'organization',
-                                            label: 'Organization',
-                                        },
-                                    ]}
-                                    disabled={isLevelDisabled}
-                                    value={form.values.level}
-                                    onChange={handleLevelChange}
-                                />
-                                {levelHint && (
-                                    <Text fz="xs" c="dimmed">
-                                        {levelHint}
-                                    </Text>
-                                )}
-                            </Stack>
                         </Stack>
                     </SettingsCard>
 
@@ -186,30 +319,76 @@ export const RoleBuilder: FC<Props> = ({
                             <ScopeSelector
                                 form={form}
                                 level={form.values.level}
+                                dependencyStatus={dependencyStatus}
                             />
                         </Box>
                         <Flex
-                            justify="flex-end"
+                            justify="space-between"
+                            align="center"
                             gap="sm"
                             className={styles.footer}
                         >
-                            <Button
-                                variant="default"
-                                component={Link}
-                                to="/generalSettings/customRoles"
-                                disabled={isWorking}
-                            >
-                                Cancel
-                            </Button>
-                            <Button
-                                type="submit"
-                                loading={isWorking}
-                                disabled={mode === 'edit' && !form.isDirty()}
-                            >
-                                {mode === 'create'
-                                    ? 'Create role'
-                                    : 'Save changes'}
-                            </Button>
+                            <Group gap={4}>
+                                {dependencyStatusItems.map((status) => {
+                                    const count =
+                                        dependencyStatusCounts[status.key];
+                                    const isSelected =
+                                        dependencyStatus === status.key;
+
+                                    return (
+                                        <UnstyledButton
+                                            key={status.key}
+                                            type="button"
+                                            className={
+                                                styles.dependencyStatusButton
+                                            }
+                                            data-selected={isSelected}
+                                            aria-label={`Show ${count} permissions with ${status.key} dependency status`}
+                                            aria-pressed={isSelected}
+                                            onClick={() =>
+                                                handleDependencyStatusClick(
+                                                    status.key,
+                                                )
+                                            }
+                                        >
+                                            <Group gap={4}>
+                                                <MantineIcon
+                                                    icon={status.icon}
+                                                    size={13}
+                                                    color={status.color}
+                                                />
+                                                <Text fz="sm" c="dimmed">
+                                                    {count}
+                                                </Text>
+                                            </Group>
+                                        </UnstyledButton>
+                                    );
+                                })}
+                                <Text fz="sm" c="dimmed">
+                                    dependencies
+                                </Text>
+                            </Group>
+                            <Group gap="sm">
+                                <Button
+                                    variant="default"
+                                    component={Link}
+                                    to="/generalSettings/customRoles"
+                                    disabled={isWorking}
+                                >
+                                    Cancel
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    loading={isWorking}
+                                    disabled={
+                                        mode === 'edit' && !form.isDirty()
+                                    }
+                                >
+                                    {mode === 'create'
+                                        ? 'Create role'
+                                        : 'Save changes'}
+                                </Button>
+                            </Group>
                         </Flex>
                     </SettingsCard>
                 </Stack>

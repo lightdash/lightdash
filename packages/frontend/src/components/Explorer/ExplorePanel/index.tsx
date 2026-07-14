@@ -6,8 +6,8 @@ import {
     findReplaceableCustomMetrics,
     getMetrics,
 } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
-import { ActionIcon, Group, HoverCard, Stack, Text } from '@mantine/core';
+import { Group, Menu, Stack, Text, ActionIcon } from '@mantine-8/core';
+import { HoverCard } from '@mantine/core';
 import {
     IconAlertTriangle,
     IconCode,
@@ -189,7 +189,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         <>
             <Stack
                 id={VisualizationConfigPortalId}
-                sx={{
+                style={{
                     flexGrow: 1,
                     overflow: 'hidden',
                     display: isVisualizationConfigOpen ? 'flex' : 'none',
@@ -198,13 +198,13 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
 
             <Stack
                 h="100%"
-                sx={{
+                style={{
                     flexGrow: 1,
                     display: isVisualizationConfigOpen ? 'none' : 'flex',
                 }}
             >
-                <Group position="apart">
-                    <Group spacing="xs">
+                <Group justify="space-between">
+                    <Group gap="xs">
                         <PageBreadcrumbs size="md" items={breadcrumbs} />
                         {explore.warnings && explore.warnings.length > 0 && (
                             <HoverCard
@@ -245,7 +245,10 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                         >
                             <Menu withArrow offset={-2}>
                                 <Menu.Target>
-                                    <ActionIcon variant="transparent">
+                                    <ActionIcon
+                                        color="gray"
+                                        variant="transparent"
+                                    >
                                         <MantineIcon icon={IconDots} />
                                     </ActionIcon>
                                 </Menu.Target>
@@ -298,7 +301,10 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                             >
                                 <Menu withArrow offset={-2}>
                                     <Menu.Target>
-                                        <ActionIcon variant="transparent">
+                                        <ActionIcon
+                                            color="gray"
+                                            variant="transparent"
+                                        >
                                             <MantineIcon icon={IconDots} />
                                         </ActionIcon>
                                     </Menu.Target>

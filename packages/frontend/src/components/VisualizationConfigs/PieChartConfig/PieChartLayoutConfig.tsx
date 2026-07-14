@@ -9,7 +9,8 @@ import {
     type Metric,
     type TableCalculation,
 } from '@lightdash/common';
-import { Box, Group, SegmentedControl, Stack, Tooltip } from '@mantine/core';
+import { Box, Group, Stack, SegmentedControl } from '@mantine-8/core';
+import { Tooltip } from '@mantine/core';
 import FieldSelect from '../../common/FieldSelect';
 import { isPieVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
@@ -145,9 +146,10 @@ export const Layout: React.FC = () => {
                 </Config.Section>
             </Config>
 
-            <Group spacing="xs">
+            <Group gap="xs">
                 <Config.Label>Display as</Config.Label>
                 <SegmentedControl
+                    size="xs"
                     value={isDonut ? 'donut' : 'pie'}
                     data={[
                         { value: 'pie', label: 'Pie' },

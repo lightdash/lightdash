@@ -1,7 +1,25 @@
 import { AnyType, SchedulerJobStatus, SchedulerLog } from '@lightdash/common';
+import knex from 'knex';
+import { MockClient } from 'knex-mock-client';
+import { SchedulerTableName } from '../../database/entities/scheduler';
 import { SchedulerModel } from './index';
 
 describe('Scheduler model test', () => {
+    describe('getSchedulers', () => {
+        const database = knex({ client: MockClient, dialect: 'pg' });
+
+        it('selects project_uuid only from scheduler rows', () => {
+            const { sql } = database(SchedulerTableName)
+                .select(...SchedulerModel.getSchedulerListSelect(database))
+                .toSQL();
+
+            expect(sql).toContain('"scheduler".*');
+            expect(sql).not.toContain(
+                '"projects"."project_uuid" as "project_uuid"',
+            );
+        });
+    });
+
     test('Test scheduler log sorting', () => {
         const baseLog: SchedulerLog = {
             task: 'handleScheduledDelivery',

@@ -1,6 +1,6 @@
 import { type NotificationAiReview } from '@lightdash/common';
-import { Group, Menu } from '@mantine-8/core';
-import { Text, Tooltip, useMantineTheme } from '@mantine/core';
+import { Group, Menu, Text } from '@mantine-8/core';
+import { Tooltip, useMantineTheme } from '@mantine/core';
 import { IconCircleFilled } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import { useCallback, type FC } from 'react';
@@ -29,6 +29,7 @@ const NotificationTime: FC<{ createdAt: Date }> = ({ createdAt }) => {
             }
         >
             <Text
+                fz="sm"
                 ta="right"
                 mb="one"
                 fw={500}
@@ -79,7 +80,7 @@ export const AiReviewNotifications: FC<Props> = ({ notifications }) => {
                     p="xs"
                     key={notification.notificationId}
                     onClick={() => handleOnNotificationClick(notification)}
-                    fz="xs"
+                    fz="sm"
                 >
                     <NotificationTime createdAt={notification.createdAt} />
                     <Group gap={6} wrap="nowrap" align="center">
@@ -92,7 +93,7 @@ export const AiReviewNotifications: FC<Props> = ({ notifications }) => {
                                     : theme.colors.teal[5],
                             }}
                         />
-                        <Text className={classes.notificationMessage}>
+                        <Text fz="sm" className={classes.notificationMessage}>
                             {notification.message}
                         </Text>
                     </Group>

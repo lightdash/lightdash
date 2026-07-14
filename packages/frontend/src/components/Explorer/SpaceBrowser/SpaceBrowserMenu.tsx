@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import { ContentType } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
-import { ActionIcon, Box } from '@mantine/core';
+import { Box, Menu, ActionIcon } from '@mantine-8/core';
 import {
     IconEdit,
     IconFolderSymlink,
@@ -56,7 +55,9 @@ export const SpaceBrowserMenu: React.FC<React.PropsWithChildren<Props>> = ({
         >
             <Menu.Target>
                 <Box>
-                    <ActionIcon>{children}</ActionIcon>
+                    <ActionIcon variant="subtle" color="gray">
+                        {children}
+                    </ActionIcon>
                 </Box>
             </Menu.Target>
             <Menu.Dropdown>

@@ -120,14 +120,25 @@ const makeService = ({
         getAvailableAgents: vi.fn().mockResolvedValue(candidates),
     };
 
+    const orgAiCopilotConfigResolver = {
+        getCopilotConfig: vi.fn().mockResolvedValue({}),
+    };
+
     const service = new AiRouterService({
         analytics: analytics as never,
         lightdashConfig: { ai: { copilot: {} } } as never,
         aiRouterModel: aiRouterModel as never,
         aiAgentService: aiAgentService as never,
+        orgAiCopilotConfigResolver: orgAiCopilotConfigResolver as never,
     });
 
-    return { service, analytics, aiRouterModel, aiAgentService };
+    return {
+        service,
+        analytics,
+        aiRouterModel,
+        aiAgentService,
+        orgAiCopilotConfigResolver,
+    };
 };
 
 describe('AiRouterService', () => {
@@ -136,6 +147,22 @@ describe('AiRouterService', () => {
         (getModel as import('vitest').Mock).mockReturnValue({
             model: 'mock-model',
         });
+    });
+
+    it('allows users with AI agent view permission to read router config', async () => {
+        const { service, aiRouterModel } = makeService({ candidates: [] });
+        (ability.cannot as import('vitest').Mock).mockImplementation(
+            (action, resource) =>
+                action === 'manage' &&
+                resource?.__caslSubjectType__ === 'OrganizationAiAgent',
+        );
+
+        const result = await service.getConfig(account);
+
+        expect(result.enabled).toBe(true);
+        expect(aiRouterModel.findByOrganization).toHaveBeenCalledWith(
+            organizationUuid,
+        );
     });
 
     it('uses the latest routing instructions and accessible candidates', async () => {
@@ -169,6 +196,7 @@ describe('AiRouterService', () => {
             candidates,
             prompt: 'show revenue by month',
             instructions: 'Route finance questions to @[Finance](agent-2)',
+            telemetry: { organizationUuid, projectUuid, userUuid },
         });
         expect(result.candidates).toEqual(candidates);
         expect(result.suggestedAgent.uuid).toBe('agent-2');

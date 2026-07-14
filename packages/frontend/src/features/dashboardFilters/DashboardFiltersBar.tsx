@@ -102,14 +102,19 @@ export const DashboardFiltersBar: FC<Props> = ({
     return (
         <div>
             <Group
-                justify="apart"
+                justify="space-between"
                 align="flex-start"
                 wrap="nowrap"
                 px="lg"
                 py="xxs"
             >
                 {/* Left section - filters and parameters */}
-                <Group justify="apart" align="flex-start" wrap="nowrap" grow>
+                <Group
+                    justify="space-between"
+                    align="flex-start"
+                    wrap="nowrap"
+                    grow
+                >
                     {hasTilesThatSupportFilters && (
                         <Group align="flex-start" gap="xs" wrap="wrap">
                             {renderFilters && (

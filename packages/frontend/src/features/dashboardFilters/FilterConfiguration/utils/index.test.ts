@@ -11,6 +11,7 @@ import { describe, expect, it } from 'vitest';
 import {
     doesFilterApplyToTile,
     getFilterTileRelation,
+    getValidSqlColumnReferences,
     getTabsForFilterRule,
 } from './index';
 
@@ -56,6 +57,20 @@ const createMockFilterableField = (
         fieldType: FieldType.DIMENSION,
         type: DimensionType.STRING,
     }) as FilterableDimension;
+
+describe('getValidSqlColumnReferences', () => {
+    it('drops SQL columns that cannot be represented as Select options', () => {
+        expect(
+            getValidSqlColumnReferences([
+                { reference: 'orders_id' },
+                { reference: undefined },
+                {},
+                { reference: null },
+                { reference: 'orders_total' },
+            ]),
+        ).toEqual(['orders_id', 'orders_total']);
+    });
+});
 
 describe('getFilterTileRelation', () => {
     it('should return "auto" when no tileTargets configuration exists', () => {

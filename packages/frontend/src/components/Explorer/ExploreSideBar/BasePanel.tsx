@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { ExploreType, type SummaryExplore } from '@lightdash/common';
-import { ActionIcon, Stack, TextInput } from '@mantine/core';
+import { TextInput, Stack, ActionIcon } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconAlertCircle,
@@ -156,7 +156,7 @@ const BasePanel = () => {
         return (
             <>
                 <ItemDetailProvider>
-                    <Stack h="100%" sx={{ flexGrow: 1 }}>
+                    <Stack h="100%" style={{ flexGrow: 1 }}>
                         <Can
                             I="manage"
                             this={subject('Explore', {
@@ -171,10 +171,20 @@ const BasePanel = () => {
                         </Can>
 
                         <TextInput
-                            icon={<MantineIcon icon={IconSearch} />}
+                            leftSection={<MantineIcon icon={IconSearch} />}
+                            rightSectionPointerEvents="all"
+                            radius="md"
                             rightSection={
                                 search ? (
-                                    <ActionIcon onClick={() => setSearch('')}>
+                                    <ActionIcon
+                                        aria-label="Clear search"
+                                        onMouseDown={(event) =>
+                                            event.preventDefault()
+                                        }
+                                        variant="subtle"
+                                        color="gray"
+                                        onClick={() => setSearch('')}
+                                    >
                                         <MantineIcon icon={IconX} />
                                     </ActionIcon>
                                 ) : null

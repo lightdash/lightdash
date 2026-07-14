@@ -1,12 +1,6 @@
 import { AthenaAuthenticationType, WarehouseTypes } from '@lightdash/common';
-import {
-    Anchor,
-    NumberInput,
-    PasswordInput,
-    Select,
-    Stack,
-    TextInput,
-} from '@mantine/core';
+import { TextInput, Stack, Anchor, Select } from '@mantine-8/core';
+import { NumberInput, PasswordInput } from '@mantine/core';
 import { useEffect, type FC } from 'react';
 import { useToggle } from 'react-use';
 import useHealth from '../../../hooks/health/useHealth';
@@ -99,6 +93,7 @@ const AthenaForm: FC<{
                             The AWS region where your Athena workgroup is
                             located. See{' '}
                             <Anchor
+                                inherit
                                 target="_blank"
                                 href="https://docs.getdbt.com/docs/core/connect-data-platform/athena-setup"
                                 rel="noreferrer"
@@ -149,6 +144,7 @@ const AthenaForm: FC<{
                 />
                 {isIamRoleAuthEnabled && (
                     <Select
+                        allowDeselect={false}
                         name="warehouse.authenticationType"
                         label="Authentication Type"
                         description="Choose whether to authenticate using AWS access keys or the runtime IAM role."

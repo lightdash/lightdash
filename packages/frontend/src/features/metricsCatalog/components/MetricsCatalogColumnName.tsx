@@ -1,14 +1,13 @@
 import { isEmojiIcon, type CatalogField } from '@lightdash/common';
 import {
-    ActionIcon,
     Box,
-    Button,
-    getDefaultZIndex,
     Group,
-    Highlight,
     Paper,
-    Portal,
-} from '@mantine/core';
+    Button,
+    ActionIcon,
+    Highlight,
+} from '@mantine-8/core';
+import { getDefaultZIndex, Portal } from '@mantine/core';
 import { useClickOutside } from '@mantine/hooks';
 import { IconTrash } from '@tabler/icons-react';
 import EmojiPicker, {
@@ -28,6 +27,7 @@ import { EventName } from '../../../types/Events';
 import { useAppSelector } from '../../sqlRunner/store/hooks';
 import { useUpdateCatalogItemIcon } from '../hooks/useCatalogItemIcon';
 import { MetricDetailPopover } from './MetricDetailPopover';
+import styles from './MetricsCatalogColumnName.module.css';
 import '../../../styles/emoji-picker-react.css';
 
 const PICKER_HEIGHT = 300;
@@ -55,28 +55,21 @@ const SharedEmojiPicker = forwardRef(
                     pos="fixed"
                     top={position.top}
                     left={position.left}
-                    sx={{
+                    style={{
                         zIndex: getDefaultZIndex('overlay'),
                     }}
                 >
-                    <Paper
-                        shadow="xs"
-                        withBorder
-                        pt="xs"
-                        px="two"
-                        sx={(theme) => ({
-                            border: `1px solid ${theme.colors.ldGray[2]}`,
-                        })}
-                    >
+                    <Paper shadow="xs" withBorder pt="xs" px="two">
                         {emoji && (
-                            <Group position="right">
+                            <Group justify="flex-end">
                                 <Button
                                     variant="light"
-                                    size="xs"
-                                    compact
+                                    size="compact-xs"
                                     color="gray"
                                     onClick={() => onClick(null)}
-                                    leftIcon={<MantineIcon icon={IconTrash} />}
+                                    leftSection={
+                                        <MantineIcon icon={IconTrash} />
+                                    }
                                 >
                                     Remove
                                 </Button>
@@ -210,25 +203,18 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
 
         return (
             <Box ref={ref}>
-                <Group noWrap spacing="xs">
+                <Group wrap="nowrap" gap="xs">
                     <ActionIcon
                         ref={setIconRef}
                         variant="default"
+                        size={28}
+                        radius="md"
                         disabled={!canManageTags}
                         onClick={handleIconClick}
-                        sx={(theme) => ({
-                            width: 28,
-                            height: 28,
-                            flexShrink: 0,
-                            borderRadius: '8px',
-                            border: `1px solid ${theme.colors.ldGray[3]}`,
-                            ...(!isEmojiIcon(row.original.icon) && {
-                                boxShadow: `0px -2px 0px 0px rgba(10, 13, 18, 0.07) inset, 0px 1px 2px 0px rgba(16, 24, 40, 0.05)`,
-                            }),
-                            '&:disabled': {
-                                backgroundColor: 'initial',
-                            },
-                        })}
+                        className={styles.iconButton}
+                        data-placeholder={
+                            !isEmojiIcon(row.original.icon) || undefined
+                        }
                     >
                         {isEmojiIcon(row.original.icon) ? (
                             <Emoji

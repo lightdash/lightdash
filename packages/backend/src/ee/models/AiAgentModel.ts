@@ -71,7 +71,6 @@ import {
     SlackPrompt,
     ToolName,
     ToolNameSchema,
-    toolProposeChangeOutputSchema,
     UnexpectedServerError,
     UpdateSlackResponse,
     UpdateSlackResponseTs,
@@ -213,6 +212,8 @@ export type AiMcpOAuthCredentialPayload = {
     type: 'oauth';
     credentialScope: AiMcpCredentialScope;
     connectionStatus: AiMcpServerConnectionStatus;
+    configuredClientId?: string;
+    configuredClientSecret?: string;
     tokens?: {
         accessToken: string;
         refreshToken?: string;
@@ -229,6 +230,7 @@ export type AiMcpOAuthCredentialPayload = {
     resourceMetadata?: Record<string, unknown>;
     authorizationServerMetadata?: Record<string, unknown>;
     lastError?: string;
+    slackLoginPromptedAt?: string;
 };
 
 export type AiMcpCredentialPayload =
@@ -304,8 +306,8 @@ const normalizeToolName = (toolName: string): string =>
     LEGACY_TOOL_NAME_ALIASES[toolName] ?? toolName;
 
 // Rows whose tool name is neither a current/legacy built-in nor an MCP tool
-// (e.g. a tool removed without an alias) are dropped by the read paths rather
-// than failing the whole thread read.
+// (such as the intentionally omitted removed proposeChange tool) are dropped
+// by the read paths rather than failing the whole thread read.
 const isParseableToolName = (toolName: string): boolean =>
     isAiAgentToolName(normalizeToolName(toolName));
 
@@ -710,6 +712,11 @@ export class AiAgentModel {
         return slug;
     }
 
+    // An OAuth flow that is never completed leaves the credential at
+    // 'connecting' indefinitely. Treat a 'connecting' credential older than the
+    // OAuth window as stale so the UI self-heals to 'not_connected'.
+    private static readonly STALE_MCP_CONNECTING_TIMEOUT_MS = 5 * 60 * 1000;
+
     private static getMcpServerCredentialStatus(
         row: DbAiMcpServer,
         credential: AiMcpCredential | null,
@@ -745,10 +752,17 @@ export class AiAgentModel {
             row.auth_type === 'oauth' &&
             credential.credentials.type === 'oauth'
         ) {
+            const isStaleConnecting =
+                credential.credentials.connectionStatus === 'connecting' &&
+                Date.now() - credential.updatedAt.getTime() >
+                    AiAgentModel.STALE_MCP_CONNECTING_TIMEOUT_MS;
+
             return {
                 hasCredentials: true,
                 credentialScope: credential.credentialScope,
-                connectionStatus: credential.credentials.connectionStatus,
+                connectionStatus: isStaleConnecting
+                    ? 'not_connected'
+                    : credential.credentials.connectionStatus,
                 error: credential.credentials.lastError ?? null,
                 connectedByUserUuid:
                     credential.updatedByUserUuid ??
@@ -954,7 +968,23 @@ export class AiAgentModel {
                     bearerToken: credentials.bearerToken,
                 };
             case 'oauth':
-                return null;
+                if (!credentials?.clientId && !credentials?.clientSecret) {
+                    return null;
+                }
+
+                if (!credentials.clientId || !credentials.clientSecret) {
+                    throw new ParameterError(
+                        'OAuth client ID and secret must be provided together',
+                    );
+                }
+
+                return {
+                    type: 'oauth',
+                    credentialScope: 'shared',
+                    connectionStatus: 'not_connected',
+                    configuredClientId: credentials.clientId,
+                    configuredClientSecret: credentials.clientSecret,
+                };
             default:
                 return assertUnreachable(
                     authType,
@@ -1476,7 +1506,9 @@ export class AiAgentModel {
         trx?: Knex;
     }): Promise<AiMcpCredential | undefined> {
         const trx = args.trx ?? this.database;
-        const rows = await trx(AiMcpServerCredentialTableName)
+        const rows: DbAiMcpServerCredential[] = await trx(
+            AiMcpServerCredentialTableName,
+        )
             .select<DbAiMcpServerCredential[]>({
                 ai_mcp_server_credential_uuid: `${AiMcpServerCredentialTableName}.ai_mcp_server_credential_uuid`,
                 ai_mcp_server_uuid: `${AiMcpServerCredentialTableName}.ai_mcp_server_uuid`,
@@ -5855,20 +5887,6 @@ export class AiAgentModel {
         }
 
         switch (parsedToolName.data) {
-            case 'proposeChange':
-                return {
-                    uuid: row.ai_agent_tool_result_uuid,
-                    promptUuid: row.ai_prompt_uuid,
-                    toolCallId: row.tool_call_id,
-                    toolType: 'built-in',
-                    toolName: parsedToolName.data,
-                    result: row.result,
-                    metadata:
-                        toolProposeChangeOutputSchema.shape.metadata.parse(
-                            row.metadata,
-                        ),
-                    createdAt: row.created_at,
-                };
             default:
                 return {
                     uuid: row.ai_agent_tool_result_uuid,
@@ -6276,6 +6294,35 @@ export class AiAgentModel {
             });
     }
 
+    async updateToolResult(
+        promptUuid: string,
+        toolCallId: string,
+        data: { result: string; metadata: AgentToolOutput['metadata'] },
+    ): Promise<void> {
+        await this.database(AiAgentToolResultTableName)
+            .where({
+                ai_prompt_uuid: promptUuid,
+                tool_call_id: toolCallId,
+            })
+            .update({
+                result: data.result,
+                metadata: data.metadata,
+            });
+    }
+
+    async hasToolResult(
+        promptUuid: string,
+        toolCallId: string,
+    ): Promise<boolean> {
+        const row = await this.database(AiAgentToolResultTableName)
+            .where({
+                ai_prompt_uuid: promptUuid,
+                tool_call_id: toolCallId,
+            })
+            .first();
+        return row !== undefined;
+    }
+
     async createArtifact(
         data: {
             threadUuid: string;
@@ -6600,6 +6647,38 @@ export class AiAgentModel {
             const results = await query;
             return results;
         });
+    }
+
+    async findArtifactVersionsByPromptUuid(
+        promptUuid: string,
+        { db }: { db: Knex } = { db: this.database },
+    ): Promise<AiArtifact[]> {
+        return db(AiArtifactVersionsTableName)
+            .select({
+                artifactUuid: `${AiArtifactsTableName}.ai_artifact_uuid`,
+                threadUuid: `${AiArtifactsTableName}.ai_thread_uuid`,
+                artifactType: `${AiArtifactsTableName}.artifact_type`,
+                savedQueryUuid: `${AiArtifactVersionsTableName}.saved_query_uuid`,
+                savedDashboardUuid: `${AiArtifactVersionsTableName}.saved_dashboard_uuid`,
+                createdAt: `${AiArtifactsTableName}.created_at`,
+                versionNumber: `${AiArtifactVersionsTableName}.version_number`,
+                versionUuid: `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
+                title: `${AiArtifactVersionsTableName}.title`,
+                description: `${AiArtifactVersionsTableName}.description`,
+                chartConfig: `${AiArtifactVersionsTableName}.chart_config`,
+                dashboardConfig: `${AiArtifactVersionsTableName}.dashboard_config`,
+                promptUuid: `${AiArtifactVersionsTableName}.ai_prompt_uuid`,
+                versionCreatedAt: `${AiArtifactVersionsTableName}.created_at`,
+                verifiedByUserUuid: `${AiArtifactVersionsTableName}.verified_by_user_uuid`,
+                verifiedAt: `${AiArtifactVersionsTableName}.verified_at`,
+            } satisfies Record<keyof AiArtifact, string>)
+            .join(
+                AiArtifactsTableName,
+                `${AiArtifactVersionsTableName}.ai_artifact_uuid`,
+                `${AiArtifactsTableName}.ai_artifact_uuid`,
+            )
+            .where(`${AiArtifactVersionsTableName}.ai_prompt_uuid`, promptUuid)
+            .orderBy(`${AiArtifactVersionsTableName}.created_at`, 'asc');
     }
 
     async updateThreadTitle({

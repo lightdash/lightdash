@@ -116,6 +116,10 @@ export const RedshiftDefaultValues: CreateRedshiftCredentials = {
     secretAccessKey: '',
     assumeRoleArn: '',
     assumeRoleExternalId: '',
+    awsSsoStartUrl: '',
+    awsSsoRegion: '',
+    awsSsoAccountId: '',
+    awsSsoRoleName: '',
     autoCreate: false,
 };
 

@@ -30,6 +30,11 @@ import {
     JobStatusType,
     KnexPaginateArgs,
     KnexPaginatedData,
+    McpActivityFilters,
+    McpActivitySort,
+    McpActivityStats,
+    McpActivityStatsFilters,
+    McpActivitySummary,
     MissingConfigError,
     NotFoundError,
     ParameterError,
@@ -73,6 +78,7 @@ import { type ProjectService } from '../../services/ProjectService/ProjectServic
 import { AiAgentModel } from '../models/AiAgentModel';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type AiAgentReviewNotificationModel } from '../models/AiAgentReviewNotificationModel';
+import { type McpToolCallModel } from '../models/McpToolCallModel';
 import { type CommercialSchedulerClient } from '../scheduler/SchedulerClient';
 import {
     buildYmlPathByModel,
@@ -99,6 +105,7 @@ type AiAgentAdminServiceDependencies = {
     aiAgentService: AiAgentService;
     featureFlagService: FeatureFlagService;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
+    mcpToolCallModel: McpToolCallModel;
     projectModel: ProjectModel;
     projectService: ProjectService;
     projectContextService: ProjectContextService;
@@ -337,6 +344,8 @@ export class AiAgentAdminService extends BaseService {
 
     private readonly aiOrganizationSettingsService: AiOrganizationSettingsService;
 
+    private readonly mcpToolCallModel: McpToolCallModel;
+
     private readonly projectModel: ProjectModel;
 
     private readonly projectService: ProjectService;
@@ -373,6 +382,7 @@ export class AiAgentAdminService extends BaseService {
         this.featureFlagService = dependencies.featureFlagService;
         this.aiOrganizationSettingsService =
             dependencies.aiOrganizationSettingsService;
+        this.mcpToolCallModel = dependencies.mcpToolCallModel;
         this.projectModel = dependencies.projectModel;
         this.projectService = dependencies.projectService;
         this.projectContextService = dependencies.projectContextService;
@@ -484,10 +494,15 @@ export class AiAgentAdminService extends BaseService {
     }
 
     /** Narrows admin filters to a principal's readable projects. */
-    private static restrictFiltersToScope(
+    private static restrictFiltersToScope<
+        T extends { projectUuids?: string[] },
+    >(
         scope: AiAdminReadScope,
-        filters: AiAgentAdminFilters | undefined,
-    ): { filters: AiAgentAdminFilters | undefined; empty: boolean } {
+        filters: T | undefined,
+    ): {
+        filters: T | { projectUuids: string[] } | undefined;
+        empty: boolean;
+    } {
         if (scope.kind === 'all') {
             return { filters, empty: false };
         }
@@ -498,7 +513,7 @@ export class AiAgentAdminService extends BaseService {
                 ? requested.filter((uuid) => allowed.has(uuid))
                 : scope.projectUuids;
         return {
-            filters: { ...filters, projectUuids },
+            filters: filters ? { ...filters, projectUuids } : { projectUuids },
             empty: projectUuids.length === 0,
         };
     }
@@ -549,6 +564,66 @@ export class AiAgentAdminService extends BaseService {
             paginateArgs,
             filters: scopedFilters,
             sort,
+        });
+    }
+
+    async getMcpActivity(
+        user: SessionUser,
+        paginateArgs?: KnexPaginateArgs,
+        filters?: McpActivityFilters,
+        sort?: McpActivitySort,
+    ): Promise<KnexPaginatedData<McpActivitySummary>> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        const scope = await this.resolveReadScope(user, organizationUuid);
+        // Forcing projectUuids for project-scoped principals also hides rows
+        // with no project — those are visible to org-wide admins only
+        const { filters: scopedFilters, empty } =
+            AiAgentAdminService.restrictFiltersToScope(scope, filters);
+        if (empty) {
+            return { data: { toolCalls: [] } };
+        }
+
+        const { data, pagination } =
+            await this.mcpToolCallModel.findActivityPaginated({
+                organizationUuid,
+                paginateArgs,
+                filters: scopedFilters,
+                sort,
+                groupBySession: true,
+            });
+
+        return { data: { toolCalls: data }, pagination };
+    }
+
+    async getMcpActivityStats(
+        user: SessionUser,
+        filters?: McpActivityStatsFilters,
+    ): Promise<McpActivityStats> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        const scope = await this.resolveReadScope(user, organizationUuid);
+        // Forcing projectUuids for project-scoped principals also hides rows
+        // with no project — those are visible to org-wide admins only
+        const { filters: scopedFilters, empty } =
+            AiAgentAdminService.restrictFiltersToScope(scope, filters);
+        if (empty) {
+            return {
+                totalCalls: 0,
+                errorCalls: 0,
+                topTools: [],
+                agents: [],
+                recentErrors: [],
+            };
+        }
+
+        return this.mcpToolCallModel.getActivityStats({
+            organizationUuid,
+            filters: scopedFilters,
         });
     }
 
@@ -811,19 +886,9 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid) {
             return false;
         }
-        const [reviewsEnabled, aiWritebackFlag] = await Promise.all([
-            this.aiOrganizationSettingsService.isAiAgentReviewsEnabled({
-                organizationUuid,
-            }),
-            this.featureFlagService.get({
-                featureFlagId: FeatureFlags.AiWriteback,
-                user: {
-                    userUuid: user.userUuid,
-                    organizationUuid,
-                },
-            }),
-        ]);
-        return reviewsEnabled && aiWritebackFlag.enabled;
+        return this.aiOrganizationSettingsService.isAiAgentReviewsEnabled({
+            organizationUuid,
+        });
     }
 
     private hasSemanticWritebackConfig(): boolean {

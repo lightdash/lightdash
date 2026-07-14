@@ -1,16 +1,15 @@
 import { type OrganizationColorPalette } from '@lightdash/common';
 import {
-    ActionIcon,
-    Badge,
-    Button,
-    ColorSwatch,
     Flex,
     Group,
-    Menu,
     Paper,
     Text,
-    Tooltip,
-} from '@mantine/core';
+    Button,
+    ActionIcon,
+    Badge,
+    ColorSwatch,
+} from '@mantine-8/core';
+import { Menu, Tooltip } from '@mantine/core';
 import { useClipboard } from '@mantine/hooks';
 import {
     IconDotsVertical,
@@ -72,10 +71,10 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                 onMouseLeave={() => setIsHovered(false)}
             >
                 <Flex justify="space-between" align="center">
-                    <Group spacing="sm">
-                        <Group spacing="two">
+                    <Group gap="sm">
+                        <Group gap="two">
                             <Tooltip label="Light mode" position="top">
-                                <Group spacing="two">
+                                <Group gap="two">
                                     <MantineIcon
                                         icon={IconSun}
                                         size="sm"
@@ -98,7 +97,7 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                                         /
                                     </Text>
                                     <Tooltip label="Dark mode" position="top">
-                                        <Group spacing="two">
+                                        <Group gap="two">
                                             <MantineIcon
                                                 icon={IconMoon}
                                                 size="sm"
@@ -133,7 +132,7 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                                 variant="xs"
                             >
                                 <Badge color="gray" variant="light">
-                                    <Group spacing={2}>
+                                    <Group gap={2}>
                                         Override
                                         <MantineIcon
                                             size="sm"
@@ -145,19 +144,19 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                         )}
                     </Group>
 
-                    <Group spacing="xs">
+                    <Group gap="xs">
                         {onSetActive && (
                             <Button
                                 onClick={() =>
                                     onSetActive(palette.colorPaletteUuid)
                                 }
                                 h={32}
-                                sx={() => ({
+                                style={{
                                     visibility:
                                         isHovered && !isActive
                                             ? 'visible'
                                             : 'hidden',
-                                })}
+                                }}
                             >
                                 Use This Theme
                             </Button>
@@ -176,6 +175,8 @@ export const PaletteItem: FC<PaletteItemProps> = ({
                         >
                             <Menu.Target>
                                 <ActionIcon
+                                    variant="subtle"
+                                    color="gray"
                                     size="xs"
                                     aria-label="Palette actions"
                                 >

@@ -11,10 +11,10 @@ import {
     Checkbox,
     Collapse,
     Group,
-    Popover,
-    Select,
     Stack,
-} from '@mantine/core';
+    Select,
+} from '@mantine-8/core';
+import { Popover } from '@mantine/core';
 import { useDebouncedState, useHover } from '@mantine/hooks';
 import {
     IconChevronDown,
@@ -31,6 +31,7 @@ import { useVisualizationContext } from '../../../LightdashVisualization/useVisu
 import ColorSelector from '../../ColorSelector';
 import { EditableText } from '../../common/EditableText';
 import { GrabIcon } from '../../common/GrabIcon';
+import compactStyles from '../../mantineTheme.module.css';
 import { ChartTypeSelect } from './ChartTypeSelect';
 
 type Props = {
@@ -78,11 +79,11 @@ const SingleSeriesConfiguration: FC<Props> = ({
 
     return (
         <Box>
-            <Group position="apart">
+            <Group justify="space-between">
                 <Group
-                    spacing="two"
+                    gap="two"
                     ref={ref}
-                    sx={{
+                    style={{
                         flexGrow: 1,
                     }}
                 >
@@ -147,9 +148,11 @@ const SingleSeriesConfiguration: FC<Props> = ({
                     )}
                 </Group>
 
-                <Group spacing="one">
+                <Group gap="one">
                     {isGrouped && (
                         <ActionIcon
+                            variant="subtle"
+                            color="gray"
                             onClick={() => {
                                 updateSingleSeries({
                                     ...series,
@@ -163,7 +166,11 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         </ActionIcon>
                     )}
                     {isCollapsable && (
-                        <ActionIcon onClick={toggleIsOpen}>
+                        <ActionIcon
+                            variant="subtle"
+                            color="gray"
+                            onClick={toggleIsOpen}
+                        >
                             <MantineIcon
                                 color="ldGray.7"
                                 icon={isOpen ? IconChevronUp : IconChevronDown}
@@ -173,8 +180,8 @@ const SingleSeriesConfiguration: FC<Props> = ({
                 </Group>
             </Group>
             <Collapse in={!isCollapsable || isOpen || false}>
-                <Stack ml="lg" spacing="xs">
-                    <Group spacing="xs" noWrap>
+                <Stack ml="lg" gap="xs">
+                    <Group gap="xs" wrap="nowrap">
                         <ChartTypeSelect
                             showLabel={!isGrouped}
                             chartValue={type}
@@ -196,6 +203,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                         />
 
                         <Select
+                            allowDeselect={false}
                             label={!isGrouped && 'Axis'}
                             value={String(series.yAxisIndex)}
                             data={[
@@ -216,6 +224,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                             }}
                         />
                         <Select
+                            allowDeselect={false}
                             label={!isGrouped && 'Value labels'}
                             value={series.label?.position || 'hidden'}
                             data={[
@@ -235,6 +244,7 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                     >
                                         <Popover.Target>
                                             <ActionIcon
+                                                color="gray"
                                                 variant="subtle"
                                                 size="xs"
                                             >
@@ -245,9 +255,12 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                             </ActionIcon>
                                         </Popover.Target>
                                         <Popover.Dropdown>
-                                            <Stack spacing="xs">
+                                            <Stack gap="xs">
                                                 <Checkbox
                                                     size="xs"
+                                                    classNames={{
+                                                        label: compactStyles.compactCheckboxLabel,
+                                                    }}
                                                     checked={
                                                         series.label
                                                             ?.showValue ?? true
@@ -269,6 +282,9 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                                 />
                                                 <Checkbox
                                                     size="xs"
+                                                    classNames={{
+                                                        label: compactStyles.compactCheckboxLabel,
+                                                    }}
                                                     checked={
                                                         series.label
                                                             ?.showLabel ?? false
@@ -289,6 +305,9 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                                 />
                                                 <Checkbox
                                                     size="xs"
+                                                    classNames={{
+                                                        label: compactStyles.compactCheckboxLabel,
+                                                    }}
                                                     checked={
                                                         series.label
                                                             ?.showSeriesName ??
@@ -342,8 +361,12 @@ const SingleSeriesConfiguration: FC<Props> = ({
                     </Group>
                     {(type === CartesianSeriesType.LINE ||
                         type === CartesianSeriesType.AREA) && (
-                        <Group spacing="xs">
+                        <Group gap="xs">
                             <Checkbox
+                                size="xs"
+                                classNames={{
+                                    label: compactStyles.compactCheckboxLabel,
+                                }}
                                 checked={Boolean(series.showSymbol)}
                                 label="Show symbol"
                                 onChange={() => {
@@ -354,6 +377,10 @@ const SingleSeriesConfiguration: FC<Props> = ({
                                 }}
                             />
                             <Checkbox
+                                size="xs"
+                                classNames={{
+                                    label: compactStyles.compactCheckboxLabel,
+                                }}
                                 checked={series.smooth}
                                 label="Smooth"
                                 onChange={() => {

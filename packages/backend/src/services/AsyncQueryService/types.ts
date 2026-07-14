@@ -23,6 +23,7 @@ import {
     type UserAttributeValueMap,
 } from '@lightdash/common';
 import type { DbProjectParameter } from '../../database/entities/projectParameters';
+import type { TotalConfiguration } from '../../utils/QueryBuilder/QueryComposer';
 
 export type CommonAsyncQueryArgs = {
     account: Account;
@@ -81,6 +82,11 @@ export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
     pivotConfiguration?: PivotConfiguration;
     materializationRole?: UserAccessControls;
     dashboardFilters?: DashboardFilters;
+    /**
+     * Collapse the query into a totals grain (calculate-total path only).
+     * Mutually exclusive with `dashboardFilters`.
+     */
+    totalConfiguration?: TotalConfiguration;
 };
 
 export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {

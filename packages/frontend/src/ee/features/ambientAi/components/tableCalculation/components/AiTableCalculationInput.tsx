@@ -1,5 +1,5 @@
 import type { GeneratedTableCalculation } from '@lightdash/common';
-import { ActionIcon, Text } from '@mantine/core';
+import { Text, ActionIcon } from '@mantine-8/core';
 import { useHotkeys } from '@mantine/hooks';
 import { IconArrowUp } from '@tabler/icons-react';
 import { type Editor } from '@tiptap/react';
@@ -88,6 +88,7 @@ export const AiTableCalculationInputBody: FC<Props> = ({
                 disabled={isLoading}
             />
             <ActionIcon
+                variant="filled"
                 size="sm"
                 radius="xl"
                 onClick={handleGenerate}

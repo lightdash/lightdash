@@ -1,13 +1,15 @@
 import { subject } from '@casl/ability';
 import { Box, Center, Flex, Loader } from '@mantine-8/core';
 import { useCallback, useEffect, useMemo } from 'react';
-import { useOutletContext, useParams } from 'react-router';
+import { useOutletContext, useParams, useSearchParams } from 'react-router';
 import useApp from '../../../providers/App/useApp';
 import { ReviewVerificationPanel } from '../../features/aiCopilot/components/Admin/ReviewVerificationPanel';
 import { AgentChatDisplay } from '../../features/aiCopilot/components/ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
 import {
     contextItemsToContentMentionSuggestions,
+    mergeAiPromptContextInput,
+    mergeAiPromptContextItems,
     mergeContentMentionSuggestionItems,
 } from '../../features/aiCopilot/components/ChatElements/contentMentions';
 import { ThreadWorkstreamsPanel } from '../../features/aiCopilot/components/ChatElements/ThreadWorkstreamsPanel';
@@ -43,6 +45,7 @@ import { type AgentContext } from './AgentPage';
 
 const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const { agentUuid, threadUuid, projectUuid, promptUuid } = useParams();
+    const [searchParams] = useSearchParams();
     const isEmbed = isEmbedAiAgentRoute();
     const { user } = useApp();
 
@@ -231,14 +234,24 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         projectUuid,
         dashboardUuidOrSlug: pinnedDashboardUuid,
     });
+    const dashboardUuid = searchParams.get('dashboardUuid');
+    const {
+        contextInput: pageContextInput,
+        previewItems: pagePreviewItems,
+        contentMentionItems: pageContentMentionItems,
+    } = usePinnedContext({
+        projectUuid,
+        dashboardUuidOrSlug: dashboardUuid,
+    });
 
     const contentMentionItems = useMemo(
         () =>
             mergeContentMentionSuggestionItems(
                 threadMentionItems,
                 pinnedDashboardTileItems,
+                pageContentMentionItems,
             ),
-        [threadMentionItems, pinnedDashboardTileItems],
+        [threadMentionItems, pinnedDashboardTileItems, pageContentMentionItems],
     );
 
     const handleSubmit = ({
@@ -257,8 +270,11 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         void createAgentThreadMessage({
             prompt: message,
             modelConfig: threadModelConfig ?? undefined,
-            context,
-            optimisticContext,
+            context: mergeAiPromptContextInput(pageContextInput, context),
+            optimisticContext: mergeAiPromptContextItems(
+                pagePreviewItems,
+                optimisticContext,
+            ),
             enableSqlMode: sqlModeAvailable && sqlMode,
             toolHints,
         });

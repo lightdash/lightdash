@@ -2,8 +2,12 @@
 
 Two skills in `.claude/skills/` describe how to edit this app:
 - `lightdash-data-app` — the Lightdash SDK surface (querying data, filters, downloads).
-- `developing-data-apps-locally` — the local workflow: edit `src/`, `pnpm build`, `lightdash upload --apps`; the SDK is the only data access; `.lightdash/context/` holds the project's semantic layer and theme.
+- `developing-data-apps-locally` — the local workflow: edit `src/`, `pnpm build`, `lightdash upload --apps <appUuid>` (uuid in `lightdash-app.yml`); the SDK is the only data access; `.lightdash/context/` holds the project's semantic layer and theme.
 
 Edit only `src/`. Root config files are read-only reference — the server rebuilds against a trusted template.
 
 The local `pnpm install && pnpm build` is an optional pre-check. If install fails, skip it and upload — never modify machine config, npmrc, or dependency files to force it; the server rebuild is authoritative.
+
+Build with the template's preinstalled dependency set (see `package.json`). Adding new npm packages only works when the instance has custom dependencies enabled — assume it does not; ask the user before considering a new library, and never vendor library source into `src/` as a workaround. Where enabled, adding a dependency requires a matching `pnpm-lock.yaml`, so `pnpm add <pkg>` (or `pnpm install --lockfile-only`) must succeed locally. If it fails, stop and report the error — hand-editing `package.json` without the lockfile makes the upload fail.
+
+`.npmrc` sets `ignore-scripts=true` — never remove it or run installs with scripts enabled; this app may be authored by someone else and their dependencies' lifecycle scripts must not run here.

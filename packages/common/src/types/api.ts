@@ -54,6 +54,8 @@ import type {
     ApiManagedAgentActionResponse,
     ApiManagedAgentRunResponse,
     ApiManagedAgentRunsListResponse,
+    ApiMcpActivityResponse,
+    ApiMcpActivityStatsResponse,
     ApiMyAppsResponse,
     ApiOrganizationDesignFileResponse,
     ApiOrganizationDesignResponse,
@@ -101,16 +103,21 @@ import {
     type ApiMetricsTreeLockResponse,
     type ApiUpdateMetricsTreeResponse,
 } from './catalog';
-import { type ApiGetChangeResponse } from './changeset';
 import {
     type CiChecks,
     type ClosePullRequestResult,
     type MergePullRequestResult,
 } from './ci';
 import {
+    type ApiAlertAsCodeListResponse,
+    type ApiAlertAsCodeUpsertResponse,
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
     type ApiDashboardAsCodeListResponse,
+    type ApiGoogleSheetsSyncAsCodeListResponse,
+    type ApiGoogleSheetsSyncAsCodeUpsertResponse,
+    type ApiScheduledDeliveryAsCodeListResponse,
+    type ApiScheduledDeliveryAsCodeUpsertResponse,
     type ApiSqlChartAsCodeListResponse,
 } from './coder';
 import {
@@ -181,6 +188,7 @@ import {
     type UpdateAllowedEmailDomains,
 } from './organization';
 import { type OrganizationAccess } from './organizationAccess';
+import { type ApiOrganizationBrandResponse } from './organizationBrand';
 import {
     type DomainVerificationStatus,
     type VerifiedDomain,
@@ -211,7 +219,10 @@ import type {
     ApiPreAggregateCheckResponse,
     PreAggregateMatchMiss,
 } from './preAggregate';
-import { type ApiPreviewExpirationProjectSettingsResponse } from './previewExpirationProjectSettings';
+import {
+    type ApiPreviewExpirationProjectSettingsResponse,
+    type ApiPreviewExpiresAtResponse,
+} from './previewExpirationProjectSettings';
 import { type ProjectCiStatus } from './projectCiStatus';
 import {
     type ApiProjectCompileLogResponse,
@@ -276,7 +287,11 @@ import {
     type UserAllowedOrganization,
 } from './user';
 import { type UserAvatarColorValue } from './userAvatars';
-import { type UserWarehouseCredentials } from './userWarehouseCredentials';
+import {
+    type RedshiftAwsSsoCompleteResults,
+    type RedshiftAwsSsoStartResults,
+    type UserWarehouseCredentials,
+} from './userWarehouseCredentials';
 import {
     type ApiChartValidationResponse,
     type ApiDashboardValidationResponse,
@@ -434,6 +449,11 @@ export type HealthState = {
     isAuthenticated: boolean;
     requiresOrgRegistration: boolean;
     hasEmailClient: boolean;
+    /**
+     * Instance has a Postmark account token, so email whitelabelling can be
+     * offered (the org still needs the EmailWhitelabel feature flag).
+     */
+    hasEmailWhitelabel: boolean;
     hasMicrosoftTeams: boolean;
     isServiceAccountEnabled: boolean;
     isOrganizationWarehouseCredentialsEnabled: boolean;
@@ -937,9 +957,15 @@ export type InviteLink = {
     userUuid: string;
     email: string;
 };
-export type CreateInviteLink = Pick<InviteLink, 'expiresAt' | 'email'> & {
+export type CreateInviteLink = {
     email: string;
+    expiresAt?: Date;
     role?: OrganizationMemberRole;
+};
+
+export type ApiInviteLinkResponse = {
+    status: 'ok';
+    results: InviteLink;
 };
 
 export type ApiCreateProjectResults = {
@@ -1049,6 +1075,8 @@ type ApiResults =
     | { sha: string; path: string }
     | { filePath: string }
     | UserWarehouseCredentials
+    | RedshiftAwsSsoStartResults
+    | RedshiftAwsSsoCompleteResults
     | ApiJobStatusResponse['results']
     | ApiJobScheduledResponse['results']
     | ApiSshKeyPairResponse['results']
@@ -1086,9 +1114,15 @@ type ApiResults =
     | ApiGroupListResponse['results']
     | ApiPullRequestsResponse['results']
     | ApiCreateTagResponse['results']
+    | ApiAlertAsCodeListResponse['results']
+    | ApiAlertAsCodeUpsertResponse['results']
     | ApiChartAsCodeListResponse['results']
     | ApiSqlChartAsCodeListResponse['results']
     | ApiDashboardAsCodeListResponse['results']
+    | ApiGoogleSheetsSyncAsCodeListResponse['results']
+    | ApiGoogleSheetsSyncAsCodeUpsertResponse['results']
+    | ApiScheduledDeliveryAsCodeListResponse['results']
+    | ApiScheduledDeliveryAsCodeUpsertResponse['results']
     | ApiChartAsCodeUpsertResponse['results']
     | ApiGetMetricsTree['results']
     | ApiGetMetricsTreeResponse['results']
@@ -1132,6 +1166,8 @@ type ApiResults =
     | Account
     | ApiAiAgentAdminConversationsResponse['results']
     | ApiAiAgentAdminPromptActivityResponse['results']
+    | ApiMcpActivityResponse['results']
+    | ApiMcpActivityStatsResponse['results']
     | ApiAiAgentReviewItemWritebackPreviewResponse['results']
     | ApiAiAgentReviewItemPrDiffResponse['results']
     | ApiAiAgentReviewItemActivityResponse['results']
@@ -1146,7 +1182,6 @@ type ApiResults =
     | ApiCreateEvaluationResponse['results']
     | ApiAgentSuggestionsResponse['results']
     | ApiAppendInstructionResponse['results']
-    | ApiGetChangeResponse['results']
     | ApiAiOrganizationSettingsResponse['results']
     | ApiUpdateAiOrganizationSettingsResponse['results']
     | ApiAiReviewNotificationSettingsResponse['results']
@@ -1168,6 +1203,7 @@ type ApiResults =
     | ApiPreAggregateCheckResponse['results']
     | ApiImpersonationOrganizationSettingsResponse['results']
     | ApiPreviewExpirationProjectSettingsResponse['results']
+    | ApiPreviewExpiresAtResponse['results']
     | ApiContentVerificationResponse['results']
     | ApiContentVerificationDeleteResponse['results']
     | ApiVerifiedContentListResponse['results']
@@ -1189,6 +1225,7 @@ type ApiResults =
     | ApiOrganizationDesignsResponse['results']
     | ApiOrganizationDesignFileResponse['results']
     | ApiProjectColorPaletteResponse['results']
+    | ApiOrganizationBrandResponse['results']
     | ApiManagedAgentRunResponse['results']
     | ApiManagedAgentRunsListResponse['results']
     | ApiManagedAgentActionResponse['results']

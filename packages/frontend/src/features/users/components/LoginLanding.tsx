@@ -9,18 +9,17 @@ import {
     type OpenIdIdentityIssuerType,
 } from '@lightdash/common';
 import {
-    ActionIcon,
-    Anchor,
+    TextInput,
     Box,
-    Button,
-    Card,
     Divider,
-    PasswordInput,
     Stack,
     Text,
-    TextInput,
     Title,
-} from '@mantine/core';
+    Button,
+    ActionIcon,
+    Anchor,
+} from '@mantine-8/core';
+import { Card, PasswordInput } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { useTimeout } from '@mantine/hooks';
 import { IconX } from '@tabler/icons-react';
@@ -253,7 +252,7 @@ const Login: FC<{}> = () => {
                     name="login"
                     onSubmit={form.onSubmit(() => handleFormSubmit())}
                 >
-                    <Stack spacing="lg">
+                    <Stack gap="lg">
                         <TextInput
                             label="Email address"
                             name="email"
@@ -261,9 +260,16 @@ const Login: FC<{}> = () => {
                             required
                             {...form.getInputProps('email')}
                             disabled={isFormLoading}
+                            rightSectionPointerEvents="all"
                             rightSection={
                                 preCheckEmail ? (
                                     <ActionIcon
+                                        aria-label="Clear email address"
+                                        onMouseDown={(event) =>
+                                            event.preventDefault()
+                                        }
+                                        variant="subtle"
+                                        color="gray"
                                         onClick={() => {
                                             setPreCheckEmail(undefined);
                                             form.setValues({
@@ -288,7 +294,11 @@ const Login: FC<{}> = () => {
                                     {...form.getInputProps('password')}
                                     disabled={isFormLoading}
                                 />
-                                <Anchor href="/recover-password" mx="auto">
+                                <Anchor
+                                    inherit
+                                    href="/recover-password"
+                                    mx="auto"
+                                >
                                     Forgot your password?
                                 </Anchor>
                                 <Button
@@ -320,7 +330,7 @@ const Login: FC<{}> = () => {
                                         labelPosition="center"
                                         label={
                                             <Text
-                                                color="ldGray.5"
+                                                c="ldGray.5"
                                                 size="sm"
                                                 fw={500}
                                             >
@@ -363,10 +373,11 @@ const Login: FC<{}> = () => {
                                 </Stack>
                             </>
                         )}
-                        <Text mx="auto" mt="md">
+                        <Text mx="auto" mt="md" fz="sm">
                             Don't have an account?{' '}
                             <Anchor
                                 href={health.data?.signupUrl || '/register'}
+                                fz="sm"
                             >
                                 Sign up
                             </Anchor>

@@ -11,7 +11,6 @@ import {
     type RouteObject,
 } from 'react-router';
 import SettingsEmbed from '../../ee/features/embed/SettingsEmbed';
-import { ProjectChangesets } from '../../features/changesets/components/ProjectChangesets';
 import PullRequestsPage from '../../features/pullRequests/components/PullRequestsPage';
 import RecentlyDeletedPage from '../../features/recentlyDeleted/components/RecentlyDeletedPage';
 import { useProject } from '../../hooks/useProject';
@@ -85,10 +84,6 @@ const ProjectSettings: FC = () => {
                 element: (
                     <ProjectTablesConfiguration projectUuid={projectUuid} />
                 ),
-            },
-            {
-                path: `/changesets`,
-                element: <ProjectChangesets projectUuid={projectUuid} />,
             },
             {
                 path: `/projectAccess`,

@@ -255,8 +255,27 @@ const getTagsForTask: {
         'project.uuid': payload.projectUuid,
     }),
     [SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: () => ({}),
+    [SCHEDULER_TASKS.SWEEP_STALE_AI_WRITEBACK_RUNS]: () => ({}),
+    [SCHEDULER_TASKS.SWEEP_STALE_AI_DEEP_RESEARCH_RUNS]: () => ({}),
+    [SCHEDULER_TASKS.CLEAN_MCP_TOOL_CALLS]: () => ({}),
+    [SCHEDULER_TASKS.AI_WRITEBACK_PIPELINE]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+        'project.uuid': payload.projectUuid,
+    }),
+    [SCHEDULER_TASKS.AI_DEEP_RESEARCH]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+        'project.uuid': payload.projectUuid,
+    }),
+    [SCHEDULER_TASKS.AI_AGENT_EDIT_DBT_PROJECT_PIPELINE]: (payload) => ({
+        'organization.uuid': payload.organizationUuid,
+        'user.uuid': payload.userUuid,
+        'project.uuid': payload.projectUuid,
+    }),
     [SCHEDULER_TASKS.CLEAN_EXPIRED_PREVIEWS]: () => ({}),
     [SCHEDULER_TASKS.COMPACT_USAGE_EVENTS]: () => ({}),
+    [SCHEDULER_TASKS.POLL_EMAIL_WHITELABEL]: () => ({}),
     [SCHEDULER_TASKS.INGEST_PROJECT_CONTEXT]: (payload) => ({
         'organization.uuid': payload.organizationUuid,
         'user.uuid': payload.userUuid,
@@ -331,6 +350,16 @@ export const traceTask = <T extends SchedulerTaskName>(
                                   organizationUuid,
                               ).catch(() => undefined)
                             : undefined;
+
+                        // Sentry tags below are error-scope only; stamp the
+                        // attribution on the task span so it's queryable in
+                        // the trace backend.
+                        span.setAttributes({
+                            ...payloadTags,
+                            ...(organizationName && {
+                                'organization.name': organizationName,
+                            }),
+                        });
 
                         if ('user.uuid' in payloadTags) {
                             Sentry.setUser({

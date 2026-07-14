@@ -24,13 +24,12 @@ import {
     Button,
     Flex,
     Group,
-    Select,
     Stack,
     Tabs,
     Text,
-    Tooltip,
-    type PopoverProps,
-} from '@mantine/core';
+    Select,
+} from '@mantine-8/core';
+import { Tooltip, type PopoverProps } from '@mantine/core';
 import { IconRotate2, IconSql } from '@tabler/icons-react';
 import { produce } from 'immer';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
@@ -40,6 +39,7 @@ import FieldLabel from '../../../components/common/Filters/FieldLabel';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import { DEFAULT_TAB, FilterActions, FilterTabs } from './constants';
+import classes from './FilterConfiguration.module.css';
 import FilterCoverageSummary from './FilterCoverageSummary';
 import FilterFieldSelect from './FilterFieldSelect';
 import FilterSettings from './FilterSettings';
@@ -385,18 +385,12 @@ const FilterConfiguration: FC<Props> = ({
     return (
         // Make inline dropdowns flow in the panel (instead of absolute), so the
         // panel grows with them and Apply stays visible — PROD-2395 sketch.
-        <Stack
-            sx={{
-                '.mantine-Select-dropdown, .mantine-MultiSelect-dropdown': {
-                    position: 'static',
-                    width: '100%',
-                    marginTop: 4,
-                },
-            }}
-        >
+        <Stack className={classes.inlineDropdowns}>
             <Tabs
                 value={selectedTabId}
-                onTabChange={(tabId: FilterTabs) => setSelectedTabId(tabId)}
+                onChange={(tabId) => {
+                    if (tabId) setSelectedTabId(tabId as FilterTabs);
+                }}
             >
                 {isCreatingNew || isEditMode || isTemporary ? (
                     <Tabs.List mb="md">
@@ -430,7 +424,7 @@ const FilterConfiguration: FC<Props> = ({
                 ) : null}
 
                 <Tabs.Panel value={FilterTabs.SETTINGS} w={400}>
-                    <Stack spacing="sm">
+                    <Stack gap="sm">
                         {isCreatingNew ? (
                             !!fields && fields.length > 0 ? (
                                 <FilterFieldSelect
@@ -445,11 +439,12 @@ const FilterConfiguration: FC<Props> = ({
                                 />
                             ) : (
                                 <Select
+                                    allowDeselect={false}
                                     size="xs"
                                     label={
                                         <Text>
                                             Select a column to filter{' '}
-                                            <Text color="red" span>
+                                            <Text c="red" span>
                                                 *
                                             </Text>{' '}
                                         </Text>
@@ -473,29 +468,29 @@ const FilterConfiguration: FC<Props> = ({
                                 />
                             )
                         ) : selectedField ? (
-                            <Group spacing="xs">
+                            <Group gap="xs">
                                 <FieldIcon item={selectedField} />
                                 {originalFilterRule?.label && !isEditMode ? (
-                                    <Text span fw={500}>
+                                    <Text span fz="sm" fw={500}>
                                         {originalFilterRule.label}
                                     </Text>
                                 ) : (
-                                    <FieldLabel item={selectedField} />
+                                    <FieldLabel item={selectedField} fz="sm" />
                                 )}
                             </Group>
                         ) : (
-                            <Group spacing="xs">
+                            <Group gap="xs">
                                 <MantineIcon
                                     icon={IconSql}
                                     size={'lg'}
                                     color={'#0E5A8A'}
                                 />
                                 {originalFilterRule?.label && !isEditMode ? (
-                                    <Text span fw={500}>
+                                    <Text span fz="sm" fw={500}>
                                         {originalFilterRule.label}
                                     </Text>
                                 ) : (
-                                    <Text span fw={500}>
+                                    <Text span fz="sm" fw={500}>
                                         {draftFilterRule?.target.fieldId ||
                                             'SQL column'}
                                     </Text>
@@ -553,7 +548,7 @@ const FilterConfiguration: FC<Props> = ({
             </Tabs>
 
             <Flex gap="sm">
-                <Box sx={{ flexGrow: 1 }} />
+                <Box style={{ flexGrow: 1 }} />
 
                 {!isTemporary &&
                     isFilterModified &&

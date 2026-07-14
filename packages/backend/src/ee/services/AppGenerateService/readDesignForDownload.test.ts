@@ -135,12 +135,15 @@ describe('readDesignForDownload', () => {
         expect(s3Client.send).toHaveBeenCalledTimes(3);
     });
 
-    it('(c) returns 0 assets and skippedAssetCount=31 when design has 31 assets, with instructions still present', async () => {
+    it('(c) returns 0 assets and skippedAssetCount when assets exceed the total-size cap, with instructions still present', async () => {
         const { readDesignForDownload } =
             await import('./readDesignForDownload');
-        const assetFiles = Array.from({ length: 31 }, (_, i) =>
-            makeDesignFile('css', i),
-        );
+        // 11 x 10 MB = 110 MB of assets, over the 100 MB cap. File count is
+        // irrelevant now — only aggregate size triggers the skip.
+        const assetFiles = Array.from({ length: 11 }, (_, i) => ({
+            ...makeDesignFile('image', i),
+            sizeBytes: 10 * 1024 * 1024,
+        }));
         const instructionFile = makeDesignFile('instruction', 1);
         const files = [...assetFiles, instructionFile];
         const design = makeDesign(files);
@@ -158,7 +161,7 @@ describe('readDesignForDownload', () => {
         });
 
         expect(result.assets).toHaveLength(0);
-        expect(result.skippedAssetCount).toBe(31);
+        expect(result.skippedAssetCount).toBe(11);
         // Instructions should still be present (instruction file was read + cap note appended)
         expect(result.instructions).not.toBeNull();
         expect(result.instructions?.path).toBe(

@@ -13,12 +13,15 @@ import {
     ApiOrganizationDesignFile,
     assertIsAccountWithOrg,
     assertRegisteredAccount,
+    checkThemeLimits,
     ForbiddenError,
+    MAX_THEME_FILE_BYTES,
     MissingConfigError,
     NotFoundError,
     ORGANIZATION_DESIGN_FILE_KINDS,
     OrganizationDesignFileKind,
     ParameterError,
+    themeLimitMessage,
     type Account,
 } from '@lightdash/common';
 import createDOMPurify from 'dompurify';
@@ -34,8 +37,6 @@ type OrganizationDesignServiceArguments = {
     lightdashConfig: LightdashConfig;
     organizationDesignModel: OrganizationDesignModel;
 };
-
-const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB per file
 
 /**
  * Allowed filename extensions for each kind. Filename extension is the
@@ -486,17 +487,34 @@ export class OrganizationDesignService extends BaseService {
         },
     ): Promise<ApiOrganizationDesignFile> {
         const { organizationUuid, userUuid } = this.assertCanManage(account);
-        await this.loadOwned(organizationUuid, designUuid);
+        const design = await this.loadOwned(organizationUuid, designUuid);
 
         const kind = ensureValidKind(input.kind);
         const filename = ensureValidFilename(input.filename);
         ensureFilenameMatchesKind(filename, kind);
 
+        // Reject uploads that would push the theme past its asset-count/total-
+        // size guardrails, so a theme can't grow large enough to time out the
+        // data-app pipeline when applied. `contentLength` is an upper bound on
+        // the stored size (SVG sanitization can only shrink it), so this never
+        // under-counts. Checked before reading any bytes off the wire.
+        const prospectiveViolation = checkThemeLimits([
+            ...design.files,
+            { sizeBytes: input.contentLength },
+        ]);
+        if (prospectiveViolation) {
+            throw new ParameterError(
+                themeLimitMessage(prospectiveViolation, design.name),
+            );
+        }
+
         // Reject obviously-too-big uploads before reading a single byte off
         // the wire. The streaming cap below still enforces the limit against
         // the actual payload in case Content-Length is wrong or absent.
-        if (input.contentLength > MAX_FILE_BYTES) {
-            throw new ParameterError(`File exceeds ${MAX_FILE_BYTES} bytes`);
+        if (input.contentLength > MAX_THEME_FILE_BYTES) {
+            throw new ParameterError(
+                `File exceeds ${MAX_THEME_FILE_BYTES} bytes`,
+            );
         }
 
         // Buffer the body with a hard cap. We need the full Buffer anyway so
@@ -508,9 +526,9 @@ export class OrganizationDesignService extends BaseService {
         for await (const chunk of input.body) {
             const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
             total += buf.length;
-            if (total > MAX_FILE_BYTES) {
+            if (total > MAX_THEME_FILE_BYTES) {
                 throw new ParameterError(
-                    `File exceeds ${MAX_FILE_BYTES} bytes`,
+                    `File exceeds ${MAX_THEME_FILE_BYTES} bytes`,
                 );
             }
             chunks.push(buf);

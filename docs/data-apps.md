@@ -867,10 +867,10 @@ Data apps can be **downloaded as source, versioned in git, edited, and re-upload
 
 Opt-in flags on the existing `lightdash download` / `lightdash upload` commands (off by default — core users never touch app code paths unless they ask):
 
-- **`lightdash download --apps [appUuids...]`** — download data apps into `lightdash/apps/<slug>/`. Bare `--apps` = all apps in the project (listed via the content API); with UUIDs = just those. Each folder holds `lightdash-app.yml` (manifest) + the app's `src/` tree. The built `dist` is intentionally excluded — it's regenerated on upload.
-- **`lightdash upload --apps [appUuids...]`** — upload each `lightdash/apps/<slug>/` folder; the server rebuilds the source. **Fire-and-forget:** the CLI posts and returns immediately — the app shows `building` in the UI until the server finishes.
+- **`lightdash download --apps <appUuids...>`** — download specific data apps into `lightdash/apps/<slug>/`; **`--include-apps`** downloads all of the project's apps (capped at `--apps-limit`, default 50). Each folder holds `lightdash-app.yml` (manifest) + the app's `src/` tree. The built `dist` is intentionally excluded — it's regenerated on upload.
+- **`lightdash upload --apps <appUuids...>`** — upload specific apps (matched by manifest `appUuid`); **`--include-apps`** uploads every `lightdash/apps/<slug>/` folder on disk. The server rebuilds the source. **Fire-and-forget:** the CLI posts and returns immediately — the app shows `building` in the UI until the server finishes.
 
-**Identity:** the manifest's `appUuid` is the source of truth (apps have no persistent slug; the `<slug>` folder name is derived from the app name via `generateSlug`). Uploading to the **same project** appends a new version of that app; uploading to a **different project** creates a new app there.
+**Identity:** the manifest's `appUuid` is the source of truth (apps have no persistent slug; the `<slug>` folder name is derived from the app name via `generateSlug`, with a stable `untitled-app-<uuid8>` fallback for unnamed apps so re-downloads reuse the same folder). Uploading to the **same project** appends a new version of that app; uploading to a **different project** creates a new app there.
 
 ### What the endpoints do
 
@@ -879,21 +879,22 @@ Opt-in flags on the existing `lightdash download` / `lightdash upload` commands 
 
 ### Moving an app between projects or instances
 
-- **Different project (same instance):** `lightdash upload --apps --project <target-project>` — creates and builds the app in the target project.
-- **Different instance:** point the CLI at the destination first — `lightdash login <destination-url>` (or set `LIGHTDASH_URL` / `LIGHTDASH_API_KEY`) — then `lightdash upload --apps --project <target>`. The **destination builds the source in its own sandbox** (so it must have data apps / the build sandbox enabled); it never receives code built elsewhere.
+- **Different project (same instance):** `lightdash upload --apps <appUuid> --project <target-project>` — creates and builds the app in the target project.
+- **Different instance:** point the CLI at the destination first — `lightdash login <destination-url>` (or set `LIGHTDASH_URL` / `LIGHTDASH_API_KEY`) — then `lightdash upload --apps <appUuid> --project <target>`. The **destination builds the source in its own sandbox** (so it must have data apps / the build sandbox enabled); it never receives code built elsewhere.
 
 ### Constraints & notes
 
 - **Enterprise-only** (`APP_RUNTIME_ENABLED`); the caller needs `view` / `create` / `manage:DataApp`.
-- **Fixed dependency set:** upload rebuilds against the sandbox template's pre-installed libraries — you can edit source but can't add libraries the sandbox lacks (a future "bring your own libraries" phase covers that via local builds).
+- **Declared dependencies:** apps can declare custom npm packages in their `package.json`. The CLI validates the declared set (registry-only specs, no git/file/url, up to 60 direct deps, `pnpm-lock.yaml` must be committed) and warns which packages will be installed in the build sandbox before uploading. Install scripts never run. The instance-level flag `LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED` (default `false` during rollout) gates this feature; when disabled, uploads with a non-empty custom dependency set are rejected at the API with a clear error, and builds/iterations of versions that already store custom deps refuse to run (template-only uploads are always accepted). The AI builder and in-app UI cannot change the dependency set — dependencies are declared by editing `package.json` and re-uploading. The dependency summary (name + version) is shown as a chip on the assistant bubble in the chat UI so the author can confirm what was installed.
 - **Semantic-layer coupling:** a moved app's queries run against the **target project's** fields *by name*; fields missing in the target surface as in-app query errors, not upload failures.
+- **Data app vizs round-trip their schema via the manifest.** A viz's declared schema (`app_versions.viz_schema`) exists only in the database — it is emitted as structured output during generation, never written into the source tree. So `lightdash-app.yml` carries a `vizSchema` field for `data_app_viz` apps, and upload validates it (fail-loud) and persists it on the new version. Without it the uploaded viz would never appear in the viz picker (the picker requires a non-null schema on the latest ready version). Bundles downloaded before this field existed re-upload without a schema — re-download from the source project to fix.
 - **Security:** because the server only ever builds source in its trusted, network-locked sandbox and never serves client-supplied *built* code, the runtime trust model is unchanged from AI-generated apps. See [Security Model](#security-model). (Follow-up: the query bridge runs as the *viewing* user — a pre-existing consideration for any app, generated or uploaded.)
 
 ### Local authoring (Phase 2)
 
 Phase 1 makes apps [downloadable and uploadable from source](#cli); Phase 2 makes the downloaded tree **locally buildable**, so you can verify changes compile before uploading.
 
-#### What `lightdash download --apps` now includes
+#### What downloading an app now includes
 
 The download folder adds to the Phase 1 output (`src/` + `lightdash-app.yml`):
 
@@ -907,12 +908,12 @@ All scaffolding and context files are read-only reference — see [Upload is sou
 #### The local loop
 
 ```sh
-edit src/  →  pnpm install && pnpm build  →  lightdash upload --apps  →  server rebuilds
+edit src/  →  pnpm install && pnpm build  →  lightdash upload --apps <appUuid>  →  server rebuilds
 ```
 
 1. Edit files under `src/`.
 2. Run `pnpm install && pnpm build` as a pre-flight compile check against the downloaded scaffolding.
-3. Upload with `lightdash upload --apps` (fire-and-forget, as in Phase 1). The server rebuilds in its trusted sandbox.
+3. Upload with `lightdash upload --apps <appUuid>` — or `--include-apps` for every downloaded app folder (fire-and-forget, as in Phase 1). The server rebuilds in its trusted sandbox.
 
 **The server's build is authoritative.** Your local build is a compile check only; the deployed app is always the server's output.
 
@@ -931,7 +932,7 @@ If the org design linked to the app has more than **30 asset files**, the theme 
 #### Out of scope (Phase 3)
 
 - **Local preview against real data** — `pnpm build` is a compile check only, not a live data preview.
-- **Bring-your-own libraries** — running `pnpm add` locally has no effect on the server's sandbox. This is the "future bring your own libraries" path noted in [Constraints & notes](#constraints--notes).
+- **Org-level custom-dependency toggle** — the `LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED` flag is instance-wide only; per-org control is not implemented.
 
 ---
 

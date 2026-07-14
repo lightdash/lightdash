@@ -3,6 +3,18 @@
     overflow: auto;
 }
 
+/* The virtualizer allocates 32px per tree row. Keep v8 NavLinks inside that
+   contract; the old v6 provider override no longer reaches migrated links. */
+.scrollContainer :global(.mantine-8-NavLink-root) {
+    height: var(--mantine-spacing-xxl);
+    padding-block: 0;
+    flex-grow: 0;
+}
+
+.scrollContainer :global(.mantine-8-NavLink-section[data-position='right']) {
+    margin-inline-start: var(--mantine-spacing-xxs);
+}
+
 /* Breathing room below the last item so a short or fully-scrolled tree reads
    as ended rather than being clipped by the viewport. */
 .scrollContainer::after {

@@ -3,12 +3,14 @@ import {
     ChartKind,
     DEFAULT_DATA_APP_CLAUDE_MODEL,
     FeatureFlags,
+    isApiError,
     isAppVersionInProgress,
     type ApiAppVersionSummary,
     type AppChartReference,
     type AppClarification,
     type AppDashboardReference,
     type AppExternalConnectionReference,
+    type AppVersionDependencyEntry,
     type DataAppClaudeModel,
     type DataAppTemplate,
     type DataAppVizContext,
@@ -37,6 +39,7 @@ import {
     IconArrowBackUp,
     IconLayoutDashboard,
     IconLink,
+    IconPackage,
     IconPlayerStop,
     IconRestore,
     IconPlugConnected,
@@ -407,6 +410,37 @@ const ConnectionChip: FC<{ name: string; onRemove: () => void }> = ({
     >
         {name}
     </Badge>
+);
+
+/** A small informational badge shown on assistant bubbles for versions that
+ *  were uploaded with a custom dependency set. Lists `name@version` per line
+ *  in the tooltip so the author can confirm what was installed. */
+const DepsChip: FC<{ deps: AppVersionDependencyEntry[] }> = ({ deps }) => (
+    <Tooltip
+        withArrow
+        position="top-start"
+        label={
+            <Stack gap={2}>
+                <Text size="xs" fw={600}>
+                    Installed in the build sandbox
+                </Text>
+                {deps.map((d) => (
+                    <Text key={d.name} size="xs">
+                        {d.name}@{d.version}
+                    </Text>
+                ))}
+            </Stack>
+        }
+    >
+        <Badge
+            variant="light"
+            color="gray"
+            size="sm"
+            leftSection={<MantineIcon icon={IconPackage} size={10} />}
+        >
+            {deps.length} {deps.length === 1 ? 'package' : 'packages'}
+        </Badge>
+    </Tooltip>
 );
 
 /** A status pill (theme-pill style) listing the connections this app can call. */
@@ -922,6 +956,16 @@ const AppGenerate: FC = () => {
         });
     }, [allVersions, activeAppUuid]);
 
+    // Lookup table: version number → full version summary. Used to retrieve
+    // declared-dependency metadata when rendering assistant bubbles.
+    const versionByNumber = useMemo(
+        () =>
+            new Map<number, ApiAppVersionSummary>(
+                allVersions.map((v) => [v.version, v]),
+            ),
+        [allVersions],
+    );
+
     // Highest server-known version number, used by `mergeChatMessages` to drop
     // optimistic local bubbles whose corresponding server version has already
     // landed in history.
@@ -1102,14 +1146,16 @@ const AppGenerate: FC = () => {
                     },
                     onError: (err: unknown) => {
                         setThemeChipOverride(null);
+                        const themeErrorMessage = isApiError(err)
+                            ? err.error.message
+                            : err instanceof Error
+                              ? err.message
+                              : 'Failed to apply theme';
                         setLocalMessages((prev) => [
                             ...prev,
                             {
                                 role: 'assistant',
-                                content:
-                                    err instanceof Error
-                                        ? err.message
-                                        : 'Failed to apply theme',
+                                content: themeErrorMessage,
                                 imagePreviewUrls: [],
                                 imageResourceIds: [],
                                 charts: [],
@@ -1236,6 +1282,17 @@ const AppGenerate: FC = () => {
         isActive: previewApp?.version === bubbleVersion,
         onPreview: () => pinPreviewToVersion(bubbleVersion),
     });
+
+    // Chip listing the custom packages installed for a version's build.
+    const renderVersionDepsChip = (bubbleVersion: number) => {
+        const vDeps = versionByNumber.get(bubbleVersion)?.dependencies?.custom;
+        if (!vDeps || vDeps.length === 0) return null;
+        return (
+            <Group gap="xs" mt={4}>
+                <DepsChip deps={vDeps} />
+            </Group>
+        );
+    };
 
     // Whether the user is currently looking at a version other than the
     // latest ready one. Drives the "viewing older version" banner.
@@ -1514,14 +1571,18 @@ const AppGenerate: FC = () => {
             }
         },
         onError: (err: unknown) => {
+            // The mutation rejects with an ApiError object (not an Error
+            // instance), so read its message before falling back.
+            const errorMessage = isApiError(err)
+                ? err.error.message
+                : err instanceof Error
+                  ? err.message
+                  : 'Failed to generate app';
             setLocalMessages((prev) => [
                 ...prev,
                 {
                     role: 'assistant' as const,
-                    content:
-                        err instanceof Error
-                            ? err.message
-                            : 'Failed to generate app',
+                    content: errorMessage,
                     imagePreviewUrls: [],
                     imageResourceIds: [],
                     charts: [],
@@ -2260,6 +2321,10 @@ const AppGenerate: FC = () => {
                                                                     : undefined
                                                             }
                                                         />
+                                                        {msg.version !== null &&
+                                                            renderVersionDepsChip(
+                                                                msg.version,
+                                                            )}
                                                         {msg.vizSchema ? (
                                                             msg.version !==
                                                                 null &&

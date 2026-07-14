@@ -213,6 +213,10 @@ export const lightdashConfigMock: LightdashConfig = {
         enabled: false,
     },
     smtp: undefined,
+    postmark: {
+        accountToken: undefined,
+        returnPathSubdomain: 'pm-bounces',
+    },
     siteUrl: 'https://test.lightdash.cloud',
     query: {
         maxPageSize: 2500,
@@ -287,6 +291,7 @@ export const lightdashConfigMock: LightdashConfig = {
         browserEndpoint: 'ws://headless-browser:3000',
         maxScreenshotRetries: 5,
         retryBaseDelayMs: 3000,
+        screenshotTimeoutMs: 180000,
     },
     contentAsCode: {
         maxDownloads: 100,
@@ -376,6 +381,7 @@ export const lightdashConfigMock: LightdashConfig = {
         cspAllowedOrigins: [],
         s3: null,
         e2bApiKey: null,
+        customDependenciesEnabled: true,
         e2bTemplateName: 'lightdash-data-app',
         e2bTemplateTag: '',
         e2bAiWritebackTemplateName: 'lightdash-ai-writeback',
@@ -418,6 +424,12 @@ export const lightdashConfigMock: LightdashConfig = {
             exportIntervalMs: 1000,
             auth: { type: 'none' },
         },
+        dependencyRegistryHosts: ['registry.npmjs.org'],
+        dependencyInstallTimeoutMs: 120_000,
+        dependencyMinReleaseAgeDays: 0,
+        // Off in the test fixture (real default is `true`) so tests never make
+        // a live OSV call.
+        dependencyMalwareCheckEnabled: false,
     },
     enabledFeatureFlags: new Set<string>(),
     disabledFeatureFlags: new Set<string>(),

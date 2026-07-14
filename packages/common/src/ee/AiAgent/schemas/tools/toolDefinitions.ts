@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import {
+    MCP_TOOL_GET_AI_WRITEBACK_STATUS_DESCRIPTION,
     MCP_TOOL_RUN_AI_WRITEBACK_DESCRIPTION,
+    mcpGetAiWritebackStatusArgsSchema,
+    mcpGetAiWritebackStatusStructuredOutputSchema,
     mcpRunAiWritebackArgsSchema,
     mcpRunAiWritebackStructuredOutputSchema,
 } from '../../../aiWriteback/types';
@@ -142,6 +145,7 @@ import {
 import {
     GET_METADATA_DESCRIPTION,
     getMetadataInputSchema,
+    getMetadataResultSchema,
     toolGetMetadataOutputSchema,
 } from './toolGetMetadataArgs';
 import {
@@ -161,6 +165,7 @@ import {
 import {
     GREP_FIELDS_DESCRIPTION,
     grepFieldsInputSchema,
+    grepFieldsResultSchema,
     toolGrepFieldsOutputSchema,
 } from './toolGrepFieldsArgs';
 import {
@@ -204,11 +209,6 @@ import {
     toolLoadSkillOutputSchema,
 } from './toolLoadSkillArgs';
 import {
-    TOOL_PROPOSE_CHANGE_DESCRIPTION,
-    toolProposeChangeArgsSchema,
-    toolProposeChangeOutputSchema,
-} from './toolProposeChangeArgs';
-import {
     mcpGetQueryResultStructuredOutputSchema,
     mcpRenderChartStructuredOutputSchema,
     mcpRunMetricQueryStructuredOutputSchema,
@@ -224,6 +224,11 @@ import {
     toolReadPinnedThreadArgsSchema,
     toolReadPinnedThreadOutputSchema,
 } from './toolReadPinnedThreadArgs';
+import {
+    TOOL_RESOLVE_URL_DESCRIPTION,
+    toolResolveUrlArgsSchema,
+    toolResolveUrlOutputSchema,
+} from './toolResolveUrlArgs';
 import {
     TOOL_RUN_CONTENT_QUERY_DESCRIPTION,
     toolRunContentQueryArgsSchema,
@@ -387,8 +392,8 @@ export const searchSemanticLayerToolDefinition: ToolDefinitionWithoutMcpOutput<
     name: 'searchSemanticLayer',
     title: 'Search semantic layer',
     description: TOOL_SEARCH_SEMANTIC_LAYER_DESCRIPTION,
-    // Agent-only for now: the tool is gated by FeatureFlags.SearchSemanticLayer
-    // on the agent ToolSet, so we don't expose it on the (un-gated) MCP surface.
+    // Agent-only for now: exposed on the agent ToolSet but not on the MCP
+    // surface.
     availability: ['agent'],
     inputSchema: toolSearchSemanticLayerArgsSchema,
     agent: { outputSchema: toolSearchSemanticLayerOutputSchema },
@@ -562,32 +567,42 @@ export const discoverFieldsToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolDiscoverFieldsOutputSchema },
 });
 
-export const grepFieldsToolDefinition: ToolDefinitionWithoutMcpOutput<
+export const grepFieldsToolDefinition: ToolDefinitionWithMcpOutput<
     'grepFields',
     typeof grepFieldsInputSchema,
     typeof grepFieldsInputSchema,
-    typeof toolGrepFieldsOutputSchema
+    typeof toolGrepFieldsOutputSchema,
+    typeof grepFieldsResultSchema
 > = defineTool({
     name: 'grepFields',
     title: 'Search fields',
     description: GREP_FIELDS_DESCRIPTION,
-    availability: ['agent'],
+    availability: ['agent', 'mcp'],
     inputSchema: grepFieldsInputSchema,
     agent: { outputSchema: toolGrepFieldsOutputSchema },
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: grepFieldsResultSchema,
+    },
 });
 
-export const getMetadataToolDefinition: ToolDefinitionWithoutMcpOutput<
+export const getMetadataToolDefinition: ToolDefinitionWithMcpOutput<
     'getMetadata',
     typeof getMetadataInputSchema,
     typeof getMetadataInputSchema,
-    typeof toolGetMetadataOutputSchema
+    typeof toolGetMetadataOutputSchema,
+    typeof getMetadataResultSchema
 > = defineTool({
     name: 'getMetadata',
     title: 'Get metadata',
     description: GET_METADATA_DESCRIPTION,
-    availability: ['agent'],
+    availability: ['agent', 'mcp'],
     inputSchema: getMetadataInputSchema,
     agent: { outputSchema: toolGetMetadataOutputSchema },
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: getMetadataResultSchema,
+    },
 });
 
 export const generateDashboardToolDefinition: ToolDefinitionWithoutMcpOutput<
@@ -675,6 +690,24 @@ export const readContentToolDefinition: ToolDefinitionWithoutMcpOutput<
     agent: { outputSchema: toolReadContentOutputSchema },
     mcp: {
         name: 'read_content',
+        annotations: readOnlyAnnotations,
+    },
+});
+
+export const resolveUrlToolDefinition: ToolDefinitionWithoutMcpOutput<
+    'resolveUrl',
+    typeof toolResolveUrlArgsSchema,
+    typeof toolResolveUrlArgsSchema,
+    typeof toolResolveUrlOutputSchema
+> = defineTool({
+    name: 'resolveUrl',
+    title: 'Resolve URL',
+    description: TOOL_RESOLVE_URL_DESCRIPTION,
+    availability: ['agent', 'mcp'],
+    inputSchema: toolResolveUrlArgsSchema,
+    agent: { outputSchema: toolResolveUrlOutputSchema },
+    mcp: {
+        name: 'resolve_url',
         annotations: readOnlyAnnotations,
     },
 });
@@ -815,20 +848,6 @@ export const loadProjectContextToolDefinition: ToolDefinitionWithoutMcpOutput<
     availability: ['agent'],
     inputSchema: toolLoadProjectContextArgsSchema,
     agent: { outputSchema: toolLoadProjectContextOutputSchema },
-});
-
-export const proposeChangeToolDefinition: ToolDefinitionWithoutMcpOutput<
-    'proposeChange',
-    typeof toolProposeChangeArgsSchema,
-    typeof toolProposeChangeArgsSchema,
-    typeof toolProposeChangeOutputSchema
-> = defineTool({
-    name: 'proposeChange',
-    title: 'Propose change',
-    description: TOOL_PROPOSE_CHANGE_DESCRIPTION,
-    availability: ['agent'],
-    inputSchema: toolProposeChangeArgsSchema,
-    agent: { outputSchema: toolProposeChangeOutputSchema },
 });
 
 export const editDbtProjectToolDefinition: ToolDefinitionWithoutMcpOutput<
@@ -1234,7 +1253,7 @@ export const setProjectToolDefinition = defineTool({
     name: 'setProject',
     title: 'Set project',
     description:
-        'Set the active project for all subsequent MCP operations. Most tools (list_explores, find_fields, run_metric_query, etc.) require an active project. Setting a project clears any previously selected agent, since agents are scoped to a project. After setting a project, prefer route_agent to auto-select the best agent for each request; use list_agents and set_agent only for manual override.',
+        'Set the active project for all subsequent MCP operations. Most tools (list_explores, MCP schema-discovery tools, run_metric_query, etc.) require an active project. Setting a project clears any previously selected agent, since agents are scoped to a project. After setting a project, prefer route_agent to auto-select the best agent for each request; use list_agents and set_agent only for manual override.',
     availability: ['mcp'],
     inputSchema: z.object({
         projectUuid: z.string(),
@@ -1293,7 +1312,7 @@ export const setAgentToolDefinition = defineTool({
     name: 'setAgent',
     title: 'Set agent',
     description:
-        "Manually set the active AI agent for the active project. Prefer route_agent for default automatic selection; use this when you need to override that choice explicitly. Returns the agent's full context including: explores it has access to, space restrictions, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Use this context to guide subsequent tool calls — prefer the agent's explores when calling find_explores/find_fields, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
+        "Manually set the active AI agent for the active project. Prefer route_agent for default automatic selection; use this when you need to override that choice explicitly. Returns the agent's full context including: explores it has access to, space restrictions, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Use this context to guide subsequent tool calls — prefer the agent's explores when calling MCP schema-discovery tools, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
     availability: ['mcp'],
     inputSchema: z.object({
         agentUuid: z.string(),
@@ -1340,7 +1359,7 @@ export const listVerifiedContentToolDefinition: ToolDefinitionWithoutMcpOutput<
     name: 'listVerifiedContent',
     title: 'List verified content',
     description:
-        'List all verified charts and dashboards in the active project. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Requires an active project set via set_project. Each item includes contentType (chart or dashboard), contentUuid, name, description, space, view count, last update time, and verification metadata (who verified it and when); charts also include chartKind and exploreName. To learn the full structure of a verified item (dimensions, metrics, filters), drill into it with find_content or find_fields on its explore.',
+        'List all verified charts and dashboards in the active project. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Requires an active project set via set_project. Each item includes contentType (chart or dashboard), contentUuid, name, description, space, view count, last update time, and verification metadata (who verified it and when); charts also include chartKind and exploreName. To learn the full structure of a verified item (dimensions, metrics, filters), drill into it with find_content or MCP schema-discovery tools on its explore.',
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
     mcp: { annotations: readOnlyAnnotations },
@@ -1364,6 +1383,24 @@ export const runAiWritebackToolDefinition: ToolDefinitionWithMcpOutput<
     },
 });
 
+export const getAiWritebackStatusToolDefinition: ToolDefinitionWithMcpOutput<
+    'getAiWritebackStatus',
+    typeof mcpGetAiWritebackStatusArgsSchema,
+    typeof mcpGetAiWritebackStatusArgsSchema,
+    undefined,
+    typeof mcpGetAiWritebackStatusStructuredOutputSchema
+> = defineTool({
+    name: 'getAiWritebackStatus',
+    title: 'Get AI writeback status',
+    description: MCP_TOOL_GET_AI_WRITEBACK_STATUS_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: mcpGetAiWritebackStatusArgsSchema,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: mcpGetAiWritebackStatusStructuredOutputSchema,
+    },
+});
+
 type AgentToolDefinitionsByName = {
     findExplores: typeof findExploresToolDefinition;
     findFields: typeof findFieldsToolDefinition;
@@ -1382,6 +1419,7 @@ type AgentToolDefinitionsByName = {
     generateUuids: typeof generateUuidsToolDefinition;
     getDashboardCharts: typeof getDashboardChartsToolDefinition;
     readContent: typeof readContentToolDefinition;
+    resolveUrl: typeof resolveUrlToolDefinition;
     editContent: typeof editContentToolDefinition;
     createContent: typeof createContentToolDefinition;
     runContentQuery: typeof runContentQueryToolDefinition;
@@ -1389,7 +1427,6 @@ type AgentToolDefinitionsByName = {
     improveContext: typeof improveContextToolDefinition;
     loadSkill: typeof loadSkillToolDefinition;
     loadProjectContext: typeof loadProjectContextToolDefinition;
-    proposeChange: typeof proposeChangeToolDefinition;
     editDbtProject: typeof editDbtProjectToolDefinition;
     editProjectContext: typeof editProjectContextToolDefinition;
     editRepo: typeof editRepoToolDefinition;
@@ -1433,6 +1470,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     generateUuids: generateUuidsToolDefinition,
     getDashboardCharts: getDashboardChartsToolDefinition,
     readContent: readContentToolDefinition,
+    resolveUrl: resolveUrlToolDefinition,
     editContent: editContentToolDefinition,
     createContent: createContentToolDefinition,
     runContentQuery: runContentQueryToolDefinition,
@@ -1440,7 +1478,6 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     improveContext: improveContextToolDefinition,
     loadSkill: loadSkillToolDefinition,
     loadProjectContext: loadProjectContextToolDefinition,
-    proposeChange: proposeChangeToolDefinition,
     editDbtProject: editDbtProjectToolDefinition,
     editProjectContext: editProjectContextToolDefinition,
     editRepo: editRepoToolDefinition,
@@ -1486,6 +1523,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     generateUuidsToolDefinition,
     getDashboardChartsToolDefinition,
     readContentToolDefinition,
+    resolveUrlToolDefinition,
     editContentToolDefinition,
     createContentToolDefinition,
     runContentQueryToolDefinition,
@@ -1493,7 +1531,6 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     improveContextToolDefinition,
     loadSkillToolDefinition,
     loadProjectContextToolDefinition,
-    proposeChangeToolDefinition,
     editDbtProjectToolDefinition,
     editProjectContextToolDefinition,
     editRepoToolDefinition,

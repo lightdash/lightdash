@@ -69,6 +69,34 @@ describe('SnowflakeWarehouseClient', () => {
         expect(results.fields).toEqual(expectedFields);
         expect(results.rows[0]).toEqual(expectedRow);
     });
+
+    it('escapes single quotes in query tags for session SQL', () => {
+        expect(
+            SnowflakeWarehouseClient.formatQueryTag({
+                user_attribute_company: "O'Reilly Media",
+            }),
+        ).toBe('{"user_attribute_company":"O\'\'Reilly Media"}');
+    });
+
+    it('limits query tag value to Snowflake maximum length', () => {
+        expect(
+            SnowflakeWarehouseClient.formatQueryTag({
+                user_attribute_company: 'x'.repeat(3000),
+            }).length,
+        ).toBe(2000);
+    });
+
+    it('keeps long escaped query tags safe for Snowflake session SQL', () => {
+        const result = SnowflakeWarehouseClient.formatQueryTag({
+            user_attribute_company: "'".repeat(3000),
+        });
+        const singleQuoteRuns = result.match(/'+/g) ?? [];
+
+        expect(result.length).toBeGreaterThan(2000);
+        expect(result.replace(/''/g, "'")).toHaveLength(2000);
+        expect(singleQuoteRuns.every((run) => run.length % 2 === 0)).toBe(true);
+    });
+
     it('expect schema with snowflake types mapped to dimension types', async () => {
         (createConnection as Mock).mockImplementationOnce(() => ({
             connect: vi.fn((callback) => callback(null, {})),

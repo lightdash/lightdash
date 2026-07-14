@@ -1,0 +1,38 @@
+.resizeHandle {
+    transition: background-color 0.2s ease-in-out;
+    cursor: row-resize;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.resizeHandle:hover {
+    background-color: var(--mantine-color-ldGray-2);
+}
+
+.resizeHandle[data-resize-handle-state='drag'] {
+    background-color: var(--mantine-color-ldGray-3);
+}
+
+.resultsResizeHandle {
+    composes: resizeHandle;
+    gap: 5px;
+    border-left: 1px solid var(--mantine-color-ldGray-3);
+}
+
+.toolbarPaper {
+    border-width: 0 0 1px 1px;
+    border-style: solid;
+    border-color: var(--mantine-color-ldGray-3);
+}
+
+.inputPaper {
+    overflow: auto;
+    border-width: 0 0 0 1px;
+    border-style: solid;
+    border-color: var(--mantine-color-ldGray-3);
+    background-color: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-6)
+    );
+}

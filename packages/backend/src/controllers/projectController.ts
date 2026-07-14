@@ -1,5 +1,8 @@
 import {
+    AlertAsCode,
     AnyType,
+    ApiAlertAsCodeListResponse,
+    ApiAlertAsCodeUpsertResponse,
     ApiCalculateTotalResponse,
     ApiChartAsCodeListResponse,
     ApiChartAsCodeUpsertResponse,
@@ -12,10 +15,15 @@ import {
     ApiErrorPayload,
     ApiGetProjectGroupAccesses,
     ApiGetProjectMemberResponse,
+    ApiGoogleSheetsSyncAsCodeListResponse,
+    ApiGoogleSheetsSyncAsCodeUpsertResponse,
     ApiPreviewExpirationProjectSettingsResponse,
+    ApiPreviewExpiresAtResponse,
     ApiProjectAccessListResponse,
     ApiProjectColorPaletteResponse,
     ApiProjectResponse,
+    ApiScheduledDeliveryAsCodeListResponse,
+    ApiScheduledDeliveryAsCodeUpsertResponse,
     ApiSpaceSummaryListResponse,
     ApiSqlChartAsCodeListResponse,
     ApiSqlChartAsCodeUpsertResponse,
@@ -24,6 +32,7 @@ import {
     assertRegisteredAccount,
     CalculateTotalFromQuery,
     ChartAsCode,
+    ContentAsCodeType,
     CreateProjectMember,
     DashboardAsCode,
     DbtExposure,
@@ -31,10 +40,12 @@ import {
     ForbiddenError,
     getErrorMessage,
     getRequestMethod,
+    GoogleSheetsSyncAsCode,
     isDuplicateDashboardParams,
     LightdashRequestMethodHeader,
     ParameterError,
     RequestMethod,
+    ScheduledDeliveryAsCode,
     SqlChartAsCode,
     UpdateDefaultUserSpaces,
     UpdateMetadata,
@@ -60,6 +71,7 @@ import {
     type Tag,
     type UpdateMultipleDashboards,
     type UpdatePreviewExpirationProjectSettings,
+    type UpdatePreviewExpiresAt,
     type UpdateQueryTimezoneSettings,
     type UpdateSchedulerSettings,
 } from '@lightdash/common';
@@ -1157,6 +1169,39 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
     }
 
     /**
+     * Update the expiration date of a preview project. The expiration is
+     * recomputed from now, clamped to the upstream project's maximum preview
+     * expiration. Omit expiresInHours to reset to the upstream default.
+     * @summary Update preview expiration
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Updated')
+    @Patch('{projectUuid}/preview-expiration')
+    @OperationId('updatePreviewExpiresAt')
+    async updatePreviewExpiresAt(
+        @Path() projectUuid: string,
+        @Body() body: UpdatePreviewExpiresAt,
+        @Request() req: express.Request,
+    ): Promise<ApiPreviewExpiresAtResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.services
+            .getProjectService()
+            .updatePreviewExpiresAt(
+                toSessionUser(req.account),
+                projectUuid,
+                body.expiresInHours,
+            );
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
      * Update scheduler settings for a project
      * @summary Update scheduler settings
      */
@@ -1392,12 +1437,11 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiGetTagsResponse> {
-        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         const results = await this.services
             .getProjectService()
-            .getTags(toSessionUser(req.account), projectUuid);
+            .getTags(req.account!, projectUuid);
 
         return {
             status: 'ok',
@@ -1463,6 +1507,182 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
                     ids,
                     offset,
                     languageMap,
+                ),
+        };
+    }
+
+    /**
+     * Get scheduled deliveries in code representation
+     * @summary List scheduled deliveries as code
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/scheduledDeliveries/code')
+    @OperationId('getScheduledDeliveriesAsCode')
+    async getScheduledDeliveriesAsCode(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query() slugs?: string[],
+    ): Promise<ApiScheduledDeliveryAsCodeListResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getCoderService()
+                .getScheduledDeliveries(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    slugs,
+                ),
+        };
+    }
+
+    /**
+     * Upsert a scheduled delivery from code representation
+     * @summary Upsert scheduled delivery as code
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/scheduledDeliveries/{slug}/code')
+    @OperationId('upsertScheduledDeliveryAsCode')
+    async upsertScheduledDeliveryAsCode(
+        @Path() projectUuid: string,
+        @Path() slug: string,
+        @Body() delivery: ScheduledDeliveryAsCode,
+        @Request() req: express.Request,
+        @Query() force: boolean = false,
+    ): Promise<ApiScheduledDeliveryAsCodeUpsertResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getCoderService()
+                .upsertScheduledDelivery(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    slug,
+                    delivery,
+                    force,
+                ),
+        };
+    }
+
+    /**
+     * Get alerts in code representation
+     * @summary List alerts as code
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/alerts/code')
+    @OperationId('getAlertsAsCode')
+    async getAlertsAsCode(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query() slugs?: string[],
+    ): Promise<ApiAlertAsCodeListResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getCoderService()
+                .getScheduledDeliveries(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    slugs,
+                    ContentAsCodeType.ALERT,
+                ),
+        };
+    }
+
+    /**
+     * Upsert an alert from code representation
+     * @summary Upsert alert as code
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/alerts/{slug}/code')
+    @OperationId('upsertAlertAsCode')
+    async upsertAlertAsCode(
+        @Path() projectUuid: string,
+        @Path() slug: string,
+        @Body() alert: AlertAsCode,
+        @Request() req: express.Request,
+        @Query() force: boolean = false,
+    ): Promise<ApiAlertAsCodeUpsertResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getCoderService()
+                .upsertScheduledDelivery(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    slug,
+                    alert,
+                    force,
+                ),
+        };
+    }
+
+    /**
+     * Get Google Sheets syncs in code representation
+     * @summary List Google Sheets syncs as code
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/googleSheets/code')
+    @OperationId('getGoogleSheetsSyncsAsCode')
+    async getGoogleSheetsSyncsAsCode(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+        @Query() slugs?: string[],
+    ): Promise<ApiGoogleSheetsSyncAsCodeListResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getCoderService()
+                .getScheduledDeliveries(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    slugs,
+                    ContentAsCodeType.GOOGLE_SHEETS_SYNC,
+                ),
+        };
+    }
+
+    /**
+     * Upsert a Google Sheets sync from code representation
+     * @summary Upsert Google Sheets sync as code
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('{projectUuid}/googleSheets/{slug}/code')
+    @OperationId('upsertGoogleSheetsSyncAsCode')
+    async upsertGoogleSheetsSyncAsCode(
+        @Path() projectUuid: string,
+        @Path() slug: string,
+        @Body() googleSheetsSync: GoogleSheetsSyncAsCode,
+        @Request() req: express.Request,
+        @Query() force: boolean = false,
+    ): Promise<ApiGoogleSheetsSyncAsCodeUpsertResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getCoderService()
+                .upsertScheduledDelivery(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    slug,
+                    googleSheetsSync,
+                    force,
                 ),
         };
     }

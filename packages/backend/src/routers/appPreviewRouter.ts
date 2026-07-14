@@ -53,7 +53,10 @@ const buildCspHeader = (
 
     const directives: string[] = [
         `default-src 'none'`,
-        `script-src ${sources()}`,
+        // blob: in script-src is required for blob workers to EXECUTE — the
+        // inherited CSP checks the worker's own script against script-src,
+        // while worker-src below only gates its creation.
+        `script-src ${sources('blob:')}`,
         `style-src ${sources("'unsafe-inline'", ...cspAllowedOrigins)}`,
         // Allow same-origin fetch so html-to-image can inline @font-face
         // sources and <img>/background URLs when capturing screenshots.
@@ -62,6 +65,13 @@ const buildCspHeader = (
         // exfiltrate user data — the postMessage bridge remains the only
         // path to the authenticated Lightdash API.
         `connect-src ${sources()}`,
+        // Many libraries (canvas-confetti, deck.gl, comlink) run animation or
+        // compute in workers created from blob: URLs. Blob workers execute the
+        // app's own already-running code and inherit this CSP, so allowing
+        // them adds no new network or exfiltration path. child-src is the
+        // worker fallback on older Safari.
+        `worker-src ${sources('blob:')}`,
+        `child-src ${sources('blob:')}`,
         `img-src ${sources('data:')}`,
         `font-src ${sources(...cspAllowedOrigins)}`,
         `frame-ancestors ${frameAncestors.join(' ')}`,

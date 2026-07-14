@@ -219,11 +219,13 @@ export type ListContentFn = (args: {
               contentType: 'chart' | 'dashboard' | 'data_app';
               name: string;
               slug: string;
+              href: string;
           }
         | {
               contentType: 'space';
               name: string;
               slug: string;
+              href: string;
               chartCount: number;
               dashboardCount: number;
               childSpaceCount: number;
@@ -271,6 +273,10 @@ export type ReadContentFn = (args: {
           href: string;
       }
 >;
+
+export type ResolveUrlFn = (args: {
+    url: string;
+}) => Promise<{ isShareLink: true; url: string } | { isShareLink: false }>;
 
 export type EditContentFn = (args: {
     slug: string;
@@ -497,19 +503,14 @@ export type LoadAgentSkillFn = (
 ) => Promise<AiAgentSkill | undefined>;
 
 export type EditDbtProjectFn = (args: {
-    prompt: string | null;
+    prompt: string;
     prUrl: string | null;
-    fromActiveChangeset: boolean;
     /** Open a new PR instead of continuing the thread's existing one. */
     startNewPullRequest: boolean | null;
     progressId?: string;
-}) => Promise<
-    AiWritebackRunResult & {
-        previewDeployConfigured: boolean | null;
-        /** Server-side preview built from the PR's head branch; null when unsupported or failed. */
-        previewUrl: string | null;
-    }
->;
+}) => Promise<{
+    aiWritebackRunUuid: string;
+}>;
 
 // Applies a structured project-context entry to lightdash.project_context.yml
 // via the deterministic GitHub-API merge (no sandbox) and opens/updates a PR.

@@ -90,7 +90,20 @@ Don't use `assertRegisteredAccount`. Pick the narrower guard that matches what t
 - `assertIsAccountWithOrg(account)` — narrows to "has an organization", works for registered or JWT-with-org. Used by `ShareService.getShareUrl`.
 - `assertSessionAuth(account)` — narrows to `SessionAccount` (session cookie only).
 
-Embed routes (`/api/v1/embed/...`) expect JWT and don't need any registered assertion — they're the intended JWT surface.
+The `/api/v1/embed/...` API surface is legacy. New embed features should use the
+canonical project endpoint and explicitly allow the relevant JWT account there.
+Keep that access narrow:
+
+- Let `jwtAuthMiddleware` authenticate the token for the requested project.
+- Grant only the CASL abilities required by that embed content type and enforce
+  them in the shared service.
+- Accept `Account` (or a narrower account union) in services shared with embeds;
+  keep registered-only and write endpoints behind `assertRegisteredAccount`.
+- Reuse the same response contract for web, SDK, and iframe callers instead of
+  adding a parallel embed endpoint.
+
+Existing `/api/v1/embed/...` endpoints remain supported, but should not be used
+as the pattern for new functionality.
 
 ## Migration cheat sheet
 

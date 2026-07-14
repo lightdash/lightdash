@@ -1,5 +1,6 @@
 import { type FeatureFlags } from '@lightdash/common';
 import type {
+    AiWritebackSource,
     PullRequestProvider,
     SessionUser,
     SupportedDbtVersions,
@@ -141,11 +142,11 @@ export type CodingAgentConfig = {
     /** Tags logs/analytics and selects the few remaining mode branches. */
     mode: 'dbt-writeback' | 'general';
     /**
-     * The rollout feature flag this mode is gated behind (AiWriteback for dbt,
-     * CodingAgent for the general agent). Asserted in `prepareTurn` for non
-     * admin/changeset sources.
+     * The rollout feature flag this mode is gated behind (CodingAgent for the
+     * general agent). Undefined for dbt writeback, which is always enabled.
+     * Asserted in `prepareTurn` for non admin/changeset sources.
      */
-    featureFlag: FeatureFlags;
+    featureFlag?: FeatureFlags;
     /** E2B template a fresh sandbox is created from (dbt vs lean image). */
     resolveTemplateRef: () => string;
     /** Extra options merged into `sandbox.git.clone` (e.g. a blob filter). */
@@ -247,13 +248,7 @@ export type AppliedChanges = {
     deletions: number | null;
 };
 
-export type AiWritebackSource =
-    | 'slack'
-    | 'web'
-    | 'mcp'
-    | 'api'
-    | 'admin_review'
-    | 'changeset';
+export type { AiWritebackSource };
 
 export type AgentToolCall = {
     name: string;
@@ -367,4 +362,5 @@ export type AiWritebackRunArgs = {
      * progress live (the Slack agent updates its "Thinking…" message).
      */
     onProgress?: (message: string) => void;
+    aiWritebackRunUuid?: string;
 };

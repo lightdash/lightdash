@@ -1,4 +1,3 @@
-import { FeatureFlags } from '@lightdash/common';
 import {
     Avatar,
     Box,
@@ -12,7 +11,6 @@ import {
 } from '@mantine-8/core';
 import { IconBrandGithub, IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import githubIcon from '../../../svgs/github-icon.svg';
 import {
     GITHUB_USER_AUTHORIZE_URL,
@@ -23,15 +21,8 @@ import MantineIcon from '../../common/MantineIcon';
 import { SettingsGridCard } from '../../common/Settings/SettingsCard';
 
 const GithubUserSettingsPanel: FC = () => {
-    const { data: flag } = useServerFeatureFlag(
-        FeatureFlags.GithubUserCredentials,
-    );
     const { data: credential, isInitialLoading } = useGithubUserCredential();
     const unlinkGithubUserMutation = useUnlinkGithubUserMutation();
-
-    if (!flag?.enabled) {
-        return null;
-    }
 
     if (isInitialLoading) {
         return <Loader />;

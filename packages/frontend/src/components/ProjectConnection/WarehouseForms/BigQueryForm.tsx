@@ -1,6 +1,6 @@
 import { BigqueryAuthenticationType, WarehouseTypes } from '@lightdash/common';
-import type { SelectItem } from '@mantine/core';
 import {
+    TextInput,
     Anchor,
     Autocomplete,
     Button,
@@ -8,14 +8,13 @@ import {
     Group,
     Image,
     Loader,
-    NumberInput,
-    Select,
+    type ComboboxItem,
     Stack,
-    Switch,
     Text,
-    TextInput,
-    Tooltip,
-} from '@mantine/core';
+    Select,
+    Switch,
+} from '@mantine-8/core';
+import { NumberInput, Tooltip } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconCheck, IconExclamationCircle } from '@tabler/icons-react';
 import { useState, type ChangeEvent, type FC } from 'react';
@@ -55,6 +54,7 @@ export const BigQuerySchemaInput: FC<{
                     <b> dataset </b>
                     value{' '}
                     <Anchor
+                        inherit
                         target="_blank"
                         href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#:~:text=This%20connection%20method%20requires%20local%20OAuth%20via%20gcloud."
                         rel="noreferrer"
@@ -71,7 +71,7 @@ export const BigQuerySchemaInput: FC<{
     );
 };
 
-export const BigQuerySSOInput: FC<{
+const BigQuerySSOInput: FC<{
     isAuthenticated: boolean;
     disabled: boolean;
     openLoginPopup: () => void;
@@ -88,9 +88,9 @@ export const BigQuerySSOInput: FC<{
                 variant="default"
                 color="gray"
                 disabled={disabled}
-                leftIcon={
+                leftSection={
                     <Image
-                        width={16}
+                        w={16}
                         src={
                             'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTgiIGhlaWdodD0iMTgiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGcgZmlsbD0ibm9uZSIgZmlsbC1ydWxlPSJldmVub2RkIj48cGF0aCBkPSJNMTcuNiA5LjJsLS4xLTEuOEg5djMuNGg0LjhDMTMuNiAxMiAxMyAxMyAxMiAxMy42djIuMmgzYTguOCA4LjggMCAwIDAgMi42LTYuNnoiIGZpbGw9IiM0Mjg1RjQiIGZpbGwtcnVsZT0ibm9uemVybyIvPjxwYXRoIGQ9Ik05IDE4YzIuNCAwIDQuNS0uOCA2LTIuMmwtMy0yLjJhNS40IDUuNCAwIDAgMS04LTIuOUgxVjEzYTkgOSAwIDAgMCA4IDV6IiBmaWxsPSIjMzRBODUzIiBmaWxsLXJ1bGU9Im5vbnplcm8iLz48cGF0aCBkPSJNNCAxMC43YTUuNCA1LjQgMCAwIDEgMC0zLjRWNUgxYTkgOSAwIDAgMCAwIDhsMy0yLjN6IiBmaWxsPSIjRkJCQzA1IiBmaWxsLXJ1bGU9Im5vbnplcm8iLz48cGF0aCBkPSJNOSAzLjZjMS4zIDAgMi41LjQgMy40IDEuM0wxNSAyLjNBOSA5IDAgMCAwIDEgNWwzIDIuNGE1LjQgNS40IDAgMCAxIDUtMy43eiIgZmlsbD0iI0VBNDMzNSIgZmlsbC1ydWxlPSJub256ZXJvIi8+PHBhdGggZD0iTTAgMGgxOHYxOEgweiIvPjwvZz48L3N2Zz4='
                         }
@@ -185,13 +185,14 @@ const BigQueryForm: FC<{
             value: BigqueryAuthenticationType.ADC,
             label: 'Application Default Credentials',
         },
-    ].filter(Boolean) as SelectItem[];
+    ].filter(Boolean) as ComboboxItem[];
     return (
         <>
             <Stack mt={8}>
                 {
-                    <Group spacing="sm">
+                    <Group gap="sm">
                         <Select
+                            allowDeselect={false}
                             name="warehouse.authenticationType"
                             {...form.getInputProps(
                                 'warehouse.authenticationType',
@@ -200,9 +201,10 @@ const BigQueryForm: FC<{
                             label="Authentication Type"
                             description={
                                 isAuthenticated ? (
-                                    <Text mt="0" color="gray" fs="xs">
+                                    <Text mt="0" c="gray" fs="xs">
                                         You are connected to BigQuery,{' '}
                                         <Anchor
+                                            inherit
                                             href="#"
                                             onClick={() => {
                                                 openLoginPopup();
@@ -240,7 +242,7 @@ const BigQueryForm: FC<{
                         openLoginPopup={openLoginPopup}
                     />
                 )}
-                <Group spacing="sm">
+                <Group gap="sm">
                     {isSso && isAuthenticated ? (
                         <Autocomplete
                             name="warehouse.project"
@@ -248,6 +250,7 @@ const BigQueryForm: FC<{
                             description={
                                 <p>
                                     <Anchor
+                                        inherit
                                         target="_blank"
                                         href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#project"
                                         rel="noreferrer"
@@ -267,13 +270,20 @@ const BigQueryForm: FC<{
                             disabled={disabled}
                             labelProps={{ style: { marginTop: '8px' } }}
                             w={hasDatasets ? '90%' : '100%'}
-                            data={
-                                gcpProjects?.map((p) => ({
-                                    value: p.projectId,
-                                    label: p.friendlyName
-                                        ? `${p.friendlyName} (${p.projectId})`
-                                        : p.projectId,
-                                })) ?? []
+                            data={gcpProjects?.map((p) => p.projectId) ?? []}
+                            limit={5}
+                            renderOption={({ option }) => {
+                                const projectOption = gcpProjects?.find(
+                                    (projectItem) =>
+                                        projectItem.projectId === option.value,
+                                );
+
+                                return projectOption?.friendlyName
+                                    ? `${projectOption.friendlyName} (${projectOption.projectId})`
+                                    : option.value;
+                            }}
+                            rightSectionPointerEvents={
+                                projectsError ? 'all' : 'none'
                             }
                             rightSection={
                                 isLoadingProjects ? (
@@ -302,6 +312,7 @@ const BigQueryForm: FC<{
                             description={
                                 <p>
                                     <Anchor
+                                        inherit
                                         target="_blank"
                                         href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#project"
                                         rel="noreferrer"
@@ -342,6 +353,7 @@ const BigQueryForm: FC<{
                             The location of BigQuery datasets. You can see more
                             details in{' '}
                             <Anchor
+                                inherit
                                 target="_blank"
                                 href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#dataset-locations"
                                 rel="noreferrer"
@@ -370,7 +382,7 @@ const BigQueryForm: FC<{
                             If you're not sure what this is, check out the
                             <b> dataset </b>
                             value{' '}
-                            <Anchor
+                            <Anchor inherit
                                 target="_blank"
                                 href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#:~:text=This%20connection%20method%20requires%20local%20OAuth%20via%20gcloud."
                                 rel="noreferrer"
@@ -405,8 +417,6 @@ const BigQueryForm: FC<{
                                 },
                             )}
                             label="Key File"
-                            // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
-                            // @ts-ignore
                             placeholder={
                                 !requireSecrets
                                     ? '**************'
@@ -416,6 +426,7 @@ const BigQueryForm: FC<{
                                 <p>
                                     This is the JSON key file. You can see{' '}
                                     <Anchor
+                                        inherit
                                         target="_blank"
                                         href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#key-file"
                                         rel="noreferrer"
@@ -506,6 +517,7 @@ const BigQueryForm: FC<{
                                     where you materialize most resources. You
                                     can see more details in{' '}
                                     <Anchor
+                                        inherit
                                         target="_blank"
                                         href="https://docs.getdbt.com/docs/core/connect-data-platform/bigquery-setup#execution-project"
                                         rel="noreferrer"
@@ -549,6 +561,7 @@ const BigQueryForm: FC<{
                                     cancel the query. You can see more details
                                     in{' '}
                                     <Anchor
+                                        inherit
                                         target="_blank"
                                         href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#timeouts"
                                         rel="noreferrer"
@@ -563,6 +576,7 @@ const BigQueryForm: FC<{
                         />
 
                         <Select
+                            allowDeselect={false}
                             name="warehouse.priority"
                             {...form.getInputProps('warehouse.priority')}
                             defaultValue={BigQueryDefaultValues.priority}
@@ -572,6 +586,7 @@ const BigQueryForm: FC<{
                                     The priority for the BigQuery jobs that dbt
                                     executes. You can see more details in{' '}
                                     <Anchor
+                                        inherit
                                         target="_blank"
                                         href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#priority"
                                         rel="noreferrer"
@@ -606,6 +621,7 @@ const BigQueryForm: FC<{
                                     that result in unhandled server errors You
                                     can see more details in{' '}
                                     <Anchor
+                                        inherit
                                         target="_blank"
                                         href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#retries"
                                         rel="noreferrer"
@@ -634,6 +650,7 @@ const BigQueryForm: FC<{
                                     configured maximum bytes threshold. You can
                                     see more details in{' '}
                                     <Anchor
+                                        inherit
                                         target="_blank"
                                         href="https://docs.getdbt.com/reference/warehouse-profiles/bigquery-profile#maximum-bytes-billed"
                                         rel="noreferrer"

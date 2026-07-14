@@ -1,4 +1,4 @@
-import { type AiWebAppPrompt } from '@lightdash/common';
+import { type AiWebAppPrompt, type SlackPrompt } from '@lightdash/common';
 import { getRunSql } from './runSql';
 
 type RunSqlTool = ReturnType<typeof getRunSql>;
@@ -42,13 +42,27 @@ const makePrompt = (): AiWebAppPrompt => ({
     modelConfig: null,
 });
 
+const makeSlackPrompt = (): SlackPrompt => ({
+    ...makePrompt(),
+    response_slack_ts: 'response-ts',
+    slackUserId: 'slack-user',
+    slackChannelId: 'slack-channel',
+    promptSlackTs: 'prompt-ts',
+    slackThreadTs: 'thread-ts',
+});
+
 const makeTool = ({
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
     waitForSqlApproval = vi.fn().mockResolvedValue('approved'),
     recordSqlApproval = vi.fn().mockResolvedValue(true),
     maxQueryLimit = 5000,
-}: MakeToolOptions = {}) => {
+    useSlackStreamCard = false,
+    prompt = makePrompt(),
+}: MakeToolOptions & {
+    useSlackStreamCard?: boolean;
+    prompt?: AiWebAppPrompt | SlackPrompt;
+} = {}) => {
     const dependencies = {
         updateProgress: vi.fn().mockResolvedValue(undefined),
         runSqlJob: vi.fn().mockResolvedValue({
@@ -56,7 +70,7 @@ const makeTool = ({
             columns: ['answer'],
             rowCount: 1,
         }),
-        getPrompt: vi.fn().mockResolvedValue(makePrompt()),
+        getPrompt: vi.fn().mockResolvedValue(prompt),
         sendFile: vi.fn().mockResolvedValue(undefined),
         updateSlackMessage: vi.fn().mockResolvedValue(undefined),
         siteUrl: 'https://lightdash.example',
@@ -67,6 +81,7 @@ const makeTool = ({
         autoApproveSql,
         autoApproveSqlUserUuid,
         maxQueryLimit,
+        useSlackStreamCard,
     };
 
     return {
@@ -176,5 +191,57 @@ describe('getRunSql', () => {
         expect(output.result).toContain('forbidden functions');
         expect(dependencies.waitForSqlApproval).not.toHaveBeenCalled();
         expect(dependencies.runSqlJob).not.toHaveBeenCalled();
+    });
+
+    // On the native-approval (modern Slack) path, execute only runs as a resume
+    // of a previously-approved call, so it must persist its own result — even
+    // when the SQL is blocked/rejected. Otherwise the tool_use is left with no
+    // tool_result and the resumed request 400s. (ZAP-601)
+    describe('native-approval resume persists a result for every outcome', () => {
+        const runNativeResume = (sql: string, toolCallId = 'tool-call-1') => {
+            const { tool, dependencies } = makeTool({
+                useSlackStreamCard: true,
+                prompt: makeSlackPrompt(),
+            });
+            return {
+                dependencies,
+                output: tool.execute!(
+                    { sql, limit: 500 },
+                    { messages: [], toolCallId },
+                ) as Promise<RunSqlOutput>,
+            };
+        };
+
+        it('persists an error result for a guardrail-blocked query', async () => {
+            const { dependencies, output } = runNativeResume(
+                'SELECT * FROM INFORMATION_SCHEMA.COLUMNS',
+            );
+
+            const resolved = await output;
+            expect(resolved.metadata?.status).toBe('error');
+            expect(resolved.result).toContain('information_schema');
+            expect(dependencies.storeToolResults).toHaveBeenCalledWith([
+                expect.objectContaining({
+                    promptUuid: 'prompt-uuid',
+                    toolCallId: 'tool-call-1',
+                    toolName: 'runSql',
+                    result: resolved.result,
+                }),
+            ]);
+        });
+
+        it('persists a success result for an approved query', async () => {
+            const { dependencies, output } =
+                runNativeResume('select 1 as answer');
+
+            const resolved = await output;
+            expect(resolved.metadata?.status).toBe('success');
+            expect(dependencies.storeToolResults).toHaveBeenCalledWith([
+                expect.objectContaining({
+                    toolCallId: 'tool-call-1',
+                    result: resolved.result,
+                }),
+            ]);
+        });
     });
 });

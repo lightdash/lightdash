@@ -1,5 +1,6 @@
 import { DbtProjectType } from '@lightdash/common';
-import { Anchor, PasswordInput, TextInput } from '@mantine/core';
+import { TextInput, Anchor } from '@mantine-8/core';
+import { PasswordInput } from '@mantine/core';
 import { type FC } from 'react';
 import { useFormContext } from '../formContext';
 import DbtVersionSelect from '../Inputs/DbtVersion';
@@ -21,6 +22,7 @@ const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                         <p>
                             This is used to access your repo. See the{' '}
                             <Anchor
+                                inherit
                                 target="_blank"
                                 href="https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html"
                                 rel="noreferrer"
@@ -119,6 +121,7 @@ const GitlabForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                         you can add the custom domain for your project in here.
                         By default, this is
                         <Anchor
+                            inherit
                             href="http://gitlab.io/"
                             target="_blank"
                             rel="noreferrer"

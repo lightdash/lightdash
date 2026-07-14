@@ -1,15 +1,13 @@
 import { DbtProjectType } from '@lightdash/common';
 import {
+    TextInput,
     ActionIcon,
     Alert,
     Anchor,
     CopyButton,
-    MultiSelect,
-    PasswordInput,
     Stack,
-    TextInput,
-    Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { MultiSelect, PasswordInput, Tooltip } from '@mantine/core';
 import { IconCheck, IconCopy, IconInfoCircle } from '@tabler/icons-react';
 import React, { useCallback, useState, type FC } from 'react';
 import useApp from '../../../providers/App/useApp';
@@ -100,6 +98,7 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                     }
                     value={webhookUrl}
                     readOnly
+                    rightSectionPointerEvents="all"
                     rightSection={
                         <CopyButton value={webhookUrl}>
                             {({ copied, copy }) => (
@@ -109,6 +108,11 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                                     position="left"
                                 >
                                     <ActionIcon
+                                        aria-label="Copy webhook URL"
+                                        onMouseDown={(event) =>
+                                            event.preventDefault()
+                                        }
+                                        variant="subtle"
                                         color={copied ? 'teal' : 'gray'}
                                         onClick={copy}
                                     >
@@ -148,6 +152,7 @@ const DbtCloudForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                     <p>
                         Use the endpoint that's appropriate for your{' '}
                         <Anchor
+                            inherit
                             target="_blank"
                             href="https://docs.getdbt.com/docs/dbt-cloud-apis/discovery-querying#discovery-api-endpoints"
                             rel="noreferrer"

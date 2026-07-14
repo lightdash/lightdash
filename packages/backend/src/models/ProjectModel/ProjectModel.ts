@@ -722,6 +722,12 @@ export class ProjectModel {
             });
     }
 
+    async updateExpiresAt(projectUuid: string, expiresAt: Date): Promise<void> {
+        await this.database(ProjectTableName)
+            .where('project_uuid', projectUuid)
+            .update({ expires_at: expiresAt });
+    }
+
     async update(projectUuid: string, data: UpdateProject): Promise<void> {
         // Invalidate warehouse credentials cache
         warehouseCredentialsCache?.del(projectUuid);

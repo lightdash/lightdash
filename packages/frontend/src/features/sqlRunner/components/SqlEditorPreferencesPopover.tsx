@@ -1,12 +1,12 @@
 import { WarehouseTypes } from '@lightdash/common';
 import {
-    ActionIcon,
     Group,
-    Popover,
-    SegmentedControl,
     Stack,
     Text,
-} from '@mantine/core';
+    ActionIcon,
+    SegmentedControl,
+} from '@mantine-8/core';
+import { Popover } from '@mantine/core';
 import { IconCodeCircle } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -57,10 +57,11 @@ export const SqlEditorPreferencesPopover: FC = () => {
         >
             <Popover.Target>
                 <ActionIcon
+                    color="gray"
                     variant="light"
                     size="sm"
                     onClick={() => setOpened(!opened)}
-                    sx={{
+                    style={{
                         cursor: isPopoverDisabled ? 'default' : 'pointer',
                     }}
                 >
@@ -72,7 +73,7 @@ export const SqlEditorPreferencesPopover: FC = () => {
             </Popover.Target>
             <Popover.Dropdown>
                 {settings && (
-                    <Stack spacing="sm">
+                    <Stack gap="sm">
                         <Text size="xs" fw={500}>
                             Autocomplete preferences
                         </Text>
@@ -90,9 +91,11 @@ export const SqlEditorPreferencesPopover: FC = () => {
                                     { label: 'Never', value: 'never' },
                                 ]}
                                 value={settings.quotePreference}
-                                onChange={(
-                                    value: SqlEditorPreferences['quotePreference'],
-                                ) => handleQuotePreferenceChange(value)}
+                                onChange={(value) =>
+                                    handleQuotePreferenceChange(
+                                        value as SqlEditorPreferences['quotePreference'],
+                                    )
+                                }
                             />
                         </Group>
 
@@ -108,9 +111,11 @@ export const SqlEditorPreferencesPopover: FC = () => {
                                     { label: 'Lowercase', value: 'lowercase' },
                                 ]}
                                 value={settings.casePreference}
-                                onChange={(
-                                    value: SqlEditorPreferences['casePreference'],
-                                ) => handleCasePreferenceChange(value)}
+                                onChange={(value) =>
+                                    handleCasePreferenceChange(
+                                        value as SqlEditorPreferences['casePreference'],
+                                    )
+                                }
                             />
                         </Group>
                     </Stack>

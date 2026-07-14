@@ -4,10 +4,11 @@ import {
     type CompiledDimension,
     type FilterRule,
 } from '@lightdash/common';
-import { Button, Group, Select, Stack, Text } from '@mantine/core';
+import { Group, Stack, Text, Button, Select } from '@mantine-8/core';
 import { IconFilter, IconX } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
+import { groupComboboxItems } from '../../../../components/common/Select/utils';
 import {
     useFilterSelectStyles,
     useOperatorSelectStyles,
@@ -18,6 +19,7 @@ import {
     getOperatorOptions,
 } from '../../utils/metricExploreFilter';
 import SelectItem from '../SelectItem';
+import styles from './MetricExploreButtons.module.css';
 import { MetricExploreFilterAutoComplete } from './MetricExploreFilterAutoComplete';
 
 type Props = {
@@ -187,36 +189,33 @@ export const MetricExploreFilter: FC<Props> = ({
     }, []);
 
     return (
-        <Stack spacing="xs">
-            <Group position="apart">
-                <Group spacing="xs" align="normal">
+        <Stack gap="xs">
+            <Group justify="space-between">
+                <Group gap="xs" align="normal">
                     <Text fw={500} c="ldGray.7">
                         Filter
                     </Text>
                 </Group>
 
-                <Group spacing="xs">
+                <Group gap="xs">
                     <Button
                         variant="subtle"
-                        compact
+                        size="compact-xs"
                         color="dark"
-                        size="xs"
                         radius="md"
-                        rightIcon={
+                        rightSection={
                             <MantineIcon
                                 icon={IconX}
                                 color="ldGray.5"
                                 size={12}
                             />
                         }
-                        sx={{
-                            '&:hover': {
-                                backgroundColor: theme.colors.ldGray[1],
-                            },
+                        className={styles.clearButton}
+                        style={{
                             visibility: showClearButton,
                         }}
                         styles={{
-                            rightIcon: {
+                            section: {
                                 marginLeft: 4,
                             },
                         }}
@@ -228,30 +227,37 @@ export const MetricExploreFilter: FC<Props> = ({
             </Group>
 
             <Stack
-                spacing={0}
-                sx={{
+                gap={0}
+                style={{
                     boxShadow: theme.shadows.subtle,
                     borderRadius: theme.radius.md,
                 }}
             >
-                <Group spacing={0} noWrap>
+                <Group gap={0} wrap="nowrap">
                     <Select
+                        allowDeselect={false}
                         placeholder="Filter by"
-                        icon={<MantineIcon icon={IconFilter} />}
+                        leftSection={<MantineIcon icon={IconFilter} />}
                         searchable
-                        withinPortal
+                        comboboxProps={{ withinPortal: true }}
                         radius="md"
                         size="xs"
-                        data={
+                        data={groupComboboxItems(
                             dimensions?.map((dimension) => ({
                                 value: getItemId(dimension),
                                 label: dimension.label,
                                 group: dimension.tableLabel,
-                            })) ?? []
-                        }
+                            })) ?? [],
+                        )}
                         disabled={dimensions?.length === 0}
                         value={filterState.fieldId}
-                        itemComponent={SelectItem}
+                        renderOption={({ option, checked }) => (
+                            <SelectItem
+                                value={option.value}
+                                label={option.label}
+                                selected={checked ?? false}
+                            />
+                        )}
                         onChange={handleDimensionChange}
                         data-selected={!!filterState.fieldId}
                         data-no-values={!showValuesSection ? 'true' : 'false'}
@@ -260,11 +266,16 @@ export const MetricExploreFilter: FC<Props> = ({
 
                     {filterState.fieldId && (
                         <Select
+                            allowDeselect={false}
                             placeholder="Condition"
-                            withinPortal
+                            comboboxProps={{ withinPortal: true }}
                             data={operatorOptions}
                             value={filterState.operator}
-                            onChange={handleOperatorChange}
+                            onChange={(value) =>
+                                handleOperatorChange(
+                                    value as FilterOperator | null,
+                                )
+                            }
                             size="xs"
                             radius="md"
                             classNames={operatorSelectClasses}
@@ -293,10 +304,9 @@ export const MetricExploreFilter: FC<Props> = ({
             {filterState.fieldId && dimensionMetadata?.requiresValues && (
                 <Button
                     color={theme.colorScheme === 'dark' ? 'ldGray.2' : 'dark'}
-                    compact
-                    size="xs"
+                    size="compact-xs"
                     disabled={!canApplyFilter}
-                    sx={{
+                    style={{
                         boxShadow: theme.shadows.subtle,
                         alignSelf: 'flex-end',
                     }}

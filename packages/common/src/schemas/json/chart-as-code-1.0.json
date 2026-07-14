@@ -1176,6 +1176,10 @@
                     "description": "Right position",
                     "type": "string"
                 },
+                "selected": {
+                    "$ref": "#/$defs/Record_string.boolean_",
+                    "description": "Legend entries toggled off by name. Missing entries default to visible."
+                },
                 "show": {
                     "description": "Show the legend",
                     "type": "boolean"
@@ -2556,6 +2560,14 @@
                 }
             },
             "required": ["value", "field"],
+            "type": "object"
+        },
+        "Record_string.boolean_": {
+            "additionalProperties": {
+                "type": "boolean"
+            },
+            "description": "Construct a type with a set of properties K of type T",
+            "properties": {},
             "type": "object"
         },
         "Record_string.ColumnProperties_": {

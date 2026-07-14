@@ -39,7 +39,6 @@ import {
 import * as JsonPatch from 'fast-json-patch';
 import Logger from '../../../logging/logger';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
-import { ChangesetModel } from '../../../models/ChangesetModel';
 import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
 import { JobModel } from '../../../models/JobModel/JobModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
@@ -59,6 +58,7 @@ import { SavedChartService } from '../../../services/SavedChartsService/SavedCha
 import { SearchService } from '../../../services/SearchService/SearchService';
 import { ShareService } from '../../../services/ShareService/ShareService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
+import { matchShareUrlNanoid } from '../../../services/UnfurlService/UnfurlService';
 import {
     doesExploreMatchRequiredAttributes,
     getFilteredExplore,
@@ -92,6 +92,7 @@ import {
     ListWarehouseTablesFn,
     LoadAgentSkillFn,
     ReadContentFn,
+    ResolveUrlFn,
     RunAsyncQueryFn,
     RunSavedChartQueryFn,
     RunSqlJobFn,
@@ -183,6 +184,7 @@ export type AiAgentToolsRuntime = {
     listContent: ListContentFn;
     getDashboardCharts: GetDashboardChartsFn;
     readContent: ReadContentFn;
+    resolveUrl: ResolveUrlFn;
     editContent: EditContentFn;
     createContent: CreateContentFn;
     validateContent: ValidateContentFn;
@@ -246,7 +248,6 @@ type AiAgentToolsServiceDependencies = {
     aiAgentContentValidation: AiAgentContentValidation;
     projectContextModel: ProjectContextModel;
     aiAgentDocumentModel: AiAgentDocumentModel;
-    changesetModel: ChangesetModel;
     featureFlagService: FeatureFlagService;
     previewDeploySetupService: PreviewDeploySetupService;
     shareService: ShareService;
@@ -296,6 +297,8 @@ export class AiAgentToolsService extends BaseService {
     private readonly featureFlagService: FeatureFlagService;
 
     private readonly previewDeploySetupService: PreviewDeploySetupService;
+
+    private readonly shareService: ShareService;
 
     private readonly lightdashConfig: AiAgentToolsServiceDependencies['lightdashConfig'];
 
@@ -354,6 +357,7 @@ export class AiAgentToolsService extends BaseService {
         aiAgentDocumentModel,
         featureFlagService,
         previewDeploySetupService,
+        shareService,
         lightdashConfig,
     }: AiAgentToolsServiceDependencies) {
         super();
@@ -378,6 +382,7 @@ export class AiAgentToolsService extends BaseService {
         this.aiAgentDocumentModel = aiAgentDocumentModel;
         this.featureFlagService = featureFlagService;
         this.previewDeploySetupService = previewDeploySetupService;
+        this.shareService = shareService;
         this.lightdashConfig = lightdashConfig;
     }
 
@@ -512,6 +517,7 @@ export class AiAgentToolsService extends BaseService {
             getDashboardCharts: (args) =>
                 this.getDashboardCharts(context, args),
             readContent: (args) => this.readContent(context, args),
+            resolveUrl: (args) => this.resolveUrl(context, args),
             editContent: (args) => this.editContent(context, args),
             createContent: (args) => this.createContent(context, args),
             validateContent: (args) => this.validateContent(args),
@@ -1131,6 +1137,7 @@ export class AiAgentToolsService extends BaseService {
 
                 if (spaceSlug === null) {
                     return this.getRootSpacesForAgent(
+                        context,
                         context.user,
                         context.projectUuid,
                         agentSpaceAccess,
@@ -1140,6 +1147,7 @@ export class AiAgentToolsService extends BaseService {
                 }
 
                 return this.getSpaceContentsForAgent(
+                    context,
                     context.user,
                     context.projectUuid,
                     spaceSlug,
@@ -1164,6 +1172,20 @@ export class AiAgentToolsService extends BaseService {
             default:
                 return assertUnreachable(type, 'Invalid content type');
         }
+    }
+
+    private static getSpaceUrl(
+        context: AiAgentToolsRuntimeContext,
+        uuid: string,
+    ) {
+        return `/projects/${context.projectUuid}/spaces/${uuid}`;
+    }
+
+    private static getDataAppUrl(
+        context: AiAgentToolsRuntimeContext,
+        uuid: string,
+    ) {
+        return `/projects/${context.projectUuid}/apps/${uuid}`;
     }
 
     private static getContentTypeLabel(type: ContentAsCodeType) {
@@ -1335,6 +1357,51 @@ export class AiAgentToolsService extends BaseService {
                     default:
                         return assertUnreachable(type, 'Invalid content type');
                 }
+            },
+        );
+    }
+
+    private resolveUrl(
+        context: AiAgentToolsRuntimeContext,
+        { url }: Parameters<ResolveUrlFn>[0],
+    ): ReturnType<ResolveUrlFn> {
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(context)}.resolveUrl`,
+            { url },
+            async () => {
+                const siteOrigin = new URL(this.lightdashConfig.siteUrl).origin;
+                if (/^https?:\/\//i.test(url)) {
+                    let origin: string;
+                    try {
+                        origin = new URL(url).origin;
+                    } catch {
+                        throw new ParameterError(`"${url}" is not a valid URL`);
+                    }
+                    if (origin !== siteOrigin) {
+                        throw new ParameterError(
+                            `"${url}" does not belong to this Lightdash instance (${siteOrigin}), so it cannot be resolved`,
+                        );
+                    }
+                }
+
+                const shareNanoid = matchShareUrlNanoid(url);
+                if (shareNanoid === null) {
+                    return { isShareLink: false };
+                }
+
+                // Resolving through ShareService enforces the caller's org
+                // membership before revealing the destination.
+                const share = await this.shareService.getShareUrl(
+                    context.account,
+                    shareNanoid,
+                );
+                return {
+                    isShareLink: true,
+                    url: new URL(
+                        `${share.path}${share.params}`,
+                        this.lightdashConfig.siteUrl,
+                    ).href,
+                };
             },
         );
     }
@@ -2038,6 +2105,7 @@ export class AiAgentToolsService extends BaseService {
                     await this.aiAgentDocumentModel.getContentForAgent({
                         organizationUuid: context.organizationUuid,
                         agentUuid: context.agentUuid,
+                        projectUuid: context.projectUuid,
                         documentUuid: args.documentUuid,
                     });
                 if (!content) {
@@ -2308,6 +2376,7 @@ export class AiAgentToolsService extends BaseService {
     }
 
     private async getRootSpacesForAgent(
+        context: AiAgentToolsRuntimeContext,
         user: SessionUser,
         projectUuid: string,
         agentSpaceAccess: Set<string> | null,
@@ -2334,6 +2403,7 @@ export class AiAgentToolsService extends BaseService {
                     contentType: ContentType.SPACE,
                     name: space.name,
                     slug: getContentAsCodePathFromLtreePath(space.path),
+                    href: AiAgentToolsService.getSpaceUrl(context, space.uuid),
                     chartCount: space.chartCount,
                     dashboardCount: space.dashboardCount,
                     childSpaceCount: space.childSpaceCount,
@@ -2346,6 +2416,7 @@ export class AiAgentToolsService extends BaseService {
     }
 
     private async getSpaceContentsForAgent(
+        context: AiAgentToolsRuntimeContext,
         user: SessionUser,
         projectUuid: string,
         spaceSlug: string,
@@ -2400,6 +2471,10 @@ export class AiAgentToolsService extends BaseService {
                             contentType: ContentType.SPACE,
                             name: item.name,
                             slug: getContentAsCodePathFromLtreePath(item.path),
+                            href: AiAgentToolsService.getSpaceUrl(
+                                context,
+                                item.uuid,
+                            ),
                             chartCount: item.chartCount,
                             dashboardCount: item.dashboardCount,
                             childSpaceCount: item.childSpaceCount,
@@ -2408,11 +2483,45 @@ export class AiAgentToolsService extends BaseService {
                         };
                     }
 
-                    return {
-                        contentType: item.contentType,
-                        name: item.name,
-                        slug: item.slug,
-                    };
+                    switch (item.contentType) {
+                        case ContentType.DASHBOARD:
+                            return {
+                                contentType: item.contentType,
+                                name: item.name,
+                                slug: item.slug,
+                                href: AiAgentToolsService.getContentUrl(
+                                    context,
+                                    'dashboard',
+                                    item.uuid,
+                                ),
+                            };
+                        case ContentType.CHART:
+                            return {
+                                contentType: item.contentType,
+                                name: item.name,
+                                slug: item.slug,
+                                href: AiAgentToolsService.getContentUrl(
+                                    context,
+                                    'chart',
+                                    item.uuid,
+                                ),
+                            };
+                        case ContentType.DATA_APP:
+                            return {
+                                contentType: item.contentType,
+                                name: item.name,
+                                slug: item.slug,
+                                href: AiAgentToolsService.getDataAppUrl(
+                                    context,
+                                    item.uuid,
+                                ),
+                            };
+                        default:
+                            return assertUnreachable(
+                                item,
+                                'Invalid content type',
+                            );
+                    }
                 }),
             pagination: results.pagination,
         };

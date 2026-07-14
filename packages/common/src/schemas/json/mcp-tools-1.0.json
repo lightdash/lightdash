@@ -775,6 +775,335 @@
                 "idempotentHint": true,
                 "readOnlyHint": true
             },
+            "description": "Tool: get_metadata\n\nPurpose:\nGet the full metadata for specific explores and/or fields that you already know the IDs of (typically from grep_fields). grep_fields is lean — it tells you WHICH fields exist; get_metadata gives you the DETAIL you need to build a correct query: an explore's joined tables and table filters, and a field's filter type, case-sensitivity, resolved default time dimension, hints, and whether it comes from a joined table.\n\nCall this AFTER grep_fields, once you have narrowed down to the explore(s) and field(s) you intend to use, and BEFORE render_chart. You can ask for several explores and several fields across explores in a SINGLE call — batch everything you need at once instead of one request per item.\n\nEach entry in `requests` is one of:\n- `{ \"type\": \"explore\", \"exploreIds\": [\"orders\", \"customers\"] }` — full metadata for those explores (joined tables, table filters, field counts).\n- `{ \"type\": \"field\", \"fields\": [{ \"exploreId\": \"orders\", \"fieldId\": \"orders_status\" }] }` — full metadata for those specific fields.\n",
+            "inputSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                    "requests": {
+                        "description": "A batch of explore and/or field metadata requests, resolved together in one call.",
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "exploreIds": {
+                                            "description": "Explore IDs (names) to fetch full metadata for.",
+                                            "items": {
+                                                "minLength": 1,
+                                                "type": "string"
+                                            },
+                                            "minItems": 1,
+                                            "type": "array"
+                                        },
+                                        "type": {
+                                            "const": "explore",
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["type", "exploreIds"],
+                                    "type": "object"
+                                },
+                                {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "fields": {
+                                            "description": "Specific fields to fetch full metadata for.",
+                                            "items": {
+                                                "additionalProperties": false,
+                                                "properties": {
+                                                    "exploreId": {
+                                                        "description": "The explore the field belongs to.",
+                                                        "minLength": 1,
+                                                        "type": "string"
+                                                    },
+                                                    "fieldId": {
+                                                        "description": "The fieldId, e.g. `orders_status`.",
+                                                        "minLength": 1,
+                                                        "type": "string"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "exploreId",
+                                                    "fieldId"
+                                                ],
+                                                "type": "object"
+                                            },
+                                            "minItems": 1,
+                                            "type": "array"
+                                        },
+                                        "type": {
+                                            "const": "field",
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": ["type", "fields"],
+                                    "type": "object"
+                                }
+                            ]
+                        },
+                        "maxItems": 20,
+                        "minItems": 1,
+                        "type": "array"
+                    }
+                },
+                "required": ["requests"],
+                "type": "object"
+            },
+            "name": "get_metadata",
+            "outputSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                    "explores": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "baseDimensions": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                                "count": {
+                                                    "type": "number"
+                                                },
+                                                "fieldIds": {
+                                                    "items": {
+                                                        "type": "string"
+                                                    },
+                                                    "type": "array"
+                                                }
+                                            },
+                                            "required": ["count", "fieldIds"],
+                                            "type": "object"
+                                        },
+                                        "baseMetrics": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                                "count": {
+                                                    "type": "number"
+                                                },
+                                                "fieldIds": {
+                                                    "items": {
+                                                        "type": "string"
+                                                    },
+                                                    "type": "array"
+                                                }
+                                            },
+                                            "required": ["count", "fieldIds"],
+                                            "type": "object"
+                                        },
+                                        "baseTable": {
+                                            "type": "string"
+                                        },
+                                        "description": {
+                                            "type": ["string", "null"]
+                                        },
+                                        "exploreId": {
+                                            "type": "string"
+                                        },
+                                        "hint": {
+                                            "type": ["string", "null"]
+                                        },
+                                        "joinedTables": {
+                                            "items": {
+                                                "type": "string"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "label": {
+                                            "type": "string"
+                                        },
+                                        "requiredFilters": {
+                                            "items": {
+                                                "additionalProperties": false,
+                                                "properties": {
+                                                    "fieldId": {
+                                                        "type": "string"
+                                                    },
+                                                    "fieldRef": {
+                                                        "type": "string"
+                                                    },
+                                                    "operator": {
+                                                        "type": "string"
+                                                    },
+                                                    "required": {
+                                                        "type": "boolean"
+                                                    },
+                                                    "settings": {},
+                                                    "tableName": {
+                                                        "type": "string"
+                                                    },
+                                                    "values": {
+                                                        "items": {},
+                                                        "type": "array"
+                                                    }
+                                                },
+                                                "required": [
+                                                    "fieldId",
+                                                    "fieldRef",
+                                                    "tableName",
+                                                    "operator",
+                                                    "required"
+                                                ],
+                                                "type": "object"
+                                            },
+                                            "type": "array"
+                                        },
+                                        "status": {
+                                            "const": "found",
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "exploreId",
+                                        "status",
+                                        "label",
+                                        "description",
+                                        "hint",
+                                        "baseTable",
+                                        "joinedTables",
+                                        "requiredFilters",
+                                        "baseDimensions",
+                                        "baseMetrics"
+                                    ],
+                                    "type": "object"
+                                },
+                                {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "error": {
+                                            "type": "string"
+                                        },
+                                        "exploreId": {
+                                            "type": "string"
+                                        },
+                                        "status": {
+                                            "const": "not_found",
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "exploreId",
+                                        "status",
+                                        "error"
+                                    ],
+                                    "type": "object"
+                                }
+                            ]
+                        },
+                        "type": "array"
+                    },
+                    "fields": {
+                        "items": {
+                            "anyOf": [
+                                {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "caseSensitiveFilters": {
+                                            "type": ["boolean", "null"]
+                                        },
+                                        "defaultTimeDimension": {
+                                            "type": ["string", "null"]
+                                        },
+                                        "defaultTimeDimensionGranularity": {
+                                            "type": ["string", "null"]
+                                        },
+                                        "description": {
+                                            "type": ["string", "null"]
+                                        },
+                                        "exploreId": {
+                                            "type": "string"
+                                        },
+                                        "fieldId": {
+                                            "type": "string"
+                                        },
+                                        "fieldType": {
+                                            "type": "string"
+                                        },
+                                        "filterType": {
+                                            "type": "string"
+                                        },
+                                        "hint": {
+                                            "type": ["string", "null"]
+                                        },
+                                        "isFromJoinedTable": {
+                                            "type": "boolean"
+                                        },
+                                        "joinedTableName": {
+                                            "type": ["string", "null"]
+                                        },
+                                        "kind": {
+                                            "enum": ["dimension", "metric"],
+                                            "type": "string"
+                                        },
+                                        "label": {
+                                            "type": "string"
+                                        },
+                                        "status": {
+                                            "const": "found",
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "exploreId",
+                                        "fieldId",
+                                        "status",
+                                        "kind",
+                                        "fieldType",
+                                        "label",
+                                        "filterType",
+                                        "isFromJoinedTable",
+                                        "joinedTableName",
+                                        "caseSensitiveFilters",
+                                        "defaultTimeDimension",
+                                        "defaultTimeDimensionGranularity",
+                                        "description",
+                                        "hint"
+                                    ],
+                                    "type": "object"
+                                },
+                                {
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "error": {
+                                            "type": "string"
+                                        },
+                                        "exploreId": {
+                                            "type": "string"
+                                        },
+                                        "fieldId": {
+                                            "type": "string"
+                                        },
+                                        "status": {
+                                            "const": "not_found",
+                                            "type": "string"
+                                        }
+                                    },
+                                    "required": [
+                                        "exploreId",
+                                        "fieldId",
+                                        "status",
+                                        "error"
+                                    ],
+                                    "type": "object"
+                                }
+                            ]
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["explores", "fields"],
+                "type": "object"
+            },
+            "title": "Get metadata"
+        },
+        {
+            "annotations": {
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "readOnlyHint": true
+            },
             "description": "Poll for the result of a long-running MCP query started by run_sql or run_metric_query.\n\nUse this tool when run_sql or run_metric_query returns a running result. Clients with structured output see this as structuredContent.result.status = \"running\"; text-only clients should extract the queryUuid from the content text.\nEach call waits up to the MCP wait window before returning another running response.\nFor completed run_metric_query results, If the user asked for a visual, or if a chart would make the answer easier to understand than raw rows alone, call render_chart after get_query_result returns done. render_chart currently supports completed run_metric_query results.\n\nParameters:\n- queryUuid: The async query UUID returned by run_sql or run_metric_query.\n\nResponse shape (MCP CallToolResult):\n- Running: content contains polling status text and structuredContent.result contains { status: \"running\", queryUuid, nextPollAfterMs, heartbeatAt }. heartbeatAt is an ISO timestamp for the latest Lightdash check that confirmed the query is still running.\n- Completed SQL: content contains CSV text and structuredContent.result contains { status: \"done\", queryUuid, rows, columns, rowCount, sqlRunnerUrl }.\n- Completed metric query: content has the CSV text plus a separate `queryUuid: <id>` text block (copy this exact id for render_chart), and structuredContent.result contains { status: \"done\", queryUuid, rows, fields, exploreUrl }.\n- Failed/cancelled/expired: content contains status/error text and structuredContent.result contains { status, queryUuid, error }.\n\nNotes:\n- Some clients expose structuredContent; others only expose content text plus isError. Prefer structuredContent.result when present. Otherwise parse content text and use isError as the success/failure signal.\n- This tool waits up to ~50s server-side. If unfinished, call get_query_result again with queryUuid after nextPollAfterMs. Warehouse execution timeout comes from the Lightdash warehouse connection, not MCP. Client/transport timeouts are retryable with the same queryUuid.\n- Validation errors fail before a query starts and should be fixed, not retried. Application errors and warehouse execution errors are terminal until the request is corrected.\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
@@ -943,6 +1272,348 @@
                 "idempotentHint": true,
                 "readOnlyHint": true
             },
+            "description": "Tool: grep_fields\n\nPurpose:\nFind which explores and fields can answer a question by grepping an in-memory, annotated view of the project's fields (names, labels, descriptions, hints and tags). Returns matching fields as `explore/fieldId  [kind type]` lines grouped by explore.\n\nUse this as the FIRST step whenever the user asks a data question (counts, totals, breakdowns, trends, \"what is\", \"show me\", \"how many\"). Do NOT call this for questions about existing dashboards/charts (use find_content).\n\nEach pattern is a case-insensitive keyword pattern (not a full regex): use `|` to OR synonyms (\"revenue|sales\") and a space or `.*` between words to require all of them (\"order.*status\" matches fields mentioning both \"order\" and \"status\"). Pass 1–5 patterns in a SINGLE call covering the different angles of the question — they run together so you see all results at once instead of grepping one at a time. Start broad with meaningful keywords (e.g. [\"revenue|sales\", \"country|region\", \"segment|tier\"]) and narrow from there — long natural-language phrases will not match. If results are empty, try synonyms or broader patterns before giving up. Read the returned fieldIds and pick the single explore that answers at the right grain before building a query.\n",
+            "inputSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                    "exploreName": {
+                        "description": "Restrict the search to this explore only, or null to search all explores., ",
+                        "type": "string"
+                    },
+                    "patterns": {
+                        "description": "Up to 5 case-insensitive keyword patterns, run together in one call. Use `|` to OR synonyms and a space or `.*` between words to require all of them. Each is matched against field names, labels, descriptions, hints and tags.",
+                        "items": {
+                            "minLength": 1,
+                            "type": "string"
+                        },
+                        "maxItems": 5,
+                        "minItems": 1,
+                        "type": "array"
+                    }
+                },
+                "required": ["patterns"],
+                "type": "object"
+            },
+            "name": "grep_fields",
+            "outputSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    },
+                    "exploreName": {
+                        "type": ["string", "null"]
+                    },
+                    "fuzzyMatches": {
+                        "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                                "description": {
+                                    "type": ["string", "null"]
+                                },
+                                "exploreName": {
+                                    "type": "string"
+                                },
+                                "fieldId": {
+                                    "type": "string"
+                                },
+                                "fieldType": {
+                                    "type": "string"
+                                },
+                                "label": {
+                                    "type": "string"
+                                },
+                                "searchRank": {
+                                    "type": ["number", "null"]
+                                },
+                                "usageInCharts": {
+                                    "type": "number"
+                                },
+                                "usageInVerifiedCharts": {
+                                    "type": "number"
+                                }
+                            },
+                            "required": [
+                                "exploreName",
+                                "fieldId",
+                                "label",
+                                "fieldType",
+                                "description",
+                                "searchRank",
+                                "usageInCharts",
+                                "usageInVerifiedCharts"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "patterns": {
+                        "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                                "matchCount": {
+                                    "type": "number"
+                                },
+                                "matchedAllFields": {
+                                    "type": "boolean"
+                                },
+                                "matchingExploresByName": {
+                                    "items": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                            "exploreLabel": {
+                                                "type": "string"
+                                            },
+                                            "exploreName": {
+                                                "type": "string"
+                                            }
+                                        },
+                                        "required": [
+                                            "exploreName",
+                                            "exploreLabel"
+                                        ],
+                                        "type": "object"
+                                    },
+                                    "type": "array"
+                                },
+                                "metricAmbiguityNote": {
+                                    "type": ["string", "null"]
+                                },
+                                "note": {
+                                    "type": "string"
+                                },
+                                "pattern": {
+                                    "type": "string"
+                                },
+                                "resultsByExplore": {
+                                    "items": {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                            "exploreLabel": {
+                                                "type": "string"
+                                            },
+                                            "exploreName": {
+                                                "type": "string"
+                                            },
+                                            "fields": {
+                                                "items": {
+                                                    "additionalProperties": false,
+                                                    "properties": {
+                                                        "defaultTimeDimension": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "defaultTimeDimensionGranularity": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "description": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "exploreLabel": {
+                                                            "type": "string"
+                                                        },
+                                                        "exploreName": {
+                                                            "type": "string"
+                                                        },
+                                                        "fieldId": {
+                                                            "type": "string"
+                                                        },
+                                                        "fieldType": {
+                                                            "type": "string"
+                                                        },
+                                                        "hint": {
+                                                            "type": [
+                                                                "string",
+                                                                "null"
+                                                            ]
+                                                        },
+                                                        "kind": {
+                                                            "enum": [
+                                                                "dimension",
+                                                                "metric"
+                                                            ],
+                                                            "type": "string"
+                                                        },
+                                                        "label": {
+                                                            "type": "string"
+                                                        },
+                                                        "matchLocality": {
+                                                            "enum": [
+                                                                "name",
+                                                                "description",
+                                                                "hint",
+                                                                "mixed"
+                                                            ],
+                                                            "type": "string"
+                                                        },
+                                                        "path": {
+                                                            "type": "string"
+                                                        },
+                                                        "usageInVerifiedCharts": {
+                                                            "type": "number"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "exploreName",
+                                                        "exploreLabel",
+                                                        "fieldId",
+                                                        "path",
+                                                        "kind",
+                                                        "fieldType",
+                                                        "label",
+                                                        "description",
+                                                        "hint",
+                                                        "defaultTimeDimension",
+                                                        "defaultTimeDimensionGranularity",
+                                                        "usageInVerifiedCharts",
+                                                        "matchLocality"
+                                                    ],
+                                                    "type": "object"
+                                                },
+                                                "type": "array"
+                                            },
+                                            "requiredFilters": {
+                                                "items": {
+                                                    "additionalProperties": false,
+                                                    "properties": {
+                                                        "fieldId": {
+                                                            "type": "string"
+                                                        },
+                                                        "fieldRef": {
+                                                            "type": "string"
+                                                        },
+                                                        "operator": {
+                                                            "type": "string"
+                                                        },
+                                                        "required": {
+                                                            "type": "boolean"
+                                                        },
+                                                        "settings": {},
+                                                        "tableName": {
+                                                            "type": "string"
+                                                        },
+                                                        "values": {
+                                                            "items": {},
+                                                            "type": "array"
+                                                        }
+                                                    },
+                                                    "required": [
+                                                        "fieldId",
+                                                        "fieldRef",
+                                                        "tableName",
+                                                        "operator",
+                                                        "required"
+                                                    ],
+                                                    "type": "object"
+                                                },
+                                                "type": "array"
+                                            }
+                                        },
+                                        "required": [
+                                            "exploreName",
+                                            "exploreLabel",
+                                            "requiredFilters",
+                                            "fields"
+                                        ],
+                                        "type": "object"
+                                    },
+                                    "type": "array"
+                                },
+                                "scopeSize": {
+                                    "type": "number"
+                                },
+                                "status": {
+                                    "enum": [
+                                        "matches",
+                                        "no_matches",
+                                        "no_signal"
+                                    ],
+                                    "type": "string"
+                                }
+                            },
+                            "required": [
+                                "pattern",
+                                "status",
+                                "matchCount",
+                                "scopeSize",
+                                "matchedAllFields",
+                                "note",
+                                "resultsByExplore",
+                                "metricAmbiguityNote",
+                                "matchingExploresByName"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "relevantVerifiedAnswers": {
+                        "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                                "artifactType": {
+                                    "enum": ["chart", "dashboard"],
+                                    "type": "string"
+                                },
+                                "artifactVersionUuid": {
+                                    "type": "string"
+                                },
+                                "chartConfig": {
+                                    "additionalProperties": {},
+                                    "type": "object"
+                                },
+                                "description": {
+                                    "type": ["string", "null"]
+                                },
+                                "similarity": {
+                                    "type": "number"
+                                },
+                                "title": {
+                                    "type": ["string", "null"]
+                                },
+                                "verifiedQuestion": {
+                                    "type": ["string", "null"]
+                                }
+                            },
+                            "required": [
+                                "artifactVersionUuid",
+                                "chartConfig",
+                                "artifactType",
+                                "verifiedQuestion",
+                                "title",
+                                "description",
+                                "similarity"
+                            ],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": [
+                    "description",
+                    "exploreName",
+                    "patterns",
+                    "fuzzyMatches"
+                ],
+                "type": "object"
+            },
+            "title": "Search fields"
+        },
+        {
+            "annotations": {
+                "destructiveHint": false,
+                "idempotentHint": true,
+                "readOnlyHint": true
+            },
             "description": "List accessible AI agents for the active project. Optionally filter by project UUID. Each agent is pre-configured with specific explores, tags, verified questions, and instructions that define its domain expertise. Prefer route_agent for automatic selection; use this tool when you need to inspect candidates or choose one manually before calling set_agent.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
@@ -964,7 +1635,7 @@
                 "idempotentHint": true,
                 "readOnlyHint": true
             },
-            "description": "Tool: \"listContent\"\nPurpose:\nLists accessible Lightdash content in a project as a browsable hierarchy.\n\nUsage tips:\n- By default, lists root-level spaces.\n- Pass a spaceSlug to list direct children and content inside that space.\n- Use page for pagination. Page starts at 1.\n- Results include names, slugs, content types, and space content counts.",
+            "description": "Tool: \"listContent\"\nPurpose:\nLists accessible Lightdash content in a project as a browsable hierarchy.\n\nUsage tips:\n- By default, lists root-level spaces.\n- Pass a spaceSlug to list direct children and content inside that space.\n- Use page for pagination. Page starts at 1.\n- Results include names, slugs, content types, URLs, and space content counts.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
@@ -991,7 +1662,7 @@
                 "idempotentHint": true,
                 "readOnlyHint": true
             },
-            "description": "Tool: listExplores\n\nPurpose:\nLists all Explores available to the user in the current project. Returns a summary of each explore including its name, label, base table, and tags.\n\nUsage Tips:\n- Use this to discover what data sources are available before using findExplores for detailed field information\n- No arguments needed - automatically uses the current project context\n- Results are filtered based on user permissions and selected tags\n- Returns explore metadata without field details for quick overview\n",
+            "description": "Tool: listExplores\n\nPurpose:\nLists all Explores available to the user in the current project. Returns a summary of each explore including its name, label, base table, and tags.\n\nUsage Tips:\n- Use this to discover what data sources are available before using MCP schema-discovery tools for detailed field information\n- No arguments needed - automatically uses the current project context\n- Results are filtered based on user permissions and selected tags\n- Returns explore metadata without field details for quick overview\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
@@ -1132,7 +1803,7 @@
                 "idempotentHint": true,
                 "readOnlyHint": true
             },
-            "description": "List all verified charts and dashboards in the active project. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Requires an active project set via set_project. Each item includes contentType (chart or dashboard), contentUuid, name, description, space, view count, last update time, and verification metadata (who verified it and when); charts also include chartKind and exploreName. To learn the full structure of a verified item (dimensions, metrics, filters), drill into it with find_content or find_fields on its explore.",
+            "description": "List all verified charts and dashboards in the active project. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Requires an active project set via set_project. Each item includes contentType (chart or dashboard), contentUuid, name, description, space, view count, last update time, and verification metadata (who verified it and when); charts also include chartKind and exploreName. To learn the full structure of a verified item (dimensions, metrics, filters), drill into it with find_content or MCP schema-discovery tools on its explore.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
@@ -1555,6 +2226,30 @@
         {
             "annotations": {
                 "destructiveHint": false,
+                "idempotentHint": true,
+                "readOnlyHint": true
+            },
+            "description": "Tool: resolveUrl\n\nPurpose:\nExpands a Lightdash share short-link into the full URL it redirects to. Share links are opaque — this tool is the only way to see what they point at.\n\nWhen to use:\n- ONLY for URLs whose path is \"/share/<id>\" (e.g. \"<host>/share/aBcD1234...\"). Nothing else is a share link.\n- NEVER call this for any other URL. A URL like \"/projects/<uuid>/saved/<uuid>\" or \"/projects/<uuid>/dashboards/<uuid>\" already contains its identifiers — read them directly from the path and go straight to the appropriate tool.\n\nUsage tips:\n- Read the identifiers (project uuid, chart or dashboard uuid, explore name) from the expanded URL, then use other tools (e.g. readContent) to fetch the content.\n- URLs that don't belong to this Lightdash instance cannot be resolved.",
+            "inputSchema": {
+                "$schema": "http://json-schema.org/draft-07/schema#",
+                "additionalProperties": false,
+                "properties": {
+                    "url": {
+                        "description": "The Lightdash URL to resolve, exactly as provided.",
+                        "minLength": 1,
+                        "type": "string"
+                    }
+                },
+                "required": ["url"],
+                "type": "object"
+            },
+            "name": "resolve_url",
+            "outputSchema": null,
+            "title": "Resolve URL"
+        },
+        {
+            "annotations": {
+                "destructiveHint": false,
                 "idempotentHint": false,
                 "readOnlyHint": false
             },
@@ -1675,13 +2370,13 @@
                 "idempotentHint": false,
                 "readOnlyHint": false
             },
-            "description": "Tool: run_ai_writeback\n\nPurpose:\nMake a change to the dbt project that backs the active Lightdash project by describing it in natural language, then open a pull request with the result. The target GitHub repository and dbt sub-folder are resolved server-side from the active project's dbt connection — you never specify them.\n\nHow it works:\n- A sandbox is created, the project's GitHub repository is cloned, and the prompt is executed by the Claude Code CLI against the dbt project.\n- If the agent changes any files, a branch is committed, pushed, and a pull request is opened. The PR URL is returned.\n- If the agent makes no file changes, no PR is opened and prUrl is null.\n\nRequirements:\n- An active project must be set first via set_project (or the X-Lightdash-Project header).\n- The project's dbt connection must be GitHub-backed, and the organization must have the GitHub App installed.\n- The AI writeback feature must be enabled for the organization.\n\nImportant:\n- This tool is NOT read-only and NOT idempotent — each call can open a new pull request. Use it only when the user explicitly wants to change their dbt project.\n- The run is synchronous and can take a few minutes (cloning, running the agent, opening the PR).\n- Some projects have more than one dbt source. If the prompt doesn't make clear which one to change, the tool makes no change and returns the list of sources (by name and repository); re-run and name the intended source in the prompt itself (e.g. \"In jaffle-2, add ...\"). You never pass an id.\n\nParameters:\n- prompt: A clear, self-contained description of the change to make to the dbt project (e.g. \"Add a 'total_revenue' metric to the orders model as the sum of amount\"). When the project has more than one dbt source, name the intended source here (e.g. \"In the marketing dbt project, ...\").\n\nResponse shape (MCP CallToolResult):\n- content: [{ type: \"text\", text: \"<human-readable summary including the PR URL>\" }]\n- structuredContent: {\n    output:   string,           // the agent's text output\n    exitCode: number,           // the sandbox command's exit status\n    prUrl:    string | null     // URL of the opened pull request, or null when no changes were made\n  }\n",
+            "description": "Tool: run_ai_writeback\n\nPurpose:\nMake a change to the dbt project that backs the active Lightdash project by describing it in natural language, then open a pull request with the result. The target GitHub repository and dbt sub-folder are resolved server-side from the active project's dbt connection — you never specify them.\n\nHow it works:\n- This tool starts the run and returns immediately with an aiWritebackRunUuid — it does NOT wait for the run to finish.\n- In the background: a sandbox is created, the project's GitHub repository is cloned, and the prompt is executed by the Claude Code CLI against the dbt project. If the agent changes any files, a branch is committed, pushed, and a pull request is opened.\n- Call get_ai_writeback_status with the returned aiWritebackRunUuid to check progress and get the pull request URL once the run finishes. The run typically takes a few minutes (cloning, running the agent, opening the PR) — poll every 10-15 seconds rather than immediately looping.\n\nRequirements:\n- An active project must be set first via set_project (or the X-Lightdash-Project header).\n- The project's dbt connection must be GitHub-backed, and the organization must have the GitHub App installed.\n- The AI writeback feature must be enabled for the organization.\n\nImportant:\n- This tool is NOT read-only and NOT idempotent — each call can start a run that opens a new pull request. Use it only when the user explicitly wants to change their dbt project.\n- Some projects have more than one dbt source. If the prompt doesn't make clear which one to change, the run finishes with status \"error\" and an error message listing the sources by name and repository — call run_ai_writeback again naming the intended source in the prompt itself (e.g. \"In jaffle-2, add ...\"). You never pass an id.\n\nParameters:\n- prompt: A clear, self-contained description of the change to make to the dbt project (e.g. \"Add a 'total_revenue' metric to the orders model as the sum of amount\"). When the project has more than one dbt source, name the intended source here (e.g. \"In the marketing dbt project, ...\").\n\nResponse shape (MCP CallToolResult):\n- content: [{ type: \"text\", text: \"<human-readable message telling you the run started and to poll get_ai_writeback_status>\" }]\n- structuredContent: {\n    aiWritebackRunUuid: string   // pass this to get_ai_writeback_status\n  }\n",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
                 "properties": {
                     "prompt": {
-                        "description": "A clear, self-contained description of the change to make to the dbt project that backs the active Lightdash project. If the project has more than one dbt source, name the intended one here (e.g. \"In jaffle-2, add ...\") — the tool resolves it from the prompt and asks (listing sources by name) if it can't tell.",
+                        "description": "A clear, self-contained description of the change to make to the dbt project that backs the active Lightdash project. If the project has more than one dbt source, name the intended one here (e.g. \"In jaffle-2, add ...\") — a later get_ai_writeback_status call reports whether the run could tell which source you meant.",
                         "minLength": 1,
                         "type": "string"
                     }
@@ -1694,20 +2389,12 @@
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
                 "properties": {
-                    "exitCode": {
-                        "description": "The sandbox command's exit status.",
-                        "type": "integer"
-                    },
-                    "output": {
-                        "description": "The text output produced by the agent.",
+                    "aiWritebackRunUuid": {
+                        "description": "Id of the writeback run that just started. Pass this to get_ai_writeback_status to check progress and get the pull request URL.",
                         "type": "string"
-                    },
-                    "prUrl": {
-                        "description": "URL of the pull request opened from the agent changes, or null when the agent made no file changes.",
-                        "type": ["string", "null"]
                     }
                 },
-                "required": ["output", "exitCode", "prUrl"],
+                "required": ["aiWritebackRunUuid"],
                 "type": "object"
             },
             "title": "Run AI writeback"
@@ -6763,7 +7450,7 @@
                 "idempotentHint": true,
                 "readOnlyHint": false
             },
-            "description": "Manually set the active AI agent for the active project. Prefer route_agent for default automatic selection; use this when you need to override that choice explicitly. Returns the agent's full context including: explores it has access to, space restrictions, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Use this context to guide subsequent tool calls — prefer the agent's explores when calling find_explores/find_fields, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
+            "description": "Manually set the active AI agent for the active project. Prefer route_agent for default automatic selection; use this when you need to override that choice explicitly. Returns the agent's full context including: explores it has access to, space restrictions, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Use this context to guide subsequent tool calls — prefer the agent's explores when calling MCP schema-discovery tools, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,
@@ -6785,7 +7472,7 @@
                 "idempotentHint": true,
                 "readOnlyHint": false
             },
-            "description": "Set the active project for all subsequent MCP operations. Most tools (list_explores, find_fields, run_metric_query, etc.) require an active project. Setting a project clears any previously selected agent, since agents are scoped to a project. After setting a project, prefer route_agent to auto-select the best agent for each request; use list_agents and set_agent only for manual override.",
+            "description": "Set the active project for all subsequent MCP operations. Most tools (list_explores, MCP schema-discovery tools, run_metric_query, etc.) require an active project. Setting a project clears any previously selected agent, since agents are scoped to a project. After setting a project, prefer route_agent to auto-select the best agent for each request; use list_agents and set_agent only for manual override.",
             "inputSchema": {
                 "$schema": "http://json-schema.org/draft-07/schema#",
                 "additionalProperties": false,

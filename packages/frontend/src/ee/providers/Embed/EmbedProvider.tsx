@@ -1,5 +1,6 @@
 import {
     type CreateEmbedJwt,
+    type CreateSavedChartVersion,
     type LanguageMap,
     type SavedChart,
 } from '@lightdash/common';
@@ -27,9 +28,11 @@ type Props = {
     paletteUuid?: string;
     contentOverrides?: LanguageMap;
     embedHeaders?: Record<string, string>;
-    onExplore?: (options: { chart: SavedChart }) => void;
+    onExplore?: (options: {
+        chart: SavedChart | CreateSavedChartVersion;
+    }) => void;
     onBackToDashboard?: () => void;
-    savedChart?: SavedChart;
+    savedChart?: SavedChart | CreateSavedChartVersion;
     savedQueryUuid?: string;
     appUuid?: string;
 };

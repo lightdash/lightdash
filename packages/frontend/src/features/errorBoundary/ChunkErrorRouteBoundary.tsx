@@ -1,5 +1,5 @@
 import { ERROR_BOUNDARY_ID } from '@lightdash/common';
-import { Flex } from '@mantine/core';
+import { Flex } from '@mantine-8/core';
 import * as Sentry from '@sentry/react';
 import { useEffect, useState, type FC } from 'react';
 import { useRouteError } from 'react-router';

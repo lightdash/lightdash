@@ -5,14 +5,14 @@ import {
     isSqlTableCalculation,
 } from '@lightdash/common';
 import {
-    ActionIcon,
     Box,
     CopyButton,
     Group,
-    SegmentedControl,
     Skeleton,
-    Tooltip,
-} from '@mantine/core';
+    ActionIcon,
+    SegmentedControl,
+} from '@mantine-8/core';
+import { Tooltip } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconCheck, IconClipboard } from '@tabler/icons-react';
 import {
@@ -123,6 +123,7 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
                                 fw={500}
                             >
                                 <ActionIcon
+                                    variant="subtle"
                                     color={copied ? 'teal' : 'gray'}
                                     onClick={copy}
                                 >
@@ -144,7 +145,7 @@ const SqlCard: FC<SqlCardProps> = memo(({ projectUuid }) => {
             rightHeaderElement={
                 sqlIsOpen &&
                 !cannotViewSqlAuthoredFields && (
-                    <Group spacing="xs">
+                    <Group gap="xs">
                         {hasPivotQuery && (
                             <SegmentedControl
                                 size="xs"

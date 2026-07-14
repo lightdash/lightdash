@@ -1,14 +1,16 @@
 import { isDimension, type FilterableItem } from '@lightdash/common';
 import {
-    ActionIcon,
+    TextInput,
     Group,
-    Highlight,
     Loader,
-    MultiSelect,
-    ScrollArea,
     Stack,
     Text,
-    TextInput,
+    ActionIcon,
+    Highlight,
+    ScrollArea,
+} from '@mantine-8/core';
+import {
+    MultiSelect,
     Tooltip,
     type MultiSelectProps,
     type MultiSelectValueProps,
@@ -374,10 +376,10 @@ const FilterStringAutoComplete: FC<Props> = ({
     // memo override component so list doesn't scroll to the top on each click
     const DropdownComponentOverride = useCallback(
         ({ children, ...props }: { children: ReactNode }) => (
-            <Stack w="100%" spacing={0}>
+            <Stack w="100%" gap={0}>
                 <ScrollArea {...props}>
                     {searchedMaxResults ? (
-                        <Text color="dimmed" size="xs" px="sm" pt="xs" pb="xxs">
+                        <Text c="dimmed" size="xs" px="sm" pt="xs" pb="xxs">
                             Showing first {MAX_AUTOCOMPLETE_RESULTS} results.{' '}
                             {search ? 'Continue' : 'Start'} typing...
                         </Text>
@@ -449,6 +451,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                         readOnly
                         value={`${values.length.toLocaleString()} values selected`}
                         disabled={disabled}
+                        rightSectionPointerEvents="all"
                         rightSection={
                             disabled ? null : (
                                 <Tooltip
@@ -456,6 +459,10 @@ const FilterStringAutoComplete: FC<Props> = ({
                                     label="Edit filter values"
                                 >
                                     <ActionIcon
+                                        aria-label="Edit filter values"
+                                        onMouseDown={(event) =>
+                                            event.preventDefault()
+                                        }
                                         variant="subtle"
                                         color="gray"
                                         size="sm"
@@ -494,7 +501,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                             query.trim().length > 0 && !values.includes(query)
                         }
                         getCreateLabel={(query: string) => (
-                            <Group spacing="xxs">
+                            <Group gap="xxs">
                                 <MantineIcon
                                     icon={IconPlus}
                                     color="blue.6"
@@ -521,9 +528,9 @@ const FilterStringAutoComplete: FC<Props> = ({
                         rightSectionWidth={30}
                         rightSection={
                             <Group
-                                spacing="xxs"
-                                noWrap
-                                sx={{
+                                gap="xxs"
+                                wrap="nowrap"
+                                style={{
                                     visibility: disabled ? 'hidden' : 'visible',
                                 }}
                             >
@@ -553,7 +560,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                                         color="gray"
                                         size="sm"
                                         onClick={openManageValues}
-                                        sx={{
+                                        style={{
                                             visibility: isWrapperHovered
                                                 ? 'visible'
                                                 : 'hidden',
@@ -590,7 +597,7 @@ const FilterStringAutoComplete: FC<Props> = ({
 
                             return others.disabled ? (
                                 <Text
-                                    color="dimmed"
+                                    c="dimmed"
                                     className={itemClassName}
                                     {...others}
                                 >
@@ -601,6 +608,7 @@ const FilterStringAutoComplete: FC<Props> = ({
                                     highlight={search}
                                     className={itemClassName}
                                     {...others}
+                                    fz="sm"
                                 >
                                     {label}
                                 </Highlight>

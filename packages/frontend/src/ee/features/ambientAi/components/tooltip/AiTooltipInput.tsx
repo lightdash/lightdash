@@ -1,4 +1,4 @@
-import { ActionIcon, Box, Group, Text, Textarea } from '@mantine/core';
+import { ActionIcon, Box, Group, Text, Textarea } from '@mantine-8/core';
 import { useHotkeys } from '@mantine/hooks';
 import { IconArrowUp, IconSparkles } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
@@ -51,7 +51,7 @@ export const AiTooltipInput: FC<Props> = ({ fields, currentHtml, onApply }) => {
 
     return (
         <Box className={styles.container}>
-            <Group spacing="xs" mb="xs">
+            <Group gap="xs" mb="xs">
                 <MantineIcon icon={IconSparkles} color="indigo.4" />
                 <Text size="xs" c="ldDark.9" fw={500}>
                     {currentHtml
@@ -76,6 +76,7 @@ export const AiTooltipInput: FC<Props> = ({ fields, currentHtml, onApply }) => {
                     autosize
                 />
                 <ActionIcon
+                    variant="filled"
                     size="sm"
                     radius="xl"
                     onClick={handleGenerate}

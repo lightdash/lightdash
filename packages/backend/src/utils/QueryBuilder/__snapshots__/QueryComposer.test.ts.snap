@@ -1,0 +1,58 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`QueryComposer > compiles a metric query and returns the base SQL via getSql when there is no pivot 1`] = `
+"WITH metrics AS (
+SELECT
+  "table1".dim1 AS "table1_dim1",
+  MAX("table1".number_column) AS "table1_metric1"
+FROM "db"."schema"."table1" AS "table1"
+
+GROUP BY 1
+)
+SELECT
+  *,
+  "table1_dim1" + "table1_metric1" AS "calc3"
+FROM metrics
+ORDER BY "table1_metric1" DESC
+LIMIT 10"
+`;
+
+exports[`QueryComposer > totalConfiguration > collapses the source query into the totals grain for kind "'columnSubtotal'" 1`] = `
+"SELECT
+  "table1".dim1 AS "table1_dim1",
+  "table1".shared AS "table1_shared",
+  MAX("table1".number_column) AS "table1_metric1"
+FROM "db"."schema"."table1" AS "table1"
+
+GROUP BY 1,2
+ORDER BY "table1_metric1" DESC
+LIMIT 500"
+`;
+
+exports[`QueryComposer > totalConfiguration > collapses the source query into the totals grain for kind "'columnTotal'" 1`] = `
+"WITH original_query AS (SELECT "table1".shared AS "table1_shared", MAX("table1".number_column) AS "table1_metric1" FROM "db"."schema"."table1" AS "table1" GROUP BY 1 ORDER BY "table1_metric1" DESC),
+group_by_query AS (SELECT "table1_shared", sum("table1_metric1") AS "table1_metric1_sum" FROM original_query group by "table1_shared"),
+pivot_query AS (SELECT g."table1_shared" AS "table1_shared", g."table1_metric1_sum" AS "table1_metric1_sum", 1 AS "row_index", DENSE_RANK() OVER (ORDER BY g."table1_shared" ASC) AS "column_index" FROM group_by_query g),
+filtered_rows AS (SELECT * FROM pivot_query WHERE "row_index" <= 500)
+SELECT "table1_shared", "table1_metric1_sum", "row_index", "column_index", total_columns FROM (SELECT p.*, SUM(CASE WHEN p."__grp_rn" = 1 THEN 1 ELSE 0 END) OVER () AS total_columns FROM (SELECT f.*, ROW_NUMBER() OVER (PARTITION BY "table1_shared" ORDER BY "table1_shared") AS "__grp_rn" FROM filtered_rows f) p) pivoted WHERE "column_index" <= 100 order by "row_index", "column_index""
+`;
+
+exports[`QueryComposer > totalConfiguration > collapses the source query into the totals grain for kind "'grandTotal'" 1`] = `
+"SELECT
+  MAX("table1".number_column) AS "table1_metric1"
+FROM "db"."schema"."table1" AS "table1"
+
+LIMIT 1"
+`;
+
+exports[`QueryComposer > totalConfiguration > collapses the source query into the totals grain for kind "'rowTotal'" 1`] = `
+"WITH original_query AS (SELECT "table1".dim1 AS "table1_dim1", MAX("table1".number_column) AS "table1_metric1" FROM "db"."schema"."table1" AS "table1" GROUP BY 1 ORDER BY "table1_metric1" DESC),
+group_by_query AS (SELECT "table1_dim1", sum("table1_metric1") AS "table1_metric1_sum" FROM original_query group by "table1_dim1")
+SELECT * FROM group_by_query ORDER BY "table1_dim1" ASC LIMIT 500"
+`;
+
+exports[`QueryComposer > wraps the base query with the pivot query when a pivot configuration is set 1`] = `
+"WITH original_query AS (WITH metrics AS ( SELECT "table1".dim1 AS "table1_dim1", MAX("table1".number_column) AS "table1_metric1" FROM "db"."schema"."table1" AS "table1" GROUP BY 1 ) SELECT *, "table1_dim1" + "table1_metric1" AS "calc3" FROM metrics ORDER BY "table1_metric1" DESC),
+group_by_query AS (SELECT "table1_dim1", sum("table1_metric1") AS "table1_metric1_sum" FROM original_query group by "table1_dim1")
+SELECT * FROM group_by_query ORDER BY "table1_dim1" ASC LIMIT 10"
+`;

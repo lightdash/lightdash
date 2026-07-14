@@ -1,16 +1,11 @@
 import { ChartKind } from '@lightdash/common';
-import {
-    ActionIcon,
-    Group,
-    ScrollArea,
-    Stack,
-    Title,
-    Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Group, ScrollArea, Stack, Title } from '@mantine-8/core';
+import { Tooltip } from '@mantine/core';
 import { IconLayoutSidebarLeftCollapse, IconReload } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { VisualizationConfigPanel } from '../../../components/DataViz/VisualizationConfigPanel';
+import scrollAreaClasses from '../../../styles/ScrollArea.module.css';
 import { useRefreshTables } from '../hooks/useTables';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSelectedChartType, SidebarTabs } from '../store/sqlRunnerSlice';
@@ -39,9 +34,9 @@ export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
     const sqlColumns = useAppSelector((state) => state.sqlRunner.sqlColumns);
 
     return (
-        <Stack spacing="xs" sx={{ flex: 1, overflow: 'hidden' }}>
-            <Group position="apart" p="sm">
-                <Group noWrap spacing="xs">
+        <Stack gap="xs" style={{ flex: 1, overflow: 'hidden' }}>
+            <Group justify="space-between" p="sm">
+                <Group wrap="nowrap" gap="xs">
                     <Title order={5} fz="sm" c="ldGray.6">
                         {activeSidebarTab === SidebarTabs.TABLES
                             ? 'TABLES'
@@ -54,6 +49,8 @@ export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
                             position="right"
                         >
                             <ActionIcon
+                                variant="subtle"
+                                color="gray"
                                 size="xs"
                                 onClick={() => updateTables()}
                             >
@@ -63,7 +60,7 @@ export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
                     )}
                 </Group>
                 <Tooltip variant="xs" label="Close sidebar" position="left">
-                    <ActionIcon size="xs">
+                    <ActionIcon variant="subtle" color="gray" size="xs">
                         <MantineIcon
                             icon={IconLayoutSidebarLeftCollapse}
                             onClick={() => setSidebarOpen(false)}
@@ -76,7 +73,7 @@ export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
                 display={
                     activeSidebarTab === SidebarTabs.TABLES ? 'inherit' : 'none'
                 }
-                sx={{ flex: 1, overflow: 'hidden' }}
+                style={{ flex: 1, overflow: 'hidden' }}
             >
                 <TablesPanel
                     isLoading={isLoading}
@@ -86,10 +83,10 @@ export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
 
             <ScrollArea
                 offsetScrollbars
-                variant="primary"
-                className="only-vertical"
+                scrollbars="y"
+                classNames={{ content: scrollAreaClasses.verticalContent }}
                 px="sm"
-                sx={{
+                style={{
                     flex: 1,
                     display:
                         activeSidebarTab === SidebarTabs.VISUALIZATION
@@ -97,7 +94,7 @@ export const Sidebar: FC<Props> = ({ setSidebarOpen }) => {
                             : 'none',
                 }}
             >
-                <Stack sx={{ flex: 1, overflow: 'hidden' }}>
+                <Stack style={{ flex: 1, overflow: 'hidden' }}>
                     <VisualizationConfigPanel
                         selectedChartType={selectedChartType || ChartKind.TABLE}
                         setSelectedChartType={(value) =>

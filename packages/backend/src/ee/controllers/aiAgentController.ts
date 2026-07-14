@@ -55,12 +55,11 @@ import {
     ApiCreateEvaluationResponse,
     ApiErrorPayload,
     ApiGetUserAgentPreferencesResponse,
-    ApiRevertChangeRequest,
-    ApiRevertChangeResponse,
     ApiStartAiMcpOAuthResponse,
     ApiSuccessEmpty,
     ApiUpdateAiAgent,
     ApiUpdateAiAgentMcpServerToolsRequest,
+    ApiUpdateAiMcpServerCredentialBody,
     ApiUpdateEvaluationRequest,
     ApiUpdateUserAgentPreferences,
     ApiUpdateUserAgentPreferencesResponse,
@@ -235,6 +234,34 @@ export class AiAgentController extends BaseController {
                 projectUuid,
                 body,
             ),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/mcpServers/{mcpServerUuid}/credential')
+    @OperationId('updateMcpServerBearerCredential')
+    async updateMcpServerBearerCredential(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() mcpServerUuid: string,
+        @Body() body: ApiUpdateAiMcpServerCredentialBody,
+    ): Promise<ApiAiMcpServerResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await this.getAiAgentService().updateMcpServerBearerCredential(
+                    toSessionUser(req.account),
+                    projectUuid,
+                    mcpServerUuid,
+                    body,
+                ),
         };
     }
 
@@ -2004,43 +2031,6 @@ export class AiAgentController extends BaseController {
             results: {
                 updatedInstruction,
             },
-        };
-    }
-
-    @Middlewares([
-        allowApiKeyAuthentication,
-        isAuthenticated,
-        unauthorisedInDemo,
-    ])
-    @SuccessResponse('200', 'Success')
-    @Post(
-        '/{agentUuid}/threads/{threadUuid}/messages/{promptUuid}/revert-change',
-    )
-    @OperationId('revertChange')
-    async revertChange(
-        @Request() req: express.Request,
-        @Path() projectUuid: string,
-        @Path() agentUuid: string,
-        @Path() threadUuid: string,
-        @Path() promptUuid: string,
-        @Body() body: ApiRevertChangeRequest,
-    ): Promise<ApiRevertChangeResponse> {
-        assertRegisteredAccount(req.account);
-        this.setStatus(200);
-
-        await this.getAiAgentService().revertChange(
-            toSessionUser(req.account),
-            {
-                agentUuid,
-                threadUuid,
-                promptUuid,
-                changeUuid: body.changeUuid,
-            },
-        );
-
-        return {
-            status: 'ok',
-            results: undefined,
         };
     }
 

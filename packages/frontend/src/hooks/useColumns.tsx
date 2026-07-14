@@ -12,6 +12,7 @@ import {
     isMetric,
     isNumericItem,
     isResultValue,
+    QueryHistoryStatus,
     renderRichTextTemplate,
     renderTemplatedUrl,
     type AdditionalMetric,
@@ -26,7 +27,8 @@ import {
     type ResultValue,
     type TableCalculation,
 } from '@lightdash/common';
-import { Group, Tooltip } from '@mantine/core';
+import { Group, Skeleton } from '@mantine-8/core';
+import { Tooltip } from '@mantine/core';
 import { IconExclamationCircle } from '@tabler/icons-react';
 import { type CellContext } from '@tanstack/react-table';
 import omit from 'lodash/omit';
@@ -601,16 +603,26 @@ export const useColumns = (): TableColumn[] => {
     const sourceQueryUuid = unpivotedEnabled
         ? unpivotedQueryResults.queryUuid
         : queryResults.queryUuid;
+    const sourceQueryStatus = unpivotedEnabled
+        ? unpivotedQueryResults.queryStatus
+        : queryResults.queryStatus;
+    // Only request totals once the source query has succeeded
+    const isInitialQueryReady = sourceQueryStatus === QueryHistoryStatus.READY;
     const hasMetricFields = !!resultsMetricQuery?.metrics.length;
     // The results table has no explicit "Show column totals" setting, so the
     // `column_totals` project default decides whether the totals query runs
     const totalsEnabledByDefault = useColumnTotalsEnabledByDefault(projectUuid);
-    const { data: totals } = useAsyncCalculateTotal({
-        projectUuid,
-        sourceQueryUuid,
-        enabled: !!sourceQueryUuid && hasMetricFields && totalsEnabledByDefault,
-        invalidateCache: validQueryArgs?.invalidateCache,
-    });
+    const { data: totals, isFetching: isCalculatingTotals } =
+        useAsyncCalculateTotal({
+            projectUuid,
+            sourceQueryUuid,
+            enabled:
+                isInitialQueryReady &&
+                !!sourceQueryUuid &&
+                hasMetricFields &&
+                totalsEnabledByDefault,
+            invalidateCache: validQueryArgs?.invalidateCache,
+        });
 
     return useMemo(() => {
         if (hasNoActiveFields) {
@@ -674,16 +686,27 @@ export const useColumns = (): TableColumn[] => {
                             timezone,
                         );
                     },
-                    footer: () =>
-                        totals?.[fieldId]
-                            ? formatItemValue(
-                                  item,
-                                  totals[fieldId],
-                                  false,
-                                  parameters,
-                                  timezone,
-                              )
-                            : null,
+                    footer: () => {
+                        if (totals?.[fieldId] !== undefined) {
+                            return formatItemValue(
+                                item,
+                                totals[fieldId],
+                                false,
+                                parameters,
+                                timezone,
+                            );
+                        }
+                        if (isCalculatingTotals && isNumericItem(item)) {
+                            return (
+                                <Skeleton
+                                    height={16}
+                                    width="min(60%, 50px)"
+                                    ml="auto"
+                                />
+                            );
+                        }
+                        return null;
+                    },
                     meta: {
                         item,
                         draggable: true,
@@ -711,7 +734,7 @@ export const useColumns = (): TableColumn[] => {
                     {
                         id: fieldId,
                         header: () => (
-                            <Group spacing="two">
+                            <Group gap="two">
                                 <Tooltip
                                     withinPortal
                                     label="This field was not found in the dbt project."
@@ -749,6 +772,7 @@ export const useColumns = (): TableColumn[] => {
         invalidActiveItems,
         sorts,
         totals,
+        isCalculatingTotals,
         exploreData,
         parameters,
         timezone,

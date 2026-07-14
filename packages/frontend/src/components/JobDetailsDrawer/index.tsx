@@ -5,19 +5,17 @@ import {
     type JobStep,
 } from '@lightdash/common';
 import {
-    ActionIcon,
     Alert,
     Box,
     CopyButton,
-    Drawer,
     Group,
     Loader,
     Stack,
     Text,
     Title,
-    useMantineTheme,
-    type DefaultMantineColor,
-} from '@mantine/core';
+    ActionIcon,
+} from '@mantine-8/core';
+import { Drawer, type DefaultMantineColor } from '@mantine/core';
 import { useInterval } from '@mantine/hooks';
 import {
     IconAlertTriangle,
@@ -118,7 +116,6 @@ const StepIcon: FC<StepIconProps> = ({ step }) => {
 };
 
 const JobDetailsDrawer: FC = () => {
-    const theme = useMantineTheme();
     const { isJobsDrawerOpen, setIsJobsDrawerOpen, activeJob } = useActiveJob();
 
     // Force re-render every second so elapsed timers update in real-time
@@ -157,7 +154,7 @@ const JobDetailsDrawer: FC = () => {
                 },
             }}
             title={
-                <Group noWrap align="center" spacing="xs">
+                <Group wrap="nowrap" align="center" gap="xs">
                     <DrawerIcon job={activeJob} />
 
                     <Box>
@@ -185,7 +182,7 @@ const JobDetailsDrawer: FC = () => {
                         icon={<StepIcon step={step} />}
                         title={step.stepLabel}
                     >
-                        <Stack spacing={1} sx={{ flex: 1, minWidth: 0 }}>
+                        <Stack gap={1} style={{ flex: 1, minWidth: 0 }}>
                             <Text fz="xs" fw={500}>
                                 {jobStepStatusLabel(step.stepStatus)} (
                                 {jobStepDuration(step)})
@@ -194,15 +191,16 @@ const JobDetailsDrawer: FC = () => {
                                 <Stack
                                     mt="xs"
                                     pt="xs"
-                                    sx={{
-                                        border: `1px solid ${theme.colors.red[2]}`,
-                                        borderRadius: theme.radius.sm,
-                                        padding: theme.spacing.xs,
+                                    style={{
+                                        border: '1px solid var(--mantine-color-red-2)',
+                                        borderRadius:
+                                            'var(--mantine-radius-sm)',
+                                        padding: 'var(--mantine-spacing-xs)',
                                         width: '100%',
                                         flexShrink: 0,
                                     }}
                                     pos="relative"
-                                    spacing="xs"
+                                    gap="xs"
                                 >
                                     <CopyButton
                                         value={
@@ -219,6 +217,8 @@ const JobDetailsDrawer: FC = () => {
                                     >
                                         {({ copied, copy }) => (
                                             <ActionIcon
+                                                variant="subtle"
+                                                color="gray"
                                                 onClick={copy}
                                                 pos="absolute"
                                                 top={6}
@@ -238,8 +238,8 @@ const JobDetailsDrawer: FC = () => {
                                         )}
                                     </CopyButton>
                                     <Stack
-                                        spacing="xs"
-                                        sx={{
+                                        gap="xs"
+                                        style={{
                                             maxHeight: '200px',
                                             overflow: 'auto',
                                             whiteSpace: 'pre-wrap',
@@ -249,8 +249,8 @@ const JobDetailsDrawer: FC = () => {
                                     >
                                         <Text
                                             size="xs"
-                                            color="red"
-                                            sx={{
+                                            c="red"
+                                            style={{
                                                 width: '100%',
                                                 wordBreak: 'normal',
                                                 overflowWrap: 'break-word',
@@ -268,8 +268,9 @@ const JobDetailsDrawer: FC = () => {
                                                     key={log.info.ts}
                                                     size="xs"
                                                     pt="xs"
-                                                    sx={{
-                                                        borderTop: `1px solid ${theme.colors.red[2]}`,
+                                                    style={{
+                                                        borderTop:
+                                                            '1px solid var(--mantine-color-red-2)',
                                                         overflowWrap:
                                                             'break-word',
                                                     }}

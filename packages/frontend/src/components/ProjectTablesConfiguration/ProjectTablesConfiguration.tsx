@@ -1,20 +1,20 @@
 import { subject } from '@casl/ability';
 import { hasIntersection, TableSelectionType } from '@lightdash/common';
 import {
-    Anchor,
     Box,
-    Button,
     Collapse,
     Flex,
-    Highlight,
     Loader,
-    MultiSelect,
-    Radio,
-    ScrollArea,
     Stack,
     Text,
     Title,
-} from '@mantine/core';
+    Button,
+    Anchor,
+    Highlight,
+    Radio,
+    ScrollArea,
+} from '@mantine-8/core';
+import { MultiSelect } from '@mantine/core';
 import { useForm, zodResolver } from '@mantine/form';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { useToggle } from 'react-use';
@@ -187,10 +187,11 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
             <SettingsGridCard>
                 <div>
                     <Title order={5}>Table selection</Title>
-                    <Text color="ldGray.6" my={'xs'}>
+                    <Text c="ldGray.6" my={'xs'}>
                         You have selected <b>{modelsIncluded.length}</b> models{' '}
                         {modelsIncluded.length > 0 && (
                             <Anchor
+                                type="button"
                                 size="sm"
                                 component="button"
                                 onClick={toggleList}
@@ -206,7 +207,7 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                                     key={name}
                                     title={name}
                                     truncate
-                                    color="ldGray.6"
+                                    c="ldGray.6"
                                 >
                                     {name}
                                 </Text>
@@ -222,7 +223,7 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                         withAsterisk
                         {...form.getInputProps('type')}
                     >
-                        <Stack mt={'md'} spacing={'md'}>
+                        <Stack mt={'md'} gap={'md'}>
                             <Radio
                                 value={TableSelectionType.ALL}
                                 label="Show entire project"
@@ -264,16 +265,14 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                                         onSearchChange={setSearch}
                                         itemComponent={({ label, ...others }) =>
                                             others.disabled ? (
-                                                <Text
-                                                    color="dimmed"
-                                                    {...others}
-                                                >
+                                                <Text c="dimmed" {...others}>
                                                     {label}
                                                 </Text>
                                             ) : (
                                                 <Highlight
                                                     highlight={search}
                                                     {...others}
+                                                    fz="sm"
                                                 >
                                                     {label}
                                                 </Highlight>
@@ -332,16 +331,14 @@ const ProjectTablesConfiguration: FC<Props> = ({ projectUuid, onSuccess }) => {
                                         onSearchChange={setSearch}
                                         itemComponent={({ label, ...others }) =>
                                             others.disabled ? (
-                                                <Text
-                                                    color="dimmed"
-                                                    {...others}
-                                                >
+                                                <Text c="dimmed" {...others}>
                                                     {label}
                                                 </Text>
                                             ) : (
                                                 <Highlight
                                                     highlight={search}
                                                     {...others}
+                                                    fz="sm"
                                                 >
                                                     {label}
                                                 </Highlight>

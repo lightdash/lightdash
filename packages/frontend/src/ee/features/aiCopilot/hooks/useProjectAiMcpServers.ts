@@ -9,6 +9,7 @@ import type {
     ApiCreateAiMcpServer,
     ApiError,
     ApiUpdateAiAgentMcpServerToolsRequest,
+    ApiUpdateAiMcpServerCredentialBody,
 } from '@lightdash/common';
 import {
     useMutation,
@@ -53,6 +54,18 @@ const createProjectAiMcpServer = async (
     lightdashApi<ApiAiMcpServerResponse['results']>({
         version: 'v1',
         url: `/projects/${projectUuid}/aiAgents/mcpServers`,
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+
+const updateProjectAiMcpServerCredential = async (
+    projectUuid: string,
+    mcpServerUuid: string,
+    data: ApiUpdateAiMcpServerCredentialBody,
+): Promise<ApiAiMcpServerResponse['results']> =>
+    lightdashApi<ApiAiMcpServerResponse['results']>({
+        version: 'v1',
+        url: `/projects/${projectUuid}/aiAgents/mcpServers/${mcpServerUuid}/credential`,
         method: 'POST',
         body: JSON.stringify(data),
     });
@@ -366,6 +379,34 @@ export const useProjectCreateAiMcpServerMutation = (projectUuid: string) => {
     });
 };
 
+export const useUpdateAiMcpServerCredentialMutation = (projectUuid: string) => {
+    const queryClient = useQueryClient();
+    const { showToastApiError, showToastSuccess } = useToaster();
+
+    return useMutation<
+        ApiAiMcpServerResponse['results'],
+        ApiError,
+        { mcpServerUuid: string; bearerToken: string }
+    >({
+        mutationFn: ({ mcpServerUuid, bearerToken }) =>
+            updateProjectAiMcpServerCredential(projectUuid, mcpServerUuid, {
+                bearerToken,
+            }),
+        onSuccess: async () => {
+            showToastSuccess({ title: 'Token updated' });
+            await queryClient.invalidateQueries({
+                queryKey: [PROJECT_AI_MCP_SERVERS_KEY, projectUuid],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to update token',
+                apiError: error,
+            });
+        },
+    });
+};
+
 const GITHUB_MCP_AVAILABILITY_KEY = 'githubMcpAvailability';
 
 export const useGithubMcpAvailability = (
@@ -453,6 +494,21 @@ export const useRefreshAiMcpServerToolsMutation = (projectUuid: string) => {
                         projectUuid,
                         variables.agentUuid,
                         variables.mcpServerUuid,
+                    ],
+                });
+            }
+
+            // Refreshing tools re-tests the connection and updates the
+            // server's connection status, so refresh the server lists too.
+            await queryClient.invalidateQueries({
+                queryKey: [PROJECT_AI_MCP_SERVERS_KEY, projectUuid],
+            });
+            if (variables.agentUuid) {
+                await queryClient.invalidateQueries({
+                    queryKey: [
+                        AGENT_AI_MCP_SERVERS_KEY,
+                        projectUuid,
+                        variables.agentUuid,
                     ],
                 });
             }

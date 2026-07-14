@@ -13,3 +13,15 @@ export type UpdatePreviewExpirationProjectSettings = {
 
 export type ApiPreviewExpirationProjectSettingsResponse =
     ApiSuccess<PreviewExpirationProjectSettings>;
+
+export type UpdatePreviewExpiresAt = {
+    // When omitted, the expiration resets to the upstream project's default
+    expiresInHours?: number;
+};
+
+export type PreviewExpiresAt = {
+    projectUuid: string;
+    expiresAt: Date;
+};
+
+export type ApiPreviewExpiresAtResponse = ApiSuccess<PreviewExpiresAt>;

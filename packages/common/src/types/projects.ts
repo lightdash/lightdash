@@ -449,6 +449,7 @@ export const stripDucklakeNestedSensitive = (
 export enum RedshiftAuthenticationType {
     PASSWORD = 'password',
     IAM = 'iam',
+    IAM_BROWSER = 'iam_browser',
 }
 
 export type CreateRedshiftCredentials = SshTunnelConfiguration & {
@@ -486,6 +487,10 @@ export type CreateRedshiftCredentials = SshTunnelConfiguration & {
     sessionToken?: string;
     assumeRoleArn?: string;
     assumeRoleExternalId?: string;
+    awsSsoStartUrl?: string;
+    awsSsoRegion?: string;
+    awsSsoAccountId?: string;
+    awsSsoRoleName?: string;
 };
 export type RedshiftCredentials = Omit<
     CreateRedshiftCredentials,
@@ -743,6 +748,7 @@ export enum SupportedDbtVersions {
     V1_9 = 'v1.9',
     V1_10 = 'v1.10',
     V1_11 = 'v1.11',
+    V1_12 = 'v1.12',
 }
 
 // Make it an enum to avoid TSOA errors
@@ -767,12 +773,66 @@ export function isDbtVersion110OrHigher(
 
 export type DbtVersionOption = SupportedDbtVersions | DbtVersionOptionLatest;
 
-export const getLatestSupportDbtVersion = (): SupportedDbtVersions => {
-    const versions = Object.values(SupportedDbtVersions);
-    return versions[versions.length - 1];
+const dbtWarehousesExcept = (
+    ...unsupported: WarehouseTypes[]
+): WarehouseTypes[] =>
+    Object.values(WarehouseTypes).filter((w) => !unsupported.includes(w));
+
+/**
+ * Warehouse adapters installed for each dbt version in the production image
+ * (see the "Installing multiple versions of dbt" block in `/dockerfile`). This
+ * is the source of truth for which `(dbt version, warehouse)` combinations
+ * Lightdash can actually run, and it gates which version `latest` may point to
+ * (see `LATEST_SUPPORTED_DBT_VERSION`).
+ *
+ * Keep this in sync with `/dockerfile` whenever an adapter is added to or
+ * dropped from a version. The exhaustive `Record` forces every new
+ * `SupportedDbtVersions` member to declare its adapter coverage.
+ */
+export const DBT_VERSION_SUPPORTED_WAREHOUSES: Record<
+    SupportedDbtVersions,
+    WarehouseTypes[]
+> = {
+    [SupportedDbtVersions.V1_4]: dbtWarehousesExcept(
+        WarehouseTypes.ATHENA,
+        WarehouseTypes.DUCKDB,
+    ),
+    [SupportedDbtVersions.V1_5]: dbtWarehousesExcept(
+        WarehouseTypes.ATHENA,
+        WarehouseTypes.DUCKDB,
+    ),
+    [SupportedDbtVersions.V1_6]: dbtWarehousesExcept(
+        WarehouseTypes.ATHENA,
+        WarehouseTypes.DUCKDB,
+    ),
+    [SupportedDbtVersions.V1_7]: dbtWarehousesExcept(
+        WarehouseTypes.ATHENA,
+        WarehouseTypes.DUCKDB,
+    ),
+    [SupportedDbtVersions.V1_8]: dbtWarehousesExcept(WarehouseTypes.ATHENA),
+    [SupportedDbtVersions.V1_9]: dbtWarehousesExcept(),
+    [SupportedDbtVersions.V1_10]: dbtWarehousesExcept(),
+    [SupportedDbtVersions.V1_11]: dbtWarehousesExcept(),
+    [SupportedDbtVersions.V1_12]: dbtWarehousesExcept(
+        WarehouseTypes.DATABRICKS,
+    ),
 };
 
-/** Resolve a `DbtVersionOption` to a concrete version (`latest` → newest). */
+export const getDbtVersionSupportedWarehouses = (
+    version: SupportedDbtVersions,
+): WarehouseTypes[] => DBT_VERSION_SUPPORTED_WAREHOUSES[version];
+
+export const isWarehouseSupportedByDbtVersion = (
+    version: SupportedDbtVersions,
+    warehouseType: WarehouseTypes,
+): boolean => DBT_VERSION_SUPPORTED_WAREHOUSES[version].includes(warehouseType);
+
+export const LATEST_SUPPORTED_DBT_VERSION: SupportedDbtVersions =
+    SupportedDbtVersions.V1_11;
+
+export const getLatestSupportDbtVersion = (): SupportedDbtVersions =>
+    LATEST_SUPPORTED_DBT_VERSION;
+
 export const resolveDbtVersion = (
     option: DbtVersionOption,
 ): SupportedDbtVersions =>

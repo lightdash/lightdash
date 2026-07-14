@@ -6,7 +6,6 @@ import { type UtilRepository } from '../utils/UtilRepository';
 import { AnalyticsModel } from './AnalyticsModel';
 import { AppModel } from './AppModel';
 import { CatalogModel } from './CatalogModel/CatalogModel';
-import { ChangesetModel } from './ChangesetModel';
 import { CommentModel } from './CommentModel/CommentModel';
 import { ContentModel } from './ContentModel/ContentModel';
 import { ContentVerificationModel } from './ContentVerificationModel';
@@ -32,6 +31,7 @@ import { OpenIdIdentityModel } from './OpenIdIdentitiesModel';
 import { OrganizationAllowedEmailDomainsModel } from './OrganizationAllowedEmailDomainsModel';
 import { OrganizationDesignModel } from './OrganizationDesignModel';
 import { OrganizationDomainVerificationModel } from './OrganizationDomainVerificationModel';
+import { OrganizationEmailDomainModel } from './OrganizationEmailDomainModel';
 import { OrganizationMemberProfileModel } from './OrganizationMemberProfileModel';
 import { OrganizationModel } from './OrganizationModel';
 import { OrganizationSettingsModel } from './OrganizationSettingsModel';
@@ -102,6 +102,7 @@ export type ModelManifest = {
     userAvatarModel: UserAvatarModel;
     organizationModel: OrganizationModel;
     organizationDomainVerificationModel: OrganizationDomainVerificationModel;
+    organizationEmailDomainModel: OrganizationEmailDomainModel;
     organizationSettingsModel: OrganizationSettingsModel;
     organizationSsoModel: OrganizationSsoModel;
     organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
@@ -142,17 +143,19 @@ export type ModelManifest = {
     preAggregateModel: PreAggregateModel;
     preAggregateDailyStatsModel: PreAggregateDailyStatsModel;
     projectParametersModel: ProjectParametersModel;
-    changesetModel: ChangesetModel;
     /** An implementation signature for these models are not available at this stage */
     aiAgentModel: unknown;
     aiAgentDocumentModel: unknown;
     aiWritebackThreadModel: unknown;
+    aiWritebackRunModel: unknown;
+    aiDeepResearchRunModel: unknown;
     sandboxRegistryModel: unknown;
     projectCiStatusModel: unknown;
     aiAgentReviewClassifierModel: unknown;
     aiAgentReviewNotificationModel: unknown;
     projectContextModel: unknown;
     aiRouterModel: unknown;
+    mcpToolCallModel: unknown;
     managedAgentModel: unknown;
     aiOrganizationSettingsModel: unknown;
     embedModel: unknown;
@@ -478,6 +481,16 @@ export class ModelRepository
         );
     }
 
+    public getOrganizationEmailDomainModel(): OrganizationEmailDomainModel {
+        return this.getModel(
+            'organizationEmailDomainModel',
+            () =>
+                new OrganizationEmailDomainModel({
+                    database: this.database,
+                }),
+        );
+    }
+
     public getOrganizationDesignModel(): OrganizationDesignModel {
         return this.getModel(
             'organizationDesignModel',
@@ -734,13 +747,6 @@ export class ModelRepository
         );
     }
 
-    public getChangesetModel(): ChangesetModel {
-        return this.getModel(
-            'changesetModel',
-            () => new ChangesetModel({ database: this.database }),
-        );
-    }
-
     public getSavedSqlModel(): SavedSqlModel {
         return this.getModel(
             'savedSqlModel',
@@ -781,12 +787,24 @@ export class ModelRepository
         return this.getModel('aiAgentModel');
     }
 
+    public getMcpToolCallModel<ModelImplT>(): ModelImplT {
+        return this.getModel('mcpToolCallModel');
+    }
+
     public getAiAgentDocumentModel<ModelImplT>(): ModelImplT {
         return this.getModel('aiAgentDocumentModel');
     }
 
     public getAiWritebackThreadModel<ModelImplT>(): ModelImplT {
         return this.getModel('aiWritebackThreadModel');
+    }
+
+    public getAiWritebackRunModel<ModelImplT>(): ModelImplT {
+        return this.getModel('aiWritebackRunModel');
+    }
+
+    public getAiDeepResearchRunModel<ModelImplT>(): ModelImplT {
+        return this.getModel('aiDeepResearchRunModel');
     }
 
     public getSandboxRegistryModel<ModelImplT>(): ModelImplT {

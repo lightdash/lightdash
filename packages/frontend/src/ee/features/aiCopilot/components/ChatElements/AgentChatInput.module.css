@@ -244,17 +244,6 @@
     }
 }
 
-/* ------------------------------------------------------------------ *
- *  SQL mode active state — slow, smooth indigo border + halo. No      *
- *  animation; relies on a long CSS transition so toggling on/off      *
- *  reads as a calm fade rather than a snap.                            *
- * ------------------------------------------------------------------ */
-.sqlModeActive {
-    border-color: var(--mantine-color-indigo-4) !important;
-    box-shadow: 0 0 0 2px
-        color-mix(in srgb, var(--mantine-color-indigo-5) 12%, transparent);
-}
-
 /* Long, gentle ease applies both when toggling on *and* off. */
 .minimalInputWrapper,
 .inputCard {
@@ -474,19 +463,6 @@
 
 .sqlModeControl {
     flex-shrink: 0;
-}
-
-.sqlModeLabel {
-    line-height: 1;
-    white-space: nowrap;
-
-    @mixin light {
-        color: var(--mantine-color-indigo-6);
-    }
-
-    @mixin dark {
-        color: var(--mantine-color-indigo-3);
-    }
 }
 
 @media (max-width: 48em) {

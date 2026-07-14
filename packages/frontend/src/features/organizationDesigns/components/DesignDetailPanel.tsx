@@ -1,4 +1,7 @@
 import {
+    checkThemeLimits,
+    getThemeTotalBytes,
+    MAX_THEME_TOTAL_BYTES,
     type ApiOrganizationDesign,
     type ApiOrganizationDesignFile,
 } from '@lightdash/common';
@@ -21,6 +24,7 @@ import {
 import { useForm } from '@mantine/form';
 import { IconCheck, IconDownload, IconTrash } from '@tabler/icons-react';
 import { useEffect, useRef, useState, type FC } from 'react';
+import Callout from '../../../components/common/Callout';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
     useClearDefaultOrganizationDesign,
@@ -124,6 +128,12 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
     const [pendingDeleteUuid, setPendingDeleteUuid] = useState<string | null>(
         null,
     );
+
+    // Theme size guardrail: files are streamed into the sandbox on each build,
+    // so an oversized theme times out when applied. Surface the budget as it fills.
+    const totalBytes = getThemeTotalBytes(design.files);
+    const limitViolation = checkThemeLimits(design.files);
+    const nearLimit = totalBytes >= MAX_THEME_TOTAL_BYTES * 0.8;
 
     const trimmedName = form.values.name.trim();
     const trimmedDescription = form.values.description.trim();
@@ -299,7 +309,17 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
             {/* Right column: files */}
             <Stack gap="md" flex={1}>
                 <Box>
-                    <Title order={6}>Files</Title>
+                    <Group justify="space-between" align="baseline">
+                        <Title order={6}>Files</Title>
+                        <Text
+                            size="xs"
+                            c={limitViolation ? 'red.6' : 'ldGray.6'}
+                        >
+                            {design.files.length} files ·{' '}
+                            {formatBytes(totalBytes)} /{' '}
+                            {formatBytes(MAX_THEME_TOTAL_BYTES)}
+                        </Text>
+                    </Group>
                     <Text size="sm" c="ldGray.6" mt={4}>
                         Drag &amp; drop CSS, font, image, or markdown
                         instruction files. They&apos;ll be picked up
@@ -307,7 +327,27 @@ const DesignForm: FC<{ design: ApiOrganizationDesign }> = ({ design }) => {
                     </Text>
                 </Box>
 
-                <DesignFileUpload designUuid={design.designUuid} />
+                {(limitViolation || nearLimit) && (
+                    <Callout variant="warning">
+                        {limitViolation
+                            ? `This theme is over the ${formatBytes(
+                                  MAX_THEME_TOTAL_BYTES,
+                              )} limit (currently ${formatBytes(
+                                  totalBytes,
+                              )}). Apps won't apply it until you remove some assets.`
+                            : `This theme is getting large (${formatBytes(
+                                  totalBytes,
+                              )} of ${formatBytes(
+                                  MAX_THEME_TOTAL_BYTES,
+                              )}). Large themes are slower to generate and can fail to apply — keep only the assets you need.`}
+                    </Callout>
+                )}
+
+                <DesignFileUpload
+                    designUuid={design.designUuid}
+                    themeName={design.name}
+                    existingFiles={design.files}
+                />
 
                 {design.files.length === 0 ? (
                     <Text size="sm" c="ldGray.6" ta="center" py="md">

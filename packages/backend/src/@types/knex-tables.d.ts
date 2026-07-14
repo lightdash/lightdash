@@ -31,12 +31,6 @@ import {
     type MetricsTreesTable,
 } from '../database/entities/catalog';
 import {
-    ChangesetsTable,
-    ChangesetsTableName,
-    ChangesTable,
-    ChangesTableName,
-} from '../database/entities/changesets';
-import {
     DashboardTileCommentsTable,
     DashboardTileCommentsTableName,
 } from '../database/entities/comments';
@@ -141,6 +135,10 @@ import {
     OrganizationDomainVerificationsTable,
     OrganizationDomainVerificationsTableName,
 } from '../database/entities/organizationDomainVerifications';
+import {
+    OrganizationEmailDomainsTable,
+    OrganizationEmailDomainsTableName,
+} from '../database/entities/organizationEmailDomains';
 import {
     OrganizationMembershipsTable,
     OrganizationMembershipsTableName,
@@ -460,6 +458,12 @@ import {
     ManagedAgentSettingsTableName,
 } from '../ee/database/entities/managedAgent';
 import {
+    McpClientInfoTable,
+    McpClientInfoTableName,
+    McpToolCallTable,
+    McpToolCallTableName,
+} from '../ee/database/entities/mcpToolCall';
+import {
     PreAggregateDailyStatsTable,
     PreAggregateDailyStatsTableName,
 } from '../ee/database/entities/preAggregateDailyStats';
@@ -557,6 +561,7 @@ declare module 'knex/types/tables' {
         [OrganizationSettingsTableName]: OrganizationSettingsTable;
         [OrganizationSsoConfigurationsTableName]: OrganizationSsoConfigurationsTable;
         [OrganizationDomainVerificationsTableName]: OrganizationDomainVerificationsTable;
+        [OrganizationEmailDomainsTableName]: OrganizationEmailDomainsTable;
         [ValidationTableName]: ValidationTable;
         [GroupTableName]: GroupTable;
         [GroupMembershipTableName]: GroupMembershipTable;
@@ -608,6 +613,8 @@ declare module 'knex/types/tables' {
         [AiAgentReasoningTableName]: AiAgentReasoningTable;
         [AiAgentToolCallTableName]: AiAgentToolCallTable;
         [AiAgentToolResultTableName]: AiAgentToolResultTable;
+        [McpToolCallTableName]: McpToolCallTable;
+        [McpClientInfoTableName]: McpClientInfoTable;
         [AiSqlApprovalTableName]: AiSqlApprovalTable;
         [DashboardTabsTableName]: DashboardTabsTable;
         [NotificationsTableName]: NotificationsTable;
@@ -641,8 +648,6 @@ declare module 'knex/types/tables' {
         [AiEvalRunTableName]: AiEvalRunTable;
         [AiEvalRunResultTableName]: AiEvalRunResultTable;
         [AiEvalRunResultAssessmentTableName]: AiEvalRunResultAssessmentTable;
-        [ChangesetsTableName]: ChangesetsTable;
-        [ChangesTableName]: ChangesTable;
         [ManagedAgentSettingsTableName]: ManagedAgentSettingsTable;
         [ManagedAgentActionsTableName]: ManagedAgentActionsTable;
         [ManagedAgentRunsTableName]: ManagedAgentRunsTable;

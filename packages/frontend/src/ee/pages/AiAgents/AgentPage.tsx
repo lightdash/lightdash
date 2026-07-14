@@ -204,6 +204,7 @@ const AgentPage = () => {
 
     return (
         <AiAgentPageLayout
+            isEmbed={isEmbed}
             setIsAgentSidebarCollapsed={setIsAgentSidebarCollapsed}
             isAgentSidebarCollapsed={isAgentSidebarCollapsed}
             Sidebar={

@@ -1,5 +1,6 @@
 import { type ItemsMap } from '@lightdash/common';
-import { Button, Popover, Textarea } from '@mantine/core';
+import { Button, Textarea } from '@mantine-8/core';
+import { Popover } from '@mantine/core';
 import { IconSparkles } from '@tabler/icons-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router';
@@ -59,10 +60,10 @@ export const GenerateVizWithAi = ({
         >
             <Popover.Target>
                 <Button
-                    compact
+                    size="compact-sm"
                     variant="default"
                     fz="xs"
-                    leftIcon={<MantineIcon icon={IconSparkles} />}
+                    leftSection={<MantineIcon icon={IconSparkles} />}
                 >
                     AI
                 </Button>

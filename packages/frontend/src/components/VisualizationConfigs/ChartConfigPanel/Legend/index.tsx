@@ -10,15 +10,15 @@ import {
     type Series,
     type TableCalculation,
 } from '@lightdash/common';
-import { useDebouncedCallback } from '@mantine-8/hooks';
 import {
     Collapse,
     Group,
     Loader,
-    SegmentedControl,
     Stack,
+    SegmentedControl,
     Switch,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { useDebouncedCallback } from '@mantine-8/hooks';
 import { lazy, Suspense, useMemo, useState, type FC } from 'react';
 import { useParams } from 'react-router';
 import { useToggle } from 'react-use';
@@ -26,7 +26,9 @@ import UnitInput from '../../../common/UnitInput';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
+import compactStyles from '../../mantineTheme.module.css';
 import { UnitInputsGrid } from '../common/UnitInputsGrid';
+import classes from './Legend.module.css';
 import { ReferenceLines } from './ReferenceLines';
 import { TooltipSortConfig } from './TooltipSortConfig';
 
@@ -109,14 +111,13 @@ const PositionConfiguration: FC<MarginConfigurationProps> = ({
         <Config>
             <Config.Section>
                 <Switch
+                    size="xs"
                     labelPosition="left"
                     label={`Custom position`}
                     checked={!isAutoPosition}
                     onChange={toggleAuto}
-                    styles={{
-                        label: {
-                            paddingLeft: 0,
-                        },
+                    classNames={{
+                        label: `${compactStyles.compactCheckboxLabel} ${classes.leftPositionedSwitchLabel}`,
                     }}
                 />
 
@@ -206,9 +207,13 @@ export const Legend: FC<Props> = ({ items }) => {
         <Stack>
             <Config>
                 <Config.Section>
-                    <Group spacing="xs" align="center">
+                    <Group gap="xs" align="center">
                         <Config.Heading>Legend</Config.Heading>
                         <Switch
+                            size="xs"
+                            classNames={{
+                                label: compactStyles.compactCheckboxLabel,
+                            }}
                             checked={legendConfig.show ?? showDefault}
                             onChange={(e) =>
                                 handleChange('show', e.currentTarget.checked)
@@ -217,10 +222,11 @@ export const Legend: FC<Props> = ({ items }) => {
                     </Group>
 
                     <Collapse in={legendConfig.show ?? showDefault}>
-                        <Stack spacing="xs">
-                            <Group spacing="xs">
+                        <Stack gap="xs">
+                            <Group gap="xs">
                                 <Config.Label>Placement</Config.Label>
                                 <SegmentedControl
+                                    size="xs"
                                     name="placement"
                                     value={legendConfig.placement ?? 'custom'}
                                     onChange={(val) =>
@@ -248,11 +254,12 @@ export const Legend: FC<Props> = ({ items }) => {
                             {(legendConfig.placement ?? 'custom') ===
                                 'custom' && (
                                 <>
-                                    <Group spacing="xs">
+                                    <Group gap="xs">
                                         <Config.Label>
                                             Scroll behavior
                                         </Config.Label>
                                         <SegmentedControl
+                                            size="xs"
                                             value={
                                                 dirtyEchartsConfig?.legend
                                                     ?.type ?? 'scroll'
@@ -272,9 +279,10 @@ export const Legend: FC<Props> = ({ items }) => {
                                             }
                                         />
                                     </Group>
-                                    <Group spacing="xs">
+                                    <Group gap="xs">
                                         <Config.Label>Orientation</Config.Label>
                                         <SegmentedControl
+                                            size="xs"
                                             name="orient"
                                             value={
                                                 legendConfig.orient ??
@@ -303,7 +311,7 @@ export const Legend: FC<Props> = ({ items }) => {
                             )}
                             {(legendConfig.placement === 'outsideRight' ||
                                 legendConfig.placement === 'outsideLeft') && (
-                                <Group spacing="xs">
+                                <Group gap="xs">
                                     <Config.Label>
                                         Legend area width
                                     </Config.Label>

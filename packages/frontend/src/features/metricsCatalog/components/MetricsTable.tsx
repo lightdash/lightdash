@@ -6,15 +6,15 @@ import {
     type CatalogItem,
 } from '@lightdash/common';
 import {
-    Anchor,
     Box,
     Center,
     Divider,
     Group,
     Paper,
     Text,
-    useMantineTheme,
-} from '@mantine/core';
+    Anchor,
+} from '@mantine-8/core';
+import { useMantineTheme } from '@mantine/core';
 import {
     IconArrowDown,
     IconArrowsSort,
@@ -65,9 +65,13 @@ import SavedTreesContainer from './SavedTrees/SavedTreesContainer';
 
 type MetricsTableProps = {
     metricCatalogView: MetricCatalogView;
+    isEmbed: boolean;
 };
 
-export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
+export const MetricsTable: FC<MetricsTableProps> = ({
+    metricCatalogView,
+    isEmbed,
+}) => {
     const { track } = useTracking();
     const dispatch = useAppDispatch();
     const theme = useMantineTheme();
@@ -253,15 +257,17 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
     const mantinePaperProps = useMemo(
         () => ({
             shadow: undefined,
-            sx: {
+            style: {
                 border: `1px solid ${theme.colors.ldGray[2]}`,
                 borderRadius: theme.spacing.sm, // ! radius doesn't have rem(12) -> 0.75rem
                 boxShadow: theme.shadows.subtle,
                 display: 'flex',
                 flexDirection: 'column' as const,
+                height: isEmbed ? '100%' : undefined,
+                minHeight: isEmbed ? 0 : undefined,
             },
         }),
-        [theme],
+        [isEmbed, theme],
     );
 
     const flatData = useMemo(
@@ -358,8 +364,8 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
         mantineTableContainerProps: {
             ref: tableContainerRef,
             sx: {
-                maxHeight: 'calc(100dvh - 350px)',
-                minHeight: 600,
+                maxHeight: isEmbed ? 'none' : 'calc(100dvh - 350px)',
+                minHeight: isEmbed ? 0 : 600,
                 display: 'flex',
                 flexDirection: 'column',
             },
@@ -502,7 +508,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                     setSelectedTables={handleSetTableFilters}
                     selectedOwners={ownerFilters}
                     setSelectedOwners={handleSetOwnerFilters}
-                    position="apart"
+                    justify="space-between"
                     p={`${theme.spacing.lg} ${theme.spacing.xl}`}
                     showCategoriesFilter={canManageTags || dataHasCategories}
                     metricCatalogView={metricCatalogView}
@@ -514,23 +520,23 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
         renderBottomToolbar: () => (
             <Box
                 p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
-                fz="xs"
-                fw={500}
                 color="ldGray.8"
-                sx={{
+                style={{
                     borderTop: `1px solid ${theme.colors.ldGray[3]}`,
                 }}
             >
                 {isFetching ? (
-                    <Text>Loading more...</Text>
+                    <Text fz="sm" fw={500}>
+                        Loading more...
+                    </Text>
                 ) : (
-                    <Group spacing="two">
-                        <Text>
+                    <Group gap="two">
+                        <Text fz="sm" fw={500}>
                             {hasNextPage
                                 ? 'Scroll for more metrics'
                                 : 'All metrics loaded'}
                         </Text>
-                        <Text fw={400} color="ldGray.6">
+                        <Text fz="sm" fw={400} c="ldGray.6">
                             {hasNextPage
                                 ? `(${flatData.length} loaded)`
                                 : `(${flatData.length})`}
@@ -547,6 +553,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                         <Text>
                             To learn how to define metrics, check out our{' '}
                             <Anchor
+                                inherit
                                 target="_blank"
                                 href="https://docs.lightdash.com/references/metrics/"
                             >
@@ -557,7 +564,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                 />
             ) : (
                 <Center>
-                    <Text fs="italic" color="gray">
+                    <Text fs="italic" c="gray">
                         No results found
                     </Text>
                 </Center>
@@ -659,7 +666,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                                 setSelectedTables={handleSetTableFilters}
                                 selectedOwners={ownerFilters}
                                 setSelectedOwners={handleSetOwnerFilters}
-                                position="apart"
+                                justify="space-between"
                                 p={`${theme.spacing.lg} ${theme.spacing.xl}`}
                                 showCategoriesFilter={
                                     canManageTags || dataHasCategories

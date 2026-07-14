@@ -17,15 +17,8 @@ import {
     type FilterableField,
     type Item,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Group,
-    Highlight,
-    HoverCard,
-    NavLink,
-    Text,
-    Tooltip,
-} from '@mantine/core';
+import { ActionIcon, Group, Highlight, NavLink, Text } from '@mantine-8/core';
+import { HoverCard, Tooltip } from '@mantine/core';
 import {
     IconAlertTriangle,
     IconCalendarPin,
@@ -58,6 +51,7 @@ import FieldIcon from '../../../../common/Filters/FieldIcon';
 import MantineIcon from '../../../../common/MantineIcon';
 import { ItemDetailPreview } from '../ItemDetailPreview';
 import { MAX_GROUP_DEPTH } from './constants';
+import styles from './TreeSingleNode.module.css';
 import TreeSingleNodeActions from './TreeSingleNodeActions';
 import { type Node } from './types';
 import useTableTree from './useTableTree';
@@ -347,15 +341,6 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
         toggleMenu();
     }, [toggleHover, toggleMenu]);
 
-    const navLinkSx = useMemo(
-        () => ({
-            backgroundColor: isSelected ? itemColors.bg : undefined,
-            '&:hover': {
-                backgroundColor: itemColors.bgHover,
-            },
-        }),
-        [isSelected, itemColors],
-    );
     const icon = useMemo(
         () => <NavItemIcon isMissing={isMissing} item={item} />,
         [isMissing, item],
@@ -421,14 +406,21 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
         <NavLink
             component="div"
             noWrap
-            sx={navLinkSx}
-            icon={icon}
+            data-selected={isSelected || undefined}
+            className={styles.root}
+            style={
+                {
+                    '--tree-node-bg': itemColors.bg,
+                    '--tree-node-hover-bg': itemColors.bgHover,
+                } as React.CSSProperties
+            }
+            leftSection={icon}
             onClick={handleClick}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
             pl={pl}
             label={
-                <Group noWrap spacing="xs">
+                <Group wrap="nowrap" gap="xs">
                     <HoverCard
                         openDelay={300}
                         keepMounted={false}
@@ -453,14 +445,15 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                         }
                     >
                         <HoverCard.Target>
-                            <Highlight
-                                component={Text}
-                                truncate
-                                sx={{ flexGrow: 1 }}
-                                highlight={searchQuery || ''}
-                            >
-                                {label}
-                            </Highlight>
+                            <Text truncate fz="sm" style={{ flexGrow: 1 }}>
+                                <Highlight
+                                    component="span"
+                                    highlight={searchQuery || ''}
+                                    inherit
+                                >
+                                    {label}
+                                </Highlight>
+                            </Text>
                         </HoverCard.Target>
                         <HoverCard.Dropdown
                             hidden={!isHover}
@@ -510,7 +503,11 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                                     : 'Click here to add filter'
                             }
                         >
-                            <ActionIcon onClick={handleFilterClick}>
+                            <ActionIcon
+                                variant="subtle"
+                                color="gray"
+                                onClick={handleFilterClick}
+                            >
                                 <MantineIcon
                                     icon={IconFilter}
                                     style={{ flexShrink: 0 }}

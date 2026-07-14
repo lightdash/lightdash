@@ -1,18 +1,16 @@
 import { getErrorMessage, type CatalogItem } from '@lightdash/common';
 import {
-    ActionIcon,
+    TextInput,
     Box,
-    Button,
     Divider,
     Group,
-    Popover,
-    SimpleGrid,
     Stack,
     Text,
-    TextInput,
-    Tooltip,
     UnstyledButton,
-} from '@mantine/core';
+    Button,
+    ActionIcon,
+} from '@mantine-8/core';
+import { Popover, SimpleGrid, Tooltip } from '@mantine/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
 import { IconCode, IconDots, IconTrash } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
@@ -22,6 +20,7 @@ import { useDeleteTag, useUpdateTag } from '../hooks/useProjectTags';
 import { TAG_COLOR_SWATCHES } from '../utils/getRandomTagColor';
 import { CatalogCategory } from './CatalogCategory';
 import { CatalogCategorySwatch } from './CatalogCategorySwatch';
+import styles from './MetricCatalogCategoryFormItem.module.css';
 
 type EditPopoverProps = {
     hovered: boolean;
@@ -87,12 +86,12 @@ const EditPopover: FC<EditPopoverProps> = ({
         >
             <Popover.Target>
                 <ActionIcon
-                    sx={(theme) => ({
+                    variant="subtle"
+                    color="gray"
+                    className={styles.editButton}
+                    style={{
                         visibility: hovered || opened ? 'visible' : 'hidden',
-                        '&:hover': {
-                            backgroundColor: theme.colors.background[0],
-                        },
-                    })}
+                    }}
                     size="sm"
                     onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                         e.stopPropagation();
@@ -112,8 +111,8 @@ const EditPopover: FC<EditPopoverProps> = ({
                     e.preventDefault();
                 }}
             >
-                <Stack spacing="xs">
-                    <Text size="xs" weight={500} c="ldGray.6">
+                <Stack gap="xs">
+                    <Text size="xs" fw={500} c="ldGray.6">
                         Edit category
                     </Text>
                     <TextInput
@@ -139,14 +138,9 @@ const EditPopover: FC<EditPopoverProps> = ({
                         ))}
                     </SimpleGrid>
 
-                    <Divider
-                        c="ldGray.2"
-                        sx={(theme) => ({
-                            borderTopColor: theme.colors.ldGray[2],
-                        })}
-                    />
+                    <Divider color="ldGray.2" />
 
-                    <Group position="apart">
+                    <Group justify="space-between">
                         <Tooltip
                             variant="xs"
                             label="Delete this tag permanently"
@@ -169,9 +163,8 @@ const EditPopover: FC<EditPopoverProps> = ({
                         </Tooltip>
 
                         <Button
-                            variant="darkPrimary"
-                            size="xs"
-                            compact
+                            variant="dark"
+                            size="compact-xs"
                             onClick={handleSave}
                         >
                             Save
@@ -214,18 +207,11 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
             px={4}
             py={3}
             pos="relative"
-            position="apart"
+            justify="space-between"
             tabIndex={0}
             role="button"
             onKeyDown={handleKeyDown}
-            sx={(theme) => ({
-                borderRadius: theme.radius.md,
-                outline: 'none',
-                '&:focus, &:hover': {
-                    backgroundColor: theme.colors.ldGray[0],
-                    transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                },
-            })}
+            className={styles.categoryFormItem}
         >
             <UnstyledButton
                 onClick={onClick}
@@ -256,7 +242,7 @@ export const MetricCatalogCategoryFormItem: FC<Props> = ({
                 >
                     <Box
                         p="xxs"
-                        sx={{
+                        style={{
                             visibility: hovered ? 'visible' : 'hidden',
                         }}
                     >

@@ -1,4 +1,4 @@
-import { Skeleton } from '@mantine/core';
+import { Skeleton } from '@mantine-8/core';
 import { lazy, Suspense, type FC } from 'react';
 import { type SuggestionsItem } from '../../types';
 

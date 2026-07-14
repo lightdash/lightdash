@@ -1,6 +1,7 @@
 /// <reference path="../@types/rudder-sdk-node.d.ts" />
 import {
     Account,
+    AI_WRITEBACK_STAGES,
     AnyType,
     CacheMetadata,
     CartesianSeriesType,
@@ -32,7 +33,10 @@ import {
     type AiAgentRootCause,
     type AiRouterDecisionConfidence,
     type AiRouterRouteNextAction,
+    type AiWritebackFailureStage,
+    type AppVersionDependencyEntry,
     type DataAppClaudeModel,
+    type DataAppTemplate,
     type PullRequestProvider,
 } from '@lightdash/common';
 import Analytics, {
@@ -44,6 +48,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { LightdashConfig } from '../config/parseConfig';
 import { type ExternalConnectionEvent } from '../ee/analytics';
 import { VERSION } from '../version';
+import type { AiUsageEvent } from './aiUsage';
 import type { EventStreamSink } from './eventStream/EventStreamSink';
 
 type Identify = {
@@ -1430,6 +1435,64 @@ export type DataAppPromotedEvent = BaseTrack & {
     };
 };
 
+export type DataAppDownloadedEvent = BaseTrack & {
+    event: 'data_app.downloaded';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        version: number;
+        // true when the caller pinned an explicit version rather than
+        // resolving to the latest ready one.
+        versionPinned: boolean;
+        fileCount: number;
+        sourceBytes: number;
+        hasCustomDependencies: boolean;
+    };
+};
+
+export type DataAppUploadedEvent = BaseTrack & {
+    event: 'data_app.uploaded';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        version: number;
+        action: 'create' | 'append';
+        template: Exclude<DataAppTemplate, 'custom'> | null;
+        sourceFileCount: number;
+        sourceBytes: number;
+        hasCustomDependencies: boolean;
+        // The version's full custom set (delta vs the template baseline),
+        // not just packages new since the previous version.
+        customDependencyCount: number;
+        customDependencies: AppVersionDependencyEntry[];
+        lockfileHash?: string;
+    };
+};
+
+export type DataAppUploadRejectedEvent = BaseTrack & {
+    event: 'data_app.upload_rejected';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        targetAppUuid?: string;
+        reason:
+            | 'dependency_validation'
+            | 'insufficient_permissions'
+            | 'custom_dependencies_disabled_instance'
+            | 'custom_dependencies_disabled_org'
+            | 'min_release_age'
+            | 'malware';
+        customDependencyCount?: number;
+        customDependencies?: AppVersionDependencyEntry[];
+        error?: string;
+    };
+};
+
 export type DataAppEvent =
     | DataAppCreatedEvent
     | DataAppIteratedEvent
@@ -1440,7 +1503,10 @@ export type DataAppEvent =
     | DataAppViewedEvent
     | DataAppVersionRestoredEvent
     | DataAppDuplicatedEvent
-    | DataAppPromotedEvent;
+    | DataAppPromotedEvent
+    | DataAppDownloadedEvent
+    | DataAppUploadedEvent
+    | DataAppUploadRejectedEvent;
 
 export type AiWritebackStartedEvent = BaseTrack & {
     event: 'ai_writeback.started';
@@ -1486,17 +1552,8 @@ export type AiWritebackCompletedEvent = BaseTrack & {
 };
 
 // Pipeline stage that was running when an AI writeback run failed.
-export const AI_WRITEBACK_STAGES = [
-    'install',
-    'sandbox',
-    'clone',
-    'agent',
-    'commit',
-    'push',
-    'pull_request',
-] as const;
-
-export type AiWritebackFailureStage = (typeof AI_WRITEBACK_STAGES)[number];
+export { AI_WRITEBACK_STAGES };
+export type { AiWritebackFailureStage };
 
 export type AiWritebackFailedEvent = BaseTrack & {
     event: 'ai_writeback.failed';
@@ -1994,6 +2051,18 @@ export type AiAgentDocumentCreatedEvent = BaseTrack & {
     };
 };
 
+export type AiAgentDocumentUpdatedEvent = BaseTrack & {
+    event: 'ai_agent_document.updated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | null;
+        documentId: string;
+        contentChanged: boolean;
+        contentSizeBytes: number;
+    };
+};
+
 export type AiAgentDocumentDeletedEvent = BaseTrack & {
     event: 'ai_agent_document.deleted';
     userId: string;
@@ -2126,7 +2195,16 @@ export type McpToolCallEvent = BaseTrack & {
     properties: {
         organizationId: string;
         projectId?: string;
+        agentId?: string;
         toolName: string;
+        status: 'success' | 'error';
+        durationMs: number;
+        authType: string;
+        clientName?: string;
+        clientVersion?: string;
+        userAgent?: string;
+        protocolVersion?: string;
+        sessionId?: string;
     };
 };
 
@@ -2512,6 +2590,7 @@ type TypedEvent =
     | AiAgentDeletedEvent
     | AiAgentUpdatedEvent
     | AiAgentDocumentCreatedEvent
+    | AiAgentDocumentUpdatedEvent
     | AiAgentDocumentDeletedEvent
     | AiAgentPromptCreatedEvent
     | AiAgentPromptFeedbackEvent
@@ -2534,7 +2613,8 @@ type TypedEvent =
     | AiRouterMessageRoutedEvent
     | ContentVerificationEvent
     | SchedulerOwnershipReassignedEvent
-    | ImpersonationEvent;
+    | ImpersonationEvent
+    | AiUsageEvent;
 
 type UntypedEvent<T extends BaseTrack> = Omit<BaseTrack, 'event'> &
     T & {

@@ -53,6 +53,7 @@ export class GroupsService extends BaseService {
         return featureFlag.enabled;
     }
 
+    /** @deprecated Only used by the deprecated add-user-to-group endpoint; use update with the full member set instead. */
     async addGroupMember(
         user: SessionUser,
         member: GroupMembership,
@@ -101,6 +102,7 @@ export class GroupsService extends BaseService {
         return groupMembership;
     }
 
+    /** @deprecated Only used by the deprecated remove-user-from-group endpoint; use update with the full member set instead. */
     async removeGroupMember(
         user: SessionUser,
         member: GroupMembership,
@@ -263,6 +265,7 @@ export class GroupsService extends BaseService {
         return updatedGroup;
     }
 
+    /** @deprecated Only used by the deprecated group members endpoint; use get with includeMembers instead. */
     async getGroupMembers(
         user: SessionUser,
         groupUuid: string,
@@ -290,6 +293,7 @@ export class GroupsService extends BaseService {
         return group.members;
     }
 
+    /** @deprecated Only used by the deprecated group project access endpoint; use RolesService.upsertProjectGroupRoleAssignment instead. */
     async addProjectAccess(
         user: SessionUser,
         { groupUuid, projectUuid, role }: ProjectGroupAccess,
@@ -345,6 +349,7 @@ export class GroupsService extends BaseService {
         };
     }
 
+    /** @deprecated Only used by the deprecated group project access endpoint; use RolesService.deleteProjectRoleAssignment instead. */
     async removeProjectAccess(
         user: SessionUser,
         {
@@ -398,6 +403,7 @@ export class GroupsService extends BaseService {
         return removed;
     }
 
+    /** @deprecated Only used by the deprecated group project access endpoint; use RolesService.updateProjectRoleAssignment instead. */
     async updateProjectAccess(
         user: SessionUser,
         {

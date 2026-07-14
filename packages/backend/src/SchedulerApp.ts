@@ -4,6 +4,7 @@ import { EventEmitter } from 'events';
 import express from 'express';
 import http from 'http';
 import knex, { Knex } from 'knex';
+import { registerAiUsageTracker } from './analytics/aiUsage';
 import { BufferedEventStreamWriter } from './analytics/eventStream/BufferedEventStreamWriter';
 import { createEventStreamWriter } from './analytics/eventStream/createEventStreamWriter';
 import { EventStreamSink } from './analytics/eventStream/EventStreamSink';
@@ -31,7 +32,7 @@ import {
     derivePoolIdFromEnv,
     SchedulerWorkerHealth,
 } from './scheduler/SchedulerWorkerHealth';
-import { IGNORE_ERRORS } from './sentry';
+import { errorsOnlyIntegrations, IGNORE_ERRORS } from './sentry';
 import { createOrganizationNameResolver } from './sentry/organizationNameResolver';
 import {
     OperationContext,
@@ -102,6 +103,8 @@ const schedulerWorkerFactory = (context: {
             context.serviceRepository.getPreAggregateMaterializationService(),
         organizationSettingsModel:
             context.models.getOrganizationSettingsModel(),
+        emailWhitelabelService:
+            context.serviceRepository.getEmailWhitelabelService(),
         workerHealth: context.workerHealth,
         resolveOrganizationName: createOrganizationNameResolver(
             context.models.getOrganizationModel(),
@@ -167,6 +170,7 @@ export default class SchedulerApp {
                   )
                 : undefined,
         });
+        registerAiUsageTracker((event) => this.analytics.track(event));
 
         this.database = knex(
             this.environment === 'production'
@@ -248,7 +252,9 @@ export default class SchedulerApp {
                     : this.lightdashConfig.mode,
             skipOpenTelemetrySetup: otelTracingEnabled(),
             registerEsmLoaderHooks: !otelTracingEnabled(),
-            integrations: [],
+            // OTel mode owns traces; strip Sentry's span-emitting default
+            // integrations (postgres etc.) so the worker is errors-only.
+            integrations: otelTracingEnabled() ? errorsOnlyIntegrations : [],
             ignoreErrors: IGNORE_ERRORS,
         });
         initOtelTracing();

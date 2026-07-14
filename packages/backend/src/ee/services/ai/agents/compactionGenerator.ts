@@ -1,4 +1,8 @@
 import { generateText } from 'ai';
+import {
+    emitAiUsage,
+    languageModelUsageToTokens,
+} from '../../../../analytics/aiUsage';
 import { GeneratorModelOptions } from '../models/types';
 import { getGeneratorTelemetry } from '../utils/aiCallTelemetry';
 
@@ -12,15 +16,16 @@ export async function generateCompactionSummary(
         conversation: string;
     },
 ): Promise<string> {
+    const telemetry = getGeneratorTelemetry(
+        modelOptions,
+        'generateCompactionSummary',
+        'compaction',
+    );
     const result = await generateText({
         model: modelOptions.model,
         ...modelOptions.callOptions,
         providerOptions: modelOptions.providerOptions,
-        experimental_telemetry: getGeneratorTelemetry(
-            modelOptions,
-            'generateCompactionSummary',
-            'compaction',
-        ),
+        experimental_telemetry: telemetry,
         messages: [
             {
                 role: 'system',
@@ -55,6 +60,8 @@ Requirements:
             },
         ],
     });
+
+    emitAiUsage(telemetry, languageModelUsageToTokens(result.totalUsage));
 
     return result.text.trim();
 }

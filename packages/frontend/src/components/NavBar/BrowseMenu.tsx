@@ -33,6 +33,7 @@ import { useFavorites } from '../../hooks/favorites/useFavorites';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { useSpaceSummaries } from '../../hooks/useSpaces';
 import useApp from '../../providers/App/useApp';
+import scrollAreaClasses from '../../styles/ScrollArea.module.css';
 import MantineIcon from '../common/MantineIcon';
 import { PolymorphicGroupButton } from '../common/PolymorphicGroupButton';
 import TruncatedText from '../common/TruncatedText';
@@ -168,8 +169,10 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                         <Menu.Divider />
                         <Menu.Label>Favorites</Menu.Label>
                         <ScrollArea
-                            variant="primary"
-                            className="only-vertical"
+                            scrollbars="y"
+                            classNames={{
+                                content: scrollAreaClasses.verticalContent,
+                            }}
                             scrollbarSize={6}
                             type="hover"
                         >
@@ -231,8 +234,11 @@ const BrowseMenu: FC<Props> = ({ projectUuid }) => {
                                 </Center>
                             ) : (
                                 <ScrollArea
-                                    variant="primary"
-                                    className="only-vertical"
+                                    scrollbars="y"
+                                    classNames={{
+                                        content:
+                                            scrollAreaClasses.verticalContent,
+                                    }}
                                     scrollbarSize={6}
                                     type="hover"
                                 >

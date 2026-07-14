@@ -1,5 +1,12 @@
 import { SpotlightTableColumns, type CatalogField } from '@lightdash/common';
-import { Box, Button, Flex, Group, Text } from '@mantine/core';
+import {
+    Box,
+    Button,
+    Flex,
+    Group,
+    Text,
+    useComputedColorScheme,
+} from '@mantine-8/core';
 import { useHover } from '@mantine/hooks';
 import { IconPlus, IconUser } from '@tabler/icons-react';
 import { useMemo } from 'react';
@@ -27,6 +34,7 @@ import { MetricsCatalogCategoryForm } from './MetricsCatalogCategoryForm';
 import { MetricsCatalogColumnDescription } from './MetricsCatalogColumnDescription';
 import { MetricsCatalogColumnName } from './MetricsCatalogColumnName';
 import { MetricsCatalogColumnOwner } from './MetricsCatalogColumnOwner';
+import styles from './MetricsCatalogColumns.module.css';
 
 export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
     {
@@ -87,6 +95,7 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
             const projectUuid = useAppSelector(
                 (state) => state.metricsCatalog.projectUuid,
             );
+            const colorScheme = useComputedColorScheme();
 
             const savedChartVersion = createMetricPreviewUnsavedChartVersion({
                 name: row.original.name,
@@ -106,29 +115,23 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
                     component="a"
                     href={url.toString()}
                     target="_blank"
-                    size="xs"
-                    compact
+                    size="compact-xs"
                     color="ldGray.6"
                     variant="subtle"
-                    leftIcon={<TableFilled />}
+                    leftSection={<TableFilled />}
                     fz="sm"
                     c="ldDark.7"
                     fw={500}
-                    sx={{
-                        '&[data-disabled]': {
-                            backgroundColor: 'transparent',
-                            fontWeight: 400,
-                        },
-                    }}
+                    className={styles.tableButton}
                     styles={(theme) => ({
-                        leftIcon: {
+                        section: {
                             marginRight: theme.spacing.xxs,
                             color:
-                                theme.colorScheme === 'dark'
+                                colorScheme === 'dark'
                                     ? theme.colors.ldDark[7]
                                     : theme.colors.ldGray[4],
                             '--table-icon-stroke':
-                                theme.colorScheme === 'dark'
+                                colorScheme === 'dark'
                                     ? theme.colors.ldDark[4]
                                     : 'white',
                         },
@@ -210,11 +213,11 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
                     h="100%"
                     left={0}
                     top={0}
-                    sx={{
+                    style={{
                         cursor: canManageTags ? 'pointer' : 'default',
                     }}
                 >
-                    <Group mx="md" spacing="xxs">
+                    <Group mx="md" gap="xxs">
                         {categories.map((category) => (
                             <CatalogCategory
                                 key={category.tagUuid}
@@ -283,28 +286,28 @@ export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
 
                         table.setEditingCell(cell);
                     }}
-                    sx={{
+                    style={{
                         cursor: canManageTags ? 'pointer' : 'default',
                     }}
                 >
                     {categories.length === 0 && hovered && canManageTags ? (
-                        <Group spacing={2}>
+                        <Group gap={2}>
                             <MantineIcon
                                 color="ldGray.4"
                                 icon={IconPlus}
                                 size={12}
                             />
-                            <Text span fz="sm" color="ldGray.4">
+                            <Text span fz="sm" c="ldGray.4">
                                 Click to add
                             </Text>
                         </Group>
                     ) : (
                         <Group
-                            spacing="xxs"
+                            gap="xxs"
                             pos="relative"
                             w="100%"
                             h="100%"
-                            sx={{
+                            style={{
                                 rowGap: 'unset',
                             }}
                         >

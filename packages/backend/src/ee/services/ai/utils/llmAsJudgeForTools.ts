@@ -7,10 +7,17 @@ import { generateObject } from 'ai';
 import { JSONDiff } from 'autoevals';
 import { compact, differenceWith } from 'lodash';
 import { z } from 'zod';
+import {
+    emitAiUsage,
+    languageModelUsageToTokens,
+} from '../../../../analytics/aiUsage';
 import { DbAiAgentToolCall } from '../../../database/entities/ai';
 import { defaultAgentOptions } from '../agents/agentV2';
 import { getOpenaiGptmodel } from '../models/openai-gpt';
-import { getAiCallTelemetry } from './aiCallTelemetry';
+import {
+    getAiCallTelemetry,
+    getLanguageModelAttribution,
+} from './aiCallTelemetry';
 
 const TOOL_NAME_TO_DB_TOOL_NAME = {
     findExplores: 'find_explores',
@@ -27,6 +34,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     findCharts: 'find_charts',
     getDashboardCharts: 'get_dashboard_charts',
     readContent: 'read_content',
+    resolveUrl: 'resolve_url',
     editContent: 'edit_content',
     createContent: 'create_content',
     generateTableVizConfig: 'table',
@@ -50,7 +58,6 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     improveContext: 'improve_context',
     listProjects: 'list_projects',
     getProjectInfo: 'get_project_info',
-    proposeChange: 'propose_change',
     editDbtProject: 'edit_dbt_project',
     editProjectContext: 'edit_project_context',
     editRepo: 'edit_repo',
@@ -285,14 +292,16 @@ export const evaluateToolCallSequence = async (
         .map((score) => score.description)
         .join('\n\n');
 
-    const { object: evaluationResult } = await generateObject({
+    const telemetry = getAiCallTelemetry({
+        functionId: 'evaluateToolCallSequence',
+        feature: 'llm-judge',
+        ...getLanguageModelAttribution(judge),
+    });
+    const result = await generateObject({
         model: judge,
         ...defaultAgentOptions,
         ...callOptions,
-        experimental_telemetry: getAiCallTelemetry({
-            functionId: 'evaluateToolCallSequence',
-            feature: 'llm-judge',
-        }),
+        experimental_telemetry: telemetry,
         schema: toolEvaluationSchema,
         prompt: `
 You are evaluating AI agent tool usage for business logic testing. Here is the data:
@@ -368,8 +377,9 @@ For passed, return true if effectiveness is excellent/good AND appropriateTools 
 Use empty arrays for suggestions, missingTools, unnecessaryTools, validationErrors, and expectedArgsValidation when not applicable.
         `,
     });
+    emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
 
-    return evaluationResult;
+    return result.object;
 };
 
 export const llmAsJudgeForTools = async ({

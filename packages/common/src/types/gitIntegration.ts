@@ -121,8 +121,8 @@ export type ApiGithubUserCredentialResponse = {
  * - `personal`: the user has a linked personal GitHub account; the PR will be
  *   attributed to `githubLogin`.
  * - `org`: the PR will fall back to the shared org-level GitHub App. `canLink`
- *   is whether the user can link a personal account (the github-user-credentials
- *   feature is enabled), i.e. whether nudging to settings is worthwhile.
+ *   is whether the user can link a personal account, i.e. whether nudging to
+ *   settings is worthwhile.
  */
 export type AiWritebackAttribution =
     | { mode: 'personal'; githubLogin: string }

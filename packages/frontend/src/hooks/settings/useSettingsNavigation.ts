@@ -17,11 +17,11 @@ import {
     IconFolders,
     IconGauge,
     IconGitPullRequest,
-    IconHistory,
     IconIdBadge2,
     IconKey,
     IconListCheck,
     IconLock,
+    IconMailForward,
     IconMessageCircle,
     IconPalette,
     IconPlug,
@@ -72,6 +72,7 @@ export const useSettingsNavigation = (
         isProLimitsEnabled,
         isCustomRolesEnabled,
         isSsoOrganizationSettingsEnabled,
+        isEmailWhitelabelEnabled,
         isWarehouseCredentialsEnabled,
         isScimTokenManagementEnabled,
         isServiceAccountsEnabled,
@@ -299,6 +300,27 @@ export const useSettingsNavigation = (
 
         if (
             ability?.can('manage', 'Organization') &&
+            isEmailWhitelabelEnabled
+        ) {
+            organizationItems.push({
+                label: 'Email domain',
+                to: '/generalSettings/emailWhitelabel',
+                icon: IconMailForward,
+                keywords: [
+                    'email',
+                    'whitelabel',
+                    'sending',
+                    'domain',
+                    'dkim',
+                    'reports',
+                ],
+                children: [],
+                exact: true,
+            });
+        }
+
+        if (
+            ability?.can('manage', 'Organization') &&
             isSsoOrganizationSettingsEnabled
         ) {
             organizationItems.push({
@@ -409,6 +431,14 @@ export const useSettingsNavigation = (
                     children: [],
                     exact: true,
                 },
+                {
+                    label: 'MCP',
+                    to: '/generalSettings/ai/mcp',
+                    icon: IconPlugConnected,
+                    keywords: ['mcp', 'tools', 'activity', 'claude', 'cursor'],
+                    children: [],
+                    exact: true,
+                },
             );
 
             if (shouldShowAiAgentReviews) {
@@ -476,14 +506,6 @@ export const useSettingsNavigation = (
                     to: `${base}/tablesConfiguration`,
                     icon: IconTableOptions,
                     keywords: ['models', 'explores'],
-                    children: [],
-                    exact: true,
-                },
-                {
-                    label: 'Changesets',
-                    to: `${base}/changesets`,
-                    icon: IconHistory,
-                    keywords: ['changes', 'history'],
                     children: [],
                     exact: true,
                 },
@@ -789,6 +811,7 @@ export const useSettingsNavigation = (
         isProLimitsEnabled,
         isCustomRolesEnabled,
         isSsoOrganizationSettingsEnabled,
+        isEmailWhitelabelEnabled,
         isWarehouseCredentialsEnabled,
         isScimEnabled,
         isServiceAccountsEnabled,

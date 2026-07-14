@@ -1,5 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { renderWithProviders } from '../../testing/testUtils';
 import ChunkErrorRouteBoundary from './ChunkErrorRouteBoundary';
 
 const mockUseRouteError = vi.fn();
@@ -39,10 +40,10 @@ describe('ChunkErrorRouteBoundary', () => {
         mockIsChunkLoadErrorObject.mockReturnValue(true);
         mockHasRecentChunkReload.mockReturnValue(false);
 
-        const { container } = render(<ChunkErrorRouteBoundary />);
+        renderWithProviders(<ChunkErrorRouteBoundary />);
 
         expect(mockTriggerChunkErrorReload).toHaveBeenCalledTimes(1);
-        expect(container.firstChild).toBeNull();
+        expect(screen.queryByText('chunk-fallback')).not.toBeInTheDocument();
     });
 
     it('shows the chunk fallback when a reload was already attempted', () => {
@@ -50,7 +51,7 @@ describe('ChunkErrorRouteBoundary', () => {
         mockIsChunkLoadErrorObject.mockReturnValue(true);
         mockHasRecentChunkReload.mockReturnValue(true);
 
-        render(<ChunkErrorRouteBoundary />);
+        renderWithProviders(<ChunkErrorRouteBoundary />);
 
         expect(mockTriggerChunkErrorReload).not.toHaveBeenCalled();
         expect(screen.getByText('chunk-fallback')).toBeInTheDocument();
@@ -60,7 +61,7 @@ describe('ChunkErrorRouteBoundary', () => {
         mockUseRouteError.mockReturnValue(new Error('boom'));
         mockIsChunkLoadErrorObject.mockReturnValue(false);
 
-        render(<ChunkErrorRouteBoundary />);
+        renderWithProviders(<ChunkErrorRouteBoundary />);
 
         expect(mockCaptureException).toHaveBeenCalledTimes(1);
         expect(mockTriggerChunkErrorReload).not.toHaveBeenCalled();

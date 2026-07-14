@@ -901,6 +901,9 @@ export class CartesianChartDataModel {
         const showLegend = transformedData.valuesColumns.length > 1;
 
         const spec = {
+            // Snap time-axis ticks in UTC to match the UTC label formatter;
+            // local snapping shifts labels back a day for UTC-positive viewers
+            useUTC: true,
             tooltip: {
                 ...getTooltipStyle(),
                 trigger: 'axis',

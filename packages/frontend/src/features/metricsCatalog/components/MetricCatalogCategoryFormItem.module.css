@@ -1,0 +1,14 @@
+.categoryFormItem {
+    border-radius: var(--mantine-radius-md);
+    outline: none;
+}
+
+.categoryFormItem:focus,
+.categoryFormItem:hover {
+    background-color: var(--mantine-color-ldGray-0);
+    transition: background-color 200ms ease-in-out;
+}
+
+.editButton:hover {
+    background-color: var(--mantine-color-background-0);
+}

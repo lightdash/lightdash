@@ -11,6 +11,7 @@ import {
     UnexpectedServerError,
     UPLOAD_GSHEET_FROM_ROWS_MAX_BYTES,
 } from '@lightdash/common';
+import { trace } from '@opentelemetry/api';
 import * as Sentry from '@sentry/node';
 import flash from 'connect-flash';
 import connectSessionKnex from 'connect-session-knex';
@@ -28,6 +29,7 @@ import path from 'path';
 import qs from 'qs';
 import reDoc from 'redoc-express';
 import { URL } from 'url';
+import { registerAiUsageTracker } from './analytics/aiUsage';
 import { BufferedEventStreamWriter } from './analytics/eventStream/BufferedEventStreamWriter';
 import { createEventStreamWriter } from './analytics/eventStream/createEventStreamWriter';
 import { EventStreamSink } from './analytics/eventStream/EventStreamSink';
@@ -136,11 +138,24 @@ const schedulerWorkerFactory = (context: {
             context.serviceRepository.getPreAggregateMaterializationService(),
         organizationSettingsModel:
             context.models.getOrganizationSettingsModel(),
+        emailWhitelabelService:
+            context.serviceRepository.getEmailWhitelabelService(),
         resolveOrganizationName: createOrganizationNameResolver(
             context.models.getOrganizationModel(),
         ),
         prometheusMetrics: context.prometheusMetrics,
     });
+
+/**
+ * Minimal lifecycle contract for a TCP server the App can start/stop without
+ * importing its implementation. The Postgres wire protocol server (EE-only) is
+ * supplied via `pgWireServerFactory` so the semantic-layer endpoint stays in
+ * the enterprise codebase and is only wired up under a valid license.
+ */
+export interface PgWireServerInstance {
+    listen(port: number, host?: string): Promise<void>;
+    close(): Promise<void>;
+}
 
 export type AppArguments = {
     lightdashConfig: LightdashConfig;
@@ -156,6 +171,9 @@ export type AppArguments = {
     utilProviders?: UtilProviderMap;
     schedulerWorkerFactory?: typeof schedulerWorkerFactory;
     customExpressMiddlewares?: Array<(app: Express) => void>; // Array of custom middleware functions
+    pgWireServerFactory?: (
+        serviceRepository: ServiceRepository,
+    ) => PgWireServerInstance;
 };
 
 export default class App {
@@ -170,6 +188,12 @@ export default class App {
     private readonly environment: 'production' | 'development';
 
     private schedulerWorker: SchedulerWorker | undefined;
+
+    private pgWireServer: PgWireServerInstance | undefined;
+
+    private readonly pgWireServerFactory:
+        | ((serviceRepository: ServiceRepository) => PgWireServerInstance)
+        | undefined;
 
     private readonly clients: ClientRepository;
 
@@ -220,6 +244,7 @@ export default class App {
                   )
                 : undefined,
         });
+        registerAiUsageTracker((event) => this.analytics.track(event));
         this.database = knex(
             this.environment === 'production'
                 ? args.knexConfig.production
@@ -259,6 +284,7 @@ export default class App {
         this.schedulerWorkerFactory =
             args.schedulerWorkerFactory || schedulerWorkerFactory;
         this.customExpressMiddlewares = args.customExpressMiddlewares || [];
+        this.pgWireServerFactory = args.pgWireServerFactory;
     }
 
     async start() {
@@ -301,6 +327,26 @@ export default class App {
 
         // Load Lightdash middleware/routes last
         await this.initExpress(expressApp);
+
+        // Postgres wire protocol endpoint for the semantic layer (experimental,
+        // enterprise-only). The factory is supplied by the EE bootstrap under a
+        // valid license; without it the endpoint stays disabled.
+        const pgWirePort = process.env.PGWIRE_PORT
+            ? parseInt(process.env.PGWIRE_PORT, 10)
+            : undefined;
+        if (pgWirePort && this.pgWireServerFactory) {
+            this.pgWireServer = this.pgWireServerFactory(
+                this.serviceRepository,
+            );
+            await this.pgWireServer.listen(pgWirePort);
+            Logger.info(
+                `Postgres wire protocol server listening on port ${pgWirePort}`,
+            );
+        } else if (pgWirePort) {
+            Logger.warn(
+                'PGWIRE_PORT is set but the Postgres wire protocol server is an enterprise feature; set a valid license key to enable it.',
+            );
+        }
 
         if (this.lightdashConfig.scheduler?.enabled) {
             this.initSchedulerWorker();
@@ -692,6 +738,17 @@ export default class App {
                         req.user.organizationName,
                     );
                 }
+                // Sentry tags are error-scope only; stamp the same attribution
+                // on the request span so it's queryable in the trace backend.
+                trace.getActiveSpan()?.setAttributes({
+                    'user.uuid': req.user.userUuid,
+                    ...(req.user.organizationUuid && {
+                        'organization.uuid': req.user.organizationUuid,
+                    }),
+                    ...(req.user.organizationName && {
+                        'organization.name': req.user.organizationName,
+                    }),
+                });
             }
             next();
         });
@@ -991,6 +1048,10 @@ export default class App {
     }
 
     async stop() {
+        if (this.pgWireServer) {
+            await this.pgWireServer.close();
+            Logger.info('Stopped Postgres wire protocol server');
+        }
         if (this.eventStreamWriter) {
             await this.eventStreamWriter.close();
             Logger.info('Flushed usage event stream writer');

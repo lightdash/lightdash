@@ -56,7 +56,7 @@ export const AiAgentsButton = ({ projectUuid }: Props) => {
         PROMPT_TREND_DAYS,
         { enabled: showReviews && reviewCount > 0 && isPreviewOpen },
     );
-    const goToAskAi = () => navigate(`/projects/${projectUuid}/ai-agents`);
+    const goToAskAi = () => void navigate(`/projects/${projectUuid}/ai-agents`);
 
     if (!isVisible) {
         return null;

@@ -3,14 +3,8 @@ import {
     VizAggregationOptions,
     type VizValuesLayoutOptions,
 } from '@lightdash/common';
-import {
-    Box,
-    Group,
-    Select,
-    Text,
-    Tooltip,
-    useMantineTheme,
-} from '@mantine/core';
+import { Box, Group, Text, Select } from '@mantine-8/core';
+import { Tooltip } from '@mantine/core';
 import {
     IconAsterisk,
     IconMathFunction,
@@ -23,7 +17,7 @@ import {
 import capitalize from 'lodash/capitalize';
 import { forwardRef, type ComponentPropsWithoutRef, type FC } from 'react';
 import MantineIcon from '../../common/MantineIcon';
-import { usePillSelectStyles } from '../hooks/usePillSelectStyles';
+import classes from './PillSelect.module.css';
 
 // TODO: this should be a typed enum (VizAggregationOptions) and exhaustive switch case
 const AggregationIcon: FC<{ aggregation: string | undefined }> = ({
@@ -68,9 +62,9 @@ type Props = {
 const AggregationItem = forwardRef<
     HTMLDivElement,
     ComponentPropsWithoutRef<'div'> & { value: string; selected: boolean }
->(({ value, ...others }, ref) => (
+>(({ value, selected: _selected, ...others }, ref) => (
     <Box ref={ref} {...others}>
-        <Group noWrap spacing="xs">
+        <Group wrap="nowrap" gap="xs">
             <AggregationIcon aggregation={value} />
             <Text>{capitalize(value)}</Text>
         </Group>
@@ -82,19 +76,6 @@ export const DataVizAggregationConfig: FC<Props> = ({
     onChangeAggregation,
     aggregation,
 }) => {
-    const {
-        colors,
-        colorScheme,
-        fn: { lighten },
-    } = useMantineTheme();
-    const { classes } = usePillSelectStyles({
-        backgroundColor:
-            colorScheme === 'light'
-                ? lighten(colors.indigo[0], 0.5)
-                : colors.indigo[5],
-        textColor:
-            colorScheme === 'light' ? colors.indigo[4] : colors.indigo[0],
-    });
     const aggregationOptionsWithNone = options ?? [];
 
     const selectOptions = aggregationOptionsWithNone.map((option) => ({
@@ -108,18 +89,24 @@ export const DataVizAggregationConfig: FC<Props> = ({
     return (
         <Tooltip label="Aggregation type" variant="xs" withinPortal>
             <Select
-                withinPortal
+                allowDeselect={false}
+                comboboxProps={{ withinPortal: true }}
                 data={selectOptions}
-                itemComponent={AggregationItem}
+                renderOption={({ option, checked }) => (
+                    <AggregationItem
+                        value={option.value}
+                        selected={checked ?? false}
+                    />
+                )}
                 value={aggregation ?? aggregationOptionsWithNone?.[0]}
-                onChange={(value: VizAggregationOptions | null) =>
-                    value && onChangeAggregation(value)
+                onChange={(value) =>
+                    value && onChangeAggregation(value as VizAggregationOptions)
                 }
                 classNames={{
-                    item: classes.item,
+                    option: `${classes.option} ${classes.indigoOption}`,
                     dropdown: classes.dropdown,
-                    input: classes.input,
-                    rightSection: classes.rightSection,
+                    input: `${classes.input} ${classes.indigoInput}`,
+                    section: classes.section,
                 }}
                 styles={{
                     input: {

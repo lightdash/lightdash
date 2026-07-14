@@ -270,39 +270,6 @@ export const getMantineThemeOverride = (
                 }),
             },
 
-            ScrollArea: {
-                variants: {
-                    primary: (theme) => ({
-                        scrollbar: {
-                            '&, &:hover': {
-                                background: 'transparent',
-                            },
-                            '&[data-orientation="vertical"] .mantine-ScrollArea-thumb':
-                                {
-                                    backgroundColor: theme.colors.ldGray['5'],
-                                },
-                            '&[data-orientation="vertical"][data-state="visible"] .mantine-ScrollArea-thumb':
-                                {
-                                    // When visible, fade in
-                                    animation: 'fadeIn 0.3s ease-in forwards',
-                                },
-
-                            '&[data-orientation="vertical"] .mantine-ScrollArea-thumb:hover':
-                                {
-                                    backgroundColor: theme.fn.darken(
-                                        theme.colors.ldGray['5'],
-                                        0.1,
-                                    ),
-                                },
-                        },
-                        viewport: {
-                            '.only-vertical & > div': {
-                                display: 'block !important', // Only way to override the display value (from `table`) of the Viewport's child element
-                            },
-                        },
-                    }),
-                },
-            },
             ...overrides?.components,
         },
 

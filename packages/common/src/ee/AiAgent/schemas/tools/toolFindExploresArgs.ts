@@ -169,6 +169,9 @@ export type ToolFindExploresArgsV3 = z.infer<
 >;
 export type ToolFindExploresArgs = z.infer<typeof toolFindExploresArgsSchemaV3>;
 export type ToolFindExploresArgsTransformed = ToolFindExploresArgs;
+export type FindExploresRequiredFilter = z.infer<
+    typeof findExploresRequiredFilterSchema
+>;
 export type FindExploresResult = z.infer<typeof findExploresResultSchema>;
 export type ToolFindExploresOutput = z.infer<
     typeof toolFindExploresOutputSchema

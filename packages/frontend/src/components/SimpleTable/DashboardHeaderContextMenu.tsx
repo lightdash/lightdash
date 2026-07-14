@@ -5,7 +5,7 @@ import {
     type TableCalculation,
 } from '@lightdash/common';
 import { ActionIcon, Flex, Menu, Text } from '@mantine-8/core';
-import { IconCheck, IconChevronDown } from '@tabler/icons-react';
+import { IconCheck, IconDots } from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import {
@@ -124,8 +124,13 @@ const DashboardHeaderContextMenu: FC<HeaderProps & { tileUuid: string }> = ({
                 }
                 <Menu withinPortal withArrow shadow="md">
                     <Menu.Target>
-                        <ActionIcon size="xs" variant="light" bg="transparent">
-                            <MantineIcon icon={IconChevronDown} />
+                        <ActionIcon
+                            size="xs"
+                            variant="light"
+                            bg="transparent"
+                            aria-label="Context menu"
+                        >
+                            <MantineIcon icon={IconDots} />
                         </ActionIcon>
                     </Menu.Target>
 

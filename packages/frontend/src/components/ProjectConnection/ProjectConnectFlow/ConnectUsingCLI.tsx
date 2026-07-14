@@ -3,14 +3,8 @@ import {
     TimeFrames,
     type OrganizationProject,
 } from '@lightdash/common';
-import {
-    Avatar,
-    Button,
-    LoadingOverlay,
-    Stack,
-    Tabs,
-    Text,
-} from '@mantine/core';
+import { Button, LoadingOverlay, Stack, Tabs, Text } from '@mantine-8/core';
+import { Avatar } from '@mantine/core';
 import { useOs } from '@mantine/hooks';
 import { Prism } from '@mantine/prism';
 import { IconChevronLeft, IconClock } from '@tabler/icons-react';
@@ -121,7 +115,7 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                 variant="subtle"
                 size="sm"
                 top={-50}
-                leftIcon={<MantineIcon icon={IconChevronLeft} />}
+                leftSection={<MantineIcon icon={IconChevronLeft} />}
                 onClick={onBack}
             >
                 Back
@@ -130,11 +124,11 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
             <ProjectCreationCard>
                 <LoadingOverlay
                     visible={!isTokenCreated || isTokenCreating}
-                    overlayBlur={2}
+                    overlayProps={{ blur: 2 }}
                 />
 
-                <Stack spacing="xl">
-                    <Stack align="center" spacing="sm">
+                <Stack gap="xl">
+                    <Stack align="center" gap="sm">
                         <Avatar size="lg" radius="xl">
                             <MantineIcon
                                 icon={IconClock}
@@ -144,7 +138,7 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                             />
                         </Avatar>
 
-                        <Stack spacing="xxs">
+                        <Stack gap="xxs">
                             <OnboardingTitle>Waiting for data</OnboardingTitle>
 
                             <Text>Inside your dbt project, run:</Text>
@@ -152,7 +146,7 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                     </Stack>
 
                     <Stack ta="left">
-                        <Stack spacing="xs">
+                        <Stack gap="xs">
                             <Text fw={500}>1. Install lightdash CLI:</Text>
 
                             {isMac ? (
@@ -195,7 +189,7 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                             )}
                         </Stack>
 
-                        <Stack spacing="xs">
+                        <Stack gap="xs">
                             <Text fw={500}>2. Login to lightdash:</Text>
 
                             <Prism
@@ -207,7 +201,7 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                             </Prism>
                         </Stack>
 
-                        <Stack spacing="xs">
+                        <Stack gap="xs">
                             <Text fw={500}>3. Create project:</Text>
 
                             <Prism

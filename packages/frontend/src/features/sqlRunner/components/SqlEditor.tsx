@@ -1,4 +1,5 @@
-import { Center, Loader, useMantineTheme } from '@mantine/core';
+import { Center, Loader } from '@mantine-8/core';
+import { useMantineTheme } from '@mantine/core';
 import Editor, {
     useMonaco,
     type BeforeMount,

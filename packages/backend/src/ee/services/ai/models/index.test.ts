@@ -8,7 +8,16 @@ import {
 import { MockLanguageModelV3 } from 'ai/test';
 import { z } from 'zod';
 import { lightdashConfigMock } from '../../../../config/lightdashConfig.mock';
-import { applyStreamingCapability, getDefaultModel, getModel } from './index';
+import {
+    applyStreamingCapability,
+    filterModelsForOrg,
+    getDefaultModel,
+    getFastModelForAccessibleKey,
+    getModel,
+    MODEL_PRESETS,
+    pickAmbientAnthropicPreset,
+} from './index';
+import type { ModelPreset } from './presets';
 
 vi.mock('ai', async () => {
     const actual = await vi.importActual<typeof import('ai')>('ai');
@@ -68,6 +77,32 @@ describe('getModel', () => {
         vi.clearAllMocks();
     });
 
+    it('forces sequential tool execution for OpenAI presets', () => {
+        // Regression: presets used to hardcode parallelToolCalls: true, which
+        // (spread last in the factory) silently re-enabled parallel tool calls
+        // and reintroduced the dropped-execution bug.
+        const { providerOptions } = getModel(copilotConfigWithStreaming(true), {
+            modelName: 'gpt-5.5',
+        });
+
+        if (!providerOptions || !('openai' in providerOptions)) {
+            throw new Error('expected openai provider options');
+        }
+        expect(providerOptions.openai.parallelToolCalls).toBe(false);
+    });
+
+    it('keeps preset-specific provider options while staying sequential', () => {
+        const { providerOptions } = getModel(copilotConfigWithStreaming(true), {
+            modelName: 'gpt-5-mini',
+        });
+
+        if (!providerOptions || !('openai' in providerOptions)) {
+            throw new Error('expected openai provider options');
+        }
+        expect(providerOptions.openai.parallelToolCalls).toBe(false);
+        expect(providerOptions.openai.reasoningEffort).toBe('minimal');
+    });
+
     it('does not wrap the model when the provider supports streaming', () => {
         getModel(copilotConfigWithStreaming(true));
 
@@ -79,6 +114,167 @@ describe('getModel', () => {
 
         expect(wrapLanguageModel).toHaveBeenCalledTimes(1);
         expect(model).toBe(vi.mocked(wrapLanguageModel).mock.results[0].value);
+    });
+});
+
+describe('filterModelsForOrg', () => {
+    const preset = (
+        overrides: Pick<
+            ModelPreset<'openai' | 'anthropic' | 'bedrock'>,
+            'name' | 'provider' | 'modelId'
+        > &
+            Partial<ModelPreset<'openai' | 'anthropic' | 'bedrock'>>,
+    ): ModelPreset<'openai' | 'anthropic' | 'bedrock'> => ({
+        displayName: overrides.name,
+        description: 'test preset',
+        contextWindowTokens: 200000,
+        supportsReasoning: true,
+        callOptions: {},
+        providerOptions: undefined,
+        ...overrides,
+    });
+
+    const presets = [
+        preset({
+            name: 'claude-opus-4-8',
+            provider: 'anthropic',
+            modelId: 'claude-opus-4-8',
+            hiddenUnlessKeyAccess: true,
+        }),
+        preset({
+            name: 'claude-sonnet-5',
+            provider: 'anthropic',
+            modelId: 'claude-sonnet-5',
+        }),
+        preset({
+            name: 'gpt-5.5',
+            provider: 'openai',
+            modelId: 'gpt-5.5-2026-04-23',
+        }),
+        preset({
+            name: 'claude-haiku-4-5',
+            provider: 'bedrock',
+            modelId: 'anthropic.claude-haiku-4-5-20251001-v1:0',
+        }),
+    ];
+
+    it('excludes hidden presets when there is no key access', () => {
+        const result = filterModelsForOrg(presets, {
+            modelVisibility: null,
+            keyAccessibleModelIds: null,
+        });
+        expect(result.map((p) => p.name)).toEqual([
+            'claude-sonnet-5',
+            'gpt-5.5',
+            'claude-haiku-4-5',
+        ]);
+    });
+
+    it('includes hidden presets when the provider key can access them', () => {
+        const result = filterModelsForOrg(presets, {
+            modelVisibility: null,
+            keyAccessibleModelIds: { anthropic: ['claude-opus-4-8'] },
+        });
+        expect(result.map((p) => p.name)).toContain('claude-opus-4-8');
+    });
+
+    it('unlocks a hidden preset when the key lists a dated variant of it', () => {
+        const result = filterModelsForOrg(presets, {
+            modelVisibility: null,
+            keyAccessibleModelIds: {
+                anthropic: ['claude-opus-4-8-20260115'],
+            },
+        });
+        expect(result.map((p) => p.name)).toContain('claude-opus-4-8');
+    });
+
+    it('does not unlock a hidden preset on a false-prefix model id', () => {
+        const result = filterModelsForOrg(presets, {
+            modelVisibility: null,
+            keyAccessibleModelIds: { anthropic: ['claude-opus-4-80'] },
+        });
+        expect(result.map((p) => p.name)).not.toContain('claude-opus-4-8');
+    });
+
+    it('does not unlock hidden presets via another provider key', () => {
+        const result = filterModelsForOrg(presets, {
+            modelVisibility: null,
+            keyAccessibleModelIds: { openai: ['claude-opus-4-8'] },
+        });
+        expect(result.map((p) => p.name)).not.toContain('claude-opus-4-8');
+    });
+
+    it('drops disabled providers entirely', () => {
+        const result = filterModelsForOrg(presets, {
+            modelVisibility: { openai: { enabled: false } },
+            keyAccessibleModelIds: null,
+        });
+        expect(result.map((p) => p.name)).toEqual([
+            'claude-sonnet-5',
+            'claude-haiku-4-5',
+        ]);
+    });
+
+    it('intersects with allowedModels when set', () => {
+        const result = filterModelsForOrg(presets, {
+            modelVisibility: {
+                anthropic: {
+                    enabled: true,
+                    allowedModels: ['claude-opus-4-8'],
+                },
+            },
+            keyAccessibleModelIds: { anthropic: ['claude-opus-4-8'] },
+        });
+        expect(result.map((p) => p.name)).toEqual([
+            'claude-opus-4-8',
+            'gpt-5.5',
+            'claude-haiku-4-5',
+        ]);
+    });
+
+    it('treats empty allowedModels as all models of the provider', () => {
+        const result = filterModelsForOrg(presets, {
+            modelVisibility: {
+                anthropic: { enabled: true, allowedModels: [] },
+            },
+            keyAccessibleModelIds: null,
+        });
+        expect(result.map((p) => p.name)).toEqual([
+            'claude-sonnet-5',
+            'gpt-5.5',
+            'claude-haiku-4-5',
+        ]);
+    });
+
+    it('never filters bedrock presets by visibility', () => {
+        const result = filterModelsForOrg(presets, {
+            modelVisibility: {
+                anthropic: { enabled: false },
+                openai: { enabled: false },
+            },
+            keyAccessibleModelIds: null,
+        });
+        expect(result.map((p) => p.name)).toEqual(['claude-haiku-4-5']);
+    });
+
+    // Guards the core promise against the real preset table, not fixtures
+    it('hides claude-opus-4-8 by default but surfaces it when the anthropic key unlocks it', () => {
+        const realPresets = MODEL_PRESETS.anthropic;
+        expect(realPresets.some((p) => p.name === 'claude-opus-4-8')).toBe(
+            true,
+        );
+
+        const noKey = filterModelsForOrg(realPresets, {
+            modelVisibility: null,
+            keyAccessibleModelIds: null,
+        });
+        expect(noKey.map((p) => p.name)).not.toContain('claude-opus-4-8');
+
+        const withKey = filterModelsForOrg(realPresets, {
+            modelVisibility: null,
+            keyAccessibleModelIds: { anthropic: ['claude-opus-4-8'] },
+        });
+        expect(withKey.map((p) => p.name)).toContain('claude-opus-4-8');
     });
 });
 
@@ -187,5 +383,60 @@ describe('applyStreamingCapability', () => {
             'step-start',
             'text',
         ]);
+    });
+});
+
+describe('pickAmbientAnthropicPreset', () => {
+    it('prefers the fast model when the key can serve it', () => {
+        const preset = pickAmbientAnthropicPreset([
+            'claude-haiku-4-5-20251001',
+            'claude-opus-4-8',
+        ]);
+        expect(preset?.modelId).toBe('claude-haiku-4-5-20251001');
+    });
+
+    it('falls back to an accessible model when the key lacks the fast one', () => {
+        const preset = pickAmbientAnthropicPreset(['claude-opus-4-8']);
+        expect(preset?.modelId).toBe('claude-opus-4-8');
+    });
+
+    it('optimistically returns the fast model when the probe failed (null)', () => {
+        const preset = pickAmbientAnthropicPreset(null);
+        expect(preset?.modelId).toBe('claude-haiku-4-5-20251001');
+    });
+
+    it('returns null when the key can access no shipped preset', () => {
+        const preset = pickAmbientAnthropicPreset(['some-unknown-model']);
+        expect(preset).toBeNull();
+    });
+});
+
+describe('getFastModelForAccessibleKey', () => {
+    const anthropicByoConfig = {
+        ...baseCopilotConfig,
+        defaultProvider: 'anthropic' as const,
+        providers: {
+            ...baseCopilotConfig.providers,
+            anthropic: {
+                apiKey: 'sk-ant-x',
+                modelName: 'claude-sonnet-5',
+                supportsStreaming: false,
+                customHeaders: {},
+            },
+        },
+    };
+
+    it('uses the fast model when the BYO key can serve it', () => {
+        const { model } = getFastModelForAccessibleKey(anthropicByoConfig, [
+            'claude-haiku-4-5-20251001',
+        ]);
+        expect(model.modelId).toBe('claude-haiku-4-5-20251001');
+    });
+
+    it('falls back to an accessible model (opus 4.8) when the key lacks the fast one', () => {
+        const { model } = getFastModelForAccessibleKey(anthropicByoConfig, [
+            'claude-opus-4-8',
+        ]);
+        expect(model.modelId).toBe('claude-opus-4-8');
     });
 });

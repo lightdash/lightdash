@@ -2,6 +2,7 @@ import {
     DATA_APP_VIZ_TEMPLATE,
     NotFoundError,
     ProjectType,
+    type AppVersionDependencies,
     type AppVersionResources,
     type DataAppVizSchema,
     type KnexPaginateArgs,
@@ -57,6 +58,8 @@ export class AppModel {
         version: Pick<DbAppVersion, 'version' | 'prompt'>,
         status: AppVersionStatus,
         resources?: AppVersionResources,
+        dependencies?: AppVersionDependencies,
+        vizSchema?: DataAppVizSchema,
     ): Promise<{ app: DbApp; version: DbAppVersion }> {
         return this.database.transaction(async (trx) => {
             const [appRow] = await trx(AppsTableName)
@@ -73,6 +76,20 @@ export class AppModel {
                               resources: JSON.stringify(
                                   resources,
                               ) as unknown as AppVersionResources,
+                          }
+                        : {}),
+                    ...(dependencies
+                        ? {
+                              dependencies: JSON.stringify(
+                                  dependencies,
+                              ) as unknown as AppVersionDependencies,
+                          }
+                        : {}),
+                    ...(vizSchema
+                        ? {
+                              viz_schema: JSON.stringify(
+                                  vizSchema,
+                              ) as unknown as DataAppVizSchema,
                           }
                         : {}),
                 })
@@ -263,6 +280,17 @@ export class AppModel {
             .first();
     }
 
+    /** Versions that declared custom dependencies, newest first. */
+    async getVersionsWithDependencies(
+        appId: string,
+    ): Promise<Pick<DbAppVersion, 'version' | 'dependencies'>[]> {
+        return this.database(AppVersionsTableName)
+            .select('version', 'dependencies')
+            .where('app_id', appId)
+            .whereNotNull('dependencies')
+            .orderBy('version', 'desc');
+    }
+
     async getVersion(
         appId: string,
         version: number,
@@ -306,6 +334,8 @@ export class AppModel {
         status: AppVersionStatus,
         createdByUserUuid: string,
         resources?: AppVersionResources,
+        dependencies?: AppVersionDependencies,
+        vizSchema?: DataAppVizSchema,
     ): Promise<DbAppVersion> {
         const [row] = await this.database(AppVersionsTableName)
             .insert({
@@ -318,6 +348,20 @@ export class AppModel {
                           resources: JSON.stringify(
                               resources,
                           ) as unknown as AppVersionResources,
+                      }
+                    : {}),
+                ...(dependencies
+                    ? {
+                          dependencies: JSON.stringify(
+                              dependencies,
+                          ) as unknown as AppVersionDependencies,
+                      }
+                    : {}),
+                ...(vizSchema
+                    ? {
+                          viz_schema: JSON.stringify(
+                              vizSchema,
+                          ) as unknown as DataAppVizSchema,
                       }
                     : {}),
             })

@@ -13,7 +13,10 @@ vi.mock('ai', () => ({ generateObject: vi.fn() }));
 vi.mock('./ai/models', () => ({ getModel: vi.fn() }));
 vi.mock('./ai/agents/agentV2', () => ({ defaultAgentOptions: {} }));
 vi.mock('./ai/utils/aiCallTelemetry', () => ({
-    getAiCallTelemetry: () => ({}),
+    // Valid shape so the real emitAiUsage doesn't throw internally when the
+    // classifier emits usage (it reads telemetry.metadata).
+    getAiCallTelemetry: () => ({ functionId: 'test', metadata: {} }),
+    getLanguageModelAttribution: () => ({}),
 }));
 
 const generateObjectMock = vi.mocked(generateObject);
@@ -132,12 +135,17 @@ const makeService = () =>
         aiAgentModel: {} as never,
         aiAgentDocumentModel: { findAllForAgent: vi.fn() },
         aiOrganizationSettingsModel: {} as never,
+        orgAiCopilotConfigResolver: {
+            getReviewJudgeAvailability: vi.fn().mockResolvedValue({
+                hasActiveByoKey: false,
+                canJudgeOnByoKey: false,
+            }),
+        } as never,
         catalogModel: { getCatalogItemsSummary: vi.fn() },
         projectModel: {
             getSummary: vi.fn(),
             findExploresFromCache: vi.fn(),
         } as never,
-        featureFlagService: {} as never,
         lightdashConfig: {
             ai: { copilot: { providers: {}, defaultProvider: 'openai' } },
         } as never,

@@ -4,8 +4,7 @@ import {
     getItemId,
     type FilterDashboardToRule,
 } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
-import { Text } from '@mantine/core';
+import { Menu, Text } from '@mantine-8/core';
 import { IconFilter } from '@tabler/icons-react';
 import isNil from 'lodash/isNil';
 import { type FC } from 'react';

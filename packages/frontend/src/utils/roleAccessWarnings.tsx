@@ -5,7 +5,7 @@ import {
     type ProjectMemberRole,
     type RoleAssignment,
 } from '@lightdash/common';
-import { Text } from '@mantine/core';
+import { Text } from '@mantine-8/core';
 import { type ReactNode } from 'react';
 
 export const systemRolesOrder: string[] = Object.values(OrganizationMemberRole);

@@ -14,14 +14,12 @@ import {
     Checkbox,
     Collapse,
     Group,
-    MantineProvider,
-    SegmentedControl,
     Stack,
-    Switch,
     Tabs,
-    Tooltip,
-    useMantineColorScheme,
-} from '@mantine/core';
+    SegmentedControl,
+    Switch,
+} from '@mantine-8/core';
+import { MantineProvider, Tooltip, useMantineColorScheme } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import { isFunnelVisualizationConfig } from '../../LightdashVisualization/types';
@@ -29,6 +27,7 @@ import { useVisualizationContext } from '../../LightdashVisualization/useVisuali
 import { ColorPaletteSection } from '../common/ColorPaletteSection';
 import { Config } from '../common/Config';
 import { getVizConfigThemeOverride } from '../mantineTheme';
+import compactStyles from '../mantineTheme.module.css';
 import { StepConfig } from './StepConfig';
 
 export const ConfigTabs: FC = memo(() => {
@@ -89,9 +88,10 @@ export const ConfigTabs: FC = memo(() => {
                                 <Config.Heading>
                                     Data orientation
                                 </Config.Heading>
-                                <Group spacing="xs">
+                                <Group gap="xs">
                                     <Config.Label>Steps are</Config.Label>
                                     <SegmentedControl
+                                        size="xs"
                                         value={dataInput}
                                         data={[
                                             {
@@ -173,9 +173,10 @@ export const ConfigTabs: FC = memo(() => {
                             <Config.Section>
                                 <Config.Heading>Labels</Config.Heading>
 
-                                <Group spacing="xs" noWrap>
+                                <Group gap="xs" wrap="nowrap">
                                     <Config.Label>Position</Config.Label>
                                     <SegmentedControl
+                                        size="xs"
                                         value={labels?.position}
                                         data={[
                                             {
@@ -196,18 +197,21 @@ export const ConfigTabs: FC = memo(() => {
                                                 label: 'Hidden',
                                             },
                                         ]}
-                                        onChange={(
-                                            newPosition: FunnelChartLabelPosition,
-                                        ) =>
+                                        onChange={(newPosition) =>
                                             onLabelsChange({
-                                                position: newPosition,
+                                                position:
+                                                    newPosition as FunnelChartLabelPosition,
                                             })
                                         }
                                     />
                                 </Group>
 
-                                <Group spacing="xs">
+                                <Group gap="xs">
                                     <Checkbox
+                                        size="xs"
+                                        classNames={{
+                                            label: compactStyles.compactCheckboxLabel,
+                                        }}
                                         checked={labels?.showValue}
                                         onChange={(newValue) =>
                                             onLabelsChange({
@@ -220,6 +224,10 @@ export const ConfigTabs: FC = memo(() => {
                                     />
 
                                     <Checkbox
+                                        size="xs"
+                                        classNames={{
+                                            label: compactStyles.compactCheckboxLabel,
+                                        }}
                                         checked={labels?.showPercentage}
                                         onChange={(newValue) =>
                                             onLabelsChange({
@@ -272,6 +280,10 @@ export const ConfigTabs: FC = memo(() => {
                             <Group>
                                 <Config.Heading>Show legend</Config.Heading>
                                 <Switch
+                                    size="xs"
+                                    classNames={{
+                                        label: compactStyles.compactCheckboxLabel,
+                                    }}
                                     checked={showLegend}
                                     onChange={toggleShowLegend}
                                 />
@@ -279,14 +291,17 @@ export const ConfigTabs: FC = memo(() => {
                         </Config>
 
                         <Collapse in={showLegend}>
-                            <Group spacing="xs">
+                            <Group gap="xs">
                                 <Config.Label>Orientation</Config.Label>
                                 <SegmentedControl
+                                    size="xs"
                                     name="orient"
                                     value={legendPosition}
-                                    onChange={(
-                                        val: FunnelChartLegendPosition,
-                                    ) => legendPositionChange(val)}
+                                    onChange={(value) =>
+                                        legendPositionChange(
+                                            value as FunnelChartLegendPosition,
+                                        )
+                                    }
                                     data={[
                                         {
                                             value: FunnelChartLegendPosition.HORIZONTAL,

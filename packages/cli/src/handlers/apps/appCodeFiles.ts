@@ -6,6 +6,7 @@ import {
     type DataAppCodeFile,
     type DataAppContext,
     type DataAppContextFile,
+    type DataAppDependencies,
     type DataAppManifest,
     type ImportAppCodeRequestBody,
 } from '@lightdash/common';
@@ -25,7 +26,14 @@ export const appFolderName = (
     appUuid: string,
     takenFolders: Set<string>,
 ): string => {
-    const slug = generateSlug(name);
+    // generateSlug returns a RANDOM 5-char string for names that sanitize to
+    // nothing (e.g. unnamed apps whose first build never got auto-titled). A
+    // random folder never matches the previous download's, so every run would
+    // duplicate the app on disk — use a stable uuid-based fallback instead,
+    // mirroring the "Untitled app <uuid8>" display convention.
+    const slug = /[a-z0-9]/i.test(name)
+        ? generateSlug(name)
+        : `untitled-app-${appUuid.slice(0, 8)}`;
     if (!takenFolders.has(slug)) {
         return slug;
     }
@@ -163,6 +171,122 @@ export const retargetManifest = async (
         'utf-8',
     );
 };
+
+/**
+ * Writes server-provided dependency files as the app folder's package.json +
+ * pnpm-lock.yaml. Called after the scaffold write so they override the
+ * scaffold's template package.json and the folder round-trips on re-upload.
+ */
+export const writeDependenciesToDir = async (
+    dir: string,
+    deps: DataAppDependencies,
+): Promise<void> => {
+    await fs.writeFile(path.join(dir, 'package.json'), deps.packageJson);
+    await fs.writeFile(path.join(dir, 'pnpm-lock.yaml'), deps.lockfile);
+};
+
+export type LocalAppDependencies = {
+    packageJson: string;
+    // null = no pnpm-lock.yaml on disk. The download scaffold writes a
+    // package.json but never a lockfile, so this is the normal state of a
+    // freshly downloaded folder; it only becomes an error if the declared
+    // set differs from the template baseline (the caller decides).
+    lockfile: string | null;
+};
+
+/**
+ * Reads package.json (+ pnpm-lock.yaml when present) from the app folder
+ * root. Returns null when there is no package.json and no lockfile (no
+ * declared deps at all). Throws on a lockfile without a package.json —
+ * nothing declares it, so the folder is broken.
+ */
+export const readDependenciesFromDir = async (
+    dir: string,
+): Promise<LocalAppDependencies | null> => {
+    const pkgJsonPath = path.join(dir, 'package.json');
+    const lockfilePath = path.join(dir, 'pnpm-lock.yaml');
+
+    const [pkgJsonExists, lockfileExists] = await Promise.all([
+        fs
+            .stat(pkgJsonPath)
+            .then(() => true)
+            .catch(() => false),
+        fs
+            .stat(lockfilePath)
+            .then(() => true)
+            .catch(() => false),
+    ]);
+
+    if (!pkgJsonExists && !lockfileExists) return null;
+
+    if (!pkgJsonExists) {
+        throw new Error(
+            'App folder has pnpm-lock.yaml but is missing package.json. Restore the package.json or remove the lockfile.',
+        );
+    }
+
+    const [packageJson, lockfile] = await Promise.all([
+        fs.readFile(pkgJsonPath, 'utf-8'),
+        lockfileExists ? fs.readFile(lockfilePath, 'utf-8') : null,
+    ]);
+
+    return { packageJson, lockfile };
+};
+
+/**
+ * Builds the human-readable warning lines listing packages that will be
+ * installed in the build sandbox (i.e., the custom dep set).
+ */
+export const buildDepsWarningLines = (
+    customDeps: Record<string, string>,
+    templateDependencies: Record<string, string>,
+): string[] =>
+    Object.entries(customDeps).map(([name, spec]) => {
+        const templateSpec = templateDependencies[name];
+        const note = templateSpec
+            ? `overrides template ${templateSpec}`
+            : 'not in default template';
+        return `  + ${name}@${spec} (${note})`;
+    });
+
+/**
+ * Mirrors the server's baseline rule: the declared `@lightdash/query-sdk` spec
+ * is copied into the template baseline so the SDK never counts as custom. The
+ * scaffold pins the SDK per release, so a folder scaffolded under an older CLI
+ * would otherwise flag the SDK as an override after every CLI upgrade.
+ */
+export const applySdkMirrorToTemplateDeps = (
+    templateDependencies: Record<string, string>,
+    packageJson: string,
+): Record<string, string> => {
+    try {
+        const parsed = JSON.parse(packageJson) as {
+            dependencies?: Record<string, unknown>;
+        };
+        const sdkSpec = parsed.dependencies?.['@lightdash/query-sdk'];
+        if (typeof sdkSpec === 'string') {
+            return {
+                ...templateDependencies,
+                '@lightdash/query-sdk': sdkSpec,
+            };
+        }
+    } catch {
+        // Unparseable packageJson — validateDataAppDependencies reports it.
+    }
+    return templateDependencies;
+};
+
+/**
+ * Returns a new DataAppCode with `dependencies` attached when the custom set
+ * is non-empty, or the original code object unchanged when there are no custom
+ * deps (payload stays identical to today's format).
+ */
+export const attachDependenciesToCode = (
+    code: DataAppCode,
+    customDeps: Record<string, string>,
+    deps: DataAppDependencies,
+): DataAppCode =>
+    Object.keys(customDeps).length > 0 ? { ...code, dependencies: deps } : code;
 
 export const readBundleFromDir = async (dir: string): Promise<DataAppCode> => {
     const manifestRaw = await fs.readFile(

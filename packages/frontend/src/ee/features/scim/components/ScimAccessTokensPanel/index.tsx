@@ -1,12 +1,12 @@
 import {
-    Anchor,
-    Button,
+    TextInput,
     Group,
     Stack,
     Text,
-    TextInput,
     Title,
-} from '@mantine/core';
+    Button,
+    Anchor,
+} from '@mantine-8/core';
 import { useClipboard } from '@mantine/hooks';
 import { IconCopy } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
@@ -37,7 +37,7 @@ const ScimAccessTokensPanel: FC = () => {
 
     return (
         <Stack mb="lg">
-            <Group position="apart">
+            <Group justify="space-between">
                 <Title order={5}>SCIM access tokens</Title>
                 <Button onClick={() => setIsCreatingToken(true)}>
                     Generate new token
@@ -45,13 +45,14 @@ const ScimAccessTokensPanel: FC = () => {
             </Group>
 
             <SettingsGridCard>
-                <Stack spacing="sm">
+                <Stack gap="sm">
                     <Title order={4}>SCIM URL</Title>
-                    <Text color="dimmed">
+                    <Text c="dimmed">
                         Use the URL to connect your identity provider to
                         Lightdash via SCIM.
                     </Text>
                     <Anchor
+                        inherit
                         href="https://docs.lightdash.com/references/scim-integration/"
                         target="_blank"
                     >
@@ -61,11 +62,14 @@ const ScimAccessTokensPanel: FC = () => {
                 <TextInput
                     value={scimURL}
                     readOnly
+                    rightSectionPointerEvents="all"
                     rightSection={
                         <Button
+                            aria-label="Copy access token"
+                            onMouseDown={(event) => event.preventDefault()}
                             variant="subtle"
                             onClick={handleCopyToClipboard}
-                            compact
+                            size="compact-sm"
                         >
                             <IconCopy size={16} />
                         </Button>

@@ -1,10 +1,14 @@
 import {
     DimensionType,
     FieldType,
+    FilterOperator,
+    MetricType,
     SupportedDbtAdapter,
+    TimeFrames,
     type Explore,
+    type ModelRequiredFilterRule,
 } from '@lightdash/common';
-import { getGetMetadata } from './getMetadata';
+import { executeGetMetadata, getGetMetadata } from './getMetadata';
 
 // A description that enumerates valid filter values, longer than the old 240
 // cap. This is the exact pattern that used to be silently cut off, leaving the
@@ -17,6 +21,7 @@ const longDescription = `Allowed values: ${Array.from(
 const makeExplore = (overrides: {
     baseTableDescription?: string;
     fieldDescription?: string;
+    requiredFilters?: ModelRequiredFilterRule[];
 }): Explore => ({
     targetDatabase: SupportedDbtAdapter.POSTGRES,
     name: 'sales',
@@ -35,6 +40,7 @@ const makeExplore = (overrides: {
             sqlWhere: undefined,
             uncompiledSqlWhere: undefined,
             description: overrides.baseTableDescription,
+            requiredFilters: overrides.requiredFilters,
             dimensions: {
                 status: {
                     fieldType: FieldType.DIMENSION,
@@ -174,5 +180,96 @@ describe('getMetadata explore field listing', () => {
             { type: 'explore', exploreIds: ['sales'] },
         ]);
         expect(result.result).toMatch(/\+\d+ more \(grepFields lists them\)/);
+    });
+
+    it('shows required and suggested filters distinctly', async () => {
+        const explore = makeExplore({
+            requiredFilters: [
+                {
+                    id: 'required-filter',
+                    target: { fieldRef: 'created_at' },
+                    operator: FilterOperator.IN_THE_PAST,
+                    values: [90],
+                    required: true,
+                },
+                {
+                    id: 'default-filter',
+                    target: { fieldRef: 'status' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['active'],
+                    required: false,
+                },
+            ],
+        });
+        const result = await execute(explore, [
+            { type: 'explore', exploreIds: ['sales'] },
+        ]);
+
+        expect(result.result).toContain('⚠ table filters:');
+        expect(result.result).toContain(
+            'required orders_created_at inThePast [90]',
+        );
+        expect(result.result).toContain(
+            'suggested orders_status equals ["active"]',
+        );
+        expect(result.result).not.toContain('must be applied');
+    });
+});
+
+describe('getMetadata default time dimensions', () => {
+    it('shows the metric resolved model-level defaultTimeDimension', async () => {
+        const explore = makeExplore({});
+        explore.tables.orders.defaultTimeDimension = {
+            field: 'created_at',
+            interval: TimeFrames.MONTH,
+        };
+        explore.tables.orders.metrics.revenue = {
+            fieldType: FieldType.METRIC,
+            type: MetricType.SUM,
+            name: 'revenue',
+            label: 'Revenue',
+            table: 'orders',
+            tableLabel: 'Orders',
+            sql: 'SUM(${TABLE}.revenue)',
+            hidden: false,
+            compiledSql: 'SUM(orders.revenue)',
+            tablesReferences: ['orders'],
+        };
+
+        const result = await execute(explore, [
+            {
+                type: 'field',
+                fields: [{ exploreId: 'sales', fieldId: 'orders_revenue' }],
+            },
+        ]);
+
+        expect(result.result).toContain(
+            'default_time_dimension: orders_created_at',
+        );
+        expect(result.result).toContain(
+            'default_time_dimension_granularity: orders_created_at_month',
+        );
+
+        const structured = executeGetMetadata(
+            {
+                requests: [
+                    {
+                        type: 'field',
+                        fields: [
+                            {
+                                exploreId: 'sales',
+                                fieldId: 'orders_revenue',
+                            },
+                        ],
+                    },
+                ],
+            },
+            { availableExplores: [explore] },
+        );
+        expect(structured.structuredContent.fields[0]).toMatchObject({
+            status: 'found',
+            defaultTimeDimension: 'orders_created_at',
+            defaultTimeDimensionGranularity: 'orders_created_at_month',
+        });
     });
 });

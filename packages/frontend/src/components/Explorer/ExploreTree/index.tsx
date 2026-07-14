@@ -1,12 +1,14 @@
 import {
     getItemId,
+    isCustomDimension,
+    isDimension,
     type AdditionalMetric,
     type CompiledTable,
     type Dimension,
     type Explore,
     type Metric,
 } from '@lightdash/common';
-import { ActionIcon, Loader, TextInput } from '@mantine/core';
+import { TextInput, Loader, ActionIcon } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import { IconSearch, IconX } from '@tabler/icons-react';
 import {
@@ -29,6 +31,10 @@ import {
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import MantineIcon from '../../common/MantineIcon';
+import SelectedFieldsSection, {
+    type SelectedField,
+} from './SelectedFieldsSection';
+import { type NodeItem } from './TableTree/Tree/types';
 import { getSearchResults } from './TableTree/Tree/utils';
 import {
     flattenTreeForVirtualization,
@@ -178,6 +184,41 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
         });
     }, []);
 
+    // Resolve active field ids to their items for the pinned "Selected" section
+    const selectedFields = useMemo<SelectedField[]>(() => {
+        if (activeFields.size === 0) return [];
+
+        const itemsById = new Map<string, NodeItem>();
+        Object.values(explore.tables).forEach((table) => {
+            Object.values(table.dimensions).forEach((dimension) =>
+                itemsById.set(getItemId(dimension), dimension),
+            );
+            Object.values(table.metrics).forEach((metric) =>
+                itemsById.set(getItemId(metric), metric),
+            );
+        });
+        additionalMetrics.forEach((metric) =>
+            itemsById.set(getItemId(metric), metric),
+        );
+        (customDimensions ?? []).forEach((dimension) =>
+            itemsById.set(getItemId(dimension), dimension),
+        );
+
+        return [...activeFields].flatMap((fieldId) => {
+            const item = itemsById.get(fieldId);
+            // Table calculations and missing fields aren't in the tree
+            if (!item) return [];
+            return [
+                {
+                    fieldId,
+                    item,
+                    tableLabel: explore.tables[item.table]?.label ?? null,
+                    isDimension: isDimension(item) || isCustomDimension(item),
+                },
+            ];
+        });
+    }, [activeFields, explore, additionalMetrics, customDimensions]);
+
     const virtualizedTreeData = useMemo(() => {
         return flattenTreeForVirtualization({
             tables: tableTrees,
@@ -216,7 +257,9 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
     return (
         <>
             <TextInput
-                icon={<MantineIcon icon={IconSearch} />}
+                leftSection={<MantineIcon icon={IconSearch} />}
+                rightSectionPointerEvents={isPending ? 'none' : 'all'}
+                radius="md"
                 rightSection={
                     isPending ? (
                         <Loader
@@ -224,7 +267,13 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
                             data-testid="ExploreTree/SearchInput-Loader"
                         />
                     ) : search ? (
-                        <ActionIcon onClick={handleClearSearch}>
+                        <ActionIcon
+                            aria-label="Clear search"
+                            onMouseDown={(event) => event.preventDefault()}
+                            variant="subtle"
+                            color="gray"
+                            onClick={handleClearSearch}
+                        >
                             <MantineIcon icon={IconX} />
                         </ActionIcon>
                     ) : null
@@ -233,6 +282,11 @@ const ExploreTreeComponent: FC<ExploreTreeProps> = ({
                 value={search}
                 onChange={handleSearchChange}
                 data-testid="ExploreTree/SearchInput"
+            />
+
+            <SelectedFieldsSection
+                fields={selectedFields}
+                onDeselect={onSelectedFieldChange}
             />
 
             <VirtualizedTreeList

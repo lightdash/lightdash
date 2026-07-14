@@ -1,5 +1,5 @@
 import { ContentType, LightdashMode } from '@lightdash/common';
-import { Button, Group, Stack } from '@mantine/core';
+import { Group, Stack, Button } from '@mantine-8/core';
 import { IconPlus } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
@@ -50,8 +50,8 @@ const SavedDashboards = () => {
                 withXLargePaddedContent
                 withLargeContent
             >
-                <Stack spacing="xxl" w="100%">
-                    <Group position="apart">
+                <Stack gap="xxl" w="100%">
+                    <Group justify="space-between">
                         <PageBreadcrumbs
                             items={[
                                 { title: 'Home', to: '/home' },
@@ -63,7 +63,7 @@ const SavedDashboards = () => {
                             userCanCreateDashboards &&
                             !isDemo && (
                                 <Button
-                                    leftIcon={<IconPlus size={18} />}
+                                    leftSection={<IconPlus size={18} />}
                                     onClick={handleCreateDashboard}
                                 >
                                     Create dashboard

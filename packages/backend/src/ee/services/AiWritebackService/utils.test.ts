@@ -686,6 +686,7 @@ describe('dbtSandboxVenvBin', () => {
         [SupportedDbtVersions.V1_9, '/usr/local/dbt1.9/bin'],
         [SupportedDbtVersions.V1_10, '/usr/local/dbt1.10/bin'],
         [SupportedDbtVersions.V1_11, '/usr/local/dbt1.11/bin'],
+        [SupportedDbtVersions.V1_12, '/usr/local/dbt1.12/bin'],
     ])('maps %s to its venv bin dir', (version, expected) => {
         expect(dbtSandboxVenvBin(version)).toBe(expected);
     });
@@ -702,6 +703,7 @@ describe('dbtSandboxVenvBin', () => {
             SupportedDbtVersions.V1_9,
             SupportedDbtVersions.V1_10,
             SupportedDbtVersions.V1_11,
+            SupportedDbtVersions.V1_12,
         ];
         expect(new Set(covered)).toEqual(
             new Set(Object.values(SupportedDbtVersions)),

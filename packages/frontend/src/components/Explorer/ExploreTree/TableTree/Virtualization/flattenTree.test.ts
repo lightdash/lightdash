@@ -430,6 +430,68 @@ describe('flattenTreeForVirtualization', () => {
         expect(customMetricNodes.length).toBeGreaterThan(0);
     });
 
+    it('should exclude active fields from the tree', () => {
+        const options: FlattenTreeOptions = {
+            ...baseOptions,
+            activeFields: new Set(['orders_status', 'orders_total']),
+        };
+
+        const { items: result } = flattenTreeForVirtualization(options);
+
+        const treeNodeKeys = result
+            .filter((item) => item.type === 'tree-node')
+            .map((item) => item.data.node.key);
+
+        expect(treeNodeKeys).toEqual(['orders_id']);
+    });
+
+    it('should hide a group when all its children are active fields', () => {
+        const options: FlattenTreeOptions = {
+            ...baseOptions,
+            tables: [mockTableWithGroups],
+            expandedGroups: new Set(['orders-dimensions-group-Identifiers']),
+            activeFields: new Set(['orders_id']),
+            sectionNodeMaps: createSectionNodeMaps([mockTableWithGroups]),
+        };
+
+        const { items: result, sectionContexts } =
+            flattenTreeForVirtualization(options);
+
+        const dimensionItems = result.filter(
+            (item): item is Extract<typeof item, { type: 'tree-node' }> => {
+                if (item.type !== 'tree-node') return false;
+                const context = sectionContexts.get(item.data.sectionKey);
+                return context?.sectionType === 'dimensions';
+            },
+        );
+
+        // Only the "Attributes" group remains; "Identifiers" is hidden because
+        // its only child is selected
+        expect(dimensionItems.length).toBe(1);
+        expect(dimensionItems[0].data.isGroup).toBe(true);
+        expect(dimensionItems[0].data.node.key).toBe('Attributes');
+    });
+
+    it('should exclude active fields from search results too', () => {
+        const options: FlattenTreeOptions = {
+            ...baseOptions,
+            searchQuery: 'o',
+            isSearching: true,
+            searchResultsMap: {
+                orders: ['orders_status', 'orders_total'],
+            },
+            activeFields: new Set(['orders_total']),
+        };
+
+        const { items: result } = flattenTreeForVirtualization(options);
+
+        const treeNodeKeys = result
+            .filter((item) => item.type === 'tree-node')
+            .map((item) => item.data.node.key);
+
+        expect(treeNodeKeys).toEqual(['orders_status']);
+    });
+
     it('should auto-expand tables when searching', () => {
         const options: FlattenTreeOptions = {
             ...baseOptions,

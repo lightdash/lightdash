@@ -1,5 +1,6 @@
 import { ChartType } from '@lightdash/common';
-import { Box, MantineProvider, type MantineThemeOverride } from '@mantine/core';
+import { Box } from '@mantine-8/core';
+import { MantineProvider, type MantineThemeOverride } from '@mantine/core';
 import {
     memo,
     useCallback,

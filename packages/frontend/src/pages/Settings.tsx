@@ -39,6 +39,7 @@ import AllowedDomainsPanel from '../components/UserSettings/AllowedDomainsPanel'
 import AppearanceSettingsPanel from '../components/UserSettings/AppearanceSettingsPanel';
 import DefaultProjectPanel from '../components/UserSettings/DefaultProjectPanel';
 import { DeleteOrganizationPanel } from '../components/UserSettings/DeleteOrganizationPanel';
+import EmailWhitelabelPanel from '../components/UserSettings/EmailWhitelabel/EmailWhitelabelPanel';
 import ExportingPanel from '../components/UserSettings/ExportingPanel';
 import GithubSettingsPanel from '../components/UserSettings/GithubSettingsPanel';
 import GithubUserSettingsPanel from '../components/UserSettings/GithubUserSettingsPanel';
@@ -73,6 +74,7 @@ import { AiGeneralSettingsPage } from '../ee/features/aiCopilot/components/Admin
 import { AiReviewsSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiReviewsSettingsPage';
 import { AiSettingsProviders } from '../ee/features/aiCopilot/components/Admin/settings/AiSettingsProviders';
 import { AiThreadsSettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/AiThreadsSettingsPage';
+import { McpActivitySettingsPage } from '../ee/features/aiCopilot/components/Admin/settings/McpActivitySettingsPage';
 import ScimAccessTokensPanel from '../ee/features/scim/components/ScimAccessTokensPanel';
 import { ServiceAccountsPage } from '../ee/features/serviceAccounts';
 import { CustomRoleCreate } from '../ee/pages/customRoles/CustomRoleCreate';
@@ -154,6 +156,7 @@ const Settings: FC = () => {
         isCustomRolesEnabled,
         isProLimitsEnabled,
         isSsoOrganizationSettingsEnabled,
+        isEmailWhitelabelEnabled,
         isServiceAccountsEnabled,
         allowPasswordAuthentication,
         hasSocialLogin,
@@ -520,6 +523,16 @@ const Settings: FC = () => {
 
         if (
             user?.ability.can('manage', 'Organization') &&
+            isEmailWhitelabelEnabled
+        ) {
+            allowedRoutes.push({
+                path: '/emailWhitelabel',
+                element: <EmailWhitelabelPanel />,
+            });
+        }
+
+        if (
+            user?.ability.can('manage', 'Organization') &&
             isSsoOrganizationSettingsEnabled
         ) {
             allowedRoutes.push({
@@ -605,6 +618,14 @@ const Settings: FC = () => {
                     </AiSettingsProviders>
                 ),
             });
+            allowedRoutes.push({
+                path: '/ai/mcp',
+                element: (
+                    <AiSettingsProviders>
+                        <McpActivitySettingsPage />
+                    </AiSettingsProviders>
+                ),
+            });
             if (shouldShowAiAgentReviews) {
                 allowedRoutes.push({
                     path: '/ai/issues',
@@ -673,6 +694,7 @@ const Settings: FC = () => {
         dataAppsFlag?.enabled,
         isProLimitsEnabled,
         isSsoOrganizationSettingsEnabled,
+        isEmailWhitelabelEnabled,
         isLeaveOrganizationEnabled,
         isAiCopilotEnabledOrTrial,
         shouldShowAiAgentReviews,
@@ -687,12 +709,6 @@ const Settings: FC = () => {
                 {
                     path: '/generalSettings/projectManagement',
                     end: true,
-                },
-                location.pathname,
-            ) &&
-            !matchPath(
-                {
-                    path: '/generalSettings/projectManagement/:projectUuid/changesets',
                 },
                 location.pathname,
             ) &&
@@ -768,6 +784,10 @@ const Settings: FC = () => {
             ) &&
             !matchPath(
                 { path: '/generalSettings/ai/agents' },
+                location.pathname,
+            ) &&
+            !matchPath(
+                { path: '/generalSettings/ai/mcp' },
                 location.pathname,
             ) &&
             !matchPath(

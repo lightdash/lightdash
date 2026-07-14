@@ -1,4 +1,4 @@
-import { Box, Button, Flex, Text } from '@mantine/core';
+import { Box, Flex, Text, Button } from '@mantine-8/core';
 import { noop } from '@mantine/utils';
 import { IconAlertCircle, IconRefresh, IconTable } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
@@ -231,6 +231,9 @@ const SimpleTable: FC<SimpleTableProps> = ({
         showSubtotalsExpanded,
         showRowGrouping,
         updateColumnProperty,
+        isCalculatingColumnTotals,
+        isCalculatingRowTotals,
+        isCalculatingSubtotals,
     } = visualizationConfig.chartConfig;
 
     const onColumnWidthChange =
@@ -253,7 +256,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                                 Refresh your browser to load the latest version
                                 and display this visualization correctly.
                             </Text>
-                            <Text size="sm" color="dimmed">
+                            <Text size="sm" c="dimmed">
                                 If this persists after refreshing, contact
                                 support.
                             </Text>
@@ -263,7 +266,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                         <Button
                             variant="default"
                             size={'xs'}
-                            leftIcon={<IconRefresh size={16} />}
+                            leftSection={<IconRefresh size={16} />}
                             onClick={triggerChunkErrorReload}
                         >
                             Refresh page
@@ -324,6 +327,11 @@ const SimpleTable: FC<SimpleTableProps> = ({
                                 }
                                 onColumnWidthChange={onColumnWidthChange}
                                 parameters={parameters}
+                                isColumnTotalsLoading={
+                                    isCalculatingColumnTotals
+                                }
+                                isRowTotalsLoading={isCalculatingRowTotals}
+                                isSubtotalsLoading={isCalculatingSubtotals}
                                 {...rest}
                             />
                         ) : (
@@ -346,6 +354,11 @@ const SimpleTable: FC<SimpleTableProps> = ({
                                 }
                                 onColumnWidthChange={onColumnWidthChange}
                                 parameters={parameters}
+                                isColumnTotalsLoading={
+                                    isCalculatingColumnTotals
+                                }
+                                isRowTotalsLoading={isCalculatingRowTotals}
+                                isSubtotalsLoading={isCalculatingSubtotals}
                                 {...rest}
                             />
                         )}

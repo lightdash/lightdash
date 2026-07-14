@@ -251,6 +251,16 @@ export class SchedulerWorker extends SchedulerTask {
                     maxAttempts: 3,
                 },
             },
+            {
+                // Re-check pending email-whitelabel domains so verification
+                // completes asynchronously as DNS propagates.
+                task: SCHEDULER_TASKS.POLL_EMAIL_WHITELABEL,
+                pattern: '17 * * * *', // Hourly, off the top of the hour
+                options: {
+                    backfillPeriod: 2 * 3600 * 1000, // 2 hours in ms
+                    maxAttempts: 1,
+                },
+            },
             // worker-process pg liveness is driven by a setInterval (see startPgPing);
             // managed-agent heartbeat is self-scheduling (see SchedulerClient.scheduleManagedAgentHeartbeat).
         ];
@@ -1230,6 +1240,19 @@ export class SchedulerWorker extends SchedulerTask {
                 } catch (error) {
                     Logger.error(
                         'Error during expired preview projects cleanup:',
+                        error,
+                    );
+                    throw error;
+                }
+            },
+            [SCHEDULER_TASKS.POLL_EMAIL_WHITELABEL]: async () => {
+                Logger.info('Starting email whitelabel verification poll');
+                try {
+                    await this.emailWhitelabelService.pollPendingVerifications();
+                    Logger.info('Email whitelabel verification poll completed');
+                } catch (error) {
+                    Logger.error(
+                        'Error during email whitelabel verification poll:',
                         error,
                     );
                     throw error;

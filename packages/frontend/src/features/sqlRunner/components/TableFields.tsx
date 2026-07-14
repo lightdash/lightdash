@@ -1,23 +1,24 @@
 import {
-    ActionIcon,
+    TextInput,
     Box,
     Center,
     CopyButton,
     Group,
-    Highlight,
     Loader,
-    ScrollArea,
     Stack,
     Text,
-    TextInput,
-    Tooltip,
-} from '@mantine/core';
+    ActionIcon,
+    Highlight,
+    ScrollArea,
+} from '@mantine-8/core';
+import { Tooltip } from '@mantine/core';
 import { useDebouncedValue, useHover } from '@mantine/hooks';
 import { IconCopy, IconSearch, IconX } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { TableFieldIcon } from '../../../components/DataViz/Icons';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
+import scrollAreaClasses from '../../../styles/ScrollArea.module.css';
 import {
     useTableFields,
     type WarehouseTableField,
@@ -32,7 +33,7 @@ const TableField: FC<{
     const { ref: hoverRef, hovered } = useHover();
     const { ref: truncatedRef, isTruncated } = useIsTruncated<HTMLDivElement>();
     return (
-        <Group spacing={'xs'} noWrap ref={hoverRef}>
+        <Group gap={'xs'} wrap="nowrap" ref={hoverRef}>
             {hovered ? (
                 <Box display={hovered ? 'block' : 'none'}>
                     <CopyButton value={`${activeTable}.${field.name}`}>
@@ -44,6 +45,8 @@ const TableField: FC<{
                                 position="right"
                             >
                                 <ActionIcon
+                                    variant="subtle"
+                                    color="gray"
                                     size={16}
                                     onClick={copy}
                                     bg="ldGray.1"
@@ -68,21 +71,23 @@ const TableField: FC<{
                 label={field.name}
                 disabled={!isTruncated}
             >
-                <Highlight
+                <Text
                     ref={truncatedRef}
-                    component={Text}
                     fw={500}
                     p={4}
                     fz={13}
                     c="ldGray.7"
-                    sx={{
-                        flex: 1,
-                    }}
-                    highlight={search || ''}
+                    style={{ flex: 1 }}
                     truncate
                 >
-                    {field.name}
-                </Highlight>
+                    <Highlight
+                        component="span"
+                        highlight={search || ''}
+                        inherit
+                    >
+                        {field.name}
+                    </Highlight>
+                </Text>
             </Tooltip>
             <Text fz={12} c="ldGray.5">
                 {field.type}
@@ -117,7 +122,7 @@ export const TableFields: FC = () => {
     });
 
     return (
-        <Stack spacing="xs" h="100%" pt="sm">
+        <Stack gap="xs" h="100%" pt="sm">
             {activeTable ? (
                 <Box px="sm">
                     <Text fz="sm" fw={600} c="ldGray.7">
@@ -126,16 +131,23 @@ export const TableFields: FC = () => {
                     <TextInput
                         size="xs"
                         disabled={!tableFields && !isValidSearch}
-                        icon={
+                        leftSection={
                             isLoading ? (
                                 <Loader size="xs" />
                             ) : (
                                 <MantineIcon icon={IconSearch} />
                             )
                         }
+                        rightSectionPointerEvents="all"
                         rightSection={
                             search ? (
                                 <ActionIcon
+                                    aria-label="Clear search"
+                                    onMouseDown={(event) =>
+                                        event.preventDefault()
+                                    }
+                                    variant="subtle"
+                                    color="gray"
                                     size="xs"
                                     onClick={() => setSearch('')}
                                 >
@@ -162,14 +174,14 @@ export const TableFields: FC = () => {
             {isSuccess && tableFields && activeTable && (
                 <ScrollArea
                     offsetScrollbars
-                    variant="primary"
-                    className="only-vertical"
-                    sx={{ flex: 1 }}
+                    scrollbars="y"
+                    classNames={{ content: scrollAreaClasses.verticalContent }}
+                    style={{ flex: 1 }}
                     type="auto"
                     scrollbarSize={8}
                     pl="sm"
                 >
-                    <Stack spacing={0}>
+                    <Stack gap={0}>
                         {tableFields.map((field) => (
                             <TableField
                                 key={field.name}

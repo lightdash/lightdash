@@ -1,21 +1,17 @@
 import { DbtProjectType } from '@lightdash/common';
 import {
-    ActionIcon,
-    Anchor,
-    Avatar,
+    TextInput,
     Button,
     Group,
-    PasswordInput,
-    ScrollArea,
-    Select,
     Stack,
     Text,
-    TextInput,
-    Tooltip,
-    type ScrollAreaProps,
-} from '@mantine/core';
+    ActionIcon,
+    Anchor,
+    Select,
+} from '@mantine-8/core';
+import { Avatar, PasswordInput, Tooltip } from '@mantine/core';
 import { IconCheck, IconRefresh } from '@tabler/icons-react';
-import React, { useEffect, type FC, type ReactNode } from 'react';
+import React, { useEffect, type FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
 import githubIcon from '../../../svgs/github-icon.svg';
 import {
@@ -23,54 +19,14 @@ import {
     useGitHubRepositories,
 } from '../../common/GithubIntegration/hooks/useGithubIntegration';
 import MantineIcon from '../../common/MantineIcon';
+import { SelectWithFooter } from '../../common/Select/SelectWithFooter';
 import { useFormContext } from '../formContext';
 import DbtVersionSelect from '../Inputs/DbtVersion';
 import { useProjectFormContext } from '../useProjectFormContext';
 import { githubDefaultValues } from './defaultValues';
+import styles from './GithubForm.module.css';
 
 const GITHUB_INSTALL_URL = `/api/v1/github/install`;
-
-const DropdownComponentOverride = ({
-    children,
-    installationId,
-}: {
-    children: ReactNode;
-    installationId: string | undefined;
-}) => (
-    <Stack w="100%" spacing={0}>
-        <ScrollArea>{children}</ScrollArea>
-
-        <Tooltip
-            withinPortal
-            position="left"
-            width={300}
-            multiline
-            label="Click here to open your Github installation page to add more repositories."
-        >
-            <Text
-                color="dimmed"
-                size="xs"
-                px="sm"
-                p="xxs"
-                sx={(theme) => ({
-                    cursor: 'pointer',
-                    borderTop: `1px solid ${theme.colors.ldGray[2]}`,
-                    '&:hover': {
-                        backgroundColor: theme.colors.ldGray[1],
-                    },
-                })}
-                onClick={() =>
-                    window.open(
-                        `https://github.com/settings/installations/${installationId}`,
-                        '_blank',
-                    )
-                }
-            >
-                Don't see your repository? <Anchor>Configure here</Anchor>
-            </Text>
-        </Tooltip>
-    </Stack>
-);
 
 const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     const form = useFormContext();
@@ -112,8 +68,8 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
         return (
             <>
                 {repos && repos.length > 0 && (
-                    <Group spacing="xs">
-                        <Select
+                    <Group gap="xs">
+                        <SelectWithFooter
                             name="dbt.repository"
                             searchable
                             required
@@ -124,15 +80,32 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                                 value: repo.fullName,
                                 label: repo.fullName,
                             }))}
-                            dropdownComponent={({
-                                children,
-                            }: ScrollAreaProps) => (
-                                <DropdownComponentOverride
-                                    installationId={config?.installationId}
+                            footer={
+                                <Tooltip
+                                    withinPortal
+                                    position="left"
+                                    width={300}
+                                    multiline
+                                    label="Click here to open your Github installation page to add more repositories."
                                 >
-                                    {children}
-                                </DropdownComponentOverride>
-                            )}
+                                    <Text
+                                        c="dimmed"
+                                        size="xs"
+                                        px="sm"
+                                        p="xxs"
+                                        className={styles.repositoryHint}
+                                        onClick={() =>
+                                            window.open(
+                                                `https://github.com/settings/installations/${config?.installationId}`,
+                                                '_blank',
+                                            )
+                                        }
+                                    >
+                                        Don't see your repository?{' '}
+                                        <Anchor inherit>Configure here</Anchor>
+                                    </Text>
+                                </Tooltip>
+                            }
                             {...repositoryField}
                             value={repositoryField.value}
                             onChange={(value) => {
@@ -149,6 +122,8 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
 
                         <Tooltip label="Refresh repositories after updating access on Github">
                             <ActionIcon
+                                variant="subtle"
+                                color="gray"
                                 mt="20px"
                                 onClick={() => refetchRepos()}
                                 disabled={!isValidGithubInstallation}
@@ -166,20 +141,14 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
         <>
             {' '}
             <Button
-                leftIcon={
+                leftSection={
                     <Avatar
                         src={githubIcon}
                         size="sm"
                         styles={{ image: { filter: 'invert(1)' } }}
                     />
                 }
-                sx={() => ({
-                    backgroundColor: 'black',
-                    color: 'white',
-                    '&:hover': {
-                        backgroundColor: 'ldGray.8',
-                    },
-                })}
+                className={styles.githubButton}
                 onClick={() => {
                     window.open(
                         GITHUB_INSTALL_URL,
@@ -213,7 +182,7 @@ const GithubLoginForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                 readOnly
                 description="Login first in order to be able to select a repository"
                 required
-                sx={(theme) => ({
+                styles={(theme) => ({
                     // Make it look disabled
                     input: {
                         backgroundColor: theme.colors.ldGray[1],
@@ -245,6 +214,7 @@ const GithubPersonalAccessTokenForm: FC<{ disabled: boolean }> = ({
                     <p>
                         This is used to access your repo.
                         <Anchor
+                            inherit
                             target="_blank"
                             href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project#github"
                             rel="noreferrer"
@@ -308,8 +278,9 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
     return (
         <>
             <Stack style={{ marginTop: '8px' }}>
-                <Group spacing="sm">
+                <Group gap="sm">
                     <Select
+                        allowDeselect={false}
                         name="dbt.authorization_method"
                         {...form.getInputProps('dbt.authorization_method')}
                         defaultValue={
@@ -323,6 +294,7 @@ const GithubForm: FC<{ disabled: boolean }> = ({ disabled }) => {
                                 <Text>
                                     You are connected to GitHub.{' '}
                                     <Anchor
+                                        inherit
                                         href="/generalSettings/integrations"
                                         target="_blank"
                                     >

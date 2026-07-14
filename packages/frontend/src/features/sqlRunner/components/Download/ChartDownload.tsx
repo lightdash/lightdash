@@ -4,13 +4,13 @@ import {
     type VizTableConfig,
 } from '@lightdash/common';
 import {
-    ActionIcon,
     Center,
-    Popover,
-    SegmentedControl,
     Stack,
     Text,
-} from '@mantine/core';
+    ActionIcon,
+    SegmentedControl,
+} from '@mantine-8/core';
+import { Popover } from '@mantine/core';
 import { IconDownload, IconPhoto, IconTableExport } from '@tabler/icons-react';
 import { memo, useState } from 'react';
 import ChartDownloadOptions from '../../../../components/common/ChartDownload/ChartDownloadOptions';
@@ -40,17 +40,19 @@ export const ChartDownload: React.FC<Props> = memo(
                     </ActionIcon>
                 </Popover.Target>
                 <Popover.Dropdown miw={250}>
-                    <Stack spacing="xs">
-                        <Stack spacing="xs">
+                    <Stack gap="xs">
+                        <Stack gap="xs">
                             <Text fw={500}>Download as</Text>
                             <SegmentedControl
                                 size="xs"
                                 value={downloadFormat}
-                                onChange={(
-                                    value:
-                                        | DownloadFileType.CSV
-                                        | DownloadFileType.IMAGE,
-                                ) => setDownloadFormat(value)}
+                                onChange={(value) =>
+                                    setDownloadFormat(
+                                        value as
+                                            | DownloadFileType.CSV
+                                            | DownloadFileType.IMAGE,
+                                    )
+                                }
                                 data={[
                                     {
                                         value: DownloadFileType.CSV,

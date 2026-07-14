@@ -68,10 +68,10 @@ const BASE_ROLE_SCOPES = {
         'view:AiAgentDocument',
         'create:AiAgentThread',
         'view:DataApp', // Project-wide + space-access view (parity with manage:Explore)
-        'create:DataApp', // Personal apps (not yet in a space)
-        'view:DataApp@self', // Own personal apps
-        'manage:DataApp@self', // Own personal apps
-        'view:ExternalConnection', // Select/link connections in the app builder (manage stays admin-only)
+        'view:DataApp@self', // Own personal apps (created before demotion / under older rules)
+        'manage:DataApp@self', // Own personal apps (created before demotion / under older rules)
+        'view:ExternalConnection', // Select/link connections when editing space apps (manage stays admin-only)
+        'view:ContentVerification', // Read-only discovery of verified content (manage stays developer-level)
     ],
 
     [ProjectMemberRole.EDITOR]: [
@@ -97,6 +97,7 @@ const BASE_ROLE_SCOPES = {
         'manage:MetricsTree',
         'manage:AiAgentThread@self', // User's own threads
         'view:ContentAsCode', // Download (but not upload) content as code
+        'create:DataApp',
     ],
 
     [ProjectMemberRole.DEVELOPER]: [
@@ -155,6 +156,7 @@ const BASE_ROLE_SCOPES = {
     [ProjectMemberRole.ADMIN]: [
         // Admin-specific permissions
         'manage:DataApp',
+        'manage:DataAppDependency', // Add custom npm deps (supply-chain capability)
         'manage:ExternalConnection',
         'manage:OrganizationDesign',
         'delete:Project', // Any project

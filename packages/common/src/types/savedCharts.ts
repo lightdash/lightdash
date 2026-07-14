@@ -623,6 +623,8 @@ export type EchartsLegend = {
     /** High-level placement preset. Overrides orient/top/right/bottom/left
      * when set to an outside value. */
     placement?: LegendPlacement;
+    /** Legend entries toggled off by name. Missing entries default to visible. */
+    selected?: Record<string, boolean>;
 };
 
 export type EchartsGrid = {

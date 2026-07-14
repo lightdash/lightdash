@@ -1,4 +1,4 @@
-import { Paper, ScrollArea } from '@mantine/core';
+import { Paper, ScrollArea } from '@mantine-8/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import Tree from '../components/common/Tree/Tree';
 

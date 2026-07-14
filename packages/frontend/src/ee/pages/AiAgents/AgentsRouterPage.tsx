@@ -75,7 +75,7 @@ const AgentsRouterPage = () => {
 
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-    const [sqlMode, setSqlMode] = useState(false);
+    const [sqlMode, setSqlMode] = useState(true);
     const sqlModeAvailable = useAiAgentSqlModeAvailable(projectUuid);
     const chartUuid = searchParams.get('chartUuid');
     const dashboardUuid = searchParams.get('dashboardUuid');
@@ -151,19 +151,29 @@ const AgentsRouterPage = () => {
     const handleRouteError = useCallback(
         ({
             fallbackAgent,
+            context,
             message,
+            optimisticContext,
+            toolHints,
         }: {
             fallbackAgent?: { uuid: string };
+            context?: AiPromptContextInput;
             message: string;
+            optimisticContext?: AiPromptContext;
+            toolHints: string[];
         }) => {
             setPendingPrompt(message);
             if (fallbackAgent && projectUuid) {
-                void navigate(
-                    `/projects/${projectUuid}/ai-agents/${fallbackAgent.uuid}/threads`,
-                );
+                void createThreadForAgent({
+                    agentUuid: fallbackAgent.uuid,
+                    context,
+                    message,
+                    optimisticContext,
+                    toolHints,
+                });
             }
         },
-        [navigate, projectUuid, setPendingPrompt],
+        [createThreadForAgent, projectUuid, setPendingPrompt],
     );
 
     const {

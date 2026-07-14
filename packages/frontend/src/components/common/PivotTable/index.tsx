@@ -27,15 +27,16 @@ import {
     type ResultValue,
     type SortField,
 } from '@lightdash/common';
-import { Menu } from '@mantine-8/core';
 import {
     Box,
-    Button,
     Group,
-    Text,
-    useMantineColorScheme,
+    Menu,
+    Skeleton,
     type BoxProps,
-} from '@mantine/core';
+    Text,
+    Button,
+} from '@mantine-8/core';
+import { useMantineColorScheme } from '@mantine/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import {
     flexRender,
@@ -178,6 +179,12 @@ type PivotTableProps = BoxProps & // TODO: remove this
          * `showSubtotals` is true (subtotals always group).
          */
         showRowGrouping?: boolean;
+        /** Column-total footer cells render a loading skeleton while their async query is in flight. */
+        isColumnTotalsLoading?: boolean;
+        /** Row-total cells render a loading skeleton while their async query is in flight. */
+        isRowTotalsLoading?: boolean;
+        /** Subtotal cells render a loading skeleton while their async query is in flight. */
+        isSubtotalsLoading?: boolean;
         columnProperties?: Record<string, ColumnProperties>;
         isMinimal: boolean;
         isDashboard?: boolean;
@@ -209,6 +216,9 @@ const PivotTable: FC<PivotTableProps> = ({
     showSubtotals = false,
     showSubtotalsExpanded = false,
     showRowGrouping = false,
+    isColumnTotalsLoading = false,
+    isRowTotalsLoading = false,
+    isSubtotalsLoading = false,
     columnProperties = {},
     isMinimal = false,
     isDashboard = false,
@@ -552,6 +562,20 @@ const PivotTable: FC<PivotTableProps> = ({
                                     return null;
                                 }
 
+                                if (
+                                    subtotalValue === undefined &&
+                                    isSubtotalsLoading &&
+                                    isNumericItem(item)
+                                ) {
+                                    return (
+                                        <Skeleton
+                                            height={16}
+                                            width="min(60%, 50px)"
+                                            ml="auto"
+                                        />
+                                    );
+                                }
+
                                 return (
                                     <Text span fw={600}>
                                         {formatItemValue(
@@ -587,6 +611,7 @@ const PivotTable: FC<PivotTableProps> = ({
         frozenLayout,
         rowNumberWidth,
         parameters,
+        isSubtotalsLoading,
     ]);
 
     // Minimum table width so auto columns don't get squeezed to zero
@@ -1191,8 +1216,8 @@ const PivotTable: FC<PivotTableProps> = ({
                                         titleSortIcon ? (
                                             <Group
                                                 display="inline-flex"
-                                                spacing={4}
-                                                noWrap
+                                                gap={4}
+                                                wrap="nowrap"
                                                 align="center"
                                             >
                                                 {getFieldLabel(
@@ -1413,8 +1438,8 @@ const PivotTable: FC<PivotTableProps> = ({
                             const headerInnerContent = sortIcon ? (
                                 <Group
                                     display="inline-flex"
-                                    spacing={4}
-                                    noWrap
+                                    gap={4}
+                                    wrap="nowrap"
                                     align="center"
                                 >
                                     {isLabel
@@ -1972,10 +1997,9 @@ const PivotTable: FC<PivotTableProps> = ({
                                                     cell.getContext(),
                                                 )
                                             ) : (
-                                                <Group spacing="two" noWrap>
+                                                <Group gap="two" wrap="nowrap">
                                                     <Button
-                                                        compact
-                                                        size="xs"
+                                                        size="compact-xs"
                                                         variant="subtle"
                                                         styles={(theme) => ({
                                                             root: {
@@ -1991,7 +2015,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                                                 fontFeatureSettings:
                                                                     "'tnum'",
                                                             },
-                                                            leftIcon: {
+                                                            section: {
                                                                 marginRight: 0,
                                                             },
                                                         })}
@@ -2002,7 +2026,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                                             e.preventDefault();
                                                             toggleExpander();
                                                         }}
-                                                        leftIcon={
+                                                        leftSection={
                                                             <MantineIcon
                                                                 size={14}
                                                                 icon={
@@ -2045,7 +2069,14 @@ const PivotTable: FC<PivotTableProps> = ({
                                                 )
                                             )
                                         ) : cell.getIsPlaceholder() ||
-                                          isBlankMergeDataCell ? null : (
+                                          isBlankMergeDataCell ? null : isRowTotal &&
+                                          isRowTotalsLoading ? (
+                                            <Skeleton
+                                                height={16}
+                                                width="min(60%, 50px)"
+                                                ml="auto"
+                                            />
+                                        ) : (
                                             flexRender(
                                                 cell.column.columnDef.cell,
                                                 cell.getContext(),
@@ -2184,6 +2215,18 @@ const PivotTable: FC<PivotTableProps> = ({
                                             )}
                                         >
                                             {value.formatted}
+                                        </Table.CellHead>
+                                    ) : isColumnTotalsLoading ? (
+                                        <Table.CellHead
+                                            key={`column-total-${totalRowIndex}-${totalColIndex}`}
+                                            withAlignRight
+                                            isMinimal={isMinimal}
+                                        >
+                                            <Skeleton
+                                                height={16}
+                                                width="min(60%, 50px)"
+                                                ml="auto"
+                                            />
                                         </Table.CellHead>
                                     ) : (
                                         <Table.Cell

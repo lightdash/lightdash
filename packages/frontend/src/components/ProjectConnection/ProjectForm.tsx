@@ -1,5 +1,6 @@
 import { ProjectType, type DbtProjectType } from '@lightdash/common';
-import { Avatar, Flex, Stack, Text, TextInput, Title } from '@mantine/core';
+import { TextInput, Flex, Stack, Text, Title } from '@mantine-8/core';
+import { Avatar } from '@mantine/core';
 import { type FC } from 'react';
 import useApp from '../../providers/App/useApp';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
@@ -31,7 +32,7 @@ export const ProjectForm: FC<Props> = ({
     const warehouse = form.values.warehouse.type;
 
     return (
-        <Stack spacing="xl">
+        <Stack gap="xl">
             {showGeneralSettings && (
                 <SettingsGridCard>
                     <div>
@@ -63,7 +64,7 @@ export const ProjectForm: FC<Props> = ({
                     </Flex>
 
                     {health.data?.staticIp && (
-                        <Text color="gray">
+                        <Text c="gray">
                             If you need to add our IP address to your database's
                             allow-list, use <b>{health.data?.staticIp}</b>
                         </Text>

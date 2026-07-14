@@ -319,6 +319,13 @@ const MyComponent = () => {
 - Use `Callout` from `components/common/Callout`
 - Variants: `danger`, `warning`, `info`
 
+### Empty / Unavailable Sections (dotted style)
+
+- **`<Paper variant="dotted">`** (also `Card`) renders a dashed `ldGray.3` border with a transparent background — the house style for empty, placeholder, or unavailable sections. Defined in `mantine8Theme.ts` (`paperDottedStyles`); used by e.g. `FavoritesPanel` and `AiAgentKnowledgeFilesSection`.
+- **Section failed to load**: use `InlineErrorState` from `components/common/InlineErrorState` — a dotted Paper with a muted message and optional `onRetry` button. Keep it quiet; a failing secondary panel shouldn't shout.
+- **Placeholder values** (stat tiles etc. with no data): render an em dash (`—`) in `ldGray.5` inside a dotted container rather than fake zeros or endless skeletons. Skeletons mean "loading", dotted means "nothing here".
+- Reserve `ErrorState` / `SuboptimalState` for whole-page failures.
+
 ### Polymorphic Clickable Containers
 
 Use these when you need a layout container that is also clickable — avoids the native `<button>` background/border reset problem.

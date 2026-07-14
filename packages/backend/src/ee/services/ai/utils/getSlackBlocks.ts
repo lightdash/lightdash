@@ -3,17 +3,22 @@ import {
     AiAgentMessageAssistantArtifact,
     AiAgentToolResult,
     AiArtifact,
-    FollowUpTools,
+    ChartType,
     followUpToolsText,
+    getGroupByDimensions,
+    getItemMap,
+    getWebAiChartConfig,
+    isActiveFollowUpTool,
     isToolEditDbtProjectResult,
-    isToolProposeChangeResult,
     isToolSetupPreviewDeployResult,
     parseVizConfig,
     SlackPrompt,
+    type ChartConfig,
     type Explore,
 } from '@lightdash/common';
 import { Block, KnownBlock } from '@slack/bolt';
 import { partition } from 'lodash';
+import { z } from 'zod';
 import type { SlackStreamChunk } from '../../../../clients/Slack/SlackClient';
 import { populateCustomMetricsSQL } from './populateCustomMetricsSQL';
 
@@ -162,6 +167,7 @@ const TOOL_TASK_TITLES: Record<string, string> = {
     describeWarehouseTable: 'Inspecting table',
     findContent: 'Searching saved content',
     readContent: 'Reading saved content',
+    resolveUrl: 'Resolving link',
     getDashboardCharts: 'Reading dashboard',
     runContentQuery: 'Running saved-content query',
     runSavedChart: 'Running saved chart',
@@ -172,7 +178,6 @@ const TOOL_TASK_TITLES: Record<string, string> = {
     generateDashboard: 'Creating dashboard',
     createContent: 'Saving content',
     editContent: 'Updating content',
-    proposeChange: 'Drafting semantic-layer change',
     editDbtProject: 'Opening dbt project PR',
     editRepo: 'Opening repository PR',
     setupPreviewDeploy: 'Preparing preview deploy',
@@ -385,16 +390,18 @@ export function getFollowUpToolBlocks(
     }
 
     // Extract follow-up tools from the chart config if they exist
-    let savedFollowUpTools: FollowUpTools = [];
+    let savedFollowUpTools: unknown[] = [];
     if (
         'followUpTools' in chartArtifact.chartConfig &&
         Array.isArray(chartArtifact.chartConfig.followUpTools)
     ) {
-        savedFollowUpTools = chartArtifact.chartConfig
-            .followUpTools as FollowUpTools;
+        savedFollowUpTools = chartArtifact.chartConfig.followUpTools;
     }
 
-    if (!savedFollowUpTools?.length) {
+    const activeSavedFollowUpTools =
+        savedFollowUpTools.filter(isActiveFollowUpTool);
+
+    if (!activeSavedFollowUpTools.length) {
         return [];
     }
 
@@ -413,7 +420,7 @@ export function getFollowUpToolBlocks(
         },
         {
             type: 'actions',
-            elements: savedFollowUpTools.map((tool) => ({
+            elements: activeSavedFollowUpTools.map((tool) => ({
                 type: 'button',
                 text: {
                     type: 'plain_text',
@@ -548,12 +555,71 @@ export async function getModernArtifactCardBlocks(
                     .chartImageUrl,
         )
         .filter((url): url is string => Boolean(url));
-    const chartArtifacts = artifacts
-        .slice(0, 3)
-        .filter((artifact) => Boolean(artifact.chartConfig));
+    // The viz type lives in chartConfig.chartConfig.defaultVizType (line, bar,
+    // ...); parseVizConfig flattens the unified generateVisualization shape to
+    // "query_result" and can't tell a line from a bar, so read it directly and
+    // fall back to parseVizConfig's type for legacy per-tool shapes.
+    const vizTypeSchema = z.object({
+        chartConfig: z
+            .object({ defaultVizType: z.string() })
+            .nullable()
+            .optional(),
+    });
+    const getChartVizType = (artifact: AiArtifact): string => {
+        const parsed = vizTypeSchema.safeParse(artifact.chartConfig);
+        if (parsed.success && parsed.data.chartConfig?.defaultVizType) {
+            return parsed.data.chartConfig.defaultVizType;
+        }
+        return (
+            parseVizConfig(artifact.chartConfig, maxQueryLimit)?.type ?? 'chart'
+        );
+    };
+
+    // Identity of a chart within a turn: viz type + title. A retry keeps both
+    // (even when it tweaks the query, e.g. day -> month), so retries collapse;
+    // a line and a bar of the same data differ in viz type, and different
+    // charts differ in title, so both stay separate. Untitled charts fall back
+    // to their query so they don't all collapse together.
+    const getArtifactIdentity = (artifact: AiArtifact): string => {
+        const title = artifact.title?.trim();
+        if (artifact.chartConfig) {
+            const vizType = getChartVizType(artifact);
+            if (title) return `chart:${vizType}:${title}`;
+            const viz = parseVizConfig(artifact.chartConfig, maxQueryLimit);
+            const query = viz
+                ? JSON.stringify(
+                      { type: viz.type, metricQuery: viz.metricQuery },
+                      (key, value) => (key === 'id' ? undefined : value),
+                  )
+                : artifact.versionUuid;
+            return `chart:${vizType}:${query}`;
+        }
+        if (artifact.dashboardConfig) {
+            return title
+                ? `dashboard:${title}`
+                : `dashboard:${JSON.stringify(artifact.dashboardConfig)}`;
+        }
+        return `version:${artifact.versionUuid}`;
+    };
+
+    // Keep the latest version per identity, preserving first-appearance order
+    // (Slack allows up to 10 cards).
+    const latestByIdentity = new Map<string, AiArtifact>();
+    artifacts.forEach((artifact) => {
+        const identity = getArtifactIdentity(artifact);
+        const existing = latestByIdentity.get(identity);
+        if (!existing || artifact.versionNumber > existing.versionNumber) {
+            latestByIdentity.set(identity, artifact);
+        }
+    });
+    const dedupedArtifacts = Array.from(latestByIdentity.values()).slice(0, 10);
+
+    const chartArtifacts = dedupedArtifacts.filter((artifact) =>
+        Boolean(artifact.chartConfig),
+    );
 
     const blocks = await Promise.all(
-        artifacts.slice(0, 3).map(async (artifact, index) => {
+        dedupedArtifacts.map(async (artifact, index) => {
             if (artifact.chartConfig) {
                 const vizConfig = parseVizConfig(
                     artifact.chartConfig,
@@ -584,59 +650,91 @@ export async function getModernArtifactCardBlocks(
                     ...tableCalculationNames,
                 ];
 
+                const metricQueryWithSql = {
+                    ...vizConfig.metricQuery,
+                    additionalMetrics: additionalMetricsWithSql,
+                };
+
+                // Match the generated viz type in the explorer; fall back to
+                // table if the conversion fails so the link always works.
+                let chartConfig: ChartConfig = {
+                    type: ChartType.TABLE,
+                    config: {
+                        showColumnCalculation: false,
+                        showRowCalculation: false,
+                        showTableNames: true,
+                        showResultsTotal: false,
+                        showSubtotals: false,
+                        columns: {},
+                        hideRowNumbers: false,
+                        conditionalFormattings: [],
+                        metricsAsRows: false,
+                    },
+                };
+                let pivotConfig: { columns: string[] } | undefined;
+                try {
+                    const webAiChartConfig = getWebAiChartConfig({
+                        vizConfig: artifact.chartConfig,
+                        metricQuery: metricQueryWithSql,
+                        maxQueryLimit,
+                        fieldsMap: getItemMap(
+                            explore,
+                            additionalMetricsWithSql,
+                            vizConfig.metricQuery.tableCalculations,
+                        ),
+                    });
+                    if (webAiChartConfig.echartsConfig) {
+                        chartConfig = webAiChartConfig.echartsConfig;
+                    }
+                    const groupByDimensions =
+                        getGroupByDimensions(webAiChartConfig);
+                    pivotConfig = groupByDimensions?.length
+                        ? { columns: groupByDimensions }
+                        : undefined;
+                } catch {
+                    // keep the table fallback
+                }
+
                 const path = `/projects/${slackPrompt.projectUuid}/tables/${vizConfig.metricQuery.exploreName}`;
                 const params = `?create_saved_chart_version=${encodeURIComponent(
                     JSON.stringify({
                         tableName: vizConfig.metricQuery.exploreName,
-                        metricQuery: {
-                            ...vizConfig.metricQuery,
-                            additionalMetrics: additionalMetricsWithSql,
-                        },
+                        metricQuery: metricQueryWithSql,
                         tableConfig: {
                             columnOrder,
                         },
-                        chartConfig: {
-                            type: 'table',
-                            config: {
-                                showColumnCalculation: false,
-                                showRowCalculation: false,
-                                showTableNames: true,
-                                showResultsTotal: false,
-                                showSubtotals: false,
-                                columns: {},
-                                hideRowNumbers: false,
-                                conditionalFormattings: [],
-                                metricsAsRows: false,
-                            },
-                        },
+                        chartConfig,
+                        ...(pivotConfig ? { pivotConfig } : {}),
                     }),
                 )}`;
 
+                // Always link via a short /share URL — inlining the full chart
+                // state in the button URL exceeds Slack's URL length limits.
+                // If share creation fails, link the bare explore instead.
                 const exploreUrl = await createShareUrl(path, params).catch(
-                    () => `${siteUrl}${path}${params}`,
+                    () => `${siteUrl}${path}`,
                 );
 
                 const metricCount =
                     vizConfig.metricQuery.metrics.length +
                     additionalMetricsWithSql.length;
                 const dimensionCount = vizConfig.metricQuery.dimensions.length;
-                // A prompt upserts a single artifact, so its retried
-                // visualizations produce several images for that one artifact —
-                // the latest is its current render. Use it for the single-artifact
-                // case; for multiple artifacts fall back to positional matching.
+                // A single chart with several images is a retried render — show
+                // the latest. Multiple charts (one card per version) match their
+                // image positionally by version.
                 const chartImageUrl =
                     chartArtifacts.length === 1
                         ? chartImageUrls[chartImageUrls.length - 1]
                         : chartImageUrls[
                               chartArtifacts.findIndex(
                                   (chartArtifact) =>
-                                      chartArtifact.artifactUuid ===
-                                      artifact.artifactUuid,
+                                      chartArtifact.versionUuid ===
+                                      artifact.versionUuid,
                               )
                           ];
 
                 return buildSlackCardBlock({
-                    blockId: `ai_agent_chart_card_${artifact.artifactUuid}`,
+                    blockId: `ai_agent_chart_card_${artifact.versionUuid}`,
                     title: getArtifactTitle(artifact),
                     subtitle: `${vizConfig.metricQuery.exploreName} chart`,
                     heroImageUrl: chartImageUrl,
@@ -678,7 +776,7 @@ export async function getModernArtifactCardBlocks(
 
             if (artifact.dashboardConfig && agentUuid) {
                 return buildSlackCardBlock({
-                    blockId: `ai_agent_dashboard_card_${artifact.artifactUuid}`,
+                    blockId: `ai_agent_dashboard_card_${artifact.versionUuid}`,
                     title: getArtifactTitle(artifact),
                     subtitle: 'Lightdash dashboard',
                     body:
@@ -704,7 +802,21 @@ export async function getModernArtifactCardBlocks(
         }),
     );
 
-    return blocks.filter((block): block is Block => Boolean(block));
+    const cards = blocks.filter((block): block is Block => Boolean(block));
+
+    // A single card renders on its own; multiple cards go in a horizontally
+    // scrollable carousel (Slack allows up to 10 cards).
+    if (cards.length <= 1) {
+        return cards;
+    }
+
+    return [
+        {
+            type: 'carousel',
+            block_id: `ai_agent_artifact_carousel_${slackPrompt.promptUuid}`,
+            elements: cards.slice(0, 10),
+        } as unknown as Block,
+    ];
 }
 
 // Tool names whose successful results count as "an answer the user can score".
@@ -788,60 +900,6 @@ export function getDeepLinkBlocks(
                 type: 'mrkdwn',
                 text: `📊 <${siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${agentUuid}/threads/${slackPrompt.threadUuid}|View Dashboard in Lightdash ⚡️>`,
             },
-        },
-    ];
-}
-
-export function getProposeChangeBlocks(
-    slackPrompt: SlackPrompt,
-    siteUrl: string,
-    toolResults?: AiAgentToolResult[],
-): (Block | KnownBlock)[] {
-    if (!toolResults || toolResults.length === 0) {
-        return [];
-    }
-
-    const proposeChangeResults = toolResults.filter(isToolProposeChangeResult);
-
-    if (proposeChangeResults.length === 0) {
-        return [];
-    }
-
-    const [successes, failures] = partition(
-        proposeChangeResults,
-        (r) => r.metadata.status === 'success',
-    );
-
-    return [
-        {
-            type: 'divider',
-        },
-        {
-            type: 'context',
-            elements: [
-                ...successes.map((success) => ({
-                    type: 'plain_text' as const,
-                    text: `✅ ${success.result}`,
-                })),
-                ...failures.map((failure) => ({
-                    type: 'plain_text' as const,
-                    text: `❌ ${failure.result}`,
-                })),
-            ],
-        },
-        {
-            type: 'actions',
-            elements: [
-                {
-                    type: 'button',
-                    url: `${siteUrl}/generalSettings/projectManagement/${slackPrompt.projectUuid}/changesets`,
-                    action_id: 'actions.view_changesets_button_click',
-                    text: {
-                        type: 'plain_text',
-                        text: 'View Changeset',
-                    },
-                },
-            ],
         },
     ];
 }

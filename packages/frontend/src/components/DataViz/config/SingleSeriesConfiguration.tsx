@@ -6,14 +6,14 @@ import {
     type ChartKind,
 } from '@lightdash/common';
 import {
+    TextInput,
     Box,
     Flex,
     Group,
-    SegmentedControl,
     Stack,
     Text,
-    TextInput,
-} from '@mantine/core';
+    SegmentedControl,
+} from '@mantine-8/core';
 import { IconAlignLeft, IconAlignRight } from '@tabler/icons-react';
 import MantineIcon from '../../common/MantineIcon';
 import ColorSelector from '../../VisualizationConfigs/ColorSelector';
@@ -61,28 +61,28 @@ export const SingleSeriesConfiguration = ({
     onValueLabelPositionChange,
 }: SingleSeriesConfigurationProps) => {
     return (
-        <Stack key={reference} spacing="xs">
+        <Stack key={reference} gap="xs">
             <Stack
                 pl="sm"
-                spacing="xs"
-                sx={(theme) => ({
-                    backgroundColor: theme.colors.ldGray[0],
-                    borderRadius: theme.radius.md,
-                    padding: theme.spacing.xs,
-                })}
+                gap="xs"
+                style={{
+                    backgroundColor: 'var(--mantine-color-ldGray-0)',
+                    borderRadius: 'var(--mantine-radius-md)',
+                    padding: 'var(--mantine-spacing-xs)',
+                }}
             >
                 <Config.Subheading>{reference}</Config.Subheading>
                 <Flex justify="flex-start" align="center" wrap="nowrap">
                     <Config.Label w={LABEL_WIDTH}>Label</Config.Label>
                     <Group
-                        spacing="xs"
-                        position="left"
-                        noWrap
+                        gap="xs"
+                        justify="flex-start"
+                        wrap="nowrap"
                         grow
                         style={{ flex: 3 }}
                     >
                         <Box
-                            sx={{
+                            style={{
                                 flex: 1,
                                 display: 'flex',
                                 flexDirection: 'row',
@@ -100,18 +100,19 @@ export const SingleSeriesConfiguration = ({
                                 />
                             </Box>
                             <TextInput
+                                size="xs"
                                 maw="100%"
                                 radius="md"
                                 value={label}
                                 onChange={(e) =>
                                     onLabelChange(reference, e.target.value)
                                 }
-                                sx={(theme) => ({
+                                flex={1}
+                                ml="xs"
+                                styles={(theme) => ({
                                     input: {
                                         border: `1px solid ${theme.colors.ldGray[2]}`,
                                     },
-                                    flex: 1,
-                                    marginLeft: theme.spacing.xs,
                                 })}
                             />
                         </Box>
@@ -131,26 +132,32 @@ export const SingleSeriesConfiguration = ({
                 <Flex justify="flex-start" align="center" wrap="nowrap">
                     <Config.Label w={LABEL_WIDTH}>Y Axis</Config.Label>
                     <SegmentedControl
-                        sx={{ minWidth: '130px', flex: 1 }}
+                        miw={130}
+                        flex={1}
                         radius="md"
+                        fz="sm"
                         data={[
                             {
                                 value: 'left',
                                 label: (
-                                    <Group spacing="xs" noWrap>
+                                    <Group gap="xs" wrap="nowrap">
                                         <MantineIcon
                                             icon={IconAlignLeft}
                                             color="ldDark.8"
                                         />
-                                        <Text>Left</Text>
+                                        <Text inherit>Left</Text>
                                     </Group>
                                 ),
                             },
                             {
                                 value: 'right',
                                 label: (
-                                    <Group spacing="xs" noWrap position="right">
-                                        <Text>Right</Text>
+                                    <Group
+                                        gap="xs"
+                                        wrap="nowrap"
+                                        justify="flex-end"
+                                    >
+                                        <Text inherit>Right</Text>
                                         <MantineIcon
                                             icon={IconAlignRight}
                                             color="ldDark.8"

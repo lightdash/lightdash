@@ -6,10 +6,11 @@ import {
     Loader,
     ScrollArea,
     Text,
-    Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { Tooltip } from '@mantine/core';
 import { IconX } from '@tabler/icons-react';
 import { lazy, Suspense, useMemo, type FC } from 'react';
+import scrollAreaClasses from '../../../styles/ScrollArea.module.css';
 import MantineIcon from '../../common/MantineIcon';
 import { ConfigTabs as BigNumberConfigTabs } from '../../VisualizationConfigs/BigNumberConfig/BigNumberConfigTabs';
 import { ConfigTabs as ChartConfigTabs } from '../../VisualizationConfigs/ChartConfigPanel/ConfigTabs';
@@ -75,13 +76,18 @@ const VisualizationConfig: FC<Props> = ({ chartType, onClose }) => {
 
     return (
         <>
-            <Group position="apart">
+            <Group justify="space-between">
                 <Text fz={16} fw={600}>
                     Configure chart
                 </Text>
 
                 <Tooltip label="Close visualization config" position="right">
-                    <ActionIcon size="sm" onClick={onClose}>
+                    <ActionIcon
+                        variant="subtle"
+                        color="gray"
+                        size="sm"
+                        onClick={onClose}
+                    >
                         <MantineIcon icon={IconX} />
                     </ActionIcon>
                 </Tooltip>
@@ -97,9 +103,9 @@ const VisualizationConfig: FC<Props> = ({ chartType, onClose }) => {
 
             <ScrollArea
                 offsetScrollbars
-                variant="primary"
-                className="only-vertical"
-                sx={{ flex: 1 }}
+                scrollbars="y"
+                classNames={{ content: scrollAreaClasses.verticalContent }}
+                style={{ flex: 1 }}
                 type="hover"
                 scrollbarSize={8}
             >

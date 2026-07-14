@@ -1057,6 +1057,7 @@ export class RolesService extends BaseService {
         });
     }
 
+    /** @deprecated Only used by the deprecated remove-scope endpoint; use updateRole with scopes.remove instead. */
     async removeScopeFromRole(
         account: Account,
         roleUuid: string,

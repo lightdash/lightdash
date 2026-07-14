@@ -1,4 +1,5 @@
 import {
+    type AppVersionDependencies,
     type AppVersionResources,
     type AppVersionStatus,
     type DataAppTemplate,
@@ -85,6 +86,8 @@ export type DbAppVersion = {
     status_message: string | null;
     status_updated_at: Date | null;
     resources: AppVersionResources | null;
+    // Declared-dependency summary for the version's build; null = template set.
+    dependencies: AppVersionDependencies | null;
     // Declared schema for data-app-viz versions; null otherwise.
     viz_schema: DataAppVizSchema | null;
     created_at: Date;
@@ -98,7 +101,10 @@ export type AppVersionsTable = Knex.CompositeTableType<
         'app_id' | 'version' | 'prompt' | 'status' | 'created_by_user_uuid'
     > &
         Partial<
-            Pick<DbAppVersion, 'app_version_id' | 'resources' | 'viz_schema'>
+            Pick<
+                DbAppVersion,
+                'app_version_id' | 'resources' | 'dependencies' | 'viz_schema'
+            >
         >,
     Partial<
         Pick<

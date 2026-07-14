@@ -13,13 +13,13 @@ import {
     Button,
     Checkbox,
     Group,
-    NumberInput,
     SegmentedControl,
-    Select,
     Stack,
     Switch,
     Text,
-} from '@mantine/core';
+    Select,
+} from '@mantine-8/core';
+import { NumberInput } from '@mantine/core';
 import {
     IconChartBar,
     IconMinus,
@@ -35,14 +35,15 @@ import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../../common/Config';
 import { LabelEditor } from '../../common/LabelEditor';
+import compactStyles from '../../mantineTheme.module.css';
 import { AxisMinInterval } from './AxisMinInterval';
 import { AxisMinMax } from './AxisMinMax';
 
 const XAxisSortSelectItem = forwardRef<
     HTMLDivElement,
-    { icon: Icon; label: string; mirrorIcon: boolean }
->(({ icon, label, mirrorIcon, ...others }, ref) => (
-    <Group ref={ref} spacing="xs" {...others} noWrap>
+    { icon: Icon; label: string; mirrorIcon?: boolean }
+>(({ icon, label, mirrorIcon = false, ...others }, ref) => (
+    <Group ref={ref} gap="xs" {...others} wrap="nowrap">
         <MantineIcon
             style={mirrorIcon ? { transform: 'rotateY(180deg)' } : undefined}
             icon={icon}
@@ -126,6 +127,38 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
         dirtyChartType === CartesianSeriesType.BAR &&
         getAxisTypeFromField(xAxisField) === 'category';
 
+    const xAxisSortOptions = [
+        { value: XAxisSort.DEFAULT, label: 'Default', icon: IconMinus },
+        {
+            value: XAxisSort.DEFAULT_REVERSED,
+            label: 'Default (reversed)',
+            icon: IconSwitchHorizontal,
+        },
+        {
+            value: XAxisSort.ASCENDING,
+            label: 'Ascending',
+            icon: IconSortAscending,
+        },
+        {
+            value: XAxisSort.DESCENDING,
+            label: 'Descending',
+            icon: IconSortDescending,
+        },
+        {
+            value: XAxisSort.BAR_TOTALS_ASCENDING,
+            label: 'Bars ascending',
+            icon: IconChartBar,
+            disabled: !canSortByBarTotals,
+        },
+        {
+            value: XAxisSort.BAR_TOTALS_DESCENDING,
+            label: 'Bars descending',
+            icon: IconChartBar,
+            mirrorIcon: true,
+            disabled: !canSortByBarTotals,
+        },
+    ];
+
     const showXAxis =
         dirtyLayout?.showXAxis !== undefined ? dirtyLayout?.showXAxis : true;
     // Legacy showYAxis is used as fallback for independent axis controls
@@ -173,9 +206,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
 
                     {isNumericItem(xAxisField) && (
                         <AxisMinMax
-                            label={`Auto ${
-                                dirtyLayout?.flipAxes ? 'y' : 'x'
-                            }-axis range`}
+                            label={`Auto ${dirtyLayout?.flipAxes ? 'y' : 'x'}-axis range`}
                             min={dirtyEchartsConfig?.xAxis?.[0]?.min}
                             max={dirtyEchartsConfig?.xAxis?.[0]?.max}
                             setMin={(newValue) => setXMinValue(0, newValue)}
@@ -196,6 +227,10 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                     {isNumericItem(xAxisField) && !dirtyLayout?.flipAxes && (
                         <>
                             <Switch
+                                size="xs"
+                                classNames={{
+                                    label: compactStyles.compactCheckboxLabel,
+                                }}
                                 label="Truncate x-axis"
                                 checked={
                                     dirtyEchartsConfig?.xAxis?.[0]
@@ -221,54 +256,32 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                             />
                         </>
                     )}
-                    <Group spacing="xs">
-                        <Group spacing="xs">
+                    <Group gap="xs">
+                        <Group gap="xs">
                             <Config.Label>Sort</Config.Label>
                             <Select
+                                allowDeselect={false}
                                 value={getXAxisSort(
                                     dirtyEchartsConfig?.xAxis?.[0],
                                 )}
-                                onChange={setXAxisSort}
-                                itemComponent={XAxisSortSelectItem}
-                                data={[
-                                    {
-                                        value: XAxisSort.DEFAULT,
-                                        label: 'Default',
-                                        icon: IconMinus,
-                                    },
-                                    {
-                                        value: XAxisSort.DEFAULT_REVERSED,
-                                        label: 'Default (reversed)',
-                                        icon: IconSwitchHorizontal,
-                                    },
-                                    {
-                                        value: XAxisSort.ASCENDING,
-                                        label: 'Ascending',
-                                        icon: IconSortAscending,
-                                    },
-                                    {
-                                        value: XAxisSort.DESCENDING,
-                                        label: 'Descending',
-                                        icon: IconSortDescending,
-                                    },
-                                    {
-                                        value: XAxisSort.BAR_TOTALS_ASCENDING,
-                                        label: 'Bars ascending',
-                                        icon: IconChartBar,
-                                        disabled: !canSortByBarTotals,
-                                    },
-                                    {
-                                        value: XAxisSort.BAR_TOTALS_DESCENDING,
-                                        label: 'Bars descending',
-                                        icon: IconChartBar,
-                                        mirrorIcon: true,
-                                        disabled: !canSortByBarTotals,
-                                    },
-                                ]}
+                                onChange={(value) =>
+                                    value && setXAxisSort(value as XAxisSort)
+                                }
+                                renderOption={({ option }) => {
+                                    const sortOption = xAxisSortOptions.find(
+                                        ({ value }) => value === option.value,
+                                    );
+                                    return sortOption ? (
+                                        <XAxisSortSelectItem {...sortOption} />
+                                    ) : (
+                                        option.label
+                                    );
+                                }}
+                                data={xAxisSortOptions}
                             />
                         </Group>
                         {!dirtyLayout?.flipAxes && (
-                            <Group noWrap spacing="xs" align="baseline">
+                            <Group wrap="nowrap" gap="xs" align="baseline">
                                 <Config.Label>Rotation</Config.Label>
                                 <NumberInput
                                     type="number"
@@ -290,8 +303,12 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                     </Group>
 
                     {getAxisTypeFromField(xAxisField) === 'category' && (
-                        <Stack spacing="xs">
+                        <Stack gap="xs">
                             <Checkbox
+                                size="xs"
+                                classNames={{
+                                    label: compactStyles.compactCheckboxLabel,
+                                }}
                                 label="Enable scrollable chart"
                                 checked={
                                     dirtyEchartsConfig?.xAxis?.[0]
@@ -303,7 +320,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                             />
                             {dirtyEchartsConfig?.xAxis?.[0]?.enableDataZoom && (
                                 <>
-                                    <Group spacing="xs">
+                                    <Group gap="xs">
                                         <Config.Label>
                                             Initial scroll position
                                         </Config.Label>
@@ -329,7 +346,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                                             }
                                         />
                                     </Group>
-                                    <Group spacing="xs">
+                                    <Group gap="xs">
                                         <Config.Label>
                                             Visible items
                                         </Config.Label>
@@ -358,9 +375,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
 
             <Config>
                 <Config.Section>
-                    <Config.Heading>{`${
-                        dirtyLayout?.flipAxes ? 'X' : 'Y'
-                    }-axis label (${
+                    <Config.Heading>{`${dirtyLayout?.flipAxes ? 'X' : 'Y'}-axis label (${
                         dirtyLayout?.flipAxes ? 'bottom' : 'left'
                     })`}</Config.Heading>
 
@@ -381,9 +396,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                     />
                     {showFirstAxisRange && (
                         <AxisMinMax
-                            label={`Auto ${
-                                dirtyLayout?.flipAxes ? 'x' : 'y'
-                            }-axis range`}
+                            label={`Auto ${dirtyLayout?.flipAxes ? 'x' : 'y'}-axis range`}
                             min={dirtyEchartsConfig?.yAxis?.[0]?.min}
                             max={dirtyEchartsConfig?.yAxis?.[0]?.max}
                             setMin={(newValue) => setYMinValue(0, newValue)}
@@ -404,9 +417,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
 
             <Config>
                 <Config.Section>
-                    <Config.Heading>{`${
-                        dirtyLayout?.flipAxes ? 'X' : 'Y'
-                    }-axis label (${
+                    <Config.Heading>{`${dirtyLayout?.flipAxes ? 'X' : 'Y'}-axis label (${
                         dirtyLayout?.flipAxes ? 'top' : 'right'
                     })`}</Config.Heading>
 
@@ -428,9 +439,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
 
                     {showSecondAxisRange && (
                         <AxisMinMax
-                            label={`Auto ${
-                                dirtyLayout?.flipAxes ? 'x' : 'y'
-                            }-axis range`}
+                            label={`Auto ${dirtyLayout?.flipAxes ? 'x' : 'y'}-axis range`}
                             min={dirtyEchartsConfig?.yAxis?.[1]?.min}
                             max={dirtyEchartsConfig?.yAxis?.[1]?.max}
                             setMin={(newValue) => setYMinValue(1, newValue)}
@@ -453,8 +462,12 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                 <Config.Section>
                     <Config.Heading>Show grid</Config.Heading>
 
-                    <Stack spacing="xs">
+                    <Stack gap="xs">
                         <Checkbox
+                            size="xs"
+                            classNames={{
+                                label: compactStyles.compactCheckboxLabel,
+                            }}
                             label={`${dirtyLayout?.flipAxes ? 'Y' : 'X'}-axis`}
                             checked={!!dirtyLayout?.showGridX}
                             onChange={() => {
@@ -463,6 +476,10 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                         />
 
                         <Checkbox
+                            size="xs"
+                            classNames={{
+                                label: compactStyles.compactCheckboxLabel,
+                            }}
                             label={`${dirtyLayout?.flipAxes ? 'X' : 'Y'}-axis`}
                             checked={
                                 dirtyLayout?.showGridY !== undefined
@@ -484,8 +501,12 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                 <Config.Section>
                     <Config.Heading>Show axis</Config.Heading>
 
-                    <Stack spacing="xs">
+                    <Stack gap="xs">
                         <Checkbox
+                            size="xs"
+                            classNames={{
+                                label: compactStyles.compactCheckboxLabel,
+                            }}
                             label={`${dirtyLayout?.flipAxes ? 'Y' : 'X'}-axis`}
                             checked={
                                 dirtyLayout?.flipAxes
@@ -502,6 +523,10 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                         />
                         {(dirtyLayout?.flipAxes || hasPrimaryYAxis) && (
                             <Checkbox
+                                size="xs"
+                                classNames={{
+                                    label: compactStyles.compactCheckboxLabel,
+                                }}
                                 label={
                                     dirtyLayout?.flipAxes
                                         ? 'X-axis'
@@ -523,6 +548,10 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                         )}
                         {hasSecondaryYAxis && (
                             <Checkbox
+                                size="xs"
+                                classNames={{
+                                    label: compactStyles.compactCheckboxLabel,
+                                }}
                                 label="Right Y-axis"
                                 checked={showRightYAxis}
                                 onChange={() => {
@@ -537,6 +566,10 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                 <Config.Section>
                     <Config.Heading>Show tick lines</Config.Heading>
                     <Checkbox
+                        size="xs"
+                        classNames={{
+                            label: compactStyles.compactCheckboxLabel,
+                        }}
                         label="Show tick lines on axes"
                         checked={!!dirtyEchartsConfig?.showAxisTicks}
                         onChange={(e) => {
@@ -551,6 +584,10 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
                     <Config.Section>
                         <Config.Heading>Connect nulls</Config.Heading>
                         <Checkbox
+                            size="xs"
+                            classNames={{
+                                label: compactStyles.compactCheckboxLabel,
+                            }}
                             label="Connect null values in line series"
                             checked={
                                 dirtyLayout?.connectNulls !== undefined
@@ -567,7 +604,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
             <Config>
                 <Config.Section>
                     <Config.Heading>Tick label size (px)</Config.Heading>
-                    <Group spacing="xs">
+                    <Group gap="xs">
                         <NumberInput
                             value={
                                 dirtyEchartsConfig?.axisLabelFontSize ?? 11.5
@@ -601,7 +638,7 @@ export const Axes: FC<Props> = ({ itemsMap }) => {
             <Config>
                 <Config.Section>
                     <Config.Heading>Axis title size (px)</Config.Heading>
-                    <Group spacing="xs">
+                    <Group gap="xs">
                         <NumberInput
                             value={dirtyEchartsConfig?.axisTitleFontSize ?? 12}
                             min={8}

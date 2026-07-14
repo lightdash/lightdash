@@ -167,12 +167,6 @@ export const projectMemberAbilities: Record<
                 $elemMatch: { userUuid: member.userUuid },
             },
         });
-        // Create personal data apps; once created, the user can also view
-        // and manage their own. Moving an app into a space is gated
-        // separately by the target space's manage rule.
-        can('create', 'DataApp', {
-            projectUuid: member.projectUuid,
-        });
         can('view', 'DataApp', {
             projectUuid: member.projectUuid,
             createdByUserUuid: member.userUuid,
@@ -206,9 +200,15 @@ export const projectMemberAbilities: Record<
         can('create', 'AiAgentThread', {
             projectUuid: member.projectUuid,
         });
+        can('view', 'ContentVerification', {
+            projectUuid: member.projectUuid,
+        });
     },
     editor(member, { can }) {
         projectMemberAbilities.interactive_viewer(member, { can });
+        can('create', 'DataApp', {
+            projectUuid: member.projectUuid,
+        });
         can('create', 'Space', {
             projectUuid: member.projectUuid,
         });
@@ -335,6 +335,12 @@ export const projectMemberAbilities: Record<
         projectMemberAbilities.developer(member, { can });
 
         can('manage', 'DataApp', {
+            projectUuid: member.projectUuid,
+        });
+
+        // Adding custom npm dependencies is a supply-chain capability gated
+        // above ordinary data-app management — admins only by default.
+        can('manage', 'DataAppDependency', {
             projectUuid: member.projectUuid,
         });
 

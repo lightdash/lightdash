@@ -38,10 +38,9 @@ import { createActorFromUser } from '../logging/caslAuditWrapper';
 import Logger from '../logging/logger';
 import { logAuditEvent } from '../logging/winston';
 import { UserModel } from '../models/UserModel';
-import { aiAgentMcpServerRouter } from './aiAgentMcpServerRouter';
+import { aiAgentMcpOAuthCallbackRouter } from './aiAgentMcpServerRouter';
 import { dashboardRouter } from './dashboardRouter';
 import { headlessBrowserRouter } from './headlessBrowser';
-import { inviteLinksRouter } from './inviteLinksRouter';
 import { jobsRouter } from './jobsRouter';
 import mcpRouter from './mcpRouter';
 import oauthRouter from './oauthRouter';
@@ -876,10 +875,9 @@ apiV1Router.get('/logout', (req, res, next) => {
 });
 
 apiV1Router.use('/saved', savedChartRouter);
-apiV1Router.use('/invite-links', inviteLinksRouter);
 apiV1Router.use('/org', organizationRouter);
 apiV1Router.use('/user', userRouter);
-apiV1Router.use('/projects/:projectUuid', aiAgentMcpServerRouter);
+apiV1Router.use('/', aiAgentMcpOAuthCallbackRouter);
 apiV1Router.use('/projects/:projectUuid', projectRouter);
 apiV1Router.use('/dashboards', dashboardRouter);
 apiV1Router.use('/password-reset', passwordResetLinksRouter);

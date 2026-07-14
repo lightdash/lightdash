@@ -425,6 +425,7 @@ const data = {
         type: 'aiAgent',
         projectUuid: projectUuid,
         agentUuid: agentUuid,
+        canExplore: {{canExplore}},
     },
     user: {
         externalId: {{externalId}},
@@ -453,6 +454,7 @@ data = {
         "type": "aiAgent",
         "projectUuid": projectUuid,
         "agentUuid": agentUuid,
+        "canExplore": {{canExplore}},
     },
     "user": {
         "externalId": {{externalId}},
@@ -492,6 +494,7 @@ func main() {
             Type        string \`json:"type"\`
             ProjectUuid string \`json:"projectUuid"\`
             AgentUuid   string \`json:"agentUuid"\`
+            CanExplore  bool   \`json:"canExplore"\`
         } \`json:"content"\`
         UserAttributes map[string]string \`json:"userAttributes"\`
         WriteActions *struct {
@@ -511,10 +514,12 @@ func main() {
             Type        string \`json:"type"\`
             ProjectUuid string \`json:"projectUuid"\`
             AgentUuid   string \`json:"agentUuid"\`
+            CanExplore  bool   \`json:"canExplore"\`
         }{
             Type:        "aiAgent",
             ProjectUuid: projectUuid,
             AgentUuid:   agentUuid,
+            CanExplore:  {{canExplore}},
         },
         User: &struct {
             ExternalId *string \`json:"externalId,omitempty"\`
@@ -559,6 +564,7 @@ const data = {
         type: 'aiAgent',
         projectUuid: projectUuid,
         agentUuid: agentUuid,
+        canExplore: {{canExplore}},
     },
     user: {
         externalId: {{externalId}},
@@ -583,6 +589,7 @@ data = {
         "type": "aiAgent",
         "projectUuid": projectUuid,
         "agentUuid": agentUuid,
+        "canExplore": {{canExplore}},
     },
     "user": {
         "externalId": {{externalId}},
@@ -616,6 +623,7 @@ func main() {
             Type        string \`json:"type"\`
             ProjectUuid string \`json:"projectUuid"\`
             AgentUuid   string \`json:"agentUuid"\`
+            CanExplore  bool   \`json:"canExplore"\`
         } \`json:"content"\`
         UserAttributes map[string]string \`json:"userAttributes"\`
         WriteActions *struct {
@@ -635,10 +643,12 @@ func main() {
             Type        string \`json:"type"\`
             ProjectUuid string \`json:"projectUuid"\`
             AgentUuid   string \`json:"agentUuid"\`
+            CanExplore  bool   \`json:"canExplore"\`
         }{
             Type:        "aiAgent",
             ProjectUuid: projectUuid,
             AgentUuid:   agentUuid,
+            CanExplore:  {{canExplore}},
         },
         User: &struct {
             ExternalId *string \`json:"externalId,omitempty"\`
@@ -680,6 +690,7 @@ const data = {
             enabled: "{{dashboardFiltersInteractivityEnabled}}",
             allowedFilters: {{dashboardFiltersInteractivityAllowedFilters}},
             hidden: {{dashboardFiltersInteractivityHidden}},
+            canAddFilters: {{dashboardFiltersInteractivityCanAddFilters}},
         },
         parameterInteractivity: {
             enabled: {{canChangeParameters}},
@@ -720,6 +731,7 @@ data = {
             "enabled": "{{dashboardFiltersInteractivityEnabled}}",
             "allowedFilters": {{dashboardFiltersInteractivityAllowedFilters}},
             "hidden": {{dashboardFiltersInteractivityHidden}},
+            "canAddFilters": {{dashboardFiltersInteractivityCanAddFilters}},
         },
         "parameterInteractivity": {
             "enabled": {{canChangeParameters}},
@@ -770,6 +782,7 @@ func main() {
                 Enabled string \`json:"enabled"\`
                 AllowedFilters []string \`json:"allowedFilters,omitempty"\`
                 Hidden bool \`json:"hidden"\`
+                CanAddFilters bool \`json:"canAddFilters"\`
             } \`json:"dashboardFiltersInteractivity"\`
             ParameterInteractivity struct {
                 Enabled bool \`json:"enabled"\`
@@ -806,6 +819,7 @@ func main() {
                 Enabled string \`json:"enabled"\`
                 AllowedFilters []string \`json:"allowedFilters,omitempty"\`
                 Hidden bool \`json:"hidden"\`
+                CanAddFilters bool \`json:"canAddFilters"\`
             } \`json:"dashboardFiltersInteractivity"\`
             ParameterInteractivity struct {
                 Enabled bool \`json:"enabled"\`
@@ -826,10 +840,12 @@ func main() {
                 Enabled string \`json:"enabled"\`
                 AllowedFilters []string \`json:"allowedFilters,omitempty"\`
                 Hidden bool \`json:"hidden"\`
+                CanAddFilters bool \`json:"canAddFilters"\`
             }{
                 Enabled: "{{dashboardFiltersInteractivityEnabled}}",
                 AllowedFilters: []string{{{dashboardFiltersInteractivityAllowedFilters}}},
                 Hidden: {{dashboardFiltersInteractivityHidden}},
+                CanAddFilters: {{dashboardFiltersInteractivityCanAddFilters}},
             },
             ParameterInteractivity: struct {
                 Enabled bool \`json:"enabled"\`
@@ -1021,6 +1037,7 @@ const data = {
             enabled: "{{dashboardFiltersInteractivityEnabled}}",
             allowedFilters: {{dashboardFiltersInteractivityAllowedFilters}},
             hidden: {{dashboardFiltersInteractivityHidden}},
+            canAddFilters: {{dashboardFiltersInteractivityCanAddFilters}},
         },
         parameterInteractivity: {
             enabled: {{canChangeParameters}},
@@ -1060,6 +1077,7 @@ data = {
             "enabled": "{{dashboardFiltersInteractivityEnabled}}",
             "allowedFilters": {{dashboardFiltersInteractivityAllowedFilters}},
             "hidden": {{dashboardFiltersInteractivityHidden}},
+            "canAddFilters": {{dashboardFiltersInteractivityCanAddFilters}},
         },
         "parameterInteractivity": {
             "enabled": {{canChangeParameters}},
@@ -1108,6 +1126,7 @@ func main() {
                 Enabled string \`json:"enabled"\`
                 AllowedFilters []string \`json:"allowedFilters,omitempty"\`
                 Hidden bool \`json:"hidden"\`
+                CanAddFilters bool \`json:"canAddFilters"\`
             } \`json:"dashboardFiltersInteractivity"\`
             ParameterInteractivity struct {
                 Enabled bool \`json:"enabled"\`
@@ -1143,6 +1162,7 @@ func main() {
                 Enabled string \`json:"enabled"\`
                 AllowedFilters []string \`json:"allowedFilters,omitempty"\`
                 Hidden bool \`json:"hidden"\`
+                CanAddFilters bool \`json:"canAddFilters"\`
             } \`json:"dashboardFiltersInteractivity"\`
             ParameterInteractivity struct {
                 Enabled bool \`json:"enabled"\`
@@ -1163,10 +1183,12 @@ func main() {
                 Enabled string \`json:"enabled"\`
                 AllowedFilters []string \`json:"allowedFilters,omitempty"\`
                 Hidden bool \`json:"hidden"\`
+                CanAddFilters bool \`json:"canAddFilters"\`
             }{
                 Enabled: "{{dashboardFiltersInteractivityEnabled}}",
                 AllowedFilters: []string{{{dashboardFiltersInteractivityAllowedFilters}}},
                 Hidden: {{dashboardFiltersInteractivityHidden}},
+                CanAddFilters: {{dashboardFiltersInteractivityCanAddFilters}},
             },
             ParameterInteractivity: struct {
                 Enabled bool \`json:"enabled"\`
@@ -1237,6 +1259,8 @@ const getBackendCodeSnippet = (
             mode === 'iframe'
                 ? aiAgentIframeCodeTemplates[language]
                 : aiAgentSdkCodeTemplates[language];
+    } else if (data.content.type === 'metricsCatalog') {
+        return '';
     } else {
         codeTemplate =
             mode === 'iframe'
@@ -1339,6 +1363,14 @@ const getBackendCodeSnippet = (
                     ),
                 )
                 .replace(
+                    '{{dashboardFiltersInteractivityCanAddFilters}}',
+                    languageBoolean(
+                        language,
+                        data.content.dashboardFiltersInteractivity
+                            ?.canAddFilters ?? false,
+                    ),
+                )
+                .replace(
                     '{{canChangeParameters}}',
                     languageBoolean(
                         language,
@@ -1385,12 +1417,17 @@ const getBackendCodeSnippet = (
             );
             break;
         case 'aiAgent':
-            codeTemplate = codeTemplate.replace(
-                '{{agentUuid}}',
-                'agentUuid' in data.content
-                    ? data.content.agentUuid || '<AGENT_UUID>'
-                    : '<AGENT_UUID>',
-            );
+            codeTemplate = codeTemplate
+                .replace(
+                    '{{agentUuid}}',
+                    'agentUuid' in data.content
+                        ? data.content.agentUuid || '<AGENT_UUID>'
+                        : '<AGENT_UUID>',
+                )
+                .replace(
+                    '{{canExplore}}',
+                    languageBoolean(language, data.content.canExplore ?? false),
+                );
             break;
         case 'apiAccess':
             break;
@@ -1522,6 +1559,7 @@ export const EmbeddedAiAgent = ({ embedJwt }: EmbeddedAiAgentProps) => {
     );
 };
 `;
+        case 'metricsCatalog':
         case 'dataApp':
         case 'apiAccess':
             return '';

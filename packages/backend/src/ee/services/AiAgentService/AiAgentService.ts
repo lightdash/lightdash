@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    activeFollowUpTools,
     AGENT_SUGGESTION_TOOLS,
     AgentSuggestion,
     AgentSummaryContext,
@@ -24,6 +25,7 @@ import {
     AiDuplicateSlackPromptError,
     AiMcpCredentialScope,
     AiMcpGithubAvailability,
+    AiMcpServer,
     AiMetricQueryWithFilters,
     AiModelOption,
     AiPromptContext,
@@ -32,6 +34,7 @@ import {
     AiVizMetadata,
     AiWebAppPrompt,
     AiWritebackAttribution,
+    AiWritebackRunResult,
     AlreadyExistsError,
     AnonymousAccount,
     AnyType,
@@ -47,6 +50,7 @@ import {
     ApiCreateEvaluationRequest,
     ApiUpdateAiAgent,
     ApiUpdateAiAgentMcpServerToolsRequest,
+    ApiUpdateAiMcpServerCredentialBody,
     ApiUpdateEvaluationRequest,
     ApiUpdateUserAgentPreferences,
     assertUnreachable,
@@ -55,10 +59,12 @@ import {
     DbtProjectType,
     derivePivotConfigurationFromChart,
     DownloadFileType,
+    EmbedArtifactVersionJobPayload,
     Explore,
     FeatureFlags,
     followUpToolsText,
     ForbiddenError,
+    GenerateArtifactQuestionJobPayload,
     getErrorMessage,
     getGroupByDimensions,
     getItemId,
@@ -66,10 +72,12 @@ import {
     getWebAiChartConfig,
     GITHUB_MCP_SERVER_NAME,
     GITHUB_MCP_SERVER_URL,
+    hasAiAgentAccessToSpace,
+    InsufficientGitPermissionsError,
+    isAiWritebackRunInProgress,
     isGitProjectType,
     isSlackMessageTooLongError,
     isSlackPrompt,
-    isToolProposeChangeSuccessResult,
     KnexPaginateArgs,
     KnexPaginatedData,
     LightdashUser,
@@ -85,6 +93,7 @@ import {
     ReadinessScore,
     ShareUrl,
     SlackPrompt,
+    sleep,
     ToolDashboardArgs,
     toolDashboardArgsSchema,
     ToolDashboardV2Args,
@@ -95,6 +104,7 @@ import {
     UserAttributeValueMap,
     validateAgentSuggestion,
     type AgentSuggestionTool,
+    type AiAgentEditDbtProjectPipelineJobPayload,
     type AiAgentModelConfig,
     type AiClonedThreadCreatedFrom,
     type AiPromptContextInput,
@@ -167,7 +177,6 @@ import {
     CatalogModel,
     CatalogSearchContext,
 } from '../../../models/CatalogModel/CatalogModel';
-import { ChangesetModel } from '../../../models/ChangesetModel';
 import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
 import { DownloadFileModel } from '../../../models/DownloadFileModel';
 import { GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
@@ -234,12 +243,14 @@ import { generateThreadTitle as generateTitleFromMessages } from '../ai/agents/t
 import { AiAgentMcpRuntimeClient } from '../ai/AiAgentMcpRuntimeClient';
 import { Compaction } from '../ai/compaction';
 import {
+    filterModelsForOrg,
     getAvailableModels,
     getCompactionModelMetadata,
     getDefaultModel,
     getModel,
+    presetToModelOption,
 } from '../ai/models';
-import { matchesPreset } from '../ai/models/presets';
+import { OrgAiCopilotConfigResolver } from '../ai/OrgAiCopilotConfigResolver';
 import {
     requestingUserRoleFromCustomRole,
     requestingUserRoleFromSystemRole,
@@ -284,6 +295,11 @@ import {
     UpdateSlackMessageFn,
 } from '../ai/types/aiAgentDependencies';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
+import { AiCallAttribution } from '../ai/utils/aiCallTelemetry';
+import {
+    classifyWritebackError,
+    GIT_WRITE_PERMISSION_AGENT_MESSAGE,
+} from '../ai/utils/classifyWritebackError';
 import { getUserFacingErrorMessage } from '../ai/utils/errorMessages';
 import {
     buildFeedbackContextActions,
@@ -297,7 +313,6 @@ import {
     getModernArtifactCardBlocks,
     getModernPullRequestCardBlocks,
     getProjectSelectionBlocks,
-    getProposeChangeBlocks,
     getReferencedArtifactsBlocks,
     getTextBlocks,
     getThinkingBlocks,
@@ -308,11 +323,12 @@ import {
     expandMetricsWithPopAdditionalMetrics,
     populateCustomMetricsSQL,
 } from '../ai/utils/populateCustomMetricsSQL';
+import { toolErrorHandler } from '../ai/utils/toolErrorHandler';
 import { validateSelectedFieldsExistence } from '../ai/utils/validators';
 import { AiAgentToolsService } from '../AiAgentToolsService/AiAgentToolsService';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { AiWritebackService } from '../AiWritebackService/AiWritebackService';
-import { buildChangesetWritebackPrompt } from '../AiWritebackService/changesetPrompt';
+import { WritebackThreadPrClosedError } from '../AiWritebackService/errors';
 import type { AiWritebackSource } from '../AiWritebackService/types';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
 import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
@@ -355,6 +371,8 @@ const ALLOWED_AGENT_AVATAR_MIME_TYPES = new Set([
 // comfortably under the usual 30-60s idle timeouts.
 const STREAM_KEEPALIVE_INTERVAL_MS = 15_000;
 
+const MAX_MCP_BEARER_TOKEN_LENGTH = 8192;
+
 type EmbedAiAgentRuntimeOptions = {
     embedSpaceUuid: string;
     spaceAccess: string[];
@@ -369,7 +387,6 @@ type AiAgentServiceDependencies = {
     asyncQueryService: AsyncQueryService;
     catalogService: CatalogService;
     catalogModel: CatalogModel;
-    changesetModel: ChangesetModel;
     contentVerificationModel: ContentVerificationModel;
     searchModel: SearchModel;
     searchService: SearchService;
@@ -392,6 +409,7 @@ type AiAgentServiceDependencies = {
     savedChartService: SavedChartService;
     contentService: ContentService;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
+    orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
     shareService: ShareService;
     fileStorageClient: FileStorageClient;
     downloadFileModel: DownloadFileModel;
@@ -478,7 +496,7 @@ const SYSTEM_AGENT_INSTRUCTION = `You are Lightdash's built-in assistant. Help t
 
 If the user asks about the current project or its underlying dbt project — for example which dbt project this is, which git repository or branch it connects to, or what dbt version or warehouse it uses — call the getProjectInfo tool and answer from its result. Do not guess these details.
 
-If the user asks you to change the dbt project or semantic layer — for example renaming or adding a metric or dimension, editing a model's YAML, or otherwise modifying definitions — use the editDbtProject tool, passing along the user's request. It opens a pull request against the project's dbt repository. Do not attempt to make such changes any other way. If the user asks to write back or open a pull request from their changeset(s), call editDbtProject with fromActiveChangeset set to true and prompt set to null — the server builds the change instructions from the project's active changeset.
+If the user asks you to change the dbt project or semantic layer — for example renaming or adding a metric or dimension, editing a model's YAML, or otherwise modifying definitions — use the editDbtProject tool, passing along the user's request. It opens a pull request against the project's dbt repository. Do not attempt to make such changes any other way.
 
 If the user asks to set up Lightdash preview deploys / preview projects for pull requests (or they accept the offer surfaced after a writeback), use the setupPreviewDeploy tool. It opens a separate pull request adding the Lightdash preview GitHub Actions workflow; a prior writeback is not required.
 
@@ -594,8 +612,6 @@ export class AiAgentService extends BaseService {
 
     private readonly catalogModel: CatalogModel;
 
-    private readonly changesetModel: ChangesetModel;
-
     private readonly contentVerificationModel: ContentVerificationModel;
 
     private readonly featureFlagService: FeatureFlagService;
@@ -641,6 +657,8 @@ export class AiAgentService extends BaseService {
     private readonly prometheusMetrics?: PrometheusMetrics;
 
     private readonly aiOrganizationSettingsService: AiOrganizationSettingsService;
+
+    private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 
     private readonly shareService: ShareService;
 
@@ -918,7 +936,6 @@ export class AiAgentService extends BaseService {
         this.asyncQueryService = dependencies.asyncQueryService;
         this.catalogService = dependencies.catalogService;
         this.catalogModel = dependencies.catalogModel;
-        this.changesetModel = dependencies.changesetModel;
         this.contentVerificationModel = dependencies.contentVerificationModel;
         this.searchModel = dependencies.searchModel;
         this.searchService = dependencies.searchService;
@@ -943,6 +960,8 @@ export class AiAgentService extends BaseService {
         this.prometheusMetrics = dependencies.prometheusMetrics;
         this.aiOrganizationSettingsService =
             dependencies.aiOrganizationSettingsService;
+        this.orgAiCopilotConfigResolver =
+            dependencies.orgAiCopilotConfigResolver;
         this.shareService = dependencies.shareService;
         this.fileStorageClient = dependencies.fileStorageClient;
         this.downloadFileModel = dependencies.downloadFileModel;
@@ -1430,10 +1449,7 @@ export class AiAgentService extends BaseService {
         agent: AiAgent,
         spaceUuid: string,
     ) {
-        if (
-            agent.spaceAccess.length > 0 &&
-            !agent.spaceAccess.includes(spaceUuid)
-        ) {
+        if (!hasAiAgentAccessToSpace(agent, spaceUuid)) {
             throw new ForbiddenError(
                 'AI agent is not available in the embedded space',
             );
@@ -1480,8 +1496,7 @@ export class AiAgentService extends BaseService {
         return agents.filter(
             (agent) =>
                 agent.uuid === tokenAgentUuid &&
-                (agent.spaceAccess.length === 0 ||
-                    agent.spaceAccess.includes(spaceUuid)),
+                hasAiAgentAccessToSpace(agent, spaceUuid),
         );
     }
 
@@ -1682,10 +1697,15 @@ export class AiAgentService extends BaseService {
         let modelId = 'fallback';
 
         try {
-            const modelOptions = getModel(this.lightdashConfig.ai.copilot, {
-                enableReasoning: false,
-                useFastModel: true,
-            });
+            const copilotConfig =
+                await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                    organizationUuid,
+                );
+            const modelOptions =
+                await this.orgAiCopilotConfigResolver.resolveFastModel(
+                    copilotConfig,
+                    { enableReasoning: false },
+                );
 
             const generated = await generateAgentSuggestions(
                 modelOptions,
@@ -2113,25 +2133,18 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        const defaultModel = getDefaultModel(this.lightdashConfig.ai.copilot);
+        const [copilotConfig, orgModelOverrides] = await Promise.all([
+            this.orgAiCopilotConfigResolver.getCopilotConfig(organizationUuid),
+            this.orgAiCopilotConfigResolver.getOrgModelOverrides(
+                organizationUuid,
+            ),
+        ]);
+        const defaultModel = getDefaultModel(copilotConfig);
 
-        return getAvailableModels(this.lightdashConfig.ai.copilot).map(
-            (preset) => {
-                const isDefault =
-                    defaultModel !== null &&
-                    preset.provider === defaultModel.provider &&
-                    matchesPreset(preset, defaultModel.name);
-
-                return {
-                    name: preset.name,
-                    displayName: preset.displayName,
-                    description: preset.description,
-                    provider: preset.provider,
-                    default: isDefault,
-                    supportsReasoning: preset.supportsReasoning,
-                };
-            },
-        );
+        return filterModelsForOrg(
+            getAvailableModels(copilotConfig),
+            orgModelOverrides,
+        ).map((preset) => presetToModelOption(preset, defaultModel));
     }
 
     async listAgentThreads(
@@ -3050,16 +3063,29 @@ export class AiAgentService extends BaseService {
         await this.assertCanManageMcpServers(user, projectUuid);
 
         try {
-            return await this.discoverMcpServerTools({
+            const tools = await this.discoverMcpServerTools({
                 projectUuid,
                 mcpServerUuid,
                 actorUserUuid: user.userUuid,
             });
+            await this.aiAgentModel.updateMcpServerRuntimeState({
+                serverUuid: mcpServerUuid,
+                connectionStatus: 'connected',
+                error: null,
+                actorUserUuid: user.userUuid,
+            });
+            return tools;
         } catch (error) {
+            const message =
+                error instanceof Error ? error.message : String(error);
+            await this.aiAgentModel.updateMcpServerRuntimeState({
+                serverUuid: mcpServerUuid,
+                connectionStatus: 'error',
+                error: message,
+                actorUserUuid: user.userUuid,
+            });
             throw new ParameterError(
-                `We couldn't refresh this MCP server's tools. Check the connection and authentication settings, then try again. Details: ${
-                    error instanceof Error ? error.message : String(error)
-                }`,
+                `We couldn't refresh this MCP server's tools. Check the connection and authentication settings, then try again. Details: ${message}`,
             );
         }
     }
@@ -3196,7 +3222,11 @@ export class AiAgentService extends BaseService {
 
         switch (body.authType) {
             case 'none':
-                if (body.credentials?.bearerToken) {
+                if (
+                    body.credentials?.bearerToken ||
+                    body.credentials?.clientId ||
+                    body.credentials?.clientSecret
+                ) {
                     throw new ParameterError(
                         'Credentials are not allowed for auth type "none"',
                     );
@@ -3213,9 +3243,26 @@ export class AiAgentService extends BaseService {
                 }
                 break;
             case 'bearer':
-                if (!body.credentials?.bearerToken.trim()) {
+                if (!body.credentials?.bearerToken?.trim()) {
                     throw new ParameterError(
                         'Bearer MCP servers require a bearer token',
+                    );
+                }
+                if (
+                    body.credentials.bearerToken.trim().length >
+                    MAX_MCP_BEARER_TOKEN_LENGTH
+                ) {
+                    throw new ParameterError(
+                        `Bearer token must be at most ${MAX_MCP_BEARER_TOKEN_LENGTH} characters`,
+                    );
+                }
+
+                if (
+                    body.credentials?.clientId ||
+                    body.credentials?.clientSecret
+                ) {
+                    throw new ParameterError(
+                        'OAuth client credentials are not allowed for auth type "bearer"',
                     );
                 }
                 if (allowOAuthCredentialSharing) {
@@ -3228,6 +3275,25 @@ export class AiAgentService extends BaseService {
                 if (body.credentials?.bearerToken) {
                     throw new ParameterError(
                         'Bearer credentials are not allowed for auth type "oauth"',
+                    );
+                }
+                if (
+                    (body.credentials?.clientId?.trim() &&
+                        !body.credentials?.clientSecret?.trim()) ||
+                    (!body.credentials?.clientId?.trim() &&
+                        body.credentials?.clientSecret?.trim())
+                ) {
+                    throw new ParameterError(
+                        'OAuth client ID and secret must be provided together',
+                    );
+                }
+                if (
+                    allowOAuthCredentialSharing &&
+                    (body.credentials?.clientId?.trim() ||
+                        body.credentials?.clientSecret?.trim())
+                ) {
+                    throw new ParameterError(
+                        'OAuth client ID and secret are only supported for personal OAuth credentials',
                     );
                 }
                 if (body.credentialScope !== undefined) {
@@ -3243,12 +3309,22 @@ export class AiAgentService extends BaseService {
                 );
         }
 
-        const credentials =
-            body.authType === 'bearer'
-                ? {
-                      bearerToken: body.credentials!.bearerToken.trim(),
-                  }
-                : null;
+        let credentials: ApiCreateAiMcpServer['credentials'] = null;
+        if (body.authType === 'bearer') {
+            credentials = {
+                bearerToken: body.credentials!.bearerToken!.trim(),
+            };
+        }
+        if (
+            body.authType === 'oauth' &&
+            body.credentials?.clientId?.trim() &&
+            body.credentials?.clientSecret?.trim()
+        ) {
+            credentials = {
+                clientId: body.credentials.clientId.trim(),
+                clientSecret: body.credentials.clientSecret.trim(),
+            };
+        }
 
         let mcpConnectionMetadata: { iconUrl: string | null } | null = null;
 
@@ -3305,6 +3381,89 @@ export class AiAgentService extends BaseService {
         return server;
     }
 
+    public async updateMcpServerBearerCredential(
+        user: SessionUser,
+        projectUuid: string,
+        mcpServerUuid: string,
+        body: ApiUpdateAiMcpServerCredentialBody,
+    ): Promise<AiMcpServer> {
+        await this.assertCanManageMcpServers(user, projectUuid);
+
+        const server = await this.getProjectMcpServerOrThrow(
+            projectUuid,
+            mcpServerUuid,
+        );
+        if (server.authType !== 'bearer') {
+            throw new ParameterError(
+                'Only bearer-token MCP servers support updating the token',
+            );
+        }
+
+        const bearerToken = body.bearerToken.trim();
+        if (!bearerToken) {
+            throw new ParameterError('A bearer token is required');
+        }
+        if (bearerToken.length > MAX_MCP_BEARER_TOKEN_LENGTH) {
+            throw new ParameterError(
+                `Bearer token must be at most ${MAX_MCP_BEARER_TOKEN_LENGTH} characters`,
+            );
+        }
+
+        let mcpConnectionMetadata: { iconUrl: string | null };
+        try {
+            mcpConnectionMetadata =
+                await this.aiAgentMcpRuntimeClient.testConnection({
+                    name: server.name,
+                    url: server.url,
+                    authType: 'bearer',
+                    bearerToken,
+                    onUncaughtError: (error) => {
+                        Logger.error(
+                            `[AiAgent][MCP][${server.name}] Uncaught MCP client error while validating updated token`,
+                            error,
+                        );
+                    },
+                });
+        } catch (error) {
+            throw new ParameterError(
+                `We couldn't connect to this MCP server with that token. Check the token and its access, then try again. Details: ${
+                    error instanceof Error ? error.message : String(error)
+                }`,
+            );
+        }
+
+        await this.aiAgentModel.upsertCredential({
+            serverUuid: mcpServerUuid,
+            scope: 'shared',
+            credentials: { type: 'bearer', bearerToken },
+            actorUserUuid: user.userUuid,
+        });
+        await this.aiAgentModel.updateMcpServerRuntimeState({
+            serverUuid: mcpServerUuid,
+            connectionStatus: 'connected',
+            error: null,
+            iconUrl: mcpConnectionMetadata.iconUrl,
+            actorUserUuid: user.userUuid,
+        });
+
+        await this.discoverMcpServerTools({
+            projectUuid,
+            mcpServerUuid,
+            actorUserUuid: user.userUuid,
+        }).catch((error) => {
+            Logger.error(
+                `[AiAgent][MCP][${server.name}] Failed to discover tools after token update`,
+                error,
+            );
+        });
+
+        const updated = await this.aiAgentModel.getMcpServer(mcpServerUuid);
+        if (!updated) {
+            throw new NotFoundError('MCP server not found');
+        }
+        return updated;
+    }
+
     /**
      * Whether the one-click "Connect GitHub" affordance should be offered for
      * this project. It is available only when the org has a GitHub App
@@ -3318,14 +3477,6 @@ export class AiAgentService extends BaseService {
     ): Promise<AiMcpGithubAvailability> {
         const { organizationUuid } = user;
         if (!organizationUuid) {
-            return { available: false, alreadyConnected: false };
-        }
-
-        const { enabled: oneClickEnabled } = await this.featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.GithubMcpOneClick,
-        });
-        if (!oneClickEnabled) {
             return { available: false, alreadyConnected: false };
         }
 
@@ -3371,16 +3522,6 @@ export class AiAgentService extends BaseService {
         const { organizationUuid } = user;
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
-        }
-
-        const { enabled: oneClickEnabled } = await this.featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.GithubMcpOneClick,
-        });
-        if (!oneClickEnabled) {
-            throw new ForbiddenError(
-                'One-click GitHub MCP setup is not enabled',
-            );
         }
 
         const bearerToken = personalAccessToken.trim();
@@ -3578,34 +3719,31 @@ export class AiAgentService extends BaseService {
     }
 
     public async completeMcpOAuthConnection(args: {
-        projectUuid: string;
-        mcpServerUuid: string;
+        projectUuid?: string;
+        mcpServerUuid?: string;
         code?: string;
         state?: string;
     }): Promise<void> {
-        const server = await this.getProjectMcpServerOrThrow(
-            args.projectUuid,
-            args.mcpServerUuid,
-        );
-
-        if (server.authType !== 'oauth') {
-            throw new ParameterError('MCP server is not configured for OAuth');
-        }
-
-        const credential = args.state
-            ? await this.aiAgentModel.getOauthCredentialByState({
-                  serverUuid: args.mcpServerUuid,
-                  state: args.state,
-              })
-            : undefined;
+        const stateServerUuid =
+            args.mcpServerUuid ??
+            AiAgentService.getMcpServerUuidFromOAuthState(args.state);
+        const credential =
+            args.state && stateServerUuid
+                ? await this.aiAgentModel.getOauthCredentialByState({
+                      serverUuid: stateServerUuid,
+                      state: args.state,
+                  })
+                : undefined;
 
         if (!args.code || !args.state) {
             const errorMessage = 'OAuth callback is missing code or state';
-            await this.persistMcpOAuthConnectionError(
-                args.mcpServerUuid,
-                errorMessage,
-                credential,
-            );
+            if (stateServerUuid || credential) {
+                await this.persistMcpOAuthConnectionError(
+                    stateServerUuid ?? credential?.mcpServerUuid ?? '',
+                    errorMessage,
+                    credential,
+                );
+            }
             throw new ParameterError(errorMessage);
         }
 
@@ -3613,17 +3751,36 @@ export class AiAgentService extends BaseService {
             throw new ParameterError('Invalid OAuth state');
         }
 
+        const server = args.projectUuid
+            ? await this.getProjectMcpServerOrThrow(
+                  args.projectUuid,
+                  credential.mcpServerUuid,
+              )
+            : await this.aiAgentModel.getMcpServer(credential.mcpServerUuid);
+
+        if (!server) {
+            throw new ParameterError('Invalid OAuth state');
+        }
+
+        if (args.mcpServerUuid && server.uuid !== args.mcpServerUuid) {
+            throw new ParameterError('Invalid OAuth state');
+        }
+
+        if (server.authType !== 'oauth') {
+            throw new ParameterError('MCP server is not configured for OAuth');
+        }
+
         await this.aiAgentMcpRuntimeClient.completeOAuthConnection({
-            projectUuid: args.projectUuid,
-            mcpServerUuid: args.mcpServerUuid,
+            projectUuid: server.projectUuid,
+            mcpServerUuid: server.uuid,
             serverUrl: server.url,
             code: args.code,
             credential,
         });
 
         await this.discoverMcpServerTools({
-            projectUuid: args.projectUuid,
-            mcpServerUuid: args.mcpServerUuid,
+            projectUuid: server.projectUuid,
+            mcpServerUuid: server.uuid,
             actorUserUuid:
                 credential.userUuid ??
                 credential.updatedByUserUuid ??
@@ -3637,6 +3794,13 @@ export class AiAgentService extends BaseService {
                 error,
             );
         });
+    }
+
+    private static getMcpServerUuidFromOAuthState(
+        state: string | undefined,
+    ): string | undefined {
+        const [mcpServerUuid, nonce] = state?.split('.', 2) ?? [];
+        return mcpServerUuid && nonce ? mcpServerUuid : undefined;
     }
 
     private async persistMcpOAuthConnectionError(
@@ -3996,6 +4160,10 @@ export class AiAgentService extends BaseService {
         // Web-app only for now. Slack still needs compaction UX + thread replay
         // semantics before we can safely reuse this flow there.
         const compactionLogContext = `[AiAgent][Compaction] thread=${threadUuid} prompt=${prompt.promptUuid}`;
+        const copilotConfig =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                user.organizationUuid ?? null,
+            );
         const latestCompaction =
             await this.aiAgentModel.findLatestThreadCompaction(threadUuid);
 
@@ -4019,7 +4187,7 @@ export class AiAgentService extends BaseService {
         }
 
         const { supportsCompaction, contextWindowTokens } =
-            getCompactionModelMetadata(this.lightdashConfig.ai.copilot, {
+            getCompactionModelMetadata(copilotConfig, {
                 provider: prompt.modelConfig?.modelProvider as AnyType,
                 modelName: prompt.modelConfig?.modelName,
             });
@@ -4094,7 +4262,7 @@ export class AiAgentService extends BaseService {
         }
 
         const compactionModel = {
-            ...getModel(this.lightdashConfig.ai.copilot, {
+            ...getModel(copilotConfig, {
                 provider: prompt.modelConfig?.modelProvider as AnyType,
                 modelName: prompt.modelConfig?.modelName,
                 useFastModel: true,
@@ -4787,11 +4955,15 @@ export class AiAgentService extends BaseService {
                 });
 
             // Use fast model for title generation (lightweight task)
+            const copilotConfig =
+                await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                    user.organizationUuid ?? null,
+                );
             const modelOptions = {
-                ...getModel(this.lightdashConfig.ai.copilot, {
-                    enableReasoning: false,
-                    useFastModel: true,
-                }),
+                ...(await this.orgAiCopilotConfigResolver.resolveFastModel(
+                    copilotConfig,
+                    { enableReasoning: false },
+                )),
                 telemetry: {
                     organizationUuid: user.organizationUuid ?? null,
                     agentUuid,
@@ -4847,7 +5019,11 @@ export class AiAgentService extends BaseService {
             agent.tags,
         );
 
-        const { model } = getModel(this.lightdashConfig.ai.copilot, {
+        const copilotConfig =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                user.organizationUuid ?? null,
+            );
+        const { model } = getModel(copilotConfig, {
             enableReasoning: false,
         });
 
@@ -5559,11 +5735,9 @@ export class AiAgentService extends BaseService {
         }
     }
 
-    async embedArtifactVersion(payload: {
-        artifactVersionUuid: string;
-        title: string | null;
-        description: string | null;
-    }): Promise<void> {
+    async embedArtifactVersion(
+        payload: EmbedArtifactVersionJobPayload,
+    ): Promise<void> {
         try {
             const text = [payload.title, payload.description]
                 .filter(Boolean)
@@ -5576,7 +5750,12 @@ export class AiAgentService extends BaseService {
             const embeddingResult = await generateEmbedding(
                 text,
                 this.lightdashConfig,
-                { artifactVersionUuid: payload.artifactVersionUuid },
+                {
+                    organizationUuid: payload.organizationUuid,
+                    projectUuid: payload.projectUuid,
+                    userUuid: payload.userUuid,
+                    extra: { artifactVersionUuid: payload.artifactVersionUuid },
+                },
             );
 
             if (!embeddingResult) {
@@ -5599,22 +5778,31 @@ export class AiAgentService extends BaseService {
         }
     }
 
-    async generateArtifactQuestion(payload: {
-        artifactVersionUuid: string;
-        title: string | null;
-        description: string | null;
-    }): Promise<void> {
+    async generateArtifactQuestion(
+        payload: GenerateArtifactQuestionJobPayload,
+    ): Promise<void> {
         try {
             if (!payload.title && !payload.description) {
                 return;
             }
 
-            const modelOptions = getModel(this.lightdashConfig.ai.copilot, {
+            const copilotConfig =
+                await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                    payload.organizationUuid,
+                );
+            const modelOptions = getModel(copilotConfig, {
                 enableReasoning: false,
             });
 
             const question = await generateArtifactQuestion(
-                modelOptions,
+                {
+                    ...modelOptions,
+                    telemetry: {
+                        organizationUuid: payload.organizationUuid,
+                        projectUuid: payload.projectUuid,
+                        userUuid: payload.userUuid,
+                    },
+                },
                 payload.title,
                 payload.description,
                 { artifactVersionUuid: payload.artifactVersionUuid },
@@ -5709,112 +5897,6 @@ export class AiAgentService extends BaseService {
             verifiedQuestions,
             instruction: agent.instruction,
         };
-    }
-
-    async revertChange(
-        user: SessionUser,
-        {
-            agentUuid,
-            threadUuid,
-            promptUuid,
-            changeUuid,
-        }: {
-            agentUuid: string;
-            threadUuid: string;
-            promptUuid: string;
-            changeUuid: string;
-        },
-    ): Promise<void> {
-        const { organizationUuid } = user;
-        if (!organizationUuid)
-            throw new ForbiddenError(`Organization not found`);
-
-        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
-        if (!isCopilotEnabled)
-            throw new ForbiddenError(`Copilot is not enabled`);
-
-        const agent = await this.aiAgentModel.getAgent({
-            organizationUuid,
-            agentUuid,
-        });
-
-        if (!agent) {
-            throw new NotFoundError(`Agent not found: ${agentUuid}`);
-        }
-
-        const thread = await this.aiAgentModel.getThread({
-            organizationUuid,
-            agentUuid,
-            threadUuid,
-        });
-
-        if (!thread) {
-            throw new NotFoundError(`Thread not found: ${threadUuid}`);
-        }
-
-        const hasAccess = await this.checkAgentThreadAccess(
-            user,
-            agent,
-            thread.user.uuid,
-        );
-        if (!hasAccess) {
-            throw new ForbiddenError(
-                'Insufficient permissions to revert this change',
-            );
-        }
-
-        const originalChangeset =
-            await this.changesetModel.findActiveChangesetWithChangesByProjectUuid(
-                agent.projectUuid,
-            );
-
-        if (!originalChangeset) {
-            throw new NotFoundError(
-                `No active changeset found for project: ${agent.projectUuid}`,
-            );
-        }
-
-        const change = await this.changesetModel.getChange(
-            changeUuid,
-            agent.projectUuid,
-        );
-
-        const originalExplores = await this.projectModel.findExploresFromCache(
-            agent.projectUuid,
-            'name',
-            originalChangeset.changes.map((c) => c.entityTableName),
-        );
-
-        await this.changesetModel.revertChange(changeUuid, agent.projectUuid);
-
-        await this.catalogModel.indexCatalogReverts({
-            projectUuid: agent.projectUuid,
-            revertedChanges: [change],
-            originalChangeset,
-            originalExplores,
-        });
-        const toolResults =
-            await this.aiAgentModel.getToolResultsForPrompt(promptUuid);
-
-        // Find the tool result for the propose_change that created this change
-        const proposeChangeResult = toolResults
-            .filter(isToolProposeChangeSuccessResult)
-            .find((result) => result.metadata.changeUuid === changeUuid);
-
-        if (!proposeChangeResult) {
-            throw new NotFoundError(
-                `Propose change result not found for change: ${changeUuid}`,
-            );
-        }
-
-        await this.aiAgentModel.updateToolResultMetadata(
-            promptUuid,
-            proposeChangeResult.toolCallId,
-            {
-                ...proposeChangeResult.metadata,
-                userFeedback: 'rejected',
-            },
-        );
     }
 
     private async updateSlackResponseWithProgress(
@@ -5927,6 +6009,19 @@ export class AiAgentService extends BaseService {
         await Promise.all(
             loginServers.map(async ({ serverName, serverUuid, mcpServer }) => {
                 try {
+                    const existingCredential =
+                        await this.aiAgentModel.getCredential(
+                            serverUuid,
+                            'user',
+                            { userUuid: user.userUuid },
+                        );
+                    if (
+                        existingCredential?.credentials.type === 'oauth' &&
+                        existingCredential.credentials.slackLoginPromptedAt
+                    ) {
+                        return;
+                    }
+
                     const authorizationUrl = await this.startMcpOAuthConnection(
                         user,
                         prompt.projectUuid,
@@ -5967,6 +6062,25 @@ export class AiAgentService extends BaseService {
                             },
                         ],
                     });
+
+                    const promptedCredential =
+                        await this.aiAgentModel.getCredential(
+                            serverUuid,
+                            'user',
+                            { userUuid: user.userUuid },
+                        );
+                    if (promptedCredential?.credentials.type === 'oauth') {
+                        await this.aiAgentModel.upsertCredential({
+                            serverUuid,
+                            scope: 'user',
+                            userUuid: user.userUuid,
+                            actorUserUuid: user.userUuid,
+                            credentials: {
+                                ...promptedCredential.credentials,
+                                slackLoginPromptedAt: new Date().toISOString(),
+                            },
+                        });
+                    }
                 } catch (error) {
                     Logger.error(
                         `Failed to post Slack MCP OAuth login message for ${mcpServer.name}`,
@@ -6093,6 +6207,7 @@ export class AiAgentService extends BaseService {
         const embeddingResult = await generateEmbedding(
             searchQuery,
             this.lightdashConfig,
+            { organizationUuid, projectUuid, agentUuid },
         );
         if (!embeddingResult) {
             return { relevantVerifiedAnswers: [] };
@@ -6331,21 +6446,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                                 type: 'tool-result',
                                 toolCallId: toolResult.toolCallId,
                                 toolName: toolResult.toolName,
-                                output:
-                                    isToolProposeChangeSuccessResult(
-                                        toolResult,
-                                    ) &&
-                                    toolResult.metadata.userFeedback ===
-                                        'rejected'
-                                        ? {
-                                              type: 'json',
-                                              value: `${toolResult.result}\nUser rejected proposed change.`,
-                                          }
-                                        : {
-                                              type: 'json',
-                                              // TODO :: based on tool, if there's a need for it we can use the metadata here
-                                              value: toolResult.result,
-                                          },
+                                output: {
+                                    type: 'json',
+                                    // TODO :: based on tool, if there's a need for it we can use the metadata here
+                                    value: toolResult.result,
+                                },
                             },
                         ],
                     } satisfies ToolModelMessage);
@@ -6377,6 +6482,116 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 return toolTurnMessages;
             },
         );
+    }
+
+    // Final safety net over the fully-assembled history: any assistant
+    // `tool-call` with no following `tool-result` makes the provider reject the
+    // whole request (400 "tool_use ids were found without tool_result blocks").
+    // `buildToolCallTurnMessages` backfills prior-prompt orphans, but a blocked
+    // sibling on the *current* prompt (e.g. a guardrail-tripped runSql whose
+    // result never persisted) can still dangle. Backfill a synthetic result for
+    // every dangling call, EXCEPT the trailing approved-but-unexecuted call(s):
+    // the AI SDK only resumes tool-approval-responses found in the LAST message
+    // (see `collectToolApprovals`), so those must stay result-less to re-execute.
+    static backfillDanglingToolResults(
+        history: ModelMessage[],
+    ): ModelMessage[] {
+        const approvalIdToToolCallId = new Map<string, string>();
+        for (const message of history) {
+            if (
+                message.role === 'assistant' &&
+                typeof message.content !== 'string'
+            ) {
+                for (const part of message.content) {
+                    if (part.type === 'tool-approval-request') {
+                        approvalIdToToolCallId.set(
+                            part.approvalId,
+                            part.toolCallId,
+                        );
+                    }
+                }
+            }
+        }
+
+        // The resume input the SDK is about to execute: approval-responses in
+        // the last message whose tool-call it will run. Leave these dangling.
+        const pendingResumeToolCallIds = new Set<string>();
+        const lastMessage = history.at(-1);
+        if (lastMessage?.role === 'tool') {
+            for (const part of lastMessage.content) {
+                if (part.type === 'tool-approval-response') {
+                    const toolCallId = approvalIdToToolCallId.get(
+                        part.approvalId,
+                    );
+                    if (toolCallId) {
+                        pendingResumeToolCallIds.add(toolCallId);
+                    }
+                }
+            }
+        }
+
+        const resolvedToolCallIds = new Set<string>();
+        for (const message of history) {
+            if (message.role === 'tool') {
+                for (const part of message.content) {
+                    if (part.type === 'tool-result') {
+                        resolvedToolCallIds.add(part.toolCallId);
+                    }
+                }
+            }
+        }
+
+        const backfilled: ModelMessage[] = [];
+        for (let i = 0; i < history.length; i += 1) {
+            const message = history[i];
+            backfilled.push(message);
+
+            const danglingCalls =
+                message.role === 'assistant' &&
+                typeof message.content !== 'string'
+                    ? message.content.filter(
+                          (part): part is ToolCallPart =>
+                              part.type === 'tool-call' &&
+                              !resolvedToolCallIds.has(part.toolCallId) &&
+                              !pendingResumeToolCallIds.has(part.toolCallId),
+                      )
+                    : [];
+
+            if (danglingCalls.length > 0) {
+                // Keep an approval-response that belongs to this turn ahead of
+                // the synthetic result, mirroring buildToolCallTurnMessages.
+                const next = history[i + 1];
+                if (
+                    next?.role === 'tool' &&
+                    next.content.some(
+                        (part) => part.type === 'tool-approval-response',
+                    )
+                ) {
+                    backfilled.push(next);
+                    i += 1;
+                }
+
+                for (const part of danglingCalls) {
+                    backfilled.push({
+                        role: 'tool',
+                        content: [
+                            {
+                                type: 'tool-result',
+                                toolCallId: part.toolCallId,
+                                toolName: part.toolName,
+                                output: {
+                                    type: 'json',
+                                    value: 'Tool result unavailable.',
+                                },
+                            },
+                        ],
+                    } satisfies ToolModelMessage);
+                    resolvedToolCallIds.add(part.toolCallId);
+                }
+            }
+        }
+
+        return backfilled;
     }
 
     async getChatHistoryFromThreadMessages(
@@ -6499,7 +6714,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             }),
         );
 
-        const history = messagesWithToolCalls.flat();
+        const history = AiAgentService.backfillDanglingToolResults(
+            messagesWithToolCalls.flat(),
+        );
 
         if (!options.compaction) {
             if (history.length === 0) {
@@ -6520,6 +6737,391 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             Compaction.createSummaryMessage(options.compaction.summary),
             ...history,
         ];
+    }
+
+    private async waitForOriginalResponseWritten(
+        promptUuid: string,
+        fromSlack: boolean,
+        timeoutMs = 20_000,
+    ): Promise<void> {
+        const pollIntervalMs = 300;
+        const deadline = Date.now() + timeoutMs;
+        for (;;) {
+            const fetchPrompt = fromSlack
+                ? this.aiAgentModel.findSlackPrompt(promptUuid)
+                : this.aiAgentModel.findWebAppPrompt(promptUuid);
+            // eslint-disable-next-line no-await-in-loop -- deliberate poll, see docstring
+            const prompt = await fetchPrompt;
+            if (prompt?.response) {
+                return;
+            }
+            if (Date.now() >= deadline) {
+                Logger.warn(
+                    `AiAgent.waitForOriginalResponseWritten: timed out waiting for prompt ${promptUuid}'s original response`,
+                );
+                return;
+            }
+            // eslint-disable-next-line no-await-in-loop -- deliberate poll delay
+            await sleep(pollIntervalMs);
+        }
+    }
+
+    /**
+     * The editDbtProject tool enqueues this pipeline job mid-step, so the job
+     * can start — and a fast pre-flight failure can call updateToolResult —
+     * before onStepFinish has inserted the tool-result row. updateToolResult is
+     * an UPDATE, so it would silently match no rows and leave the card stuck.
+     * Poll until the row exists (bounded), mirroring
+     * waitForOriginalResponseWritten for the model-response field.
+     */
+    private async waitForToolResultWritten(
+        promptUuid: string,
+        toolCallId: string,
+        timeoutMs = 20_000,
+    ): Promise<void> {
+        const pollIntervalMs = 300;
+        const deadline = Date.now() + timeoutMs;
+        for (;;) {
+            // eslint-disable-next-line no-await-in-loop -- deliberate poll
+            if (await this.aiAgentModel.hasToolResult(promptUuid, toolCallId)) {
+                return;
+            }
+            if (Date.now() >= deadline) {
+                Logger.warn(
+                    `AiAgent.waitForToolResultWritten: timed out waiting for tool result ${toolCallId} on prompt ${promptUuid}`,
+                );
+                return;
+            }
+            // eslint-disable-next-line no-await-in-loop -- deliberate poll delay
+            await sleep(pollIntervalMs);
+        }
+    }
+
+    private async isRunAlreadyFinalizedDifferently(
+        user: SessionUser,
+        aiWritebackRunUuid: string,
+        ownOutcome: 'ready' | 'error',
+    ): Promise<boolean> {
+        try {
+            const current = await this.aiWritebackService.getRunStatus(
+                user,
+                aiWritebackRunUuid,
+            );
+            return current.status !== ownOutcome;
+        } catch (error) {
+            Logger.debug(
+                `AiAgent.isRunAlreadyFinalizedDifferently: failed to check run ${aiWritebackRunUuid} status — assuming not superseded: ${getErrorMessage(error)}`,
+            );
+            return false;
+        }
+    }
+
+    async runEditDbtProjectPipeline(
+        payload: AiAgentEditDbtProjectPipelineJobPayload,
+    ): Promise<void> {
+        const {
+            aiWritebackRunUuid,
+            organizationUuid,
+            projectUuid,
+            userUuid,
+            promptUuid,
+            toolCallId,
+            writebackPrompt,
+            source,
+            prUrl,
+            startNewPullRequest,
+            suppressWritebackPreview,
+        } = payload;
+
+        const user = await this.userModel.findSessionUserAndOrgByUuid(
+            userUuid,
+            organizationUuid,
+        );
+        const prompt = payload.isSlackPrompt
+            ? await this.aiAgentModel.findSlackPrompt(promptUuid)
+            : await this.aiAgentModel.findWebAppPrompt(promptUuid);
+        if (!prompt) {
+            Logger.warn(
+                `AiAgent.runEditDbtProjectPipeline: prompt ${promptUuid} not found — skipping`,
+            );
+            return;
+        }
+
+        // This job is enqueued mid-step, so it can outrun the onStepFinish
+        // insert of its own tool-result row — wait for it before any
+        // updateToolResult below would otherwise no-op and strand the card.
+        await this.waitForToolResultWritten(promptUuid, toolCallId);
+
+        let result: AiWritebackRunResult;
+        try {
+            result = await wrapSentryTransaction(
+                'AiAgent.editDbtProject',
+                {},
+                () =>
+                    this.aiWritebackService.run({
+                        user,
+                        projectUuid,
+                        prompt: writebackPrompt,
+                        prUrl,
+                        startNewPullRequest: startNewPullRequest ?? false,
+                        aiThreadUuid: prompt.threadUuid,
+                        source,
+                        aiWritebackRunUuid,
+                    }),
+            );
+        } catch (error) {
+            if (
+                await this.isRunAlreadyFinalizedDifferently(
+                    user,
+                    aiWritebackRunUuid,
+                    'error',
+                )
+            ) {
+                Logger.warn(
+                    `AiAgent.runEditDbtProjectPipeline: run ${aiWritebackRunUuid} failed after already being finalized as ready (likely a job timeout raced a fast completion) — skipping stale tool-result update`,
+                );
+                return;
+            }
+            let toolResult: string;
+            let errorCode: ReturnType<typeof classifyWritebackError>;
+            if (error instanceof WritebackThreadPrClosedError) {
+                toolResult = error.message;
+                errorCode = 'pull_request_not_open';
+            } else if (error instanceof InsufficientGitPermissionsError) {
+                toolResult = GIT_WRITE_PERMISSION_AGENT_MESSAGE;
+                errorCode = 'git_write_permission';
+            } else {
+                toolResult = toolErrorHandler(
+                    error,
+                    'Error running AI writeback. No pull request was opened.',
+                );
+                errorCode = classifyWritebackError(error);
+            }
+            await this.aiAgentModel.updateToolResult(promptUuid, toolCallId, {
+                result: toolResult,
+                metadata: { status: 'error', errorCode },
+            });
+            if (isSlackPrompt(prompt)) {
+                await this.postWritebackOutcomeToSlack(
+                    user,
+                    prompt,
+                    getMarkdownBlocks(`:x: ${toolResult}`),
+                    toolResult,
+                );
+            }
+            return;
+        }
+
+        // run() marks the run row 'error' for a source-selection outcome even
+        // though it's not a failure, so the guard must not apply to it here.
+        if (
+            !result.needsDbtSourceSelection &&
+            (await this.isRunAlreadyFinalizedDifferently(
+                user,
+                aiWritebackRunUuid,
+                'ready',
+            ))
+        ) {
+            Logger.warn(
+                `AiAgent.runEditDbtProjectPipeline: run ${aiWritebackRunUuid} succeeded after already being finalized as an error (likely a job timeout) — skipping stale tool-result update`,
+            );
+            return;
+        }
+
+        const reviewRemediation =
+            await this.aiAgentReviewClassifierModel.findReviewRemediationByWorkThread(
+                {
+                    organizationUuid,
+                    workThreadUuid: prompt.threadUuid,
+                },
+            );
+        if (reviewRemediation && result.prUrl) {
+            await this.aiAgentReviewClassifierModel.createRemediationEvent({
+                remediationUuid: reviewRemediation.uuid,
+                organizationUuid: reviewRemediation.organizationUuid,
+                event: {
+                    eventType: 'pr_updated',
+                    payload: { prUrl: result.prUrl },
+                },
+            });
+        }
+
+        if (result.prUrl && isSlackPrompt(prompt)) {
+            void this.slackClient
+                .addReaction({
+                    organizationUuid,
+                    channel: prompt.slackChannelId,
+                    timestamp: prompt.promptSlackTs,
+                    name: 'white_check_mark',
+                })
+                .catch((err) => {
+                    Logger.debug(
+                        'Failed to add :white_check_mark: reaction to writeback mention:',
+                        err,
+                    );
+                });
+        }
+
+        let previewDeployConfigured: boolean | null = null;
+        try {
+            const { enabled: previewDeploySetupEnabled } =
+                await this.featureFlagService.get({
+                    user,
+                    featureFlagId: FeatureFlags.AiPreviewDeploySetup,
+                });
+            if (previewDeploySetupEnabled) {
+                const ciStatus =
+                    await this.previewDeploySetupService.getOrScanProjectCiStatus(
+                        user,
+                        projectUuid,
+                    );
+                previewDeployConfigured = ciStatus
+                    ? ciStatus.hasPreviewDeployWorkflow
+                    : null;
+            }
+        } catch (err) {
+            Logger.debug(
+                'Failed to resolve preview-deploy CI status after writeback:',
+                err,
+            );
+        }
+
+        let previewUrl: string | null = null;
+        if (result.prUrl && !suppressWritebackPreview && !reviewRemediation) {
+            const preview =
+                await this.writebackPreviewService.createPreviewForPullRequest({
+                    user,
+                    projectUuid,
+                    prUrl: result.prUrl,
+                });
+            previewUrl = preview?.previewUrl ?? null;
+        }
+
+        const target = `Lightdash project "${result.projectName}" (repository ${result.repository})`;
+        const prVerb = result.prAction === 'updated' ? 'Updated' : 'Opened';
+        let base: string;
+        if (result.needsDbtSourceSelection) {
+            base = `${result.output}\n\nTell the user which dbt sources they can choose from and ask them to re-run naming one.`;
+        } else if (result.prUrl) {
+            base = `${prVerb} a pull request against ${target}. A "View pull request" button is shown to the user, so do NOT include the pull request URL or number in your reply — just summarise the change and which project/repository it targeted.\n\nAgent summary:\n${result.output}`;
+        } else {
+            base = `Ran against ${target} but made no file changes, so no pull request was opened.\n\nAgent summary:\n${result.output}`;
+        }
+
+        let toolResult = base;
+        if (result.prUrl && previewUrl) {
+            toolResult += `\n\nA Lightdash preview environment was created from the pull request's branch: ${previewUrl} — include this link in your reply so the user can review the change in Lightdash before merging. Explores may take a minute to appear while the preview compiles.`;
+        } else if (previewDeployConfigured === false) {
+            toolResult += `\n\nIMPORTANT — also tell the user: this project does NOT have Lightdash preview deploys set up via GitHub Actions. Offer to set it up by opening a pull request that adds the preview workflow (a preview Lightdash project per PR, torn down on close). If they agree, call the \`setupPreviewDeploy\` tool. Do not call it unless they say yes.`;
+        }
+
+        await this.aiAgentModel.updateToolResult(promptUuid, toolCallId, {
+            result: toolResult,
+            metadata: {
+                status: 'success',
+                prUrl: result.prUrl ?? null,
+                prAction: result.prAction ?? null,
+                commitSha: result.commitSha ?? null,
+                additions: result.additions ?? null,
+                deletions: result.deletions ?? null,
+                previewUrl: previewUrl ?? null,
+                steps: result.steps,
+                needsDbtSourceSelection: result.needsDbtSourceSelection ?? null,
+                dbtSourceOptions: result.dbtSourceOptions ?? null,
+            },
+        });
+
+        // Deliver the PR card to Slack now that the tool result is final — the
+        // agent's own message already went out (cardless) when its turn ended.
+        // Reuses the same renderer as the in-turn card, so it reads identically.
+        // Best-effort: the run has already succeeded, so a Slack/read failure
+        // here must never bubble up and fail the job.
+        if (result.prUrl && isSlackPrompt(prompt)) {
+            try {
+                const finalToolResults =
+                    await this.aiAgentModel.getToolResultsForPrompt(promptUuid);
+                const prCardBlocks =
+                    getModernPullRequestCardBlocks(finalToolResults);
+                if (prCardBlocks.length > 0) {
+                    await this.postWritebackOutcomeToSlack(
+                        user,
+                        prompt,
+                        prCardBlocks,
+                        'Your pull request is ready.',
+                    );
+                }
+            } catch (error) {
+                Logger.error(
+                    'Failed to deliver AI writeback PR card to Slack:',
+                    error,
+                );
+            }
+        }
+
+        if (result.needsDbtSourceSelection) {
+            await this.waitForOriginalResponseWritten(
+                promptUuid,
+                payload.isSlackPrompt,
+            );
+            const sourceNames = (result.dbtSourceOptions ?? [])
+                .map((option) => option.name)
+                .join(', ');
+            await this.aiAgentModel.updateModelResponse({
+                promptUuid,
+                response: sourceNames
+                    ? `This project has more than one dbt source: ${sourceNames}. Reply naming one and I'll try again.`
+                    : "This project has more than one dbt source, so I couldn't tell which one to change. Reply naming one and I'll try again.",
+            });
+        }
+    }
+
+    async markEditDbtProjectToolResultError(
+        promptUuid: string,
+        toolCallId: string,
+        message: string,
+    ): Promise<void> {
+        await this.aiAgentModel.updateToolResult(promptUuid, toolCallId, {
+            result: message,
+            metadata: { status: 'error', errorCode: 'unknown' },
+        });
+    }
+
+    /**
+     * Post the writeback outcome as a follow-up message in the Slack thread. The
+     * agent's turn ends ~1s after the editDbtProject tool starts — long before
+     * the async pipeline resolves — so its final message carries no result. This
+     * delivers the PR card (or the failure) once the pipeline actually finishes,
+     * mirroring what the web chat card shows. Best-effort: a Slack failure must
+     * never fail the run.
+     */
+    private async postWritebackOutcomeToSlack(
+        user: SessionUser,
+        prompt: SlackPrompt,
+        blocks: (Block | KnownBlock)[],
+        text: string,
+    ): Promise<void> {
+        try {
+            let agentName: string | undefined;
+            try {
+                agentName = (await this.getAgentSettings(user, prompt)).name;
+            } catch {
+                // Fall back to the app's default name.
+            }
+            await this.slackClient.postMessage({
+                organizationUuid: prompt.organizationUuid,
+                channel: prompt.slackChannelId,
+                thread_ts: prompt.slackThreadTs || prompt.promptSlackTs,
+                username: agentName,
+                text,
+                blocks,
+                unfurl_links: false,
+            });
+        } catch (error) {
+            Logger.error(
+                'Failed to post AI writeback outcome to Slack:',
+                error,
+            );
+        }
     }
 
     // Defines the functions that AI Agent tools can use to interact with the Lightdash backend or slack
@@ -6715,176 +7317,40 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         };
 
         const editDbtProject: EditDbtProjectFn = async (args) => {
-            // Stream coarse progress back to the user so they can see what
-            // the writeback is doing (Starting sandbox → Cloning project →
-            // Discovering models → Editing models → Compiling project →
-            // Committing → …). For Slack this overwrites the pinned
-            // "Thinking…" message; for web it surfaces as a transient
-            // `data-step-progress` chunk on the SSE stream. Tagged with the
-            // `editDbtProject` tool name so the web client only renders
-            // these under the writeback header — never a concurrently running
-            // tool's progress. Fire-and-forget — a Slack rate limit, deleted
-            // message, or dropped SSE client must never take down the
-            // writeback itself.
-            const writebackProgressCallback = (message: string) => {
-                void updateProgress(
-                    message,
-                    `editDbtProject:${message}`,
-                    args.progressId
-                        ? `${args.progressId}:${message}`
-                        : undefined,
-                    'complete',
-                ).catch((err) => {
-                    Logger.debug(
-                        `Failed to update progress for writeback (${message}):`,
-                        err,
-                    );
-                });
-            };
+            const writebackPrompt = args.prompt;
+            const source = isSlackPrompt(prompt) ? 'slack' : 'web';
 
-            // When the user asks to write back their changeset, build the
-            // instructions deterministically from the active changeset's
-            // structured changes instead of trusting the LLM-composed prompt.
-            let writebackPrompt: string;
-            let source: AiWritebackSource;
-            if (args.fromActiveChangeset) {
-                const changeset =
-                    await this.changesetModel.findActiveChangesetWithChangesByProjectUuid(
-                        projectUuid,
-                    );
-                if (!changeset || changeset.changes.length === 0) {
-                    throw new ParameterError(
-                        'There are no changes to write back for this project',
-                    );
-                }
-                writebackPrompt = buildChangesetWritebackPrompt(changeset);
-                source = 'changeset';
-            } else {
-                if (!args.prompt) {
-                    throw new ParameterError(
-                        'A writeback prompt is required when fromActiveChangeset is false',
-                    );
-                }
-                writebackPrompt = args.prompt;
-                source = isSlackPrompt(prompt) ? 'slack' : 'web';
-            }
-
-            const result = await wrapSentryTransaction(
-                'AiAgent.editDbtProject',
-                {},
-                () =>
-                    this.aiWritebackService.run({
-                        user,
-                        projectUuid,
-                        prompt: writebackPrompt,
-                        prUrl: args.prUrl,
-                        startNewPullRequest: args.startNewPullRequest ?? false,
-                        aiThreadUuid: prompt.threadUuid,
-                        source,
-                        onProgress: writebackProgressCallback,
-                    }),
-            );
-
-            // Build-fix seam: if this thread is a review remediation's work
-            // thread, every commit it lands (the initial run and each Continue
-            // PR turn) must be reflected on the remediation so the Test-fix
-            // verdict is marked stale (verdict staleness is derived from event
-            // ordering). null for ordinary writeback threads — a no-op.
-            const reviewRemediation = organizationUuid
-                ? await this.aiAgentReviewClassifierModel.findReviewRemediationByWorkThread(
-                      {
-                          organizationUuid,
-                          workThreadUuid: prompt.threadUuid,
-                      },
-                  )
-                : null;
-            if (reviewRemediation && result.prUrl) {
-                await this.aiAgentReviewClassifierModel.createRemediationEvent({
-                    remediationUuid: reviewRemediation.uuid,
-                    organizationUuid: reviewRemediation.organizationUuid,
-                    event: {
-                        eventType: 'pr_updated',
-                        payload: { prUrl: result.prUrl },
-                    },
-                });
-            }
-
-            // On a successful PR open/update, add a green-tick reaction to the
-            // user's original Slack mention so they see the outcome at a
-            // glance without scrolling through the agent's reply. Best-effort
-            // — installs missing `reactions:write` (or any other transient
-            // failure) silently skip the reaction.
-            if (result.prUrl && isSlackPrompt(prompt)) {
-                void this.slackClient
-                    .addReaction({
-                        organizationUuid,
-                        channel: prompt.slackChannelId,
-                        timestamp: prompt.promptSlackTs,
-                        name: 'white_check_mark',
-                    })
-                    .catch((err) => {
-                        Logger.debug(
-                            'Failed to add :white_check_mark: reaction to writeback mention:',
-                            err,
-                        );
-                    });
-            }
-            // Resolve the repo's preview-deploy CI status once (best-effort,
-            // gated by the ai-preview-deploy-setup flag). It drives the
-            // deterministic "offer to set it up" instruction the editDbtProject
-            // tool relays when no server-side preview could be built. Owned by
-            // the sibling PreviewDeploySetupService — writeback no longer
-            // detects this itself. Never fails the writeback result.
-            let previewDeployConfigured: boolean | null = null;
-            try {
-                const { enabled: previewDeploySetupEnabled } =
-                    await this.featureFlagService.get({
-                        user,
-                        featureFlagId: FeatureFlags.AiPreviewDeploySetup,
-                    });
-                if (previewDeploySetupEnabled) {
-                    const ciStatus =
-                        await this.previewDeploySetupService.getOrScanProjectCiStatus(
-                            user,
-                            projectUuid,
-                        );
-                    previewDeployConfigured = ciStatus
-                        ? ciStatus.hasPreviewDeployWorkflow
-                        : null;
-                }
-            } catch (err) {
-                Logger.debug(
-                    'Failed to resolve preview-deploy CI status after writeback:',
-                    err,
+            if (!args.progressId) {
+                throw new UnexpectedServerError(
+                    'editDbtProject requires a tool call id (progressId)',
                 );
             }
+            const { aiWritebackRunUuid } =
+                await this.aiWritebackService.createPendingRun({
+                    user,
+                    projectUuid,
+                    aiThreadUuid: prompt.threadUuid,
+                    source,
+                    promptUuid: prompt.promptUuid,
+                    toolCallId: args.progressId,
+                });
+            await this.schedulerClient.aiAgentEditDbtProjectPipeline({
+                aiWritebackRunUuid,
+                aiThreadUuid: prompt.threadUuid,
+                organizationUuid,
+                projectUuid,
+                userUuid: user.userUuid,
+                promptUuid: prompt.promptUuid,
+                isSlackPrompt: isSlackPrompt(prompt),
+                toolCallId: args.progressId,
+                writebackPrompt,
+                source,
+                prUrl: args.prUrl,
+                startNewPullRequest: args.startNewPullRequest ?? null,
+                suppressWritebackPreview: options?.suppressWritebackPreview,
+            });
 
-            // Server-side preview: for GitHub-connected projects, build the
-            // preview ourselves from the PR's head branch and post its URL on
-            // the PR — no CI in the customer repo required. The URL is returned
-            // to the editDbtProject tool so the agent's reply (web chat and
-            // Slack alike) links the preview directly; this replaced the old
-            // pollWritebackPreview job that scanned PR comments for a
-            // CI-posted URL. Returns null for unsupported projects (e.g.
-            // CLI-deployed) or on any failure — those surface no preview.
-            let previewUrl: string | null = null;
-            if (
-                result.prUrl &&
-                !options?.suppressWritebackPreview &&
-                !reviewRemediation
-            ) {
-                const preview =
-                    await this.writebackPreviewService.createPreviewForPullRequest(
-                        {
-                            user,
-                            projectUuid,
-                            prUrl: result.prUrl,
-                        },
-                    );
-                previewUrl = preview?.previewUrl ?? null;
-            }
-
-            return { ...result, previewDeployConfigured, previewUrl };
+            return { aiWritebackRunUuid };
         };
 
         // General-purpose coding agent: edit any writable repo and open a PR,
@@ -7258,6 +7724,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             listContent: toolsRuntime.listContent,
             findContent: toolsRuntime.findContent,
             readContent: toolsRuntime.readContent,
+            resolveUrl: toolsRuntime.resolveUrl,
             editContent: toolsRuntime.editContent,
             createContent: toolsRuntime.createContent,
             validateContent: toolsRuntime.validateContent,
@@ -7365,6 +7832,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             prompt: SlackPrompt;
             stream: false;
             canManageAgent: boolean;
+            threadMessages: Awaited<
+                ReturnType<AiAgentModel['getThreadMessages']>
+            >;
             enableSqlMode?: boolean;
             autoApproveSql?: boolean;
             toolHints?: string[];
@@ -7404,6 +7874,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             | {
                   prompt: SlackPrompt;
                   stream: false;
+                  threadMessages: Awaited<
+                      ReturnType<AiAgentModel['getThreadMessages']>
+                  >;
               }
             | {
                   prompt: AiWebAppPrompt;
@@ -7439,6 +7912,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             listContent,
             findContent,
             readContent,
+            resolveUrl,
             editContent,
             createContent,
             validateContent,
@@ -7564,7 +8038,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         const agentSettings = await this.getAgentSettings(user, prompt);
         const knowledgeDocuments =
-            await this.aiAgentDocumentModel.findAllForAgent({
+            await this.aiAgentDocumentModel.findAllContextForAgent({
                 organizationUuid: user.organizationUuid,
                 agentUuid: agentSettings.uuid,
                 projectUuid: prompt.projectUuid,
@@ -7591,27 +8065,16 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 })),
             ),
         });
-        const { enabled: searchSemanticLayerEnabled } =
-            await this.featureFlagService.get({
-                user,
-                featureFlagId: FeatureFlags.SearchSemanticLayer,
-            });
         const { enabled: grepFieldsEnabled } =
             await this.featureFlagService.get({
                 user,
                 featureFlagId: FeatureFlags.AiGrepFields,
             });
-        let { enabled: aiWritebackEnabled } = await this.featureFlagService.get(
-            {
-                user,
-                featureFlagId: FeatureFlags.AiWriteback,
-            },
-        );
-        if (aiWritebackEnabled && !hasTrustedPromptUserIdentity) {
+        let aiWritebackEnabled = hasTrustedPromptUserIdentity;
+        if (!aiWritebackEnabled) {
             this.logger.info(
                 `Disabling editDbtProject for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
             );
-            aiWritebackEnabled = false;
         }
         // Writeback opens a pull request and only supports GitHub and GitLab
         // dbt connections (see AiWritebackService.getGitProvider, which throws
@@ -7700,20 +8163,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const aiPreviewDeploySetupEnabled =
             aiWritebackEnabled && aiPreviewDeploySetupFlag;
 
-        let { enabled: repoDiscoveryEnabled } =
-            await this.featureFlagService.get({
-                user,
-                featureFlagId: FeatureFlags.RepoDiscovery,
-            });
         // exploreRepo/discoverRepos read repo source and the view:SourceCode
         // check evaluates against the resolved user. On Slack without
         // aiRequireOAuth that user is the app installer, not the requester — so
         // disable it, exactly as runSql and writeback do above.
-        if (repoDiscoveryEnabled && !hasTrustedPromptUserIdentity) {
+        const repoDiscoveryEnabled = hasTrustedPromptUserIdentity;
+        if (!repoDiscoveryEnabled) {
             this.logger.info(
                 `Disabling repo discovery for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
             );
-            repoDiscoveryEnabled = false;
         }
 
         // The dbt project's root within the repo, so the prompt can point the
@@ -7756,7 +8214,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const availableSkills = canUseContentTools
             ? await this.aiAgentToolsService.listAgentSkills()
             : [];
-        const modelProperties = getModel(this.lightdashConfig.ai.copilot, {
+        const copilotConfig =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                promptProject.organizationUuid,
+            );
+        const modelProperties = getModel(copilotConfig, {
             enableReasoning: prompt.modelConfig?.reasoning,
             modelName: prompt.modelConfig?.modelName,
             provider: prompt.modelConfig?.modelProvider as AnyType,
@@ -7831,7 +8293,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableDataAccess: agentSettings.enableDataAccess,
             enableSelfImprovement: agentSettings.enableSelfImprovement,
             enableContentTools: canUseContentTools,
-            enableSearchSemanticLayer: searchSemanticLayerEnabled,
             enableAiWriteback: aiWritebackEnabled,
             enableEditProjectContext: isReviewRemediationWorkThread,
             writebackAttribution,
@@ -7872,7 +8333,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     this.lightdashConfig.ai.copilot.debugLoggingEnabled,
             });
 
-        if (isSlackPrompt(prompt) && hasTrustedPromptUserIdentity) {
+        if (
+            isSlackPrompt(prompt) &&
+            hasTrustedPromptUserIdentity &&
+            'threadMessages' in options &&
+            options.threadMessages.length <= 1
+        ) {
             void this.postSlackMcpOAuthLoginMessages({
                 user,
                 prompt,
@@ -7893,6 +8359,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             listContent,
             findContent,
             readContent,
+            resolveUrl,
             editContent,
             createContent,
             validateContent,
@@ -8274,16 +8741,16 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                   agentUuid: data.agentUuid,
               })
             : undefined;
-        const aiOrganizationSettings =
+        const orgDefaultModelConfig =
             data.modelConfig || agent?.modelConfig
-                ? undefined
-                : await this.aiOrganizationSettingsService.getSettings(
-                      user as SessionUser,
+                ? null
+                : await this.aiOrganizationSettingsService.getDefaultModelConfig(
+                      user.organizationUuid,
                   );
         const modelConfig =
             data.modelConfig ??
             agent?.modelConfig ??
-            aiOrganizationSettings?.defaultAiAgentModelConfig ??
+            orgDefaultModelConfig ??
             undefined;
 
         if (!threadUuid) {
@@ -8368,6 +8835,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             (artifact) => artifact.promptUuid === slackPrompt.promptUuid,
         );
 
+        // Each generateVisualization call in a turn adds a version to the
+        // thread's artifact, so a "make me 3 charts" turn produces one artifact
+        // with several versions. Render each version as its own card (with its
+        // own config + image) so all charts from the turn are shown.
+        const promptArtifactVersions =
+            await this.aiAgentModel.findArtifactVersionsByPromptUuid(
+                slackPrompt.promptUuid,
+            );
+
         const toolResults = await this.aiAgentModel.getToolResultsForPrompt(
             slackPrompt.promptUuid,
         );
@@ -8414,12 +8890,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     exploreName,
                 ),
             agent?.uuid,
-            promptArtifacts,
-            toolResults,
-        );
-        const proposeChangeBlocks = getProposeChangeBlocks(
-            slackPrompt,
-            this.lightdashConfig.siteUrl,
+            promptArtifactVersions.length > 0
+                ? promptArtifactVersions
+                : promptArtifacts,
             toolResults,
         );
         const editDbtProjectBlocks =
@@ -8447,7 +8920,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         return [
             ...exploreBlocks,
-            ...proposeChangeBlocks,
             ...editDbtProjectBlocks,
             ...referencedArtifactsBlocks,
             ...followUpToolBlocks,
@@ -9001,7 +9473,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 case 'runSavedChart':
                     return 'Reviewing the results...';
                 case 'editDbtProject':
-                case 'proposeChange':
                     return 'Preparing the semantic-layer changes...';
                 case 'setupPreviewDeploy':
                     return 'Setting up the preview...';
@@ -9239,6 +9710,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     prompt: slackPrompt,
                     stream: false,
                     canManageAgent,
+                    threadMessages,
                     enableSqlMode: true,
                     onSlackStepProgress: appendTaskUpdate,
                 },
@@ -9791,12 +10263,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     }
 
     // eslint-disable-next-line class-methods-use-this
-    public handleViewChangesetsButtonClick(app: App) {
-        app.action('actions.view_changesets_button_click', async ({ ack }) => {
-            await ack();
-        });
-    }
-
     // Slack approve/reject buttons for runSql tool. Action ID format:
     // actions.sql_approval:<toolCallId>:<threadUuid>:<decision>
     // 'approved_always' marks the thread auto-approved server-side.
@@ -10255,7 +10721,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
     // eslint-disable-next-line class-methods-use-this
     public handleExecuteFollowUpTool(app: App) {
-        Object.values(AiResultType).forEach((tool) => {
+        activeFollowUpTools.forEach((tool) => {
             app.action(
                 `execute_follow_up_tool.${tool}`,
                 async ({ ack, body, context, say }) => {
@@ -10581,7 +11047,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         // sets the project for this thread and all subsequent messages.
         if (promptText.trim().length > 0) {
             try {
-                const { model } = getModel(this.lightdashConfig.ai.copilot);
+                const copilotConfig =
+                    await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                        organizationUuid,
+                    );
+                const { model } = getModel(copilotConfig);
                 const routedProjectUuid = await routeProjectForSlack(
                     model,
                     candidateProjects.map((project) => ({
@@ -10589,6 +11059,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         name: project.name,
                     })),
                     promptText,
+                    { organizationUuid, userUuid },
                 );
                 if (routedProjectUuid) {
                     return await resolveAgentForProject(routedProjectUuid);
@@ -10694,12 +11165,17 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             };
         }
 
-        const { model } = getModel(this.lightdashConfig.ai.copilot);
+        const copilotConfig =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                organizationUuid,
+            );
+        const { model } = getModel(copilotConfig);
 
         const decision = await selectAgent({
             model,
             candidates: availableAgents,
             prompt: messageText,
+            telemetry: { organizationUuid, userUuid },
         });
 
         const selectedAgent =
@@ -13045,7 +13521,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             });
             const agent = await this.getAgent(sessionUser, agentUuid);
             const canAccessData = agent.enableDataAccess;
-            await this.assessResult(result.resultUuid, canAccessData);
+            await this.assessResult(result.resultUuid, canAccessData, {
+                organizationUuid,
+                projectUuid: agent.projectUuid,
+                userUuid,
+                agentUuid,
+                threadUuid,
+            });
 
             // Mark as completed with assessment status
             await this.aiAgentModel.updateEvalRunResult(result.resultUuid, {
@@ -13084,6 +13566,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     async assessResult(
         resultUuid: string,
         canAccessData: boolean,
+        telemetry?: AiCallAttribution,
     ): Promise<boolean | null> {
         Logger.info(`Assessing result ${resultUuid}`);
         const { query, response, expectedAnswer, artifact, toolResults } =
@@ -13135,6 +13618,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                   judge,
                   callOptions,
                   scorerType: 'factuality',
+                  telemetry,
               })
             : null;
 
@@ -13147,6 +13631,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                       judge,
                       callOptions,
                       scorerType: 'contextRelevancy',
+                      telemetry,
                   })
                 : null;
 

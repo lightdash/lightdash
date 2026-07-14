@@ -2,7 +2,6 @@ import {
     CartesianSeriesType,
     ChartType,
     DashboardAsCode,
-    FilterOperator,
     type CartesianChartConfig,
     type ChartAsCode,
     type Series,
@@ -12,11 +11,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { testHelpers } from './download';
 
-const {
-    getDashboardChartSlugs,
-    sanitizeChartForDownload,
-    sanitizeDashboardForUpload,
-} = testHelpers;
+const { getDashboardChartSlugs, sanitizeChartForDownload } = testHelpers;
 
 type LooseDashboard = DashboardAsCode & { needsUpdating: boolean };
 
@@ -177,106 +172,6 @@ describe('getDashboardChartSlugs', () => {
         ]);
         const slugs = await getDashboardChartSlugs([], tmpDir, [loose]);
         expect(slugs).toEqual(['real-chart']);
-    });
-});
-
-describe('sanitizeDashboardForUpload (PROD-7445)', () => {
-    const makeDashboard = (dimensions: unknown[]): DashboardAsCode =>
-        ({
-            name: 'd',
-            slug: 'd',
-            spaceSlug: 's',
-            version: 1,
-            tiles: [],
-            tabs: [],
-            filters: {
-                dimensions,
-                metrics: [],
-                tableCalculations: [],
-            },
-        }) as unknown as DashboardAsCode;
-
-    const validFilter = {
-        operator: FilterOperator.EQUALS,
-        disabled: false,
-        values: ['x'],
-        label: 'valid',
-        target: { fieldId: 'a', tableName: 't' },
-    };
-    const malformed = {
-        operator: FilterOperator.EQUALS,
-        disabled: false,
-        values: [],
-        label: 'malformed',
-        target: { fieldId: 'b', tableName: 't' },
-    };
-    const notNullFilter = {
-        operator: FilterOperator.NOT_NULL,
-        disabled: false,
-        values: [],
-        label: 'notNull',
-        target: { fieldId: 'c', tableName: 't' },
-    };
-
-    it('drops malformed dimension filters', () => {
-        const result = sanitizeDashboardForUpload(makeDashboard([malformed]));
-        expect(result.droppedFilters).toBe(1);
-        expect(result.dashboard.filters?.dimensions).toEqual([]);
-    });
-
-    it('keeps valid filters and notNull (no-value-required) filters', () => {
-        const result = sanitizeDashboardForUpload(
-            makeDashboard([validFilter, notNullFilter]),
-        );
-        expect(result.droppedFilters).toBe(0);
-        expect(result.dashboard.filters?.dimensions).toHaveLength(2);
-    });
-
-    it('drops only the malformed filter when mixed', () => {
-        const result = sanitizeDashboardForUpload(
-            makeDashboard([validFilter, malformed, notNullFilter]),
-        );
-        expect(result.droppedFilters).toBe(1);
-        const kept = result.dashboard.filters?.dimensions ?? [];
-        expect(kept).toHaveLength(2);
-        expect(kept).toEqual(
-            expect.arrayContaining([validFilter, notNullFilter]),
-        );
-    });
-
-    it('is a no-op when there are no filters', () => {
-        const dashboard = {
-            name: 'd',
-            slug: 'd',
-            spaceSlug: 's',
-            version: 1,
-            tiles: [],
-            tabs: [],
-        } as unknown as DashboardAsCode;
-        const result = sanitizeDashboardForUpload(dashboard);
-        expect(result.droppedFilters).toBe(0);
-        expect(result.dashboard).toBe(dashboard);
-    });
-
-    it('drops malformed filters from metrics and tableCalculations too', () => {
-        const dashboard = {
-            name: 'd',
-            slug: 'd',
-            spaceSlug: 's',
-            version: 1,
-            tiles: [],
-            tabs: [],
-            filters: {
-                dimensions: [malformed],
-                metrics: [malformed],
-                tableCalculations: [malformed],
-            },
-        } as unknown as DashboardAsCode;
-        const result = sanitizeDashboardForUpload(dashboard);
-        expect(result.droppedFilters).toBe(3);
-        expect(result.dashboard.filters?.dimensions).toEqual([]);
-        expect(result.dashboard.filters?.metrics).toEqual([]);
-        expect(result.dashboard.filters?.tableCalculations).toEqual([]);
     });
 });
 

@@ -1,6 +1,11 @@
 import {
     convertFieldRefToFieldId,
+    getDefaultTimeDimension,
+    getFieldIdForDateDimension,
+    getItemId,
     isJoinModelRequiredFilter,
+    type CompiledMetric,
+    type CompiledTable,
     type Explore,
 } from '@lightdash/common';
 
@@ -8,10 +13,34 @@ import {
 const flatHint = (hint?: string | string[]): string =>
     Array.isArray(hint) ? hint.join(' ') : (hint ?? '');
 
+type DefaultTimeDimensionFieldIds = {
+    defaultTimeDimension: string;
+    defaultTimeDimensionGranularity: string;
+};
+
+export const getDefaultTimeDimensionFieldIds = (
+    metric: CompiledMetric,
+    table: CompiledTable | undefined,
+): DefaultTimeDimensionFieldIds | null => {
+    const defaultTimeDimension = getDefaultTimeDimension(metric, table);
+    if (!defaultTimeDimension) return null;
+    return {
+        defaultTimeDimension: getItemId({
+            table: metric.table,
+            name: defaultTimeDimension.field,
+        }),
+        defaultTimeDimensionGranularity: getItemId({
+            table: metric.table,
+            name: getFieldIdForDateDimension(
+                defaultTimeDimension.field,
+                defaultTimeDimension.interval,
+            ),
+        }),
+    };
+};
+
 /**
- * One-line summary of an explore's required filters, or null if none. Any query
- * against the explore must apply these — surfacing it keeps grepFields from
- * losing the signal findExplores used to carry.
+ * One-line summary of an explore's table filters, or null if none.
  */
 export const summarizeRequiredFilters = (explore: Explore): string | null => {
     const filters = explore.tables[explore.baseTable]?.requiredFilters ?? [];
@@ -28,9 +57,10 @@ export const summarizeRequiredFilters = (explore: Explore): string | null => {
             filter.values && filter.values.length > 0
                 ? ` ${JSON.stringify(filter.values)}`
                 : '';
-        return `${fieldId} ${filter.operator}${values}`;
+        const kind = filter.required === false ? 'suggested' : 'required';
+        return `${kind} ${fieldId} ${filter.operator}${values}`;
     });
-    return `⚠ required filters (must be applied): ${parts.join('; ')}`;
+    return `⚠ table filters: ${parts.join('; ')}`;
 };
 
 /** One greppable "file": a field flattened with its searchable annotations. */
@@ -43,6 +73,8 @@ export type FieldEntry = {
     label: string;
     description: string;
     aiHint: string;
+    defaultTimeDimension: string | null;
+    defaultTimeDimensionGranularity: string | null;
     // Locality slices of the haystack, so callers can rank a match in the
     // field's own name/label above one buried in a description or hint.
     nameHaystack: string;
@@ -114,6 +146,10 @@ export const buildFieldIndex = (
                         .filter(Boolean)
                         .join('\n')
                         .toLowerCase();
+                    const defaultTimeDimensionFieldIds =
+                        kind === 'metric'
+                            ? getDefaultTimeDimensionFieldIds(field, table)
+                            : null;
                     entries.push({
                         exploreName: explore.name,
                         exploreLabel: explore.label,
@@ -123,6 +159,12 @@ export const buildFieldIndex = (
                         label: field.label,
                         description,
                         aiHint,
+                        defaultTimeDimension:
+                            defaultTimeDimensionFieldIds?.defaultTimeDimension ??
+                            null,
+                        defaultTimeDimensionGranularity:
+                            defaultTimeDimensionFieldIds?.defaultTimeDimensionGranularity ??
+                            null,
                         nameHaystack,
                         descHaystack,
                         hintHaystack,
@@ -202,6 +244,33 @@ export const compileMatcher = (
         alternatives.some((terms) =>
             terms.every((term) => termMatches(haystack, term)),
         );
+};
+
+/**
+ * Which slice of a field a pattern matched, most-specific first: name/label >
+ * description > hint. `mixed` means the pattern matched only across slices (no
+ * single slice holds every term, e.g. "order" in the name and "status" in the
+ * description) — so we never claim a specific slice the match didn't fully land
+ * in. Single source for both the display label and the match ranking, so the
+ * two can never disagree.
+ */
+export type MatchLocality = 'name' | 'description' | 'hint' | 'mixed';
+
+export const MATCH_LOCALITY_RANK: Record<MatchLocality, number> = {
+    name: 3,
+    description: 2,
+    hint: 1,
+    mixed: 0,
+};
+
+export const matchLocality = (
+    entry: FieldEntry,
+    matches: (haystack: string) => boolean,
+): MatchLocality => {
+    if (matches(entry.nameHaystack)) return 'name';
+    if (matches(entry.descHaystack)) return 'description';
+    if (matches(entry.hintHaystack)) return 'hint';
+    return 'mixed';
 };
 
 // Pure grammatical filler — dropped before the pre-grep so "what is our total
@@ -284,7 +353,10 @@ const fieldLine = (f: FieldEntry): string => {
     const desc = f.description
         ? ` — ${f.description.replace(/\s+/g, ' ').slice(0, 140)}`
         : '';
-    return `  ${f.path}  [${f.kind} ${f.type}]${verified} ${f.label}${desc}`;
+    const defaultTimeDimension = f.defaultTimeDimension
+        ? ` default_time_dimension: ${f.defaultTimeDimension} default_time_dimension_granularity: ${f.defaultTimeDimensionGranularity}`
+        : '';
+    return `  ${f.path}  [${f.kind} ${f.type}]${verified} ${f.label}${defaultTimeDimension}${desc}`;
 };
 
 export const renderCandidateBlock = (candidates: FieldEntry[]): string => {

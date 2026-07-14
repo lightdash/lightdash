@@ -1,16 +1,14 @@
 import { WarehouseTypes } from '@lightdash/common';
 import {
+    TextInput,
+    CopyButton,
+    Stack,
+    Button,
     ActionIcon,
     Anchor,
-    Button,
-    CopyButton,
-    NumberInput,
-    PasswordInput,
     Select,
-    Stack,
-    TextInput,
-    Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { NumberInput, PasswordInput, Tooltip } from '@mantine/core';
 import { IconCheck, IconCopy } from '@tabler/icons-react';
 import React, { type FC } from 'react';
 import { useToggle } from 'react-use';
@@ -165,6 +163,7 @@ const PostgresForm: FC<{
                                     system should send a TCP keepalive message
                                     to the client. You can see more details in{' '}
                                     <Anchor
+                                        inherit
                                         target="_blank"
                                         href="https://postgresqlco.nf/doc/en/param/tcp_keepalives_idle/"
                                         rel="noreferrer"
@@ -187,6 +186,7 @@ const PostgresForm: FC<{
                                     This controls the Postgres "search path".
                                     You can see more details in{' '}
                                     <Anchor
+                                        inherit
                                         target="_blank"
                                         href="https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#search_path"
                                         rel="noreferrer"
@@ -200,6 +200,7 @@ const PostgresForm: FC<{
                         />
 
                         <Select
+                            allowDeselect={false}
                             name="warehouse.sslmode"
                             {...form.getInputProps('warehouse.sslmode')}
                             defaultValue={PostgresDefaultValues.sslmode}
@@ -210,6 +211,7 @@ const PostgresForm: FC<{
                                     databases using SSL. You can see more
                                     details in{' '}
                                     <Anchor
+                                        inherit
                                         target="_blank"
                                         href="https://docs.getdbt.com/reference/warehouse-profiles/postgres-profile#sslmode"
                                         rel="noreferrer"
@@ -362,6 +364,7 @@ const PostgresForm: FC<{
                                         label="Generated SSH Public Key"
                                         readOnly={true}
                                         disabled={disabled}
+                                        rightSectionPointerEvents="all"
                                         rightSection={
                                             <>
                                                 <CopyButton
@@ -378,6 +381,13 @@ const PostgresForm: FC<{
                                                             position="right"
                                                         >
                                                             <ActionIcon
+                                                                aria-label="Copy SSH tunnel public key"
+                                                                onMouseDown={(
+                                                                    event,
+                                                                ) =>
+                                                                    event.preventDefault()
+                                                                }
+                                                                variant="subtle"
                                                                 color={
                                                                     copied
                                                                         ? 'teal'

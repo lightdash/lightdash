@@ -1,13 +1,17 @@
 # {{APP_NAME}} — Lightdash data app (local copy)
 
-Downloaded with `lightdash download --apps`.
+Downloaded with the Lightdash CLI (`lightdash download`).
 
 ## Edit → build → upload
 1. Edit files under `src/`.
 2. Optionally, `pnpm install && pnpm build` to check it compiles locally. If install fails in your environment, skip it — the server build on upload is authoritative and surfaces errors on the app page. Don't change machine or registry config to force it.
-3. `lightdash upload --apps` — Lightdash rebuilds and serves the app.
+3. `lightdash upload --apps <appUuid>` (the `appUuid` from `lightdash-app.yml`) — Lightdash rebuilds and serves the app.
 
 ## What's read-only
-Everything outside `src/` is reference: root config, `.lightdash/context/` (the project's semantic layer, parameters, prompt history, theme), and the `.claude/skills/` guidance. The server rebuilds against a trusted template, so local config edits don't change the deployed app. Bringing your own libraries / a local preview is a later phase.
+Most root config is read-only: `vite.config.js`, `tailwind.config.js`, `tsconfig.json`, etc. The server rebuilds against a trusted template, so local edits to those files don't change the deployed app.
 
-The context under `.lightdash/context/` is a snapshot of the source project at download time; re-download to refresh it.
+The app builds against the template's fixed dependency set (see `package.json`) — design within it. Only when custom dependencies are enabled on your Lightdash instance (most instances: not enabled), `package.json` becomes partially editable: run `pnpm add <pkg>` to declare extra npm dependencies (registry packages, plain semver versions only, up to 60 direct deps). `pnpm-lock.yaml` must be updated to match — `pnpm add` does this; if you edit `package.json` by hand, run `pnpm install --lockfile-only`. Upload rejects new dependencies without a matching lockfile. On upload the CLI warns which packages will be installed in the build sandbox; install scripts never run, and the server replaces `scripts` with the trusted template's (the sandbox build command is not uploader-controlled). The AI builder and in-app UI cannot change the dependency set — dependencies are declared by editing `package.json` and re-uploading.
+
+`.npmrc` sets `ignore-scripts=true` so dependencies' lifecycle scripts never run on your machine either — downloaded apps may be authored by someone else. Keep it; explicit `pnpm build`/`pnpm dev` still work.
+
+`.lightdash/context/` is a point-in-time snapshot of the source project; re-download to refresh it.

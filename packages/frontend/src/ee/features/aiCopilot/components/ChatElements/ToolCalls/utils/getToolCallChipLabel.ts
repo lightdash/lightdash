@@ -15,6 +15,7 @@ import type {
     ToolListContentArgs,
     ToolListWarehouseTablesArgs,
     ToolName,
+    ToolResolveUrlArgs,
     ToolRunContentQueryArgs,
     ToolRunQueryArgs,
     ToolSearchFieldValuesArgs,
@@ -152,6 +153,10 @@ export const getToolCallChipLabel = (
             const args = toolArgs as ToolReadContentArgs;
             return args.slug ?? null;
         }
+        case 'resolveUrl': {
+            const args = toolArgs as ToolResolveUrlArgs;
+            return args.url ?? null;
+        }
         case 'editContent': {
             const args = toolArgs as ToolEditContentArgs;
             return args.slug ?? null;
@@ -172,8 +177,6 @@ export const getToolCallChipLabel = (
         case 'runSavedChart':
         case 'generateHashes':
         case 'improveContext':
-        case 'proposeChange':
-            return null;
         case 'runContentQuery': {
             const args = toolArgs as ToolRunContentQueryArgs;
             if (args.source.type === 'metricQuery')

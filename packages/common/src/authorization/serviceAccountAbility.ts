@@ -187,6 +187,9 @@ const applyServiceAccountStaticAbilities: Record<
         can('view', 'OrganizationDesign', {
             organizationUuid,
         });
+        can('view', 'ContentVerification', {
+            organizationUuid,
+        });
     },
     [ServiceAccountScope.ORG_EDIT]: ({
         organizationUuid,
@@ -325,6 +328,9 @@ const applyServiceAccountStaticAbilities: Record<
             //  userUuid: userUuid,
         });
         can('manage', 'DataApp', {
+            organizationUuid,
+        });
+        can('manage', 'DataAppDependency', {
             organizationUuid,
         });
         can('manage', 'ExternalConnection', {

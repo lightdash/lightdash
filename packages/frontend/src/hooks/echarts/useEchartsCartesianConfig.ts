@@ -38,6 +38,7 @@ import {
     getResultValueArray,
     getTooltipStyle,
     getValueLabelStyle,
+    hasFormatting,
     hashFieldReference,
     hasValidFormatExpression,
     isCalendarValueItem,
@@ -59,6 +60,7 @@ import {
     valueFormatter,
     XAxisSortType,
     type CartesianChart,
+    type ConditionalFormattingConfig,
     type CustomDimension,
     type EChartsSeries,
     type EchartsLegend,
@@ -88,6 +90,7 @@ import {
 import groupBy from 'lodash/groupBy';
 import maxBy from 'lodash/maxBy';
 import toNumber from 'lodash/toNumber';
+import uniq from 'lodash/uniq';
 import { useMemo } from 'react';
 import { isCartesianVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
@@ -414,7 +417,7 @@ export const mergeLegendSettings = <
     series: EChartsSeries[],
 ): Record<string, unknown> => {
     const normalizedConfig = removeEmptyProperties(legendConfig);
-    if (!normalizedConfig) {
+    if (!normalizedConfig || Object.keys(normalizedConfig).length === 0) {
         return {
             show: series.length > 1,
             type: 'scroll',
@@ -1488,6 +1491,34 @@ const getLongestLabel = ({
     return findLongest(allValues);
 };
 
+// Heckbert "nice number": the tick interval ECharts would choose for a range
+const getNiceInterval = (range: number): number => {
+    const exponent = Math.floor(Math.log10(range));
+    const fraction = range / 10 ** exponent;
+    const niceFraction =
+        fraction < 1.5 ? 1 : fraction < 3 ? 2 : fraction < 7 ? 5 : 10;
+    return niceFraction * 10 ** exponent;
+};
+
+// Outermost tick ECharts will render for a data bound (e.g. 314 -> 350, -222 -> -250)
+export const getNiceTickBound = (value: number, splitNumber = 5): number => {
+    if (value === 0 || !Number.isFinite(value)) return 0;
+    const interval = getNiceInterval(Math.abs(value) / splitNumber);
+    return Math.sign(value) * Math.ceil(Math.abs(value) / interval) * interval;
+};
+
+// Longest formatted value for each field plotted on an axis
+export const getLongestLabelsForAxis = ({
+    rows = [],
+    axisIds = [],
+}: {
+    rows?: ResultRow[];
+    axisIds?: (string | undefined)[];
+}): string[] =>
+    uniq(axisIds.filter((id): id is string => id !== undefined))
+        .map((axisId) => getLongestLabel({ rows, axisId }))
+        .filter((label): label is string => label !== undefined);
+
 /**
  * Filter out series whose data column has all null/undefined values in the
  * displayed results. This prevents phantom legend entries and empty stacked
@@ -1687,6 +1718,108 @@ export const getCategoryDateAxisConfig = (
     return {};
 };
 
+// Past this many ticks labels are thinned to illegibility anyway; fall back
+// to ECharts auto ticks instead of paying the per-tick label layout cost.
+const MAX_PINNED_TICKS = 400;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Pin time-axis ticks/labels to the actual data instants for daily bar
+ * charts whose day values are not UTC midnights. That happens when the
+ * warehouse truncates days in a non-UTC timezone (e.g. Snowflake session
+ * timezone), yielding instants like T04:00:00Z: bars render at those
+ * instants while ECharts draws its automatic tick labels at UTC midnights,
+ * so every label sits a constant few hours away from its bar group.
+ * Returning the distinct data instants lets the axis use `customValues` so
+ * every label sits exactly under its bar.
+ *
+ * Deliberately narrow: only explicit DAY granularity, only bar series, only
+ * when timezone shifting is inactive, and only when a non-midnight value
+ * proves the chart is misaligned today. Every other chart keeps ECharts'
+ * automatic ticks and renders exactly as before. The shift gate is required
+ * because the wall-clock shift rewrites plotted values after options are
+ * built, which would desync pinned values; under current code DAY truncs
+ * resolve to DATE and are never client-shifted, but the gate holds even if
+ * that classification changes.
+ */
+export const getTimeAxisPinnedTickValues = (
+    axisId?: string,
+    axisField?: Field | TableCalculation | CustomDimension,
+    rows?: ResultRow[],
+    axisType?: string,
+    series?: Series[],
+    isTimeAxisShifted?: boolean,
+): number[] | undefined => {
+    if (!axisId || !axisField || !rows || rows.length === 0) return undefined;
+    if (axisType !== 'time' || isTimeAxisShifted) return undefined;
+    if (
+        !('timeInterval' in axisField) ||
+        axisField.timeInterval !== TimeFrames.DAY
+    ) {
+        return undefined;
+    }
+    const hasBarSeries = series?.some(
+        (s) => s.type === CartesianSeriesType.BAR,
+    );
+    if (!hasBarSeries) return undefined;
+
+    const values = new Set<number>();
+    for (const row of rows) {
+        const raw = row[axisId]?.value.raw;
+        if (raw === null || raw === undefined) continue;
+        const parsed = dayjs.utc(String(raw));
+        if (parsed.isValid()) values.add(parsed.valueOf());
+    }
+    if (values.size === 0 || values.size > MAX_PINNED_TICKS) return undefined;
+
+    // UTC-midnight days already get ECharts ticks on bar days; only pin when
+    // a non-midnight value proves the labels are misaligned today.
+    const hasNonMidnightValue = Array.from(values).some(
+        (value) => value % DAY_MS !== 0,
+    );
+    if (!hasNonMidnightValue) return undefined;
+
+    return Array.from(values).sort((a, b) => a - b);
+};
+
+/**
+ * Label formatter for pinned daily ticks. Mirrors the leveled time-axis
+ * template (bold month at boundaries, plain day numbers), but since ticks
+ * only exist on data days a month may have no tick on the 1st — mark the
+ * first tick of each month with a bold "MMM D" so month context survives.
+ *
+ * Renders the tick's UTC calendar day, matching how the results table and
+ * tooltips format the same raw value. For positive-offset warehouse
+ * timezones a local midnight is the previous UTC day (Jul 1 at UTC+2 =
+ * Jun 30T22:00Z, labelled "30") — intentional: the chart must agree with
+ * the table for the same row rather than guess the warehouse-local day.
+ */
+export const getPinnedDayTickFormatter = (
+    tickValues: number[],
+): ((value: number) => string) => {
+    const firstTickOfMonth = new Set<number>();
+    let lastMonthKey: string | undefined;
+    for (const value of tickValues) {
+        const monthKey = dayjs.utc(value).format('YYYY-MM');
+        if (monthKey !== lastMonthKey) {
+            firstTickOfMonth.add(value);
+            lastMonthKey = monthKey;
+        }
+    }
+    return (value: number) => {
+        const date = dayjs.utc(value);
+        if (date.date() === 1) {
+            return date.month() === 0
+                ? `{bold|${date.format('YYYY')}}`
+                : `{bold|${date.format('MMM')}}`;
+        }
+        if (firstTickOfMonth.has(value)) {
+            return `{bold|${date.format('MMM')}} ${date.format('D')}`;
+        }
+        return date.format('D');
+    };
+};
+
 // Read from the axis holding the X field — bottom (normal) or left (flipped).
 // Top/right hold Y-field metrics; leaking them corrupts the X field column.
 export const selectContinuousDateRange = (
@@ -1713,6 +1846,7 @@ const getEchartAxes = ({
     parameters,
     resolvedTimezone,
     displayTimezone,
+    isTimeAxisShifted,
 }: {
     validCartesianConfig: CartesianChart;
     itemsMap: ItemsMap;
@@ -1723,6 +1857,7 @@ const getEchartAxes = ({
     parameters?: ParametersValuesMap;
     resolvedTimezone?: string;
     displayTimezone?: string;
+    isTimeAxisShifted?: boolean;
 }) => {
     const xAxisItemId = validCartesianConfig.layout.flipAxes
         ? validCartesianConfig.layout?.yField?.[0]
@@ -1842,18 +1977,6 @@ const getEchartAxes = ({
     const rightAxisYId =
         rightAxisYFieldIds?.[0] || validCartesianConfig.layout?.yField?.[1];
 
-    const longestValueYAxisLeft: string | undefined = getLongestLabel({
-        rows: resultsData?.rows,
-        axisId: leftAxisYId,
-    });
-    const leftYaxisGap = calculateWidthText(longestValueYAxisLeft);
-
-    const longestValueYAxisRight: string | undefined = getLongestLabel({
-        rows: resultsData?.rows,
-        axisId: rightAxisYId,
-    });
-    const rightYaxisGap = calculateWidthText(longestValueYAxisRight);
-
     const rightAxisYField = rightAxisYId ? itemsMap[rightAxisYId] : undefined;
     const leftAxisYField = leftAxisYId ? itemsMap[leftAxisYId] : undefined;
     const topAxisXField = topAxisXId ? itemsMap[topAxisXId] : undefined;
@@ -1870,6 +1993,101 @@ const getEchartAxes = ({
             leftAxisYId,
             rightAxisYId,
         });
+
+    // Width of the widest tick label a value axis will render: the axis bounds
+    // formatted like the ticks, not raw row values of the first series
+    const getValueAxisTickLabelWidth = (
+        axisFieldIds: string[],
+        axisItem: ItemsMap[string] | undefined,
+        axisBounds: { min?: string; max?: string } | undefined,
+    ): number | undefined => {
+        const [dataMin, dataMax] = getMinAndMaxValues(
+            axisFieldIds,
+            resultsData?.rows ?? [],
+            resultsData?.pivotDetails,
+        );
+        if (typeof dataMin !== 'number' || typeof dataMax !== 'number')
+            return undefined;
+
+        // Explicit bounds render as-is; otherwise ECharts rounds to a nice tick
+        const parseBound = (bound: string | undefined, fallback: number) => {
+            const parsed = bound ? toNumber(bound) : NaN;
+            return Number.isFinite(parsed) ? parsed : fallback;
+        };
+        const tickMax = parseBound(axisBounds?.max, getNiceTickBound(dataMax));
+        const tickMin = parseBound(
+            axisBounds?.min,
+            Math.min(0, getNiceTickBound(dataMin)),
+        );
+
+        const isDateItem =
+            isField(axisItem) &&
+            (axisItem.type === DimensionType.DATE ||
+                axisItem.type === DimensionType.TIMESTAMP);
+        // Mirror when getCartesianAxisFormatterConfig installs a tick formatter
+        const ticksAreFormatted =
+            axisItem !== undefined &&
+            !isDateItem &&
+            (hasFormatting(axisItem) ||
+                (isTableCalculation(axisItem) && axisItem.type === undefined));
+        const formatTick = (value: number): string =>
+            axisItem && ticksAreFormatted
+                ? formatItemValue(
+                      axisItem,
+                      value,
+                      true,
+                      parameters,
+                      resolvedTimezone,
+                      displayTimezone,
+                  )
+                : value.toLocaleString('en-US');
+
+        return Math.max(
+            calculateWidthText(formatTick(tickMax)),
+            calculateWidthText(formatTick(tickMin)),
+        );
+    };
+
+    // Category/time axes render row values as tick labels, so measure those
+    const getCategoryAxisTickLabelWidth = (axisIds: (string | undefined)[]) =>
+        Math.max(
+            0,
+            ...getLongestLabelsForAxis({
+                rows: resultsData?.rows,
+                axisIds,
+            }).map(calculateWidthText),
+        );
+
+    // 100% stacking forces the left axis to 0-100
+    const leftAxisIsStack100 =
+        validCartesianConfig.layout?.stack === StackType.PERCENT &&
+        !validCartesianConfig.layout.flipAxes;
+
+    const leftAxisYIds = leftAxisYFieldIds?.length
+        ? leftAxisYFieldIds
+        : [leftAxisYId];
+    const leftYaxisGap =
+        (leftAxisType === 'value'
+            ? getValueAxisTickLabelWidth(
+                  leftAxisYIds.filter((id): id is string => id !== undefined),
+                  leftAxisYField,
+                  leftAxisIsStack100
+                      ? { min: '0', max: '100' }
+                      : yAxisConfiguration?.[0],
+              )
+            : undefined) ?? getCategoryAxisTickLabelWidth(leftAxisYIds);
+
+    const rightAxisYIds = rightAxisYFieldIds?.length
+        ? rightAxisYFieldIds
+        : [rightAxisYId];
+    const rightYaxisGap =
+        (rightAxisType === 'value'
+            ? getValueAxisTickLabelWidth(
+                  rightAxisYIds.filter((id): id is string => id !== undefined),
+                  rightAxisYField,
+                  yAxisConfiguration?.[1],
+              )
+            : undefined) ?? getCategoryAxisTickLabelWidth(rightAxisYIds);
 
     const {
         referenceLineMinX,
@@ -1924,6 +2142,14 @@ const getEchartAxes = ({
         leftAxisType,
         eChartsSeries,
         resolvedTimezone,
+    );
+    const bottomAxisPinnedTickValues = getTimeAxisPinnedTickValues(
+        bottomAxisXId,
+        bottomAxisXField,
+        axisRows,
+        bottomAxisType,
+        eChartsSeries,
+        isTimeAxisShifted,
     );
     const axisLabelFontSize =
         validCartesianConfig?.eChartsConfig?.axisLabelFontSize;
@@ -2249,6 +2475,15 @@ const getEchartAxes = ({
                         hideOverlap: true,
                     }
                   : {}),
+              ...(bottomAxisPinnedTickValues
+                  ? {
+                        customValues: bottomAxisPinnedTickValues,
+                        formatter: getPinnedDayTickFormatter(
+                            bottomAxisPinnedTickValues,
+                        ),
+                        rich: { bold: { fontWeight: 'bold' } },
+                    }
+                  : {}),
           }
         : undefined;
 
@@ -2335,6 +2570,9 @@ const getEchartAxes = ({
                     ...getAxisTickStyle(
                         validCartesianConfig?.eChartsConfig?.showAxisTicks,
                     ),
+                    ...(bottomAxisPinnedTickValues
+                        ? { customValues: bottomAxisPinnedTickValues }
+                        : {}),
                 },
                 // Spread last so a category-date axisTick keeps replacing the
                 // tick style (sub-day time axes never set extraConfig.axisTick).
@@ -2659,6 +2897,74 @@ export const transformStack100ByValueAxis = <T extends Record<string, unknown>>(
     return { transformedResults, originalValues };
 };
 
+/**
+ * Apply conditional formatting colors to stacked bar series, using raw row
+ * values for 100%-stack series via a color callback.
+ */
+export const applyConditionalFormattingToStackedSeries = ({
+    seriesList,
+    rawRows,
+    itemsMap,
+    conditionalFormattings,
+}: {
+    seriesList: EChartsSeries[];
+    rawRows: Record<string, unknown>[];
+    itemsMap: ItemsMap;
+    conditionalFormattings: ConditionalFormattingConfig[];
+}): EChartsSeries[] =>
+    seriesList.map((series) => {
+        if (series.type !== CartesianSeriesType.BAR || !series.stack) {
+            return series;
+        }
+
+        if (Array.isArray(series.data)) {
+            const data = series.data.map((item, rowIndex) => {
+                const conditionalColor = getCartesianConditionalFormattingColor(
+                    {
+                        itemsMap,
+                        conditionalFormattings,
+                        rowValues: rawRows[rowIndex] ?? {},
+                        series,
+                    },
+                );
+                if (!conditionalColor) return item;
+                const baseItem =
+                    item !== null && typeof item === 'object' && 'value' in item
+                        ? (item as {
+                              value: unknown;
+                              itemStyle?: Record<string, unknown>;
+                          })
+                        : { value: item, itemStyle: undefined };
+                return {
+                    ...baseItem,
+                    itemStyle: {
+                        ...(baseItem.itemStyle ?? {}),
+                        color: conditionalColor,
+                    },
+                };
+            });
+            return { ...series, data };
+        }
+
+        // Series colors are always assigned upstream; keep the type narrow
+        const fallbackColor = series.color;
+        if (!fallbackColor) return series;
+
+        return {
+            ...series,
+            itemStyle: {
+                ...(series.itemStyle ?? {}),
+                color: (params: { dataIndex: number }) =>
+                    getCartesianConditionalFormattingColor({
+                        itemsMap,
+                        conditionalFormattings,
+                        rowValues: rawRows[params.dataIndex] ?? {},
+                        series,
+                    }) ?? fallbackColor,
+            },
+        };
+    });
+
 // To hack the stack totals in echarts we need to create a fake series with the value 0 and display the total in the label
 export const getStackTotalSeries = (
     rows: Record<string, unknown>[],
@@ -2669,6 +2975,8 @@ export const getStackTotalSeries = (
     isStack100: boolean,
     connectNulls: boolean | undefined = true,
     resolvedTimezone?: string,
+    // User-configured max per value axis, used to clamp overflowing totals
+    valueAxisMaxes?: (number | undefined)[],
 ) => {
     const seriesGroupedByStack = groupBy(seriesWithStack, 'stack');
     return Object.entries(seriesGroupedByStack).reduce<EChartsSeries[]>(
@@ -2684,6 +2992,30 @@ export const getStackTotalSeries = (
             ) {
                 return acc;
             }
+            const formatTotal = (param: { data: unknown }) => {
+                const stackTotal = Array.isArray(param.data)
+                    ? param.data[2]
+                    : undefined;
+                const fieldId = series[0].pivotReference?.field;
+                if (fieldId) {
+                    return getFormattedValue(
+                        stackTotal,
+                        fieldId,
+                        itemsMap,
+                        undefined,
+                        undefined,
+                        undefined,
+                        resolvedTimezone,
+                    );
+                }
+                return '';
+            };
+            const totalRows = getStackTotalRows(
+                rows,
+                series,
+                flipAxis,
+                selectedLegendNames,
+            );
             const stackSeries: EChartsSeries = {
                 type: series[0].type,
                 ...(series[0].type === CartesianSeriesType.LINE ||
@@ -2697,22 +3029,7 @@ export const getStackTotalSeries = (
                 label: {
                     ...getBarTotalLabelStyle(),
                     show: true,
-                    formatter: (param) => {
-                        const stackTotal = param.data[2];
-                        const fieldId = series[0].pivotReference?.field;
-                        if (fieldId) {
-                            return getFormattedValue(
-                                stackTotal,
-                                fieldId,
-                                itemsMap,
-                                undefined,
-                                undefined,
-                                undefined,
-                                resolvedTimezone,
-                            );
-                        }
-                        return '';
-                    },
+                    formatter: formatTotal,
                     position: flipAxis ? 'right' : 'top',
                 },
                 labelLayout: {
@@ -2721,15 +3038,61 @@ export const getStackTotalSeries = (
                 tooltip: {
                     show: false,
                 },
-                data: getStackTotalRows(
-                    rows,
-                    series,
-                    flipAxis,
-                    selectedLegendNames,
-                ),
+                data: totalRows,
                 yAxisIndex: series[0].yAxisIndex,
             };
-            return [...acc, stackSeries];
+            acc.push(stackSeries);
+
+            // Totals above a user-configured axis max sit outside the grid, so
+            // the zero-height label bar above gets clipped away together with
+            // its label. Carry those totals on an invisible, un-stacked line
+            // series pinned to the axis max so the label renders at the plot's
+            // top edge. In 100% mode data values are transformed ratios while
+            // totals stay raw, so the raw-total vs axis-max comparison is
+            // meaningless there.
+            const axisMax = isStack100
+                ? undefined
+                : valueAxisMaxes?.[
+                      series[0].yAxisIndex ?? series[0].xAxisIndex ?? 0
+                  ];
+            const clampedRows =
+                axisMax === undefined
+                    ? []
+                    : totalRows
+                          .filter((row) => row[2] > axisMax)
+                          .map((row) =>
+                              flipAxis
+                                  ? [axisMax, row[1], row[2]]
+                                  : [row[0], axisMax, row[2]],
+                          );
+            if (clampedRows.length > 0) {
+                acc.push({
+                    type: CartesianSeriesType.LINE,
+                    showSymbol: true,
+                    symbolSize: 0,
+                    lineStyle: { opacity: 0 },
+                    itemStyle: { color: 'transparent' },
+                    label: {
+                        ...getBarTotalLabelStyle(),
+                        show: true,
+                        formatter: formatTotal,
+                        position: flipAxis ? 'left' : 'bottom',
+                        // Keep the label readable over the bar fill
+                        textBorderColor: '#fff',
+                        textBorderWidth: 2,
+                    },
+                    labelLayout: {
+                        hideOverlap: !isStack100,
+                    },
+                    tooltip: {
+                        show: false,
+                    },
+                    data: clampedRows,
+                    yAxisIndex: series[0].yAxisIndex,
+                    xAxisIndex: series[0].xAxisIndex,
+                });
+            }
+            return acc;
         },
         [],
     );
@@ -2967,6 +3330,7 @@ const useEchartsCartesianConfig = (
             parameters,
             resolvedTimezone: axisTimezone,
             displayTimezone: axisDisplayTimezone,
+            isTimeAxisShifted: timeAxisField !== undefined,
         });
     }, [
         itemsMap,
@@ -2978,6 +3342,7 @@ const useEchartsCartesianConfig = (
         parameters,
         axisTimezone,
         axisDisplayTimezone,
+        timeAxisField,
     ]);
 
     // Shared by stackedSeriesWithColorAssignments (non-stacked bar styling) and
@@ -3039,12 +3404,15 @@ const useEchartsCartesianConfig = (
             Boolean(validCartesianConfig?.layout?.colorByCategory) &&
             !pivotDimensions?.length &&
             !hasCustomColorsStacking;
+        // Applies per bar series on all-bar charts: each config routes to its
+        // target field, so multi-metric charts color each metric's bars
+        // independently. Stacked series are handled downstream after stack
+        // decoration.
         const shouldApplyConditionalFormatting =
-            barSeries.length === 1 &&
-            series.length === 1 &&
+            series.length > 0 &&
+            barSeries.length === series.length &&
             !pivotDimensions?.length &&
             !isColorByCategory &&
-            !hasCustomColorsStacking &&
             Boolean(conditionalFormattings?.length);
 
         const seriesColors = series.map((serie) => getSeriesColor(serie));
@@ -3098,7 +3466,10 @@ const useEchartsCartesianConfig = (
                         }),
                     };
 
-                    if (shouldApplyConditionalFormatting) {
+                    if (
+                        shouldApplyConditionalFormatting &&
+                        getValidStack(serie) === undefined
+                    ) {
                         return {
                             ...barConfig,
                             colorBy: 'data' as const,
@@ -3504,17 +3875,50 @@ const useEchartsCartesianConfig = (
                   )
                 : stackedSeriesWithColorAssignments;
 
+        // Runs before stack totals are appended so the synthetic total
+        // series stays untouched
+        const conditionalFormattings =
+            validCartesianConfig?.conditionalFormattings;
+        const shouldApplyStackConditionalFormatting =
+            Boolean(conditionalFormattings?.length) &&
+            !pivotDimensions?.length &&
+            stackedSeriesWithColorAssignments.every(
+                (s) => s.type === CartesianSeriesType.BAR,
+            );
+
+        const seriesWithStackConditionalFormatting =
+            shouldApplyStackConditionalFormatting && conditionalFormattings
+                ? applyConditionalFormattingToStackedSeries({
+                      seriesList: seriesWithRoundedStacks,
+                      rawRows: paddedSortedResults,
+                      itemsMap,
+                      conditionalFormattings,
+                  })
+                : seriesWithRoundedStacks;
+
+        // User-configured value-axis maxes; the value axis config lives in
+        // eChartsConfig.yAxis for both orientations (flipped charts apply it
+        // to the echarts x axis).
+        const valueAxisMaxes = [0, 1].map((axisIndex) => {
+            const rawMax =
+                validCartesianConfig?.eChartsConfig?.yAxis?.[axisIndex]?.max;
+            if (rawMax === undefined || rawMax === '') return undefined;
+            const parsedMax = parseFloat(rawMax);
+            return Number.isNaN(parsedMax) ? undefined : parsedMax;
+        });
+
         return [
-            ...seriesWithRoundedStacks,
+            ...seriesWithStackConditionalFormatting,
             ...getStackTotalSeries(
                 paddedSortedResults,
-                seriesWithRoundedStacks,
+                seriesWithStackConditionalFormatting,
                 itemsMap,
                 validCartesianConfig?.layout.flipAxes,
                 validCartesianConfigLegend,
                 isStack100,
                 validCartesianConfig?.layout.connectNulls,
                 resolvedTimezone,
+                valueAxisMaxes,
             ),
         ];
     }, [
@@ -3522,9 +3926,12 @@ const useEchartsCartesianConfig = (
         paddedSortedResults,
         dynamicRadius,
         itemsMap,
+        pivotDimensions,
+        validCartesianConfig?.conditionalFormattings,
         validCartesianConfig?.layout?.stack,
         validCartesianConfig?.layout?.flipAxes,
         validCartesianConfig?.layout.connectNulls,
+        validCartesianConfig?.eChartsConfig?.yAxis,
         validCartesianConfigLegend,
         resolvedTimezone,
     ]);

@@ -114,7 +114,7 @@ Purpose:
 Lists all Explores available to the user in the current project. Returns a summary of each explore including its name, label, base table, and tags.
 
 Usage Tips:
-- Use this to discover what data sources are available before using findExplores for detailed field information
+- Use this to discover what data sources are available before using MCP schema-discovery tools for detailed field information
 - No arguments needed - automatically uses the current project context
 - Results are filtered based on user permissions and selected tags
 - Returns explore metadata without field details for quick overview
@@ -731,7 +731,7 @@ Usage tips:
 - By default, lists root-level spaces.
 - Pass a spaceSlug to list direct children and content inside that space.
 - Use page for pagination. Page starts at 1.
-- Results include names, slugs, content types, and space content counts.",
+- Results include names, slugs, content types, URLs, and space content counts.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
@@ -785,6 +785,43 @@ Usage tips:
       },
       "name": "read_content",
       "title": "Read content",
+    },
+    {
+      "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true,
+      },
+      "description": "Tool: resolveUrl
+
+Purpose:
+Expands a Lightdash share short-link into the full URL it redirects to. Share links are opaque — this tool is the only way to see what they point at.
+
+When to use:
+- ONLY for URLs whose path is "/share/<id>" (e.g. "<host>/share/aBcD1234..."). Nothing else is a share link.
+- NEVER call this for any other URL. A URL like "/projects/<uuid>/saved/<uuid>" or "/projects/<uuid>/dashboards/<uuid>" already contains its identifiers — read them directly from the path and go straight to the appropriate tool.
+
+Usage tips:
+- Read the identifiers (project uuid, chart or dashboard uuid, explore name) from the expanded URL, then use other tools (e.g. readContent) to fetch the content.
+- URLs that don't belong to this Lightdash instance cannot be resolved.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "url": {
+            "description": "The Lightdash URL to resolve, exactly as provided.",
+            "minLength": 1,
+            "type": "string",
+          },
+        },
+        "required": [
+          "url",
+        ],
+        "type": "object",
+      },
+      "name": "resolve_url",
+      "title": "Resolve URL",
     },
     {
       "agentName": null,
@@ -1032,7 +1069,7 @@ Usage tips:
         "idempotentHint": true,
         "readOnlyHint": false,
       },
-      "description": "Set the active project for all subsequent MCP operations. Most tools (list_explores, find_fields, run_metric_query, etc.) require an active project. Setting a project clears any previously selected agent, since agents are scoped to a project. After setting a project, prefer route_agent to auto-select the best agent for each request; use list_agents and set_agent only for manual override.",
+      "description": "Set the active project for all subsequent MCP operations. Most tools (list_explores, MCP schema-discovery tools, run_metric_query, etc.) require an active project. Setting a project clears any previously selected agent, since agents are scoped to a project. After setting a project, prefer route_agent to auto-select the best agent for each request; use list_agents and set_agent only for manual override.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
@@ -1237,7 +1274,7 @@ Usage tips:
         "idempotentHint": true,
         "readOnlyHint": false,
       },
-      "description": "Manually set the active AI agent for the active project. Prefer route_agent for default automatic selection; use this when you need to override that choice explicitly. Returns the agent's full context including: explores it has access to, space restrictions, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Use this context to guide subsequent tool calls — prefer the agent's explores when calling find_explores/find_fields, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
+      "description": "Manually set the active AI agent for the active project. Prefer route_agent for default automatic selection; use this when you need to override that choice explicitly. Returns the agent's full context including: explores it has access to, space restrictions, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Use this context to guide subsequent tool calls — prefer the agent's explores when calling MCP schema-discovery tools, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
@@ -6956,7 +6993,7 @@ Notes:
         "idempotentHint": true,
         "readOnlyHint": true,
       },
-      "description": "List all verified charts and dashboards in the active project. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Requires an active project set via set_project. Each item includes contentType (chart or dashboard), contentUuid, name, description, space, view count, last update time, and verification metadata (who verified it and when); charts also include chartKind and exploreName. To learn the full structure of a verified item (dimensions, metrics, filters), drill into it with find_content or find_fields on its explore.",
+      "description": "List all verified charts and dashboards in the active project. Verified content has been reviewed and marked as trusted — use this to discover reference examples of sanctioned metrics and visualizations when building new content. Requires an active project set via set_project. Each item includes contentType (chart or dashboard), contentUuid, name, description, space, view count, last update time, and verification metadata (who verified it and when); charts also include chartKind and exploreName. To learn the full structure of a verified item (dimensions, metrics, filters), drill into it with find_content or MCP schema-discovery tools on its explore.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
@@ -7336,9 +7373,9 @@ Purpose:
 Make a change to the dbt project that backs the active Lightdash project by describing it in natural language, then open a pull request with the result. The target GitHub repository and dbt sub-folder are resolved server-side from the active project's dbt connection — you never specify them.
 
 How it works:
-- A sandbox is created, the project's GitHub repository is cloned, and the prompt is executed by the Claude Code CLI against the dbt project.
-- If the agent changes any files, a branch is committed, pushed, and a pull request is opened. The PR URL is returned.
-- If the agent makes no file changes, no PR is opened and prUrl is null.
+- This tool starts the run and returns immediately with an aiWritebackRunUuid — it does NOT wait for the run to finish.
+- In the background: a sandbox is created, the project's GitHub repository is cloned, and the prompt is executed by the Claude Code CLI against the dbt project. If the agent changes any files, a branch is committed, pushed, and a pull request is opened.
+- Call get_ai_writeback_status with the returned aiWritebackRunUuid to check progress and get the pull request URL once the run finishes. The run typically takes a few minutes (cloning, running the agent, opening the PR) — poll every 10-15 seconds rather than immediately looping.
 
 Requirements:
 - An active project must be set first via set_project (or the X-Lightdash-Project header).
@@ -7346,19 +7383,16 @@ Requirements:
 - The AI writeback feature must be enabled for the organization.
 
 Important:
-- This tool is NOT read-only and NOT idempotent — each call can open a new pull request. Use it only when the user explicitly wants to change their dbt project.
-- The run is synchronous and can take a few minutes (cloning, running the agent, opening the PR).
-- Some projects have more than one dbt source. If the prompt doesn't make clear which one to change, the tool makes no change and returns the list of sources (by name and repository); re-run and name the intended source in the prompt itself (e.g. "In jaffle-2, add ..."). You never pass an id.
+- This tool is NOT read-only and NOT idempotent — each call can start a run that opens a new pull request. Use it only when the user explicitly wants to change their dbt project.
+- Some projects have more than one dbt source. If the prompt doesn't make clear which one to change, the run finishes with status "error" and an error message listing the sources by name and repository — call run_ai_writeback again naming the intended source in the prompt itself (e.g. "In jaffle-2, add ..."). You never pass an id.
 
 Parameters:
 - prompt: A clear, self-contained description of the change to make to the dbt project (e.g. "Add a 'total_revenue' metric to the orders model as the sum of amount"). When the project has more than one dbt source, name the intended source here (e.g. "In the marketing dbt project, ...").
 
 Response shape (MCP CallToolResult):
-- content: [{ type: "text", text: "<human-readable summary including the PR URL>" }]
+- content: [{ type: "text", text: "<human-readable message telling you the run started and to poll get_ai_writeback_status>" }]
 - structuredContent: {
-    output:   string,           // the agent's text output
-    exitCode: number,           // the sandbox command's exit status
-    prUrl:    string | null     // URL of the opened pull request, or null when no changes were made
+    aiWritebackRunUuid: string   // pass this to get_ai_writeback_status
   }
 ",
       "inputSchema": {
@@ -7366,7 +7400,7 @@ Response shape (MCP CallToolResult):
         "additionalProperties": false,
         "properties": {
           "prompt": {
-            "description": "A clear, self-contained description of the change to make to the dbt project that backs the active Lightdash project. If the project has more than one dbt source, name the intended one here (e.g. "In jaffle-2, add ...") — the tool resolves it from the prompt and asks (listing sources by name) if it can't tell.",
+            "description": "A clear, self-contained description of the change to make to the dbt project that backs the active Lightdash project. If the project has more than one dbt source, name the intended one here (e.g. "In jaffle-2, add ...") — a later get_ai_writeback_status call reports whether the run could tell which source you meant.",
             "minLength": 1,
             "type": "string",
           },
@@ -7381,30 +7415,92 @@ Response shape (MCP CallToolResult):
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
         "properties": {
-          "exitCode": {
-            "description": "The sandbox command's exit status.",
-            "type": "integer",
-          },
-          "output": {
-            "description": "The text output produced by the agent.",
+          "aiWritebackRunUuid": {
+            "description": "Id of the writeback run that just started. Pass this to get_ai_writeback_status to check progress and get the pull request URL.",
             "type": "string",
           },
-          "prUrl": {
-            "description": "URL of the pull request opened from the agent changes, or null when the agent made no file changes.",
+        },
+        "required": [
+          "aiWritebackRunUuid",
+        ],
+        "type": "object",
+      },
+      "title": "Run AI writeback",
+    },
+    {
+      "agentName": null,
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true,
+      },
+      "description": "Tool: get_ai_writeback_status
+
+Purpose:
+Check the status of a writeback run started by run_ai_writeback, and get the pull request URL once it's ready.
+
+Important:
+- Poll every 10-15 seconds rather than immediately looping — a run typically takes a few minutes.
+- "status" is either "pending" (not yet picked up), an in-progress pipeline stage (e.g. "sandbox", "agent", "pull_request"), or a terminal value: "ready" (finished — check prUrl) or "error" (finished — check errorMessage; this also covers the "more than one dbt source" case described in run_ai_writeback).
+
+Parameters:
+- aiWritebackRunUuid: The id returned by run_ai_writeback.
+
+Response shape (MCP CallToolResult):
+- content: [{ type: "text", text: "<human-readable status summary>" }]
+- structuredContent: {
+    status:       string,        // "pending" | a pipeline stage | "ready" | "error"
+    prUrl:        string | null, // set once status is "ready" and a PR was opened
+    errorMessage: string | null  // set once status is "error"
+  }
+",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "aiWritebackRunUuid": {
+            "description": "The id returned by run_ai_writeback.",
+            "format": "uuid",
+            "type": "string",
+          },
+        },
+        "required": [
+          "aiWritebackRunUuid",
+        ],
+        "type": "object",
+      },
+      "name": "get_ai_writeback_status",
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "errorMessage": {
+            "description": "Set once status is "error"; null otherwise.",
             "type": [
               "string",
               "null",
             ],
           },
+          "prUrl": {
+            "description": "URL of the pull request opened from the agent changes, set once status is "ready"; null if the agent made no file changes or the run has not finished yet.",
+            "type": [
+              "string",
+              "null",
+            ],
+          },
+          "status": {
+            "description": ""pending" | a pipeline stage (e.g. "sandbox", "agent", "pull_request") | "ready" | "error".",
+            "type": "string",
+          },
         },
         "required": [
-          "output",
-          "exitCode",
+          "status",
           "prUrl",
+          "errorMessage",
         ],
         "type": "object",
       },
-      "title": "Run AI writeback",
+      "title": "Get AI writeback status",
     },
   ],
 }
@@ -7420,7 +7516,10 @@ exports[`MCP tool contracts > matches the shared MCP tool definition names snaps
   "run_sql",
   "get_query_result",
   "render_chart",
+  "grep_fields",
+  "get_metadata",
   "read_content",
+  "resolve_url",
   "edit_content",
   "create_content",
   "list_content",

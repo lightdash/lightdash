@@ -20,11 +20,13 @@ import EmbedChart from '../src/ee/pages/EmbedChart';
 import EmbedDashboard from '../src/ee/pages/EmbedDashboard';
 import EmbedExplore from '../src/ee/pages/EmbedExplore';
 import EmbedProvider from '../src/ee/providers/Embed/EmbedProvider';
+import { type EmbedExploreChart } from '../src/ee/providers/Embed/types';
 import useEmbed from '../src/ee/providers/Embed/useEmbed';
 import SuboptimalState from '../src/components/common/SuboptimalState/SuboptimalState';
 import ErrorBoundary from '../src/features/errorBoundary/ErrorBoundary';
 import ChartColorMappingContextProvider from '../src/hooks/useChartColorConfig/ChartColorMappingContextProvider';
 import { useCreateMutation } from '../src/hooks/dashboard/useDashboard';
+import MetricsCatalogPage from '../src/pages/MetricsCatalog';
 import AbilityProvider from '../src/providers/Ability/AbilityProvider';
 import ActiveJobProvider from '../src/providers/ActiveJob/ActiveJobProvider';
 import AppProvider from '../src/providers/App/AppProvider';
@@ -82,6 +84,11 @@ type AiAgentProps = Omit<
     onThreadChange?: (options: { threadUuid: string }) => void;
     threadUuid?: string;
 };
+
+type MetricsCatalogProps = Omit<
+    BaseProps,
+    'contentOverrides' | 'filters' | 'onExplore'
+>;
 
 const decodeJWT = (token: string) => {
     const splits = token.split('.');
@@ -182,6 +189,15 @@ const getDashboardContainerStyles = (
         styles?.backgroundColor ??
         (theme ? 'var(--mantine-color-body)' : undefined),
 });
+
+const getSavedChartExploreHandler = (onExplore: BaseProps['onExplore']) =>
+    onExplore
+        ? ({ chart }: { chart: EmbedExploreChart }) => {
+              if ('uuid' in chart) {
+                  onExplore({ chart });
+              }
+          }
+        : undefined;
 
 const getAiAgentEmbedUrl = ({
     agentUuid,
@@ -341,7 +357,7 @@ const Dashboard: FC<DashboardProps> = ({
                 filters={filters}
                 paletteUuid={paletteUuid}
                 contentOverrides={contentOverrides}
-                onExplore={onExplore}
+                onExplore={getSavedChartExploreHandler(onExplore)}
             >
                 <EmbedDashboard
                     containerStyles={getDashboardContainerStyles(styles, theme)}
@@ -485,7 +501,7 @@ const DashboardBuilder: FC<DashboardBuilderProps> = ({
                 filters={filters}
                 paletteUuid={paletteUuid}
                 contentOverrides={contentOverrides}
-                onExplore={onExplore}
+                onExplore={getSavedChartExploreHandler(onExplore)}
             >
                 <DashboardBuilderContent
                     containerStyles={getDashboardContainerStyles(styles, theme)}
@@ -555,7 +571,7 @@ const Explore: FC<BaseProps & { exploreId: string; savedChart: SavedChart }> = (
                 projectUuid={projectUuid}
                 filters={filters}
                 contentOverrides={contentOverrides}
-                onExplore={onExplore}
+                onExplore={getSavedChartExploreHandler(onExplore)}
             >
                 <EmbedExplore
                     exploreId={exploreId}
@@ -720,10 +736,60 @@ const AiAgent: FC<AiAgentProps> = ({
     );
 };
 
+const MetricsCatalog: FC<MetricsCatalogProps> = ({
+    instanceUrl,
+    styles,
+    theme,
+    token: tokenOrTokenPromise,
+}) => {
+    const tokenContext = useEmbedTokenContext(instanceUrl, tokenOrTokenPromise);
+    const [exploreChart, setExploreChart] = useState<EmbedExploreChart>();
+
+    if (!tokenContext) {
+        return null;
+    }
+
+    return (
+        <SdkProviders
+            projectUuid={tokenContext.projectUuid}
+            styles={styles}
+            theme={theme}
+        >
+            <EmbedProvider
+                embedToken={tokenContext.token}
+                projectUuid={tokenContext.projectUuid}
+                onExplore={({ chart }) => setExploreChart(chart)}
+                onBackToDashboard={() => setExploreChart(undefined)}
+            >
+                {exploreChart ? (
+                    <EmbedExplore
+                        exploreId={exploreChart.tableName}
+                        savedChart={exploreChart}
+                        containerStyles={getDashboardContainerStyles(
+                            styles,
+                            theme,
+                        )}
+                    />
+                ) : (
+                    <div
+                        style={{
+                            ...getDashboardContainerStyles(styles, theme),
+                            overflow: 'hidden',
+                        }}
+                    >
+                        <MetricsCatalogPage />
+                    </div>
+                )}
+            </EmbedProvider>
+        </SdkProviders>
+    );
+};
+
 const Lightdash = {
     AiAgent,
     Dashboard,
     DashboardBuilder,
+    MetricsCatalog,
     Explore,
     Chart,
     FilterOperator,
@@ -739,6 +805,7 @@ export {
     Dashboard,
     DashboardBuilder,
     Explore,
+    MetricsCatalog,
     FilterOperator,
     createLightdashApiClient,
     useLightdashAiAgentThreads,

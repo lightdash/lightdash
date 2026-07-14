@@ -205,9 +205,18 @@ export class SnowflakeSqlBuilder extends WarehouseBaseSqlBuilder {
 }
 
 export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflakeCredentials> {
+    private static readonly MAX_QUERY_TAG_LENGTH = 2000;
+
     connectionOptions: ConnectionOptions;
 
     quotedIdentifiersIgnoreCase?: boolean;
+
+    static formatQueryTag(tags: Record<string, string>): string {
+        return Array.from(JSON.stringify(tags))
+            .slice(0, SnowflakeWarehouseClient.MAX_QUERY_TAG_LENGTH)
+            .join('')
+            .replace(/'/g, "''");
+    }
 
     // Cache connection promise for external browser authentication to avoid opening multiple browser tabs
     // We cache the promise itself (not the resolved connection) to prevent race conditions
@@ -525,7 +534,11 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         }
 
         if (options?.tags) {
-            sessionParams.push(`QUERY_TAG = '${JSON.stringify(options.tags)}'`);
+            sessionParams.push(
+                `QUERY_TAG = '${SnowflakeWarehouseClient.formatQueryTag(
+                    options.tags,
+                )}'`,
+            );
         }
 
         const timezoneQuery = options?.timezone || 'UTC';

@@ -105,13 +105,13 @@ export * from './types/api/uuid';
 export * from './types/auth';
 export * from './types/bigQuerySSO';
 export * from './types/catalog';
-export * from './types/changeset';
 export * from './types/coder';
 export * from './types/comments';
 export * from './types/conditionalFormatting';
 export * from './types/content';
 export * from './types/contentVerification';
 export * from './types/dashboard';
+export * from './types/emailWhitelabel';
 export * from './types/dataTimezonePreview';
 export * from './types/fieldImpact';
 export * from './types/dbt';
@@ -143,6 +143,7 @@ export * from './types/oauth';
 export * from './types/openIdIdentity';
 export * from './types/organization';
 export * from './types/organizationAccess';
+export * from './types/organizationBrand';
 export * from './types/organizationDomainVerification';
 export * from './types/organizationMemberProfile';
 export * from './types/organizationSettings';
@@ -164,6 +165,7 @@ export {
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
     DatabricksAuthenticationType,
+    DBT_VERSION_SUPPORTED_WAREHOUSES,
     DbtProjectType,
     DbtVersionOptionLatest,
     DefaultSupportedDbtVersion,
@@ -172,11 +174,14 @@ export {
     DucklakeDataPathType,
     getColumnTimezone,
     getDbtEnvironmentVariableKeyError,
+    getDbtVersionSupportedWarehouses,
     getInvalidDbtEnvironmentVariableKeys,
     getLatestSupportDbtVersion,
     isDbtVersion110OrHigher,
     isGitProjectType,
     isSafeDbtEnvironmentVariableKey,
+    isWarehouseSupportedByDbtVersion,
+    LATEST_SUPPORTED_DBT_VERSION,
     LIGHTDASH_DBT_PROFILE_ENV_VAR_PREFIX,
     maybeOverrideDbtConnection,
     maybeOverrideWarehouseConnection,
@@ -306,7 +311,6 @@ export * from './utils/additionalMetrics';
 export * from './utils/api';
 export { default as assertUnreachable } from './utils/assertUnreachable';
 export * from './utils/bigNumber';
-export * from './utils/changeset';
 export * from './utils/charts';
 export * from './utils/chartValidation';
 export * from './utils/colors';

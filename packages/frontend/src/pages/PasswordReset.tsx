@@ -1,14 +1,13 @@
 import {
-    Anchor,
     Box,
-    Button,
-    Card,
     Center,
-    PasswordInput,
     Stack,
     Text,
     Title,
-} from '@mantine/core';
+    Button,
+    Anchor,
+} from '@mantine-8/core';
+import { Card, PasswordInput } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { type FC } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
@@ -69,7 +68,7 @@ const PasswordReset: FC = () => {
                                                 }),
                                         )}
                                     >
-                                        <Stack spacing="lg">
+                                        <Stack gap="lg">
                                             <PasswordInput
                                                 label="Password"
                                                 name="password"
@@ -94,6 +93,7 @@ const PasswordReset: FC = () => {
 
                                             <Center>
                                                 <Anchor
+                                                    inherit
                                                     component={Link}
                                                     to="/login"
                                                 >
@@ -108,7 +108,7 @@ const PasswordReset: FC = () => {
                                     <Title order={3} ta="center" mb="md">
                                         Success!
                                     </Title>
-                                    <Text ta="center" mb="lg" color="dimmed">
+                                    <Text ta="center" mb="lg" c="dimmed">
                                         Your password has been successfully
                                         updated.
                                         <br /> Use your new password to log in.

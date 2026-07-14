@@ -6,7 +6,8 @@ import {
     type CreateWarehouseCredentials,
     type Project,
 } from '@lightdash/common';
-import { Alert, Anchor, Box, Button, Card, Flex } from '@mantine/core';
+import { Alert, Anchor, Box, Button, Flex } from '@mantine-8/core';
+import { Card } from '@mantine/core';
 import { IconExclamationCircle, IconExternalLink } from '@tabler/icons-react';
 import { type FC } from 'react';
 import {
@@ -135,6 +136,7 @@ const UpdateProjectConnection: FC<{
                 >
                     Read docs{' '}
                     <Anchor
+                        inherit
                         href="https://docs.lightdash.com/guides/cli/how-to-use-lightdash-preview"
                         target="_blank"
                         rel="noreferrer"
@@ -182,7 +184,7 @@ const UpdateProjectConnection: FC<{
                                     variant="subtle"
                                     color="gray"
                                     size="xs"
-                                    rightIcon={
+                                    rightSection={
                                         <MantineIcon icon={IconExternalLink} />
                                     }
                                     component="a"

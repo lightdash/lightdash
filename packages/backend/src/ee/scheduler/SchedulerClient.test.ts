@@ -1,4 +1,8 @@
-import { aiAgentReviewRunAt } from './SchedulerClient';
+import { AnyType, EE_SCHEDULER_TASKS } from '@lightdash/common';
+import {
+    aiAgentReviewRunAt,
+    CommercialSchedulerClient,
+} from './SchedulerClient';
 
 describe('aiAgentReviewRunAt', () => {
     const now = new Date('2026-06-04T11:33:48.000Z');
@@ -13,5 +17,32 @@ describe('aiAgentReviewRunAt', () => {
     it('runs response_saved reviews immediately', () => {
         const runAt = aiAgentReviewRunAt('response_saved', now);
         expect(runAt.getTime()).toBe(now.getTime());
+    });
+});
+
+describe('CommercialSchedulerClient.aiDeepResearch', () => {
+    it('enqueues one uniquely keyed attempt per durable run', async () => {
+        const addJob = vi.fn().mockResolvedValue({ id: 'job-1' });
+        const client = Object.create(
+            CommercialSchedulerClient.prototype,
+        ) as CommercialSchedulerClient;
+        client.graphileUtils = Promise.resolve({ addJob } as AnyType);
+        const payload = {
+            aiDeepResearchRunUuid: 'run-1',
+            organizationUuid: 'org-1',
+            projectUuid: 'project-1',
+            userUuid: 'user-1',
+        };
+
+        await client.aiDeepResearch(payload);
+
+        expect(addJob).toHaveBeenCalledWith(
+            EE_SCHEDULER_TASKS.AI_DEEP_RESEARCH,
+            payload,
+            expect.objectContaining({
+                maxAttempts: 1,
+                jobKey: 'ai-deep-research:run-1',
+            }),
+        );
     });
 });

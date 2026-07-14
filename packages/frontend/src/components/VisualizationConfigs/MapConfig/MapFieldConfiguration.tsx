@@ -1,5 +1,6 @@
 import { getItemLabelWithoutTableName } from '@lightdash/common';
-import { ActionIcon, Box, Group, TextInput, Tooltip } from '@mantine/core';
+import { TextInput, Box, Group, ActionIcon } from '@mantine-8/core';
+import { Tooltip } from '@mantine/core';
 import { useDebouncedState } from '@mantine/hooks';
 import { IconEye, IconEyeOff } from '@tabler/icons-react';
 import { useEffect, useState, type FC } from 'react';
@@ -46,6 +47,7 @@ const MapFieldConfigurationInput: FC<MapFieldConfigurationInputProps> = ({
 
     return (
         <TextInput
+            size="xs"
             disabled={!isVisible}
             placeholder={defaultLabel}
             defaultValue={initialValue}
@@ -77,7 +79,7 @@ const MapFieldConfiguration: FC<MapFieldConfigurationProps> = ({ fieldId }) => {
     const isVisible = isFieldVisible(fieldId);
 
     return (
-        <Group spacing="xs" noWrap style={{ flexGrow: 1 }}>
+        <Group gap="xs" wrap="nowrap" style={{ flexGrow: 1 }}>
             <Box style={{ flexGrow: 1 }}>
                 <MapFieldConfigurationInput
                     fieldId={fieldId}
@@ -99,6 +101,7 @@ const MapFieldConfiguration: FC<MapFieldConfigurationProps> = ({ fieldId }) => {
                     onMouseLeave={() => setTooltipVisible(false)}
                 >
                     <ActionIcon
+                        color="gray"
                         variant="light"
                         onClick={() => {
                             setTooltipVisible(false);

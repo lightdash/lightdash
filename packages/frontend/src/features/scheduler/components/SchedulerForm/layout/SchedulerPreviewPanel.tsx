@@ -32,7 +32,7 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { useExportDashboard } from '../../../../../hooks/dashboard/useDashboard';
+import { useExportDashboardContentPreview } from '../../../../../hooks/dashboard/useDashboard';
 import { CUSTOM_WIDTH_OPTIONS } from '../../../constants';
 import { useSchedulerFormContext } from '../schedulerFormContext';
 import classes from './SchedulerDeliveryModal.module.css';
@@ -199,7 +199,7 @@ export const SchedulerPreviewPanel: FC<Props> = ({
               ? IconChartBar
               : IconTable;
 
-    const exportDashboardMutation = useExportDashboard();
+    const exportPreviewMutation = useExportDashboardContentPreview();
     const [previewUrl, setPreviewUrl] = useState<string>();
     const [isEnlarged, setIsEnlarged] = useState(false);
 
@@ -208,31 +208,26 @@ export const SchedulerPreviewPanel: FC<Props> = ({
 
     const handleGenerate = useCallback(async () => {
         if (!dashboard) return;
-        let queryFilters = '';
-        if (form.values.dashboardFilters) {
-            const overriddenDimensions = applyDimensionOverrides(
-                dashboard.filters,
-                form.values.dashboardFilters,
-            );
-            queryFilters = `?filters=${encodeURIComponent(
-                JSON.stringify({
-                    dimensions: overriddenDimensions,
-                    metrics: [],
-                    tableCalculations: [],
-                }),
-            )}`;
-        }
-        const url = await exportDashboardMutation.mutateAsync({
+        const dashboardFilters = form.values.dashboardFilters
+            ? {
+                  dimensions: applyDimensionOverrides(
+                      dashboard.filters,
+                      form.values.dashboardFilters,
+                  ),
+                  metrics: [],
+                  tableCalculations: [],
+              }
+            : undefined;
+        const url = await exportPreviewMutation.mutateAsync({
             dashboard,
-            gridWidth: parseInt(widthChoice),
-            queryFilters,
-            isPreview: true,
+            customViewportWidth: parseInt(widthChoice),
+            dashboardFilters,
             selectedTabs: form.values.selectedTabs ?? null,
         });
         if (url) setPreviewUrl(url);
     }, [
         dashboard,
-        exportDashboardMutation,
+        exportPreviewMutation,
         widthChoice,
         form.values.dashboardFilters,
         form.values.selectedTabs,
@@ -249,7 +244,7 @@ export const SchedulerPreviewPanel: FC<Props> = ({
                         leftSection={
                             <MantineIcon icon={IconRefresh} size="sm" />
                         }
-                        loading={exportDashboardMutation.isLoading}
+                        loading={exportPreviewMutation.isLoading}
                         onClick={handleGenerate}
                     >
                         Regenerate
@@ -293,7 +288,7 @@ export const SchedulerPreviewPanel: FC<Props> = ({
                                                             variant="default"
                                                             size="xs"
                                                             loading={
-                                                                exportDashboardMutation.isLoading
+                                                                exportPreviewMutation.isLoading
                                                             }
                                                             onClick={
                                                                 handleGenerate

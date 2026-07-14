@@ -1,5 +1,7 @@
+import { fromIni, fromNodeProviderChain } from '@aws-sdk/credential-providers';
 import {
     CreateRedshiftCredentials,
+    getErrorMessage,
     ParseError,
     RedshiftAuthenticationType,
     WarehouseTypes,
@@ -7,6 +9,7 @@ import {
 import { JSONSchemaType } from 'ajv';
 import betterAjvErrors from 'better-ajv-errors';
 import { ajv } from '../../ajv';
+import * as styles from '../../styles';
 import { Target } from '../types';
 
 export type RedshiftTarget = {
@@ -116,9 +119,9 @@ export const redshiftSchema: JSONSchemaType<RedshiftTarget> = {
     required: ['type', 'host', 'port', 'schema'],
 };
 
-export const convertRedshiftSchema = (
+export const convertRedshiftSchema = async (
     target: Target,
-): CreateRedshiftCredentials => {
+): Promise<CreateRedshiftCredentials> => {
     const validate = ajv.compile<RedshiftTarget>(redshiftSchema);
     if (validate(target)) {
         const dbname = target.dbname || target.database;
@@ -136,6 +139,52 @@ export const convertRedshiftSchema = (
                     `Redshift IAM target requires a region: "region"`,
                 );
             }
+            // dbt-redshift resolves an AWS identity locally via boto3's
+            // credential chain (env vars, a named profile via "iam_profile"
+            // - including AWS SSO profiles - or an EC2/ECS/EKS role). None of
+            // those local references (a profile name, an instance role) mean
+            // anything on the Lightdash backend, so we resolve the chain here
+            // and forward the concrete credentials it produces. For SSO or a
+            // role these are short-lived session credentials, which is what a
+            // "sign in with SSO, then lightdash preview" workflow wants. This
+            // mirrors how the BigQuery "oauth" target resolves local ADC
+            // before uploading a preview project's credentials.
+            const credentialProvider = target.iam_profile
+                ? fromIni({ profile: target.iam_profile })
+                : fromNodeProviderChain();
+
+            let awsCredentials: Awaited<ReturnType<typeof credentialProvider>>;
+            try {
+                awsCredentials = await credentialProvider();
+            } catch (e) {
+                const source = target.iam_profile
+                    ? `AWS profile "${target.iam_profile}"`
+                    : 'the default AWS credential chain (environment variables, the default profile, SSO, or an instance role)';
+                throw new ParseError(
+                    `Redshift IAM target ("method: iam") requires AWS credentials that "lightdash preview" can resolve locally and forward to the Lightdash backend, but none could be resolved from ${source}: ${getErrorMessage(
+                        e,
+                    )}. If you authenticate with AWS SSO, run "aws sso login${
+                        target.iam_profile
+                            ? ` --profile ${target.iam_profile}`
+                            : ''
+                    }" and try again, or set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY (plus AWS_SESSION_TOKEN for temporary credentials).`,
+                );
+            }
+            const { accessKeyId, secretAccessKey, sessionToken, expiration } =
+                awsCredentials;
+
+            // SSO/role credentials are temporary. The preview project keeps
+            // using these forwarded credentials to mint Redshift credentials
+            // per query, so warn that queries will start failing once they
+            // expire rather than letting it surface as an opaque runtime error.
+            if (expiration) {
+                console.warn(
+                    styles.warning(
+                        `Forwarding temporary AWS credentials for this Redshift IAM preview that expire at ${expiration.toISOString()}. Queries in the preview project will stop working after that - re-run "lightdash preview" (re-authenticating with AWS if needed) to refresh them.`,
+                    ),
+                );
+            }
+
             // dbt-redshift represents serverless purely via the host endpoint
             // (no cluster_id); derive the workgroup from it so the connection
             // round-trips to the runtime client correctly.
@@ -157,6 +206,9 @@ export const convertRedshiftSchema = (
                 ...(isServerless
                     ? { workgroupName: target.host.split('.')[0] }
                     : { clusterIdentifier: target.cluster_id }),
+                accessKeyId,
+                secretAccessKey,
+                ...(sessionToken ? { sessionToken } : {}),
                 autoCreate: target.autocreate,
             };
         }

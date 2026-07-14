@@ -1,16 +1,36 @@
 import {
     DimensionType,
     FieldType,
+    FilterOperator,
+    MetricType,
     SupportedDbtAdapter,
+    TimeFrames,
     type Explore,
+    type ModelRequiredFilterRule,
 } from '@lightdash/common';
 import { describe, expect, it } from 'vitest';
 import {
     buildExploreIndex,
     buildFieldIndex,
     compileMatcher,
+    getDefaultTimeDimensionFieldIds,
+    matchLocality,
     selectCandidateFields,
+    summarizeRequiredFilters,
 } from './grepFieldsIndex';
+
+const makeMetric = (table: string, name: string) => ({
+    fieldType: FieldType.METRIC as const,
+    type: MetricType.SUM,
+    name,
+    label: name,
+    table,
+    tableLabel: table,
+    sql: `SUM(\${TABLE}.${name})`,
+    hidden: false,
+    compiledSql: `SUM(${table}.${name})`,
+    tablesReferences: [table],
+});
 
 type FieldSpec = {
     name: string;
@@ -24,6 +44,7 @@ const makeExplore = (over: {
     label?: string;
     aiHint?: string | string[];
     fields: FieldSpec[];
+    requiredFilters?: ModelRequiredFilterRule[];
 }): Explore => ({
     targetDatabase: SupportedDbtAdapter.POSTGRES,
     name: over.name,
@@ -43,6 +64,7 @@ const makeExplore = (over: {
             sqlWhere: undefined,
             uncompiledSqlWhere: undefined,
             description: undefined,
+            requiredFilters: over.requiredFilters,
             dimensions: Object.fromEntries(
                 over.fields.map((f) => [
                     f.name,
@@ -67,6 +89,83 @@ const makeExplore = (over: {
             lineageGraph: {},
         },
     },
+});
+
+describe('summarizeRequiredFilters', () => {
+    it('distinguishes backend-required filters from suggested filters', () => {
+        const explore = makeExplore({
+            name: 'data_app_usage',
+            fields: [{ name: 'timestamp' }, { name: 'role' }],
+            requiredFilters: [
+                {
+                    id: 'required-filter',
+                    target: { fieldRef: 'timestamp' },
+                    operator: FilterOperator.IN_THE_PAST,
+                    values: [4],
+                    required: true,
+                },
+                {
+                    id: 'default-filter',
+                    target: { fieldRef: 'role' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['interactive_viewer'],
+                    required: false,
+                },
+            ],
+        });
+
+        expect(summarizeRequiredFilters(explore)).toBe(
+            '⚠ table filters: required data_app_usage_timestamp inThePast [4]; suggested data_app_usage_role equals ["interactive_viewer"]',
+        );
+    });
+});
+
+describe('getDefaultTimeDimensionFieldIds', () => {
+    it('returns fully qualified base and granular IDs using the resolved default interval', () => {
+        const explore = makeExplore({
+            name: 'orders',
+            fields: [{ name: 'created_at' }],
+        });
+        explore.tables.orders.defaultTimeDimension = {
+            field: 'created_at',
+            interval: undefined as unknown as TimeFrames,
+        };
+
+        expect(
+            getDefaultTimeDimensionFieldIds(
+                makeMetric('orders', 'revenue'),
+                explore.tables.orders,
+            ),
+        ).toEqual({
+            defaultTimeDimension: 'orders_created_at',
+            defaultTimeDimensionGranularity: 'orders_created_at_month',
+        });
+    });
+
+    it('prefers the metric-level default over the model default', () => {
+        const explore = makeExplore({
+            name: 'orders',
+            fields: [{ name: 'created_at' }, { name: 'shipped_at' }],
+        });
+        explore.tables.orders.defaultTimeDimension = {
+            field: 'created_at',
+            interval: TimeFrames.WEEK,
+        };
+        const metric = {
+            ...makeMetric('orders', 'revenue'),
+            defaultTimeDimension: {
+                field: 'shipped_at',
+                interval: TimeFrames.DAY,
+            },
+        };
+
+        expect(
+            getDefaultTimeDimensionFieldIds(metric, explore.tables.orders),
+        ).toEqual({
+            defaultTimeDimension: 'orders_shipped_at',
+            defaultTimeDimensionGranularity: 'orders_shipped_at_day',
+        });
+    });
 });
 
 describe('compileMatcher word boundaries for short terms', () => {
@@ -176,6 +275,38 @@ describe('buildExploreIndex', () => {
         const matches = compileMatcher('comment');
         const hits = index.filter((e) => matches(e.haystack));
         expect(hits.map((e) => e.exploreName)).toEqual(['learner_reviews']);
+    });
+});
+
+describe('matchLocality', () => {
+    const [entry] = buildFieldIndex([
+        makeExplore({
+            name: 'orders',
+            fields: [
+                {
+                    name: 'channel',
+                    label: 'Channel',
+                    description: 'Current fulfilment status.',
+                },
+            ],
+        }),
+    ]);
+
+    it('labels the most-specific slice that fully matches', () => {
+        expect(matchLocality(entry, compileMatcher('channel'))).toBe('name');
+        expect(matchLocality(entry, compileMatcher('fulfilment'))).toBe(
+            'description',
+        );
+    });
+
+    it('labels a cross-slice match "mixed" instead of a slice it did not fully match', () => {
+        // "order" only in the name/id, "status" only in the description: the
+        // combined haystack matches but no single slice holds both terms, so the
+        // label must not claim name/description/hint — it reports "mixed", which
+        // also ranks lowest, keeping the label consistent with the sort order.
+        expect(matchLocality(entry, compileMatcher('order status'))).toBe(
+            'mixed',
+        );
     });
 });
 

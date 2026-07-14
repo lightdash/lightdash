@@ -1,20 +1,20 @@
 import { PartitionType, type PartitionColumn } from '@lightdash/common';
 import {
-    ActionIcon,
+    TextInput,
     Box,
     Center,
     CopyButton,
     Group,
-    Highlight,
     Loader,
-    ScrollArea,
     Stack,
-    Text,
-    TextInput,
-    Tooltip,
-    UnstyledButton,
     type BoxProps,
-} from '@mantine/core';
+    Text,
+    UnstyledButton,
+    ActionIcon,
+    Highlight,
+    ScrollArea,
+} from '@mantine-8/core';
+import { Tooltip } from '@mantine/core';
 import { useDebouncedValue, useHover } from '@mantine/hooks';
 import {
     IconChevronDown,
@@ -29,9 +29,11 @@ import isEmpty from 'lodash/isEmpty';
 import { memo, useEffect, useMemo, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
+import scrollAreaClasses from '../../../styles/ScrollArea.module.css';
 import { useTables, type TablesBySchema } from '../hooks/useTables';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { setSql, toggleActiveTable } from '../store/sqlRunnerSlice';
+import styles from './Tables.module.css';
 
 const limitTableResults = 100;
 
@@ -83,6 +85,7 @@ const TableItem: FC<TableItemProps> = memo(
         return (
             <Box ref={hoverRef} pos="relative" {...rest}>
                 <UnstyledButton
+                    ff="inherit"
                     onClick={() => {
                         if (!sql || sql.match(/SELECT \* FROM (.+)/)) {
                             dispatch(
@@ -98,20 +101,10 @@ const TableItem: FC<TableItemProps> = memo(
                     }}
                     w="100%"
                     p={4}
-                    sx={(theme) => ({
-                        fontSize: 14,
-                        borderRadius: theme.radius.sm,
-                        color: isActive ? 'ldGray.8' : 'ldGray.7',
-                        flex: 1,
-                        background: isActive
-                            ? theme.colors.ldGray[1]
-                            : 'transparent',
-                        '&:hover': {
-                            background: isActive
-                                ? theme.colors.ldGray[3]
-                                : theme.colors.ldGray[2],
-                        },
-                    })}
+                    flex={1}
+                    fz="sm"
+                    data-active={isActive || undefined}
+                    className={styles.tableButton}
                 >
                     <Tooltip
                         withinPortal
@@ -125,19 +118,22 @@ const TableItem: FC<TableItemProps> = memo(
                         }}
                     >
                         {search.length > 2 ? (
-                            <Highlight
+                            <Text
                                 ref={truncatedRef}
-                                component={Text}
-                                highlight={search || ''}
                                 truncate
-                                sx={{
-                                    flex: 1,
-                                }}
+                                fz="sm"
+                                style={{ flex: 1 }}
                             >
-                                {table}
-                            </Highlight>
+                                <Highlight
+                                    component="span"
+                                    highlight={search || ''}
+                                    inherit
+                                >
+                                    {table}
+                                </Highlight>
+                            </Text>
                         ) : (
-                            <Text>{table}</Text>
+                            <Text fz="sm">{table}</Text>
                         )}
                     </Tooltip>
                 </UnstyledButton>
@@ -157,6 +153,8 @@ const TableItem: FC<TableItemProps> = memo(
                                 position="right"
                             >
                                 <ActionIcon
+                                    variant="subtle"
+                                    color="gray"
                                     size={16}
                                     onClick={copy}
                                     bg="ldGray.1"
@@ -213,17 +211,13 @@ const Table: FC<{
         }
     }, [activeTable, tables, hasMatchingTable, activeSchema, schema]);
     return (
-        <Stack spacing={0}>
+        <Stack gap={0}>
             <UnstyledButton
                 onClick={() => setIsExpanded(!isExpanded)}
-                sx={(theme) => ({
-                    borderRadius: theme.radius.md,
-                    '&:hover': {
-                        background: theme.colors.ldGray[1],
-                    },
-                })}
+                className={styles.schemaButton}
+                ff="inherit"
             >
-                <Group noWrap spacing="two">
+                <Group wrap="nowrap" gap="two">
                     <Text p={6} fz="sm" c="ldGray.8">
                         {schema}
                     </Text>
@@ -358,16 +352,23 @@ export const Tables: FC = () => {
                     <TextInput
                         size="xs"
                         disabled={!data && !debouncedSearch}
-                        icon={
+                        leftSection={
                             isLoading ? (
                                 <Loader size="xs" />
                             ) : (
                                 <MantineIcon icon={IconSearch} />
                             )
                         }
+                        rightSectionPointerEvents="all"
                         rightSection={
                             search ? (
                                 <ActionIcon
+                                    aria-label="Clear search"
+                                    onMouseDown={(event) =>
+                                        event.preventDefault()
+                                    }
+                                    variant="subtle"
+                                    color="gray"
                                     size="xs"
                                     onClick={() => setSearch('')}
                                 >
@@ -390,10 +391,10 @@ export const Tables: FC = () => {
 
             <ScrollArea
                 offsetScrollbars
-                variant="primary"
-                className="only-vertical"
+                scrollbars="y"
+                classNames={{ content: scrollAreaClasses.verticalContent }}
                 pl="sm"
-                sx={{ flex: 1 }}
+                style={{ flex: 1 }}
                 type="auto"
                 scrollbarSize={8}
             >

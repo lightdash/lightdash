@@ -9,6 +9,8 @@ import {
     NotFoundError,
     ParameterError,
     ProjectType,
+    RedshiftAuthenticationType,
+    redshiftIamUserCredentialsSchema,
     SnowflakeAuthenticationType,
     snowflakeSsoUserCredentialsSchema,
     SnowflakeTokenError,
@@ -81,6 +83,19 @@ export class UserWarehouseCredentialsModel {
 
             switch (credentialsWithSecrets.type) {
                 case WarehouseTypes.REDSHIFT:
+                    credentials = {
+                        type: credentialsWithSecrets.type,
+                        user: credentialsWithSecrets.user,
+                        ...('authenticationType' in credentialsWithSecrets
+                            ? {
+                                  authenticationType:
+                                      credentialsWithSecrets.authenticationType,
+                                  assumeRoleArn:
+                                      credentialsWithSecrets.assumeRoleArn,
+                              }
+                            : {}),
+                    };
+                    break;
                 case WarehouseTypes.POSTGRES:
                 case WarehouseTypes.TRINO:
                 case WarehouseTypes.SNOWFLAKE:
@@ -441,6 +456,24 @@ export class UserWarehouseCredentialsModel {
             if (!result.success) {
                 throw new ParameterError(
                     'BigQuery credentials require a valid keyfile. Please reauthenticate with Google.',
+                );
+            }
+        }
+
+        if (
+            data.credentials.type === WarehouseTypes.REDSHIFT &&
+            'authenticationType' in data.credentials &&
+            (data.credentials.authenticationType ===
+                RedshiftAuthenticationType.IAM ||
+                data.credentials.authenticationType ===
+                    RedshiftAuthenticationType.IAM_BROWSER)
+        ) {
+            const result = redshiftIamUserCredentialsSchema.safeParse(
+                data.credentials,
+            );
+            if (!result.success) {
+                throw new ParameterError(
+                    'Redshift IAM credentials require an assume-role ARN or AWS access keys.',
                 );
             }
         }

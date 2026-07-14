@@ -716,7 +716,7 @@ program
 
 program
     .command('download')
-    .description('Downloads charts and dashboards as code')
+    .description('Downloads project content as code')
     .option('--verbose', undefined, false)
     .option(
         '-c, --charts <charts...>',
@@ -728,6 +728,17 @@ program
         'specify dashboard slugs, uuids or urls to download',
         [],
     )
+    .option('--alerts <slugs...>', 'specify alert slugs to download', [])
+    .option(
+        '--google-sheets <slugs...>',
+        'specify Google Sheets sync slugs to download',
+        [],
+    )
+    .option(
+        '--scheduled-deliveries <slugs...>',
+        'specify scheduled delivery slugs to download',
+        [],
+    )
     .option(
         '-l, --language-map',
         'generate a language maps for the downloaded charts and dashboards',
@@ -735,7 +746,7 @@ program
     )
     .option(
         '-p, --path <path>',
-        'specify a custom path to download charts and dashboards',
+        'specify a custom path to download content',
         undefined,
     )
     .option(
@@ -756,6 +767,17 @@ program
     )
     .option('--skip-charts', 'skip downloading charts', false)
     .option('--skip-dashboards', 'skip downloading dashboards', false)
+    .option('--skip-alerts', 'skip downloading alerts', false)
+    .option(
+        '--skip-google-sheets',
+        'skip downloading Google Sheets syncs',
+        false,
+    )
+    .option(
+        '--skip-scheduled-deliveries',
+        'skip downloading scheduled deliveries',
+        false,
+    )
     .option(
         '--strip-pivot-series',
         'strip per-value pivot series config from chart YAML for portable downloads',
@@ -767,8 +789,13 @@ program
     )
     .option(
         '--include-apps',
-        'Include the project\'s data apps (enterprise), capped at the first 10. Only lists apps that are in a space; use "--apps <uuids>" for the rest.',
+        "Include all of the project's data apps (enterprise), capped at --apps-limit (default: 50)",
         false,
+    )
+    .option(
+        '--apps-limit <number>',
+        'Maximum number of data apps downloaded by --include-apps (default: 50)',
+        undefined,
     )
     .option(
         '--apps-only',
@@ -779,7 +806,7 @@ program
 
 program
     .command('upload')
-    .description('Uploads charts and dashboards as code')
+    .description('Uploads project content as code')
     .option('--verbose', undefined, false)
     .option(
         '-c, --charts <charts...>',
@@ -791,6 +818,17 @@ program
         'specify dashboard slugs to force upload',
         [],
     )
+    .option('--alerts <slugs...>', 'specify alert slugs to upload', [])
+    .option(
+        '--google-sheets <slugs...>',
+        'specify Google Sheets sync slugs to upload',
+        [],
+    )
+    .option(
+        '--scheduled-deliveries <slugs...>',
+        'specify scheduled delivery slugs to upload',
+        [],
+    )
     .option(
         '--force',
         'Force upload even if local files have not changed, use this when you want to upload files to a new project',
@@ -798,7 +836,7 @@ program
     )
     .option(
         '-p, --path <path>',
-        'specify a custom path to upload charts and dashboards from',
+        'specify a custom path to upload content from',
         undefined,
     )
     .option(
@@ -813,6 +851,13 @@ program
         false,
     )
     .option('--public', 'Create new spaces as public instead of private', false)
+    .option('--skip-alerts', 'skip uploading alerts', false)
+    .option('--skip-google-sheets', 'skip uploading Google Sheets syncs', false)
+    .option(
+        '--skip-scheduled-deliveries',
+        'skip uploading scheduled deliveries',
+        false,
+    )
     .option(
         '--concurrency <number>',
         'Number of parallel uploads (default: 1)',
@@ -826,8 +871,13 @@ program
     .option('--validate', 'Validate charts and dashboards after upload', false)
     .option('--gzip', 'Enable gzip compression for request bodies', false)
     .option(
-        '--apps [appUuids...]',
-        'Include data apps (enterprise). Optionally limit to specific app UUIDs; default: all app folders on disk.',
+        '--apps <appUuids...>',
+        'Upload specific data apps by UUID (enterprise).',
+    )
+    .option(
+        '--include-apps',
+        'Upload all app folders on disk (enterprise).',
+        false,
     )
     .option(
         '--create-new',
@@ -1046,6 +1096,14 @@ program
         new Option('--only <elems...>', 'Specify project elements to validate')
             .choices(Object.values(ValidationTarget))
             .default(Object.values(ValidationTarget)),
+    )
+    .option(
+        '--include-spaces <spaceSlugs...>',
+        'Only report validation errors for charts and dashboards in these spaces (and their sub-spaces). Spaces must be visible to your credentials',
+    )
+    .option(
+        '--exclude-spaces <spaceSlugs...>',
+        'Skip validation errors for charts and dashboards in these spaces (and their sub-spaces). Spaces must be visible to your credentials',
     )
     .action(validateHandler);
 

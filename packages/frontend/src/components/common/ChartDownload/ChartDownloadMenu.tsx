@@ -6,7 +6,7 @@ import {
     getPivotConfig,
     type ApiScheduledDownloadCsv,
 } from '@lightdash/common';
-import { ActionIcon, Popover } from '@mantine/core';
+import { ActionIcon, Popover } from '@mantine-8/core';
 import { IconShare2 } from '@tabler/icons-react';
 import { memo, useCallback } from 'react';
 import useEchartsCartesianConfig from '../../../hooks/echarts/useEchartsCartesianConfig';

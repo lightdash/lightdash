@@ -63,6 +63,7 @@ const getSupportedDbtVersionOption = (
     if (version.startsWith('1.9.')) return SupportedDbtVersions.V1_9;
     if (version.startsWith('1.10.')) return SupportedDbtVersions.V1_10;
     if (version.startsWith('1.11.')) return SupportedDbtVersions.V1_11;
+    if (version.startsWith('1.12.')) return SupportedDbtVersions.V1_12;
 
     // No supported version found
     return null;
@@ -119,38 +120,6 @@ export const getDbtVersion = async (): Promise<DbtVersion> => {
         }
         spinner?.start();
         GlobalState.savePromptAnswer('useFallbackDbtVersion', true);
-    }
-
-    if (
-        isDbtCloudCLI(verboseVersion) &&
-        !GlobalState.getSavedPromptAnswer('useExperimentalDbtCloudCLI')
-    ) {
-        const message = `Support for dbt Cloud CLI is still experimental and might not work as expected.`;
-        const spinner = GlobalState.getActiveSpinner();
-        spinner?.stop();
-        if (GlobalState.isNonInteractive()) {
-            console.error(styles.warning(message));
-        } else {
-            const answers = await inquirer.prompt([
-                {
-                    type: 'confirm',
-                    name: 'isConfirm',
-                    message: `${styles.warning(
-                        message,
-                    )}\nDo you still want to continue?`,
-                },
-            ]);
-            if (!answers.isConfirm) {
-                console.error(
-                    styles.error(
-                        `Command using dbt cloud CLI has been canceled. Please consider using dbt core CLI for the best experience.`,
-                    ),
-                );
-                process.exit(1);
-            }
-        }
-        spinner?.start();
-        GlobalState.savePromptAnswer('useExperimentalDbtCloudCLI', true);
     }
 
     return {

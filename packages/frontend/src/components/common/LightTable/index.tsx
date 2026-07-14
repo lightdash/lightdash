@@ -2,13 +2,8 @@ import {
     assertUnreachable,
     type ConditionalFormattingTextStyle,
 } from '@lightdash/common';
-import {
-    Box,
-    Text,
-    Tooltip,
-    useMantineTheme,
-    type BoxProps as BoxPropsBase,
-} from '@mantine/core';
+import { Box, type BoxProps as BoxPropsBase, Text } from '@mantine-8/core';
+import { Tooltip, useMantineTheme } from '@mantine/core';
 import { getHotkeyHandler, useClipboard, useId } from '@mantine/hooks';
 import { type PolymorphicComponentProps } from '@mantine/utils';
 import debounce from 'lodash/debounce';
@@ -204,7 +199,7 @@ const TableComponent = forwardRef<HTMLTableElement, TableProps>(
                 miw="inherit"
                 mah="100%"
                 pos="relative"
-                sx={{
+                style={{
                     overflow: 'auto',
                     border: `1px solid ${theme.colors.ldGray[3]}`,
                     borderRadius: shouldRemoveBorders ? '0' : '4px',

@@ -1,4 +1,4 @@
-import { CloseButton, FileInput } from '@mantine/core';
+import { CloseButton, FileInput } from '@mantine-8/core';
 import React, { useState, type FC } from 'react';
 import { useFormContext } from '../formContext';
 
@@ -38,8 +38,6 @@ const CertificateFileInput: FC<
 
             <FileInput
                 label={label}
-                // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
-                // @ts-ignore
                 placeholder={fileNamePlaceholder || 'Choose file...'}
                 description={description}
                 {...fileField}
@@ -64,11 +62,15 @@ const CertificateFileInput: FC<
                     fileNamefield.onChange(null);
                 }}
                 disabled={disabled}
+                rightSectionPointerEvents="all"
                 rightSection={
                     (temporaryFile || fileNamePlaceholder) && (
                         <CloseButton
+                            aria-label="Remove certificate file"
+                            size="sm"
                             variant="transparent"
-                            onClick={() => {
+                            onClick={(event) => {
+                                event.stopPropagation();
                                 setTemporaryFile(null);
                                 form.setFieldValue(name, null);
                                 form.setFieldValue(fileNameProperty, '');

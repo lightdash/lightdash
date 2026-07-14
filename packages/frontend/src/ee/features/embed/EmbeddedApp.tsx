@@ -1,8 +1,12 @@
-import { type SavedChart } from '@lightdash/common';
 import { useEffect, useState, type FC } from 'react';
-import { Outlet, useNavigate, useParams } from 'react-router';
+import { Outlet, useLocation, useNavigate, useParams } from 'react-router';
 import EmbedProvider from '../../providers/Embed/EmbedProvider';
+import { type EmbedExploreChart } from '../../providers/Embed/types';
 import useEmbed from '../../providers/Embed/useEmbed';
+
+type EmbedExploreLocationState = {
+    embedBackUrl?: string;
+};
 
 /**
  * Applies the embed's custom background color if provided.
@@ -36,17 +40,29 @@ const EmbedBackgroundColorSync: FC<React.PropsWithChildren> = ({
  */
 const EmbeddedApp: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const [savedChart, setSavedChart] = useState<SavedChart>();
+    const [savedChart, setSavedChart] = useState<EmbedExploreChart>();
     const navigate = useNavigate();
+    const location = useLocation();
 
-    const handleExplore = (options: { chart: SavedChart }) => {
+    const handleExplore = (options: { chart: EmbedExploreChart }) => {
         setSavedChart(options.chart);
         void navigate(
             `/embed/${projectUuid}/explore/${options.chart.tableName}`,
+            {
+                state: {
+                    embedBackUrl: `${location.pathname}${location.search}`,
+                } satisfies EmbedExploreLocationState,
+            },
         );
     };
 
     const handleBackToDashboard = async () => {
+        const state = location.state as EmbedExploreLocationState | null;
+        if (state?.embedBackUrl) {
+            await navigate(state.embedBackUrl);
+            return;
+        }
+
         await navigate(`/embed/${projectUuid}`);
     };
 

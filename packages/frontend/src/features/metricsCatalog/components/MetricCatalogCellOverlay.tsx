@@ -1,11 +1,6 @@
 import { type CatalogField } from '@lightdash/common';
-import {
-    Box,
-    getDefaultZIndex,
-    Portal,
-    px,
-    useMantineTheme,
-} from '@mantine/core';
+import { Box } from '@mantine-8/core';
+import { getDefaultZIndex, Portal, px, useMantineTheme } from '@mantine/core';
 import MarkdownPreview, {
     type MarkdownPreviewProps,
 } from '@uiw/react-markdown-preview';
@@ -77,7 +72,7 @@ export const MetricCatalogCellOverlay: FC<Props> = ({
                 py="sm"
                 px="xl"
                 mah={500}
-                sx={{
+                style={{
                     position: 'absolute',
                     ...getCellRect(),
                     backgroundColor: theme.fn.lighten(

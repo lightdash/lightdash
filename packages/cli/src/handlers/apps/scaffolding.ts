@@ -83,6 +83,30 @@ export const rewriteWorkspaceDeps = (
 ): string => packageJson.replace(/"workspace:[^"]*"/g, `"${version}"`);
 
 /**
+ * Reads the `dependencies` map from the vendored template's package.json,
+ * with workspace:* specs rewritten to the given concrete version.
+ * Returns {} on any read/parse error so callers degrade gracefully.
+ */
+export const loadTemplateDependencies = (
+    sdkVersion: string,
+): Record<string, string> => {
+    const { templateDir } = resolveVendorDirs();
+    try {
+        const raw = readFileSync(
+            path.join(templateDir, 'package.json'),
+            'utf-8',
+        );
+        const rewritten = rewriteWorkspaceDeps(raw, sdkVersion);
+        const parsed = JSON.parse(rewritten) as {
+            dependencies?: Record<string, string>;
+        };
+        return parsed.dependencies ?? {};
+    } catch {
+        return {};
+    }
+};
+
+/**
  * Reads vendored template, excluding sandbox-only entries (skill.md, scripts/, src/).
  */
 export const loadVendoredTemplate = (): DataAppCodeFile[] => {

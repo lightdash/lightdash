@@ -1,12 +1,6 @@
 import { WarehouseTypes } from '@lightdash/common';
-import {
-    Anchor,
-    NumberInput,
-    PasswordInput,
-    Select,
-    Stack,
-    TextInput,
-} from '@mantine/core';
+import { TextInput, Stack, Anchor, Select } from '@mantine-8/core';
+import { NumberInput, PasswordInput } from '@mantine/core';
 import React, { type FC } from 'react';
 import { useToggle } from 'react-use';
 import FormCollapseButton from '../FormCollapseButton';
@@ -116,6 +110,7 @@ const TrinoForm: FC<{
                         />
 
                         <Select
+                            allowDeselect={false}
                             name="warehouse.http_scheme"
                             {...form.getInputProps('warehouse.http_scheme')}
                             defaultValue={TrinoDefaultValues.http_scheme}
@@ -126,6 +121,7 @@ const TrinoForm: FC<{
                                     database using SSL. You can see more details
                                     in
                                     <Anchor
+                                        inherit
                                         target="_blank"
                                         href="https://docs.getdbt.com/reference/warehouse-setups/trino-setup#configuration"
                                         rel="noreferrer"

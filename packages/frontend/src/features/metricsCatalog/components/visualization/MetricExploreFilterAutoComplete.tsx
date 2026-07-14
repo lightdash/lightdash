@@ -3,13 +3,11 @@ import {
     Group,
     Highlight,
     Loader,
-    MultiSelect,
     ScrollArea,
     Stack,
     Text,
-    Tooltip,
-    type MultiSelectProps,
-} from '@mantine/core';
+} from '@mantine-8/core';
+import { MultiSelect, Tooltip, type MultiSelectProps } from '@mantine/core';
 import { IconPlus } from '@tabler/icons-react';
 import uniq from 'lodash/uniq';
 import {
@@ -29,6 +27,7 @@ import {
 } from '../../../../hooks/useFieldValues';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import { useFilterAutoCompleteStyles } from '../../styles/useFilterStyles';
+import styles from './MetricExploreFilterAutoComplete.module.css';
 
 type Props = Omit<MultiSelectProps, 'data' | 'onChange'> & {
     dimension: CompiledDimension;
@@ -152,11 +151,11 @@ export const MetricExploreFilterAutoComplete: FC<Props> = ({
 
     const DropdownComponentOverride = useCallback(
         ({ children, ...props }: { children: ReactNode }) => (
-            <Stack w="100%" spacing={0}>
+            <Stack w="100%" gap={0}>
                 <ScrollArea {...props}>
                     {searchedMaxResults ? (
                         <Text
-                            color="dimmed"
+                            c="dimmed"
                             size="xs"
                             px="sm"
                             pt="xs"
@@ -176,17 +175,11 @@ export const MetricExploreFilterAutoComplete: FC<Props> = ({
                         label="Click here to refresh cache filter values"
                     >
                         <Text
-                            color="dimmed"
+                            c="dimmed"
                             size="xs"
                             px="sm"
                             p="xxs"
-                            sx={(theme) => ({
-                                cursor: 'pointer',
-                                borderTop: `1px solid ${theme.colors.ldGray[2]}`,
-                                '&:hover': {
-                                    backgroundColor: theme.colors.ldGray[1],
-                                },
-                            })}
+                            className={styles.cacheHint}
                             onClick={() => setForceRefresh(true)}
                         >
                             Results loaded at {refreshedAt.toLocaleString()}
@@ -242,9 +235,9 @@ export const MetricExploreFilterAutoComplete: FC<Props> = ({
                     query.trim().length > 0 && !values.includes(query)
                 }
                 getCreateLabel={(query) => (
-                    <Group spacing="xxs">
+                    <Group gap="xxs">
                         <MantineIcon icon={IconPlus} color="blue" size="sm" />
-                        <Text color="blue">Add "{query}"</Text>
+                        <Text c="blue">Add "{query}"</Text>
                     </Group>
                 )}
                 classNames={filterAutoCompleteClasses}
@@ -264,11 +257,11 @@ export const MetricExploreFilterAutoComplete: FC<Props> = ({
                 dropdownComponent={DropdownComponentOverride}
                 itemComponent={({ label, ...others }) =>
                     others.disabled ? (
-                        <Text color="dimmed" {...others}>
+                        <Text c="dimmed" {...others}>
                             {label}
                         </Text>
                     ) : (
-                        <Highlight highlight={search} {...others}>
+                        <Highlight highlight={search} {...others} fz="sm">
                             {label}
                         </Highlight>
                     )

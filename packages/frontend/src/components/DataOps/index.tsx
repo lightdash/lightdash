@@ -1,8 +1,9 @@
 import { ProjectType } from '@lightdash/common';
-import { Button, Flex, Select, Text, Title } from '@mantine/core';
+import { Button, Flex, Text, Title, Select } from '@mantine-8/core';
 import { useState, type FC } from 'react';
 import { useProject } from '../../hooks/useProject';
 import { useProjects } from '../../hooks/useProjects';
+import { groupComboboxItems } from '../common/Select/utils';
 import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import { useUpdateMutation } from './hooks/useUpstreamProject';
 
@@ -15,7 +16,7 @@ export const DataOps: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     );
     return (
         <>
-            <Text color="dimmed">
+            <Text c="dimmed">
                 Perform data operations between on this project
             </Text>
 
@@ -33,7 +34,7 @@ export const DataOps: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     <Select
                         value={selectedProject}
                         clearable
-                        data={
+                        data={groupComboboxItems(
                             projects
                                 ?.sort((a, b) => {
                                     if (a.type === b.type) {
@@ -51,15 +52,12 @@ export const DataOps: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                     value: project.projectUuid,
                                     disabled:
                                         project.projectUuid === projectUuid,
-                                    selected:
-                                        project.projectUuid ===
-                                        currentProject?.upstreamProjectUuid,
                                     group:
                                         project.type === ProjectType.PREVIEW
                                             ? 'Preview projects'
                                             : 'Production projects',
-                                })) || []
-                        }
+                                })) || [],
+                        )}
                         label="Upstream project"
                         onChange={(value) => {
                             setSelectedProject(value || null);

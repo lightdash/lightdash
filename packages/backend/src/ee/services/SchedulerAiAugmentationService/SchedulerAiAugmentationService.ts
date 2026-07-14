@@ -3,6 +3,7 @@ import {
     assertUnreachable,
     CreateSchedulerAndTargets,
     ForbiddenError,
+    hasAiAgentAccessToSpace,
     hasSchedulerUuid,
     isChartScheduler,
     isDashboardChartTileType,
@@ -79,7 +80,8 @@ export class SchedulerAiAugmentationService {
     // augmentation is rejected with a 4xx at write time rather than failing
     // (or running unentitled) on every scheduled fire: copilot entitlement,
     // non-empty instructions, the agent pinned to the scheduler's project,
-    // and access to the pinned source thread.
+    // the agent's space access covering the delivered content, and access to
+    // the pinned source thread.
     async upsertAugmentation(
         user: SessionUser,
         schedulerUuid: string,
@@ -99,11 +101,19 @@ export class SchedulerAiAugmentationService {
             );
         }
         if (augmentation.type === 'agent') {
-            await this.aiAgentService.getAgent(
+            const agent = await this.aiAgentService.getAgent(
                 user,
                 augmentation.agentUuid,
                 resource.projectUuid,
             );
+            if (
+                resource.spaceUuid !== null &&
+                !hasAiAgentAccessToSpace(agent, resource.spaceUuid)
+            ) {
+                throw new ParameterError(
+                    `AI agent "${agent.name}" does not have access to the space containing this delivery's content`,
+                );
+            }
             if (augmentation.sourceThreadUuid) {
                 await this.aiAgentService.validateThreadContextAccess(user, {
                     threadUuid: augmentation.sourceThreadUuid,
@@ -152,7 +162,7 @@ export class SchedulerAiAugmentationService {
 
         switch (augmentation.type) {
             case 'agent': {
-                const { organizationUuid } =
+                const { organizationUuid, projectUuid, spaceUuid } =
                     await this.schedulerService.getSchedulerProjectContext(
                         scheduler,
                     );
@@ -161,6 +171,24 @@ export class SchedulerAiAugmentationService {
                         createdBy,
                         organizationUuid,
                     );
+                // Re-checked per fire (not just at write time) because the
+                // agent's space access can change after the schedule is saved,
+                // and an unsaved "send now" never goes through upsert. Failing
+                // here degrades to a partial failure on the delivery instead
+                // of a confusing "content not found" agent summary.
+                const agent = await this.aiAgentService.getAgent(
+                    creator,
+                    augmentation.agentUuid,
+                    projectUuid,
+                );
+                if (
+                    spaceUuid !== null &&
+                    !hasAiAgentAccessToSpace(agent, spaceUuid)
+                ) {
+                    throw new ForbiddenError(
+                        `AI agent "${agent.name}" does not have access to the space containing this delivery's content`,
+                    );
+                }
                 return this.aiAgentService.generateScheduledReport(creator, {
                     agentUuid: augmentation.agentUuid,
                     prompt: augmentation.prompt,

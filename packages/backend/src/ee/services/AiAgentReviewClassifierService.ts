@@ -3,7 +3,6 @@ import {
     aiAgentReviewClassifierJudgeOutputSchema,
     assertUnreachable,
     CatalogType,
-    FeatureFlags,
     filterExploreByTags,
     ForbiddenError,
     getAiAgentConfigSnapshotHash,
@@ -33,20 +32,28 @@ import {
 } from '@lightdash/common';
 import { generateObject } from 'ai';
 import { createHash } from 'crypto';
+import {
+    emitAiUsage,
+    languageModelUsageToTokens,
+} from '../../analytics/aiUsage';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { type CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../services/BaseService';
-import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { type AiAgentDocumentModel } from '../models/AiAgentDocumentModel';
 import { type AiAgentModel } from '../models/AiAgentModel';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
 import { defaultAgentOptions } from './ai/agents/agentV2';
 import { getModel } from './ai/models';
-import { getAiCallTelemetry } from './ai/utils/aiCallTelemetry';
+import { OrgAiCopilotConfigResolver } from './ai/OrgAiCopilotConfigResolver';
+import {
+    getAiCallTelemetry,
+    getLanguageModelAttribution,
+} from './ai/utils/aiCallTelemetry';
 import { type AiAgentReviewNotificationService } from './AiAgentReviewNotificationService';
+import { areReviewsEnabledForSettings } from './AiOrganizationSettingsService';
 
 const REVIEW_AGENT_VERSION = 'llm-judge-v1';
 const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v15';
@@ -86,9 +93,9 @@ type AiAgentReviewClassifierServiceDependencies = {
     aiAgentModel: AiAgentModel;
     aiAgentDocumentModel: Pick<AiAgentDocumentModel, 'findAllForAgent'>;
     aiOrganizationSettingsModel: AiOrganizationSettingsModel;
+    orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
     catalogModel: Pick<CatalogModel, 'getCatalogItemsSummary'>;
     projectModel: Pick<ProjectModel, 'getSummary' | 'findExploresFromCache'>;
-    featureFlagService: FeatureFlagService;
     lightdashConfig: LightdashConfig;
     aiAgentReviewNotificationService: AiAgentReviewNotificationService;
     judgeTurn?: AiAgentReviewClassifierJudge;
@@ -279,7 +286,7 @@ export class AiAgentReviewClassifierService extends BaseService {
 
     private readonly aiOrganizationSettingsModel: AiOrganizationSettingsModel;
 
-    private readonly featureFlagService: FeatureFlagService;
+    private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 
     private readonly aiAgentReviewNotificationService: AiAgentReviewNotificationService;
 
@@ -297,7 +304,8 @@ export class AiAgentReviewClassifierService extends BaseService {
         this.projectModel = dependencies.projectModel;
         this.aiOrganizationSettingsModel =
             dependencies.aiOrganizationSettingsModel;
-        this.featureFlagService = dependencies.featureFlagService;
+        this.orgAiCopilotConfigResolver =
+            dependencies.orgAiCopilotConfigResolver;
         this.aiAgentReviewNotificationService =
             dependencies.aiAgentReviewNotificationService;
         this.lightdashConfig = dependencies.lightdashConfig;
@@ -541,13 +549,6 @@ export class AiAgentReviewClassifierService extends BaseService {
         const runAgentConfig = args.candidates[0]
             ? getAgentConfig(args.candidates[0].subject.agentUuid)
             : AiAgentReviewClassifierService.emptyAgentConfigEvidence();
-        const aiWritebackFlag = await this.featureFlagService.get({
-            featureFlagId: FeatureFlags.AiWriteback,
-            user: {
-                userUuid: args.requestedByUserUuid ?? 'system',
-                organizationUuid: args.organizationUuid,
-            },
-        });
 
         const run = await this.aiAgentReviewClassifierModel.createRun({
             organizationUuid: args.organizationUuid,
@@ -602,10 +603,7 @@ export class AiAgentReviewClassifierService extends BaseService {
                                         getAgentConfig(
                                             candidate.subject.agentUuid,
                                         ),
-                                        {
-                                            projectContextEnabled:
-                                                aiWritebackFlag.enabled,
-                                        },
+                                        { projectContextEnabled: true },
                                     ),
                             };
                         } catch (error) {
@@ -1518,10 +1516,22 @@ export class AiAgentReviewClassifierService extends BaseService {
         candidate: AiAgentReviewClassifierTurnCandidate,
         evidencePacket: AiAgentReviewJudgeEvidencePacket,
     ): Promise<AiAgentReviewClassifierJudgeOutput> {
-        const model = getModel(this.lightdashConfig.ai.copilot, {
-            provider: resolveReviewJudgeProvider(
-                this.lightdashConfig.ai.copilot,
-            ),
+        // Run the judge on the org's own key when they have a BYO Anthropic key
+        // that can serve the review model — never fall back to the instance
+        // provider for their turn data.
+        const { canJudgeOnByoKey } =
+            await this.orgAiCopilotConfigResolver.getReviewJudgeAvailability(
+                candidate.subject.organizationUuid,
+            );
+        const copilotConfig = canJudgeOnByoKey
+            ? await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                  candidate.subject.organizationUuid,
+              )
+            : this.lightdashConfig.ai.copilot;
+        const model = getModel(copilotConfig, {
+            provider: canJudgeOnByoKey
+                ? 'anthropic'
+                : resolveReviewJudgeProvider(copilotConfig),
             useFastModel: true,
         });
 
@@ -1545,20 +1555,22 @@ export class AiAgentReviewClassifierService extends BaseService {
                 evidencePacket.suggestedEvidenceExcerpts.length,
         });
 
+        const telemetry = getAiCallTelemetry({
+            functionId: 'aiAgentReviewClassifierJudge',
+            feature: 'review-classifier',
+            organizationUuid: candidate.subject.organizationUuid,
+            projectUuid: candidate.subject.projectUuid,
+            agentUuid: candidate.subject.agentUuid,
+            threadUuid: candidate.subject.threadUuid,
+            promptUuid: candidate.subject.assistantPromptUuid,
+            ...getLanguageModelAttribution(model.model),
+        });
         const result = await generateObject({
             model: model.model,
             ...defaultAgentOptions,
             ...model.callOptions,
             providerOptions: model.providerOptions,
-            experimental_telemetry: getAiCallTelemetry({
-                functionId: 'aiAgentReviewClassifierJudge',
-                feature: 'review-classifier',
-                organizationUuid: candidate.subject.organizationUuid,
-                projectUuid: candidate.subject.projectUuid,
-                agentUuid: candidate.subject.agentUuid,
-                threadUuid: candidate.subject.threadUuid,
-                promptUuid: candidate.subject.assistantPromptUuid,
-            }),
+            experimental_telemetry: telemetry,
             schema: aiAgentReviewClassifierJudgeOutputSchema,
             messages: [
                 {
@@ -1670,6 +1682,7 @@ Existing review items — dedup rules. The evidence packet field existingReviewI
                 },
             ],
         });
+        emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
 
         return result.object as AiAgentReviewClassifierJudgeOutput;
     }
@@ -1679,12 +1692,16 @@ Existing review items — dedup rules. The evidence packet field existingReviewI
         organizationUuid: string;
         organizationName?: string;
     }): Promise<boolean> {
-        const settings =
-            await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+        const [settings, byo] = await Promise.all([
+            this.aiOrganizationSettingsModel.findByOrganizationUuid(
                 args.organizationUuid,
-            );
+            ),
+            this.orgAiCopilotConfigResolver.getReviewJudgeAvailability(
+                args.organizationUuid,
+            ),
+        ]);
 
-        return settings?.aiAgentReviewsEnabled ?? false;
+        return areReviewsEnabledForSettings(settings, byo);
     }
 
     private static buildEvidenceExcerpts(

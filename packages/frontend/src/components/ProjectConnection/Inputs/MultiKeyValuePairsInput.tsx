@@ -1,11 +1,5 @@
-import {
-    ActionIcon,
-    Button,
-    Flex,
-    Input,
-    Stack,
-    TextInput,
-} from '@mantine/core';
+import { TextInput, Button, Flex, Stack, ActionIcon } from '@mantine-8/core';
+import { Input } from '@mantine/core';
 import { IconHelpCircle, IconPlus, IconTrash } from '@tabler/icons-react';
 import get from 'lodash/get';
 import { useState, type ReactNode } from 'react';
@@ -67,6 +61,8 @@ export const MultiKeyValuePairsInput = ({
 
                     {labelHelp && (
                         <ActionIcon
+                            variant="subtle"
+                            color="gray"
                             onClick={(
                                 e: React.MouseEvent<HTMLButtonElement>,
                             ) => {
@@ -98,6 +94,8 @@ export const MultiKeyValuePairsInput = ({
                         />
 
                         <ActionIcon
+                            variant="subtle"
+                            color="gray"
                             onClick={() => removeValue(index)}
                             disabled={disabled}
                         >
@@ -109,7 +107,7 @@ export const MultiKeyValuePairsInput = ({
                 <Button
                     size="sm"
                     onClick={addValue}
-                    leftIcon={<MantineIcon icon={IconPlus} />}
+                    leftSection={<MantineIcon icon={IconPlus} />}
                     disabled={disabled}
                 >
                     Add variable

@@ -10,7 +10,7 @@ Usage tips:
 - By default, lists root-level spaces.
 - Pass a spaceSlug to list direct children and content inside that space.
 - Use page for pagination. Page starts at 1.
-- Results include names, slugs, content types, and space content counts.`;
+- Results include names, slugs, content types, URLs, and space content counts.`;
 
 export const toolListContentArgsSchema = createToolSchema()
     .extend({

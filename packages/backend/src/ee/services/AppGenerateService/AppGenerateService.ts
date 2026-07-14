@@ -14,11 +14,13 @@ import { subject } from '@casl/ability';
 import {
     assertEmbeddedAuth,
     assertUnreachable,
+    checkThemeLimits,
     DATA_APP_CLAUDE_MODELS,
     DATA_APP_VIZ_TEMPLATE,
     dataAppVizJsonSchema,
     dataAppVizSchema,
     DEFAULT_DATA_APP_CLAUDE_MODEL,
+    extractLockfilePackages,
     FeatureFlags,
     ForbiddenError,
     formatPromptWithClarifications,
@@ -29,9 +31,13 @@ import {
     NotFoundError,
     ParameterError,
     QueryExecutionContext,
+    sanitizeAppPackageJsonScripts,
+    themeLimitMessage,
     TooManyRequestsError,
     validateDataAppCode,
+    validateDataAppDependencies,
     type AnonymousAccount,
+    type ApiOrganizationDesign,
     type AppBuildFromSourceJobPayload,
     type AppChartReference,
     type AppClarification,
@@ -39,6 +45,8 @@ import {
     type AppExternalConnectionReference,
     type AppGeneratePipelineJobPayload,
     type AppVersionChartResource,
+    type AppVersionDependencies,
+    type AppVersionDependencyEntry,
     type AppVersionExternalConnectionResource,
     type AppVersionResources,
     type ChartReference,
@@ -49,6 +57,7 @@ import {
     type DataAppCode,
     type DataAppCodeDownload,
     type DataAppContext,
+    type DataAppDependencies,
     type DataAppTemplate,
     type DataAppViz,
     type DataAppVizSchema,
@@ -68,12 +77,20 @@ import {
 } from '@lightdash/common';
 import { generateObject } from 'ai';
 import { Knex } from 'knex';
+import { createHash } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { PassThrough, Readable } from 'node:stream';
 import { extract, pack as tarPack, type Headers } from 'tar-stream';
 import { validate as isValidUuid, v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
-import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
+import {
+    emitAiUsage,
+    languageModelUsageToTokens,
+} from '../../../analytics/aiUsage';
+import {
+    LightdashAnalytics,
+    type DataAppUploadRejectedEvent,
+} from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
 import { resolveS3Credentials } from '../../../clients/Aws/S3BaseClient';
 import { LightdashConfig } from '../../../config/parseConfig';
@@ -83,6 +100,7 @@ import {
     isAppVersionInProgress,
     type AppVersionStatus,
     type DbApp,
+    type DbAppVersion,
 } from '../../../database/entities/apps';
 import { AnalyticsModel } from '../../../models/AnalyticsModel';
 import { AppModel } from '../../../models/AppModel';
@@ -108,7 +126,14 @@ import { type ExternalConnectionModel } from '../../models/ExternalConnectionMod
 import type { SandboxRegistryModel } from '../../models/SandboxRegistryModel';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { getModel } from '../ai/models';
-import { getAiCallTelemetry } from '../ai/utils/aiCallTelemetry';
+import {
+    OrgAiCopilotConfigResolver,
+    type CopilotConfig,
+} from '../ai/OrgAiCopilotConfigResolver';
+import {
+    getAiCallTelemetry,
+    getLanguageModelAttribution,
+} from '../ai/utils/aiCallTelemetry';
 import {
     createSandboxManager,
     S3SnapshotStore,
@@ -147,11 +172,20 @@ import {
     type ClaudeGenerationUsage,
 } from './ClaudeStreamProcessor';
 import {
+    assertDependenciesHaveNoKnownMalware,
+    assertDependenciesMeetMinReleaseAge,
+} from './dependencyGuards';
+import {
     copyDesignIntoSandbox,
     type DesignSandboxCopyResult,
 } from './designSandboxCopy';
 import { resolveOtelExportHeaders } from './gcpOtelAuth';
 import { readDesignForDownload } from './readDesignForDownload';
+import { readS3ObjectAsBuffer } from './s3Utils';
+import {
+    buildTemplateBaseline,
+    TEMPLATE_SCRIPTS,
+} from './templateDependencies';
 import { getTemplateInstructions } from './templates';
 
 /**
@@ -208,6 +242,7 @@ type AppGenerateServiceDeps = {
     promoteService: PromoteService;
     externalConnectionModel: ExternalConnectionModel;
     sandboxRegistryModel: SandboxRegistryModel;
+    orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
 };
 
 type GenerateAppOptions = {
@@ -284,6 +319,8 @@ export class AppGenerateService extends BaseService {
 
     private readonly sandboxRegistryModel: SandboxRegistryModel;
 
+    private readonly orgAiCopilotConfigResolver: OrgAiCopilotConfigResolver;
+
     // Lazily built from config on first use; memoized for the service lifetime.
     private sandboxManager: SandboxManager | undefined;
 
@@ -307,6 +344,7 @@ export class AppGenerateService extends BaseService {
         promoteService,
         externalConnectionModel,
         sandboxRegistryModel,
+        orgAiCopilotConfigResolver,
     }: AppGenerateServiceDeps) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -328,6 +366,7 @@ export class AppGenerateService extends BaseService {
         this.promoteService = promoteService;
         this.externalConnectionModel = externalConnectionModel;
         this.sandboxRegistryModel = sandboxRegistryModel;
+        this.orgAiCopilotConfigResolver = orgAiCopilotConfigResolver;
     }
 
     /**
@@ -367,6 +406,32 @@ export class AppGenerateService extends BaseService {
             )
         ) {
             throw new ForbiddenError(errorMessage);
+        }
+    }
+
+    /**
+     * Adding custom npm dependencies to a data app is a supply-chain
+     * capability gated above ordinary data-app management (admins only by
+     * default), via the dedicated `manage:DataAppDependency` scope.
+     */
+    private assertCanManageDataAppDependencies(
+        user: SessionUser,
+        organizationUuid: string,
+        projectUuid: string,
+    ): void {
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('DataAppDependency', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to add custom dependencies to data apps. This requires an admin role.',
+            );
         }
     }
 
@@ -442,8 +507,8 @@ export class AppGenerateService extends BaseService {
         );
     }
 
-    private getAnthropicApiKey(): string {
-        const key = this.lightdashConfig.ai.copilot.providers.anthropic?.apiKey;
+    private static getAnthropicApiKey(copilot: CopilotConfig): string {
+        const key = copilot.providers.anthropic?.apiKey;
         if (!key) {
             throw new MissingConfigError(
                 'Anthropic API key is not configured (ANTHROPIC_API_KEY)',
@@ -456,11 +521,14 @@ export class AppGenerateService extends BaseService {
      * Resolves the env vars passed to the `claude` CLI in the sandbox: the
      * Bedrock block (reusing the copilot's BEDROCK_* config) when configured,
      * otherwise the Anthropic API key. Throws MissingConfigError when neither
-     * is set.
+     * is set. `copilot` is the org-resolved config (BYO key when the org brings
+     * one), so a BYO org runs on its own key rather than the instance key.
      */
-    private getClaudeCodeEnv(): Record<string, string> {
-        return buildClaudeCodeEnv(this.lightdashConfig.ai.copilot, () =>
-            this.getAnthropicApiKey(),
+    private static getClaudeCodeEnv(
+        copilot: CopilotConfig,
+    ): Record<string, string> {
+        return buildClaudeCodeEnv(copilot, () =>
+            AppGenerateService.getAnthropicApiKey(copilot),
         );
     }
 
@@ -594,13 +662,17 @@ export class AppGenerateService extends BaseService {
         };
     }
 
-    private buildSandboxSpec(): SandboxSpec {
+    private buildSandboxSpec(
+        copilot: CopilotConfig,
+        extraEgressHosts: string[] = [],
+    ): SandboxSpec {
         return {
             templateRef: this.getSandboxTemplateRef(),
             timeoutMs: 60 * 60 * 1000,
             egress: {
                 allow: [
-                    ...claudeCodeAllowedHosts(this.lightdashConfig.ai.copilot),
+                    ...claudeCodeAllowedHosts(copilot),
+                    ...extraEgressHosts,
                     ...claudeCodeOtelAllowedHosts(
                         this.lightdashConfig.appRuntime.otel,
                     ),
@@ -1307,13 +1379,15 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         organizationUuid: string,
         projectUuid: string,
+        copilot: CopilotConfig,
+        extraEgressHosts: string[] = [],
     ): Promise<{
         sandboxUuid: string;
         sandbox: SandboxHandle;
         durationMs: number;
     }> {
         const start = performance.now();
-        const spec = this.buildSandboxSpec();
+        const spec = this.buildSandboxSpec(copilot, extraEgressHosts);
         this.logger.info(
             `App ${appUuid}: launching sandbox from template ${spec.templateRef} (provider=${this.lightdashConfig.appRuntime.sandboxProvider})`,
         );
@@ -1361,11 +1435,13 @@ export class AppGenerateService extends BaseService {
     private async resumeSandbox(
         sandboxUuid: string,
         appUuid: string,
+        copilot: CopilotConfig,
+        extraEgressHosts: string[] = [],
     ): Promise<{ sandbox: SandboxHandle; durationMs: number }> {
         const start = performance.now();
         const sandbox = await this.getSandboxManager().resume({
             sandboxUuid,
-            spec: this.buildSandboxSpec(),
+            spec: this.buildSandboxSpec(copilot, extraEgressHosts),
         });
         const durationMs = AppGenerateService.elapsed(start);
         this.logger.info(
@@ -1413,6 +1489,99 @@ export class AppGenerateService extends BaseService {
     }
 
     /**
+     * Restore the stored `package.json` + `pnpm-lock.yaml` from S3 into `/app`
+     * and run `pnpm install --frozen-lockfile`. This enforces the "restore,
+     * never modify" rule: the sandbox always builds with the dep set that was
+     * stored at upload time, not whatever the Claude agent may have edited.
+     *
+     * Only called when `versionDeps` is non-null (custom dependency set).
+     * Throws when install exits non-zero so the caller can surface the error.
+     */
+    private async restoreDepsToSandbox(
+        sandbox: SandboxHandle,
+        s3Client: S3Client,
+        bucket: string,
+        appUuid: string,
+        version: number,
+        versionDeps: AppVersionDependencies,
+    ): Promise<number> {
+        // Kill-switch: enforced at upload time too, but re-checked here so
+        // flipping it off also stops installs of previously-approved dep sets
+        // (iterations and rebuilds), not just new uploads.
+        if (!this.lightdashConfig.appRuntime.customDependenciesEnabled) {
+            throw new ParameterError(
+                'Custom app dependencies are disabled on this instance (LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED); this app version declares custom packages so it cannot be built.',
+            );
+        }
+        const start = performance.now();
+        const depsPrefix = `apps/${appUuid}/versions/${version}/deps/`;
+
+        const [packageJsonBuf, lockfileBuf] = await Promise.all([
+            readS3ObjectAsBuffer(s3Client, bucket, `${depsPrefix}package.json`),
+            readS3ObjectAsBuffer(
+                s3Client,
+                bucket,
+                `${depsPrefix}pnpm-lock.yaml`,
+            ),
+        ]);
+
+        await Promise.all([
+            sandbox.files.write('/app/package.json', packageJsonBuf),
+            sandbox.files.write('/app/pnpm-lock.yaml', lockfileBuf),
+        ]);
+
+        const packageList = versionDeps.custom
+            .map((d) => `${d.name}@${d.version}`)
+            .join(', ');
+        this.logger.info(
+            `App ${appUuid}: installing custom dependencies (version=${version}, packages=${packageList})`,
+        );
+
+        let installResult: { exitCode: number; stdout: string; stderr: string };
+        try {
+            installResult = await sandbox.commands.run(
+                'CI=true pnpm install --frozen-lockfile --ignore-scripts',
+                {
+                    cwd: '/app',
+                    timeoutMs:
+                        this.lightdashConfig.appRuntime
+                            .dependencyInstallTimeoutMs,
+                    onStderr: (chunk) => {
+                        this.logger.debug(
+                            `App ${appUuid}: install: ${chunk.trimEnd()}`,
+                        );
+                    },
+                },
+            );
+        } catch (err) {
+            if (!(err instanceof SandboxCommandError)) throw err;
+            installResult = {
+                exitCode: err.exitCode,
+                stdout: err.stdout,
+                stderr: err.stderr,
+            };
+        }
+
+        const durationMs = AppGenerateService.elapsed(start);
+        this.logger.info(
+            `App ${appUuid}: dependency install completed (exit=${installResult.exitCode}, ${durationMs}ms)`,
+        );
+
+        if (installResult.exitCode !== 0) {
+            // pnpm writes its error report to stdout; include both streams.
+            const output = [installResult.stderr, installResult.stdout]
+                .filter(Boolean)
+                .join('\n')
+                .slice(-2000);
+            throw new Error(
+                `Dependency install failed (exit ${installResult.exitCode}): ${output}`,
+            );
+        }
+
+        return durationMs;
+    }
+
+    /**
      * Resume an existing sandbox or create a new one with source restored from S3.
      * Always returns a running sandbox handle (and its stable `sandbox_uuid`) or
      * throws. A resumed sandbox already has `/app/src` restored from its snapshot
@@ -1426,6 +1595,8 @@ export class AppGenerateService extends BaseService {
         projectUuid: string,
         s3Client: S3Client,
         bucket: string,
+        copilot: CopilotConfig,
+        extraEgressHosts: string[] = [],
     ): Promise<{
         sandbox: SandboxHandle;
         sandboxUuid: string;
@@ -1440,6 +1611,8 @@ export class AppGenerateService extends BaseService {
                 const result = await this.resumeSandbox(
                     app.sandbox_id,
                     appUuid,
+                    copilot,
+                    extraEgressHosts,
                 );
                 durations.resumeMs = result.durationMs;
                 return {
@@ -1460,6 +1633,8 @@ export class AppGenerateService extends BaseService {
             appUuid,
             organizationUuid,
             projectUuid,
+            copilot,
+            extraEgressHosts,
         );
         durations.sandboxMs = createResult.durationMs;
         await this.appModel.updateSandboxUuid(
@@ -1917,6 +2092,22 @@ export class AppGenerateService extends BaseService {
         return AppGenerateService.CODING_PHRASES[
             Math.floor(Math.random() * AppGenerateService.CODING_PHRASES.length)
         ];
+    }
+
+    /**
+     * Reject a theme that exceeds the asset-count/total-size guardrails before
+     * it reaches the (expensive, timeout-prone) build pipeline. Themes are
+     * normally capped at upload time, but a theme can predate the guardrails or
+     * be an org default the caller didn't choose — so we re-check here and turn
+     * it into a synchronous, actionable error instead of a silent build timeout.
+     */
+    private static assertThemeWithinLimits(
+        design: ApiOrganizationDesign,
+    ): void {
+        const violation = checkThemeLimits(design.files);
+        if (violation) {
+            throw new ParameterError(themeLimitMessage(violation, design.name));
+        }
     }
 
     private static buildThemeChangePrompt(themeName: string | null): string {
@@ -2782,10 +2973,14 @@ export class AppGenerateService extends BaseService {
         }
 
         let claudeCodeEnv: Record<string, string>;
+        let copilot: CopilotConfig;
         let s3Client: S3Client;
         let bucket: string;
         try {
-            claudeCodeEnv = this.getClaudeCodeEnv();
+            copilot = await this.orgAiCopilotConfigResolver.getClaudeCodeConfig(
+                payload.organizationUuid,
+            );
+            claudeCodeEnv = AppGenerateService.getClaudeCodeEnv(copilot);
             ({ client: s3Client, bucket } = this.getS3Client());
         } catch (error) {
             // Config errors (missing/incomplete provider, E2B, or S3 setup) carry
@@ -2810,6 +3005,16 @@ export class AppGenerateService extends BaseService {
 
         const overallStart = performance.now();
         const durations: Record<string, number> = {};
+
+        // Look up the version's custom dependency set once. Null means the
+        // version builds with the template set only — no install step, no
+        // extra egress hosts added to the sandbox spec.
+        const versionRow = await this.appModel.getVersion(appUuid, version);
+        const versionDeps = versionRow?.dependencies ?? null;
+        const registryHosts =
+            versionDeps !== null
+                ? this.lightdashConfig.appRuntime.dependencyRegistryHosts
+                : [];
 
         this.logger.info(
             `App ${appUuid}: pipeline started (version=${version}, status=${currentStatus}, isIteration=${isIteration}, model=${
@@ -2844,6 +3049,8 @@ export class AppGenerateService extends BaseService {
                         projectUuid,
                         s3Client,
                         bucket,
+                        copilot,
+                        registryHosts,
                     );
                     sandbox = acquired.sandbox;
                     sandboxUuid = acquired.sandboxUuid;
@@ -2854,6 +3061,8 @@ export class AppGenerateService extends BaseService {
                         appUuid,
                         payload.organizationUuid,
                         projectUuid,
+                        copilot,
+                        registryHosts,
                     );
                     sandbox = result.sandbox;
                     sandboxUuid = result.sandboxUuid;
@@ -2908,6 +3117,8 @@ export class AppGenerateService extends BaseService {
                 const result = await this.resumeSandbox(
                     app.sandbox_id,
                     appUuid,
+                    copilot,
+                    registryHosts,
                 );
                 sandbox = result.sandbox;
                 sandboxUuid = app.sandbox_id;
@@ -2987,6 +3198,7 @@ export class AppGenerateService extends BaseService {
                         { ...claudeCodeEnv, ...otelEnv },
                         imageIds,
                         chartReferences,
+                        versionDeps,
                     );
                 },
             );
@@ -3008,6 +3220,7 @@ export class AppGenerateService extends BaseService {
         claudeCodeEnv: Record<string, string>,
         imageIds: string[] | undefined,
         chartReferences: ChartReference[] | undefined,
+        versionDeps: AppVersionDependencies | null,
     ): Promise<void> {
         const { appUuid, version, projectUuid, prompt, template } = payload;
         // Drives the data-app-viz prompt instructions + schema collection.
@@ -3031,6 +3244,32 @@ export class AppGenerateService extends BaseService {
         // always lands clean. When `payload.designUuid` is absent/null
         // the helper short-circuits and `effective-skill.md` is
         // byte-identical to the baseline `/app/skill.md`.
+        // Backstop for the upload-time and enqueue-time guardrails: a theme can
+        // grow between enqueue and worker pickup (or a job may predate the
+        // guardrails). Fail fast with the specific limit message instead of
+        // copying everything into the sandbox and running the build to timeout.
+        if (payload.designUuid) {
+            const design =
+                await this.organizationDesignModel.findInOrganization(
+                    payload.organizationUuid,
+                    payload.designUuid,
+                );
+            const violation = design ? checkThemeLimits(design.files) : null;
+            if (design && violation) {
+                const message = themeLimitMessage(violation, design.name);
+                this.logger.warn(
+                    `App ${appUuid}: theme ${payload.designUuid} exceeds the size cap at build time (${violation.bytes} > ${violation.limit} bytes); failing fast — ${message}`,
+                );
+                await this.markError(
+                    appUuid,
+                    version,
+                    new Error(message),
+                    message,
+                );
+                return;
+            }
+        }
+
         const designCopy = await copyDesignIntoSandbox({
             sandbox,
             s3Client,
@@ -3216,6 +3455,72 @@ export class AppGenerateService extends BaseService {
                 if (!advanced) {
                     return;
                 }
+
+                // Restore custom dep files from S3 and run pnpm install before
+                // the Vite build. Skipped for template-only versions.
+                if (versionDeps !== null) {
+                    try {
+                        await this.appModel.updateStatusMessage(
+                            appUuid,
+                            version,
+                            'Installing dependencies',
+                        );
+                    } catch (e) {
+                        this.logger.warn(
+                            `App ${appUuid}: failed to update status message: ${getErrorMessage(e)}`,
+                        );
+                    }
+                    try {
+                        await this.restoreDepsToSandbox(
+                            sandbox,
+                            s3Client,
+                            bucket,
+                            appUuid,
+                            version,
+                            versionDeps,
+                        );
+                    } catch (installError) {
+                        const totalMs =
+                            AppGenerateService.elapsed(overallStart);
+                        // Full pnpm output goes to the version error (author-
+                        // facing) and debug logs; keep operator logs summary-only.
+                        this.logger.error(
+                            `App ${appUuid}: dep install failed after ${totalMs}ms`,
+                        );
+                        this.logger.debug(
+                            `App ${appUuid}: dep install failure detail: ${getErrorMessage(installError)}`,
+                        );
+                        const marked = await this.markError(
+                            appUuid,
+                            version,
+                            installError,
+                            'Installing dependencies',
+                        );
+                        if (marked) {
+                            this.trackVersionFailed(
+                                payload,
+                                'building',
+                                installError,
+                                durations,
+                                overallStart,
+                                buildFixAttempts,
+                            );
+                        }
+                        return;
+                    }
+                    try {
+                        await this.appModel.updateStatusMessage(
+                            appUuid,
+                            version,
+                            'Packaging your app',
+                        );
+                    } catch (e) {
+                        this.logger.warn(
+                            `App ${appUuid}: failed to update status message: ${getErrorMessage(e)}`,
+                        );
+                    }
+                }
+
                 const buildResult = await this.runBuildWithAutoFix(
                     sandbox,
                     appUuid,
@@ -3402,6 +3707,38 @@ export class AppGenerateService extends BaseService {
                 .join(
                     ', ',
                 )}, numTurns=${generationUsage.numTurns}, inputTokens=${generationUsage.inputTokens}, outputTokens=${generationUsage.outputTokens}, cacheReadTokens=${generationUsage.cacheReadInputTokens}, cacheCreationTokens=${generationUsage.cacheCreationInputTokens}, costUsd=${generationUsage.costUsd})`,
+        );
+
+        // Aggregated across every `claude` CLI invocation in the pipeline. The
+        // CLI reports inputTokens excluding cache reads/writes, but AI-SDK rows
+        // store cache-inclusive inputTokens — normalize to SDK semantics here so
+        // `SUM(input_tokens)` (and cost) is comparable across every feature.
+        emitAiUsage(
+            getAiCallTelemetry({
+                functionId: 'appClaudeGeneration',
+                feature: 'data-app',
+                organizationUuid: payload.organizationUuid,
+                projectUuid,
+                userUuid: payload.userUuid,
+                model: claudeModel,
+                provider: 'anthropic',
+                extra: { appUuid },
+            }),
+            {
+                inputTokens:
+                    generationUsage.inputTokens +
+                    generationUsage.cacheReadInputTokens +
+                    generationUsage.cacheCreationInputTokens,
+                outputTokens: generationUsage.outputTokens,
+                cacheReadTokens: generationUsage.cacheReadInputTokens,
+                cacheWriteTokens: generationUsage.cacheCreationInputTokens,
+                reasoningTokens: null,
+                totalTokens:
+                    generationUsage.inputTokens +
+                    generationUsage.cacheReadInputTokens +
+                    generationUsage.cacheCreationInputTokens +
+                    generationUsage.outputTokens,
+            },
         );
 
         this.analytics.track({
@@ -3723,7 +4060,10 @@ export class AppGenerateService extends BaseService {
             throw new ParameterError('Prompt is required');
         }
 
-        const { copilot } = this.lightdashConfig.ai;
+        const copilot =
+            await this.orgAiCopilotConfigResolver.getCopilotConfig(
+                organizationUuid,
+            );
         const llmProvider: 'anthropic' | 'bedrock' =
             copilot.defaultProvider === 'bedrock' ? 'bedrock' : 'anthropic';
 
@@ -3764,19 +4104,21 @@ export class AppGenerateService extends BaseService {
         const CLARIFY_TIMEOUT_MS = 15_000;
 
         const start = performance.now();
+        const telemetry = getAiCallTelemetry({
+            functionId: 'clarifyApp',
+            feature: 'data-app',
+            organizationUuid,
+            projectUuid,
+            userUuid: user.userUuid,
+            ...getLanguageModelAttribution(modelOptions.model),
+        });
         let result;
         try {
             result = await generateObject({
                 model: modelOptions.model,
                 ...modelOptions.callOptions,
                 providerOptions: modelOptions.providerOptions,
-                experimental_telemetry: getAiCallTelemetry({
-                    functionId: 'clarifyApp',
-                    feature: 'data-app',
-                    organizationUuid,
-                    projectUuid,
-                    userUuid: user.userUuid,
-                }),
+                experimental_telemetry: telemetry,
                 schema: clarifySchema,
                 abortSignal: AbortSignal.timeout(CLARIFY_TIMEOUT_MS),
                 messages: [
@@ -3832,6 +4174,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             );
             return { questions: [] };
         }
+        emitAiUsage(telemetry, languageModelUsageToTokens(result.usage));
         const elapsedMs = AppGenerateService.elapsed(start);
 
         const questions = result.object.questions
@@ -4084,6 +4427,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             const orgDefault =
                 await this.organizationDesignModel.getDefault(organizationUuid);
             if (orgDefault) {
+                AppGenerateService.assertThemeWithinLimits(orgDefault);
                 resolvedDesignUuid = orgDefault.designUuid;
                 designSnapshot = {
                     designUuid: orgDefault.designUuid,
@@ -4100,6 +4444,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             if (!picked) {
                 throw new ParameterError(`Theme not found: ${designUuidInput}`);
             }
+            AppGenerateService.assertThemeWithinLimits(picked);
             resolvedDesignUuid = picked.designUuid;
             designSnapshot = {
                 designUuid: picked.designUuid,
@@ -4264,6 +4609,10 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                     effectiveDesignUuid,
                 );
             if (design) {
+                // Inherited themes are copied into the sandbox on every
+                // iteration too, so enforce the guardrails regardless of
+                // whether this iteration is an explicit theme change.
+                AppGenerateService.assertThemeWithinLimits(design);
                 designSnapshot = {
                     designUuid: design.designUuid,
                     name: design.name,
@@ -4297,12 +4646,64 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             design: designSnapshot,
         };
 
+        // Carry the latest version's custom dependency set forward. The dep
+        // FILES must be copied under the new version's S3 prefix BEFORE the
+        // row is created so a copy failure can't orphan a pending version.
+        // An errored version can hold a summary without files, so walk back
+        // to the newest version whose files actually exist.
+        let carriedDependencies: AppVersionDependencies | undefined;
+        if (latestVersion?.dependencies) {
+            // Kill-switch: iterations restore the stored dep set, so they must
+            // stop too when custom dependencies are disabled instance-wide.
+            if (!this.lightdashConfig.appRuntime.customDependenciesEnabled) {
+                throw new ParameterError(
+                    'Custom app dependencies are disabled on this instance (LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED). This app declares custom packages, so it cannot be iterated until they are re-enabled.',
+                );
+            }
+            carriedDependencies = latestVersion.dependencies;
+            const { client, bucket } = this.getS3Client();
+            const toPrefix = versionPrefix(appUuid, newVersion);
+            const candidates =
+                await this.appModel.getVersionsWithDependencies(appUuid);
+            let copied = false;
+            for (const candidate of candidates) {
+                const fromPrefix = versionPrefix(appUuid, candidate.version);
+                try {
+                    // eslint-disable-next-line no-await-in-loop
+                    await Promise.all(
+                        ['deps/package.json', 'deps/pnpm-lock.yaml'].map(
+                            (key) =>
+                                client.send(
+                                    new CopyObjectCommand({
+                                        Bucket: bucket,
+                                        CopySource: `${bucket}/${fromPrefix}${key}`,
+                                        Key: `${toPrefix}${key}`,
+                                    }),
+                                ),
+                        ),
+                    );
+                    copied = true;
+                    break;
+                } catch (err) {
+                    this.logger.warn(
+                        `App ${appUuid}: dependency files missing for version ${candidate.version}, trying an earlier version (${getErrorMessage(err)})`,
+                    );
+                }
+            }
+            if (!copied) {
+                throw new ParameterError(
+                    "Could not carry this app's custom dependencies forward: no stored dependency files found. Re-upload the app with 'lightdash upload --apps' to restore them.",
+                );
+            }
+        }
+
         await this.appModel.createVersion(
             appUuid,
             { version: newVersion, prompt },
             'pending',
             user.userUuid,
             resources,
+            carriedDependencies,
         );
 
         if (isThemeChange) {
@@ -4432,9 +4833,14 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         if (app.sandbox_id) {
             let sandbox: SandboxHandle | null = null;
             try {
+                const copilot =
+                    await this.orgAiCopilotConfigResolver.getClaudeCodeConfig(
+                        app.organization_uuid,
+                    );
                 const resumed = await this.resumeSandbox(
                     app.sandbox_id,
                     appUuid,
+                    copilot,
                 );
                 sandbox = resumed.sandbox;
                 await this.resyncSandboxFromS3(
@@ -4453,6 +4859,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                     sandbox,
                     appUuid,
                     sourceVersion,
+                    copilot,
                 );
             } catch (error) {
                 // A half-synced sandbox would corrupt the next iteration —
@@ -4642,10 +5049,11 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         sandbox: SandboxHandle,
         appUuid: string,
         sourceVersion: number,
+        copilot: CopilotConfig,
     ): Promise<void> {
         let claudeCodeEnv: Record<string, string>;
         try {
-            claudeCodeEnv = this.getClaudeCodeEnv();
+            claudeCodeEnv = AppGenerateService.getClaudeCodeEnv(copilot);
         } catch (error) {
             this.logger.warn(
                 `App ${appUuid}: skipping restore FYI — ${getErrorMessage(error)}`,
@@ -4968,6 +5376,8 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                     'ready',
                     user.userUuid,
                     resources,
+                    undefined,
+                    sourceVersion.viz_schema ?? undefined,
                 );
                 await this.appModel.syncPromotedApp(targetAppUuid, metadata);
             } else {
@@ -4982,6 +5392,8 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                     { version: targetVersion, prompt },
                     'ready',
                     resources,
+                    undefined,
+                    sourceVersion.viz_schema ?? undefined,
                 );
                 await this.appModel.setUpstreamAppUuid(
                     sourceApp.app_id,
@@ -5232,6 +5644,8 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 { version: newVersion, prompt: duplicatePrompt },
                 'ready',
                 resources,
+                undefined,
+                sourceVersion.viz_schema ?? undefined,
             );
             await this.linkResolvedExternalConnections(
                 newAppUuid,
@@ -5477,6 +5891,8 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 { version: newVersion, prompt },
                 'ready',
                 resources,
+                undefined,
+                sourceVersion.viz_schema ?? undefined,
             );
             // Link back to the upstream app so a later promote updates it
             // instead of creating a duplicate.
@@ -5614,6 +6030,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 lastName: string;
             } | null;
             resources: AppVersionResources | null;
+            dependencies?: { custom: AppVersionDependencies['custom'] };
         }[];
         hasMore: boolean;
     }> {
@@ -5676,6 +6093,10 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                         : null,
                 createdAt: v.created_at,
                 statusUpdatedAt: v.status_updated_at,
+                // Custom-deps summary only; the lockfile hash is internal.
+                ...(v.dependencies
+                    ? { dependencies: { custom: v.dependencies.custom } }
+                    : {}),
                 // LEFT JOIN may miss for hard-deleted users — collapse the
                 // whole object to null in that case rather than expose
                 // individually-nullable fields to API consumers.
@@ -6803,8 +7224,10 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         await this.assertCanViewApp(user, app);
 
         let resolvedVersion: number;
+        let versionRow: DbAppVersion | null;
         if (version !== undefined) {
             resolvedVersion = version;
+            versionRow = await this.appModel.getVersion(app.app_id, version);
         } else {
             const latestReady = await this.appModel.getLatestReadyVersion(
                 app.app_id,
@@ -6815,6 +7238,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 );
             }
             resolvedVersion = latestReady.version;
+            versionRow = latestReady;
         }
 
         const { client: s3Client, bucket } = this.getS3Client();
@@ -6896,6 +7320,11 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             name: app.name,
             description: app.description,
             template: app.template,
+            // Only viz versions carry a schema; omit the key entirely otherwise
+            // so non-viz manifests stay unchanged.
+            ...(versionRow?.viz_schema
+                ? { vizSchema: versionRow.viz_schema }
+                : {}),
             downloadedAt: new Date().toISOString(),
         });
 
@@ -6905,7 +7334,58 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             app.organization_uuid,
         );
 
-        return { manifest, files, context };
+        // Round-trip the declared dependency files when this version was
+        // uploaded with a custom dependency set. Failures propagate: silently
+        // dropping the files would make a re-upload build with template deps.
+        let dependencies: DataAppDependencies | undefined;
+        if (versionRow?.dependencies) {
+            // Kill-switch: stripping deps instead would hand out a folder
+            // whose src imports packages the lockfile no longer declares.
+            if (!this.lightdashConfig.appRuntime.customDependenciesEnabled) {
+                throw new ParameterError(
+                    'This app declares custom dependencies, and custom app dependencies are disabled on this instance (LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED), so it cannot be downloaded.',
+                );
+            }
+            const depsPrefix = `${versionPrefix(appUuid, resolvedVersion)}deps/`;
+            const [packageJsonBuffer, lockfileBuffer] = await Promise.all([
+                readS3ObjectAsBuffer(
+                    s3Client,
+                    bucket,
+                    `${depsPrefix}package.json`,
+                ),
+                readS3ObjectAsBuffer(
+                    s3Client,
+                    bucket,
+                    `${depsPrefix}pnpm-lock.yaml`,
+                ),
+            ]);
+            dependencies = {
+                packageJson: packageJsonBuffer.toString('utf-8'),
+                lockfile: lockfileBuffer.toString('utf-8'),
+            };
+        }
+
+        this.analytics.track({
+            event: 'data_app.downloaded',
+            userId: user.userUuid,
+            properties: {
+                organizationId: app.organization_uuid,
+                projectId: projectUuid,
+                appUuid,
+                version: resolvedVersion,
+                versionPinned: version !== undefined,
+                fileCount: files.length,
+                sourceBytes: tarBuffer.length,
+                hasCustomDependencies: dependencies !== undefined,
+            },
+        });
+
+        return {
+            manifest,
+            files,
+            ...(dependencies !== undefined ? { dependencies } : {}),
+            context,
+        };
     }
 
     private async assembleAppContext(
@@ -7032,6 +7512,191 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             );
         }
 
+        const organizationUuid = await this.getProjectOrgUuid(projectUuid);
+
+        // Validate the round-tripped viz schema up front and fail loud: the
+        // build-from-source pipeline has no generation run to re-emit it, so
+        // silently dropping a bad one would unlist the viz from the picker.
+        let manifestVizSchema: DataAppVizSchema | undefined;
+        if (code.manifest.vizSchema !== undefined) {
+            const parsed = dataAppVizSchema.safeParse(code.manifest.vizSchema);
+            if (!parsed.success) {
+                const issues = parsed.error.issues
+                    .map((i) => `${i.path.join('.')}: ${i.message}`)
+                    .join('; ');
+                throw new ParameterError(
+                    `Invalid vizSchema in the app manifest (${issues}). Re-download the app or fix lightdash-app.yml.`,
+                );
+            }
+            manifestVizSchema = parsed.data;
+        }
+
+        const trackUploadRejected = (
+            reason: DataAppUploadRejectedEvent['properties']['reason'],
+            details: {
+                customDependencies?: AppVersionDependencyEntry[];
+                error?: unknown;
+            } = {},
+        ): void => {
+            this.analytics.track({
+                event: 'data_app.upload_rejected',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    targetAppUuid: body.targetAppUuid,
+                    reason,
+                    ...(details.customDependencies !== undefined
+                        ? {
+                              customDependencyCount:
+                                  details.customDependencies.length,
+                              customDependencies: details.customDependencies,
+                          }
+                        : {}),
+                    ...(details.error !== undefined
+                        ? {
+                              error: AppGenerateService.truncateEnd(
+                                  getErrorMessage(details.error),
+                                  500,
+                              ),
+                          }
+                        : {}),
+                },
+            });
+        };
+
+        // Validate the declared dependency set against the template baseline.
+        // An empty custom set is treated as no-dependencies (some CLIs attach
+        // the template set redundantly) and nothing is stored.
+        let dependencySummary: AppVersionDependencies | undefined;
+        if (code.dependencies !== undefined) {
+            let customDeps: Record<string, string>;
+            try {
+                ({ customDeps } = validateDataAppDependencies(
+                    code.dependencies,
+                    {
+                        templateDependencies: buildTemplateBaseline(
+                            code.dependencies.packageJson,
+                        ),
+                        // Lockfile tarball URLs must resolve to hosts the
+                        // sandbox egress will actually allow.
+                        allowedTarballHosts:
+                            this.lightdashConfig.appRuntime
+                                .dependencyRegistryHosts,
+                    },
+                ));
+            } catch (err) {
+                trackUploadRejected('dependency_validation', { error: err });
+                throw new ParameterError(getErrorMessage(err));
+            }
+            if (Object.keys(customDeps).length > 0) {
+                const customDependencies: AppVersionDependencyEntry[] =
+                    Object.entries(customDeps).map(([name, version]) => ({
+                        name,
+                        version,
+                    }));
+                // Role gate: adding custom npm dependencies is a supply-chain
+                // capability, so it requires manage:DataAppDependency (admins
+                // only by default) — a level above the create/manage:DataApp
+                // needed to upload a template-only app. Checked before the
+                // instance/org gates so an unauthorized user gets a clear 403.
+                try {
+                    this.assertCanManageDataAppDependencies(
+                        user,
+                        organizationUuid,
+                        projectUuid,
+                    );
+                } catch (err) {
+                    trackUploadRejected('insufficient_permissions', {
+                        customDependencies,
+                        error: err,
+                    });
+                    throw err;
+                }
+                if (
+                    !this.lightdashConfig.appRuntime.customDependenciesEnabled
+                ) {
+                    trackUploadRejected(
+                        'custom_dependencies_disabled_instance',
+                        { customDependencies },
+                    );
+                    throw new ParameterError(
+                        'Custom app dependencies are disabled on this instance (LIGHTDASH_APP_CUSTOM_DEPENDENCIES_ENABLED). Remove the added packages or ask an admin to enable them.',
+                    );
+                }
+                // Per-org rollout gate, layered on the instance env gate: even
+                // when the instance allows custom deps, the org must be
+                // explicitly enabled. Only applies to uploading NEW custom-dep
+                // content — builds/downloads of already-approved sets stay
+                // gated by the env kill-switch alone.
+                const { enabled: orgAllowsCustomDeps } =
+                    await this.featureFlagModel.get({
+                        user,
+                        featureFlagId:
+                            FeatureFlags.EnableDataAppCustomDependencies,
+                    });
+                if (!orgAllowsCustomDeps) {
+                    trackUploadRejected('custom_dependencies_disabled_org', {
+                        customDependencies,
+                    });
+                    throw new ParameterError(
+                        'Custom app dependencies are not enabled for your organization. Contact your Lightdash admin to request access.',
+                    );
+                }
+                // Minimum-release-age guard (no-op unless the instance opts in
+                // via LIGHTDASH_APP_DEPENDENCY_MIN_RELEASE_AGE_DAYS): reject
+                // custom packages whose resolved version is too freshly
+                // published to trust.
+                const lockfilePackages = extractLockfilePackages(
+                    code.dependencies.lockfile,
+                );
+                try {
+                    await assertDependenciesMeetMinReleaseAge({
+                        packages: lockfilePackages.filter(
+                            (p) => customDeps[p.name] !== undefined,
+                        ),
+                        minReleaseAgeDays:
+                            this.lightdashConfig.appRuntime
+                                .dependencyMinReleaseAgeDays,
+                        registryHost:
+                            this.lightdashConfig.appRuntime
+                                .dependencyRegistryHosts[0] ??
+                            'registry.npmjs.org',
+                        now: Date.now(),
+                    });
+                } catch (err) {
+                    trackUploadRejected('min_release_age', {
+                        customDependencies,
+                        error: err,
+                    });
+                    throw err;
+                }
+                // Malware screen over the WHOLE resolved tree (transitive
+                // included) — supply-chain attacks usually arrive through a
+                // transitive dep, not the package the author added directly.
+                try {
+                    await assertDependenciesHaveNoKnownMalware({
+                        packages: lockfilePackages,
+                        enabled:
+                            this.lightdashConfig.appRuntime
+                                .dependencyMalwareCheckEnabled,
+                    });
+                } catch (err) {
+                    trackUploadRejected('malware', {
+                        customDependencies,
+                        error: err,
+                    });
+                    throw err;
+                }
+                dependencySummary = {
+                    custom: customDependencies,
+                    lockfileHash: createHash('sha256')
+                        .update(code.dependencies.lockfile)
+                        .digest('hex'),
+                };
+            }
+        }
+
         // Determine mode: append to existing app or create new one
         const existingApp = body.targetAppUuid
             ? await this.appModel.findApp(body.targetAppUuid, projectUuid)
@@ -7043,8 +7708,6 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         }
         const action: 'create' | 'append' =
             existingApp !== undefined ? 'append' : 'create';
-
-        const organizationUuid = await this.getProjectOrgUuid(projectUuid);
 
         const inProgressCount =
             await this.appModel.countInProgressVersionsForProject(projectUuid);
@@ -7087,6 +7750,11 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 'pending',
                 user.userUuid,
                 AppGenerateService.buildCopiedResources(null),
+                dependencySummary,
+                // The target app's stored template governs, not the manifest's
+                existingApp.template === DATA_APP_VIZ_TEMPLATE
+                    ? manifestVizSchema
+                    : undefined,
             );
         } else {
             this.assertDataAppAbility(
@@ -7124,6 +7792,10 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 { version: newVersion, prompt: '' },
                 'pending',
                 AppGenerateService.buildCopiedResources(null),
+                dependencySummary,
+                code.manifest.template === DATA_APP_VIZ_TEMPLATE
+                    ? manifestVizSchema
+                    : undefined,
             );
             newAppUuid = app.app_id;
         }
@@ -7165,6 +7837,37 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             }),
         );
 
+        // Store the declared dependency files next to the source archive so
+        // download can round-trip them (builds consume them in a later slice).
+        // The stored package.json carries the TRUSTED template scripts, not
+        // the uploader's — the sandbox `pnpm build` and every downstream
+        // download read this file, so script commands must stay server-owned.
+        if (
+            dependencySummary !== undefined &&
+            code.dependencies !== undefined
+        ) {
+            const depsPrefix = `${versionPrefix(newAppUuid, newVersion)}deps/`;
+            await client.send(
+                new PutObjectCommand({
+                    Bucket: bucket,
+                    Key: `${depsPrefix}package.json`,
+                    Body: sanitizeAppPackageJsonScripts(
+                        code.dependencies.packageJson,
+                        TEMPLATE_SCRIPTS,
+                    ),
+                    ContentType: 'application/json',
+                }),
+            );
+            await client.send(
+                new PutObjectCommand({
+                    Bucket: bucket,
+                    Key: `${depsPrefix}pnpm-lock.yaml`,
+                    Body: code.dependencies.lockfile,
+                    ContentType: 'text/yaml',
+                }),
+            );
+        }
+
         // Enqueue the build-only pipeline
         await this.schedulerClient.appBuildFromSource({
             appUuid: newAppUuid,
@@ -7172,6 +7875,27 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             projectUuid,
             organizationUuid,
             userUuid: user.userUuid,
+        });
+
+        this.analytics.track({
+            event: 'data_app.uploaded',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                appUuid: newAppUuid,
+                version: newVersion,
+                action,
+                template: code.manifest.template,
+                sourceFileCount: sourceFiles.length,
+                sourceBytes: sourceTar.length,
+                hasCustomDependencies: dependencySummary !== undefined,
+                customDependencyCount: dependencySummary?.custom.length ?? 0,
+                customDependencies: dependencySummary?.custom ?? [],
+                ...(dependencySummary !== undefined
+                    ? { lockfileHash: dependencySummary.lockfileHash }
+                    : {}),
+            },
         });
 
         return { appUuid: newAppUuid, version: newVersion, action };
@@ -7182,6 +7906,19 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
     ): Promise<void> {
         const { appUuid, version, organizationUuid, projectUuid } = payload;
         const { client, bucket } = this.getS3Client();
+        const copilot =
+            await this.orgAiCopilotConfigResolver.getClaudeCodeConfig(
+                organizationUuid,
+            );
+
+        // Look up the version's custom dependency set once — null means the
+        // build uses the template set only (no install step).
+        const versionRow = await this.appModel.getVersion(appUuid, version);
+        const versionDeps = versionRow?.dependencies ?? null;
+        const registryHosts =
+            versionDeps !== null
+                ? this.lightdashConfig.appRuntime.dependencyRegistryHosts
+                : [];
 
         let sandbox: SandboxHandle | undefined;
         let sandboxUuid: string | undefined;
@@ -7209,6 +7946,8 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 appUuid,
                 organizationUuid,
                 projectUuid,
+                copilot,
+                registryHosts,
             );
             sandbox = result.sandbox;
             sandboxUuid = result.sandboxUuid;
@@ -7232,12 +7971,51 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 return;
             }
 
+            // When the version declares custom deps, restore the stored
+            // package.json + lockfile and run pnpm install before the build.
+            if (versionDeps !== null) {
+                try {
+                    await this.appModel.updateStatusMessage(
+                        appUuid,
+                        version,
+                        'Installing dependencies',
+                    );
+                } catch (e) {
+                    this.logger.warn(
+                        `App ${appUuid}: failed to update status message: ${getErrorMessage(e)}`,
+                    );
+                }
+                try {
+                    await this.restoreDepsToSandbox(
+                        sandbox,
+                        client,
+                        bucket,
+                        appUuid,
+                        version,
+                        versionDeps,
+                    );
+                } catch (installError) {
+                    await this.markError(
+                        appUuid,
+                        version,
+                        installError,
+                        'Installing dependencies',
+                    );
+                    return;
+                }
+            }
+
             const build = await this.runBuild(sandbox, appUuid);
             if (build.exitCode !== 0) {
+                const buildOutput = [build.stderr, build.stdout]
+                    .filter(Boolean)
+                    .join('\n')
+                    .slice(-2000);
                 await this.markError(
                     appUuid,
                     version,
-                    build.stderr || build.stdout,
+                    buildOutput ||
+                        `Build exited with code ${build.exitCode} and no output`,
                     'Build failed',
                 );
                 return;

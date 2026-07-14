@@ -64,8 +64,13 @@ jobs:
           cache: 'pnpm'
           cache-dependency-path: 'pnpm-lock.yaml'
 
+      # Pinned to the npm 11.x line, not `latest`: npm 12.0.0 raised its engines
+      # requirement to Node >=22.22.2 / >=24.15.0 / >=26.0.0, breaking this step
+      # on our current Node 20 (.nvmrc). npm 11.x still supports Node ^20.17.0
+      # and OIDC/trusted publishing. Temporary until the Node 24 cutover
+      # (PROD-8557, due 2026-07-29) lands and this step can track latest again.
       - name: Upgrade npm for OIDC support
-        run: sfw npm install -g npm@latest
+        run: sfw npm install -g npm@11.18.0
 
       - name: Install dependencies
         run: sfw pnpm install --frozen-lockfile --prefer-offline --prod=false

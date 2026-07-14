@@ -1,15 +1,15 @@
 import {
     Alert,
-    Avatar,
     Box,
-    Button,
     Flex,
     Group,
     Loader,
     Stack,
     Text,
     Title,
-} from '@mantine/core';
+    Button,
+} from '@mantine-8/core';
+import { Avatar } from '@mantine/core';
 import { IconAlertCircle, IconRefresh, IconTrash } from '@tabler/icons-react';
 import { type FC } from 'react';
 import gitlabIcon from '../../../svgs/gitlab-icon.svg';
@@ -36,14 +36,14 @@ const GitlabSettingsPanel: FC = () => {
     return (
         <SettingsGridCard>
             <Box>
-                <Group spacing="sm">
+                <Group gap="sm">
                     <Avatar src={gitlabIcon} size="md" />
                     <Title order={4}>GitLab</Title>
                 </Group>
             </Box>
 
             <Stack>
-                <Text color="dimmed" fz="xs">
+                <Text c="dimmed" fz="xs">
                     Connect your GitLab account to enable write-back
                     functionality and create merge requests directly from
                     Lightdash.
@@ -59,7 +59,7 @@ const GitlabSettingsPanel: FC = () => {
                     </Alert>
                 )}
                 {isValidGitlabInstallation && data && data.length > 0 && (
-                    <Text color="dimmed" fz="xs">
+                    <Text c="dimmed" fz="xs">
                         Your GitLab integration has access to the following
                         projects:
                         <ul>
@@ -79,7 +79,7 @@ const GitlabSettingsPanel: FC = () => {
                                 target="_blank"
                                 variant="default"
                                 href={GITLAB_INSTALL_URL}
-                                leftIcon={<MantineIcon icon={IconRefresh} />}
+                                leftSection={<MantineIcon icon={IconRefresh} />}
                                 onClick={() => {
                                     deleteGitlabInstallationMutation.mutate(
                                         undefined,
@@ -104,7 +104,7 @@ const GitlabSettingsPanel: FC = () => {
                                 onClick={() =>
                                     deleteGitlabInstallationMutation.mutate()
                                 }
-                                leftIcon={<MantineIcon icon={IconTrash} />}
+                                leftSection={<MantineIcon icon={IconTrash} />}
                             >
                                 Delete
                             </Button>

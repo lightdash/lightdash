@@ -1,5 +1,5 @@
 import { DimensionType, type VizColumn } from '@lightdash/common';
-import { Stack, Title } from '@mantine/core';
+import { Stack, Title } from '@mantine-8/core';
 import { useMemo } from 'react';
 import {
     useAppDispatch as useVizDispatch,
@@ -45,7 +45,7 @@ export const PieChartConfiguration = ({
     }, [errors?.groupByFieldError?.references]);
 
     return (
-        <Stack spacing="sm" mb="lg">
+        <Stack gap="sm" mb="lg">
             <Title order={5} fz="sm" c="ldGray.9">
                 Data
             </Title>

@@ -1,8 +1,11 @@
 import {
     type AiAgentModelConfig,
     type AiChartRuntimeOverrides,
+    type AiOrgModelVisibility,
     type AiProviderApiKeyHints,
     type AiThreadCreatedFrom,
+    type AiWritebackRunStatus,
+    type AiWritebackSource,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
@@ -143,6 +146,46 @@ export type AiWritebackThreadTable = Knex.CompositeTableType<
     > &
         Partial<Pick<DbAiWritebackThread, 'project_dbt_source_uuid'>>,
     Partial<Pick<DbAiWritebackThread, 'sandbox_uuid' | 'pull_request_uuid'>>
+>;
+
+export const AiWritebackRunTableName = 'ai_writeback_run';
+
+export type DbAiWritebackRun = {
+    ai_writeback_run_uuid: string;
+    organization_uuid: string;
+    project_uuid: string;
+    ai_thread_uuid: string | null;
+    created_by_user_uuid: string;
+    source: AiWritebackSource;
+    status: AiWritebackRunStatus;
+    branch_name: string | null;
+    pr_url: string | null;
+    error_message: string | null;
+    prompt_uuid: string | null;
+    tool_call_id: string | null;
+    created_at: Date;
+    updated_at: Date;
+};
+
+export type AiWritebackRunTable = Knex.CompositeTableType<
+    DbAiWritebackRun,
+    Pick<
+        DbAiWritebackRun,
+        | 'organization_uuid'
+        | 'project_uuid'
+        | 'ai_thread_uuid'
+        | 'created_by_user_uuid'
+        | 'source'
+    > &
+        Partial<
+            Pick<DbAiWritebackRun, 'status' | 'prompt_uuid' | 'tool_call_id'>
+        >,
+    Partial<
+        Pick<
+            DbAiWritebackRun,
+            'status' | 'branch_name' | 'pr_url' | 'error_message' | 'updated_at'
+        >
+    >
 >;
 
 export const AiPromptTableName = 'ai_prompt';
@@ -341,7 +384,7 @@ export type AiAgentToolResultTable = Knex.CompositeTableType<
         'ai_prompt_uuid' | 'tool_call_id' | 'tool_name' | 'result'
     > &
         Partial<Pick<DbAiAgentToolResult, 'metadata'>>,
-    Partial<Pick<DbAiAgentToolResult, 'metadata'>>
+    Partial<Pick<DbAiAgentToolResult, 'metadata' | 'result'>>
 >;
 
 export const AiPromptContextTableName = 'ai_prompt_context';
@@ -397,6 +440,7 @@ export type DbAiOrganizationSettings = {
     ai_agent_reviews_enabled: boolean;
     mcp_content_writes_enabled: boolean;
     default_ai_agent_model_config: AiAgentModelConfig | null;
+    model_visibility: AiOrgModelVisibility | null;
     encrypted_provider_api_keys: Buffer | null;
     provider_api_key_hints: AiProviderApiKeyHints | null;
     created_at: Date;
@@ -412,6 +456,7 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
                 | 'ai_agent_reviews_enabled'
                 | 'mcp_content_writes_enabled'
                 | 'default_ai_agent_model_config'
+                | 'model_visibility'
                 | 'encrypted_provider_api_keys'
                 | 'provider_api_key_hints'
             >
@@ -423,6 +468,7 @@ export type AiOrganizationSettingsTable = Knex.CompositeTableType<
             | 'ai_agent_reviews_enabled'
             | 'mcp_content_writes_enabled'
             | 'default_ai_agent_model_config'
+            | 'model_visibility'
             | 'encrypted_provider_api_keys'
             | 'provider_api_key_hints'
         >

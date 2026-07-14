@@ -22,7 +22,6 @@ import { AnalyticsService } from './AnalyticsService/AnalyticsService';
 import { AsyncQueryService } from './AsyncQueryService/AsyncQueryService';
 import { BaseService } from './BaseService';
 import { CatalogService } from './CatalogService/CatalogService';
-import { ChangesetService } from './ChangesetService';
 import { CiService } from './CiService/CiService';
 import { CoderService } from './CoderService/CoderService';
 import { CommentService } from './CommentService/CommentService';
@@ -32,6 +31,7 @@ import { CsvService } from './CsvService/CsvService';
 import { DashboardService } from './DashboardService/DashboardService';
 import { DeployService } from './DeployService';
 import { DownloadFileService } from './DownloadFileService/DownloadFileService';
+import { EmailWhitelabelService } from './EmailWhitelabelService/EmailWhitelabelService';
 import { FavoritesService } from './FavoritesService/FavoritesService';
 import { FeatureFlagService } from './FeatureFlag/FeatureFlagService';
 import { FunnelService } from './FunnelService/FunnelService';
@@ -109,6 +109,7 @@ interface ServiceManifest {
     organizationSettingsService: OrganizationSettingsService;
     organizationSsoService: OrganizationSsoService;
     organizationDomainVerificationService: OrganizationDomainVerificationService;
+    emailWhitelabelService: EmailWhitelabelService;
     organizationAccessService: OrganizationAccessService;
     preAggregateMaterializationService: PreAggregateMaterializationService;
     persistentDownloadFileService: PersistentDownloadFileService;
@@ -147,6 +148,7 @@ interface ServiceManifest {
     permissionsService: PermissionsService;
     /** An implementation signature for these services are not available at this stage */
     aiWritebackService: unknown;
+    aiDeepResearchService: unknown;
     aiAgentReviewNotificationService: unknown;
     writebackPreviewService: unknown;
     previewDeploySetupService: unknown;
@@ -172,7 +174,6 @@ interface ServiceManifest {
     mcpService: unknown;
     rolesService: RolesService;
     slackService: SlackService;
-    changesetService: ChangesetService;
     organizationWarehouseCredentialsService: unknown;
 }
 
@@ -502,7 +503,6 @@ export class ServiceRepository
                     userModel: this.models.getUserModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
-                    featureFlagService: this.getFeatureFlagService(),
                 }),
         );
     }
@@ -654,6 +654,22 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     organizationDomainVerificationModel:
                         this.models.getOrganizationDomainVerificationModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    emailClient: this.clients.getEmailClient(),
+                }),
+        );
+    }
+
+    public getEmailWhitelabelService(): EmailWhitelabelService {
+        return this.getService(
+            'emailWhitelabelService',
+            () =>
+                new EmailWhitelabelService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    organizationEmailDomainModel:
+                        this.models.getOrganizationEmailDomainModel(),
+                    organizationMemberProfileModel:
+                        this.models.getOrganizationMemberProfileModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     emailClient: this.clients.getEmailClient(),
                 }),
@@ -1138,6 +1154,10 @@ export class ServiceRepository
                     savedSqlModel: this.models.getSavedSqlModel(),
                     dashboardModel: this.models.getDashboardModel(),
                     spaceModel: this.models.getSpaceModel(),
+                    schedulerModel: this.models.getSchedulerModel(),
+                    schedulerService: this.getSchedulerService(),
+                    savedChartService: this.getSavedChartService(),
+                    dashboardService: this.getDashboardService(),
                     schedulerClient: this.clients.getSchedulerClient(),
                     promoteService: this.getPromoteService(),
                     spacePermissionService: this.getSpacePermissionService(),
@@ -1160,22 +1180,7 @@ export class ServiceRepository
                     savedChartModel: this.models.getSavedChartModel(),
                     spaceModel: this.models.getSpaceModel(),
                     tagsModel: this.models.getTagsModel(),
-                    changesetModel: this.models.getChangesetModel(),
                     spacePermissionService: this.getSpacePermissionService(),
-                }),
-        );
-    }
-
-    public getChangesetService(): ChangesetService {
-        return this.getService(
-            'changesetService',
-            () =>
-                new ChangesetService({
-                    changesetModel: this.models.getChangesetModel(),
-                    catalogModel: this.models.getCatalogModel(),
-                    projectModel: this.models.getProjectModel(),
-                    savedChartModel: this.models.getSavedChartModel(),
-                    dashboardModel: this.models.getDashboardModel(),
                 }),
         );
     }
@@ -1287,6 +1292,7 @@ export class ServiceRepository
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
                     projectModel: this.models.getProjectModel(),
+                    spacePermissionService: this.getSpacePermissionService(),
                 }),
         );
     }
@@ -1336,6 +1342,12 @@ export class ServiceRepository
         AiWritebackServiceImplT,
     >(): AiWritebackServiceImplT {
         return this.getService('aiWritebackService');
+    }
+
+    public getAiDeepResearchService<
+        AiDeepResearchServiceImplT,
+    >(): AiDeepResearchServiceImplT {
+        return this.getService('aiDeepResearchService');
     }
 
     public getPreviewDeploySetupService<

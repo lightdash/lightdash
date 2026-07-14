@@ -10,17 +10,17 @@ import {
     type ConditionalFormattingWithFilterOperator,
     type FilterableItem,
 } from '@lightdash/common';
-import { Accordion } from '@mantine-8/core';
 import {
+    TextInput,
+    Accordion,
     Center,
     Group,
-    SegmentedControl,
-    Select,
     Stack,
     Text,
-    TextInput,
-    Tooltip,
-} from '@mantine/core';
+    SegmentedControl,
+    Select,
+} from '@mantine-8/core';
+import { Tooltip } from '@mantine/core';
 import differenceBy from 'lodash/differenceBy';
 import { useCallback, useMemo, type FC } from 'react';
 import { useParams } from 'react-router';
@@ -218,15 +218,19 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
             />
 
             <Accordion.Panel>
-                <Stack spacing="xs">
-                    <Group noWrap spacing="xs">
+                <Stack gap="xs">
+                    <Group wrap="nowrap" gap="xs">
                         <Text fw={500} fz="xs" c="dimmed">
                             Compare:
                         </Text>
                         <SegmentedControl
                             size="xs"
                             value={comparisonType}
-                            onChange={onChangeRuleComparisonType}
+                            onChange={(value) =>
+                                onChangeRuleComparisonType(
+                                    value as ConditionalFormattingComparisonType,
+                                )
+                            }
                             data={[
                                 {
                                     label: (
@@ -279,8 +283,9 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                                 placeholder="Compare field"
                             />
                         )}
-                    <Group noWrap spacing="xs">
+                    <Group wrap="nowrap" gap="xs">
                         <Select
+                            allowDeselect={false}
                             value={rule.operator}
                             data={filterOperatorOptions}
                             size="xs"
@@ -293,6 +298,7 @@ const ConditionalFormattingRule: FC<ConditionalFormattingRuleProps> = ({
                         />
 
                         <Select
+                            allowDeselect={false}
                             display={field && filterType ? 'none' : 'block'}
                             placeholder="Value(s)"
                             data={[]}

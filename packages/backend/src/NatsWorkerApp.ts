@@ -3,6 +3,7 @@ import * as Sentry from '@sentry/node';
 import express from 'express';
 import http from 'http';
 import knex, { Knex } from 'knex';
+import { registerAiUsageTracker } from './analytics/aiUsage';
 import { BufferedEventStreamWriter } from './analytics/eventStream/BufferedEventStreamWriter';
 import { createEventStreamWriter } from './analytics/eventStream/createEventStreamWriter';
 import { EventStreamSink } from './analytics/eventStream/EventStreamSink';
@@ -24,7 +25,7 @@ import {
     shouldSelfRegisterHttpInstrumentation,
 } from './prometheus/otelHttpMetrics';
 import PrometheusMetrics from './prometheus/PrometheusMetrics';
-import { IGNORE_ERRORS } from './sentry';
+import { errorsOnlyIntegrations, IGNORE_ERRORS } from './sentry';
 import { createOrganizationNameResolver } from './sentry/organizationNameResolver';
 import {
     OperationContext,
@@ -131,6 +132,7 @@ export default class NatsWorkerApp {
                   )
                 : undefined,
         });
+        registerAiUsageTracker((event) => this.analytics.track(event));
 
         this.database = knex(
             this.environment === 'production'
@@ -206,11 +208,17 @@ export default class NatsWorkerApp {
                     : this.lightdashConfig.mode,
             skipOpenTelemetrySetup: otelTracingEnabled(),
             registerEsmLoaderHooks: !otelTracingEnabled(),
-            integrations: [],
+            // OTel mode owns traces; strip Sentry's span-emitting default
+            // integrations (postgres etc.) so the worker is errors-only.
+            integrations: otelTracingEnabled() ? errorsOnlyIntegrations : [],
             ignoreErrors: IGNORE_ERRORS,
-            tracesSampleRate:
-                this.lightdashConfig.sentry.queryTracesSampleRate ??
-                this.lightdashConfig.sentry.tracesSampleRate,
+            ...(otelTracingEnabled()
+                ? {}
+                : {
+                      tracesSampleRate:
+                          this.lightdashConfig.sentry.queryTracesSampleRate ??
+                          this.lightdashConfig.sentry.tracesSampleRate,
+                  }),
         });
         initOtelTracing();
     }

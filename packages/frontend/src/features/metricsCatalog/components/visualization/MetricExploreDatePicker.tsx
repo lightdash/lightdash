@@ -5,18 +5,17 @@ import {
     type TimeDimensionConfig,
 } from '@lightdash/common';
 import {
+    TextInput,
     Box,
-    Button,
     Divider,
     Group,
-    Popover,
-    SegmentedControl,
     Stack,
     Text,
-    TextInput,
-    Tooltip,
     UnstyledButton,
-} from '@mantine/core';
+    Button,
+    SegmentedControl,
+} from '@mantine-8/core';
+import { Popover, Tooltip } from '@mantine/core';
 import { DatePicker, MonthPicker, YearPicker } from '@mantine/dates';
 import { useCallback, useEffect, useRef, type FC } from 'react';
 import useTracking from '../../../../providers/Tracking/useTracking';
@@ -24,6 +23,7 @@ import { EventName } from '../../../../types/Events';
 import { useAppSelector } from '../../../sqlRunner/store/hooks';
 import { useDateRangePicker } from '../../hooks/useDateRangePicker';
 import { getMatchingPresetLabel } from '../../utils/metricExploreDate';
+import styles from './MetricExploreDatePicker.module.css';
 import { TimeDimensionIntervalPicker } from './TimeDimensionIntervalPicker';
 
 type Props = {
@@ -150,7 +150,7 @@ export const MetricExploreDatePicker: FC<Props> = ({
             shadow="sm"
         >
             <Popover.Target>
-                <Group position="apart" w="fill-available" noWrap>
+                <Group justify="space-between" w="fill-available" wrap="nowrap">
                     <SegmentedControl
                         disabled={isFetching || disabled}
                         size="xs"
@@ -192,35 +192,12 @@ export const MetricExploreDatePicker: FC<Props> = ({
                         }}
                         transitionDuration={300}
                         transitionTimingFunction="linear"
-                        styles={(theme) => ({
-                            root: {
-                                border: `1px solid ${theme.colors.ldGray[2]}`,
-                                borderRadius: theme.radius.md,
-                                backgroundColor: theme.colors.ldGray[0],
-                                alignItems: 'center',
-                            },
-                            label: {
-                                fontSize: theme.fontSizes.sm,
-                                color: theme.colors.ldGray[6],
-                                fontWeight: 500,
-                                paddingLeft: theme.spacing.sm,
-                                paddingRight: theme.spacing.sm,
-                                '&[data-active]': {
-                                    color: theme.colors.ldDark[7],
-                                },
-                            },
-                            control: {
-                                '&:not(:first-of-type)': {
-                                    borderLeft: 'none',
-                                },
-                            },
-                            indicator: {
-                                boxShadow: theme.shadows.subtle,
-                                border: `1px solid ${theme.colors.ldGray[3]}`,
-                                borderRadius: theme.radius.md,
-                                top: 4,
-                            },
-                        })}
+                        withItemsBorders={false}
+                        classNames={{
+                            root: styles.root,
+                            label: styles.label,
+                            indicator: styles.indicator,
+                        }}
                     />
                     {showTimeDimensionIntervalPicker &&
                         timeDimensionBaseField && (
@@ -248,28 +225,17 @@ export const MetricExploreDatePicker: FC<Props> = ({
             </Popover.Target>
 
             <Popover.Dropdown p={0}>
-                <Group spacing={0} align="flex-start">
-                    <Stack spacing={2} py="xs" px="sm">
+                <Group gap={0} align="flex-start">
+                    <Stack gap={2} py="xs" px="sm">
                         {presets.map((preset) => (
                             <UnstyledButton
                                 key={preset.label}
                                 onClick={() => handlePresetSelect(preset)}
-                                sx={(theme) => ({
-                                    fontWeight: 500,
-                                    fontSize: theme.fontSizes.xs,
-                                    color: theme.colors.ldGray[7],
-                                    padding: `${theme.spacing.xs} ${theme.spacing.sm}`,
-                                    borderRadius: theme.radius.sm,
-                                    backgroundColor:
-                                        tempSelectedPreset?.label ===
-                                        preset.label
-                                            ? theme.colors.ldGray[0]
-                                            : 'transparent',
-
-                                    '&:hover': {
-                                        backgroundColor: theme.colors.ldGray[0],
-                                    },
-                                })}
+                                data-selected={
+                                    tempSelectedPreset?.label ===
+                                        preset.label || undefined
+                                }
+                                className={styles.presetButton}
                             >
                                 {preset.label}
                             </UnstyledButton>
@@ -277,7 +243,7 @@ export const MetricExploreDatePicker: FC<Props> = ({
                     </Stack>
 
                     <Divider orientation="vertical" color="ldGray.2" />
-                    <Stack spacing={0}>
+                    <Stack gap={0}>
                         <Box px="xs">
                             {calendarConfig?.type === TimeFrames.YEAR ? (
                                 <YearPicker
@@ -306,8 +272,8 @@ export const MetricExploreDatePicker: FC<Props> = ({
                         </Box>
                         <Divider color="ldGray.2" />
                         <Box p="sm">
-                            <Group position="apart" spacing="xl">
-                                <Group spacing="xs">
+                            <Group justify="space-between" gap="xl">
+                                <Group gap="xs">
                                     <TextInput
                                         size="xs"
                                         radius="md"
@@ -341,13 +307,13 @@ export const MetricExploreDatePicker: FC<Props> = ({
                                     />
                                 </Group>
 
-                                <Group spacing="xs">
+                                <Group gap="xs">
                                     <Button
                                         size="xs"
                                         radius="md"
                                         variant="default"
                                         onClick={() => handleOpen(false)}
-                                        sx={(theme) => ({
+                                        style={(theme) => ({
                                             boxShadow: theme.shadows.subtle,
                                             border: `1px solid ${theme.colors.ldGray[2]}`,
                                         })}
@@ -363,7 +329,7 @@ export const MetricExploreDatePicker: FC<Props> = ({
 
                                             handleTrackDateFilterApplied();
                                         }}
-                                        sx={(theme) => ({
+                                        style={(theme) => ({
                                             boxShadow: theme.shadows.subtle,
                                         })}
                                     >

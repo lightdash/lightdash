@@ -1279,27 +1279,38 @@ const useCartesianChartConfig = ({
         [dirtyEchartsConfig?.series, dirtyLayout?.stack],
     );
 
-    const isCustomColorsEligible = useMemo(
+    // Conditional formatting: all-bar charts without pivots, regardless of
+    // metric count or stacking. Mixed bar/line charts are excluded since
+    // formatting only renders on bars.
+    const isConditionalFormattingEligible = useMemo(
         () =>
             dirtyChartType === CartesianSeriesType.BAR &&
-            !pivotKeys?.length &&
-            (dirtyLayout?.yField?.length ?? 0) <= 1 &&
-            !hasCustomColorsStacking,
+            (dirtyEchartsConfig?.series ?? []).every(
+                (series) => series.type === CartesianSeriesType.BAR,
+            ) &&
+            !pivotKeys?.length,
+        [dirtyChartType, dirtyEchartsConfig?.series, pivotKeys],
+    );
+
+    // Color by category: only single-metric non-stacked bar charts
+    const isColorByCategoryEligible = useMemo(
+        () =>
+            isConditionalFormattingEligible &&
+            !hasCustomColorsStacking &&
+            (dirtyLayout?.yField?.length ?? 0) <= 1,
         [
-            dirtyChartType,
-            pivotKeys,
-            dirtyLayout?.yField,
+            isConditionalFormattingEligible,
             hasCustomColorsStacking,
+            dirtyLayout?.yField,
         ],
     );
 
     useEffect(() => {
-        if (isCustomColorsEligible) return;
+        if (isColorByCategoryEligible) return;
 
         if (
             !dirtyLayout?.colorByCategory &&
-            !dirtyLayout?.categoryColorOverrides &&
-            conditionalFormattings.length === 0
+            !dirtyLayout?.categoryColorOverrides
         ) {
             return;
         }
@@ -1309,37 +1320,63 @@ const useCartesianChartConfig = ({
             colorByCategory: undefined,
             categoryColorOverrides: undefined,
         }));
-        setConditionalFormattings([]);
     }, [
-        isCustomColorsEligible,
+        isColorByCategoryEligible,
         dirtyLayout?.colorByCategory,
         dirtyLayout?.categoryColorOverrides,
-        conditionalFormattings,
     ]);
 
     useEffect(() => {
-        const targetFieldId = dirtyLayout?.yField?.[0];
-        if (
-            !isCustomColorsEligible ||
-            !targetFieldId ||
-            conditionalFormattings.length === 0
-        ) {
-            return;
-        }
+        if (isConditionalFormattingEligible) return;
 
-        const hasOutdatedTargets = conditionalFormattings.some(
-            (config) => config.target?.fieldId !== targetFieldId,
-        );
+        setConditionalFormattings((prev) => (prev.length === 0 ? prev : []));
+    }, [isConditionalFormattingEligible]);
 
-        if (!hasOutdatedTargets) return;
+    // Repair configs whose target no longer exists on the chart (e.g. the
+    // metric was swapped or removed) by pointing them at the first metric.
+    useEffect(() => {
+        if (!isConditionalFormattingEligible) return;
 
-        setConditionalFormattings((prev) =>
-            prev.map((config) => ({
-                ...config,
-                target: { fieldId: targetFieldId },
-            })),
-        );
-    }, [isCustomColorsEligible, dirtyLayout?.yField, conditionalFormattings]);
+        const yFields = dirtyLayout?.yField ?? [];
+        const firstYField = yFields[0];
+        if (!firstYField) return;
+
+        setConditionalFormattings((prev) => {
+            const repairedConfigs = prev.map((config) =>
+                config.target?.fieldId &&
+                yFields.includes(config.target.fieldId)
+                    ? config
+                    : {
+                          ...config,
+                          target: { fieldId: firstYField },
+                      },
+            );
+
+            const withSingleTarget = hasCustomColorsStacking
+                ? repairedConfigs.map((config, index) =>
+                      index === 0 ||
+                      config.target?.fieldId ===
+                          repairedConfigs[0].target?.fieldId
+                          ? config
+                          : {
+                                ...config,
+                                target: repairedConfigs[0].target,
+                            },
+                  )
+                : repairedConfigs;
+
+            const hasChanges = withSingleTarget.some(
+                (config, index) =>
+                    config.target?.fieldId !== prev[index].target?.fieldId,
+            );
+
+            return hasChanges ? withSingleTarget : prev;
+        });
+    }, [
+        isConditionalFormattingEligible,
+        hasCustomColorsStacking,
+        dirtyLayout?.yField,
+    ]);
 
     const validConfig: CartesianChart = useMemo(() => {
         // Always use the dirtyLayout and dirtyEchartsConfig when possible, fallback to the empty config if not complete.

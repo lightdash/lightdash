@@ -17,7 +17,7 @@ type State = Record<string, ThreadMode>;
 
 const initialState: State = {};
 
-const DEFAULT_SQL_MODE = false;
+const DEFAULT_SQL_MODE = true;
 
 export const aiAgentThreadModeSlice = createSlice({
     name: 'aiAgentThreadMode',
@@ -41,8 +41,7 @@ export const selectThreadSqlMode =
         state.aiAgentThreadMode[threadUuid]?.sqlMode ?? DEFAULT_SQL_MODE;
 
 // Returns undefined when the thread has no stored toggle yet, so a caller can
-// apply its own default (workspace build threads default SQL mode on) while
-// everywhere else keeps DEFAULT_SQL_MODE.
+// apply its own default while everywhere else keeps DEFAULT_SQL_MODE.
 export const selectThreadSqlModeRaw =
     (threadUuid: string) =>
     (state: { aiAgentThreadMode: State }): boolean | undefined =>

@@ -16,9 +16,14 @@ import {
     KnexPaginateArgs,
     KnexPaginatedData,
     LightdashMode,
+    MissingConfigError,
     NotFoundError,
     OnbordingRecord,
     Organization,
+    OrganizationBrand,
+    OrganizationBrandColor,
+    OrganizationBrandFont,
+    OrganizationBrandLogo,
     OrganizationColorPalette,
     OrganizationColorPaletteWithIsActive,
     OrganizationMemberProfile,
@@ -28,6 +33,7 @@ import {
     OrganizationProject,
     ParameterError,
     SessionUser,
+    UnexpectedServerError,
     UpdateAllowedEmailDomains,
     UpdateColorPalette,
     UpdateOrganization,
@@ -35,6 +41,7 @@ import {
     validateOrganizationNameOrThrow,
 } from '@lightdash/common';
 import { groupBy } from 'lodash';
+import fetch from 'node-fetch';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
@@ -47,6 +54,33 @@ import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { UserModel } from '../../models/UserModel';
 import { wrapSentryTransaction } from '../../utils';
 import { BaseService } from '../BaseService';
+
+const BRANDFETCH_API_URL = 'https://api.brandfetch.io/v2/brands';
+
+// Subset of the Brandfetch Brand API response we care about
+// https://docs.brandfetch.com/reference/brand-api
+type BrandfetchBrandResponse = {
+    name?: string | null;
+    description?: string | null;
+    logos?: Array<{
+        type?: string | null;
+        theme?: string | null;
+        formats?: Array<{
+            src?: string | null;
+            format?: string | null;
+        }> | null;
+    }> | null;
+    colors?: Array<{
+        hex?: string | null;
+        type?: string | null;
+        brightness?: number | null;
+    }> | null;
+    fonts?: Array<{
+        name?: string | null;
+        type?: string | null;
+        origin?: string | null;
+    }> | null;
+};
 
 type OrganizationServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -168,6 +202,169 @@ export class OrganizationService extends BaseService {
                     data.defaultProjectUuid !== undefined,
             },
         });
+    }
+
+    async getBrand(account: Account): Promise<OrganizationBrand | null> {
+        assertIsAccountWithOrg(account);
+        const { organizationUuid } = account.organization;
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Organization', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const brand = await this.organizationModel.findBrand(organizationUuid);
+        return brand ?? null;
+    }
+
+    private static normalizeBrandDomain(domain: string): string {
+        // Accept full URLs ("https://acme.com/about") or bare domains ("acme.com")
+        const withoutProtocol = domain
+            .trim()
+            .toLowerCase()
+            .replace(/^[a-z]+:\/\//, '');
+        const hostname = withoutProtocol.split(/[/?#:]/)[0];
+        if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9-]+)+$/.test(hostname)) {
+            throw new ParameterError(`Invalid domain: ${domain}`);
+        }
+        return hostname;
+    }
+
+    private static mapBrandfetchResponse(
+        data: BrandfetchBrandResponse,
+    ): Pick<
+        OrganizationBrand,
+        'name' | 'description' | 'logos' | 'colors' | 'fonts'
+    > {
+        const logos = (data.logos ?? []).flatMap((logo) =>
+            (logo?.formats ?? []).reduce<OrganizationBrandLogo[]>(
+                (acc, format) => {
+                    if (format?.src) {
+                        acc.push({
+                            type: logo?.type ?? 'other',
+                            theme: logo?.theme ?? null,
+                            url: format.src,
+                            format: format.format ?? null,
+                        });
+                    }
+                    return acc;
+                },
+                [],
+            ),
+        );
+        const colors = (data.colors ?? []).reduce<OrganizationBrandColor[]>(
+            (acc, color) => {
+                if (color?.hex) {
+                    acc.push({
+                        hex: color.hex,
+                        type: color.type ?? 'other',
+                        brightness: color.brightness ?? null,
+                    });
+                }
+                return acc;
+            },
+            [],
+        );
+        const fonts = (data.fonts ?? []).reduce<OrganizationBrandFont[]>(
+            (acc, font) => {
+                if (font?.name) {
+                    acc.push({
+                        name: font.name,
+                        type: font.type ?? 'other',
+                        origin: font.origin ?? null,
+                    });
+                }
+                return acc;
+            },
+            [],
+        );
+        return {
+            name: data.name ?? null,
+            description: data.description ?? null,
+            logos,
+            colors,
+            fonts,
+        };
+    }
+
+    async updateBrand(
+        account: Account,
+        domain: string,
+    ): Promise<OrganizationBrand> {
+        assertIsAccountWithOrg(account);
+        const { organizationUuid } = account.organization;
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'update',
+                subject('Organization', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const apiKey = this.lightdashConfig.brandfetch?.apiKey;
+        if (!apiKey) {
+            throw new MissingConfigError(
+                'Brandfetch is not configured. Set BRANDFETCH_API_KEY to enable fetching brand profiles.',
+            );
+        }
+
+        const normalizedDomain =
+            OrganizationService.normalizeBrandDomain(domain);
+
+        const response = await fetch(
+            `${BRANDFETCH_API_URL}/${encodeURIComponent(normalizedDomain)}`,
+            {
+                method: 'GET',
+                headers: {
+                    Authorization: `Bearer ${apiKey}`,
+                },
+            },
+        );
+
+        if (response.status === 404) {
+            throw new NotFoundError(
+                `No brand found for domain "${normalizedDomain}"`,
+            );
+        }
+        if (!response.ok) {
+            this.logger.error('Brandfetch request failed', {
+                organizationUuid,
+                domain: normalizedDomain,
+                status: response.status,
+            });
+            throw new UnexpectedServerError(
+                `Brandfetch request failed with status ${response.status}`,
+            );
+        }
+
+        let data: BrandfetchBrandResponse;
+        try {
+            data = (await response.json()) as BrandfetchBrandResponse;
+        } catch {
+            throw new UnexpectedServerError(
+                'Brandfetch returned an invalid response',
+            );
+        }
+
+        const brand = await this.organizationModel.updateBrand(
+            organizationUuid,
+            {
+                domain: normalizedDomain,
+                ...OrganizationService.mapBrandfetchResponse(data),
+            },
+        );
+
+        this.logger.info('Fetched and stored organization brand', {
+            organizationUuid,
+            domain: normalizedDomain,
+        });
+
+        return brand;
     }
 
     async delete(organizationUuid: string, user: SessionUser): Promise<void> {
@@ -357,6 +554,7 @@ export class OrganizationService extends BaseService {
         });
     }
 
+    /** @deprecated Only used by the deprecated get-member-by-uuid endpoint; use getUsers instead. */
     async getMemberByUuid(
         user: SessionUser,
         memberUuid: string,
@@ -388,6 +586,7 @@ export class OrganizationService extends BaseService {
         return member;
     }
 
+    /** @deprecated Only used by the deprecated get-member-by-email endpoint; use getUsers instead. */
     async getMemberByEmail(
         user: SessionUser,
         email: string,
@@ -420,6 +619,7 @@ export class OrganizationService extends BaseService {
         return member;
     }
 
+    /** @deprecated Only used by the deprecated update-member endpoint; use RolesService.upsertOrganizationUserRoleAssignment instead. */
     async updateMember(
         authenticatedUser: SessionUser,
         memberUserUuid: string,

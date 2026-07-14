@@ -53,7 +53,7 @@ export const aiAgentLauncherSlice = createSlice({
             state,
             action: PayloadAction<{
                 threadId: string | null;
-                agentUuid: LauncherActiveAgentUuid | null;
+                agentUuid: LauncherActiveAgentUuid;
                 pendingContext?: LauncherPendingContext | null;
             }>,
         ) => {
@@ -61,6 +61,23 @@ export const aiAgentLauncherSlice = createSlice({
             state.activeThreadId = action.payload.threadId;
             state.activeAgentUuid = action.payload.agentUuid;
             state.pendingContext = action.payload.pendingContext ?? null;
+        },
+        openDefaultAgentPanel: (
+            state,
+            action: PayloadAction<{
+                pendingContext?: LauncherPendingContext | null;
+            }>,
+        ) => {
+            state.mode = 'panel-open';
+            state.activeThreadId = null;
+            state.activeAgentUuid = null;
+            state.pendingContext = action.payload.pendingContext ?? null;
+        },
+        setActiveAgent: (
+            state,
+            action: PayloadAction<LauncherActiveAgentUuid>,
+        ) => {
+            state.activeAgentUuid = action.payload;
         },
         closePanel: (state) => {
             state.mode = 'collapsed';
@@ -108,6 +125,8 @@ export const aiAgentLauncherSlice = createSlice({
 
 export const {
     openPanel,
+    openDefaultAgentPanel,
+    setActiveAgent,
     closePanel,
     resetActivePanel,
     dockItemRemoved,

@@ -1,6 +1,8 @@
 import { subject } from '@casl/ability';
 import {
+    Account,
     ApiCatalogSearch,
+    assertRegisteredAccount,
     CatalogAnalytics,
     CatalogField,
     CatalogFilter,
@@ -27,6 +29,7 @@ import {
     hasIntersection,
     InlineErrorType,
     isExploreError,
+    isJwtUser,
     MetricWithAssociatedTimeDimension,
     NotFoundError,
     ParameterError,
@@ -66,7 +69,6 @@ import {
     type CatalogSearchContext,
 } from '../../models/CatalogModel/CatalogModel';
 import { parseFieldsFromCompiledTable } from '../../models/CatalogModel/utils/parser';
-import { ChangesetModel } from '../../models/ChangesetModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -90,7 +92,6 @@ export type CatalogArguments<T extends CatalogModel = CatalogModel> = {
     savedChartModel: SavedChartModel;
     spaceModel: SpaceModel;
     tagsModel: TagsModel;
-    changesetModel: ChangesetModel;
     spacePermissionService: SpacePermissionService;
 };
 
@@ -113,8 +114,6 @@ export class CatalogService<
 
     tagsModel: TagsModel;
 
-    changesetModel: ChangesetModel;
-
     spacePermissionService: SpacePermissionService;
 
     constructor({
@@ -126,7 +125,6 @@ export class CatalogService<
         savedChartModel,
         spaceModel,
         tagsModel,
-        changesetModel,
         spacePermissionService,
     }: CatalogArguments<T>) {
         super();
@@ -138,8 +136,46 @@ export class CatalogService<
         this.savedChartModel = savedChartModel;
         this.spaceModel = spaceModel;
         this.tagsModel = tagsModel;
-        this.changesetModel = changesetModel;
         this.spacePermissionService = spacePermissionService;
+    }
+
+    private assertJwtCanViewCatalog(
+        account: Account,
+        organizationUuid: string,
+        projectUuid: string,
+    ): void {
+        if (!isJwtUser(account)) return;
+
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('SpotlightTableConfig', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+    }
+
+    private async getUserAttributesForAccount(
+        account: Account,
+        organizationUuid: string,
+        projectUuid: string,
+    ): Promise<UserAttributeValueMap> {
+        this.assertJwtCanViewCatalog(account, organizationUuid, projectUuid);
+
+        if (isJwtUser(account)) {
+            return account.access.controls?.userAttributes ?? {};
+        }
+
+        assertRegisteredAccount(account);
+        return this.userAttributesModel.getAttributeValuesForOrgMember({
+            organizationUuid,
+            userUuid: account.user.userUuid,
+        });
     }
 
     private static async getCatalogFields(
@@ -407,41 +443,6 @@ export class CatalogService<
         }
 
         return result;
-    }
-
-    /**
-     * Index catalog updates for a list of explore names
-     * It will use the changeset to find the changes and update the catalog items in the database
-     * @param projectUuid - project uuid
-     * @param exploreNames - list of explore names
-     * @returns - catalog updates
-     */
-    async indexCatalogUpdates(projectUuid: string, exploreNames: string[]) {
-        const cachedExploreMap = await this.projectModel.findExploresFromCache(
-            projectUuid,
-            'name',
-            exploreNames,
-        );
-
-        const changeset =
-            await this.changesetModel.findActiveChangesetWithChangesByProjectUuid(
-                projectUuid,
-                {
-                    tableNames: exploreNames,
-                },
-            );
-
-        if (!changeset) {
-            return {
-                catalogUpdates: [],
-            };
-        }
-
-        return this.catalogModel.indexCatalogUpdates({
-            projectUuid,
-            cachedExploreMap,
-            changeset,
-        });
     }
 
     /**
@@ -746,6 +747,7 @@ export class CatalogService<
         };
     }
 
+    /** @deprecated Only used by the deprecated table metadata endpoint, which will be removed without replacement. */
     async getMetadata(user: SessionUser, projectUuid: string, table: string) {
         // Right now we return the full cached explore based on name
         // We could extract some data to only return what we need instead
@@ -920,7 +922,7 @@ export class CatalogService<
     }
 
     async getMetricsCatalog(
-        user: SessionUser,
+        user: Account,
         projectUuid: string,
         context: CatalogSearchContext,
         paginateArgs?: KnexPaginateArgs,
@@ -950,11 +952,11 @@ export class CatalogService<
             throw new ForbiddenError();
         }
 
-        const userAttributes =
-            await this.userAttributesModel.getAttributeValuesForOrgMember({
-                organizationUuid,
-                userUuid: user.userUuid,
-            });
+        const userAttributes = await this.getUserAttributesForAccount(
+            user,
+            organizationUuid,
+            projectUuid,
+        );
 
         const paginatedCatalog = await this.searchCatalog({
             projectUuid,
@@ -1154,7 +1156,7 @@ export class CatalogService<
         userAttributes,
         addDefaultTimeDimension = true,
     }: {
-        user: SessionUser;
+        user: Account;
         projectUuid: string;
         metrics: {
             tableName: string;
@@ -1182,10 +1184,11 @@ export class CatalogService<
 
         const userAttributesForOrgMember =
             userAttributes ??
-            (await this.userAttributesModel.getAttributeValuesForOrgMember({
+            (await this.getUserAttributesForAccount(
+                user,
                 organizationUuid,
-                userUuid: user.userUuid,
-            }));
+                projectUuid,
+            ));
 
         const explores = await this.projectModel.findExploresFromCache(
             projectUuid,
@@ -1283,7 +1286,7 @@ export class CatalogService<
     }
 
     async getMetric(
-        user: SessionUser,
+        user: Account,
         projectUuid: string,
         tableName: string,
         metricName: string,
@@ -1303,6 +1306,7 @@ export class CatalogService<
         return metrics[0];
     }
 
+    /** @deprecated Only used by deprecated metrics tree endpoints; use getMetricsTreeDetails instead. */
     async getMetricsTree(
         user: SessionUser,
         projectUuid: string,
@@ -1394,6 +1398,7 @@ export class CatalogService<
         }
     }
 
+    /** @deprecated Only used by the deprecated create-edge endpoint; use updateMetricsTree instead. */
     async createMetricsTreeEdge(
         user: SessionUser,
         projectUuid: string,
@@ -1436,7 +1441,7 @@ export class CatalogService<
     }
 
     async getAllCatalogMetricsWithTimeDimensions(
-        user: SessionUser,
+        user: Account,
         projectUuid: string,
         context: CatalogSearchContext,
         tableName?: string,
@@ -1457,11 +1462,11 @@ export class CatalogService<
             throw new ForbiddenError();
         }
 
-        const userAttributes =
-            await this.userAttributesModel.getAttributeValuesForOrgMember({
-                organizationUuid,
-                userUuid: user.userUuid,
-            });
+        const userAttributes = await this.getUserAttributesForAccount(
+            user,
+            organizationUuid,
+            projectUuid,
+        );
 
         const allCatalogMetrics = await this.catalogModel.search({
             projectUuid,
@@ -1575,7 +1580,7 @@ export class CatalogService<
     }
 
     async getFilterDimensions(
-        user: SessionUser,
+        user: Account,
         projectUuid: string,
         tableName: string,
         context: CatalogSearchContext,
@@ -1602,11 +1607,11 @@ export class CatalogService<
             tableName,
         );
 
-        const userAttributes =
-            await this.userAttributesModel.getAttributeValuesForOrgMember({
-                organizationUuid,
-                userUuid: user.userUuid,
-            });
+        const userAttributes = await this.getUserAttributesForAccount(
+            user,
+            organizationUuid,
+            projectUuid,
+        );
 
         const catalogDimensions = await this.catalogModel.search({
             projectUuid,
@@ -1630,7 +1635,7 @@ export class CatalogService<
     }
 
     async getSegmentDimensions(
-        user: SessionUser,
+        user: Account,
         projectUuid: string,
         tableName: string,
         context: CatalogSearchContext,
@@ -1657,11 +1662,11 @@ export class CatalogService<
             tableName,
         );
 
-        const userAttributes =
-            await this.userAttributesModel.getAttributeValuesForOrgMember({
-                organizationUuid,
-                userUuid: user.userUuid,
-            });
+        const userAttributes = await this.getUserAttributesForAccount(
+            user,
+            organizationUuid,
+            projectUuid,
+        );
 
         const catalogDimensions = await this.catalogModel.search({
             projectUuid,
@@ -1684,6 +1689,7 @@ export class CatalogService<
         return getTypeValidSegmentDimensions(allDimensions);
     }
 
+    /** @deprecated Only used by the deprecated delete-edge endpoint; use updateMetricsTree instead. */
     async deleteMetricsTreeEdge(
         user: SessionUser,
         projectUuid: string,
@@ -1748,7 +1754,7 @@ export class CatalogService<
     }
 
     async getMetricOwners(
-        user: SessionUser,
+        user: Account,
         projectUuid: string,
     ): Promise<CatalogOwner[]> {
         const { organizationUuid, name: projectName } =
@@ -1767,6 +1773,8 @@ export class CatalogService<
         ) {
             throw new ForbiddenError();
         }
+
+        this.assertJwtCanViewCatalog(user, organizationUuid, projectUuid);
 
         return this.catalogModel.getDistinctOwners(projectUuid);
     }
