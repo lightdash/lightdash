@@ -12,6 +12,7 @@ import {
     auditResponseToTileStatuses,
     useDashboardPreAggregateAudit,
 } from '../../hooks/dashboard/useDashboardPreAggregateAudit';
+import useSearchParams from '../../hooks/useSearchParams';
 import useApp from '../App/useApp';
 import DashboardTileStatusContext from './tileStatusContext';
 import {
@@ -39,6 +40,8 @@ const DashboardTileStatusProvider: React.FC<
     defaultInvalidateCache,
     children,
 }) => {
+    const exportPagedTabs = useSearchParams('exportPagedTabs') === 'true';
+
     const [isAutoRefresh, setIsAutoRefresh] = useState<boolean>(false);
 
     const [oldestCacheTime, setOldestCacheTime] = useState<Date | undefined>();
@@ -120,13 +123,30 @@ const DashboardTileStatusProvider: React.FC<
 
         // When schedulerTabsSelected is provided, use it to filter tiles for screenshots
         if (schedulerTabsSelected && schedulerTabsSelected.length > 0) {
+            const firstTabUuid = [...dashboardTabs].sort(
+                (a, b) => a.order - b.order,
+            )[0]?.uuid;
             return dashboardTiles
                 .filter(
                     (tile) =>
                         isDashboardChartTileType(tile) ||
                         isDashboardSqlChartTile(tile),
                 )
-                .filter((tile) => schedulerTabsSelected.includes(tile.tabUuid!))
+                .filter((tile) => {
+                    // Orphan (no-tab) chart tiles ride the dashboard's first
+                    // tab; in paged export they only render when that first tab
+                    // is selected, so don't wait on them otherwise — the
+                    // empty-tab-only page has no charts to load.
+                    if (!tile.tabUuid) {
+                        return exportPagedTabs
+                            ? !!firstTabUuid &&
+                                  schedulerTabsSelected.includes(firstTabUuid)
+                            : schedulerTabsSelected.includes(
+                                  tile.tabUuid as unknown as string,
+                              );
+                    }
+                    return schedulerTabsSelected.includes(tile.tabUuid);
+                })
                 .map((tile) => tile.uuid);
         }
 
@@ -143,7 +163,13 @@ const DashboardTileStatusProvider: React.FC<
                 return !tile.tabUuid || tile.tabUuid === activeTab.uuid;
             })
             .map((tile) => tile.uuid);
-    }, [dashboardTiles, activeTab, dashboardTabs, schedulerTabsSelected]);
+    }, [
+        dashboardTiles,
+        activeTab,
+        dashboardTabs,
+        schedulerTabsSelected,
+        exportPagedTabs,
+    ]);
 
     const isReadyForScreenshot = useMemo(() => {
         if (expectedScreenshotTileUuids.length === 0) {
