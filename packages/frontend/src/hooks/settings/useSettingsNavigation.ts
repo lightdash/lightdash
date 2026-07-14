@@ -667,13 +667,7 @@ export const useSettingsNavigation = (
                     label: 'Semantic layer',
                     to: `${base}/semanticLayer`,
                     icon: IconPlug,
-                    keywords: [
-                        'postgres',
-                        'pgwire',
-                        'connection',
-                        'sql',
-                        'bi',
-                    ],
+                    keywords: ['postgres', 'pgwire', 'connection', 'sql', 'bi'],
                     children: [],
                     exact: true,
                 });
