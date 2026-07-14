@@ -502,6 +502,8 @@ export enum SnowflakeAuthenticationType {
     PASSWORD = 'password',
     PRIVATE_KEY = 'private_key',
     SSO = 'sso',
+    OAUTH = 'oauth',
+    OAUTH_AUTHORIZATION_CODE = 'oauth_authorization_code',
     EXTERNAL_BROWSER = 'external_browser',
     NONE = 'none',
 }
@@ -515,8 +517,8 @@ export type CreateSnowflakeCredentials = {
     privateKey?: string;
     privateKeyPass?: string;
     authenticationType?: SnowflakeAuthenticationType;
-    refreshToken?: string; // Refresh token for sso, this is used to generate a new access token
-    token?: string; // Access token for sso, this has a low expiry time
+    refreshToken?: string;
+    token?: string;
     role?: string;
     database: string;
     warehouse: string;

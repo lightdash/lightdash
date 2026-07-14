@@ -74,20 +74,22 @@ const responseFor = (results: OnboardingConnectionDepositResult): Response =>
         headers: { 'Content-Type': 'application/json' },
     });
 
-const createProgrammaticAccessToken = vi.fn(
-    async (): Promise<{ tokenSecret: string; tokenName: string }> => ({
-        tokenSecret: 'pat-secret',
-        tokenName: 'LIGHTDASH_ONBOARDING_11111111',
-    }),
+const oauthTokens = {
+    accessToken: 'oauth-access-token',
+    refreshToken: 'oauth-refresh-token',
+    expiresAt: new Date('2026-07-14T13:00:00.000Z'),
+};
+const getOAuthTokens = vi.fn<() => typeof oauthTokens | null>(
+    () => oauthTokens,
 );
 const getSessionDiscovery = vi.fn(async () => discovery);
 const warehouseClientFactory = vi.fn<
     (credentials: CreateSnowflakeCredentials) => {
-        createProgrammaticAccessToken: typeof createProgrammaticAccessToken;
+        getOAuthTokens: typeof getOAuthTokens;
         getSessionDiscovery: typeof getSessionDiscovery;
     }
 >(() => ({
-    createProgrammaticAccessToken,
+    getOAuthTokens,
     getSessionDiscovery,
 }));
 const fetchMock = vi.fn<typeof fetch>();
@@ -102,7 +104,8 @@ const getDependencies = () => ({
 describe('connectSnowflakeHandler', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        getSessionDiscovery.mockResolvedValue(discovery);
+        vi.mocked(getOAuthTokens).mockReturnValue(oauthTokens);
+        vi.mocked(getSessionDiscovery).mockResolvedValue(discovery);
     });
 
     it('uses session defaults when optional connection flags are omitted', async () => {
@@ -114,13 +117,13 @@ describe('connectSnowflakeHandler', () => {
                         type: WarehouseTypes.SNOWFLAKE,
                         account: options.account,
                         user: options.user,
-                        authenticationType:
-                            SnowflakeAuthenticationType.PASSWORD,
+                        authenticationType: SnowflakeAuthenticationType.OAUTH,
                         role: connectionValues.role,
                         database: connectionValues.database,
                         warehouse: connectionValues.warehouse,
                         schema: connectionValues.schema,
-                        password: 'pat-secret',
+                        refreshToken: oauthTokens.refreshToken,
+                        token: oauthTokens.accessToken,
                     },
                     connectionValues,
                     connectionValueSources,
@@ -137,18 +140,15 @@ describe('connectSnowflakeHandler', () => {
             type: WarehouseTypes.SNOWFLAKE,
             account: options.account,
             user: options.user,
-            authenticationType: SnowflakeAuthenticationType.EXTERNAL_BROWSER,
+            authenticationType:
+                SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE,
             role: undefined,
             database: '',
             warehouse: '',
             schema: '',
         });
-        expect(createProgrammaticAccessToken).toHaveBeenCalledWith(
-            'LIGHTDASH_ONBOARDING_11111111',
-            365,
-            1440,
-        );
         expect(getSessionDiscovery).toHaveBeenCalledWith(options.user);
+        expect(getOAuthTokens).toHaveBeenCalledOnce();
         expect(fetchMock).toHaveBeenCalledWith(
             'https://lightdash.example.com/api/v1/onboarding/connection/deposit',
             expect.objectContaining({
@@ -157,7 +157,10 @@ describe('connectSnowflakeHandler', () => {
         );
         expect(write).toHaveBeenCalledWith(expect.stringContaining('✓'));
         expect(write).not.toHaveBeenCalledWith(
-            expect.stringContaining('pat-secret'),
+            expect.stringContaining(oauthTokens.accessToken),
+        );
+        expect(write).not.toHaveBeenCalledWith(
+            expect.stringContaining(oauthTokens.refreshToken),
         );
     });
 
@@ -177,13 +180,13 @@ describe('connectSnowflakeHandler', () => {
                         type: WarehouseTypes.SNOWFLAKE,
                         account: options.account,
                         user: options.user,
-                        authenticationType:
-                            SnowflakeAuthenticationType.PASSWORD,
+                        authenticationType: SnowflakeAuthenticationType.OAUTH,
                         role: 'flag_role',
                         database: 'flag_db',
                         warehouse: 'flag_wh',
                         schema: 'flag_schema',
-                        password: 'pat-secret',
+                        refreshToken: oauthTokens.refreshToken,
+                        token: oauthTokens.accessToken,
                     },
                     connectionValues: {
                         database: 'flag_db',
@@ -239,13 +242,13 @@ describe('connectSnowflakeHandler', () => {
                         type: WarehouseTypes.SNOWFLAKE,
                         account: options.account,
                         user: options.user,
-                        authenticationType:
-                            SnowflakeAuthenticationType.PASSWORD,
+                        authenticationType: SnowflakeAuthenticationType.OAUTH,
                         role: connectionValues.role,
                         database: connectionValues.database,
                         warehouse: '',
                         schema: connectionValues.schema,
-                        password: 'pat-secret',
+                        refreshToken: oauthTokens.refreshToken,
+                        token: oauthTokens.accessToken,
                     },
                     connectionValues: pendingValues,
                     connectionValueSources: {
@@ -331,7 +334,7 @@ describe('connectSnowflakeHandler', () => {
                     durationMs: 8,
                     diagnosis: {
                         title: 'Authentication failed',
-                        detail: 'The PAT was rejected.',
+                        detail: 'The OAuth token was rejected.',
                         remedySql: null,
                         docsUrl: null,
                     },
@@ -353,8 +356,19 @@ describe('connectSnowflakeHandler', () => {
             expect.stringContaining('Authentication failed'),
         );
         expect(write).toHaveBeenCalledWith(
-            expect.stringContaining('The PAT was rejected.'),
+            expect.stringContaining('The OAuth token was rejected.'),
         );
+    });
+
+    it('rejects the command when the SDK does not expose granted tokens', async () => {
+        vi.mocked(getOAuthTokens).mockReturnValueOnce(null);
+
+        await expect(
+            connectSnowflakeHandler(options, getDependencies()),
+        ).rejects.toThrow(
+            'Snowflake did not return the OAuth tokens required to finish setup',
+        );
+        expect(fetchMock).not.toHaveBeenCalled();
     });
 
     it('shows the setup-wizard message when the code is expired or used', async () => {

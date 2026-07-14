@@ -20078,6 +20078,8 @@
                     "password",
                     "private_key",
                     "sso",
+                    "oauth",
+                    "oauth_authorization_code",
                     "external_browser",
                     "none"
                 ],

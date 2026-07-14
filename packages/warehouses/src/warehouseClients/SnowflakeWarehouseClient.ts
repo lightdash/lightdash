@@ -19,6 +19,7 @@ import {
 } from '@lightdash/common';
 import * as crypto from 'crypto';
 import { lookup } from 'dns/promises';
+import fetch, { type Response } from 'node-fetch';
 import {
     Column,
     configure,
@@ -96,7 +97,191 @@ const normaliseSnowflakeType = (type: string): string => {
 };
 
 const EXTERNAL_BROWSER_AUTHENTICATOR = 'EXTERNALBROWSER';
+const OAUTH_AUTHENTICATOR = 'OAUTH';
+const OAUTH_AUTHORIZATION_CODE_AUTHENTICATOR = 'OAUTH_AUTHORIZATION_CODE';
+const LOCAL_APPLICATION_CLIENT_ID = 'LOCAL_APPLICATION';
+const OAUTH_TOKEN_EXPIRY_BUFFER_MS = 60_000;
 const SESSION_DISCOVERY_LIMIT = 100;
+
+export type SnowflakeOAuthTokens = {
+    accessToken: string;
+    refreshToken: string;
+    expiresAt: Date | null;
+};
+
+type SnowflakeOAuthCredentialManager = {
+    read(key: string): Promise<string | null>;
+    write(key: string, token: string): Promise<void>;
+    remove(key: string): Promise<void>;
+    getTokens(): SnowflakeOAuthTokens | null;
+};
+
+const getAccessTokenExpiresAt = (token: string): Date | null => {
+    try {
+        const payload = token.split('.')[1];
+        if (!payload) {
+            return null;
+        }
+        const parsed = JSON.parse(
+            Buffer.from(payload, 'base64url').toString('utf8'),
+        ) as unknown;
+        if (
+            typeof parsed !== 'object' ||
+            parsed === null ||
+            !('exp' in parsed) ||
+            typeof parsed.exp !== 'number' ||
+            !Number.isFinite(parsed.exp)
+        ) {
+            return null;
+        }
+        return new Date(parsed.exp * 1000);
+    } catch {
+        return null;
+    }
+};
+
+export const isSnowflakeOAuthAccessTokenUsable = (
+    token: string | undefined,
+): boolean => {
+    if (!token) {
+        return false;
+    }
+    const expiresAt = getAccessTokenExpiresAt(token);
+    return (
+        expiresAt !== null &&
+        expiresAt.getTime() > Date.now() + OAUTH_TOKEN_EXPIRY_BUFFER_MS
+    );
+};
+
+const hasUsableAccessToken = (tokens: SnowflakeOAuthTokens | null): boolean =>
+    tokens !== null && isSnowflakeOAuthAccessTokenUsable(tokens.accessToken);
+
+const createOAuthCredentialManager = (): SnowflakeOAuthCredentialManager => {
+    const values = new Map<string, string>();
+    let accessToken: string | null = null;
+    let refreshToken: string | null = null;
+
+    return {
+        async read(key) {
+            return values.get(key) ?? null;
+        },
+        async write(key, token) {
+            values.set(key, token);
+            if (key.endsWith(':{OAUTH_AUTHORIZATION_CODE_ACCESS_TOKEN}')) {
+                accessToken = token;
+            } else if (
+                key.endsWith(':{OAUTH_AUTHORIZATION_CODE_REFRESH_TOKEN}')
+            ) {
+                refreshToken = token;
+            }
+        },
+        async remove(key) {
+            values.delete(key);
+            if (key.endsWith(':{OAUTH_AUTHORIZATION_CODE_ACCESS_TOKEN}')) {
+                accessToken = null;
+            } else if (
+                key.endsWith(':{OAUTH_AUTHORIZATION_CODE_REFRESH_TOKEN}')
+            ) {
+                refreshToken = null;
+            }
+        },
+        getTokens() {
+            if (accessToken === null || refreshToken === null) {
+                return null;
+            }
+            return {
+                accessToken,
+                refreshToken,
+                expiresAt: getAccessTokenExpiresAt(accessToken),
+            };
+        },
+    };
+};
+
+const getSnowflakeHost = (
+    credentials: Pick<CreateSnowflakeCredentials, 'account' | 'accessUrl'>,
+): string => {
+    if (credentials.accessUrl?.length) {
+        return new URL(credentials.accessUrl).hostname;
+    }
+    const [account, ...regionParts] = credentials.account.split('.');
+    const region = regionParts.join('.');
+    if (!region || region.toLowerCase() === 'us-west-2') {
+        return `${account}.snowflakecomputing.com`;
+    }
+    const domain = region.toLowerCase().startsWith('cn-')
+        ? 'snowflakecomputing.cn'
+        : 'snowflakecomputing.com';
+    return `${account}.${region}.${domain}`;
+};
+
+const parseOAuthTokenResponse = async (
+    response: Response,
+    currentRefreshToken: string,
+): Promise<SnowflakeOAuthTokens> => {
+    let body: unknown;
+    try {
+        body = await response.json();
+    } catch {
+        throw new WarehouseConnectionError(
+            'Snowflake returned an invalid OAuth token response',
+        );
+    }
+    if (
+        !response.ok ||
+        typeof body !== 'object' ||
+        body === null ||
+        !('access_token' in body) ||
+        typeof body.access_token !== 'string'
+    ) {
+        throw new WarehouseConnectionError(
+            'Snowflake OAuth token refresh failed',
+        );
+    }
+    const refreshToken =
+        'refresh_token' in body && typeof body.refresh_token === 'string'
+            ? body.refresh_token
+            : currentRefreshToken;
+    const expiresIn =
+        'expires_in' in body && typeof body.expires_in === 'number'
+            ? body.expires_in
+            : null;
+    return {
+        accessToken: body.access_token,
+        refreshToken,
+        expiresAt:
+            expiresIn !== null
+                ? new Date(Date.now() + expiresIn * 1000)
+                : getAccessTokenExpiresAt(body.access_token),
+    };
+};
+
+export const refreshSnowflakeOAuthToken = async (
+    credentials: Pick<
+        CreateSnowflakeCredentials,
+        'account' | 'accessUrl' | 'refreshToken'
+    >,
+    fetchClient: typeof fetch = fetch,
+): Promise<SnowflakeOAuthTokens> => {
+    if (!credentials.refreshToken) {
+        throw new UnexpectedServerError(
+            'Snowflake refresh token is required for OAuth authentication',
+        );
+    }
+    const response = await fetchClient(
+        `https://${getSnowflakeHost(credentials)}/oauth/token-request`,
+        {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                grant_type: 'refresh_token',
+                refresh_token: credentials.refreshToken,
+                client_id: LOCAL_APPLICATION_CLIENT_ID,
+            }).toString(),
+        },
+    );
+    return parseOAuthTokenResponse(response, credentials.refreshToken);
+};
 
 export type SnowflakeSessionDefaults = {
     role: string | null;
@@ -395,16 +580,26 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             .replace(/'/g, "''");
     }
 
-    // Cache connection promise for external browser authentication to avoid opening multiple browser tabs
-    // We cache the promise itself (not the resolved connection) to prevent race conditions
-    private externalBrowserConnectionPromise?: Promise<Connection>;
+    private interactiveConnectionPromise?: Promise<Connection>;
 
     private readonly privateKey: string | undefined;
 
     private readonly privateKeyPassphrase: string | undefined;
 
-    constructor(credentials: CreateSnowflakeCredentials) {
+    private readonly oauthCredentialManager?: SnowflakeOAuthCredentialManager;
+
+    private oauthTokens: SnowflakeOAuthTokens | null = null;
+
+    private oauthRefreshPromise?: Promise<SnowflakeOAuthTokens>;
+
+    private readonly fetchClient: typeof fetch;
+
+    constructor(
+        credentials: CreateSnowflakeCredentials,
+        dependencies: { fetchClient?: typeof fetch } = {},
+    ) {
         super(credentials, new SnowflakeSqlBuilder(credentials.startOfWeek));
+        this.fetchClient = dependencies.fetchClient ?? fetch;
         if (typeof credentials.quotedIdentifiersIgnoreCase !== 'undefined') {
             this.quotedIdentifiersIgnoreCase =
                 credentials.quotedIdentifiersIgnoreCase;
@@ -425,7 +620,44 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             authenticationOptions = {
                 // Do not include username or role when doing SSO authentication
                 token: credentials.token,
-                authenticator: 'OAUTH',
+                authenticator: OAUTH_AUTHENTICATOR,
+            };
+        } else if (
+            credentials.authenticationType === SnowflakeAuthenticationType.OAUTH
+        ) {
+            if (!credentials.refreshToken) {
+                throw new UnexpectedServerError(
+                    'Snowflake refresh token is required for OAuth authentication',
+                );
+            }
+            if (credentials.token) {
+                this.oauthTokens = {
+                    accessToken: credentials.token,
+                    refreshToken: credentials.refreshToken,
+                    expiresAt: getAccessTokenExpiresAt(credentials.token),
+                };
+            }
+            authenticationOptions = {
+                token: credentials.token,
+                authenticator: OAUTH_AUTHENTICATOR,
+            };
+        } else if (
+            credentials.authenticationType ===
+            SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE
+        ) {
+            this.oauthCredentialManager = createOAuthCredentialManager();
+            configure({
+                customCredentialManager: this.oauthCredentialManager,
+            });
+            authenticationOptions = {
+                authenticator: OAUTH_AUTHORIZATION_CODE_AUTHENTICATOR,
+                // oauthClientId/Secret deliberately omitted: the SDK defaults
+                // BOTH to the LOCAL_APPLICATION public-client literal only
+                // when neither is set (connection_config getOauthClientId)
+                username: credentials.user,
+                role: credentials.role,
+                clientStoreTemporaryCredential: true,
+                browserActionTimeout: 300_000,
             };
         } else if (
             credentials.authenticationType ===
@@ -437,10 +669,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             authenticationOptions = {
                 authenticator: EXTERNAL_BROWSER_AUTHENTICATOR,
                 username: credentials.user,
-                // Fall back to Snowflake's console login page when the
-                // account has no SSO integration; the SDK otherwise fails
-                // with a null SSO URL
-                disableConsoleLogin: false,
                 // Default 120s is tight for human sign-in with MFA/IdP hops
                 browserActionTimeout: 300_000,
             };
@@ -510,23 +738,56 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     private async getConnection(
         connectionOptionsOverrides?: Partial<ConnectionOptions>,
     ) {
-        // External browser authentication uses a cached connection to avoid opening multiple browser tabs
-        if (
-            this.connectionOptions.authenticator ===
-            EXTERNAL_BROWSER_AUTHENTICATOR
-        ) {
-            return this.createExternalBrowserConnection(
-                connectionOptionsOverrides,
-            );
+        if (this.isInteractiveAuthenticator()) {
+            return this.createInteractiveConnection(connectionOptionsOverrides);
         }
 
-        // For other authentication types, create a new connection with optional overrides
         return this.createConnection(connectionOptionsOverrides);
     }
 
-    private getConnectionOptions(
+    private isInteractiveAuthenticator(): boolean {
+        return (
+            this.connectionOptions.authenticator ===
+                EXTERNAL_BROWSER_AUTHENTICATOR ||
+            this.connectionOptions.authenticator ===
+                OAUTH_AUTHORIZATION_CODE_AUTHENTICATOR
+        );
+    }
+
+    private async getOAuthAccessToken(): Promise<string | null> {
+        if (
+            this.credentials.authenticationType !==
+            SnowflakeAuthenticationType.OAUTH
+        ) {
+            return null;
+        }
+        const currentTokens = this.oauthTokens;
+        if (hasUsableAccessToken(currentTokens) && currentTokens !== null) {
+            return currentTokens.accessToken;
+        }
+        if (!this.oauthRefreshPromise) {
+            this.oauthRefreshPromise = refreshSnowflakeOAuthToken(
+                {
+                    account: this.credentials.account,
+                    accessUrl: this.credentials.accessUrl,
+                    refreshToken:
+                        this.oauthTokens?.refreshToken ??
+                        this.credentials.refreshToken,
+                },
+                this.fetchClient,
+            );
+        }
+        try {
+            this.oauthTokens = await this.oauthRefreshPromise;
+            return this.oauthTokens.accessToken;
+        } finally {
+            this.oauthRefreshPromise = undefined;
+        }
+    }
+
+    private async getConnectionOptions(
         connectionOptionsOverrides?: Partial<ConnectionOptions>,
-    ): ConnectionOptions {
+    ): Promise<ConnectionOptions> {
         let privateKey: string | undefined;
         if (this.privateKey && this.privateKeyPassphrase) {
             privateKey = crypto
@@ -540,53 +801,52 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         } else {
             privateKey = this.privateKey;
         }
+        const oauthAccessToken = await this.getOAuthAccessToken();
 
         return {
             ...this.connectionOptions,
             ...(privateKey ? { privateKey } : {}),
+            ...(oauthAccessToken ? { token: oauthAccessToken } : {}),
             ...connectionOptionsOverrides,
         };
     }
 
-    /**
-     * Creates and caches a connection for external browser authentication.
-     * This prevents opening multiple browser tabs when parallel queries are executed.
-     */
-    private async createExternalBrowserConnection(
+    private async createInteractiveConnection(
         connectionOptionsOverrides?: Partial<ConnectionOptions>,
     ): Promise<Connection> {
-        // Return cached promise if one exists (handles both in-flight and completed connections)
-        if (this.externalBrowserConnectionPromise) {
-            return this.externalBrowserConnectionPromise;
+        if (this.interactiveConnectionPromise) {
+            return this.interactiveConnectionPromise;
         }
 
-        // Create and cache the connection promise
-        this.externalBrowserConnectionPromise = (async () => {
+        this.interactiveConnectionPromise = (async () => {
             let connection: Connection;
             try {
                 connection = createConnection({
-                    ...this.getConnectionOptions(connectionOptionsOverrides),
+                    ...(await this.getConnectionOptions(
+                        connectionOptionsOverrides,
+                    )),
                 });
 
                 console.info(
-                    `Connecting to snowflake warehouse with "external_browser" authentication type`,
+                    `Connecting to snowflake warehouse with interactive authentication type`,
                 );
                 await Util.promisify(
                     connection.connectAsync.bind(connection),
                 )();
             } catch (e: unknown) {
                 throw new WarehouseConnectionError(
-                    `Snowflake external browser error: ${getErrorMessage(e)}`,
+                    `Snowflake interactive authentication error: ${getErrorMessage(
+                        e,
+                    )}`,
                 );
             }
             return connection;
         })();
 
         try {
-            return await this.externalBrowserConnectionPromise;
+            return await this.interactiveConnectionPromise;
         } catch (e) {
-            // Clear cache on error to allow retry
-            this.externalBrowserConnectionPromise = undefined;
+            this.interactiveConnectionPromise = undefined;
             throw e;
         }
     }
@@ -597,7 +857,9 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         let connection: Connection;
         try {
             connection = createConnection({
-                ...this.getConnectionOptions(connectionOptionsOverrides),
+                ...(await this.getConnectionOptions(
+                    connectionOptionsOverrides,
+                )),
             });
 
             await Util.promisify(connection.connect.bind(connection))();
@@ -610,20 +872,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     }
 
     getDiagnosticHost(): string {
-        if (this.connectionOptions.accessUrl) {
-            return new URL(this.connectionOptions.accessUrl).hostname;
-        }
-
-        const [account, ...regionParts] =
-            this.connectionOptions.account.split('.');
-        const region = regionParts.join('.');
-        if (!region || region.toLowerCase() === 'us-west-2') {
-            return `${account}.snowflakecomputing.com`;
-        }
-        const domain = region.toLowerCase().startsWith('cn-')
-            ? 'snowflakecomputing.cn'
-            : 'snowflakecomputing.com';
-        return `${account}.${region}.${domain}`;
+        return getSnowflakeHost(this.credentials);
     }
 
     async resolveDiagnosticHost(): Promise<void> {
@@ -636,7 +885,9 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
 
     async openDiagnosticConnection(): Promise<SnowflakeDiagnosticSession> {
         try {
-            const connection = createConnection(this.getConnectionOptions());
+            const connection = createConnection(
+                await this.getConnectionOptions(),
+            );
             await Util.promisify(connection.connect.bind(connection))();
             return { connection };
         } catch (error) {
@@ -671,7 +922,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     async getSessionDiscovery(
         user: string,
     ): Promise<SnowflakeSessionDiscovery> {
-        const connection = await this.createExternalBrowserConnection();
+        const connection = await this.getConnection();
         const defaultsResult = await this.executeStatements(
             connection,
             'SELECT CURRENT_ROLE() AS role, CURRENT_WAREHOUSE() AS warehouse, CURRENT_DATABASE() AS database, CURRENT_SCHEMA() AS schema',
@@ -719,6 +970,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 roles,
             },
         };
+    }
+
+    getOAuthTokens(): SnowflakeOAuthTokens | null {
+        return this.oauthCredentialManager?.getTokens() ?? this.oauthTokens;
     }
 
     async listDiagnosticTables(
@@ -771,16 +1026,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         );
     }
 
-    /**
-     * Creates a Programmatic Access Token (PAT) after external browser authentication.
-     * This allows the backend to use the PAT for subsequent queries without requiring
-     * browser-based authentication.
-     *
-     * @param tokenName - Name for the PAT (must be unique per user)
-     * @param daysToExpiry - Number of days until the token expires (default: 1, max: 365)
-     * @param minsToBypassNetworkPolicy - Minutes to bypass network policy requirement (default: 1440 = 1 day, max: 1440)
-     * @returns The PAT secret that can be used as a password for authentication
-     */
     async createProgrammaticAccessToken(
         tokenName: string = `lightdash_pat_${Date.now()}`,
         daysToExpiry: number = 1,
@@ -789,14 +1034,17 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     ): Promise<{ tokenSecret: string; tokenName: string }> {
         if (
             this.connectionOptions.authenticator !==
-            EXTERNAL_BROWSER_AUTHENTICATOR
+                EXTERNAL_BROWSER_AUTHENTICATOR &&
+            this.connectionOptions.authenticator !==
+                OAUTH_AUTHORIZATION_CODE_AUTHENTICATOR &&
+            this.connectionOptions.authenticator !== OAUTH_AUTHENTICATOR
         ) {
             throw new UnexpectedServerError(
-                'PAT creation is only supported with external browser authentication',
+                'PAT creation requires an interactive or OAuth-authenticated Snowflake session',
             );
         }
 
-        const connection = await this.createExternalBrowserConnection();
+        const connection = await this.getConnection();
 
         try {
             if (!/^[A-Za-z_][A-Za-z0-9_$]*$/.test(tokenName)) {
@@ -964,9 +1212,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         connection: Connection,
         authenticator: string | undefined,
     ) {
-        if (authenticator === EXTERNAL_BROWSER_AUTHENTICATOR) {
-            // EXTERNALBROWSER connections are never destroyed - they live for the lifetime of the client✅
-            // Other auth types (password, SSO, private key) still destroy connections after use
+        if (
+            authenticator === EXTERNAL_BROWSER_AUTHENTICATOR ||
+            authenticator === OAUTH_AUTHORIZATION_CODE_AUTHENTICATOR
+        ) {
             return;
         }
         console.info(

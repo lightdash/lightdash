@@ -195,7 +195,9 @@ import {
     BigqueryWarehouseClient,
     DATABRICKS_DEFAULT_OAUTH_CLIENT_ID,
     exchangeDatabricksOAuthCredentials,
+    isSnowflakeOAuthAccessTokenUsable,
     refreshDatabricksOAuthToken,
+    refreshSnowflakeOAuthToken,
     SshTunnel,
     warehouseSqlBuilderFromType,
 } from '@lightdash/warehouses';
@@ -905,6 +907,33 @@ export class ProjectService extends BaseService {
                     errorMessage = 'Error refreshing snowflake token';
                 }
                 throw new SnowflakeTokenError(errorMessage);
+            }
+        }
+
+        if (
+            args.type === WarehouseTypes.SNOWFLAKE &&
+            args.authenticationType === SnowflakeAuthenticationType.OAUTH
+        ) {
+            if (isSnowflakeOAuthAccessTokenUsable(args.token)) {
+                return args;
+            }
+            try {
+                const refreshed = await refreshSnowflakeOAuthToken(args);
+                return {
+                    ...args,
+                    token: refreshed.accessToken,
+                    refreshToken: refreshed.refreshToken,
+                };
+            } catch (e: unknown) {
+                if (e instanceof LightdashError) {
+                    throw e;
+                }
+                this.logger.error(
+                    'Error refreshing Snowflake local-application OAuth token',
+                );
+                throw new SnowflakeTokenError(
+                    'Error refreshing Snowflake OAuth token',
+                );
             }
         }
 
@@ -3649,6 +3678,30 @@ export class ProjectService extends BaseService {
                     source: { kind: 'project', projectUuid },
                     oldRefreshToken,
                     newRefreshToken,
+                });
+            }
+        }
+
+        if (
+            project.warehouseConnection.type === WarehouseTypes.SNOWFLAKE &&
+            project.warehouseConnection.authenticationType ===
+                SnowflakeAuthenticationType.OAUTH &&
+            project.warehouseConnection.refreshToken &&
+            !isSnowflakeOAuthAccessTokenUsable(
+                project.warehouseConnection.token,
+            )
+        ) {
+            const oldRefreshToken = project.warehouseConnection.refreshToken;
+            const refreshed = await refreshSnowflakeOAuthToken(
+                project.warehouseConnection,
+            );
+            project.warehouseConnection.token = refreshed.accessToken;
+            project.warehouseConnection.refreshToken = refreshed.refreshToken;
+            if (refreshed.refreshToken !== oldRefreshToken) {
+                await this.persistRefreshTokenRotation({
+                    source: { kind: 'project', projectUuid },
+                    oldRefreshToken,
+                    newRefreshToken: refreshed.refreshToken,
                 });
             }
         }

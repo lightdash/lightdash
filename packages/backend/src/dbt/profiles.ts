@@ -246,6 +246,14 @@ const credentialsTarget = (
                 // Credentials from SSO will be loaded on _resolveWarehouseClientCredentials in ProjectService
                 console.debug('Snowflake authentication type is SSO');
             } else if (
+                credentials.authenticationType ===
+                    SnowflakeAuthenticationType.OAUTH &&
+                credentials.token
+            ) {
+                result.target.authenticator = 'oauth';
+                result.target.token = envVarReference('token');
+                result.environment[envVar('token')] = credentials.token;
+            } else if (
                 (!credentials.authenticationType ||
                     credentials.authenticationType === 'password') &&
                 credentials.password

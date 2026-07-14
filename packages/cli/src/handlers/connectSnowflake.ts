@@ -29,15 +29,15 @@ export type ConnectSnowflakeOptions = {
     user: string;
 };
 
-type SnowflakePatClient = Pick<
+type SnowflakeOAuthClient = Pick<
     SnowflakeWarehouseClient,
-    'createProgrammaticAccessToken' | 'getSessionDiscovery'
+    'getOAuthTokens' | 'getSessionDiscovery'
 >;
 
 type ConnectSnowflakeDependencies = {
     warehouseClientFactory: (
         credentials: CreateSnowflakeCredentials,
-    ) => SnowflakePatClient;
+    ) => SnowflakeOAuthClient;
     fetch: typeof fetch;
     write: (message: string) => void;
 };
@@ -54,16 +54,6 @@ const defaultDependencies: ConnectSnowflakeDependencies = {
         new SnowflakeWarehouseClient(credentials),
     fetch,
     write: (message) => console.error(message),
-};
-
-const getPatName = (code: string): string => {
-    const projectPrefix = /^([A-Za-z0-9]{8})_/.exec(code)?.[1];
-    if (!projectPrefix) {
-        throw new Error(
-            'Invalid connect code — generate a new one in the Lightdash setup wizard',
-        );
-    }
-    return `LIGHTDASH_ONBOARDING_${projectPrefix.toUpperCase()}`;
 };
 
 const capInventory = (
@@ -179,36 +169,39 @@ export const connectSnowflakeHandler = async (
     options: ConnectSnowflakeOptions,
     dependencies: ConnectSnowflakeDependencies = defaultDependencies,
 ): Promise<void> => {
-    const externalBrowserCredentials: CreateSnowflakeCredentials = {
+    const authorizationCodeCredentials: CreateSnowflakeCredentials = {
         type: WarehouseTypes.SNOWFLAKE,
         account: options.account,
         user: options.user,
-        authenticationType: SnowflakeAuthenticationType.EXTERNAL_BROWSER,
+        authenticationType:
+            SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE,
         role: options.role,
         database: options.database ?? '',
         warehouse: options.warehouse ?? '',
         schema: options.schema ?? '',
     };
     const warehouseClient = dependencies.warehouseClientFactory(
-        externalBrowserCredentials,
+        authorizationCodeCredentials,
     );
     dependencies.write('Opening Snowflake sign-in in your browser…');
-    const { tokenSecret } = await warehouseClient.createProgrammaticAccessToken(
-        getPatName(options.code),
-        365,
-        1440,
-    );
     const discovery: SnowflakeSessionDiscovery =
         await warehouseClient.getSessionDiscovery(options.user);
+    const oauthTokens = warehouseClient.getOAuthTokens();
+    if (oauthTokens === null) {
+        throw new WarehouseConnectionError(
+            'Snowflake did not return the OAuth tokens required to finish setup',
+        );
+    }
     const { connectionValues, connectionValueSources } = getConnectionValues(
         options,
         discovery.defaults,
     );
     const inventory = capInventory(discovery.inventory);
     const warehouseConnection: CreateSnowflakeCredentials = {
-        ...externalBrowserCredentials,
-        authenticationType: SnowflakeAuthenticationType.PASSWORD,
-        password: tokenSecret,
+        ...authorizationCodeCredentials,
+        authenticationType: SnowflakeAuthenticationType.OAUTH,
+        refreshToken: oauthTokens.refreshToken,
+        token: oauthTokens.accessToken,
         database: connectionValues.database ?? '',
         warehouse: connectionValues.warehouse ?? '',
         schema: connectionValues.schema ?? '',
@@ -254,6 +247,5 @@ export const connectSnowflakeHandler = async (
 
 export const connectSnowflakeTestHelpers = {
     getConnectionValues,
-    getPatName,
     renderDiagnostics,
 };

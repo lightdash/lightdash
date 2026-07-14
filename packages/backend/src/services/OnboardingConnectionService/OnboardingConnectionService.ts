@@ -13,9 +13,14 @@ import {
     OnboardingStepType,
     ParameterError,
     RegisteredAccount,
+    SnowflakeAuthenticationType,
     WarehouseTypes,
     type CreateSnowflakeCredentials,
 } from '@lightdash/common';
+import {
+    isSnowflakeOAuthAccessTokenUsable,
+    refreshSnowflakeOAuthToken,
+} from '@lightdash/warehouses';
 import { createHash, randomBytes } from 'crypto';
 import { OnboardingConnectCodeModel } from '../../models/OnboardingConnectCodeModel';
 import { OnboardingProjectStateModel } from '../../models/OnboardingProjectStateModel';
@@ -131,6 +136,15 @@ export class OnboardingConnectionService extends BaseService {
                 'The onboarding SSO bridge only supports Snowflake credentials',
             );
         }
+        if (
+            request.warehouseConnection.authenticationType !==
+                SnowflakeAuthenticationType.OAUTH ||
+            !request.warehouseConnection.refreshToken
+        ) {
+            throw new ParameterError(
+                'The onboarding SSO bridge requires Snowflake OAuth credentials',
+            );
+        }
 
         const account = await this.userService.getAccountByUserUuid(
             connectCode.createdByUserUuid,
@@ -139,13 +153,22 @@ export class OnboardingConnectionService extends BaseService {
         const missingConnectionValues = getMissingRequiredConnectionValues(
             request.connectionValues,
         );
-        const warehouseConnection: CreateSnowflakeCredentials = {
+        let warehouseConnection: CreateSnowflakeCredentials = {
             ...request.warehouseConnection,
             database: request.connectionValues.database ?? '',
             warehouse: request.connectionValues.warehouse ?? '',
             schema: request.connectionValues.schema ?? '',
             role: request.connectionValues.role ?? undefined,
         };
+        if (!isSnowflakeOAuthAccessTokenUsable(warehouseConnection.token)) {
+            const refreshed =
+                await refreshSnowflakeOAuthToken(warehouseConnection);
+            warehouseConnection = {
+                ...warehouseConnection,
+                token: refreshed.accessToken,
+                refreshToken: refreshed.refreshToken,
+            };
+        }
         await this.projectService.updateWarehouseCredentials(
             connectCode.projectUuid,
             account,

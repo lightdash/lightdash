@@ -15,6 +15,7 @@ import {
     type DepositOnboardingConnectionRequest,
     type OnboardingConnectionDepositResult,
 } from '@lightdash/common';
+import { refreshSnowflakeOAuthToken } from '@lightdash/warehouses';
 import { fromSession } from '../../auth/account/account';
 import { defaultSessionUser } from '../../auth/account/account.mock';
 import { OnboardingConnectCodeModel } from '../../models/OnboardingConnectCodeModel';
@@ -28,19 +29,32 @@ import {
     OnboardingConnectionService,
 } from './OnboardingConnectionService';
 
+vi.mock('@lightdash/warehouses', async (importOriginal) => {
+    const actual =
+        await importOriginal<typeof import('@lightdash/warehouses')>();
+    return {
+        ...actual,
+        refreshSnowflakeOAuthToken: vi.fn(),
+    };
+});
+
 const projectUuid = '11111111-1111-4111-8111-111111111111';
 const { userUuid, organizationUuid: accountOrganizationUuid } =
     defaultSessionUser;
 const organizationUuid = accountOrganizationUuid!;
 const code = '11111111_random-code';
 const expiresAt = new Date('2026-07-14T12:15:00.000Z');
+const accessToken = `header.${Buffer.from(
+    JSON.stringify({ exp: 2_000_000_000 }),
+).toString('base64url')}.signature`;
 
 const credentials: CreateSnowflakeCredentials = {
     type: WarehouseTypes.SNOWFLAKE,
     account: 'acme.eu-west-1',
     user: 'lightdash_user',
-    password: 'pat-secret',
-    authenticationType: SnowflakeAuthenticationType.PASSWORD,
+    refreshToken: 'oauth-refresh-token',
+    token: accessToken,
+    authenticationType: SnowflakeAuthenticationType.OAUTH,
     role: 'lightdash_role',
     database: 'analytics',
     warehouse: 'lightdash_wh',
@@ -187,7 +201,7 @@ describe('OnboardingConnectionService', () => {
         });
     });
 
-    it('mints a hashed 15-minute connect code with a project PAT prefix', async () => {
+    it('mints a hashed 15-minute connect code with a project prefix', async () => {
         await expect(
             getService().createConnectCode(account, projectUuid),
         ).resolves.toEqual({ code, expiresAt });
@@ -233,6 +247,24 @@ describe('OnboardingConnectionService', () => {
         expect(updateWarehouseCredentials).not.toHaveBeenCalled();
     });
 
+    it('consumes then rejects Snowflake credentials without an OAuth refresh token', async () => {
+        await expect(
+            getService().depositConnection(
+                depositRequest({
+                    warehouseConnection: {
+                        ...credentials,
+                        authenticationType:
+                            SnowflakeAuthenticationType.PASSWORD,
+                        refreshToken: undefined,
+                        token: undefined,
+                        password: 'password',
+                    },
+                }),
+            ),
+        ).rejects.toThrow(ParameterError);
+        expect(updateWarehouseCredentials).not.toHaveBeenCalled();
+    });
+
     it('stores credentials, runs diagnostics, and records completed state', async () => {
         await expect(
             getService().depositConnection(depositRequest()),
@@ -264,6 +296,41 @@ describe('OnboardingConnectionService', () => {
                 diagnostic: passedDiagnostic,
             },
         );
+    });
+
+    it('refreshes missing access credentials before storing them', async () => {
+        const refreshedCredentials = {
+            ...credentials,
+            token: 'new-access-token',
+            refreshToken: 'rotated-refresh-token',
+        };
+        vi.mocked(refreshSnowflakeOAuthToken).mockResolvedValueOnce({
+            accessToken: refreshedCredentials.token,
+            refreshToken: refreshedCredentials.refreshToken,
+            expiresAt: new Date('2026-07-14T13:00:00.000Z'),
+        });
+
+        await getService().depositConnection(
+            depositRequest({
+                warehouseConnection: {
+                    ...credentials,
+                    token: undefined,
+                },
+            }),
+        );
+
+        expect(refreshSnowflakeOAuthToken).toHaveBeenCalledWith(
+            expect.objectContaining({
+                token: undefined,
+                refreshToken: credentials.refreshToken,
+            }),
+        );
+        expect(updateWarehouseCredentials).toHaveBeenCalledWith(
+            projectUuid,
+            account,
+            { warehouseConnection: refreshedCredentials },
+        );
+        expect(diagnoseConnection).toHaveBeenCalledWith(refreshedCredentials);
     });
 
     it('stores credentials and records pending configuration when required defaults are missing', async () => {
@@ -333,7 +400,7 @@ describe('OnboardingConnectionService', () => {
                     durationMs: 8,
                     diagnosis: {
                         title: 'Authentication failed',
-                        detail: 'Check the PAT.',
+                        detail: 'Check the OAuth credential.',
                         remedySql: null,
                         docsUrl: null,
                     },

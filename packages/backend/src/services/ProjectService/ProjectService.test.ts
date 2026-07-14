@@ -18,6 +18,7 @@ import {
     RedshiftAuthenticationType,
     RequestMethod,
     SessionUser,
+    SnowflakeAuthenticationType,
     SupportedDbtAdapter,
     WarehouseTypes,
     type ChartSummary,
@@ -26,6 +27,7 @@ import {
     type PossibleAbilities,
     type RegisteredAccount,
 } from '@lightdash/common';
+import { refreshSnowflakeOAuthToken } from '@lightdash/warehouses';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
@@ -157,7 +159,9 @@ vi.mock('@lightdash/warehouses', () => ({
         },
     ),
     exchangeDatabricksOAuthCredentials: vi.fn(),
+    isSnowflakeOAuthAccessTokenUsable: vi.fn(() => false),
     refreshDatabricksOAuthToken: vi.fn(),
+    refreshSnowflakeOAuthToken: vi.fn(),
     DATABRICKS_DEFAULT_OAUTH_CLIENT_ID: 'default-client-id',
 }));
 
@@ -185,6 +189,7 @@ const projectModel = {
         ...warehouseClientMock,
         runQuery: vi.fn(async () => resultsWith1Row),
     })),
+    rotateRefreshToken: vi.fn(async () => true),
     findExploreByTableName: vi.fn(async () => validExplore),
     getAllExploresFromCache: vi.fn(async () => ({})),
     getTableGroups: vi.fn(async () => ({})),
@@ -891,6 +896,46 @@ describe('ProjectService', () => {
 
             // User credentials should NOT have been fetched
             expect(findForProjectWithSecretsMock).not.toHaveBeenCalled();
+        });
+
+        test('refreshes project Snowflake local-application OAuth credentials and persists rotation', async () => {
+            service.warehouseClients = {};
+            vi.mocked(refreshSnowflakeOAuthToken).mockResolvedValueOnce({
+                accessToken: 'new-access-token',
+                refreshToken: 'rotated-refresh-token',
+                expiresAt: new Date('2026-07-14T13:00:00.000Z'),
+            });
+            vi.mocked(
+                projectModel.getWarehouseCredentialsForProject,
+            ).mockResolvedValueOnce({
+                type: WarehouseTypes.SNOWFLAKE,
+                account: 'test-account',
+                user: 'test-user',
+                warehouse: 'test-warehouse',
+                database: 'test-db',
+                schema: 'test-schema',
+                authenticationType: SnowflakeAuthenticationType.OAUTH,
+                refreshToken: 'project-refresh-token',
+                requireUserCredentials: false,
+            });
+            await service.runExploreQuery(
+                sessionAccount,
+                metricQueryMock,
+                projectUuid,
+                'valid_explore',
+                null,
+            );
+
+            expect(refreshSnowflakeOAuthToken).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    refreshToken: 'project-refresh-token',
+                }),
+            );
+            expect(projectModel.rotateRefreshToken).toHaveBeenCalledWith(
+                projectUuid,
+                'project-refresh-token',
+                'rotated-refresh-token',
+            );
         });
 
         test('should persist rotated Snowflake refresh token to user_warehouse_credentials when Snowflake rotates it', async () => {

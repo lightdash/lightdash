@@ -3,12 +3,14 @@ import {
     DimensionType,
     SnowflakeAuthenticationType,
 } from '@lightdash/common';
-import { createConnection } from 'snowflake-sdk';
+import fetch, { Response } from 'node-fetch';
+import { configure, createConnection } from 'snowflake-sdk';
 import { Readable } from 'stream';
 import type { Mock } from 'vitest';
 import {
     mapFieldType,
     mapSnowflakeDiagnosticError,
+    refreshSnowflakeOAuthToken,
     SnowflakeDiagnosticError,
     SnowflakeWarehouseClient,
 } from './SnowflakeWarehouseClient';
@@ -51,12 +53,18 @@ const getResultsFromQueryIdMock = vi.fn(({ sqlText, queryId }) => ({
     getNumRows: () => 1,
 }));
 
+const oauthAccessToken = (expiresAtSeconds: number): string =>
+    `header.${Buffer.from(JSON.stringify({ exp: expiresAtSeconds })).toString(
+        'base64url',
+    )}.signature`;
+
 vi.mock('snowflake-sdk', async () => ({
     ...(
         await vi.importActual<{ default: typeof import('snowflake-sdk') }>(
             'snowflake-sdk',
         )
     ).default,
+    configure: vi.fn(),
     createConnection: vi.fn(() => ({
         connect: vi.fn((callback) => callback(null, {})),
         execute: executeMock,
@@ -68,6 +76,162 @@ vi.mock('snowflake-sdk', async () => ({
 }));
 
 describe('SnowflakeWarehouseClient', () => {
+    it('configures the local application authorization-code flow with SDK defaults', () => {
+        const warehouse = new SnowflakeWarehouseClient({
+            ...credentials,
+            authenticationType:
+                SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE,
+        });
+
+        expect(warehouse.connectionOptions).toEqual(
+            expect.objectContaining({
+                account: credentials.account,
+                username: credentials.user,
+                authenticator: 'OAUTH_AUTHORIZATION_CODE',
+                clientStoreTemporaryCredential: true,
+                browserActionTimeout: 300_000,
+            }),
+        );
+        // Both must be absent: the SDK only applies its LOCAL_APPLICATION
+        // public-client defaults when neither option is set
+        expect(warehouse.connectionOptions).not.toHaveProperty('oauthClientId');
+        expect(warehouse.connectionOptions).not.toHaveProperty(
+            'oauthAuthorizationUrl',
+        );
+        expect(warehouse.connectionOptions).not.toHaveProperty(
+            'oauthTokenRequestUrl',
+        );
+        expect(warehouse.connectionOptions).not.toHaveProperty(
+            'oauthRedirectUri',
+        );
+        expect(warehouse.connectionOptions).not.toHaveProperty(
+            'oauthEnableSingleUseRefreshTokens',
+        );
+        expect(warehouse.connectionOptions).not.toHaveProperty(
+            'oauthClientSecret',
+        );
+    });
+
+    it('exposes authorization-code tokens captured by the SDK credential manager', async () => {
+        const expiresAtSeconds = 2_000_000_000;
+        const accessToken = oauthAccessToken(expiresAtSeconds);
+        const warehouse = new SnowflakeWarehouseClient({
+            ...credentials,
+            authenticationType:
+                SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE,
+        });
+        const customCredentialManager = vi
+            .mocked(configure)
+            .mock.calls.at(-1)?.[0]?.customCredentialManager as
+            | {
+                  write(key: string, token: string): Promise<void>;
+              }
+            | undefined;
+        if (!customCredentialManager) {
+            throw new Error('OAuth credential manager was not configured');
+        }
+
+        await customCredentialManager.write(
+            '{HOST}:{USER}:{OAUTH_AUTHORIZATION_CODE_ACCESS_TOKEN}',
+            accessToken,
+        );
+        await customCredentialManager.write(
+            '{HOST}:{USER}:{OAUTH_AUTHORIZATION_CODE_REFRESH_TOKEN}',
+            'refresh-token',
+        );
+
+        expect(warehouse.getOAuthTokens()).toEqual({
+            accessToken,
+            refreshToken: 'refresh-token',
+            expiresAt: new Date(expiresAtSeconds * 1000),
+        });
+    });
+
+    it('refreshes an expired OAuth access token and retains refresh-token rotation', async () => {
+        const fetchClient = vi.fn<typeof fetch>();
+        fetchClient.mockResolvedValueOnce(
+            new Response(
+                JSON.stringify({
+                    access_token: 'new-access-token',
+                    refresh_token: 'rotated-refresh-token',
+                    expires_in: 3600,
+                }),
+                {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' },
+                },
+            ),
+        );
+        const warehouse = new SnowflakeWarehouseClient(
+            {
+                ...credentials,
+                account: 'account.region',
+                user: 'user',
+                authenticationType: SnowflakeAuthenticationType.OAUTH,
+                token: oauthAccessToken(1),
+                refreshToken: 'refresh-token',
+            },
+            { fetchClient },
+        );
+
+        await warehouse.openDiagnosticConnection();
+
+        expect(fetchClient).toHaveBeenCalledWith(
+            'https://account.region.snowflakecomputing.com/oauth/token-request',
+            expect.objectContaining({
+                method: 'POST',
+                body: expect.stringContaining('client_id=LOCAL_APPLICATION'),
+            }),
+        );
+        expect(vi.mocked(createConnection)).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                authenticator: 'OAUTH',
+                token: 'new-access-token',
+            }),
+        );
+        expect(warehouse.getOAuthTokens()).toEqual({
+            accessToken: 'new-access-token',
+            refreshToken: 'rotated-refresh-token',
+            expiresAt: expect.any(Date),
+        });
+    });
+
+    it('retains the current refresh token when Snowflake does not rotate it', async () => {
+        const fetchClient = vi.fn<typeof fetch>();
+        fetchClient.mockResolvedValueOnce(
+            new Response(
+                JSON.stringify({
+                    access_token: 'new-access-token',
+                    expires_in: 3600,
+                }),
+                {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' },
+                },
+            ),
+        );
+
+        await expect(
+            refreshSnowflakeOAuthToken(
+                {
+                    account: 'account.region',
+                    refreshToken: 'refresh-token',
+                },
+                fetchClient,
+            ),
+        ).resolves.toEqual({
+            accessToken: 'new-access-token',
+            refreshToken: 'refresh-token',
+            expiresAt: expect.any(Date),
+        });
+        expect(fetchClient).toHaveBeenCalledWith(
+            'https://account.region.snowflakecomputing.com/oauth/token-request',
+            expect.objectContaining({
+                body: 'grant_type=refresh_token&refresh_token=refresh-token&client_id=LOCAL_APPLICATION',
+            }),
+        );
+    });
+
     it('expect query rows', async () => {
         const warehouse = new SnowflakeWarehouseClient(credentials);
         const results = await warehouse.runQuery('fake sql');
@@ -169,63 +333,88 @@ describe('SnowflakeWarehouseClient', () => {
         );
     });
 
-    it('replaces an existing named PAT and scopes the new token to a role', async () => {
-        const execute = vi.fn(
-            ({ sqlText, complete }: { sqlText: string; complete: Mock }) => {
-                let rows: Record<string, string>[] = [];
-                if (sqlText.startsWith('SHOW USER')) {
-                    rows = [{ name: 'LIGHTDASH_ONBOARDING_11111111' }];
-                } else if (sqlText.startsWith('ALTER USER ADD')) {
-                    rows = [{ TOKEN_SECRET: 'pat-secret' }];
-                }
-                complete(
-                    undefined,
-                    { getColumns: () => queryColumnsMock },
-                    rows,
-                );
-            },
-        );
-        vi.mocked(createConnection).mockImplementationOnce(
-            () =>
+    it.each([
+        SnowflakeAuthenticationType.EXTERNAL_BROWSER,
+        SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE,
+        SnowflakeAuthenticationType.OAUTH,
+    ])(
+        'replaces an existing named PAT for a %s session and scopes the new token to a role',
+        async (authenticationType) => {
+            const execute = vi.fn(
                 ({
-                    connectAsync: vi.fn((callback) => {
-                        callback(undefined, {});
-                    }),
-                    execute,
-                }) as never,
-        );
-        const warehouse = new SnowflakeWarehouseClient({
-            ...credentials,
-            authenticationType: SnowflakeAuthenticationType.EXTERNAL_BROWSER,
-        });
+                    sqlText,
+                    complete,
+                }: {
+                    sqlText: string;
+                    complete: Mock;
+                }) => {
+                    let rows: Record<string, string>[] = [];
+                    if (sqlText.startsWith('SHOW USER')) {
+                        rows = [{ name: 'LIGHTDASH_ONBOARDING_11111111' }];
+                    } else if (sqlText.startsWith('ALTER USER ADD')) {
+                        rows = [{ TOKEN_SECRET: 'pat-secret' }];
+                    }
+                    complete(
+                        undefined,
+                        { getColumns: () => queryColumnsMock },
+                        rows,
+                    );
+                },
+            );
+            vi.mocked(createConnection).mockImplementationOnce(
+                () =>
+                    ({
+                        connect: vi.fn((callback) => {
+                            callback(undefined, {});
+                        }),
+                        connectAsync: vi.fn((callback) => {
+                            callback(undefined, {});
+                        }),
+                        execute,
+                    }) as never,
+            );
+            const warehouse = new SnowflakeWarehouseClient({
+                ...credentials,
+                authenticationType,
+                ...(authenticationType === SnowflakeAuthenticationType.OAUTH
+                    ? {
+                          refreshToken: 'refresh-token',
+                          token: oauthAccessToken(2_000_000_000),
+                      }
+                    : {}),
+            });
 
-        await expect(
-            warehouse.createProgrammaticAccessToken(
-                'LIGHTDASH_ONBOARDING_11111111',
-                365,
-                1440,
-                "ANALYTICS'ROLE",
-            ),
-        ).resolves.toEqual({
-            tokenName: 'LIGHTDASH_ONBOARDING_11111111',
-            tokenSecret: 'pat-secret',
-        });
-        expect(execute).toHaveBeenNthCalledWith(
-            2,
-            expect.objectContaining({
-                sqlText:
-                    'ALTER USER REMOVE PROGRAMMATIC ACCESS TOKEN LIGHTDASH_ONBOARDING_11111111',
-            }),
-        );
-        expect(execute).toHaveBeenNthCalledWith(
-            3,
-            expect.objectContaining({
-                sqlText: expect.stringContaining(
-                    "ROLE_RESTRICTION = 'ANALYTICS''ROLE'",
+            await expect(
+                warehouse.createProgrammaticAccessToken(
+                    'LIGHTDASH_ONBOARDING_11111111',
+                    365,
+                    1440,
+                    "ANALYTICS'ROLE",
                 ),
-            }),
-        );
-    });
+            ).resolves.toEqual({
+                tokenName: 'LIGHTDASH_ONBOARDING_11111111',
+                tokenSecret: 'pat-secret',
+            });
+            expect(execute).toHaveBeenNthCalledWith(
+                2,
+                expect.objectContaining({
+                    sqlText:
+                        'ALTER USER REMOVE PROGRAMMATIC ACCESS TOKEN LIGHTDASH_ONBOARDING_11111111',
+                }),
+            );
+            expect(execute).toHaveBeenNthCalledWith(
+                3,
+                expect.objectContaining({
+                    sqlText: expect.stringContaining(
+                        "ROLE_RESTRICTION = 'ANALYTICS''ROLE'",
+                    ),
+                }),
+            );
+            expect(warehouse.connectionOptions).not.toHaveProperty(
+                'disableConsoleLogin',
+            );
+        },
+    );
 
     it('discovers session defaults and capped inventory for external browser sessions', async () => {
         const execute = vi.fn(

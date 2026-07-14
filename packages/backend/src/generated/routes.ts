@@ -19635,7 +19635,15 @@ const models: TsoaRoute.Models = {
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     SnowflakeAuthenticationType: {
         dataType: 'refEnum',
-        enums: ['password', 'private_key', 'sso', 'external_browser', 'none'],
+        enums: [
+            'password',
+            'private_key',
+            'sso',
+            'oauth',
+            'oauth_authorization_code',
+            'external_browser',
+            'none',
+        ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     WeekDay: {
