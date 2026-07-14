@@ -1110,6 +1110,8 @@ export type ApiProjectResponse = {
     results: Project;
 };
 
+export type UpdateProjectDetails = Partial<Pick<Project, 'name'>>;
+
 export type ApiGetProjectGroupAccesses = {
     status: 'ok';
     results: ProjectGroupAccess[];

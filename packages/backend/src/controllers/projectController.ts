@@ -51,6 +51,7 @@ import {
     SqlChartAsCode,
     UpdateDefaultUserSpaces,
     UpdateMetadata,
+    UpdateProjectDetails,
     UpdateProjectMember,
     UserWarehouseCredentials,
     VirtualViewAsCode,
@@ -71,6 +72,7 @@ import {
     type CreateDashboardWithCharts,
     type DataTimezonePreviewRequest,
     type DuplicateDashboardParams,
+    type ProjectSummary,
     type Tag,
     type UpdateMultipleDashboards,
     type UpdatePreviewExpirationProjectSettings,
@@ -134,6 +136,32 @@ export class ProjectController extends BaseController {
             results: await this.services
                 .getProjectService()
                 .getProject(projectUuid, req.account!),
+        };
+    }
+
+    /**
+     * Update simple project details without changing its connection configuration
+     * @summary Update project details
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('{projectUuid}/details')
+    @OperationId('UpdateProjectDetails')
+    async updateProjectDetails(
+        @Path() projectUuid: string,
+        @Body() body: UpdateProjectDetails,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccess<ProjectSummary>> {
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectService()
+                .updateProjectDetails(projectUuid, req.account!, body),
         };
     }
 

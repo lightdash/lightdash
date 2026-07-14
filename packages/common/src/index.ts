@@ -271,6 +271,7 @@ export type {
     SslConfiguration,
     TrinoCredentials,
     UpdateProjectDbtSource,
+    UpdateProjectDetails,
     UpdateQueryTimezoneSettings,
     UpdateSchedulerSettings,
     WarehouseCredentials,

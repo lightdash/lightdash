@@ -40,6 +40,7 @@ import {
     stopPreviewHandler,
 } from './handlers/preview';
 import { renameHandler } from './handlers/renameHandler';
+import { renameProjectHandler } from './handlers/renameProject';
 import { runChartHandler } from './handlers/runChart';
 import { setProjectHandler, unsetProjectHandler } from './handlers/setProject';
 import { setWarehouseHandler } from './handlers/setWarehouse';
@@ -281,6 +282,12 @@ configProgram
     .description('Show the currently selected project')
     .option('--verbose', undefined, false)
     .action(getProjectHandler);
+configProgram
+    .command('rename-project')
+    .description('Rename the currently selected project')
+    .requiredOption('--name <name>', 'New project name')
+    .option('--verbose', undefined, false)
+    .action(renameProjectHandler);
 configProgram
     .command('unset-project')
     .description('Clear the currently selected project')
