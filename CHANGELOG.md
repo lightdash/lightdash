@@ -1,3 +1,10 @@
+## [0.3378.1](https://github.com/lightdash/lightdash/compare/0.3378.0...0.3378.1) (2026-07-14)
+
+
+### Bug Fixes
+
+* **e2e:** repair app e2e specs broken by Mantine 8 Select/Checkbox migration ([#25519](https://github.com/lightdash/lightdash/issues/25519)) ([8d4b533](https://github.com/lightdash/lightdash/commit/8d4b53363e9981e2da163e5a4e7621e4206019a1))
+
 # [0.3378.0](https://github.com/lightdash/lightdash/compare/0.3377.1...0.3378.0) (2026-07-14)
 
 
