@@ -170,6 +170,12 @@ import {
     type OAuthClientSummary,
 } from './oauth';
 import {
+    type ConnectionDiagnosticResult,
+    type GrantScriptResult,
+    type OnboardingConnectCodeResult,
+    type OnboardingProjectState,
+} from './onboarding';
+import {
     type DeleteOpenIdentity,
     type OpenIdIdentitySummary,
 } from './openIdIdentity';
@@ -1002,6 +1008,10 @@ type ApiResults =
     | Dashboard
     | DashboardBasicDetails[]
     | OnboardingStatus
+    | OnboardingProjectState
+    | ConnectionDiagnosticResult
+    | GrantScriptResult
+    | OnboardingConnectCodeResult
     | Dashboard[]
     | DeleteOpenIdentity
     | ApiFlashResults

@@ -14,6 +14,8 @@ import {
 } from '../components/ProjectConnection/ProjectConnectFlow/types';
 import UnsupportedWarehouse from '../components/ProjectConnection/ProjectConnectFlow/UnsupportedWarehouse';
 import { ProjectFormProvider } from '../components/ProjectConnection/ProjectFormProvider';
+import AgenticOnboardingWizard from '../features/agenticOnboarding/components/AgenticOnboardingWizard';
+import { useOnboardingFeatureFlag } from '../features/agenticOnboarding/hooks/useOnboardingFeatureFlag';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import useSearchParams from '../hooks/useSearchParams';
 import useApp from '../providers/App/useApp';
@@ -22,6 +24,8 @@ const CreateProject: FC = () => {
     const navigate = useNavigate();
     const { isInitialLoading: isLoadingOrganization, data: organization } =
         useOrganization();
+    const { isEnabled: isAgenticOnboardingEnabled, isLoading: isLoadingFlag } =
+        useOnboardingFeatureFlag();
 
     const {
         health: { data: health, isInitialLoading: isLoadingHealth },
@@ -32,8 +36,18 @@ const CreateProject: FC = () => {
 
     const [warehouse, setWarehouse] = useState<SelectedWarehouse>();
 
-    if (isLoadingHealth || !health || isLoadingOrganization || !organization) {
+    if (
+        isLoadingHealth ||
+        !health ||
+        isLoadingOrganization ||
+        !organization ||
+        isLoadingFlag
+    ) {
         return <PageSpinner />;
+    }
+
+    if (isAgenticOnboardingEnabled) {
+        return <AgenticOnboardingWizard />;
     }
 
     const isCreatingFirstProject = !!organization.needsProject;

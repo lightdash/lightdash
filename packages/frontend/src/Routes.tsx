@@ -771,6 +771,28 @@ const PRIVATE_ROUTES: RouteObject[] = [
                 },
             },
             {
+                path: '/createProject/:projectUuid/:onboardingStep',
+                handle: { hideAILauncher: true },
+                lazy: async () => {
+                    const AgenticOnboardingStepPage =
+                        await loadLazyRouteDefault(
+                            './features/agenticOnboarding/components/AgenticOnboardingStepPage',
+                            () =>
+                                import('./features/agenticOnboarding/components/AgenticOnboardingStepPage'),
+                        );
+                    return {
+                        Component: () => (
+                            <>
+                                <NavBar />
+                                <TrackPage name={PageName.CREATE_PROJECT}>
+                                    <AgenticOnboardingStepPage />
+                                </TrackPage>
+                            </>
+                        ),
+                    };
+                },
+            },
+            {
                 path: '/createProjectSettings/:projectUuid',
                 handle: { hideAILauncher: true },
                 element: (

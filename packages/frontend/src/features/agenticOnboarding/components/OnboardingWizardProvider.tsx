@@ -1,0 +1,145 @@
+import { OnboardingStepType, WarehouseTypes } from '@lightdash/common';
+import { useCallback, useMemo, type FC } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router';
+import useApp from '../../../providers/App/useApp';
+import OnboardingWizardContext, {
+    type OnboardingWizardContextValue,
+} from '../context/wizardContext';
+import { isValidMethodForWarehouse } from '../utils/methodRegistry';
+import { type ConnectMethodId } from '../utils/methodRegistry';
+
+const isWarehouseType = (value: string | null): value is WarehouseTypes =>
+    value !== null &&
+    (Object.values(WarehouseTypes) as string[]).includes(value);
+
+const deriveStepFromPath = (pathname: string): OnboardingStepType => {
+    if (pathname.endsWith('/dashboard')) return OnboardingStepType.DASHBOARD;
+    if (pathname.endsWith('/semantic-layer')) {
+        return OnboardingStepType.SEMANTIC_LAYER;
+    }
+    if (pathname.endsWith('/profile')) return OnboardingStepType.PROFILE;
+    return OnboardingStepType.CONNECT;
+};
+
+const STEP_PATH_SEGMENT: Record<OnboardingStepType, string | null> = {
+    [OnboardingStepType.CONNECT]: null,
+    [OnboardingStepType.PROFILE]: 'profile',
+    [OnboardingStepType.SEMANTIC_LAYER]: 'semantic-layer',
+    [OnboardingStepType.DASHBOARD]: 'dashboard',
+};
+
+const OnboardingWizardProvider: FC<React.PropsWithChildren<{}>> = ({
+    children,
+}) => {
+    const navigate = useNavigate();
+    const location = useLocation();
+    const { projectUuid: projectUuidParam } = useParams<{
+        projectUuid?: string;
+    }>();
+    const { health } = useApp();
+
+    const searchParams = new URLSearchParams(location.search);
+    const rawWarehouse = searchParams.get('warehouse');
+    const rawMethod = searchParams.get('method');
+
+    const warehouse = isWarehouseType(rawWarehouse) ? rawWarehouse : null;
+    const method =
+        warehouse &&
+        rawMethod &&
+        isValidMethodForWarehouse(warehouse, rawMethod)
+            ? (rawMethod as ConnectMethodId)
+            : null;
+
+    const step = deriveStepFromPath(location.pathname);
+    const projectUuid = projectUuidParam ?? null;
+
+    const setConnectParams = useCallback(
+        (next: {
+            warehouse: WarehouseTypes | null;
+            method: ConnectMethodId | null;
+        }) => {
+            const params = new URLSearchParams();
+            if (next.warehouse) params.set('warehouse', next.warehouse);
+            if (next.method) params.set('method', next.method);
+            const query = params.toString();
+            void navigate(`/createProject${query ? `?${query}` : ''}`, {
+                replace: true,
+            });
+        },
+        [navigate],
+    );
+
+    const selectWarehouse = useCallback(
+        (nextWarehouse: WarehouseTypes) =>
+            setConnectParams({ warehouse: nextWarehouse, method: null }),
+        [setConnectParams],
+    );
+
+    const selectMethod = useCallback(
+        (nextMethod: ConnectMethodId) => {
+            if (!warehouse) return;
+            setConnectParams({ warehouse, method: nextMethod });
+        },
+        [setConnectParams, warehouse],
+    );
+
+    const clearMethod = useCallback(
+        () => setConnectParams({ warehouse, method: null }),
+        [setConnectParams, warehouse],
+    );
+
+    const clearWarehouse = useCallback(
+        () => setConnectParams({ warehouse: null, method: null }),
+        [setConnectParams],
+    );
+
+    const goToProjectStep = useCallback(
+        (nextProjectUuid: string, nextStep: OnboardingStepType) => {
+            const segment = STEP_PATH_SEGMENT[nextStep];
+            if (!segment) {
+                void navigate('/createProject', { replace: true });
+                return;
+            }
+            void navigate(`/createProject/${nextProjectUuid}/${segment}`);
+        },
+        [navigate],
+    );
+
+    const value = useMemo<OnboardingWizardContextValue>(
+        () => ({
+            step,
+            warehouse,
+            method,
+            projectUuid,
+            siteUrl: health.data?.siteUrl ?? '',
+            version: health.data?.version ?? '',
+            demoDestination: '/',
+            selectWarehouse,
+            selectMethod,
+            clearMethod,
+            clearWarehouse,
+            goToProjectStep,
+        }),
+        [
+            step,
+            warehouse,
+            method,
+            projectUuid,
+            health.data?.siteUrl,
+            health.data?.version,
+            selectWarehouse,
+            selectMethod,
+            clearMethod,
+            clearWarehouse,
+            goToProjectStep,
+        ],
+    );
+
+    return (
+        <OnboardingWizardContext.Provider value={value}>
+            {children}
+        </OnboardingWizardContext.Provider>
+    );
+};
+
+export default OnboardingWizardProvider;
