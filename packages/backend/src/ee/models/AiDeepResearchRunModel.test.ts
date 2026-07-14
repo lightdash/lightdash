@@ -136,7 +136,7 @@ describe('AiDeepResearchRunModel', () => {
 
     it('uses a stable created-at and uuid keyset for event pagination', async () => {
         tracker.on.select(AiDeepResearchEventsTableName).responseOnce([]);
-        const createdAt = new Date('2026-07-13T12:00:00.000Z');
+        const createdAt = '2026-07-13 12:00:00.000001';
 
         await model.listEvents({
             aiDeepResearchRunUuid: RUN_UUID,
@@ -146,7 +146,7 @@ describe('AiDeepResearchRunModel', () => {
 
         const [select] = tracker.history.select;
         expect(select.sql).toContain(
-            '(created_at, ai_deep_research_event_uuid) > ($2, $3)',
+            '(created_at, ai_deep_research_event_uuid) > ($2::timestamp, $3::uuid)',
         );
         expect(select.sql).toContain('order by "created_at" asc');
         expect(select.sql).toContain(

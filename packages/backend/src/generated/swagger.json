@@ -23959,6 +23959,23 @@
             "ApiAiDeepResearchRunResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiDeepResearchRun_"
             },
+            "AiDeepResearchEffort": {
+                "type": "string",
+                "enum": ["high", "medium", "low", "xhigh"]
+            },
+            "AiDeepResearchRequestBody": {
+                "properties": {
+                    "effort": {
+                        "$ref": "#/components/schemas/AiDeepResearchEffort",
+                        "description": "Server-owned execution budget tier. Defaults to medium."
+                    },
+                    "prompt": {
+                        "type": "string"
+                    }
+                },
+                "required": ["prompt"],
+                "type": "object"
+            },
             "AiDeepResearchPhase": {
                 "type": "string",
                 "enum": [
@@ -53491,6 +53508,217 @@
                         "required": true,
                         "schema": {
                             "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/ee/projects/{projectUuid}/ai-deep-research": {
+            "post": {
+                "operationId": "createAiDeepResearchRun",
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiDeepResearchRunResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Start a durable Deep Research investigation.",
+                "summary": "Start Deep Research run",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AiDeepResearchRequestBody"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}": {
+            "get": {
+                "operationId": "getAiDeepResearchRun",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiDeepResearchRunResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the durable state and result of a Deep Research run.",
+                "summary": "Get Deep Research run",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "aiDeepResearchRunUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/events": {
+            "get": {
+                "operationId": "listAiDeepResearchEvents",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiDeepResearchEventsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "List persisted progress for a Deep Research run in chronological order.\nPass the returned cursor unchanged to receive only newer events. The\ncursor remains usable when no new events are available.",
+                "summary": "List Deep Research events",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "aiDeepResearchRunUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "cursor",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "limit",
+                        "required": false,
+                        "schema": {
+                            "format": "double",
+                            "type": "number"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/ee/projects/{projectUuid}/ai-deep-research/{aiDeepResearchRunUuid}/cancel": {
+            "post": {
+                "operationId": "cancelAiDeepResearchRun",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiDeepResearchRunResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Cancel a queued run immediately or request cancellation for a running run.",
+                "summary": "Cancel Deep Research run",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "aiDeepResearchRunUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
                         }
                     }
                 ]

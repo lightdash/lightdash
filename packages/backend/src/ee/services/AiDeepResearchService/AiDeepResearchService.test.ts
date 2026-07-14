@@ -20,6 +20,49 @@ const budget: AiDeepResearchBudget = {
     maxResultRows: 1_000,
 };
 
+const effortBudgets = [
+    {
+        effort: 'low',
+        budget: {
+            maxRuntimeMs: 15 * 60 * 1_000,
+            maxTokens: 150_000,
+            maxToolCalls: 50,
+            maxWarehouseQueries: 10,
+            maxResultRows: 5_000,
+        },
+    },
+    {
+        effort: 'medium',
+        budget: {
+            maxRuntimeMs: 30 * 60 * 1_000,
+            maxTokens: 500_000,
+            maxToolCalls: 125,
+            maxWarehouseQueries: 25,
+            maxResultRows: 10_000,
+        },
+    },
+    {
+        effort: 'high',
+        budget: {
+            maxRuntimeMs: 45 * 60 * 1_000,
+            maxTokens: 1_000_000,
+            maxToolCalls: 250,
+            maxWarehouseQueries: 50,
+            maxResultRows: 25_000,
+        },
+    },
+    {
+        effort: 'xhigh',
+        budget: {
+            maxRuntimeMs: 55 * 60 * 1_000,
+            maxTokens: 2_000_000,
+            maxToolCalls: 500,
+            maxWarehouseQueries: 100,
+            maxResultRows: 50_000,
+        },
+    },
+] as const;
+
 const report: AiDeepResearchReport = {
     summary: 'Summary',
     findings: [],
@@ -173,6 +216,75 @@ describe('AiDeepResearchService', () => {
                 featureFlagId: FeatureFlags.AiDeepResearch,
             });
             expect(run.status).toBe('queued');
+        });
+
+        it('uses the server-owned default budget when none is provided', async () => {
+            const { service, model } = buildService();
+
+            await service.createRun({
+                user: userWithProjectAccess(),
+                projectUuid: 'project-1',
+                prompt: 'Investigate revenue',
+            });
+
+            expect(model.create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    budget: effortBudgets[1].budget,
+                }),
+            );
+        });
+
+        it.each(effortBudgets)(
+            'maps $effort effort to its server-owned budget',
+            async ({ effort, budget: expectedBudget }) => {
+                const { service, model } = buildService();
+
+                await service.createRun({
+                    user: userWithProjectAccess(),
+                    projectUuid: 'project-1',
+                    prompt: 'Investigate revenue',
+                    effort,
+                });
+
+                expect(model.create).toHaveBeenCalledWith(
+                    expect.objectContaining({
+                        budget: expectedBudget,
+                    }),
+                );
+            },
+        );
+
+        it('rejects a blank prompt before persistence', async () => {
+            const { service, model } = buildService();
+
+            await expect(
+                service.createRun({
+                    user: userWithProjectAccess(),
+                    projectUuid: 'project-1',
+                    prompt: '   ',
+                }),
+            ).rejects.toBeInstanceOf(ParameterError);
+            expect(model.create).not.toHaveBeenCalled();
+        });
+
+        it('rejects run creation when Deep Research is disabled', async () => {
+            const { service, model } = buildService({
+                featureFlagModel: {
+                    get: vi.fn().mockResolvedValue({
+                        id: FeatureFlags.AiDeepResearch,
+                        enabled: false,
+                    }),
+                },
+            });
+
+            await expect(
+                service.createRun({
+                    user: userWithProjectAccess(),
+                    projectUuid: 'project-1',
+                    prompt: 'Investigate revenue',
+                }),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(model.create).not.toHaveBeenCalled();
         });
 
         it('marks the durable run failed when enqueueing fails', async () => {
@@ -389,6 +501,7 @@ describe('AiDeepResearchService', () => {
                             event_type: 'status_changed',
                             payload: { status: 'queued' },
                             created_at: new Date('2026-07-13T12:00:00.000Z'),
+                            cursor_created_at: '2026-07-13 12:00:00.000001',
                         },
                         {
                             ai_deep_research_event_uuid: 'event-2',
@@ -396,6 +509,7 @@ describe('AiDeepResearchService', () => {
                             event_type: 'status_changed',
                             payload: { status: 'running' },
                             created_at: new Date('2026-07-13T12:01:00.000Z'),
+                            cursor_created_at: '2026-07-13 12:01:00.000001',
                         },
                     ]),
                 },
@@ -417,6 +531,51 @@ describe('AiDeepResearchService', () => {
             });
         });
 
+        it('returns a cursor for the final event so clients can keep polling', async () => {
+            const { service } = buildService({
+                model: {
+                    listEvents: vi.fn().mockResolvedValue([
+                        {
+                            ai_deep_research_event_uuid:
+                                '9323399d-2329-4fd1-aa22-840c014f36f1',
+                            ai_deep_research_run_uuid: 'run-1',
+                            event_type: 'status_changed',
+                            payload: { status: 'queued' },
+                            created_at: new Date('2026-07-13T12:00:00.000Z'),
+                            cursor_created_at: '2026-07-13 12:00:00.000001',
+                        },
+                    ]),
+                },
+            });
+
+            const page = await service.listEvents({
+                user: userWithProjectAccess(),
+                projectUuid: 'project-1',
+                aiDeepResearchRunUuid: 'run-1',
+            });
+
+            expect(page.nextCursor).not.toBeNull();
+        });
+
+        it('keeps the current cursor when no new events are available', async () => {
+            const { service } = buildService();
+            const cursor = Buffer.from(
+                JSON.stringify({
+                    createdAt: '2026-07-13 12:00:00.000001',
+                    eventUuid: '9323399d-2329-4fd1-aa22-840c014f36f1',
+                }),
+            ).toString('base64url');
+
+            const page = await service.listEvents({
+                user: userWithProjectAccess(),
+                projectUuid: 'project-1',
+                aiDeepResearchRunUuid: 'run-1',
+                cursor,
+            });
+
+            expect(page).toEqual({ events: [], nextCursor: cursor });
+        });
+
         it('rejects malformed cursors', async () => {
             const { service } = buildService();
 
@@ -434,7 +593,7 @@ describe('AiDeepResearchService', () => {
             const { service, model } = buildService();
             const cursor = Buffer.from(
                 JSON.stringify({
-                    createdAt: '2026-07-13T12:00:00.000Z',
+                    createdAt: '2026-07-13 12:00:00.000001',
                     eventUuid: 'not-a-uuid',
                 }),
             ).toString('base64url');

@@ -97,6 +97,27 @@ describe('AiDeepResearchRunModel integration', () => {
         ]);
     });
 
+    it('does not replay the cursor event when Postgres stores microseconds', async () => {
+        const run = await createRun();
+        const [event] = await model.listEvents({
+            aiDeepResearchRunUuid: run.ai_deep_research_run_uuid,
+            cursor: null,
+            limit: 10,
+        });
+
+        expect(event.cursor_created_at).toMatch(/\.\d{6}$/);
+        expect(
+            await model.listEvents({
+                aiDeepResearchRunUuid: run.ai_deep_research_run_uuid,
+                cursor: {
+                    createdAt: event.cursor_created_at,
+                    eventUuid: event.ai_deep_research_event_uuid,
+                },
+                limit: 10,
+            }),
+        ).toEqual([]);
+    });
+
     it('settles a claim and cancellation race without losing cancellation', async () => {
         const run = await createRun();
 
