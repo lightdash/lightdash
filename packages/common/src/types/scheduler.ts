@@ -656,6 +656,7 @@ export type NotificationPayloadBase = {
             source: string;
             fileName: string;
         };
+        pdfPageCount?: number;
         failures?: PartialFailure[];
     };
     scheduler: CreateSchedulerAndTargets;

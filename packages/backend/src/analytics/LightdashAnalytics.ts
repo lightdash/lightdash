@@ -1242,6 +1242,7 @@ export type SchedulerNotificationJobEvent = BaseTrack & {
         type: 'slack' | 'email' | 'gsheets' | 'msteams' | 'googlechat';
         format?: SchedulerFormat;
         withPdf?: boolean;
+        pdfPageCount?: number;
         sendNow: boolean;
         isThresholdAlert?: boolean;
         targetCount?: number;

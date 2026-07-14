@@ -601,6 +601,7 @@ export default class SchedulerTask {
         let csvUrl;
         let csvUrls;
         let pdfFile;
+        let pdfPageCount: number | undefined;
         let failures: PartialFailure[] | undefined;
         let deliveryQueries: SchedulerDeliveryQuery[] | undefined;
 
@@ -675,12 +676,18 @@ export default class SchedulerTask {
                     )
                         ? scheduler.options
                         : undefined;
+                    const imagePagePerTabPdf =
+                        dashboardUuid !== null &&
+                        imageOptions?.withPdf === true &&
+                        imageOptions?.pagePerTab === true;
                     const unfurlImage = await this.unfurlService.unfurlImage({
                         url: minimalRenderUrl.href,
                         lightdashPage: pageType,
                         imageId,
                         authUserUuid: userUuid,
-                        withPdf: imageOptions?.withPdf,
+                        withPdf: imagePagePerTabPdf
+                            ? false
+                            : imageOptions?.withPdf,
                         gridWidth:
                             isDashboardScheduler(scheduler) &&
                             scheduler.customViewportWidth
@@ -700,6 +707,30 @@ export default class SchedulerTask {
                     pdfFile = unfurlImage.pdfFile;
                     imageUrl = unfurlImage.imageUrl;
                     imageS3Key = `${imageId}.png`;
+
+                    if (imagePagePerTabPdf && dashboardUuid) {
+                        const perTabResult =
+                            await this.unfurlService.unfurlPdfPerTab({
+                                minimalUrl: minimalRenderUrl.href,
+                                dashboardUuid,
+                                imageId,
+                                authUserUuid: userUuid,
+                                gridWidth:
+                                    isDashboardScheduler(scheduler) &&
+                                    scheduler.customViewportWidth
+                                        ? scheduler.customViewportWidth
+                                        : undefined,
+                                context: ScreenshotContext.SCHEDULED_DELIVERY,
+                                contextId: jobId,
+                                selectedTabs,
+                                sendNowSchedulerDashboardFilters:
+                                    exportOptions?.dashboardFilters,
+                                sendNowSchedulerFilters,
+                                sendNowSchedulerParameters,
+                            });
+                        pdfFile = perTabResult.pdfFile;
+                        pdfPageCount = perTabResult.pdfPageCount;
+                    }
 
                     if (this.fileStorageClient.isEnabled() && imageUrl) {
                         imageUrl =
@@ -736,29 +767,58 @@ export default class SchedulerTask {
             case SchedulerFormat.PDF:
                 try {
                     const pdfId = `pdf-notification-${nanoid()}`;
-                    const unfurlPdf = await this.unfurlService.unfurlImage({
-                        url: minimalRenderUrl.href,
-                        lightdashPage: pageType,
-                        imageId: pdfId,
-                        authUserUuid: userUuid,
-                        outputFormat: 'pdf',
-                        gridWidth:
-                            isDashboardScheduler(scheduler) &&
-                            scheduler.customViewportWidth
-                                ? scheduler.customViewportWidth
-                                : undefined,
-                        context: ScreenshotContext.SCHEDULED_DELIVERY,
-                        contextId: jobId,
-                        selectedTabs,
-                        sendNowSchedulerDashboardFilters:
-                            exportOptions?.dashboardFilters,
-                        sendNowSchedulerFilters,
-                        sendNowSchedulerParameters,
-                    });
-                    if (!unfurlPdf.pdfFile) {
-                        throw new Error('Unable to generate PDF');
+                    const pagePerTab =
+                        dashboardUuid !== null &&
+                        'pagePerTab' in options &&
+                        options.pagePerTab === true;
+
+                    if (pagePerTab && dashboardUuid) {
+                        const perTabResult =
+                            await this.unfurlService.unfurlPdfPerTab({
+                                minimalUrl: minimalRenderUrl.href,
+                                dashboardUuid,
+                                imageId: pdfId,
+                                authUserUuid: userUuid,
+                                gridWidth:
+                                    isDashboardScheduler(scheduler) &&
+                                    scheduler.customViewportWidth
+                                        ? scheduler.customViewportWidth
+                                        : undefined,
+                                context: ScreenshotContext.SCHEDULED_DELIVERY,
+                                contextId: jobId,
+                                selectedTabs,
+                                sendNowSchedulerDashboardFilters:
+                                    exportOptions?.dashboardFilters,
+                                sendNowSchedulerFilters,
+                                sendNowSchedulerParameters,
+                            });
+                        pdfFile = perTabResult.pdfFile;
+                        pdfPageCount = perTabResult.pdfPageCount;
+                    } else {
+                        const unfurlPdf = await this.unfurlService.unfurlImage({
+                            url: minimalRenderUrl.href,
+                            lightdashPage: pageType,
+                            imageId: pdfId,
+                            authUserUuid: userUuid,
+                            outputFormat: 'pdf',
+                            gridWidth:
+                                isDashboardScheduler(scheduler) &&
+                                scheduler.customViewportWidth
+                                    ? scheduler.customViewportWidth
+                                    : undefined,
+                            context: ScreenshotContext.SCHEDULED_DELIVERY,
+                            contextId: jobId,
+                            selectedTabs,
+                            sendNowSchedulerDashboardFilters:
+                                exportOptions?.dashboardFilters,
+                            sendNowSchedulerFilters,
+                            sendNowSchedulerParameters,
+                        });
+                        if (!unfurlPdf.pdfFile) {
+                            throw new Error('Unable to generate PDF');
+                        }
+                        pdfFile = unfurlPdf.pdfFile;
                     }
-                    pdfFile = unfurlPdf.pdfFile;
                 } catch (error) {
                     if (this.slackClient.isEnabled && isFinalAttempt) {
                         await this.slackClient.postMessageToNotificationChannel(
@@ -1292,6 +1352,7 @@ export default class SchedulerTask {
             csvUrl,
             csvUrls,
             pdfFile,
+            pdfPageCount,
             failures,
             deliveryQueries,
         };
@@ -1386,6 +1447,7 @@ export default class SchedulerTask {
                 csvUrl,
                 csvUrls,
                 pdfFile,
+                pdfPageCount,
                 failures,
             } = notificationPageData;
 
@@ -1594,6 +1656,7 @@ export default class SchedulerTask {
                     groupId: notification.jobGroup,
                     type: 'slack',
                     format,
+                    pdfPageCount: pdfFile ? pdfPageCount : undefined,
                     ...getSchedulerResourceTypeAndId(scheduler),
                     sendNow: schedulerUuid === undefined,
                     isThresholdAlert: scheduler.thresholds !== undefined,
@@ -1765,6 +1828,7 @@ export default class SchedulerTask {
                 csvUrl,
                 csvUrls,
                 pdfFile,
+                pdfPageCount,
                 failures,
             } = notificationPageData;
 
@@ -1856,6 +1920,7 @@ export default class SchedulerTask {
                     groupId: notification.jobGroup,
                     type: 'msteams',
                     format,
+                    pdfPageCount: pdfFile ? pdfPageCount : undefined,
                     ...getSchedulerResourceTypeAndId(scheduler),
                     sendNow: schedulerUuid === undefined,
                     isThresholdAlert: scheduler.thresholds !== undefined,
@@ -2907,6 +2972,7 @@ export default class SchedulerTask {
                 csvUrl,
                 csvUrls,
                 pdfFile,
+                pdfPageCount,
                 failures,
             } = notificationPageData;
 
@@ -3099,6 +3165,7 @@ export default class SchedulerTask {
                     type: 'email',
                     format,
                     withPdf: pdfFile !== undefined,
+                    pdfPageCount: pdfFile ? pdfPageCount : undefined,
                     ...getSchedulerResourceTypeAndId(scheduler),
                     sendNow: schedulerUuid === undefined,
                     isThresholdAlert: scheduler.thresholds !== undefined,
