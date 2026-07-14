@@ -25,7 +25,7 @@ describe('CLI YAML-only project', () => {
                 expect(result.stderr).to.contain(
                     'Successfully compiled project',
                 );
-                expect(result.code).to.eq(0);
+                expect(result.exitCode).to.eq(0);
             });
         });
     });
@@ -61,7 +61,7 @@ describe('CLI YAML-only project', () => {
                     // Should successfully deploy without needing dbt
                     expect(result.stderr).to.contain('users');
                     expect(result.stderr).to.contain('Successfully deployed');
-                    expect(result.code).to.eq(0);
+                    expect(result.exitCode).to.eq(0);
 
                     // Extract project UUID for cleanup
                     const matches = result.stderr.match(/projectUuid=([\w-]*)/);

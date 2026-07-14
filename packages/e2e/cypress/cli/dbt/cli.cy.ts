@@ -255,7 +255,7 @@ describe('CLI', () => {
                 log: true,
             },
         ).then((result) => {
-            expect(result.code).to.eq(1);
+            expect(result.exitCode).to.eq(1);
             expect(result.stderr).to.contain(
                 'Failed to compile project. Found 2 errors',
             );

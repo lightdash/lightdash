@@ -94,7 +94,10 @@ const configureBigqueryWarehouse = (
         'Service Account (JSON key file)',
     ); */
 
-    cy.get('[type="file"]').attachFile(warehouseConfig.bigQuery.keyFile);
+    cy.get('[type="file"]').selectFile(
+        `cypress/fixtures/${warehouseConfig.bigQuery.keyFile}`,
+        { force: true },
+    );
 
     // DBT
     cy.selectMantine('dbt.type', 'dbt local server');
