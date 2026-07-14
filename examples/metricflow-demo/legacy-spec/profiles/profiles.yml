@@ -7,7 +7,7 @@ metricflow_demo_legacy:
     dev:
       type: postgres
       host: "{{ env_var('PGHOST', 'localhost') }}"
-      port: "{{ env_var('PGPORT', '5532') | as_number }}"
+      port: "{{ env_var('PGPORT', '5432') | as_number }}"
       user: "{{ env_var('PGUSER', 'postgres') }}"
       pass: "{{ env_var('PGPASSWORD', 'password') }}"
       dbname: "{{ env_var('PGDATABASE', 'postgres') }}"
