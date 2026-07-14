@@ -2238,3 +2238,143 @@ describe('Project member permissions', () => {
         },
     );
 });
+
+describe('org-only scopes do not leak into project-scoped roles', () => {
+    // CASL ignores conditions on bare subject-type checks, so a
+    // project-scoped rule for an org-keyed subject would still turn
+    // `can('manage', 'Organization')` true. Project builds must not emit
+    // org-only scopes at all.
+    const admin = defineAbilityForProjectMember(PROJECT_ADMIN);
+
+    it('project admin has no org-management abilities (bare checks)', () => {
+        expect(admin.can('manage', 'Organization')).toEqual(false);
+        expect(admin.can('manage', 'OrganizationMemberProfile')).toEqual(false);
+        expect(admin.can('manage', 'Group')).toEqual(false);
+        expect(admin.can('manage', 'InviteLink')).toEqual(false);
+        expect(admin.can('manage', 'GitIntegration')).toEqual(false);
+        expect(admin.can('impersonate', 'User')).toEqual(false);
+        expect(admin.can('manage', 'OrganizationWarehouseCredentials')).toEqual(
+            false,
+        );
+        expect(admin.can('manage', 'OrganizationDesign')).toEqual(false);
+    });
+
+    it('project admin has no PAT ability (deployment gate stays intact)', () => {
+        expect(admin.can('manage', 'PersonalAccessToken')).toEqual(false);
+    });
+
+    it('project viewer gets no org view abilities from the project layer', () => {
+        const viewer = defineAbilityForProjectMember(PROJECT_VIEWER);
+        expect(viewer.can('view', 'Organization')).toEqual(false);
+        expect(viewer.can('view', 'OrganizationMemberProfile')).toEqual(false);
+        expect(viewer.can('view', 'OrganizationDesign')).toEqual(false);
+    });
+
+    it('project-scoped abilities are unaffected', () => {
+        expect(
+            admin.can('manage', subject('Project', { projectUuid })),
+        ).toEqual(true);
+        expect(
+            admin.can(
+                'manage',
+                subject('Dashboard', {
+                    projectUuid,
+                    inheritsFromOrgOrProject: true,
+                }),
+            ),
+        ).toEqual(true);
+    });
+});
+
+describe('promote permissions', () => {
+    const developer = defineAbilityForProjectMember(PROJECT_DEVELOPER);
+    const admin = defineAbilityForProjectMember(PROJECT_ADMIN);
+    const editor = defineAbilityForProjectMember(PROJECT_EDITOR);
+
+    it('developer cannot promote content in spaces they have no access to', () => {
+        expect(
+            developer.can(
+                'promote',
+                subject('SavedChart', { projectUuid, access: [] }),
+            ),
+        ).toEqual(false);
+        expect(
+            developer.can(
+                'promote',
+                subject('Dashboard', { projectUuid, access: [] }),
+            ),
+        ).toEqual(false);
+    });
+
+    it('developer can promote content in spaces where they are editor', () => {
+        const access = [
+            {
+                userUuid: PROJECT_DEVELOPER.userUuid,
+                role: SpaceMemberRole.EDITOR,
+            },
+        ];
+        expect(
+            developer.can(
+                'promote',
+                subject('SavedChart', { projectUuid, access }),
+            ),
+        ).toEqual(true);
+        expect(
+            developer.can(
+                'promote',
+                subject('Dashboard', { projectUuid, access }),
+            ),
+        ).toEqual(true);
+    });
+
+    it('developer cannot promote with only space viewer access', () => {
+        const access = [
+            {
+                userUuid: PROJECT_DEVELOPER.userUuid,
+                role: SpaceMemberRole.VIEWER,
+            },
+        ];
+        expect(
+            developer.can(
+                'promote',
+                subject('SavedChart', { projectUuid, access }),
+            ),
+        ).toEqual(false);
+    });
+
+    it('admin can promote content project-wide', () => {
+        expect(
+            admin.can(
+                'promote',
+                subject('SavedChart', { projectUuid, access: [] }),
+            ),
+        ).toEqual(true);
+        expect(
+            admin.can(
+                'promote',
+                subject('Dashboard', { projectUuid, access: [] }),
+            ),
+        ).toEqual(true);
+    });
+
+    it('editor promote follows space access (manage wildcard), never project-wide', () => {
+        const access = [
+            {
+                userUuid: PROJECT_EDITOR.userUuid,
+                role: SpaceMemberRole.EDITOR,
+            },
+        ];
+        expect(
+            editor.can(
+                'promote',
+                subject('SavedChart', { projectUuid, access }),
+            ),
+        ).toEqual(true);
+        expect(
+            editor.can(
+                'promote',
+                subject('SavedChart', { projectUuid, access: [] }),
+            ),
+        ).toEqual(false);
+    });
+});

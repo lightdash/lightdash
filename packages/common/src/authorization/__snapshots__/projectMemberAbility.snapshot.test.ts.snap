@@ -1,0 +1,5231 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`project system-role rules snapshot > admin rules in own preview project match snapshot 1`] = `
+[
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgent",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgent",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgentDocument",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgentDocument",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgentThread",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+      "userUuid": "user-uuid",
+    },
+    "subject": "AiAgentThread",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgentThread",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+      "userUuid": "user-uuid",
+    },
+    "subject": "AiAgentThread",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgentThread",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiDeepResearch",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Analytics",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ChangeCsvResults",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "CompileProject",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ContentAsCode",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "projectUuid": "project-uuid",
+      "type": "PREVIEW",
+    },
+    "subject": "ContentAsCode",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "type": "PREVIEW",
+      "upstreamProjectUuid": "project-uuid",
+    },
+    "subject": "ContentAsCode",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ContentAsCode",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ContentVerification",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ContentVerification",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "CustomFields",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "CustomSql",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "CustomSqlTableCalculations",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "promote",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "promote",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "promote",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DashboardComments",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DashboardComments",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DashboardComments",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataAppDependency",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DeletedContent",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DeployProject",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "projectUuid": "project-uuid",
+      "type": "PREVIEW",
+    },
+    "subject": "DeployProject",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "type": "PREVIEW",
+      "upstreamProjectUuid": "project-uuid",
+    },
+    "subject": "DeployProject",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Explore",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Explore",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ExportCsv",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ExternalConnection",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ExternalConnection",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "GoogleSheets",
+  },
+  {
+    "action": "create",
+    "subject": "Job",
+  },
+  {
+    "action": "manage",
+    "subject": "Job",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Job",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "userUuid": "user-uuid",
+    },
+    "subject": "Job",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+    },
+    "subject": "JobStatus",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "JobStatus",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "MetricsTree",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "MetricsTree",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "PinnedItems",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "PinnedItems",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "PreAggregation",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "type": "PREVIEW",
+      "upstreamProjectUuid": "project-uuid",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "delete",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "projectUuid": "project-uuid",
+      "type": "PREVIEW",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "delete",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "type": "PREVIEW",
+      "upstreamProjectUuid": "project-uuid",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "delete",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "update",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "update",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "projectUuid": "project-uuid",
+      "type": "PREVIEW",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "update",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "type": "PREVIEW",
+      "upstreamProjectUuid": "project-uuid",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "promote",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "promote",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "promote",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ScheduledDeliveries",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+      "userUuid": "user-uuid",
+    },
+    "subject": "ScheduledDeliveries",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ScheduledDeliveries",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SemanticViewer",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SemanticViewer",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SemanticViewer",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "isProtectedBranch": false,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SourceCode",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SourceCode",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$exists": false,
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SpotlightTableConfig",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SpotlightTableConfig",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SqlRunner",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Tags",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Tags",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "UnderlyingData",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Validation",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "VirtualView",
+  },
+  {
+    "action": "delete",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "VirtualView",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "VirtualView",
+  },
+]
+`;
+
+exports[`project system-role rules snapshot > admin rules match snapshot 1`] = `
+[
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgent",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgent",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgentDocument",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgentDocument",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgentThread",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+      "userUuid": "user-uuid",
+    },
+    "subject": "AiAgentThread",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgentThread",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+      "userUuid": "user-uuid",
+    },
+    "subject": "AiAgentThread",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgentThread",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiDeepResearch",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Analytics",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ChangeCsvResults",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "CompileProject",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ContentAsCode",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "projectUuid": "project-uuid",
+      "type": "PREVIEW",
+    },
+    "subject": "ContentAsCode",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "type": "PREVIEW",
+      "upstreamProjectUuid": "project-uuid",
+    },
+    "subject": "ContentAsCode",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ContentAsCode",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ContentVerification",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ContentVerification",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "CustomFields",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "CustomSql",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "CustomSqlTableCalculations",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "promote",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "promote",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "promote",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DashboardComments",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DashboardComments",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DashboardComments",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataAppDependency",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DeletedContent",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DeployProject",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "projectUuid": "project-uuid",
+      "type": "PREVIEW",
+    },
+    "subject": "DeployProject",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "type": "PREVIEW",
+      "upstreamProjectUuid": "project-uuid",
+    },
+    "subject": "DeployProject",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Explore",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ExportCsv",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ExternalConnection",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ExternalConnection",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "GoogleSheets",
+  },
+  {
+    "action": "create",
+    "subject": "Job",
+  },
+  {
+    "action": "manage",
+    "subject": "Job",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Job",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "userUuid": "user-uuid",
+    },
+    "subject": "Job",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+    },
+    "subject": "JobStatus",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "JobStatus",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "MetricsTree",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "MetricsTree",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "PinnedItems",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "PinnedItems",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "PreAggregation",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "type": "PREVIEW",
+      "upstreamProjectUuid": "project-uuid",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "delete",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "projectUuid": "project-uuid",
+      "type": "PREVIEW",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "delete",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "type": "PREVIEW",
+      "upstreamProjectUuid": "project-uuid",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "delete",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "update",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "update",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "projectUuid": "project-uuid",
+      "type": "PREVIEW",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "update",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "type": "PREVIEW",
+      "upstreamProjectUuid": "project-uuid",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "promote",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "promote",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "promote",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ScheduledDeliveries",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+      "userUuid": "user-uuid",
+    },
+    "subject": "ScheduledDeliveries",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ScheduledDeliveries",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SemanticViewer",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SemanticViewer",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SemanticViewer",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "isProtectedBranch": false,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SourceCode",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SourceCode",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SpotlightTableConfig",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SpotlightTableConfig",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SqlRunner",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Tags",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Tags",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "UnderlyingData",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Validation",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "VirtualView",
+  },
+  {
+    "action": "delete",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "VirtualView",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "VirtualView",
+  },
+]
+`;
+
+exports[`project system-role rules snapshot > developer rules in own preview project match snapshot 1`] = `
+[
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgent",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgent",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgentDocument",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgentDocument",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgentThread",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+      "userUuid": "user-uuid",
+    },
+    "subject": "AiAgentThread",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+      "userUuid": "user-uuid",
+    },
+    "subject": "AiAgentThread",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiDeepResearch",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ChangeCsvResults",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "CompileProject",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ContentAsCode",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "projectUuid": "project-uuid",
+      "type": "PREVIEW",
+    },
+    "subject": "ContentAsCode",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "type": "PREVIEW",
+      "upstreamProjectUuid": "project-uuid",
+    },
+    "subject": "ContentAsCode",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ContentAsCode",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ContentVerification",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ContentVerification",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "CustomFields",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "CustomSql",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "CustomSqlTableCalculations",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "promote",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "promote",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DashboardComments",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DashboardComments",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DashboardComments",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DeployProject",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "projectUuid": "project-uuid",
+      "type": "PREVIEW",
+    },
+    "subject": "DeployProject",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "type": "PREVIEW",
+      "upstreamProjectUuid": "project-uuid",
+    },
+    "subject": "DeployProject",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Explore",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Explore",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ExportCsv",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ExternalConnection",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "GoogleSheets",
+  },
+  {
+    "action": "create",
+    "subject": "Job",
+  },
+  {
+    "action": "manage",
+    "subject": "Job",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Job",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "userUuid": "user-uuid",
+    },
+    "subject": "Job",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+    },
+    "subject": "JobStatus",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "JobStatus",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "MetricsTree",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "MetricsTree",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "PinnedItems",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "PinnedItems",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "PreAggregation",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "type": "PREVIEW",
+      "upstreamProjectUuid": "project-uuid",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "delete",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "projectUuid": "project-uuid",
+      "type": "PREVIEW",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "delete",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "type": "PREVIEW",
+      "upstreamProjectUuid": "project-uuid",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "update",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "update",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "projectUuid": "project-uuid",
+      "type": "PREVIEW",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "update",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "type": "PREVIEW",
+      "upstreamProjectUuid": "project-uuid",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "promote",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "promote",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ScheduledDeliveries",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+      "userUuid": "user-uuid",
+    },
+    "subject": "ScheduledDeliveries",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SemanticViewer",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SemanticViewer",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SemanticViewer",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "isProtectedBranch": false,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SourceCode",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SourceCode",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$exists": false,
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SpotlightTableConfig",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SpotlightTableConfig",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SqlRunner",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Tags",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Tags",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "UnderlyingData",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Validation",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "VirtualView",
+  },
+  {
+    "action": "delete",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "VirtualView",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "VirtualView",
+  },
+]
+`;
+
+exports[`project system-role rules snapshot > developer rules match snapshot 1`] = `
+[
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgent",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgent",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgentDocument",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgentDocument",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgentThread",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+      "userUuid": "user-uuid",
+    },
+    "subject": "AiAgentThread",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+      "userUuid": "user-uuid",
+    },
+    "subject": "AiAgentThread",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiDeepResearch",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ChangeCsvResults",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "CompileProject",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ContentAsCode",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "projectUuid": "project-uuid",
+      "type": "PREVIEW",
+    },
+    "subject": "ContentAsCode",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "type": "PREVIEW",
+      "upstreamProjectUuid": "project-uuid",
+    },
+    "subject": "ContentAsCode",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ContentAsCode",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ContentVerification",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ContentVerification",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "CustomFields",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "CustomSql",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "CustomSqlTableCalculations",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "promote",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "promote",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DashboardComments",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DashboardComments",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DashboardComments",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DeployProject",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "projectUuid": "project-uuid",
+      "type": "PREVIEW",
+    },
+    "subject": "DeployProject",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "type": "PREVIEW",
+      "upstreamProjectUuid": "project-uuid",
+    },
+    "subject": "DeployProject",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Explore",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ExportCsv",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ExternalConnection",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "GoogleSheets",
+  },
+  {
+    "action": "create",
+    "subject": "Job",
+  },
+  {
+    "action": "manage",
+    "subject": "Job",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Job",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "userUuid": "user-uuid",
+    },
+    "subject": "Job",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+    },
+    "subject": "JobStatus",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "JobStatus",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "MetricsTree",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "MetricsTree",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "PinnedItems",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "PinnedItems",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "PreAggregation",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "type": "PREVIEW",
+      "upstreamProjectUuid": "project-uuid",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "delete",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "projectUuid": "project-uuid",
+      "type": "PREVIEW",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "delete",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "type": "PREVIEW",
+      "upstreamProjectUuid": "project-uuid",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "update",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "update",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "projectUuid": "project-uuid",
+      "type": "PREVIEW",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "update",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "type": "PREVIEW",
+      "upstreamProjectUuid": "project-uuid",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "promote",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "promote",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ScheduledDeliveries",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+      "userUuid": "user-uuid",
+    },
+    "subject": "ScheduledDeliveries",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SemanticViewer",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SemanticViewer",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SemanticViewer",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "isProtectedBranch": false,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SourceCode",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SourceCode",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SpotlightTableConfig",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SpotlightTableConfig",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SqlRunner",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Tags",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Tags",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "UnderlyingData",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Validation",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "VirtualView",
+  },
+  {
+    "action": "delete",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "VirtualView",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "VirtualView",
+  },
+]
+`;
+
+exports[`project system-role rules snapshot > editor rules in own preview project match snapshot 1`] = `
+[
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgent",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgentDocument",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgentThread",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+      "userUuid": "user-uuid",
+    },
+    "subject": "AiAgentThread",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+      "userUuid": "user-uuid",
+    },
+    "subject": "AiAgentThread",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ChangeCsvResults",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ContentAsCode",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ContentVerification",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DashboardComments",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DashboardComments",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DashboardComments",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Explore",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ExportCsv",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ExternalConnection",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "GoogleSheets",
+  },
+  {
+    "action": "create",
+    "subject": "Job",
+  },
+  {
+    "action": "manage",
+    "subject": "Job",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Job",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "userUuid": "user-uuid",
+    },
+    "subject": "Job",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+    },
+    "subject": "JobStatus",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "MetricsTree",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "MetricsTree",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "PinnedItems",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "PinnedItems",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ScheduledDeliveries",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+      "userUuid": "user-uuid",
+    },
+    "subject": "ScheduledDeliveries",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SemanticViewer",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SemanticViewer",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SemanticViewer",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SpotlightTableConfig",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Tags",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Tags",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "UnderlyingData",
+  },
+]
+`;
+
+exports[`project system-role rules snapshot > editor rules match snapshot 1`] = `
+[
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgent",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgentDocument",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgentThread",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+      "userUuid": "user-uuid",
+    },
+    "subject": "AiAgentThread",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+      "userUuid": "user-uuid",
+    },
+    "subject": "AiAgentThread",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ChangeCsvResults",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ContentAsCode",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ContentVerification",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DashboardComments",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DashboardComments",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DashboardComments",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Explore",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ExportCsv",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ExternalConnection",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "GoogleSheets",
+  },
+  {
+    "action": "create",
+    "subject": "Job",
+  },
+  {
+    "action": "manage",
+    "subject": "Job",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Job",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "userUuid": "user-uuid",
+    },
+    "subject": "Job",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+    },
+    "subject": "JobStatus",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "MetricsTree",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "MetricsTree",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "PinnedItems",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "PinnedItems",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ScheduledDeliveries",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+      "userUuid": "user-uuid",
+    },
+    "subject": "ScheduledDeliveries",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SemanticViewer",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SemanticViewer",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SemanticViewer",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SpotlightTableConfig",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Tags",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Tags",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "UnderlyingData",
+  },
+]
+`;
+
+exports[`project system-role rules snapshot > interactive_viewer rules in own preview project match snapshot 1`] = `
+[
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgent",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgentDocument",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgentThread",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+      "userUuid": "user-uuid",
+    },
+    "subject": "AiAgentThread",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ChangeCsvResults",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ContentVerification",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DashboardComments",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DashboardComments",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Explore",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ExportCsv",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ExternalConnection",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "GoogleSheets",
+  },
+  {
+    "action": "create",
+    "subject": "Job",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Job",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "userUuid": "user-uuid",
+    },
+    "subject": "Job",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+    },
+    "subject": "JobStatus",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "MetricsTree",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "PinnedItems",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ScheduledDeliveries",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+      "userUuid": "user-uuid",
+    },
+    "subject": "ScheduledDeliveries",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SemanticViewer",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SemanticViewer",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SpotlightTableConfig",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Tags",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "UnderlyingData",
+  },
+]
+`;
+
+exports[`project system-role rules snapshot > interactive_viewer rules match snapshot 1`] = `
+[
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgent",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgentDocument",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "AiAgentThread",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+      "userUuid": "user-uuid",
+    },
+    "subject": "AiAgentThread",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ChangeCsvResults",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ContentVerification",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DashboardComments",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DashboardComments",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DataApp",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Explore",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ExportCsv",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ExternalConnection",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "GoogleSheets",
+  },
+  {
+    "action": "create",
+    "subject": "Job",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Job",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "userUuid": "user-uuid",
+    },
+    "subject": "Job",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+    },
+    "subject": "JobStatus",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "MetricsTree",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "PinnedItems",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "create",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ScheduledDeliveries",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+      "userUuid": "user-uuid",
+    },
+    "subject": "ScheduledDeliveries",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "editor",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SemanticViewer",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SemanticViewer",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "role": "admin",
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SpotlightTableConfig",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Tags",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "UnderlyingData",
+  },
+]
+`;
+
+exports[`project system-role rules snapshot > viewer rules in own preview project match snapshot 1`] = `
+[
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+      "userUuid": "user-uuid",
+    },
+    "subject": "AiAgentThread",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DashboardComments",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ExportCsv",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+    },
+    "subject": "JobStatus",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "MetricsTree",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "PinnedItems",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SpotlightTableConfig",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Tags",
+  },
+]
+`;
+
+exports[`project system-role rules snapshot > viewer rules match snapshot 1`] = `
+[
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+      "userUuid": "user-uuid",
+    },
+    "subject": "AiAgentThread",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Dashboard",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "DashboardComments",
+  },
+  {
+    "action": "manage",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "ExportCsv",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "createdByUserUuid": "user-uuid",
+    },
+    "subject": "JobStatus",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "MetricsTree",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "PinnedItems",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Project",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SavedChart",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "inheritsFromOrgOrProject": true,
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "access": {
+        "$elemMatch": {
+          "userUuid": "user-uuid",
+        },
+      },
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Space",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "SpotlightTableConfig",
+  },
+  {
+    "action": "view",
+    "conditions": {
+      "projectUuid": "project-uuid",
+    },
+    "subject": "Tags",
+  },
+]
+`;

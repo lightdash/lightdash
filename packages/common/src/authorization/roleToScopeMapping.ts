@@ -28,6 +28,8 @@ const BASE_ROLE_SCOPES = {
         // Org-context view scopes — every member-or-above can see the
         // org's own metadata + the list of fellow members. Granted by
         // `applyOrganizationMemberStaticAbilities.member` / `viewer`.
+        // Org-only, so filtered out of project-context builds; they only
+        // fire when the role is assigned at org level.
         'view:Organization',
         'view:OrganizationMemberProfile',
 
@@ -132,11 +134,11 @@ const BASE_ROLE_SCOPES = {
         'view:SourceCode',
         'manage:SourceCode',
 
-        // Promote to upstream project. Both broad + @space variants
-        // surface in `applyOrganizationMemberStaticAbilities.developer`.
-        'promote:Dashboard',
+        // Promote to upstream project, gated on space editor/admin access —
+        // mirrors the pre-scopes behavior where promote came from the CASL
+        // `manage` wildcard on space-conditioned content rules. The broad
+        // (project-wide) promote scopes live in the ADMIN tier.
         'promote:Dashboard@space',
-        'promote:SavedChart',
         'promote:SavedChart@space',
 
         // Enterprise scopes
@@ -170,12 +172,17 @@ const BASE_ROLE_SCOPES = {
         'view:AiAgentThread', // All threads in project
         'manage:AiAgentThread', // All threads in project
         'manage:ScheduledDeliveries',
+        // Project-wide promote regardless of space access. Below admin,
+        // promote is gated on space access via the @space variants.
+        'promote:Dashboard',
+        'promote:SavedChart',
 
-        // Organization-management scopes. These are no-ops at project
-        // assignment (CASL conditions match `organizationUuid`-keyed
-        // subjects only) but are necessary at the role's intended ORG
-        // assignment — service accounts with `roleUuid`, or any future
-        // org-level human assignment. See `docs/authentication-and-roles.md`
+        // Organization-management scopes. Filtered out entirely in
+        // project-context builds (`applyScopeAbilities` skips org-only
+        // scopes when `projectUuid` is set) but active at the role's
+        // intended ORG assignment — service accounts with `roleUuid`, or
+        // any future org-level human assignment. See
+        // `docs/authentication-and-roles.md`
         // → "Project vs organization assignment of custom roles".
         // Granted at `applyOrganizationMemberStaticAbilities.admin`.
         'manage:OrganizationMemberProfile',
@@ -191,12 +198,13 @@ const BASE_ROLE_SCOPES = {
         // deployment-wide `PAT_ALLOWED_ORG_ROLES` env var — that path
         // remains the source of truth for system roles. Listing it
         // here lets admin-clone custom roles surface the toggle in the
-        // role builder. **Caveat:** toggling it in a custom role
-        // *bypasses* the dynamic gate, since CASL is additive (the
+        // role builder. **Caveat:** toggling it in an ORG-level custom
+        // role *bypasses* the dynamic gate, since CASL is additive (the
         // static scope-built rule wins regardless of deployment
-        // config). Operators who clone admin into a lower-privilege
-        // role should untick it manually if their deployment intends
-        // to restrict PAT to specific tiers.
+        // config). Project-context builds filter it out with the other
+        // org-only scopes. Operators who clone admin into a
+        // lower-privilege org role should untick it manually if their
+        // deployment intends to restrict PAT to specific tiers.
         'manage:PersonalAccessToken',
     ],
 } as const;

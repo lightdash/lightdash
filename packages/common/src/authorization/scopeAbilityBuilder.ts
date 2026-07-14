@@ -2,7 +2,7 @@ import { type AbilityBuilder } from '@casl/ability';
 import { type ProjectType } from '../types/projects';
 import { type ScopeContext } from '../types/scopes';
 import { parseScope, parseScopes } from './parseScopes';
-import { getAllScopeMap } from './scopes';
+import { getAllScopeMap, isOrganizationOnlyScope } from './scopes';
 import { type MemberAbility } from './types';
 
 const handlePatConfigApplication = (
@@ -41,6 +41,12 @@ const applyScopeAbilities = (
         const scope = scopeMap[scopeName];
 
         if (!scope) return;
+
+        // Org-only scopes never apply in a project-context build. Their
+        // conditions can't match org-keyed subject instances, but CASL
+        // ignores conditions on bare subject-type checks, so emitting the
+        // rule would still flip e.g. `can('manage', 'Organization')` true.
+        if (context.projectUuid && isOrganizationOnlyScope(scopeName)) return;
 
         const [action, subject] = parseScope(scopeName);
         const conditionsList = scope.getConditions(context);

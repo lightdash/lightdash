@@ -2195,11 +2195,11 @@ describe('scopeAbilityBuilder', () => {
             ).toBe(false);
         });
 
-        it('should handle manage:organization_member_profile permissions', () => {
+        it('should handle manage:organization_member_profile permissions at org level', () => {
             const builder = new AbilityBuilder<MemberAbility>(Ability);
             buildAbilityFromScopes(
                 {
-                    ...baseContext,
+                    ...baseContextWithOrg,
                     scopes: ['manage:OrganizationMemberProfile'],
                 },
                 builder,
@@ -2211,10 +2211,38 @@ describe('scopeAbilityBuilder', () => {
                     'manage',
                     subject('OrganizationMemberProfile', {
                         organizationUuid: 'org-123',
-                        projectUuid: 'project-123',
                     }),
                 ),
             ).toBe(true);
+        });
+
+        it('skips org-only scopes in project-context builds', () => {
+            // CASL ignores conditions on bare subject-type checks, so
+            // emitting an org-only rule from a project build would leak
+            // org UI surfaces (and the PAT deployment gate) to
+            // project-scoped roles.
+            const builder = new AbilityBuilder<MemberAbility>(Ability);
+            buildAbilityFromScopes(
+                {
+                    ...baseContext,
+                    scopes: [
+                        'manage:OrganizationMemberProfile',
+                        'manage:Organization',
+                        'impersonate:User',
+                        'manage:PersonalAccessToken',
+                    ],
+                },
+                builder,
+            );
+            const ability = builder.build();
+
+            expect(builder.rules).toHaveLength(0);
+            expect(ability.can('manage', 'Organization')).toBe(false);
+            expect(ability.can('manage', 'OrganizationMemberProfile')).toBe(
+                false,
+            );
+            expect(ability.can('impersonate', 'User')).toBe(false);
+            expect(ability.can('manage', 'PersonalAccessToken')).toBe(false);
         });
     });
 

@@ -900,6 +900,8 @@ export class UserModel {
                         projectUuid: row.project_uuid,
                         userUuid,
                         role: row.role,
+                        projectType: row.project_type,
+                        projectCreatedByUserUuid: row.created_by_user_uuid,
                     },
                     builder,
                 );

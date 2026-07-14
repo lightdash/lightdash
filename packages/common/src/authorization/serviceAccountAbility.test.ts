@@ -1,6 +1,7 @@
 import { Ability, AbilityBuilder, subject } from '@casl/ability';
 import { ServiceAccountScope } from '../ee/serviceAccounts/types';
 import { ProjectMemberRole } from '../types/projectMemberRole';
+import { ProjectType } from '../types/projects';
 import { projectMemberAbilities } from './projectMemberAbility';
 import { buildAbilityFromScopes } from './scopeAbilityBuilder';
 import { applyServiceAccountAbilities } from './serviceAccountAbility';
@@ -27,7 +28,12 @@ const buildAbility = (scopes: ServiceAccountScope[]) => {
 const buildAbilityWithGrants = (
     scopes: ServiceAccountScope[],
     grants: Array<
-        | { projectUuid: string; role: ProjectMemberRole }
+        | {
+              projectUuid: string;
+              role: ProjectMemberRole;
+              projectType?: ProjectType;
+              projectCreatedByUserUuid?: string | null;
+          }
         | { projectUuid: string; customRoleScopes: string[] }
     >,
 ) => {
@@ -45,6 +51,8 @@ const buildAbilityWithGrants = (
                     projectUuid: grant.projectUuid,
                     userUuid: SA_USER,
                     role: grant.role,
+                    projectType: grant.projectType,
+                    projectCreatedByUserUuid: grant.projectCreatedByUserUuid,
                 },
                 builder,
             );
@@ -269,6 +277,55 @@ describe('SYSTEM_MEMBER + project_memberships (custom roles)', () => {
                 }),
             ),
         ).toBe(true);
+    });
+
+    it('honors @self preview scopes when project metadata is passed (mirrors UserModel system-role branch)', () => {
+        // Developer's manage:Dashboard@self only fires inside a preview the
+        // principal created — requires projectType + projectCreatedByUserUuid
+        // in the builder context, exactly what UserModel passes per row.
+        const ownPreview = buildAbilityWithGrants(
+            [ServiceAccountScope.SYSTEM_MEMBER],
+            [
+                {
+                    projectUuid: PROJ_A,
+                    role: ProjectMemberRole.DEVELOPER,
+                    projectType: ProjectType.PREVIEW,
+                    projectCreatedByUserUuid: SA_USER,
+                },
+            ],
+        );
+        expect(
+            ownPreview.can(
+                'manage',
+                subject('Dashboard', {
+                    organizationUuid: ORG,
+                    projectUuid: PROJ_A,
+                    inheritsFromOrgOrProject: true,
+                }),
+            ),
+        ).toBe(true);
+
+        const othersPreview = buildAbilityWithGrants(
+            [ServiceAccountScope.SYSTEM_MEMBER],
+            [
+                {
+                    projectUuid: PROJ_A,
+                    role: ProjectMemberRole.DEVELOPER,
+                    projectType: ProjectType.PREVIEW,
+                    projectCreatedByUserUuid: 'someone-else',
+                },
+            ],
+        );
+        expect(
+            othersPreview.can(
+                'manage',
+                subject('Dashboard', {
+                    organizationUuid: ORG,
+                    projectUuid: PROJ_A,
+                    inheritsFromOrgOrProject: true,
+                }),
+            ),
+        ).toBe(false);
     });
 
     it('grants are additive — SYSTEM_MEMBER org abilities still apply', () => {
