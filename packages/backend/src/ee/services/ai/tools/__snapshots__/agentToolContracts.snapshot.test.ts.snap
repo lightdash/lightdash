@@ -671,6 +671,253 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
     },
   },
   {
+    "description": "Create a LIVE scheduled delivery that sends a saved chart or dashboard to Slack channels and/or email recipients on a cron schedule. IMPORTANT: before calling this tool, propose the full configuration to the user (name, schedule in plain words, timezone, destinations, format, AI augmentation prompt if any) and wait for their explicit confirmation in the conversation. Requires an existing saved chart or dashboard — if the content only exists in this conversation, create it with createContent first, then schedule the created uuid. On success, share the returned href with the user — the delivery is managed (paused, edited, deleted) from that page.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "aiAugmentationPrompt": {
+          "description": "Instructions for the AI-written delivery message, regenerated from the delivered data on every send. null = plain delivery without AI augmentation.",
+          "type": [
+            "string",
+            "null",
+          ],
+        },
+        "cron": {
+          "description": "5-part cron expression, e.g. "0 9 * * 1". Minimum frequency is hourly — sub-hourly minute patterns (e.g. "*/15") are rejected.",
+          "type": "string",
+        },
+        "csvOptions": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "formatted": {
+                  "description": "Apply Lightdash value formatting.",
+                  "type": "boolean",
+                },
+                "limit": {
+                  "anyOf": [
+                    {
+                      "const": "table",
+                      "type": "string",
+                    },
+                    {
+                      "const": "all",
+                      "type": "string",
+                    },
+                    {
+                      "exclusiveMinimum": 0,
+                      "type": "integer",
+                    },
+                  ],
+                  "description": ""table" = the chart's own limit, "all" = all results, or an explicit row count.",
+                },
+              },
+              "required": [
+                "formatted",
+                "limit",
+              ],
+              "type": "object",
+            },
+            {
+              "type": "null",
+            },
+          ],
+          "description": "Only used when format is "csv". null = defaults (formatted, table limit).",
+        },
+        "enabled": {
+          "description": "Whether the delivery starts firing immediately. Use true only when the user explicitly confirmed it should go live; when in doubt, create it paused (false) — the user can enable it from the UI.",
+          "type": "boolean",
+        },
+        "format": {
+          "description": ""image" sends a rendered image of the chart/dashboard; "csv" sends the results as CSV.",
+          "enum": [
+            "csv",
+            "image",
+          ],
+          "type": "string",
+        },
+        "message": {
+          "description": "Optional static message included with every delivery. Ignored when aiAugmentationPrompt is set (the AI writes the message instead).",
+          "type": [
+            "string",
+            "null",
+          ],
+        },
+        "name": {
+          "description": "Human-readable delivery name.",
+          "minLength": 1,
+          "type": "string",
+        },
+        "resourceType": {
+          "description": "Type of saved content to deliver.",
+          "enum": [
+            "chart",
+            "dashboard",
+          ],
+          "type": "string",
+        },
+        "resourceUuidOrSlug": {
+          "description": "UUID (preferred) or slug of the saved chart or dashboard to deliver. Use the uuid from createContent/findContent results — slugs are not guaranteed unique.",
+          "type": "string",
+        },
+        "targets": {
+          "description": "At least one Slack channel or email recipient.",
+          "items": {
+            "anyOf": [
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "channel": {
+                    "description": "Slack channel ID (preferred, e.g. "C0123ABCDEF") or channel name. The Lightdash Slack app must be able to join it.",
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "type": {
+                    "const": "slack",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "type",
+                  "channel",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": false,
+                "properties": {
+                  "recipient": {
+                    "description": "Email address of the recipient.",
+                    "minLength": 3,
+                    "type": "string",
+                  },
+                  "type": {
+                    "const": "email",
+                    "type": "string",
+                  },
+                },
+                "required": [
+                  "type",
+                  "recipient",
+                ],
+                "type": "object",
+              },
+            ],
+          },
+          "minItems": 1,
+          "type": "array",
+        },
+        "timezone": {
+          "description": "IANA timezone the cron runs in (e.g. "Europe/London"). null = project default.",
+          "type": [
+            "string",
+            "null",
+          ],
+        },
+      },
+      "required": [
+        "resourceType",
+        "resourceUuidOrSlug",
+        "name",
+        "cron",
+        "timezone",
+        "format",
+        "csvOptions",
+        "message",
+        "targets",
+        "enabled",
+        "aiAugmentationPrompt",
+      ],
+      "type": "object",
+    },
+    "name": "createScheduledDelivery",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "status": {
+                  "const": "error",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "status",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "aiAugmentationAttached": {
+                  "type": "boolean",
+                },
+                "cron": {
+                  "type": "string",
+                },
+                "href": {
+                  "type": "string",
+                },
+                "name": {
+                  "type": "string",
+                },
+                "resourceType": {
+                  "enum": [
+                    "chart",
+                    "dashboard",
+                  ],
+                  "type": "string",
+                },
+                "resourceUuid": {
+                  "type": "string",
+                },
+                "schedulerUuid": {
+                  "type": "string",
+                },
+                "status": {
+                  "const": "success",
+                  "type": "string",
+                },
+                "warnings": {
+                  "items": {
+                    "type": "string",
+                  },
+                  "type": "array",
+                },
+              },
+              "required": [
+                "status",
+                "schedulerUuid",
+                "name",
+                "cron",
+                "resourceType",
+                "resourceUuid",
+                "href",
+                "aiAugmentationAttached",
+                "warnings",
+              ],
+              "type": "object",
+            },
+          ],
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
+  },
+  {
     "description": "Edit a dashboard or chart by applying a patch to its JSON, then validate before persisting",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -7399,6 +7646,7 @@ exports[`AI agent tool contracts > matches the shared agent tool definition name
   "resolveUrl",
   "editContent",
   "createContent",
+  "createScheduledDelivery",
   "runContentQuery",
   "listContent",
   "improveContext",

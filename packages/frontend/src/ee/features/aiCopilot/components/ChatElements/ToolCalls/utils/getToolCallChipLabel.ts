@@ -165,6 +165,10 @@ export const getToolCallChipLabel = (
             const args = toolArgs as ToolCreateContentArgs;
             return args.content?.slug ?? null;
         }
+        case 'createScheduledDelivery': {
+            const args = toolArgs as { name?: string };
+            return args.name ?? null;
+        }
         case 'exploreRepo': {
             const args = toolArgs as { command?: string; target?: string };
             if (args.target && args.command)

@@ -14,6 +14,7 @@ import {
     convertFieldRefToFieldId,
     createContentToolDefinition,
     createMcpCompatibleInputShape,
+    createScheduledDeliveryToolDefinition,
     createToolRunSqlArgsSchema,
     editContentToolDefinition,
     Explore,
@@ -120,6 +121,7 @@ import {
     getMcpAnalystPromptWithContext,
 } from '../ai/prompts/mcpAnalyst';
 import { getCreateContent } from '../ai/tools/createContent';
+import { getCreateScheduledDelivery } from '../ai/tools/createScheduledDelivery';
 import { getEditContent } from '../ai/tools/editContent';
 import { getFindContent } from '../ai/tools/findContent';
 import { buildFindExploresStructuredContent } from '../ai/tools/findExplores';
@@ -170,6 +172,7 @@ export enum McpToolName {
     RESOLVE_URL = 'resolve_url',
     CREATE_CONTENT = 'create_content',
     EDIT_CONTENT = 'edit_content',
+    CREATE_SCHEDULED_DELIVERY = 'create_scheduled_delivery',
     LIST_PROJECTS = 'list_projects',
     SET_PROJECT = 'set_project',
     GET_CURRENT_PROJECT = 'get_current_project',
@@ -209,6 +212,8 @@ const mcpReadContentTool = readContentToolDefinition.for('mcp');
 const mcpResolveUrlTool = resolveUrlToolDefinition.for('mcp');
 const mcpCreateContentTool = createContentToolDefinition.for('mcp');
 const mcpEditContentTool = editContentToolDefinition.for('mcp');
+const mcpCreateScheduledDeliveryTool =
+    createScheduledDeliveryToolDefinition.for('mcp');
 const mcpListProjectsTool = mcpListProjectsToolDefinition.for('mcp');
 const mcpSetProjectTool = setProjectToolDefinition.for('mcp');
 const mcpGetCurrentProjectTool = getCurrentProjectToolDefinition.for('mcp');
@@ -1297,6 +1302,44 @@ export class McpService extends BaseService {
                     toolCallId: '',
                     messages: [],
                 });
+
+                return this.buildScopedResponse(
+                    ctx,
+                    await McpService.streamToolResult(result),
+                    undefined,
+                    projectUuid,
+                );
+            },
+        );
+
+        this.registerTrackedTool(
+            mcpCreateScheduledDeliveryTool.name,
+            {
+                title: mcpCreateScheduledDeliveryTool.title,
+                description: mcpCreateScheduledDeliveryTool.description,
+                inputSchema: mcpCreateScheduledDeliveryTool.inputSchema.shape,
+                annotations: mcpCreateScheduledDeliveryTool.annotations,
+            },
+            async (args, extra) => {
+                const ctx = getMcpContext(extra);
+                const projectUuid = await this.resolveProjectUuid(ctx);
+
+                const toolsRuntime = await this.getToolsRuntime(
+                    ctx,
+                    projectUuid,
+                );
+
+                const createScheduledDeliveryTool = getCreateScheduledDelivery({
+                    createScheduledDelivery:
+                        toolsRuntime.createScheduledDelivery,
+                });
+                const result = await createScheduledDeliveryTool.execute!(
+                    args,
+                    {
+                        toolCallId: '',
+                        messages: [],
+                    },
+                );
 
                 return this.buildScopedResponse(
                     ctx,

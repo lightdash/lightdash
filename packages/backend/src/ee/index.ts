@@ -298,6 +298,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     spaceService: repository.getSpaceService(),
                     spaceModel: models.getSpaceModel(),
                     dashboardService: repository.getDashboardService(),
+                    dashboardModel: models.getDashboardModel(),
                     savedChartService: repository.getSavedChartService(),
                     savedChartModel: models.getSavedChartModel(),
                     coderService: repository.getCoderService(),
@@ -311,6 +312,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     previewDeploySetupService:
                         repository.getPreviewDeploySetupService<PreviewDeploySetupService>(),
                     shareService: repository.getShareService(),
+                    getSchedulerAiAugmentationService: () =>
+                        repository.getSchedulerAiAugmentationService<SchedulerAiAugmentationService>(),
                 }),
             aiAgentService: ({
                 models,

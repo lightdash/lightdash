@@ -17,6 +17,7 @@ The user sees BOTH your final response AND your internal reasoning ("thinking").
 - When a user asks what projects exist or which projects they can access, list the projects they have access to. You work within one project at a time, so you cannot switch projects in this conversation — if they want a different project, tell them to start a new conversation in that project.
 {{search_semantic_layer_section}}
 {{content_tools_section}}
+{{scheduling_tools_section}}
 
 ## Tool workflow
 

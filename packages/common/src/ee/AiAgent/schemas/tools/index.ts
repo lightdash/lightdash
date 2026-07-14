@@ -32,6 +32,7 @@ export * from './toolGetKnowledgeDocumentContentArgs';
 export * from './toolListKnowledgeDocumentsArgs';
 export * from './toolReadPinnedThreadArgs';
 export * from './toolCreateContentArgs';
+export * from './toolCreateScheduledDeliveryArgs';
 export * from './toolListContentArgs';
 export * from './toolFindContentArgs';
 export * from './toolFindDashboardsArgs';

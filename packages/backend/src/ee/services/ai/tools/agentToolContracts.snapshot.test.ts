@@ -3,6 +3,7 @@ import { asSchema, type FlexibleSchema } from 'ai';
 import { getDiscoverFields } from '../agents/discoverFields/tool';
 import { getClosePullRequest } from './closePullRequest';
 import { getCreateContent } from './createContent';
+import { getCreateScheduledDelivery } from './createScheduledDelivery';
 import { getDescribeWarehouseTable } from './describeWarehouseTable';
 import { getDiscoverRepos } from './discoverRepos';
 import { getEditContent } from './editContent';
@@ -101,6 +102,9 @@ const makeAgentTools = () => {
             } as never,
         ),
         createContent: getCreateContent({ createContent: noop }),
+        createScheduledDelivery: getCreateScheduledDelivery({
+            createScheduledDelivery: noop,
+        }),
         editContent: getEditContent({ editContent: noop }),
         findContent: getFindContent({
             findContent: noop,

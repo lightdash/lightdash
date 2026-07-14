@@ -37,6 +37,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     resolveUrl: 'resolve_url',
     editContent: 'edit_content',
     createContent: 'create_content',
+    createScheduledDelivery: 'create_scheduled_delivery',
     generateTableVizConfig: 'table',
     generateTimeSeriesVizConfig: 'time_series_chart',
     generateBarVizConfig: 'vertical_bar_chart',

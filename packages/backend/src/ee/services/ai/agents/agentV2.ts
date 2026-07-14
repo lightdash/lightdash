@@ -24,6 +24,7 @@ import { getSystemPromptV2 } from '../prompts/systemV2';
 import { getAnalyzeFieldImpact } from '../tools/analyzeFieldImpact';
 import { getClosePullRequest } from '../tools/closePullRequest';
 import { getCreateContent } from '../tools/createContent';
+import { getCreateScheduledDelivery } from '../tools/createScheduledDelivery';
 import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
 import { getDiscoverRepos } from '../tools/discoverRepos';
 import { getEditContent } from '../tools/editContent';
@@ -456,6 +457,9 @@ export const getAgentTools = (
     const createContent = getCreateContent({
         createContent: dependencies.createContent,
     });
+    const createScheduledDelivery = getCreateScheduledDelivery({
+        createScheduledDelivery: dependencies.createScheduledDelivery,
+    });
     const runContentQuery = getRunContentQuery({
         updateProgress: dependencies.updateProgress,
         runAsyncQuery: dependencies.runAsyncQuery,
@@ -614,6 +618,7 @@ export const getAgentTools = (
                   editContent,
                   listContent,
                   createContent,
+                  createScheduledDelivery,
                   runContentQuery,
               }
             : {
@@ -753,6 +758,7 @@ const getAgentMessages = (
             enableGrepFields: args.enableGrepFields,
             enableContentTools:
                 args.enableDataAccess && args.enableContentTools,
+            slackChannelId: args.slackChannelId,
             canRunSql: args.canRunSql,
             warehouseType: args.warehouseType,
             warehouseSchema: args.warehouseSchema,
