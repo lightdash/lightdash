@@ -46,6 +46,7 @@ import { ManagedAgentModel } from './models/ManagedAgentModel';
 import { McpToolCallModel } from './models/McpToolCallModel';
 import { ProjectCiStatusModel } from './models/ProjectCiStatusModel';
 import { ProjectContextModel } from './models/ProjectContextModel';
+import { ProjectHomepageModel } from './models/ProjectHomepageModel';
 import { SandboxRegistryModel } from './models/SandboxRegistryModel';
 import { SchedulerAiAugmentationModel } from './models/SchedulerAiAugmentationModel';
 import { ServiceAccountModel } from './models/ServiceAccountModel';
@@ -85,6 +86,7 @@ import { McpService } from './services/McpService/McpService';
 import { OrganizationWarehouseCredentialsService } from './services/OrganizationWarehouseCredentialsService';
 import { PreviewDeploySetupService } from './services/PreviewDeploySetupService/PreviewDeploySetupService';
 import { ProjectContextService } from './services/ProjectContextService/ProjectContextService';
+import { ProjectHomepageService } from './services/ProjectHomepageService';
 import { SchedulerAiAugmentationService } from './services/SchedulerAiAugmentationService/SchedulerAiAugmentationService';
 import { ScimService } from './services/ScimService/ScimService';
 import { ServiceAccountService } from './services/ServiceAccountService/ServiceAccountService';
@@ -127,6 +129,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
 
     return {
         serviceProviders: {
+            projectHomepageService: ({ models, repository }) =>
+                new ProjectHomepageService({
+                    projectHomepageModel:
+                        models.getProjectHomepageModel<ProjectHomepageModel>(),
+                    featureFlagService: repository.getFeatureFlagService(),
+                }),
             aiDeepResearchService: ({
                 models,
                 clients,
@@ -875,6 +883,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
         },
         modelProviders: {
+            projectHomepageModel: ({ database }) =>
+                new ProjectHomepageModel({ database }),
             aiAgentModel: ({ database, utils }) =>
                 new AiAgentModel({
                     database,

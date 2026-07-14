@@ -52,6 +52,9 @@ export class ProjectHomepageService extends BaseService {
     }
 
     private assertCanView(user: SessionUser, projectUuid: string): void {
+        if (!user.organizationUuid) {
+            throw new ForbiddenError();
+        }
         const ability = this.createAuditedAbility(user);
         if (
             ability.cannot(
@@ -67,6 +70,9 @@ export class ProjectHomepageService extends BaseService {
     }
 
     private assertCanManage(user: SessionUser, projectUuid: string): void {
+        if (!user.organizationUuid) {
+            throw new ForbiddenError();
+        }
         const ability = this.createAuditedAbility(user);
         if (
             ability.cannot(
