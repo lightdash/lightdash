@@ -12,6 +12,7 @@ import {
     ApiScheduleOnboardingProfileResponse,
     ApiScheduleOnboardingSemanticLayerResponse,
     assertRegisteredAccount,
+    ConfigureOnboardingConnectionRequest,
     DepositOnboardingConnectionRequest,
     GrantScriptRequest,
     TestOnboardingConnectionRequest,
@@ -228,6 +229,28 @@ export class OnboardingController extends BaseController {
             results: await this.services
                 .getOnboardingConnectionService()
                 .createConnectCode(req.account, projectUuid),
+        };
+    }
+
+    @Middlewares([isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/connection/configure')
+    @OperationId('ConfigureOnboardingConnection')
+    async configureConnection(
+        @Path() projectUuid: UUID,
+        @Body() body: ConfigureOnboardingConnectionRequest,
+        @Request() req: express.Request,
+    ): Promise<ApiOnboardingConnectionDepositResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getOnboardingConnectionService()
+                .configureConnection(
+                    req.account,
+                    projectUuid,
+                    body.connectionValues,
+                ),
         };
     }
 }

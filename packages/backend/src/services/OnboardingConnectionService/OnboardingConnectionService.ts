@@ -8,6 +8,7 @@ import {
     OnboardingConnectionInventory,
     OnboardingConnectionRequiredValue,
     OnboardingConnectionValues,
+    OnboardingConnectionValueSources,
     OnboardingStepStatus,
     OnboardingStepType,
     ParameterError,
@@ -187,6 +188,110 @@ export class OnboardingConnectionService extends BaseService {
         };
         await this.onboardingProjectStateModel.upsert(
             connectCode.projectUuid,
+            OnboardingStepType.CONNECT,
+            stepStatus,
+            result,
+        );
+        return result;
+    }
+
+    async configureConnection(
+        account: RegisteredAccount,
+        projectUuid: string,
+        connectionValues: OnboardingConnectionValues,
+    ): Promise<OnboardingConnectionDepositResult> {
+        const { organizationUuid, type } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('CompileProject', {
+                    organizationUuid,
+                    projectUuid,
+                    type,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const connectStep = await this.onboardingProjectStateModel.find(
+            projectUuid,
+            OnboardingStepType.CONNECT,
+        );
+        if (
+            connectStep?.status !==
+                OnboardingStepStatus.PENDING_CONFIGURATION ||
+            connectStep.result === null
+        ) {
+            throw new ParameterError(
+                'The onboarding connection is not pending configuration',
+            );
+        }
+
+        const missingConnectionValues =
+            getMissingRequiredConnectionValues(connectionValues);
+        const { database, warehouse } = connectionValues;
+        if (
+            missingConnectionValues.length > 0 ||
+            database === null ||
+            warehouse === null
+        ) {
+            throw new ParameterError(
+                `Missing required connection values: ${missingConnectionValues.join(
+                    ', ',
+                )}`,
+            );
+        }
+
+        const pendingResult =
+            connectStep.result as OnboardingConnectionDepositResult;
+        const project =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+        if (project.warehouseConnection?.type !== WarehouseTypes.SNOWFLAKE) {
+            throw new ParameterError(
+                'The onboarding SSO bridge only supports Snowflake credentials',
+            );
+        }
+
+        const warehouseConnection: CreateSnowflakeCredentials = {
+            ...project.warehouseConnection,
+            database,
+            warehouse,
+            role: connectionValues.role ?? undefined,
+            schema: connectionValues.schema ?? '',
+        };
+        await this.projectService.updateWarehouseCredentials(
+            projectUuid,
+            account,
+            { warehouseConnection },
+        );
+
+        const diagnostic =
+            await this.warehouseDiagnosticsService.diagnoseConnection(
+                warehouseConnection,
+            );
+        const stepStatus =
+            diagnostic.status === 'passed'
+                ? OnboardingStepStatus.COMPLETED
+                : OnboardingStepStatus.ERROR;
+        const connectionValueSources: OnboardingConnectionValueSources = {
+            database: 'user',
+            warehouse: 'user',
+            role: 'user',
+            schema: 'user',
+        };
+        const result: OnboardingConnectionDepositResult = {
+            stepStatus,
+            connectionValues,
+            connectionValueSources,
+            inventory: pendingResult.inventory,
+            missingConnectionValues,
+            diagnostic,
+        };
+        await this.onboardingProjectStateModel.upsert(
+            projectUuid,
             OnboardingStepType.CONNECT,
             stepStatus,
             result,

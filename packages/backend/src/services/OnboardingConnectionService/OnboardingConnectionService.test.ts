@@ -1,6 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
     AuthorizationError,
+    ForbiddenError,
     OnboardingStepStatus,
     OnboardingStepType,
     ParameterError,
@@ -12,6 +13,7 @@ import {
     type CreatePostgresCredentials,
     type CreateSnowflakeCredentials,
     type DepositOnboardingConnectionRequest,
+    type OnboardingConnectionDepositResult,
 } from '@lightdash/common';
 import { fromSession } from '../../auth/account/account';
 import { defaultSessionUser } from '../../auth/account/account.mock';
@@ -102,8 +104,10 @@ const depositRequest = (
 const create = vi.fn<OnboardingConnectCodeModel['create']>();
 const consume = vi.fn<OnboardingConnectCodeModel['consume']>();
 const getAll = vi.fn<OnboardingProjectStateModel['getAll']>();
+const find = vi.fn<OnboardingProjectStateModel['find']>();
 const upsert = vi.fn<OnboardingProjectStateModel['upsert']>();
 const getSummary = vi.fn<ProjectModel['getSummary']>();
+const getWithSensitiveFields = vi.fn<ProjectModel['getWithSensitiveFields']>();
 const updateWarehouseCredentials =
     vi.fn<ProjectService['updateWarehouseCredentials']>();
 const getAccountByUserUuid = vi.fn<UserService['getAccountByUserUuid']>();
@@ -129,9 +133,13 @@ const getService = () =>
         } as unknown as OnboardingConnectCodeModel,
         onboardingProjectStateModel: {
             getAll,
+            find,
             upsert,
         } as unknown as OnboardingProjectStateModel,
-        projectModel: { getSummary } as unknown as ProjectModel,
+        projectModel: {
+            getSummary,
+            getWithSensitiveFields,
+        } as unknown as ProjectModel,
         projectService: {
             updateWarehouseCredentials,
         } as unknown as ProjectService,
@@ -161,6 +169,15 @@ describe('OnboardingConnectionService', () => {
             usedAt: new Date('2026-07-14T12:01:00.000Z'),
         });
         getAccountByUserUuid.mockResolvedValue(account);
+        getWithSensitiveFields.mockResolvedValue({
+            projectUuid,
+            organizationUuid,
+            name: 'Onboarding project',
+            type: ProjectType.DEFAULT,
+            upstreamProjectUuid: undefined,
+            createdByUserUuid: userUuid,
+            warehouseConnection: credentials,
+        } as Awaited<ReturnType<ProjectModel['getWithSensitiveFields']>>);
         diagnoseConnection.mockResolvedValue(passedDiagnostic);
         upsert.mockResolvedValue({
             step: OnboardingStepType.CONNECT,
@@ -348,5 +365,136 @@ describe('OnboardingConnectionService', () => {
                 diagnostic: failedDiagnostic,
             },
         );
+    });
+
+    describe('configureConnection', () => {
+        const pendingConnectionValues = {
+            ...connectionValues,
+            warehouse: null,
+        };
+        const pendingResult: OnboardingConnectionDepositResult = {
+            stepStatus: OnboardingStepStatus.PENDING_CONFIGURATION,
+            connectionValues: pendingConnectionValues,
+            connectionValueSources: {
+                ...connectionValueSources,
+                warehouse: 'missing',
+            },
+            inventory,
+            missingConnectionValues: ['warehouse'],
+            diagnostic: null,
+        };
+
+        beforeEach(() => {
+            find.mockResolvedValue({
+                step: OnboardingStepType.CONNECT,
+                status: OnboardingStepStatus.PENDING_CONFIGURATION,
+                result: pendingResult,
+                updatedAt: new Date('2026-07-14T12:01:00.000Z'),
+            });
+        });
+
+        it('rejects a connection that is not pending configuration', async () => {
+            find.mockResolvedValueOnce({
+                step: OnboardingStepType.CONNECT,
+                status: OnboardingStepStatus.COMPLETED,
+                result: pendingResult,
+                updatedAt: new Date('2026-07-14T12:01:00.000Z'),
+            });
+
+            await expect(
+                getService().configureConnection(
+                    account,
+                    projectUuid,
+                    connectionValues,
+                ),
+            ).rejects.toThrow(ParameterError);
+            expect(getWithSensitiveFields).not.toHaveBeenCalled();
+            expect(updateWarehouseCredentials).not.toHaveBeenCalled();
+        });
+
+        it('merges user values, runs diagnostics, and records completed state', async () => {
+            const chosenValues = {
+                database: 'selected_database',
+                warehouse: 'selected_warehouse',
+                role: null,
+                schema: null,
+            };
+            const expectedCredentials: CreateSnowflakeCredentials = {
+                ...credentials,
+                database: 'selected_database',
+                warehouse: 'selected_warehouse',
+                role: undefined,
+                schema: '',
+            };
+            const expectedResult: OnboardingConnectionDepositResult = {
+                stepStatus: OnboardingStepStatus.COMPLETED,
+                connectionValues: chosenValues,
+                connectionValueSources: {
+                    database: 'user',
+                    warehouse: 'user',
+                    role: 'user',
+                    schema: 'user',
+                },
+                inventory,
+                missingConnectionValues: [],
+                diagnostic: passedDiagnostic,
+            };
+
+            await expect(
+                getService().configureConnection(
+                    account,
+                    projectUuid,
+                    chosenValues,
+                ),
+            ).resolves.toEqual(expectedResult);
+            expect(updateWarehouseCredentials).toHaveBeenCalledWith(
+                projectUuid,
+                account,
+                { warehouseConnection: expectedCredentials },
+            );
+            expect(diagnoseConnection).toHaveBeenCalledWith(
+                expectedCredentials,
+            );
+            expect(upsert).toHaveBeenCalledWith(
+                projectUuid,
+                OnboardingStepType.CONNECT,
+                OnboardingStepStatus.COMPLETED,
+                expectedResult,
+            );
+        });
+
+        it('rejects an unauthorized account', async () => {
+            const unauthorizedAccount = fromSession({
+                ...defaultSessionUser,
+                ability: new Ability<PossibleAbilities>([]),
+            });
+
+            await expect(
+                getService().configureConnection(
+                    unauthorizedAccount,
+                    projectUuid,
+                    connectionValues,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(find).not.toHaveBeenCalled();
+            expect(getWithSensitiveFields).not.toHaveBeenCalled();
+        });
+
+        it('lists missing required values without updating credentials', async () => {
+            await expect(
+                getService().configureConnection(account, projectUuid, {
+                    database: '',
+                    warehouse: null,
+                    role: null,
+                    schema: null,
+                }),
+            ).rejects.toThrow(
+                'Missing required connection values: database, warehouse',
+            );
+            expect(getWithSensitiveFields).not.toHaveBeenCalled();
+            expect(updateWarehouseCredentials).not.toHaveBeenCalled();
+            expect(diagnoseConnection).not.toHaveBeenCalled();
+            expect(upsert).not.toHaveBeenCalled();
+        });
     });
 });

@@ -38557,7 +38557,7 @@
             },
             "OnboardingConnectionValueSource": {
                 "type": "string",
-                "enum": ["flag", "default", "missing"]
+                "enum": ["flag", "default", "missing", "user"]
             },
             "OnboardingConnectionValueSources": {
                 "properties": {
@@ -38744,6 +38744,15 @@
             },
             "ApiOnboardingConnectionDepositResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_OnboardingConnectionDepositResult_"
+            },
+            "ConfigureOnboardingConnectionRequest": {
+                "properties": {
+                    "connectionValues": {
+                        "$ref": "#/components/schemas/OnboardingConnectionValues"
+                    }
+                },
+                "required": ["connectionValues"],
+                "type": "object"
             },
             "DepositOnboardingConnectionRequest": {
                 "properties": {
@@ -65474,6 +65483,55 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/onboarding/connection/configure": {
+            "post": {
+                "operationId": "ConfigureOnboardingConnection",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOnboardingConnectionDepositResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ConfigureOnboardingConnectionRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/onboarding/connection/deposit": {

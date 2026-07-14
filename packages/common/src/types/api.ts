@@ -171,9 +171,13 @@ import {
 } from './oauth';
 import {
     type ConnectionDiagnosticResult,
+    type DashboardBuildResult,
     type GrantScriptResult,
     type OnboardingConnectCodeResult,
+    type OnboardingConnectionDepositResult,
     type OnboardingProjectState,
+    type ProfileResult,
+    type SemanticLayerResult,
 } from './onboarding';
 import {
     type DeleteOpenIdentity,
@@ -1012,6 +1016,10 @@ type ApiResults =
     | ConnectionDiagnosticResult
     | GrantScriptResult
     | OnboardingConnectCodeResult
+    | OnboardingConnectionDepositResult
+    | SemanticLayerResult
+    | ProfileResult
+    | DashboardBuildResult
     | Dashboard[]
     | DeleteOpenIdentity
     | ApiFlashResults

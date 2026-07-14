@@ -89,7 +89,11 @@ export type ApiOnboardingConnectCodeResponse =
 
 export type OnboardingConnectionRequiredValue = 'database' | 'warehouse';
 
-export type OnboardingConnectionValueSource = 'flag' | 'default' | 'missing';
+export type OnboardingConnectionValueSource =
+    | 'flag'
+    | 'default'
+    | 'missing'
+    | 'user';
 
 export type OnboardingConnectionValues = {
     database: string | null;
@@ -117,6 +121,10 @@ export type DepositOnboardingConnectionRequest = {
     connectionValues: OnboardingConnectionValues;
     connectionValueSources: OnboardingConnectionValueSources;
     inventory: OnboardingConnectionInventory;
+};
+
+export type ConfigureOnboardingConnectionRequest = {
+    connectionValues: OnboardingConnectionValues;
 };
 
 export type OnboardingConnectionDepositResult = {
