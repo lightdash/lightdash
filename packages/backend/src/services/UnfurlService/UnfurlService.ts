@@ -185,7 +185,7 @@ function cropPdfToClipInternal(
     return Buffer.from(pdfStr + appendix, 'binary');
 }
 
-function cropPdfToClip(
+export function cropPdfToClip(
     buffer: Buffer,
     clip: { x: number; y: number; width: number; height: number },
 ): Buffer {
