@@ -1,3 +1,10 @@
+# [0.3382.0](https://github.com/lightdash/lightdash/compare/0.3381.0...0.3382.0) (2026-07-14)
+
+
+### Features
+
+* **appearance:** view and edit organization brand appearance ([#25303](https://github.com/lightdash/lightdash/issues/25303)) ([63e5074](https://github.com/lightdash/lightdash/commit/63e50745ae9349b4bf17afb43183f6bc910d771a))
+
 # [0.3381.0](https://github.com/lightdash/lightdash/compare/0.3380.0...0.3381.0) (2026-07-14)
 
 
