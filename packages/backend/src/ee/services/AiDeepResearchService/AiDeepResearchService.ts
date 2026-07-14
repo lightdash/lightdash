@@ -154,6 +154,14 @@ const decodeEventCursor = (
     }
 };
 
+export const AI_DEEP_RESEARCH_MAX_BUDGET: AiDeepResearchBudget = {
+    maxRuntimeMs: 60 * 60 * 1_000,
+    maxTokens: 500_000,
+    maxToolCalls: 500,
+    maxWarehouseQueries: 200,
+    maxResultRows: 10_000,
+};
+
 const assertValidBudget = (budget: AiDeepResearchBudget): void => {
     if (
         Object.values(budget).some(
@@ -162,6 +170,16 @@ const assertValidBudget = (budget: AiDeepResearchBudget): void => {
     ) {
         throw new ParameterError(
             'Deep Research budget limits must be positive integers',
+        );
+    }
+    const exceededBudget = Object.entries(budget).find(
+        ([key, value]) =>
+            value >
+            AI_DEEP_RESEARCH_MAX_BUDGET[key as keyof AiDeepResearchBudget],
+    );
+    if (exceededBudget) {
+        throw new ParameterError(
+            `Deep Research ${exceededBudget[0]} exceeds the server limit`,
         );
     }
 };

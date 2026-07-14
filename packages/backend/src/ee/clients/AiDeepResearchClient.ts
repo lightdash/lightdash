@@ -21,7 +21,14 @@ export type AiDeepResearchProgressEvent =
     | { type: 'retrying' }
     | { type: 'thinking' }
     | { type: 'context_compacted' }
-    | { type: 'tool_use'; source: 'built_in' | 'mcp' | 'custom'; name: string };
+    | { type: 'tool_use'; source: 'built_in' | 'mcp' | 'custom'; name: string }
+    | {
+          type: 'model_usage';
+          inputTokens: number;
+          outputTokens: number;
+          cacheCreationInputTokens: number;
+          cacheReadInputTokens: number;
+      };
 
 export type AiDeepResearchFailureReason =
     | 'setup_failed'
@@ -92,6 +99,7 @@ type CustomToolOutcome = { content: string; isError: boolean };
 type CustomToolState = {
     outcomes: Map<string, CustomToolOutcome>;
     deliveredIds: Set<string>;
+    progressEventIds: Set<string>;
 };
 
 const canonicalize = (value: unknown): unknown => {
@@ -335,6 +343,16 @@ export class AiDeepResearchClient {
                     source: 'custom',
                     name: event.name,
                 };
+            case 'span.model_request_end':
+                return {
+                    type: 'model_usage',
+                    inputTokens: event.model_usage.input_tokens,
+                    outputTokens: event.model_usage.output_tokens,
+                    cacheCreationInputTokens:
+                        event.model_usage.cache_creation_input_tokens,
+                    cacheReadInputTokens:
+                        event.model_usage.cache_read_input_tokens,
+                };
             default:
                 return null;
         }
@@ -343,11 +361,16 @@ export class AiDeepResearchClient {
     private static async emitProgress(
         event: BetaManagedAgentsSessionEvent,
         callback: AiDeepResearchSessionConfig['onProgress'],
+        state: CustomToolState,
     ): Promise<void> {
+        if (state.progressEventIds.has(event.id)) {
+            return;
+        }
         const progress = AiDeepResearchClient.getProgressEvent(event);
         if (progress && callback) {
             await callback(progress);
         }
+        state.progressEventIds.add(event.id);
     }
 
     private static async handleCustomToolUse(
@@ -417,6 +440,11 @@ export class AiDeepResearchClient {
             { signal },
         )) {
             events.push(event);
+            await AiDeepResearchClient.emitProgress(
+                event,
+                config.onProgress,
+                customToolState,
+            );
             const terminal = AiDeepResearchClient.classifyTerminalEvent(event);
             if (terminal) {
                 return terminal;
@@ -485,6 +513,7 @@ export class AiDeepResearchClient {
                 await AiDeepResearchClient.emitProgress(
                     event,
                     config.onProgress,
+                    customToolState,
                 );
                 const terminal =
                     AiDeepResearchClient.classifyTerminalEvent(event);
@@ -519,6 +548,7 @@ export class AiDeepResearchClient {
         const customToolState: CustomToolState = {
             outcomes: new Map(),
             deliveredIds: new Set(),
+            progressEventIds: new Set(),
         };
         let lastTransportError: unknown = null;
         for (let attempt = 0; attempt <= MAX_STREAM_RECONNECTS; attempt += 1) {
