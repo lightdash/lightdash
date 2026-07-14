@@ -1146,7 +1146,11 @@ const scopes: Scope[] = [
         isEnterprise: false,
         group: ScopeGroup.DATA,
         dependencies: [{ name: 'view:Project' }],
-        getConditions: addDefaultUuidCondition,
+        // Writes are only allowed when NOT targeting a protected branch,
+        // matching the system developer role.
+        getConditions: (context) => [
+            { ...addUuidCondition(context), isProtectedBranch: false },
+        ],
     },
 
     // AI Agent

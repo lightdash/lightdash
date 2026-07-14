@@ -1,392 +1,63 @@
 import { type AbilityBuilder } from '@casl/ability';
 import { type ProjectMemberProfile } from '../types/projectMemberProfile';
-import { type ProjectMemberRole } from '../types/projectMemberRole';
-import { ProjectType } from '../types/projects';
-import { SpaceMemberRole } from '../types/space';
+import { ProjectMemberRole } from '../types/projectMemberRole';
+import { type ProjectType } from '../types/projects';
+import { getAllScopesForRole } from './roleToScopeMapping';
+import { buildAbilityFromScopes } from './scopeAbilityBuilder';
 import { type MemberAbility } from './types';
+
+/**
+ * Project membership plus the project metadata needed by `@self` scope
+ * conditions (e.g. `manage:ContentAsCode@self` on own preview projects).
+ */
+export type ProjectAbilityMember = Pick<
+    ProjectMemberProfile,
+    'role' | 'projectUuid' | 'userUuid'
+> & {
+    projectType?: ProjectType;
+    projectCreatedByUserUuid?: string | null;
+};
+
+/**
+ * System-role abilities are derived from the same scope vocabulary that
+ * powers custom roles (`BASE_ROLE_SCOPES` → `buildAbilityFromScopes`), so
+ * `scopes.ts` is the single source of truth for what each role can do.
+ * `isEnterprise: true` matches the previous hand-written rules, which always
+ * emitted enterprise subjects — enterprise features are license-gated at
+ * runtime, not at ability-build time.
+ */
+const buildProjectRoleAbility =
+    (role: ProjectMemberRole) =>
+    (
+        member: ProjectAbilityMember,
+        builder: AbilityBuilder<MemberAbility>,
+    ): void => {
+        buildAbilityFromScopes(
+            {
+                projectUuid: member.projectUuid,
+                projectType: member.projectType,
+                projectCreatedByUserUuid: member.projectCreatedByUserUuid,
+                userUuid: member.userUuid,
+                scopes: getAllScopesForRole(role),
+                isEnterprise: true,
+            },
+            builder,
+        );
+    };
 
 // eslint-disable-next-line import/prefer-default-export
 export const projectMemberAbilities: Record<
     ProjectMemberRole,
     (
-        member: Pick<ProjectMemberProfile, 'role' | 'projectUuid' | 'userUuid'>,
-        builder: Pick<AbilityBuilder<MemberAbility>, 'can'>,
+        member: ProjectAbilityMember,
+        builder: AbilityBuilder<MemberAbility>,
     ) => void
 > = {
-    viewer(member, { can }) {
-        can('view', 'Dashboard', {
-            projectUuid: member.projectUuid,
-            inheritsFromOrgOrProject: true,
-        });
-        can('view', 'JobStatus', {
-            createdByUserUuid: member.userUuid,
-        });
-        can('view', 'SavedChart', {
-            projectUuid: member.projectUuid,
-            inheritsFromOrgOrProject: true,
-        });
-        can('view', 'Dashboard', {
-            projectUuid: member.projectUuid,
-            access: {
-                $elemMatch: { userUuid: member.userUuid },
-            },
-        });
-        can('view', 'SavedChart', {
-            projectUuid: member.projectUuid,
-            access: {
-                $elemMatch: { userUuid: member.userUuid },
-            },
-        });
-        can('view', 'Space', {
-            projectUuid: member.projectUuid,
-            inheritsFromOrgOrProject: true,
-        });
-        can('view', 'Space', {
-            projectUuid: member.projectUuid,
-            access: {
-                $elemMatch: { userUuid: member.userUuid },
-            },
-        });
-        can('view', 'Project', {
-            projectUuid: member.projectUuid,
-        });
-        can('view', 'PinnedItems', {
-            projectUuid: member.projectUuid,
-        });
-        can('manage', 'ExportCsv', {
-            projectUuid: member.projectUuid,
-        });
-        can('view', 'DashboardComments', {
-            projectUuid: member.projectUuid,
-        });
-        can('view', 'Tags', {
-            projectUuid: member.projectUuid,
-        });
-        can('view', 'MetricsTree', {
-            projectUuid: member.projectUuid,
-        });
-        can('view', 'SpotlightTableConfig', {
-            projectUuid: member.projectUuid,
-        });
-        can('view', 'AiAgentThread', {
-            projectUuid: member.projectUuid,
-            userUuid: member.userUuid,
-        });
-    },
-    interactive_viewer(member, { can }) {
-        projectMemberAbilities.viewer(member, { can });
-        can('view', 'UnderlyingData', {
-            projectUuid: member.projectUuid,
-        });
-        can('view', 'SemanticViewer', {
-            projectUuid: member.projectUuid,
-        });
-        can('manage', 'Explore', {
-            projectUuid: member.projectUuid,
-        });
-        can('manage', 'ChangeCsvResults', {
-            projectUuid: member.projectUuid,
-        });
-        can('create', 'ScheduledDeliveries', {
-            projectUuid: member.projectUuid,
-        });
-        can('manage', 'ScheduledDeliveries', {
-            projectUuid: member.projectUuid,
-            userUuid: member.userUuid,
-        });
-        can('manage', 'GoogleSheets', {
-            projectUuid: member.projectUuid,
-        });
-        can('create', 'DashboardComments', {
-            projectUuid: member.projectUuid,
-        });
-        can('manage', 'Dashboard', {
-            projectUuid: member.projectUuid,
-            access: {
-                $elemMatch: {
-                    userUuid: member.userUuid,
-                    role: SpaceMemberRole.EDITOR,
-                },
-            },
-        });
-        can('manage', 'SavedChart', {
-            projectUuid: member.projectUuid,
-            access: {
-                $elemMatch: {
-                    userUuid: member.userUuid,
-                    role: SpaceMemberRole.EDITOR,
-                },
-            },
-        });
-        can('manage', 'Dashboard', {
-            projectUuid: member.projectUuid,
-            access: {
-                $elemMatch: {
-                    userUuid: member.userUuid,
-                    role: SpaceMemberRole.ADMIN,
-                },
-            },
-        });
-        can('manage', 'SavedChart', {
-            projectUuid: member.projectUuid,
-            access: {
-                $elemMatch: {
-                    userUuid: member.userUuid,
-                    role: SpaceMemberRole.ADMIN,
-                },
-            },
-        });
-        can('manage', 'DataApp', {
-            projectUuid: member.projectUuid,
-            access: {
-                $elemMatch: {
-                    userUuid: member.userUuid,
-                    role: SpaceMemberRole.EDITOR,
-                },
-            },
-        });
-        can('manage', 'DataApp', {
-            projectUuid: member.projectUuid,
-            access: {
-                $elemMatch: {
-                    userUuid: member.userUuid,
-                    role: SpaceMemberRole.ADMIN,
-                },
-            },
-        });
-        // View data apps shared project-wide or in spaces the user can
-        // access. Gated at interactive-viewer (not viewer) for parity with
-        // manage:Explore — plain viewers don't get data app access.
-        can('view', 'DataApp', {
-            projectUuid: member.projectUuid,
-            inheritsFromOrgOrProject: true,
-        });
-        can('view', 'DataApp', {
-            projectUuid: member.projectUuid,
-            access: {
-                $elemMatch: { userUuid: member.userUuid },
-            },
-        });
-        can('view', 'DataApp', {
-            projectUuid: member.projectUuid,
-            createdByUserUuid: member.userUuid,
-        });
-        can('manage', 'DataApp', {
-            projectUuid: member.projectUuid,
-            createdByUserUuid: member.userUuid,
-        });
-        // View external connections to select and link them when building a
-        // data app. Managing (create/edit/delete) stays admin-only.
-        can('view', 'ExternalConnection', {
-            projectUuid: member.projectUuid,
-        });
-
-        can('manage', 'Space', {
-            projectUuid: member.projectUuid,
-
-            access: {
-                $elemMatch: {
-                    userUuid: member.userUuid,
-                    role: SpaceMemberRole.ADMIN,
-                },
-            },
-        });
-        can('view', 'AiAgent', {
-            projectUuid: member.projectUuid,
-        });
-        can('view', 'AiAgentDocument', {
-            projectUuid: member.projectUuid,
-        });
-        can('create', 'AiAgentThread', {
-            projectUuid: member.projectUuid,
-        });
-        can('view', 'ContentVerification', {
-            projectUuid: member.projectUuid,
-        });
-    },
-    editor(member, { can }) {
-        projectMemberAbilities.interactive_viewer(member, { can });
-        can('create', 'DataApp', {
-            projectUuid: member.projectUuid,
-        });
-        can('create', 'Space', {
-            projectUuid: member.projectUuid,
-        });
-        can('manage', 'Space', {
-            projectUuid: member.projectUuid,
-            inheritsFromOrgOrProject: true,
-        });
-        can('manage', 'Job');
-        can('manage', 'PinnedItems', {
-            projectUuid: member.projectUuid,
-        });
-
-        can('manage', 'DashboardComments', {
-            projectUuid: member.projectUuid,
-        });
-        can('manage', 'Tags', {
-            projectUuid: member.projectUuid,
-        });
-        can('manage', 'MetricsTree', {
-            projectUuid: member.projectUuid,
-        });
-
-        can('manage', 'AiAgentThread', {
-            projectUuid: member.projectUuid,
-            userUuid: member.userUuid,
-        });
-        // Editors can download content as code but not upload it. Upload
-        // stays gated behind `manage:ContentAsCode` (developer+).
-        can('view', 'ContentAsCode', {
-            projectUuid: member.projectUuid,
-        });
-    },
-    developer(member, { can }) {
-        projectMemberAbilities.editor(member, { can });
-        can('manage', 'PreAggregation', {
-            projectUuid: member.projectUuid,
-        });
-        can('manage', 'VirtualView', {
-            projectUuid: member.projectUuid,
-        });
-        can('manage', 'CustomSql', {
-            projectUuid: member.projectUuid,
-        });
-        can('manage', 'CustomFields', {
-            projectUuid: member.projectUuid,
-        });
-        can('manage', 'CustomSqlTableCalculations', {
-            projectUuid: member.projectUuid,
-        });
-        can('manage', 'SqlRunner', {
-            projectUuid: member.projectUuid,
-        });
-        can('manage', 'Validation', {
-            projectUuid: member.projectUuid,
-        });
-        can('view', 'SourceCode', {
-            projectUuid: member.projectUuid,
-        });
-        can('manage', 'SourceCode', {
-            projectUuid: member.projectUuid,
-            isProtectedBranch: false, // Only allow writes when NOT writing to protected branch
-        });
-
-        can('manage', 'CompileProject', {
-            projectUuid: member.projectUuid,
-        });
-
-        can('manage', 'DeployProject', {
-            projectUuid: member.projectUuid,
-        });
-        can('manage', 'DeployProject', {
-            projectUuid: member.projectUuid,
-            type: ProjectType.PREVIEW,
-            createdByUserUuid: member.userUuid,
-        });
-
-        can('delete', 'Project', {
-            projectUuid: member.projectUuid,
-            type: ProjectType.PREVIEW,
-            createdByUserUuid: member.userUuid,
-        });
-
-        can('create', 'Project', {
-            upstreamProjectUuid: member.projectUuid,
-            type: ProjectType.PREVIEW,
-        });
-
-        can('update', 'Project', {
-            projectUuid: member.projectUuid,
-        });
-        can('update', 'Project', {
-            projectUuid: member.projectUuid,
-            type: ProjectType.PREVIEW,
-            createdByUserUuid: member.userUuid,
-        });
-        can('manage', 'SpotlightTableConfig', {
-            projectUuid: member.projectUuid,
-        });
-        can('manage', 'ContentAsCode', {
-            projectUuid: member.projectUuid,
-        });
-        // Redundant with the broad grant above, but kept so the system
-        // role mirrors the `manage:ContentAsCode@self` scope a custom role
-        // would carry without full `manage:ContentAsCode`.
-        can('manage', 'ContentAsCode', {
-            projectUuid: member.projectUuid,
-            type: ProjectType.PREVIEW,
-            createdByUserUuid: member.userUuid,
-        });
-        can('view', 'JobStatus', {
-            projectUuid: member.projectUuid,
-        });
-        can('manage', 'AiAgent', {
-            projectUuid: member.projectUuid,
-        });
-        can('manage', 'AiAgentDocument', {
-            projectUuid: member.projectUuid,
-        });
-        can('manage', 'ContentVerification', {
-            projectUuid: member.projectUuid,
-        });
-        can('create', 'AiDeepResearch', {
-            projectUuid: member.projectUuid,
-        });
-    },
-    admin(member, { can }) {
-        projectMemberAbilities.developer(member, { can });
-
-        can('manage', 'DataApp', {
-            projectUuid: member.projectUuid,
-        });
-
-        // Adding custom npm dependencies is a supply-chain capability gated
-        // above ordinary data-app management — admins only by default.
-        can('manage', 'DataAppDependency', {
-            projectUuid: member.projectUuid,
-        });
-
-        can('manage', 'ExternalConnection', {
-            projectUuid: member.projectUuid,
-        });
-
-        can('delete', 'Project', {
-            projectUuid: member.projectUuid,
-        });
-
-        can('view', 'Analytics', {
-            projectUuid: member.projectUuid,
-        });
-
-        can('manage', 'Project', {
-            projectUuid: member.projectUuid,
-        });
-
-        can('manage', 'Space', {
-            projectUuid: member.projectUuid,
-        });
-
-        can('manage', 'Dashboard', {
-            projectUuid: member.projectUuid,
-        });
-
-        can('manage', 'SavedChart', {
-            projectUuid: member.projectUuid,
-        });
-        can('view', 'AiAgentThread', {
-            projectUuid: member.projectUuid,
-        });
-        can('manage', 'AiAgentThread', {
-            projectUuid: member.projectUuid,
-        });
-
-        can('manage', 'ScheduledDeliveries', {
-            projectUuid: member.projectUuid,
-        });
-
-        can('manage', 'DeletedContent', {
-            projectUuid: member.projectUuid,
-        });
-    },
+    viewer: buildProjectRoleAbility(ProjectMemberRole.VIEWER),
+    interactive_viewer: buildProjectRoleAbility(
+        ProjectMemberRole.INTERACTIVE_VIEWER,
+    ),
+    editor: buildProjectRoleAbility(ProjectMemberRole.EDITOR),
+    developer: buildProjectRoleAbility(ProjectMemberRole.DEVELOPER),
+    admin: buildProjectRoleAbility(ProjectMemberRole.ADMIN),
 };

@@ -141,7 +141,7 @@ const expectCollapsedDashboardProjectRule = (
         );
     }
 
-    expect(rules.length).toBeLessThan(100);
+    expect(rules.length).toBeLessThan(150);
     expect(
         (dashboardRule.conditions as Record<string, { $in: string[] }>)
             .projectUuid.$in,

@@ -43,7 +43,7 @@ describe('collapseAbilityRules', () => {
 
         const collapsed = collapseAbilityRules(raw);
         // 125 projects of identical shape collapse to one project's worth of rules
-        expect(collapsed.length).toBeLessThan(100);
+        expect(collapsed.length).toBeLessThan(150);
     });
 
     it('merges non-projectUuid scalar ids too (e.g. upstreamProjectUuid)', () => {

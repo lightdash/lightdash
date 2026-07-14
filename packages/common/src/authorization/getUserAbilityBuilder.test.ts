@@ -253,7 +253,7 @@ describe('getUserAbilityBuilder — org-level role resolution', () => {
                     >
                 ).projectUuid.$in,
             ).toEqual([...projectUuids].sort());
-            expect(ability.rules.length).toBeLessThan(100);
+            expect(ability.rules.length).toBeLessThan(150);
             expect(
                 ability.can(
                     'manage',

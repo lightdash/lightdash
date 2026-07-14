@@ -10,14 +10,6 @@ import {
     ORGANIZATION_INTERACTIVE_VIEWER,
     ORGANIZATION_VIEWER,
 } from './organizationMemberAbility.mock';
-import { projectMemberAbilities } from './projectMemberAbility';
-import {
-    PROJECT_ADMIN,
-    PROJECT_DEVELOPER,
-    PROJECT_EDITOR,
-    PROJECT_INTERACTIVE_VIEWER,
-    PROJECT_VIEWER,
-} from './projectMemberAbility.mock';
 import { getAllScopesForRole } from './roleToScopeMapping';
 import { buildAbilityFromScopes } from './scopeAbilityBuilder';
 import { getScopes } from './scopes';
@@ -105,121 +97,14 @@ const filterEnterpriseRules = (
 };
 
 /**
- * `${action}:${subject}` pairs that we expect on the **scope-built** side
- * but NOT on the **project-role-built** side, when comparing project
- * parity. Two reasons something lands here:
- *
- * 1. **Org-only subject** — the subject never appears in any project
- *    ability (e.g. `manage:OrganizationMemberProfile`,
- *    `manage:Group`, `impersonate:User`). The scope-built rule for
- *    these in project context is dead-on-arrival (`{ projectUuid }`
- *    conditions never match `{ organizationUuid }`-keyed subjects),
- *    but we keep the toggle in `BASE_ROLE_SCOPES` so admin custom
- *    roles surface it at org-level assignment. See
- *    `docs/authentication-and-roles.md`.
- *
- * 2. **Granular action of a subject covered by `manage:X` at project
- *    level** — e.g. project ability grants `manage:Job` (which CASL
- *    expands to cover `create`/`view`/`update`/`delete`), while the
- *    scope vocabulary lists `create:Job` and `view:Job@self` as
- *    separate scopes. The scope-built rules are benign extras — at
- *    runtime they're subsumed by the broader `manage:Job` already
- *    in role-based.
- *
- * Subjects with `*` mean "all actions on this subject," used for
- * org-only subjects (case 1).
- */
-const PROJECT_PARITY_IGNORE = new Set([
-    // Case 1: org-only subjects.
-    '*:OrganizationMemberProfile',
-    '*:Organization',
-    '*:OrganizationDesign',
-    '*:Group',
-    '*:InviteLink',
-    '*:GitIntegration',
-    '*:OrganizationWarehouseCredentials',
-    '*:User', // impersonate:User
-
-    // Case 2: granular actions subsumed by project's broader `manage:X`.
-    'create:Job',
-    'view:Job',
-    'manage:SemanticViewer', // broad org-only; @space variant is project
-    'create:VirtualView',
-    'delete:VirtualView',
-    'promote:Dashboard',
-    'promote:SavedChart',
-    'promote:Dashboard@space',
-    'promote:SavedChart@space',
-]);
-
-const isProjectParityIgnored = (rule: CASLRule): boolean => {
-    const key = `${rule.action}:${rule.subject}`;
-    return (
-        PROJECT_PARITY_IGNORE.has(key) ||
-        PROJECT_PARITY_IGNORE.has(`*:${rule.subject}`)
-    );
-};
-
-/**
- * Test project-context parity for a role.
- *
- * Compares `projectMemberAbilities[role]` against
- * `buildAbilityFromScopes(scopes, { projectUuid })`. Org-only subjects
- * are filtered out of the scope-built side because their rules at
- * project context are dead-on-arrival (`{ projectUuid }` conditions
- * never match `{ organizationUuid }`-keyed subjects) — the role-builder
- * UI still surfaces them for org-level assignment, but project parity
- * shouldn't fail on them.
- */
-const testProjectRoleScopeParity = (
-    role: ProjectMemberRole,
-    isEnterprise: boolean = false,
-): { isEqual: boolean; mismatches: string[] } => {
-    const member = {
-        [ProjectMemberRole.VIEWER]: PROJECT_VIEWER,
-        [ProjectMemberRole.INTERACTIVE_VIEWER]: PROJECT_INTERACTIVE_VIEWER,
-        [ProjectMemberRole.EDITOR]: PROJECT_EDITOR,
-        [ProjectMemberRole.DEVELOPER]: PROJECT_DEVELOPER,
-        [ProjectMemberRole.ADMIN]: PROJECT_ADMIN,
-    }[role];
-
-    const roleBuilder = new AbilityBuilder<MemberAbility>(Ability);
-    projectMemberAbilities[role](member, roleBuilder);
-    const filteredRoleRules = filterEnterpriseRules(
-        roleBuilder.build().rules as CASLRule[],
-        isEnterprise,
-    );
-
-    const scopeBuilder = new AbilityBuilder<MemberAbility>(Ability);
-    buildAbilityFromScopes(
-        {
-            userUuid: member.userUuid,
-            projectUuid: member.projectUuid,
-            scopes: getAllScopesForRole(role),
-            isEnterprise,
-        },
-        scopeBuilder,
-    );
-    const scopeRules = (scopeBuilder.build().rules as CASLRule[]).filter(
-        (r) => !isProjectParityIgnored(r),
-    );
-
-    return checkRoleCoveredByScopes(
-        filteredRoleRules,
-        scopeRules,
-        `${role} (project)`,
-    );
-};
-
-/**
  * Test org-context parity for a role.
  *
  * Compares `applyOrganizationMemberStaticAbilities[role]` against
- * `buildAbilityFromScopes(scopes, { organizationUuid })`. This is the
- * second leg the project-only test never had — it catches drift on
- * org-management scopes (which is what let `manage:Group`,
- * `manage:InviteLink`, etc. silently fall out of the scope vocabulary
- * before this PR).
+ * `buildAbilityFromScopes(scopes, { organizationUuid })`. Project-role
+ * parity no longer needs a test: `projectMemberAbilities` is built FROM
+ * the scope mapping, so it can't drift. Org static abilities are still
+ * hand-written, so this leg remains — it catches drift on
+ * org-management scopes (`manage:Group`, `manage:InviteLink`, etc.).
  */
 const testOrgRoleScopeParity = (
     role: ProjectMemberRole,
@@ -281,28 +166,6 @@ describe('Role to Scope Parity', () => {
         expect(comparison.isEqual).toBe(true);
     };
 
-    describe('Project parity (Non-Enterprise)', () => {
-        it.each(systemProjectRoles)(
-            'project ability ≡ scope build (project context) for %s',
-            (role) =>
-                reportAndAssert(
-                    `PROJECT PARITY MISMATCH FOR ${role.toUpperCase()}`,
-                    testProjectRoleScopeParity(role, false),
-                ),
-        );
-    });
-
-    describe('Project parity (Enterprise)', () => {
-        it.each(systemProjectRoles)(
-            'project ability ≡ scope build (project context) for %s [EE]',
-            (role) =>
-                reportAndAssert(
-                    `ENTERPRISE PROJECT PARITY MISMATCH FOR ${role.toUpperCase()}`,
-                    testProjectRoleScopeParity(role, true),
-                ),
-        );
-    });
-
     describe('Org parity (Non-Enterprise)', () => {
         it.each(systemProjectRoles)(
             'org ability ≡ scope build (org context) for %s',
@@ -358,55 +221,6 @@ describe('Role to Scope Parity', () => {
             }
 
             expect(missing).toEqual([]);
-        });
-    });
-
-    // This is helpful for debugging, but it's not a test
-    describe.skip('Rule Count Analysis', () => {
-        it('should report rule counts for documentation', () => {
-            console.log('\n=== ROLE PERMISSION RULE COUNTS ===');
-
-            systemProjectRoles.forEach((role) => {
-                const member = {
-                    [ProjectMemberRole.VIEWER]: PROJECT_VIEWER,
-                    [ProjectMemberRole.INTERACTIVE_VIEWER]:
-                        PROJECT_INTERACTIVE_VIEWER,
-                    [ProjectMemberRole.EDITOR]: PROJECT_EDITOR,
-                    [ProjectMemberRole.DEVELOPER]: PROJECT_DEVELOPER,
-                    [ProjectMemberRole.ADMIN]: PROJECT_ADMIN,
-                }[role];
-
-                // Count role-based rules
-                const roleBuilder = new AbilityBuilder<MemberAbility>(Ability);
-                projectMemberAbilities[role](member, roleBuilder);
-                const roleRuleCount = roleBuilder.build().rules.length;
-
-                // Count scope-based rules
-                const scopeBuilder = new AbilityBuilder<MemberAbility>(Ability);
-                const scopes = getAllScopesForRole(role);
-                buildAbilityFromScopes(
-                    {
-                        userUuid: member.userUuid,
-                        projectUuid: member.projectUuid,
-                        scopes,
-                        isEnterprise: false,
-                    },
-                    scopeBuilder,
-                );
-                const scopeRuleCount = scopeBuilder.build().rules.length;
-
-                console.log(
-                    `${role.padEnd(20)}: Role-based: ${roleRuleCount
-                        .toString()
-                        .padStart(3)}, Scope-based: ${scopeRuleCount
-                        .toString()
-                        .padStart(3)}, Scopes: ${scopes.length
-                        .toString()
-                        .padStart(3)}`,
-                );
-            });
-
-            console.log('=== END RULE COUNT ANALYSIS ===\n');
         });
     });
 });
