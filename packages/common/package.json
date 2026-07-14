@@ -17,9 +17,10 @@
     "build": "tsc --build ./tsconfig.build.json",
     "typecheck": "tsc --project tsconfig.json --noEmit",
     "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
+    "type-aware-linter": "oxlint -c .oxlintrc.json --ignore-path ./../../.gitignore",
     "formatter": "oxfmt",
-    "lint": "pnpm run linter ./src",
-    "fix-lint": "pnpm run linter ./src --fix",
+    "lint": "pnpm run linter ./src && pnpm run type-aware-linter ./src",
+    "fix-lint": "pnpm run linter ./src --fix && pnpm run type-aware-linter ./src --fix",
     "format": "oxfmt ./src --check",
     "fix-format": "oxfmt ./src",
     "generate:filter-grammar-parser": "tsx scripts/generateFilterGrammarParser.ts && pnpm run formatter --write src/types/filterGrammar.parser.ts",
@@ -72,6 +73,8 @@
     "@types/pegjs": "0.10.3",
     "@types/sanitize-html": "2.11.0",
     "@types/uuid": "10.0.0",
+    "oxlint": "1.57.0",
+    "oxlint-tsgolint": "0.18.1",
     "typescript": "7.0.2",
     "vitest": "4.1.6"
   }

@@ -194,10 +194,12 @@
         ],
         "packages/backend/src/**/*.(ts|tsx|json)": [
             "pnpm -F backend run linter --fix",
+            "pnpm -F backend run type-aware-linter --fix",
             "pnpm -F backend run formatter"
         ],
         "packages/common/src/**/*.(ts|tsx|json)": [
             "pnpm -F common run linter --fix",
+            "pnpm -F common run type-aware-linter --fix",
             "pnpm -F common run formatter"
         ],
         "packages/e2e/cypress/**/*.(ts|json)": [
