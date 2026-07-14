@@ -11,6 +11,7 @@ import { convertAthenaSchema } from './targets/athena';
 import { convertBigquerySchema } from './targets/Bigquery';
 import { convertClickhouseSchema } from './targets/clickhouse';
 import { convertDatabricksSchema } from './targets/databricks';
+import { convertDorisSchema } from './targets/doris';
 import { convertDuckdbSchema } from './targets/duckdb';
 import { convertPostgresSchema } from './targets/postgres';
 import { convertRedshiftSchema } from './targets/redshift';
@@ -74,6 +75,8 @@ export const warehouseCredentialsFromDbtTarget = async (
             return convertTrinoSchema(target);
         case 'clickhouse':
             return convertClickhouseSchema(target);
+        case 'doris':
+            return convertDorisSchema(target);
         case 'athena':
             return convertAthenaSchema(target);
         case 'duckdb':

@@ -45,6 +45,7 @@ export enum SupportedDbtAdapter {
     CLICKHOUSE = 'clickhouse',
     ATHENA = 'athena',
     SPARK = 'spark',
+    DORIS = 'doris',
 }
 
 export type DbtNodeConfig = {
@@ -341,6 +342,10 @@ export const normaliseModelDatabase = (
             return { ...model, database: model.database as string };
         case SupportedDbtAdapter.CLICKHOUSE:
             return { ...model, database: '' }; // Clickhouse doesn't have a database field
+        case SupportedDbtAdapter.DORIS:
+            // Doris addresses tables as `database.table`; dbt-doris stores the
+            // database name in `schema`, so the dbt `database` field is unused.
+            return { ...model, database: '' };
         case SupportedDbtAdapter.DATABRICKS:
         case SupportedDbtAdapter.SPARK:
             return { ...model, database: model.database || 'DEFAULT' };

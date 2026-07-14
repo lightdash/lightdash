@@ -207,6 +207,16 @@ function getMockCredentials(
                 secure: true,
                 timeoutSeconds: 300,
             };
+        case SupportedDbtAdapter.DORIS:
+            return {
+                type: WarehouseTypes.DORIS,
+                host: '',
+                user: '',
+                password: '',
+                port: 9030,
+                schema: '',
+                timeoutSeconds: 300,
+            };
         case SupportedDbtAdapter.ATHENA:
             return {
                 type: WarehouseTypes.ATHENA,

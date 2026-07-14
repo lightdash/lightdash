@@ -66,6 +66,7 @@ const getDefaultStartOfWeek = (
         case SupportedDbtAdapter.BIGQUERY:
         case SupportedDbtAdapter.CLICKHOUSE:
             return WeekDay.SUNDAY;
+        case SupportedDbtAdapter.DORIS:
         default:
             return WeekDay.MONDAY;
     }
@@ -365,6 +366,7 @@ const getAwareInstantFormatter = (
         case SupportedDbtAdapter.REDSHIFT:
         case SupportedDbtAdapter.POSTGRES:
         case SupportedDbtAdapter.DUCKDB:
+        case SupportedDbtAdapter.DORIS:
             return null;
         default:
             return assertUnreachable(
@@ -403,6 +405,9 @@ const castWrappedTimestampLiteral = (
         case SupportedDbtAdapter.DUCKDB:
             naiveLiteral = `'${value}'::timestamp`;
             break;
+        case SupportedDbtAdapter.DORIS:
+            naiveLiteral = `'${value}'`;
+            break;
         default:
             return assertUnreachable(
                 adapterType,
@@ -437,6 +442,8 @@ const castNaiveWallTimestampLiteral = (
             throw new CompileError(
                 'ClickHouse does not support naive timestamp filter literals',
             );
+        case SupportedDbtAdapter.DORIS:
+            return `'${value}'`;
         default:
             return assertUnreachable(
                 adapterType,
@@ -463,6 +470,7 @@ const castAwareInstantTimestampLiteral = (
         case SupportedDbtAdapter.REDSHIFT:
         case SupportedDbtAdapter.POSTGRES:
         case SupportedDbtAdapter.DUCKDB:
+        case SupportedDbtAdapter.DORIS:
             return `('${value}')`;
         default:
             return assertUnreachable(
@@ -490,6 +498,7 @@ const castLegacyTimestampLiteral = (
         case SupportedDbtAdapter.POSTGRES:
         case SupportedDbtAdapter.DUCKDB:
         case SupportedDbtAdapter.CLICKHOUSE:
+        case SupportedDbtAdapter.DORIS:
             return `('${value}')`;
         default:
             return assertUnreachable(
