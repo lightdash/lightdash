@@ -1086,6 +1086,14 @@ export class ProjectService extends BaseService {
         return args;
     }
 
+    // Rotating providers (e.g. Snowflake OAuth) invalidate the refresh token
+    // on first use, so concurrent callers holding the same stored token must
+    // share one refresh instead of racing it
+    private inflightTokenRefreshes = new Map<
+        string,
+        Promise<CreateWarehouseCredentials>
+    >();
+
     private async refreshCredentialsAndPersistRotation<
         T extends CreateWarehouseCredentials,
     >(
@@ -1095,24 +1103,41 @@ export class ProjectService extends BaseService {
     ): Promise<T> {
         const oldRefreshToken = ProjectService.getCredentialsRefreshToken(args);
 
-        const refreshed = await this.refreshCredentials(args, userUuid);
+        const doRefresh = async (): Promise<T> => {
+            const refreshed = await this.refreshCredentials(args, userUuid);
 
-        const newRefreshToken =
-            ProjectService.getCredentialsRefreshToken(refreshed);
+            const newRefreshToken =
+                ProjectService.getCredentialsRefreshToken(refreshed);
 
-        if (
-            oldRefreshToken &&
-            newRefreshToken &&
-            newRefreshToken !== oldRefreshToken
-        ) {
-            await this.persistRefreshTokenRotation({
-                source,
-                oldRefreshToken,
-                newRefreshToken,
-            });
+            if (
+                oldRefreshToken &&
+                newRefreshToken &&
+                newRefreshToken !== oldRefreshToken
+            ) {
+                await this.persistRefreshTokenRotation({
+                    source,
+                    oldRefreshToken,
+                    newRefreshToken,
+                });
+            }
+
+            return refreshed;
+        };
+
+        if (!oldRefreshToken) {
+            return doRefresh();
         }
 
-        return refreshed;
+        const inflight = this.inflightTokenRefreshes.get(oldRefreshToken);
+        if (inflight) {
+            return (await inflight) as T;
+        }
+
+        const refreshPromise = doRefresh().finally(() => {
+            this.inflightTokenRefreshes.delete(oldRefreshToken);
+        });
+        this.inflightTokenRefreshes.set(oldRefreshToken, refreshPromise);
+        return refreshPromise;
     }
 
     private static getCredentialsRefreshToken(
