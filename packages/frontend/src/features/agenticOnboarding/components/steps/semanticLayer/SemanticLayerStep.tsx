@@ -1,5 +1,4 @@
 import {
-    OnboardingStepStatus,
     OnboardingStepType,
     type SemanticLayerResult,
 } from '@lightdash/common';
@@ -8,7 +7,6 @@ import PageSpinner from '../../../../../components/PageSpinner';
 import { useOnboardingWizard } from '../../../context/wizardContext';
 import { useOnboardingAnalytics } from '../../../hooks/useOnboardingAnalytics';
 import { useOnboardingJobRunner } from '../../../hooks/useOnboardingJobRunner';
-import { patchOnboardingState } from '../../../hooks/useOnboardingState';
 import JobProgressPanel from '../JobProgressPanel';
 import StepErrorState from '../StepErrorState';
 import SemanticLayerResultView from './SemanticLayerResultView';
@@ -43,11 +41,6 @@ const SemanticLayerStep: FC = () => {
     const handleContinue = async () => {
         if (!wizard.projectUuid) return;
         trackCompleted();
-        await patchOnboardingState(wizard.projectUuid, {
-            step: OnboardingStepType.SEMANTIC_LAYER,
-            status: OnboardingStepStatus.COMPLETED,
-            result: null,
-        }).catch(() => undefined);
         wizard.goToProjectStep(
             wizard.projectUuid,
             OnboardingStepType.DASHBOARD,

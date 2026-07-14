@@ -63,10 +63,6 @@ const ConnectMethodCliSso: FC = () => {
         form.values.warehouse?.type === WarehouseTypes.SNOWFLAKE
             ? (form.values.warehouse.account ?? '')
             : '';
-    const userName =
-        form.values.warehouse?.type === WarehouseTypes.SNOWFLAKE
-            ? (form.values.warehouse.user ?? '')
-            : '';
 
     const stateQuery = useOnboardingState({
         projectUuid: projectUuid ?? undefined,
@@ -115,7 +111,7 @@ const ConnectMethodCliSso: FC = () => {
         const placeholder: CreateSnowflakeCredentials = {
             ...SnowflakeDefaultValues,
             account,
-            user: userName,
+            user: '',
             authenticationType: SnowflakeAuthenticationType.NONE,
             requireUserCredentials: true,
         };
@@ -139,7 +135,7 @@ const ConnectMethodCliSso: FC = () => {
 
     const installCommand = 'npx @lightdash/cli@latest';
     const connectCommand = code
-        ? `lightdash connect-snowflake --url ${wizard.siteUrl} --code ${code} --account ${account} --user ${userName}`
+        ? `lightdash connect-snowflake --url ${wizard.siteUrl} --code ${code} --account ${account}`
         : '';
 
     const inventory = CONNECT_STEP_RESULT_INVENTORY(
@@ -179,17 +175,12 @@ const ConnectMethodCliSso: FC = () => {
                             required
                             {...form.getInputProps('warehouse.account')}
                         />
-                        <TextInput
-                            label="Snowflake username"
-                            required
-                            {...form.getInputProps('warehouse.user')}
-                        />
                         <Button
                             style={{ alignSelf: 'flex-end' }}
                             loading={
                                 createProject.isLoading || connectCode.isLoading
                             }
-                            disabled={!account || !userName}
+                            disabled={!account}
                             onClick={() => void handleGenerate()}
                         >
                             Generate connect code

@@ -26,7 +26,7 @@ export type ConnectSnowflakeOptions = {
     warehouse?: string;
     role?: string;
     schema?: string;
-    user: string;
+    user?: string;
 };
 
 type SnowflakeOAuthClient = Pick<
@@ -172,7 +172,7 @@ export const connectSnowflakeHandler = async (
     const authorizationCodeCredentials: CreateSnowflakeCredentials = {
         type: WarehouseTypes.SNOWFLAKE,
         account: options.account,
-        user: options.user,
+        user: options.user ?? '',
         authenticationType:
             SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE,
         role: options.role,
@@ -199,6 +199,7 @@ export const connectSnowflakeHandler = async (
     const inventory = capInventory(discovery.inventory);
     const warehouseConnection: CreateSnowflakeCredentials = {
         ...authorizationCodeCredentials,
+        user: discovery.user,
         authenticationType: SnowflakeAuthenticationType.OAUTH,
         refreshToken: oauthTokens.refreshToken,
         token: oauthTokens.accessToken,

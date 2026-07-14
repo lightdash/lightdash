@@ -163,9 +163,21 @@ const createOAuthCredentialManager = (): SnowflakeOAuthCredentialManager => {
 
     return {
         async read(key) {
+            if (!key) return null;
             return values.get(key) ?? null;
         },
         async write(key, token) {
+            if (!key) {
+                // Without a username the SDK builds null cache keys but
+                // still writes both tokens; classify by shape (access
+                // tokens are JWTs, refresh tokens are opaque)
+                if (getAccessTokenExpiresAt(token) !== null) {
+                    accessToken = token;
+                } else {
+                    refreshToken = token;
+                }
+                return;
+            }
             values.set(key, token);
             if (key.endsWith(':{OAUTH_AUTHORIZATION_CODE_ACCESS_TOKEN}')) {
                 accessToken = token;
@@ -176,6 +188,7 @@ const createOAuthCredentialManager = (): SnowflakeOAuthCredentialManager => {
             }
         },
         async remove(key) {
+            if (!key) return;
             values.delete(key);
             if (key.endsWith(':{OAUTH_AUTHORIZATION_CODE_ACCESS_TOKEN}')) {
                 accessToken = null;
@@ -297,6 +310,7 @@ export type SnowflakeSessionInventory = {
 };
 
 export type SnowflakeSessionDiscovery = {
+    user: string;
     defaults: SnowflakeSessionDefaults;
     inventory: SnowflakeSessionInventory;
 };
@@ -653,8 +667,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 authenticator: OAUTH_AUTHORIZATION_CODE_AUTHENTICATOR,
                 // oauthClientId/Secret deliberately omitted: the SDK defaults
                 // BOTH to the LOCAL_APPLICATION public-client literal only
-                // when neither is set (connection_config getOauthClientId)
-                username: credentials.user,
+                // when neither is set (connection_config getOauthClientId).
+                // Username is optional: identity comes from the browser
+                // sign-in, and Snowflake rejects a mismatching LOGIN_NAME
+                ...(credentials.user ? { username: credentials.user } : {}),
                 role: credentials.role,
                 clientStoreTemporaryCredential: true,
                 browserActionTimeout: 300_000,
@@ -920,17 +936,23 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
     }
 
     async getSessionDiscovery(
-        user: string,
+        user?: string,
     ): Promise<SnowflakeSessionDiscovery> {
         const connection = await this.getConnection();
         const defaultsResult = await this.executeStatements(
             connection,
-            'SELECT CURRENT_ROLE() AS role, CURRENT_WAREHOUSE() AS warehouse, CURRENT_DATABASE() AS database, CURRENT_SCHEMA() AS schema',
+            'SELECT CURRENT_USER() AS user, CURRENT_ROLE() AS role, CURRENT_WAREHOUSE() AS warehouse, CURRENT_DATABASE() AS database, CURRENT_SCHEMA() AS schema',
         );
         const defaultsRow = (defaultsResult.rows[0] ?? {}) as Record<
             string,
             AnyType
         >;
+        const sessionUser = user || getSnowflakeRowValue(defaultsRow, 'user');
+        if (!sessionUser) {
+            throw new SnowflakeDiagnosticError(
+                new Error('Could not determine the authenticated user'),
+            );
+        }
         const databasesResult = await this.executeStatements(
             connection,
             `SHOW DATABASES LIMIT ${SESSION_DISCOVERY_LIMIT}`,
@@ -942,7 +964,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         const grantsResult = await this.executeStatements(
             connection,
             `SHOW GRANTS TO USER ${snowflakeIdentifier(
-                user,
+                sessionUser,
             )} LIMIT ${SESSION_DISCOVERY_LIMIT}`,
         );
         const roles = [
@@ -958,6 +980,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             ]),
         ].slice(0, SESSION_DISCOVERY_LIMIT);
         return {
+            user: sessionUser,
             defaults: {
                 role: getSnowflakeRowValue(defaultsRow, 'role'),
                 warehouse: getSnowflakeRowValue(defaultsRow, 'warehouse'),

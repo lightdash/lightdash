@@ -183,7 +183,7 @@ program
     .requiredOption('--code <one-time-code>', 'One-time Lightdash connect code')
     .requiredOption('--url <lightdash-url>', 'Lightdash instance URL')
     .requiredOption('--account <account>', 'Snowflake account identifier')
-    .requiredOption('--user <username>', 'Snowflake username')
+    .option('--user <username>', 'Snowflake username override')
     .option('--database <database>', 'Snowflake database override')
     .option('--warehouse <warehouse>', 'Snowflake warehouse override')
     .option('--role <role>', 'Snowflake role override')

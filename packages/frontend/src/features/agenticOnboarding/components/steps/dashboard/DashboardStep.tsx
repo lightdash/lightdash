@@ -1,5 +1,4 @@
 import {
-    OnboardingStepStatus,
     OnboardingStepType,
     type DashboardBuildResult,
 } from '@lightdash/common';
@@ -9,7 +8,6 @@ import PageSpinner from '../../../../../components/PageSpinner';
 import { useOnboardingWizard } from '../../../context/wizardContext';
 import { useOnboardingAnalytics } from '../../../hooks/useOnboardingAnalytics';
 import { useOnboardingJobRunner } from '../../../hooks/useOnboardingJobRunner';
-import { patchOnboardingState } from '../../../hooks/useOnboardingState';
 import JobProgressPanel from '../JobProgressPanel';
 import StepErrorState from '../StepErrorState';
 import DashboardResultView from './DashboardResultView';
@@ -51,11 +49,6 @@ const DashboardStep: FC = () => {
             !completedMarked.current
         ) {
             completedMarked.current = true;
-            void patchOnboardingState(wizard.projectUuid, {
-                step: OnboardingStepType.DASHBOARD,
-                status: OnboardingStepStatus.COMPLETED,
-                result: null,
-            }).catch(() => undefined);
         }
     }, [runner.phase, runner.result, wizard.projectUuid]);
 

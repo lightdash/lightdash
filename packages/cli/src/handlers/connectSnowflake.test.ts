@@ -42,6 +42,7 @@ const inventory = {
 };
 
 const discovery = {
+    user: 'lightdash_user',
     defaults: connectionValues,
     inventory,
 };
@@ -231,6 +232,7 @@ describe('connectSnowflakeHandler', () => {
             warehouse: null,
         };
         getSessionDiscovery.mockResolvedValueOnce({
+            user: 'lightdash_user',
             defaults: pendingValues,
             inventory,
         });

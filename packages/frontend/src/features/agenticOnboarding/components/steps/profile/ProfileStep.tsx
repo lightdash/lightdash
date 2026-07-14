@@ -1,14 +1,9 @@
-import {
-    OnboardingStepStatus,
-    OnboardingStepType,
-    type ProfileResult,
-} from '@lightdash/common';
+import { OnboardingStepType, type ProfileResult } from '@lightdash/common';
 import { useEffect, useRef, type FC } from 'react';
 import PageSpinner from '../../../../../components/PageSpinner';
 import { useOnboardingWizard } from '../../../context/wizardContext';
 import { useOnboardingAnalytics } from '../../../hooks/useOnboardingAnalytics';
 import { useOnboardingJobRunner } from '../../../hooks/useOnboardingJobRunner';
-import { patchOnboardingState } from '../../../hooks/useOnboardingState';
 import JobProgressPanel from '../JobProgressPanel';
 import StepErrorState from '../StepErrorState';
 import ProfileResultView from './ProfileResultView';
@@ -44,11 +39,6 @@ const ProfileStep: FC = () => {
     const handleContinue = async () => {
         if (!wizard.projectUuid) return;
         trackCompleted();
-        await patchOnboardingState(wizard.projectUuid, {
-            step: OnboardingStepType.PROFILE,
-            status: OnboardingStepStatus.COMPLETED,
-            result: null,
-        }).catch(() => undefined);
         wizard.goToProjectStep(
             wizard.projectUuid,
             OnboardingStepType.SEMANTIC_LAYER,

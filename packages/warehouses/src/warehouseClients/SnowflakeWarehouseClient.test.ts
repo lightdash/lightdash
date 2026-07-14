@@ -86,12 +86,14 @@ describe('SnowflakeWarehouseClient', () => {
         expect(warehouse.connectionOptions).toEqual(
             expect.objectContaining({
                 account: credentials.account,
-                username: credentials.user,
                 authenticator: 'OAUTH_AUTHORIZATION_CODE',
                 clientStoreTemporaryCredential: true,
                 browserActionTimeout: 300_000,
             }),
         );
+        // Username is optional for the OAuth flow: identity comes from the
+        // browser sign-in, so it is only forwarded when provided
+        expect(warehouse.connectionOptions).not.toHaveProperty('username');
         // Both must be absent: the SDK only applies its LOCAL_APPLICATION
         // public-client defaults when neither option is set
         expect(warehouse.connectionOptions).not.toHaveProperty('oauthClientId');
@@ -420,9 +422,10 @@ describe('SnowflakeWarehouseClient', () => {
         const execute = vi.fn(
             ({ sqlText, complete }: { sqlText: string; complete: Mock }) => {
                 let rows: Record<string, string | null>[] = [];
-                if (sqlText.startsWith('SELECT CURRENT_ROLE')) {
+                if (sqlText.startsWith('SELECT CURRENT_USER')) {
                     rows = [
                         {
+                            USER: 'user.name@example.com',
                             ROLE: 'ANALYST',
                             WAREHOUSE: 'TRANSFORMING',
                             DATABASE: 'ANALYTICS',
@@ -462,6 +465,7 @@ describe('SnowflakeWarehouseClient', () => {
         await expect(
             warehouse.getSessionDiscovery('user.name@example.com'),
         ).resolves.toEqual({
+            user: 'user.name@example.com',
             defaults: {
                 role: 'ANALYST',
                 warehouse: 'TRANSFORMING',
