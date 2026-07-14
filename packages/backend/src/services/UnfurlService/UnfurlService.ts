@@ -6,13 +6,13 @@ import {
     ChartType,
     DashboardTileTypes,
     DownloadFileType,
+    EXPORT_TAB_PAGE_CLASS,
     ForbiddenError,
     getErrorMessage,
     HealthState,
     isDashboardChartTileType,
     isDashboardSqlChartTile,
     isTileInSelectedTabs,
-    isTileInSelectedTabsStrict,
     LightdashMode,
     LightdashPage,
     LightdashRequestMethodHeader,
@@ -31,7 +31,6 @@ import {
     validateSelectedTabs,
     type DashboardFilterRule,
     type DashboardFilters,
-    type DashboardTab,
     type ParametersValuesMap,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -71,7 +70,7 @@ import { getAuthenticationToken } from '../../routers/headlessBrowser';
 import { traceSpan } from '../../tracing/tracing';
 import { BaseService } from '../BaseService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
-import { countPdfPages, mergePdfBuffers } from './pdfMerge';
+import { countPdfPages } from './countPdfPages';
 
 const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const uuidRegex = new RegExp(uuid, 'g');
@@ -189,7 +188,7 @@ function cropPdfToClipInternal(
     return Buffer.from(pdfStr + appendix, 'binary');
 }
 
-export function cropPdfToClip(
+function cropPdfToClip(
     buffer: Buffer,
     clip: { x: number; y: number; width: number; height: number },
 ): Buffer {
@@ -718,174 +717,12 @@ export class UnfurlService extends BaseService {
         };
     }
 
-    async unfurlPdfPerTab({
-        minimalUrl,
-        dashboardUuid,
-        imageId,
-        authUserUuid,
-        gridWidth,
-        context,
-        contextId,
-        selectedTabs,
-        sendNowSchedulerDashboardFilters,
-        sendNowSchedulerFilters,
-        sendNowSchedulerParameters,
-    }: {
-        minimalUrl: string;
-        dashboardUuid: string;
-        imageId: string;
-        authUserUuid: string;
-        gridWidth: number | undefined;
-        context: ScreenshotContext;
-        contextId?: unknown;
-        selectedTabs: string[] | null;
-        sendNowSchedulerDashboardFilters?: DashboardFilters;
-        sendNowSchedulerFilters?: DashboardFilterRule[];
-        sendNowSchedulerParameters?: ParametersValuesMap;
-    }): Promise<{
-        pdfFile: { source: string; fileName: string };
-        pdfPageCount: number;
-    }> {
-        return traceSpan(
-            {
-                op: 'unfurl.pdf_per_tab',
-                name: 'UnfurlService.unfurlPdfPerTab',
-            },
-            async (span) => {
-                const dashboard =
-                    await this.dashboardModel.getByIdOrSlug(dashboardUuid);
-                const tabs = resolveExportTabs(dashboard.tabs, selectedTabs);
-                // Stale flag on an untabbed dashboard: behave exactly like today
-                // (single stacked render, no header).
-                const tabRenders: { tab: DashboardTab | null }[] =
-                    dashboard.tabs.length === 0
-                        ? [{ tab: null }]
-                        : tabs.map((tab) => ({ tab }));
-                if (tabRenders.length === 0) {
-                    throw new ParameterError(
-                        `Page-per-tab PDF requested for dashboard ${dashboardUuid} but it has no visible or selected tabs to export`,
-                    );
-                }
-
-                const cookie = await this.getUserCookie(authUserUuid);
-                const pdfBuffers: Buffer[] = [];
-
-                // Tab-invariant details resolved once against the original
-                // selection, so an empty tab's per-tab tile set never hits
-                // validateSelectedTabs and kills the whole export.
-                const details = await this.unfurlDetails(
-                    minimalUrl,
-                    selectedTabs,
-                );
-
-                for (const [index, { tab }] of tabRenders.entries()) {
-                    const tabUrl = new URL(minimalUrl);
-                    // Tile sets the screenshot waits on (e.g. Loom tiles) must
-                    // match what the page actually renders, so non-first pages
-                    // don't block on orphan tiles that only appear on page one.
-                    let strictTileUuids: {
-                        chartTileUuids: (string | null)[];
-                        sqlChartTileUuids: (string | null)[];
-                        loomTileUuids: (string | null)[];
-                    } | null = null;
-                    if (tab) {
-                        // Orphan tiles (tabUuid null) always render on the first page
-                        const tabSelection: (string | null)[] =
-                            index === 0 ? [tab.uuid, null] : [tab.uuid];
-                        tabUrl.searchParams.set(
-                            'selectedTabs',
-                            JSON.stringify(tabSelection),
-                        );
-                        tabUrl.searchParams.set('exportHeader', 'true');
-
-                        const renderedTiles = dashboard.tiles.filter((tile) =>
-                            isTileInSelectedTabsStrict(tile, tabSelection),
-                        );
-                        strictTileUuids = {
-                            chartTileUuids: renderedTiles
-                                .filter(isDashboardChartTileType)
-                                .map((t) => t.properties.savedChartUuid),
-                            sqlChartTileUuids: renderedTiles
-                                .filter(isDashboardSqlChartTile)
-                                .map((t) => t.properties.savedSqlUuid),
-                            loomTileUuids: renderedTiles
-                                .filter(
-                                    (t) => t.type === DashboardTileTypes.LOOM,
-                                )
-                                .map((t) => t.uuid),
-                        };
-                    }
-                    const tabSelectedTabs = tab ? [tab.uuid] : selectedTabs;
-
-                    // eslint-disable-next-line no-await-in-loop
-                    const result = await this.saveScreenshot({
-                        authUserUuid,
-                        imageId: `${imageId}-tab-${index}`,
-                        cookie,
-                        url: tabUrl.href,
-                        lightdashPage: LightdashPage.DASHBOARD,
-                        chartType: details?.chartType,
-                        organizationUuid: details?.organizationUuid,
-                        gridWidth,
-                        resourceUuid: details?.resourceUuid,
-                        resourceName: details?.title,
-                        chartTileUuids:
-                            strictTileUuids?.chartTileUuids ??
-                            details?.chartTileUuids,
-                        sqlChartTileUuids:
-                            strictTileUuids?.sqlChartTileUuids ??
-                            details?.sqlChartTileUuids,
-                        loomTileUuids:
-                            strictTileUuids?.loomTileUuids ??
-                            details?.loomTileUuids,
-                        context,
-                        contextId,
-                        selectedTabs: tabSelectedTabs,
-                        sendNowSchedulerDashboardFilters,
-                        sendNowSchedulerFilters,
-                        sendNowSchedulerParameters,
-                        outputFormat: 'pdf',
-                        withPdf: false,
-                    });
-                    if (!result?.pdfBuffer) {
-                        throw new Error(
-                            `Unable to render PDF page for ${
-                                tab ? `tab "${tab.name}" of ` : ''
-                            }dashboard "${dashboard.name}"`,
-                        );
-                    }
-                    pdfBuffers.push(result.pdfBuffer);
-                }
-
-                const merged = await mergePdfBuffers(
-                    pdfBuffers,
-                    dashboard.name,
-                );
-                const pdfFile = await this.uploadPdf(
-                    imageId,
-                    merged,
-                    dashboard.name,
-                );
-
-                span.setAttributes({
-                    tabsCount: tabs.length,
-                    pdfPageCount: pdfBuffers.length,
-                    pagePerTab: true,
-                });
-                this.logger.info(
-                    `UnfurlService unfurlPdfPerTab rendered ${pdfBuffers.length} pages for dashboard ${dashboardUuid} - unfurlId: ${imageId}`,
-                );
-
-                return { pdfFile, pdfPageCount: pdfBuffers.length };
-            },
-        );
-    }
-
     /**
-     * Approach B: render every selected tab in ONE browser session, paginated
-     * by CSS print page breaks with a uniform page size (tallest tab). Produces
-     * a native multi-page PDF from a single `page.pdf()` call — one navigation
-     * instead of O(N tabs) sessions like `unfurlPdfPerTab`.
+     * Render every selected tab in ONE browser session, paginated by CSS print
+     * page breaks with a uniform page size (tallest tab). Produces a native
+     * multi-page PDF from a single `page.pdf()` call — one navigation instead of
+     * one browser session per tab. The PDF `/Title` comes from the frontend's
+     * `document.title` (set to the dashboard name in paged mode).
      */
     async unfurlPdfCssPaged({
         minimalUrl,
@@ -929,27 +766,44 @@ export class UnfurlService extends BaseService {
                     selectedTabs,
                 );
 
+                // Untabbed dashboard (stale flag): render exactly like a plain
+                // PDF — one stacked page cropped to content, no headers.
+                const isUntabbed = dashboard.tabs.length === 0;
+                if (!isUntabbed && resolvedTabs.length === 0) {
+                    throw new ParameterError(
+                        `Page-per-tab PDF requested for dashboard ${dashboardUuid} but it has no visible or selected tabs to export`,
+                    );
+                }
+
                 // Single render URL: all resolved tab UUIDs plus the orphan
                 // sentinel (null), paginated on the frontend by print CSS.
                 const pagedUrl = new URL(minimalUrl);
-                const tabSelection: (string | null)[] =
-                    dashboard.tabs.length === 0
-                        ? []
-                        : [...resolvedTabs.map((tab) => tab.uuid), null];
-                if (tabSelection.length > 0) {
+                if (!isUntabbed) {
+                    const tabSelection: (string | null)[] = [
+                        ...resolvedTabs.map((tab) => tab.uuid),
+                        null,
+                    ];
                     pagedUrl.searchParams.set(
                         'selectedTabs',
                         JSON.stringify(tabSelection),
                     );
+                    pagedUrl.searchParams.set('exportPagedTabs', 'true');
                 }
-                pagedUrl.searchParams.set('exportPagedTabs', 'true');
 
                 const cookie = await this.getUserCookie(authUserUuid);
-                // Readiness set = every tile across the selected tabs (+ orphans).
-                const details = await this.unfurlDetails(
-                    minimalUrl,
-                    selectedTabs,
-                );
+
+                // Derive the readiness tile sets locally from the dashboard
+                // record instead of unfurlDetails — unfurlDetails runs
+                // validateSelectedTabs, which throws on a zero-tile selection
+                // and would kill a scheduler that picked ONLY an empty tab.
+                // Non-strict isTileInSelectedTabs keeps orphan tiles in the set
+                // (they render on the first page), matching the frontend.
+                const resolvedTabUuids = resolvedTabs.map((tab) => tab.uuid);
+                const renderedTiles = isUntabbed
+                    ? dashboard.tiles
+                    : dashboard.tiles.filter((tile) =>
+                          isTileInSelectedTabs(tile, resolvedTabUuids),
+                      );
 
                 const result = await this.saveScreenshot({
                     authUserUuid,
@@ -957,14 +811,19 @@ export class UnfurlService extends BaseService {
                     cookie,
                     url: pagedUrl.href,
                     lightdashPage: LightdashPage.DASHBOARD,
-                    chartType: details?.chartType,
-                    organizationUuid: details?.organizationUuid,
+                    organizationUuid: dashboard.organizationUuid,
                     gridWidth,
-                    resourceUuid: details?.resourceUuid,
-                    resourceName: details?.title,
-                    chartTileUuids: details?.chartTileUuids,
-                    sqlChartTileUuids: details?.sqlChartTileUuids,
-                    loomTileUuids: details?.loomTileUuids,
+                    resourceUuid: dashboard.uuid,
+                    resourceName: dashboard.name,
+                    chartTileUuids: renderedTiles
+                        .filter(isDashboardChartTileType)
+                        .map((t) => t.properties.savedChartUuid),
+                    sqlChartTileUuids: renderedTiles
+                        .filter(isDashboardSqlChartTile)
+                        .map((t) => t.properties.savedSqlUuid),
+                    loomTileUuids: renderedTiles
+                        .filter((t) => t.type === DashboardTileTypes.LOOM)
+                        .map((t) => t.uuid),
                     context,
                     contextId,
                     selectedTabs,
@@ -973,7 +832,7 @@ export class UnfurlService extends BaseService {
                     sendNowSchedulerParameters,
                     outputFormat: 'pdf',
                     withPdf: false,
-                    pdfPagination: 'cssPaged',
+                    pdfPagination: isUntabbed ? 'crop' : 'cssPaged',
                 });
                 if (!result?.pdfBuffer) {
                     throw new Error(
@@ -981,15 +840,22 @@ export class UnfurlService extends BaseService {
                     );
                 }
 
-                // Re-serialize to set the document title (single-buffer merge).
-                const titled = await mergePdfBuffers(
-                    [result.pdfBuffer],
-                    dashboard.name,
-                );
-                const pdfPageCount = await countPdfPages(titled);
+                // Hard invariant: exactly one PDF page per rendered tab
+                // container (untabbed fallback = one stacked page). Count pages
+                // straight from the bytes and fail the job on any mismatch —
+                // never deliver a subtly broken document. pdfPageCount reports
+                // the VERIFIED count.
+                const expectedPageCount = isUntabbed ? 1 : resolvedTabs.length;
+                const pdfPageCount = countPdfPages(result.pdfBuffer);
+                if (pdfPageCount !== expectedPageCount) {
+                    throw new Error(
+                        `css-paged PDF for dashboard ${dashboardUuid} rendered ${pdfPageCount} pages but expected ${expectedPageCount} (one per tab) - unfurlId: ${imageId}`,
+                    );
+                }
+
                 const pdfFile = await this.uploadPdf(
                     imageId,
-                    titled,
+                    result.pdfBuffer,
                     dashboard.name,
                 );
 
@@ -998,7 +864,6 @@ export class UnfurlService extends BaseService {
                     tabsCount: resolvedTabs.length,
                     pdfPageCount,
                     pagePerTab: true,
-                    strategy: 'cssPaged',
                 });
                 this.logger.info(
                     `UnfurlService unfurlPdfCssPaged rendered ${pdfPageCount} pages for dashboard ${dashboardUuid} in ${executionTime} ms - unfurlId: ${imageId}`,
@@ -1286,9 +1151,9 @@ export class UnfurlService extends BaseService {
         sendNowSchedulerParameters?: ParametersValuesMap | undefined;
         outputFormat?: 'image' | 'pdf';
         withPdf?: boolean;
-        // 'crop' (default): single-page PDF clipped to content (Approach A).
+        // 'crop' (default): single-page PDF clipped to content.
         // 'cssPaged': multi-page PDF, uniform page height, print page breaks
-        // between `.lightdash-export-tab-page` containers (Approach B).
+        // between EXPORT_TAB_PAGE_CLASS containers (one per tab).
         pdfPagination?: 'crop' | 'cssPaged';
     }): Promise<{ imageBuffer?: Buffer; pdfBuffer?: Buffer } | undefined> {
         this.logger.info(
@@ -2081,25 +1946,31 @@ export class UnfurlService extends BaseService {
                     // Helper: generate PDF from the current page state
                     const generatePdf = async () => {
                         const pdfWidth = gridWidth ?? viewport.width;
-                        // Approach B: one native multi-page PDF. Uniform page
-                        // height = tallest tab container (so every page is the
-                        // same size); print CSS breaks each tab onto its own
-                        // page. No pageRanges, no crop — let it paginate.
+                        // One native multi-page PDF. Uniform page height =
+                        // tallest tab container; print CSS breaks each tab onto
+                        // its own page. No pageRanges, no crop — let it paginate.
+                        // Every page is the tallest tab's height, so shorter
+                        // tabs get bottom whitespace — a deliberate product
+                        // decision (single render over native per-tab heights).
                         if (pdfPagination === 'cssPaged') {
-                            const tallestTab = await page!.evaluate(() => {
-                                const els = Array.from(
-                                    document.querySelectorAll(
-                                        '.lightdash-export-tab-page',
-                                    ),
-                                );
-                                let maxHeight = 0;
-                                for (const el of els) {
-                                    const { height } =
-                                        el.getBoundingClientRect();
-                                    if (height > maxHeight) maxHeight = height;
-                                }
-                                return Math.ceil(maxHeight);
-                            });
+                            const tallestTab = await page!.evaluate(
+                                (tabPageClass) => {
+                                    const els = Array.from(
+                                        document.querySelectorAll(
+                                            `.${tabPageClass}`,
+                                        ),
+                                    );
+                                    let maxHeight = 0;
+                                    for (const el of els) {
+                                        const { height } =
+                                            el.getBoundingClientRect();
+                                        if (height > maxHeight)
+                                            maxHeight = height;
+                                    }
+                                    return Math.ceil(maxHeight);
+                                },
+                                EXPORT_TAB_PAGE_CLASS,
+                            );
                             // Buffer absorbs sub-pixel rounding so the tallest
                             // tab never spills onto a blank extra page.
                             const pageHeight =
