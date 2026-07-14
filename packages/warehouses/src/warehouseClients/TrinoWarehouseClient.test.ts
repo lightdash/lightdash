@@ -74,9 +74,9 @@ describe('TrinoWarehouseClient', () => {
                 .mockResolvedValue({ done: true, value: querySchemaResponse }),
         });
 
-        expect(warehouse.getCatalog(wharehouseClient.config)).resolves.toEqual(
-            wharehouseClient.expectedWarehouseSchema,
-        );
+        await expect(
+            warehouse.getCatalog(wharehouseClient.config),
+        ).resolves.toEqual(wharehouseClient.expectedWarehouseSchema);
     });
 
     describe('streamQuery client tag headers', () => {
