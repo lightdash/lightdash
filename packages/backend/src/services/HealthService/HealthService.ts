@@ -236,6 +236,7 @@ export class HealthService extends BaseService {
                     ? this.lightdashConfig.appearance.overrideColorPaletteName
                     : undefined,
             },
+            hasBrandfetch: !!this.lightdashConfig.brandfetch?.apiKey,
             hasMicrosoftTeams: this.lightdashConfig.microsoftTeams.enabled,
             isServiceAccountEnabled:
                 this.lightdashConfig.serviceAccount.enabled,

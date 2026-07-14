@@ -105,6 +105,7 @@ export default function mockHealthResponse(
             overrideColorPalette: undefined,
             overrideColorPaletteName: undefined,
         },
+        hasBrandfetch: false,
         isServiceAccountEnabled: false,
         isOrganizationWarehouseCredentialsEnabled: false,
         isAthenaWarehouseIamRoleAuthEnabled: false,
