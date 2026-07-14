@@ -13,7 +13,7 @@ import {
     Title,
     Tooltip,
 } from '@mantine-8/core';
-import { IconCheck, IconCopy, IconPlus } from '@tabler/icons-react';
+import { IconCheck, IconCopy, IconKey } from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { useServiceAccounts } from '../../../ee/features/serviceAccounts/useServiceAccounts';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
@@ -68,29 +68,18 @@ const CopyableField: FC<{
 );
 
 /**
- * Service-account picker + on-the-spot token generation. Isolated in its own
- * component so `useServiceAccounts` (which fires a list request on mount) only
- * runs when the instance actually has service accounts enabled. The plaintext
- * token is returned once on creation; it's lifted to the parent so the snippets
- * can render a ready-to-use password.
+ * Token step for the connection page. The pgwire password is a Lightdash token;
+ * a token's plaintext is only ever returned once, at creation. So rather than
+ * let the user pick an existing service account (whose token we can't recover),
+ * we generate a fresh minimum-scope service account on the spot and reveal its
+ * token once. It's lifted to the parent so the snippets can render a
+ * ready-to-use password; a page reload clears it.
  */
-const ServiceAccountTokenField: FC<{
+const GenerateTokenField: FC<{
     generatedToken: string | null;
     onTokenGenerated: (token: string) => void;
 }> = ({ generatedToken, onTokenGenerated }) => {
-    const { listAccounts, createAccount } = useServiceAccounts();
-    const [selectedAccountUuid, setSelectedAccountUuid] = useState<
-        string | null
-    >(null);
-
-    const accountOptions = useMemo(
-        () =>
-            (listAccounts.data ?? []).map((account) => ({
-                value: account.uuid,
-                label: account.description,
-            })),
-        [listAccounts.data],
-    );
+    const { createAccount } = useServiceAccounts();
 
     const handleGenerateToken = () => {
         createAccount.mutate(
@@ -101,52 +90,42 @@ const ServiceAccountTokenField: FC<{
                 scopes: [ServiceAccountScope.SYSTEM_INTERACTIVE_VIEWER],
             },
             {
-                onSuccess: (account) => {
-                    onTokenGenerated(account.token);
-                    setSelectedAccountUuid(account.uuid);
-                },
+                onSuccess: (account) => onTokenGenerated(account.token),
             },
         );
     };
 
-    return (
-        <>
-            <Group align="flex-end" wrap="nowrap">
-                <Select
-                    label="Service account"
-                    placeholder="Select a service account"
-                    data={accountOptions}
-                    value={selectedAccountUuid}
-                    onChange={setSelectedAccountUuid}
-                    disabled={listAccounts.isInitialLoading}
-                    searchable
-                    clearable
-                    style={{ flexGrow: 1 }}
+    if (generatedToken) {
+        return (
+            <Stack gap="xs">
+                <CopyableField
+                    label="Password (token)"
+                    value={generatedToken}
                 />
-                <Button
-                    variant="default"
-                    leftSection={<MantineIcon icon={IconPlus} />}
-                    loading={createAccount.isLoading}
-                    onClick={handleGenerateToken}
-                >
-                    Generate token
-                </Button>
-            </Group>
-            {generatedToken ? (
-                <>
-                    <CopyableField label="Token" value={generatedToken} />
-                    <Callout variant="info">
-                        Copy this token now — you won&apos;t be able to see it
-                        again.
-                    </Callout>
-                </>
-            ) : (
-                <Text c="ldGray.6" fz="xs">
-                    Generate a token above (or paste your own) to fill in the
-                    examples below.
-                </Text>
-            )}
-        </>
+                <Callout variant="info">
+                    Copy this token now — you won&apos;t be able to see it
+                    again. It&apos;s the password for every example below.
+                </Callout>
+            </Stack>
+        );
+    }
+
+    return (
+        <Group justify="space-between" wrap="nowrap" align="center">
+            <Text c="ldGray.6" fz="xs">
+                Generate a service account token (created with the minimum scope
+                needed to run queries) to use as the password.
+            </Text>
+            <Button
+                variant="default"
+                leftSection={<MantineIcon icon={IconKey} />}
+                loading={createAccount.isLoading}
+                onClick={handleGenerateToken}
+                style={{ flexShrink: 0 }}
+            >
+                Generate token
+            </Button>
+        </Group>
     );
 };
 
@@ -233,71 +212,90 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
             )}
 
             {isEnabled && isOrgAdmin && (
-                <SettingsCard mb="lg">
-                    <Stack gap="md">
-                        <Callout variant="info" title="Before you connect">
-                            Only simple <code>SELECT</code> queries against a
-                            single explore are supported (no SQL joins), with a
-                            default limit of 500 rows. TLS is not yet available,
-                            so clients must use <code>sslmode=disable</code>.
-                        </Callout>
+                <>
+                    <SettingsCard mb="lg">
+                        <Stack gap="md">
+                            <Callout variant="info" title="Before you connect">
+                                Only simple <code>SELECT</code> queries against
+                                a single explore are supported (no SQL joins),
+                                with a default limit of 500 rows. TLS is not yet
+                                available, so clients must use{' '}
+                                <code>sslmode=disable</code>.
+                            </Callout>
 
-                        <Title order={6}>Connection details</Title>
-                        <CopyableField label="Host" value={host} />
-                        <CopyableField label="Port" value={portString} />
-                        <CopyableField
-                            label="Database"
-                            description="Use the project UUID (unambiguous)."
-                            value={projectUuid}
-                        />
-                        <CopyableField
-                            label="User"
-                            description="Not enforced by the server — any value works."
-                            value={DEFAULT_USER}
-                        />
-                        <Select
-                            label="SSL mode"
-                            description="SSL support is coming soon."
-                            data={[{ value: 'disable', label: 'disable' }]}
-                            value="disable"
-                            disabled
-                        />
+                            <Title order={6}>Connection details</Title>
+                            <Group grow align="flex-start" wrap="nowrap">
+                                <CopyableField label="Host" value={host} />
+                                <CopyableField
+                                    label="Port"
+                                    value={portString}
+                                />
+                            </Group>
+                            <CopyableField
+                                label="Database"
+                                description="Use the project UUID (unambiguous)."
+                                value={projectUuid}
+                            />
+                            <Group grow align="flex-start" wrap="nowrap">
+                                <CopyableField
+                                    label="User"
+                                    description="Not enforced — any value works."
+                                    value={DEFAULT_USER}
+                                />
+                                <Select
+                                    label="SSL mode"
+                                    description="SSL support is coming soon."
+                                    data={[
+                                        { value: 'disable', label: 'disable' },
+                                    ]}
+                                    value="disable"
+                                    disabled
+                                />
+                            </Group>
+                        </Stack>
+                    </SettingsCard>
 
-                        <Stack gap="xs">
-                            <Text fw={500} fz="sm">
-                                Password (token)
-                            </Text>
-                            <Text c="ldGray.6" fz="xs">
-                                Use a service account token (
-                                <code>ldsvc_...</code>) or a personal access
-                                token (<code>ldpat_...</code>) as the password.
-                            </Text>
+                    <SettingsCard mb="lg">
+                        <Stack gap="md">
+                            <Stack gap="xxs">
+                                <Title order={6}>Authentication</Title>
+                                <Text c="ldGray.6" fz="sm">
+                                    Use a service account token (
+                                    <code>ldsvc_...</code>) or a personal access
+                                    token (<code>ldpat_...</code>) as the
+                                    password.
+                                </Text>
+                            </Stack>
                             {isServiceAccountsEnabled ? (
-                                <ServiceAccountTokenField
+                                <GenerateTokenField
                                     generatedToken={generatedToken}
                                     onTokenGenerated={setGeneratedToken}
                                 />
                             ) : (
                                 <Text c="ldGray.6" fz="xs">
                                     Paste a personal access token from your
-                                    account settings to fill in the examples
-                                    below.
+                                    account settings to use as the password in
+                                    the examples below.
                                 </Text>
                             )}
                         </Stack>
+                    </SettingsCard>
 
-                        <Title order={6}>Ready-to-copy examples</Title>
-                        <CopyableField
-                            label="Connection URL"
-                            value={snippets.libpqUrl}
-                        />
-                        <CopyableField label="psql" value={snippets.psql} />
-                        <CopyableField
-                            label="JDBC (DBeaver / DataGrip)"
-                            value={snippets.jdbc}
-                        />
-                    </Stack>
-                </SettingsCard>
+                    <SettingsCard mb="lg">
+                        <Stack gap="md">
+                            <Title order={6}>Ready-to-copy examples</Title>
+                            <CopyableField
+                                label="Connection URL"
+                                value={snippets.libpqUrl}
+                            />
+                            <CopyableField label="psql" value={snippets.psql} />
+                            <CopyableField
+                                label="JDBC (DBeaver / DataGrip)"
+                                value={snippets.jdbc}
+                            />
+                        </Stack>
+                    </SettingsCard>
+                </>
             )}
         </Stack>
     );
