@@ -144,12 +144,9 @@ Cypress.on('uncaught:exception', (err) => {
 Cypress.Commands.add(
     'selectMantine',
     (inputName: string, optionLabel: string) => {
-        cy.get(`input[name="${inputName}"]`)
-            .parent()
-            .click() // open dropdown
-            .parent('.mantine-Select-root')
-            .contains(optionLabel)
-            .click(); // click option
+        // Mantine 8 Select puts `name` on a hidden input right after the Select root
+        cy.get(`input[name="${inputName}"]`).prev().find('input').click(); // open dropdown
+        cy.findByRole('option', { name: optionLabel }).click();
     },
 );
 
