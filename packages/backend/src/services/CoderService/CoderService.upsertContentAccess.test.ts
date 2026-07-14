@@ -4,6 +4,7 @@ import {
     ChartAsCode,
     CustomDimensionType,
     DashboardAsCode,
+    DashboardTileTypes,
     DimensionType,
     ForbiddenError,
     OrganizationMemberRole,
@@ -79,7 +80,9 @@ const buildService = () =>
             get: vi.fn(),
             create: vi.fn(),
         } as AnyType,
-        savedSqlModel: {} as AnyType,
+        savedSqlModel: {
+            find: vi.fn(async () => []),
+        } as AnyType,
         dashboardModel: {
             find: vi.fn(async () => []),
             create: vi.fn(),
@@ -783,6 +786,76 @@ describe('CoderService content-as-code space permissions', () => {
         expect(service.promoteService.getPromoteCharts).not.toHaveBeenCalled();
     });
 
+    it('does not let chart create attach to a dashboard without SavedChart create access in the dashboard space', async () => {
+        const service = buildService();
+        vi.spyOn(service, 'getOrCreateSpace').mockResolvedValue({
+            space: { uuid: SPACE_UUID } as AnyType,
+            created: false,
+        });
+        vi.mocked(service.dashboardModel.find).mockResolvedValue([
+            {
+                uuid: 'dashboard-uuid',
+                spaceUuid: OTHER_SPACE_UUID,
+            } as AnyType,
+        ]);
+        vi.mocked(
+            service.spacePermissionService.getSpacesAccessContext,
+        ).mockImplementation(async (_userUuid, spaceUuids) =>
+            Object.fromEntries(
+                spaceUuids.map((spaceUuid) => [
+                    spaceUuid,
+                    {
+                        organizationUuid: ORG_UUID,
+                        projectUuid: PROJECT_UUID,
+                        inheritsFromOrgOrProject: false,
+                        access:
+                            spaceUuid === SPACE_UUID
+                                ? [
+                                      {
+                                          userUuid: 'user-uuid',
+                                          role: SpaceMemberRole.EDITOR,
+                                          hasDirectAccess: true,
+                                          projectRole: undefined,
+                                          inheritedRole: undefined,
+                                          inheritedFrom: undefined,
+                                      },
+                                  ]
+                                : [],
+                        admins: [],
+                    },
+                ]),
+            ),
+        );
+        const user = makeUser([
+            { subject: 'ContentAsCode', action: 'write' },
+            {
+                subject: 'SavedChart',
+                action: 'create',
+                conditions: {
+                    access: {
+                        $elemMatch: {
+                            userUuid: 'user-uuid',
+                            role: SpaceMemberRole.EDITOR,
+                        },
+                    },
+                },
+            },
+            {
+                subject: 'Dashboard',
+                action: 'update',
+                conditions: { projectUuid: PROJECT_UUID },
+            },
+        ]);
+
+        await expect(
+            service.upsertChart(user, PROJECT_UUID, chartAsCode.slug, {
+                ...chartAsCode,
+                dashboardSlug: 'dashboard',
+            }),
+        ).rejects.toThrow(ForbiddenError);
+        expect(service.savedChartModel.create).not.toHaveBeenCalled();
+    });
+
     it('allows unchanged SQL-bearing chart items when current chart has full details', async () => {
         const service = buildService();
         const chartWithSql = {
@@ -848,6 +921,228 @@ describe('CoderService content-as-code space permissions', () => {
         });
         expect(service.savedChartModel.get).toHaveBeenCalledWith('chart-uuid');
         expect(service.promoteService.getPromoteCharts).toHaveBeenCalled();
+    });
+
+    it('does not let dashboard create reference tile charts from inaccessible spaces', async () => {
+        const service = buildService();
+        vi.spyOn(service, 'getOrCreateSpace').mockResolvedValue({
+            space: { uuid: SPACE_UUID } as AnyType,
+            created: false,
+        });
+        vi.mocked(service.savedChartModel.find).mockResolvedValue([
+            {
+                uuid: 'private-chart-uuid',
+                slug: 'private-chart',
+                spaceUuid: OTHER_SPACE_UUID,
+            } as AnyType,
+        ]);
+        vi.mocked(
+            service.spacePermissionService.getSpacesAccessContext,
+        ).mockImplementation(async (_userUuid, spaceUuids) =>
+            Object.fromEntries(
+                spaceUuids.map((spaceUuid) => [
+                    spaceUuid,
+                    {
+                        organizationUuid: ORG_UUID,
+                        projectUuid: PROJECT_UUID,
+                        inheritsFromOrgOrProject: false,
+                        access:
+                            spaceUuid === SPACE_UUID
+                                ? [
+                                      {
+                                          userUuid: 'user-uuid',
+                                          role: SpaceMemberRole.EDITOR,
+                                          hasDirectAccess: true,
+                                          projectRole: undefined,
+                                          inheritedRole: undefined,
+                                          inheritedFrom: undefined,
+                                      },
+                                  ]
+                                : [],
+                        admins: [],
+                    },
+                ]),
+            ),
+        );
+        const user = makeUser([
+            { subject: 'ContentAsCode', action: 'write' },
+            {
+                subject: 'Dashboard',
+                action: 'create',
+                conditions: { projectUuid: PROJECT_UUID },
+            },
+            {
+                subject: 'SavedChart',
+                action: 'view',
+                conditions: {
+                    access: {
+                        $elemMatch: {
+                            userUuid: 'user-uuid',
+                            role: SpaceMemberRole.EDITOR,
+                        },
+                    },
+                },
+            },
+        ]);
+
+        await expect(
+            service.upsertDashboard(user, PROJECT_UUID, dashboardAsCode.slug, {
+                ...dashboardAsCode,
+                tiles: [
+                    {
+                        type: DashboardTileTypes.SAVED_CHART,
+                        x: 0,
+                        y: 0,
+                        h: 3,
+                        w: 3,
+                        properties: { chartSlug: 'private-chart' },
+                    },
+                ],
+            } as DashboardAsCode),
+        ).rejects.toThrow(ForbiddenError);
+        expect(service.dashboardModel.create).not.toHaveBeenCalled();
+    });
+
+    it('does not let dashboard update reference tile charts from inaccessible spaces', async () => {
+        const service = buildService();
+        vi.mocked(service.dashboardModel.find).mockResolvedValue([
+            { uuid: 'dashboard-uuid' } as AnyType,
+        ]);
+        vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
+            uuid: 'dashboard-uuid',
+            name: 'Dashboard',
+            spaceUuid: SPACE_UUID,
+            filters: { dimensions: [], metrics: [], tableCalculations: [] },
+        } as AnyType);
+        vi.mocked(service.savedChartModel.find).mockResolvedValue([
+            {
+                uuid: 'private-chart-uuid',
+                slug: 'private-chart',
+                spaceUuid: OTHER_SPACE_UUID,
+            } as AnyType,
+        ]);
+        vi.mocked(
+            service.spacePermissionService.getSpacesAccessContext,
+        ).mockImplementation(async (_userUuid, spaceUuids) =>
+            Object.fromEntries(
+                spaceUuids.map((spaceUuid) => [
+                    spaceUuid,
+                    {
+                        organizationUuid: ORG_UUID,
+                        projectUuid: PROJECT_UUID,
+                        inheritsFromOrgOrProject: false,
+                        access:
+                            spaceUuid === SPACE_UUID
+                                ? [
+                                      {
+                                          userUuid: 'user-uuid',
+                                          role: SpaceMemberRole.EDITOR,
+                                          hasDirectAccess: true,
+                                          projectRole: undefined,
+                                          inheritedRole: undefined,
+                                          inheritedFrom: undefined,
+                                      },
+                                  ]
+                                : [],
+                        admins: [],
+                    },
+                ]),
+            ),
+        );
+        const user = makeUser([
+            { subject: 'ContentAsCode', action: 'write' },
+            {
+                subject: 'Dashboard',
+                action: 'update',
+                conditions: { projectUuid: PROJECT_UUID },
+            },
+            {
+                subject: 'Dashboard',
+                action: 'promote',
+                conditions: { projectUuid: PROJECT_UUID },
+            },
+            {
+                subject: 'SavedChart',
+                action: 'view',
+                conditions: {
+                    access: {
+                        $elemMatch: {
+                            userUuid: 'user-uuid',
+                            role: SpaceMemberRole.EDITOR,
+                        },
+                    },
+                },
+            },
+        ]);
+
+        await expect(
+            service.upsertDashboard(user, PROJECT_UUID, dashboardAsCode.slug, {
+                ...dashboardAsCode,
+                tiles: [
+                    {
+                        type: DashboardTileTypes.SAVED_CHART,
+                        x: 0,
+                        y: 0,
+                        h: 3,
+                        w: 3,
+                        properties: { chartSlug: 'private-chart' },
+                    },
+                ],
+            } as DashboardAsCode),
+        ).rejects.toThrow(ForbiddenError);
+        expect(
+            service.promoteService.getPromotedDashboard,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('allows dashboard create with tile charts the caller can view', async () => {
+        const service = buildService();
+        vi.spyOn(service, 'getOrCreateSpace').mockResolvedValue({
+            space: { uuid: SPACE_UUID } as AnyType,
+            created: false,
+        });
+        vi.mocked(service.savedChartModel.find).mockResolvedValue([
+            {
+                uuid: 'accessible-chart-uuid',
+                slug: 'accessible-chart',
+                spaceUuid: SPACE_UUID,
+            } as AnyType,
+        ]);
+        vi.mocked(service.dashboardModel.create).mockResolvedValue({
+            uuid: 'dashboard-uuid',
+        } as AnyType);
+        const user = makeUser([
+            { subject: 'ContentAsCode', action: 'write' },
+            {
+                subject: 'Dashboard',
+                action: 'create',
+                conditions: { projectUuid: PROJECT_UUID },
+            },
+            {
+                subject: 'SavedChart',
+                action: 'view',
+                conditions: { projectUuid: PROJECT_UUID },
+            },
+        ]);
+
+        await expect(
+            service.upsertDashboard(user, PROJECT_UUID, dashboardAsCode.slug, {
+                ...dashboardAsCode,
+                tiles: [
+                    {
+                        type: DashboardTileTypes.SAVED_CHART,
+                        x: 0,
+                        y: 0,
+                        h: 3,
+                        w: 3,
+                        properties: { chartSlug: 'accessible-chart' },
+                    },
+                ],
+            } as DashboardAsCode),
+        ).resolves.toMatchObject({
+            dashboards: [{ action: PromotionAction.CREATE }],
+        });
+        expect(service.dashboardModel.create).toHaveBeenCalled();
     });
 
     it('allows chart create to create a placeholder dashboard in the same allowed space', async () => {

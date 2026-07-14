@@ -2749,6 +2749,18 @@ export class CoderService extends BaseService {
                         auditedAbility,
                         dashboard,
                     });
+                    // Chart lives in the dashboard, not the YAML space
+                    await this.assertSpaceContentAccess({
+                        userUuid: user.userUuid,
+                        auditedAbility,
+                        action: 'create',
+                        subjectType: 'SavedChart',
+                        spaceUuids: dashboard.spaceUuid
+                            ? [dashboard.spaceUuid]
+                            : [],
+                        errorMessage:
+                            "You don't have access to create charts in this space",
+                    });
                 }
                 createChart = {
                     ...chartWithDefaults,
@@ -3303,6 +3315,71 @@ export class CoderService extends BaseService {
         }
     }
 
+    // Tiles reference charts by slug with no permission filter; ensure the
+    // caller can view every referenced chart in its own space.
+    private async assertTileChartsViewAccess({
+        userUuid,
+        auditedAbility,
+        projectUuid,
+        tiles,
+    }: {
+        userUuid: string;
+        auditedAbility: ReturnType<CoderService['createAuditedAbility']>;
+        projectUuid: string;
+        tiles: DashboardAsCode['tiles'];
+    }): Promise<void> {
+        const chartSlugs = tiles.reduce<string[]>((acc, tile) => {
+            if (!isAnyChartTile(tile) || tile.properties.chartSlug == null) {
+                return acc;
+            }
+            return [...acc, tile.properties.chartSlug];
+        }, []);
+        if (chartSlugs.length === 0) return;
+
+        const [charts, sqlChartRows] = await Promise.all([
+            this.savedChartModel.find({
+                slugs: chartSlugs,
+                projectUuid,
+                excludeChartsSavedInDashboard: false,
+                includeOrphanChartsWithinDashboard: true,
+            }),
+            this.savedSqlModel.find({
+                slugs: chartSlugs,
+                projectUuid,
+            }),
+        ]);
+        const referencedCharts = [
+            ...charts.map((chart) => ({
+                spaceUuid: chart.spaceUuid,
+                metadata: { savedChartUuid: chart.uuid },
+            })),
+            ...sqlChartRows.map((row) => ({
+                spaceUuid: row.space_uuid,
+                metadata: { savedSqlUuid: row.saved_sql_uuid },
+            })),
+        ];
+        if (referencedCharts.length === 0) return;
+
+        const spaceAccessContexts =
+            await this.spacePermissionService.getSpacesAccessContext(userUuid, [
+                ...new Set(referencedCharts.map((chart) => chart.spaceUuid)),
+            ]);
+        const lacksAccess = referencedCharts.some((chart) =>
+            auditedAbility.cannot(
+                'view',
+                subject('SavedChart', {
+                    ...spaceAccessContexts[chart.spaceUuid],
+                    metadata: chart.metadata,
+                }),
+            ),
+        );
+        if (lacksAccess) {
+            throw new ForbiddenError(
+                "You don't have access to a chart referenced by this dashboard",
+            );
+        }
+    }
+
     private async assertDashboardUpdateAccess({
         userUuid,
         auditedAbility,
@@ -3524,6 +3601,14 @@ export class CoderService extends BaseService {
             projectUuid,
             dashboardWithDefaults.tiles,
         );
+        if (!hasLegacyManage) {
+            await this.assertTileChartsViewAccess({
+                userUuid: user.userUuid,
+                auditedAbility,
+                projectUuid,
+                tiles: dashboardWithDefaults.tiles,
+            });
+        }
 
         const dashboardFilters = CoderService.getFiltersWithTileUuids(
             dashboardWithDefaults,
