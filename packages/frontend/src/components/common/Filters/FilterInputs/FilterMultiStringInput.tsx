@@ -1,15 +1,33 @@
-import { TagsInput, type TagsInputProps } from '@mantine-8/core';
+import { Group, Text, type ComboboxProps } from '@mantine-8/core';
+import { IconPlus } from '@tabler/icons-react';
 import uniq from 'lodash/uniq';
-import { useCallback, useMemo, useState, type FC } from 'react';
+import {
+    useCallback,
+    useMemo,
+    useState,
+    type ClipboardEvent,
+    type FC,
+    type FocusEvent,
+    type FocusEventHandler,
+} from 'react';
+import MantineIcon from '../../MantineIcon';
+import {
+    MultiSelectCombobox,
+    type MultiSelectComboboxOption,
+} from '../../MultiSelectCombobox/MultiSelectCombobox';
 import MultiValuePastePopover from './MultiValuePastePopover';
 import { formatDisplayValue } from './utils';
 
-type Props = Omit<
-    TagsInputProps,
-    'acceptValueOnBlur' | 'data' | 'onChange' | 'value'
-> & {
+type Props = {
     values: string[];
     onChange: (values: string[]) => void;
+    disabled?: boolean;
+    placeholder?: string;
+    'data-autofocus'?: boolean;
+    comboboxProps?: ComboboxProps;
+    onDropdownOpen?: () => void;
+    onDropdownClose?: () => void;
+    onBlur?: FocusEventHandler<HTMLInputElement>;
 };
 
 const FilterMultiStringInput: FC<Props> = ({
@@ -18,6 +36,7 @@ const FilterMultiStringInput: FC<Props> = ({
     onChange,
     placeholder,
     onBlur: onInputBlur,
+    onDropdownClose: onInputDropdownClose,
     ...rest
 }) => {
     const [search, setSearch] = useState('');
@@ -26,13 +45,9 @@ const FilterMultiStringInput: FC<Props> = ({
         string | undefined
     >();
 
-    const [resultsSets] = useState([]);
-
-    const results = useMemo(() => [...resultsSets], [resultsSets]);
-
     const handleResetSearch = useCallback(() => {
         setTimeout(() => setSearch(() => ''), 0);
-    }, [setSearch]);
+    }, []);
 
     const handleChange = useCallback(
         (updatedValues: string[]) => {
@@ -44,13 +59,26 @@ const FilterMultiStringInput: FC<Props> = ({
     const handleAdd = useCallback(
         (newValue: string) => {
             handleChange([...values, newValue]);
-            return newValue;
+        },
+        [handleChange, values],
+    );
+
+    const handleAddMultiple = useCallback(
+        (newValues: string[]) => {
+            handleChange([...values, ...newValues]);
+        },
+        [handleChange, values],
+    );
+
+    const handleRemove = useCallback(
+        (valueToRemove: string) => {
+            handleChange(values.filter((value) => value !== valueToRemove));
         },
         [handleChange, values],
     );
 
     const handleBlur = useCallback(
-        (event: React.FocusEvent<HTMLInputElement>) => {
+        (event: FocusEvent<HTMLInputElement>) => {
             if (search !== '' && !pastePopUpOpened) {
                 handleAdd(search);
                 handleResetSearch();
@@ -60,18 +88,13 @@ const FilterMultiStringInput: FC<Props> = ({
         [handleAdd, handleResetSearch, onInputBlur, pastePopUpOpened, search],
     );
 
-    const handleAddMultiple = useCallback(
-        (newValues: string[]) => {
-            handleChange([...values, ...newValues]);
-            return newValues;
-        },
-        [handleChange, values],
-    );
-
     const handlePaste = useCallback(
-        (event: React.ClipboardEvent<HTMLInputElement>) => {
+        (event: ClipboardEvent<HTMLInputElement>) => {
             const clipboardData = event.clipboardData.getData('Text');
             if (clipboardData.includes(',') || clipboardData.includes('\n')) {
+                // Keep the raw CSV out of the search field so nothing commits
+                // before the user picks single vs multiple.
+                event.preventDefault();
                 setTempPasteValues(clipboardData);
                 setPastePopUpOpened(true);
             }
@@ -79,15 +102,17 @@ const FilterMultiStringInput: FC<Props> = ({
         [],
     );
 
-    const data = useMemo(() => {
-        // Mantine does not show value tag if value is not found in data
-        // so we need to add it manually here
-        // also we are merging status indicator as a first item
-        return uniq([...results, ...values]).map((value) => ({
-            value,
-            label: formatDisplayValue(value),
-        }));
-    }, [results, values]);
+    // Labels make whitespace/newlines visible so pills render formatted while
+    // the stored value stays raw. Picked values are hidden from the dropdown,
+    // leaving only the "Add value" create row.
+    const options = useMemo<MultiSelectComboboxOption[]>(
+        () =>
+            values.map((value) => ({
+                value,
+                label: formatDisplayValue(value),
+            })),
+        [values],
+    );
 
     return (
         <MultiValuePastePopover
@@ -107,6 +132,7 @@ const FilterMultiStringInput: FC<Props> = ({
                     .map((s) => s.trim())
                     .filter((s) => s.length > 0);
                 handleAddMultiple(clipboardDataArray);
+                handleResetSearch();
             }}
             onSingleValue={() => {
                 if (!tempPasteValues) {
@@ -114,32 +140,47 @@ const FilterMultiStringInput: FC<Props> = ({
                     return;
                 }
                 handleAdd(tempPasteValues);
+                handleResetSearch();
             }}
         >
-            <TagsInput
+            <MultiSelectCombobox
                 size="xs"
                 w="100%"
                 placeholder={
                     values.length > 0 || disabled ? undefined : placeholder
                 }
                 disabled={disabled}
-                acceptValueOnBlur={false}
-                splitChars={[]}
-                styles={{
-                    pillsList: {
-                        maxHeight: '350px',
-                        overflowY: 'auto',
-                    },
-                }}
-                {...rest}
+                options={options}
+                value={values}
+                hidePickedOptions
                 searchValue={search}
                 onSearchChange={setSearch}
                 onPaste={handlePaste}
-                data={data}
-                value={values}
-                onDropdownClose={handleResetSearch}
-                onChange={handleChange}
+                onOptionSubmit={handleAdd}
+                onValueRemove={handleRemove}
+                onClear={() => handleChange([])}
+                onCreate={(value) => {
+                    handleAdd(value);
+                    handleResetSearch();
+                }}
+                shouldCreate={(query) =>
+                    query.trim().length > 0 && !values.includes(query)
+                }
+                createLabel={
+                    <Group gap="xxs">
+                        <MantineIcon icon={IconPlus} color="blue.7" size="sm" />
+                        <Text c="blue.7" fw={600}>
+                            Add "{search.trim()}"
+                        </Text>
+                    </Group>
+                }
+                nothingFoundMessage="Please type to add the filter value"
+                onDropdownClose={() => {
+                    handleResetSearch();
+                    onInputDropdownClose?.();
+                }}
                 onBlur={handleBlur}
+                {...rest}
             />
         </MultiValuePastePopover>
     );
