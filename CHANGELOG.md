@@ -1,3 +1,11 @@
+# [0.3375.0](https://github.com/lightdash/lightdash/compare/0.3374.1...0.3375.0) (2026-07-14)
+
+
+### Features
+
+* add virtual views as code ([#25493](https://github.com/lightdash/lightdash/issues/25493)) ([bf41f77](https://github.com/lightdash/lightdash/commit/bf41f77203064eeefb28dcc29cf912ee6dee080d))
+* make scheduled content downloads opt-in ([#25500](https://github.com/lightdash/lightdash/issues/25500)) ([2ce53f2](https://github.com/lightdash/lightdash/commit/2ce53f2e8dc8f91e893fdeca9f789a54325eae78)), closes [#25493](https://github.com/lightdash/lightdash/issues/25493)
+
 ## [0.3374.1](https://github.com/lightdash/lightdash/compare/0.3374.0...0.3374.1) (2026-07-14)
 
 
