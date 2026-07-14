@@ -223,7 +223,16 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
                 </Group>
             </SettingsCard>
 
-            {isEnabled && (
+            {isEnabled && !isOrgAdmin && (
+                <SettingsCard mb="lg">
+                    <Callout variant="info">
+                        Connection details are only visible to organization
+                        admins.
+                    </Callout>
+                </SettingsCard>
+            )}
+
+            {isEnabled && isOrgAdmin && (
                 <SettingsCard mb="lg">
                     <Stack gap="md">
                         <Callout variant="info" title="Before you connect">
