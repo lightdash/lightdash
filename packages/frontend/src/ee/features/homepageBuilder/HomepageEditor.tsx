@@ -28,11 +28,8 @@ import {
 import { useEffect, useRef, useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
-import {
-    blockLibrary,
-    createBlock,
-    getBlockDefinition,
-} from './blocks/registry';
+import { useAiAgentButtonVisibility } from '../aiCopilot/hooks/useAiAgentsButtonVisibility';
+import { blockLibrary, getBlockDefinition } from './blocks/registry';
 import {
     addBlock,
     canMoveDown,
@@ -41,7 +38,7 @@ import {
     moveBlockDown,
     moveBlockUp,
     removeBlock,
-    updateBlockConfig,
+    replaceBlock,
 } from './configOps';
 import {
     usePublishHomepage,
@@ -63,6 +60,11 @@ export const HomepageEditor: FC<Props> = ({ homepage, projectUuid }) => {
     const publishMutation = usePublishHomepage(
         projectUuid,
         homepage.homepageUuid,
+    );
+
+    const isAiEnabled = useAiAgentButtonVisibility();
+    const availableBlocks = blockLibrary.filter(
+        (definition) => !definition.requiresAi || isAiEnabled,
     );
 
     const [draft, setDraft] = useState<HomepageConfig>(homepage.draftConfig);
@@ -140,7 +142,7 @@ export const HomepageEditor: FC<Props> = ({ homepage, projectUuid }) => {
                             <Text size="xs" fw={600} tt="uppercase" c="dimmed">
                                 Blocks
                             </Text>
-                            {blockLibrary.map((definition) => (
+                            {availableBlocks.map((definition) => (
                                 <Paper
                                     key={definition.type}
                                     withBorder
@@ -148,10 +150,7 @@ export const HomepageEditor: FC<Props> = ({ homepage, projectUuid }) => {
                                     style={{ cursor: 'pointer' }}
                                     onClick={() =>
                                         setDraft((prev) =>
-                                            addBlock(
-                                                prev,
-                                                createBlock(definition),
-                                            ),
+                                            addBlock(prev, definition.create()),
                                         )
                                     }
                                 >
@@ -308,12 +307,12 @@ export const HomepageEditor: FC<Props> = ({ homepage, projectUuid }) => {
                                             </Group>
                                             <Build
                                                 block={block}
-                                                onChange={(config) =>
+                                                projectUuid={projectUuid}
+                                                onChange={(updated) =>
                                                     setDraft((prev) =>
-                                                        updateBlockConfig(
+                                                        replaceBlock(
                                                             prev,
-                                                            block.id,
-                                                            config,
+                                                            updated,
                                                         ),
                                                     )
                                                 }

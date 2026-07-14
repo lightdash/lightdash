@@ -1,29 +1,70 @@
 import { type HomepageBlock } from '@lightdash/common';
-import { IconMarkdown, type Icon } from '@tabler/icons-react';
+import {
+    IconMarkdown,
+    IconSparkles,
+    IconTypography,
+    type Icon,
+} from '@tabler/icons-react';
 import { type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { AiBlockBuild, AiBlockView } from './AiBlock';
+import { HeroBlockBuild, HeroBlockView } from './HeroBlock';
 import { MarkdownBlockBuild, MarkdownBlockView } from './MarkdownBlock';
+import { type BlockComponentProps, type BuildComponentProps } from './types';
 
 export type BlockDefinition = {
     type: HomepageBlock['type'];
     label: string;
     description: string;
     icon: Icon;
-    defaultConfig: () => HomepageBlock['config'];
-    View: FC<{ block: HomepageBlock }>;
-    Build: FC<{
-        block: HomepageBlock;
-        onChange: (config: HomepageBlock['config']) => void;
-    }>;
+    requiresAi?: boolean;
+    create: () => HomepageBlock;
+    View: FC<BlockComponentProps>;
+    Build: FC<BuildComponentProps>;
 };
 
 export const blockLibrary: BlockDefinition[] = [
+    {
+        type: 'hero',
+        label: 'Greeting',
+        description:
+            'Personalized welcome headline — {name} becomes the viewer.',
+        icon: IconTypography,
+        create: () => ({
+            id: uuidv4(),
+            type: 'hero',
+            config: {
+                title: 'Good morning, {name}',
+                subtitle: 'Everything your team needs, in one place.',
+            },
+        }),
+        View: HeroBlockView,
+        Build: HeroBlockBuild,
+    },
+    {
+        type: 'ai',
+        label: 'Ask AI',
+        description: 'Natural-language ask box with curated suggestions.',
+        icon: IconSparkles,
+        requiresAi: true,
+        create: () => ({
+            id: uuidv4(),
+            type: 'ai',
+            config: { chips: ['What drove revenue last month?'] },
+        }),
+        View: AiBlockView,
+        Build: AiBlockBuild,
+    },
     {
         type: 'markdown',
         label: 'Text / banner',
         description: 'Markdown text, notes or a welcome banner.',
         icon: IconMarkdown,
-        defaultConfig: () => ({ content: '## New section\n\nEdit me.' }),
+        create: () => ({
+            id: uuidv4(),
+            type: 'markdown',
+            config: { content: '## New section\n\nEdit me.' },
+        }),
         View: MarkdownBlockView,
         Build: MarkdownBlockBuild,
     },
@@ -31,9 +72,3 @@ export const blockLibrary: BlockDefinition[] = [
 
 export const getBlockDefinition = (type: string): BlockDefinition | undefined =>
     blockLibrary.find((def) => def.type === type);
-
-export const createBlock = (definition: BlockDefinition): HomepageBlock => ({
-    id: uuidv4(),
-    type: definition.type,
-    config: definition.defaultConfig(),
-});
