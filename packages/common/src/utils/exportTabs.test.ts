@@ -34,4 +34,11 @@ describe('resolveExportTabs', () => {
     it('returns empty array for untabbed dashboards', () => {
         expect(resolveExportTabs([], null)).toEqual([]);
     });
+
+    it('does not mutate the input array', () => {
+        const input = [tab('c', 2), tab('a', 0)];
+        const snapshot = [...input];
+        resolveExportTabs(input, null);
+        expect(input).toEqual(snapshot);
+    });
 });

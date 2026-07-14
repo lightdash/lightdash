@@ -29,10 +29,13 @@ describe('mergePdfBuffers', () => {
         expect(doc.getTitle()).toBe('My dashboard');
     });
 
-    it('returns the single buffer untouched for one page', async () => {
+    it('sets the title on a single-buffer merge', async () => {
         const only = await createPdf(1050, 600);
         const merged = await mergePdfBuffers([only], 'Solo');
-        expect(merged.equals(only)).toBe(true);
+        const doc = await PDFDocument.load(new Uint8Array(merged));
+        expect(doc.getPageCount()).toBe(1);
+        expect(doc.getPage(0).getSize()).toEqual({ width: 1050, height: 600 });
+        expect(doc.getTitle()).toBe('Solo');
     });
 
     it('merges buffers mutated by cropPdfToClip incremental updates', async () => {

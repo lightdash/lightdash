@@ -11,7 +11,6 @@ export const mergePdfBuffers = async (
     if (buffers.length === 0) {
         throw new Error('Cannot merge an empty list of PDF buffers');
     }
-    if (buffers.length === 1) return buffers[0];
 
     const merged = await PDFDocument.create();
     merged.setTitle(title);

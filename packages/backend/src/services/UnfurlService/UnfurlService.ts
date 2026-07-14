@@ -763,7 +763,7 @@ export class UnfurlService extends BaseService {
                         : tabs.map((tab) => ({ tab }));
                 if (tabRenders.length === 0) {
                     throw new ParameterError(
-                        `Page-per-tab PDF requested for dashboard ${dashboardUuid} but none of the selected tabs exist`,
+                        `Page-per-tab PDF requested for dashboard ${dashboardUuid} but it has no visible or selected tabs to export`,
                     );
                 }
 
