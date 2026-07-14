@@ -324,8 +324,9 @@ export class AzureSandboxExecChannel {
      * that are already reporting a failure.
      */
     private async killDetachedProcessGroup(runDir: string): Promise<void> {
+        const pidFile = shQuote(`${runDir}/pid`);
         await this.runBuffered(
-            `if [ -f ${runDir}/pid ]; then PGID="$(cat ${runDir}/pid)"; ` +
+            `if [ -f ${pidFile} ]; then PGID="$(cat ${pidFile})"; ` +
                 `kill -TERM -- "-$PGID" 2>/dev/null; sleep 2; ` +
                 `kill -KILL -- "-$PGID" 2>/dev/null; fi; true`,
             { timeoutMs: INTERNAL_EXEC_TIMEOUT_MS },
@@ -359,7 +360,7 @@ export class AzureSandboxExecChannel {
         // non-job-control shell is never already a group leader, so setsid
         // execs in place and `$!` is reliably the leader's PID.
         await this.runBuffered(
-            `mkdir -p ${runDir}; nohup setsid /bin/sh -c ${shQuote(wrapped)} < /dev/null > /dev/null 2>&1 & echo $! > ${runDir}/pid`,
+            `mkdir -p ${shQuote(runDir)}; nohup setsid /bin/sh -c ${shQuote(wrapped)} < /dev/null > /dev/null 2>&1 & echo $! > ${shQuote(`${runDir}/pid`)}`,
             { timeoutMs: INTERNAL_EXEC_TIMEOUT_MS },
         );
 
@@ -393,9 +394,9 @@ export class AzureSandboxExecChannel {
             try {
                 // eslint-disable-next-line no-await-in-loop
                 const response = await this.runBuffered(
-                    `printf S; cat ${runDir}/exit 2>/dev/null; echo; ` +
-                        `printf O; tail -c +${outOffset + 1} ${runDir}/out.log 2>/dev/null | base64 | tr -d '\\n'; echo; ` +
-                        `printf E; tail -c +${errOffset + 1} ${runDir}/err.log 2>/dev/null | base64 | tr -d '\\n'; echo`,
+                    `printf S; cat ${shQuote(`${runDir}/exit`)} 2>/dev/null; echo; ` +
+                        `printf O; tail -c +${outOffset + 1} ${shQuote(`${runDir}/out.log`)} 2>/dev/null | base64 | tr -d '\\n'; echo; ` +
+                        `printf E; tail -c +${errOffset + 1} ${shQuote(`${runDir}/err.log`)} 2>/dev/null | base64 | tr -d '\\n'; echo`,
                     { timeoutMs: INTERNAL_EXEC_TIMEOUT_MS },
                 );
                 tick = parseDetachedTick(response.stdout);
@@ -435,6 +436,20 @@ export class AzureSandboxExecChannel {
             }
 
             if (tick.exitCode !== null) {
+                // Flush bytes the decoders held back waiting for the rest of a
+                // multi-byte sequence that never came (binary output, or a
+                // process killed mid-write) — end() emits them as U+FFFD
+                // instead of silently dropping them.
+                const outTail = outDecoder.end();
+                if (outTail) {
+                    stdout += outTail;
+                    options.onStdout?.(outTail);
+                }
+                const errTail = errDecoder.end();
+                if (errTail) {
+                    stderr += errTail;
+                    options.onStderr?.(errTail);
+                }
                 if (tick.exitCode !== 0) {
                     // Keep runDir on failure so the logs survive for post-mortem.
                     throw new SandboxCommandError(

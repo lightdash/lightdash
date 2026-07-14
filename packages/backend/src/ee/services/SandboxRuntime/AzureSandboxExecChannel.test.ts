@@ -205,6 +205,54 @@ describe('AzureSandboxExecChannel', () => {
             ).toBe(true);
         });
 
+        it('flushes an incomplete trailing UTF-8 sequence into the captured output on exit', async () => {
+            // '✓' (3 bytes) missing its final byte — e.g. binary output, or a
+            // process killed mid-write. The decoder must flush it (as U+FFFD)
+            // rather than silently dropping the held-back bytes.
+            const out = Buffer.concat([
+                Buffer.from('done'),
+                Buffer.from([0xe2, 0x9c]),
+            ]);
+            fetchMock
+                .mockResolvedValueOnce(execJson({})) // start
+                .mockResolvedValueOnce(tickResponse('0', out)) // done
+                .mockResolvedValue(execJson({})); // cleanup
+
+            const chunks: string[] = [];
+            const result = await makeChannel().commands.run('cmd', {
+                timeoutMs: 20 * 60 * 1000,
+                onStdout: (chunk) => chunks.push(chunk),
+            });
+
+            expect(result.stdout).toBe('done�');
+            expect(chunks.join('')).toBe('done�');
+        });
+
+        // Pins the loop's completion guarantee: a timeout is only thrown off a
+        // fresh poll that saw the command still RUNNING — completion observed
+        // by the next poll is returned even when it lands past the deadline.
+        it('returns the result when completion is observed past the deadline instead of killing the run', async () => {
+            fetchMock
+                .mockResolvedValueOnce(execJson({})) // start
+                .mockResolvedValueOnce(tickResponse('', '')) // running (before deadline)
+                .mockResolvedValueOnce(tickResponse('0', 'done')) // completes past deadline
+                .mockResolvedValue(execJson({}));
+
+            const result = await makeChannel({
+                detachedThresholdMs: 10,
+                pollIntervalMs: 40,
+            }).commands.run('cmd', { timeoutMs: 60 });
+
+            expect(result).toEqual({
+                stdout: 'done',
+                stderr: '',
+                exitCode: 0,
+            });
+            expect(requestBodies().some((body) => body.includes('kill'))).toBe(
+                false,
+            );
+        });
+
         it('throws SandboxTimeoutError and kills the whole process group on timeout', async () => {
             fetchMock.mockResolvedValue(tickResponse('', '')); // never exits
 
