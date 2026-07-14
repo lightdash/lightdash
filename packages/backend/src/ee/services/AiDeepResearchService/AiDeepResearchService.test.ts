@@ -25,7 +25,7 @@ const effortBudgets = [
         effort: 'low',
         budget: {
             maxRuntimeMs: 15 * 60 * 1_000,
-            maxTokens: 150_000,
+            maxTokens: 500_000,
             maxToolCalls: 50,
             maxWarehouseQueries: 10,
             maxResultRows: 5_000,
@@ -35,7 +35,7 @@ const effortBudgets = [
         effort: 'medium',
         budget: {
             maxRuntimeMs: 30 * 60 * 1_000,
-            maxTokens: 500_000,
+            maxTokens: 1_000_000,
             maxToolCalls: 125,
             maxWarehouseQueries: 25,
             maxResultRows: 10_000,
@@ -45,7 +45,7 @@ const effortBudgets = [
         effort: 'high',
         budget: {
             maxRuntimeMs: 45 * 60 * 1_000,
-            maxTokens: 1_000_000,
+            maxTokens: 2_000_000,
             maxToolCalls: 250,
             maxWarehouseQueries: 50,
             maxResultRows: 25_000,
@@ -55,7 +55,7 @@ const effortBudgets = [
         effort: 'xhigh',
         budget: {
             maxRuntimeMs: 55 * 60 * 1_000,
-            maxTokens: 2_000_000,
+            maxTokens: 4_000_000,
             maxToolCalls: 500,
             maxWarehouseQueries: 100,
             maxResultRows: 50_000,

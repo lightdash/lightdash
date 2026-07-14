@@ -167,28 +167,28 @@ export const AI_DEEP_RESEARCH_BUDGETS_BY_EFFORT: Record<
 > = {
     low: {
         maxRuntimeMs: 15 * 60 * 1_000,
-        maxTokens: 150_000,
+        maxTokens: 500_000,
         maxToolCalls: 50,
         maxWarehouseQueries: 10,
         maxResultRows: 5_000,
     },
     medium: {
         maxRuntimeMs: 30 * 60 * 1_000,
-        maxTokens: 500_000,
+        maxTokens: 1_000_000,
         maxToolCalls: 125,
         maxWarehouseQueries: 25,
         maxResultRows: 10_000,
     },
     high: {
         maxRuntimeMs: 45 * 60 * 1_000,
-        maxTokens: 1_000_000,
+        maxTokens: 2_000_000,
         maxToolCalls: 250,
         maxWarehouseQueries: 50,
         maxResultRows: 25_000,
     },
     xhigh: {
         maxRuntimeMs: 55 * 60 * 1_000,
-        maxTokens: 2_000_000,
+        maxTokens: 4_000_000,
         maxToolCalls: 500,
         maxWarehouseQueries: 100,
         maxResultRows: 50_000,
