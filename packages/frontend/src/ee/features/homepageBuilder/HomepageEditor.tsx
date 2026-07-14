@@ -24,6 +24,7 @@ import {
     IconCircleCheck,
     IconCopy,
     IconEye,
+    IconGripVertical,
     IconLayoutGrid,
     IconPencil,
     IconPlus,
@@ -36,16 +37,24 @@ import { useNavigate } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { useAiAgentButtonVisibility } from '../aiCopilot/hooks/useAiAgentsButtonVisibility';
-import { blockLibrary, getBlockDefinition } from './blocks/registry';
+import {
+    blockLibrary,
+    getBlockDefinition,
+    type BlockDefinition,
+} from './blocks/registry';
 import {
     addBlock,
+    canDropInRow,
     canMoveDown,
     canMoveUp,
+    dropExistingBlock,
+    dropNewBlock,
     duplicateBlock,
     moveBlockDown,
     moveBlockUp,
     removeBlock,
     replaceBlock,
+    type DropTarget,
 } from './configOps';
 import {
     useDeleteHomepage,
@@ -147,6 +156,57 @@ export const HomepageEditor: FC<Props> = ({
     };
 
     const isDirty = draft !== lastSavedRef.current || updateMutation.isLoading;
+
+    type DragSource =
+        | { kind: 'new'; definition: BlockDefinition }
+        | { kind: 'existing'; blockId: string };
+    const [drag, setDrag] = useState<DragSource | null>(null);
+    const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
+
+    const clearDrag = () => {
+        setDrag(null);
+        setDropTarget(null);
+    };
+
+    const handleDrop = (target: DropTarget) => {
+        if (!drag) return;
+        setDraft((prev) =>
+            drag.kind === 'new'
+                ? dropNewBlock(prev, drag.definition.create(), target)
+                : dropExistingBlock(prev, drag.blockId, target),
+        );
+        clearDrag();
+    };
+
+    const dropZoneProps = (target: DropTarget) => ({
+        onDragOver: (e: React.DragEvent) => {
+            if (!drag) return;
+            e.preventDefault();
+            setDropTarget(target);
+        },
+        onDrop: (e: React.DragEvent) => {
+            if (!drag) return;
+            e.preventDefault();
+            handleDrop(target);
+        },
+    });
+
+    const isDropTarget = (target: DropTarget): boolean => {
+        if (!dropTarget) return false;
+        if (dropTarget.kind !== target.kind) return false;
+        if (dropTarget.kind === 'end') return true;
+        if (dropTarget.kind === 'row' && target.kind === 'row') {
+            return dropTarget.rowIndex === target.rowIndex;
+        }
+        return (
+            dropTarget.kind === 'cell' &&
+            target.kind === 'cell' &&
+            dropTarget.rowIndex === target.rowIndex &&
+            dropTarget.blockIndex === target.blockIndex
+        );
+    };
+
+    const draggedBlockId = drag?.kind === 'existing' ? drag.blockId : undefined;
 
     return (
         <Stack gap="lg" w="100%">
@@ -287,7 +347,12 @@ export const HomepageEditor: FC<Props> = ({
                                     key={definition.type}
                                     withBorder
                                     p="sm"
-                                    style={{ cursor: 'pointer' }}
+                                    style={{ cursor: 'grab' }}
+                                    draggable
+                                    onDragStart={() =>
+                                        setDrag({ kind: 'new', definition })
+                                    }
+                                    onDragEnd={clearDrag}
                                     onClick={() =>
                                         setDraft((prev) =>
                                             addBlock(prev, definition.create()),
@@ -311,162 +376,321 @@ export const HomepageEditor: FC<Props> = ({
                                 </Paper>
                             ))}
                             <Text size="xs" c="dimmed">
-                                Click a block to add it to the page.
+                                Click to add, or drag a block onto the page.
                             </Text>
                         </Stack>
                     </Card>
 
-                    <Stack gap="md" style={{ flex: 1, minWidth: 0 }}>
-                        {draft.rows.map((row) => (
-                            <Group
-                                key={row.id}
-                                gap="md"
-                                align="stretch"
-                                wrap="nowrap"
-                            >
-                                {row.blocks.map((block) => {
-                                    const definition = getBlockDefinition(
-                                        block.type,
-                                    );
-                                    if (!definition) return null;
-                                    const { Build } = definition;
-                                    return (
-                                        <Card
-                                            key={block.id}
-                                            withBorder
-                                            p="sm"
-                                            style={{ flex: 1, minWidth: 0 }}
-                                        >
-                                            <Group
-                                                gap={4}
-                                                mb="xs"
-                                                justify="space-between"
+                    <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
+                        {draft.rows.map((row, rowIndex) => (
+                            <Box key={row.id}>
+                                <Box
+                                    h={drag ? 18 : 12}
+                                    {...dropZoneProps({
+                                        kind: 'row',
+                                        rowIndex,
+                                    })}
+                                >
+                                    <Box
+                                        h={3}
+                                        style={{
+                                            borderRadius: 2,
+                                            marginTop: drag ? 7 : 4,
+                                            background: isDropTarget({
+                                                kind: 'row',
+                                                rowIndex,
+                                            })
+                                                ? 'var(--mantine-color-blue-5)'
+                                                : 'transparent',
+                                        }}
+                                    />
+                                </Box>
+                                <Group gap="md" align="stretch" wrap="nowrap">
+                                    {row.blocks.map((block, blockIndex) => {
+                                        const definition = getBlockDefinition(
+                                            block.type,
+                                        );
+                                        if (!definition) return null;
+                                        const { Build } = definition;
+                                        const showSideZones =
+                                            drag !== null &&
+                                            canDropInRow(
+                                                draft,
+                                                rowIndex,
+                                                draggedBlockId,
+                                            );
+                                        return (
+                                            <Card
+                                                key={block.id}
+                                                withBorder
+                                                p="sm"
+                                                style={{
+                                                    flex: 1,
+                                                    minWidth: 0,
+                                                    position: 'relative',
+                                                }}
                                             >
-                                                <Text
-                                                    size="xs"
-                                                    fw={600}
-                                                    tt="uppercase"
-                                                    c="dimmed"
+                                                {showSideZones && (
+                                                    <>
+                                                        <Box
+                                                            style={{
+                                                                position:
+                                                                    'absolute',
+                                                                left: -14,
+                                                                top: 0,
+                                                                bottom: 0,
+                                                                width: 24,
+                                                                zIndex: 20,
+                                                                display: 'flex',
+                                                                justifyContent:
+                                                                    'center',
+                                                            }}
+                                                            {...dropZoneProps({
+                                                                kind: 'cell',
+                                                                rowIndex,
+                                                                blockIndex,
+                                                            })}
+                                                        >
+                                                            <Box
+                                                                w={3}
+                                                                style={{
+                                                                    borderRadius: 2,
+                                                                    background:
+                                                                        isDropTarget(
+                                                                            {
+                                                                                kind: 'cell',
+                                                                                rowIndex,
+                                                                                blockIndex,
+                                                                            },
+                                                                        )
+                                                                            ? 'var(--mantine-color-blue-5)'
+                                                                            : 'transparent',
+                                                                }}
+                                                            />
+                                                        </Box>
+                                                        <Box
+                                                            style={{
+                                                                position:
+                                                                    'absolute',
+                                                                right: -14,
+                                                                top: 0,
+                                                                bottom: 0,
+                                                                width: 24,
+                                                                zIndex: 20,
+                                                                display: 'flex',
+                                                                justifyContent:
+                                                                    'center',
+                                                            }}
+                                                            {...dropZoneProps({
+                                                                kind: 'cell',
+                                                                rowIndex,
+                                                                blockIndex:
+                                                                    blockIndex +
+                                                                    1,
+                                                            })}
+                                                        >
+                                                            <Box
+                                                                w={3}
+                                                                style={{
+                                                                    borderRadius: 2,
+                                                                    background:
+                                                                        isDropTarget(
+                                                                            {
+                                                                                kind: 'cell',
+                                                                                rowIndex,
+                                                                                blockIndex:
+                                                                                    blockIndex +
+                                                                                    1,
+                                                                            },
+                                                                        )
+                                                                            ? 'var(--mantine-color-blue-5)'
+                                                                            : 'transparent',
+                                                                }}
+                                                            />
+                                                        </Box>
+                                                    </>
+                                                )}
+                                                <Group
+                                                    gap={4}
+                                                    mb="xs"
+                                                    justify="space-between"
                                                 >
-                                                    {definition.label}
-                                                </Text>
-                                                <Group gap={2}>
-                                                    <Tooltip label="Move up">
-                                                        <ActionIcon
-                                                            variant="subtle"
-                                                            color="gray"
-                                                            disabled={
-                                                                !canMoveUp(
-                                                                    draft,
+                                                    <Group
+                                                        gap={6}
+                                                        style={{
+                                                            cursor: 'grab',
+                                                        }}
+                                                        draggable
+                                                        onDragStart={(e) => {
+                                                            e.stopPropagation();
+                                                            setDrag({
+                                                                kind: 'existing',
+                                                                blockId:
                                                                     block.id,
-                                                                )
+                                                            });
+                                                        }}
+                                                        onDragEnd={clearDrag}
+                                                    >
+                                                        <MantineIcon
+                                                            icon={
+                                                                IconGripVertical
                                                             }
-                                                            onClick={() =>
-                                                                setDraft(
-                                                                    (prev) =>
-                                                                        moveBlockUp(
-                                                                            prev,
-                                                                            block.id,
-                                                                        ),
-                                                                )
-                                                            }
-                                                        >
-                                                            <MantineIcon
-                                                                icon={
-                                                                    IconArrowUp
-                                                                }
-                                                            />
-                                                        </ActionIcon>
-                                                    </Tooltip>
-                                                    <Tooltip label="Move down">
-                                                        <ActionIcon
-                                                            variant="subtle"
                                                             color="gray"
-                                                            disabled={
-                                                                !canMoveDown(
-                                                                    draft,
-                                                                    block.id,
-                                                                )
-                                                            }
-                                                            onClick={() =>
-                                                                setDraft(
-                                                                    (prev) =>
-                                                                        moveBlockDown(
-                                                                            prev,
-                                                                            block.id,
-                                                                        ),
-                                                                )
-                                                            }
+                                                        />
+                                                        <Text
+                                                            size="xs"
+                                                            fw={600}
+                                                            tt="uppercase"
+                                                            c="dimmed"
                                                         >
-                                                            <MantineIcon
-                                                                icon={
-                                                                    IconArrowDown
+                                                            {definition.label}
+                                                        </Text>
+                                                    </Group>
+                                                    <Group gap={2}>
+                                                        <Tooltip label="Move up">
+                                                            <ActionIcon
+                                                                variant="subtle"
+                                                                color="gray"
+                                                                disabled={
+                                                                    !canMoveUp(
+                                                                        draft,
+                                                                        block.id,
+                                                                    )
                                                                 }
-                                                            />
-                                                        </ActionIcon>
-                                                    </Tooltip>
-                                                    <Tooltip label="Duplicate">
-                                                        <ActionIcon
-                                                            variant="subtle"
-                                                            color="gray"
-                                                            onClick={() =>
-                                                                setDraft(
-                                                                    (prev) =>
-                                                                        duplicateBlock(
+                                                                onClick={() =>
+                                                                    setDraft(
+                                                                        (
                                                                             prev,
-                                                                            block.id,
-                                                                        ),
-                                                                )
-                                                            }
-                                                        >
-                                                            <MantineIcon
-                                                                icon={IconCopy}
-                                                            />
-                                                        </ActionIcon>
-                                                    </Tooltip>
-                                                    <Tooltip label="Remove">
-                                                        <ActionIcon
-                                                            variant="subtle"
-                                                            color="red"
-                                                            onClick={() =>
-                                                                setDraft(
-                                                                    (prev) =>
-                                                                        removeBlock(
+                                                                        ) =>
+                                                                            moveBlockUp(
+                                                                                prev,
+                                                                                block.id,
+                                                                            ),
+                                                                    )
+                                                                }
+                                                            >
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconArrowUp
+                                                                    }
+                                                                />
+                                                            </ActionIcon>
+                                                        </Tooltip>
+                                                        <Tooltip label="Move down">
+                                                            <ActionIcon
+                                                                variant="subtle"
+                                                                color="gray"
+                                                                disabled={
+                                                                    !canMoveDown(
+                                                                        draft,
+                                                                        block.id,
+                                                                    )
+                                                                }
+                                                                onClick={() =>
+                                                                    setDraft(
+                                                                        (
                                                                             prev,
-                                                                            block.id,
-                                                                        ),
-                                                                )
-                                                            }
-                                                        >
-                                                            <MantineIcon
-                                                                icon={IconTrash}
-                                                            />
-                                                        </ActionIcon>
-                                                    </Tooltip>
+                                                                        ) =>
+                                                                            moveBlockDown(
+                                                                                prev,
+                                                                                block.id,
+                                                                            ),
+                                                                    )
+                                                                }
+                                                            >
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconArrowDown
+                                                                    }
+                                                                />
+                                                            </ActionIcon>
+                                                        </Tooltip>
+                                                        <Tooltip label="Duplicate">
+                                                            <ActionIcon
+                                                                variant="subtle"
+                                                                color="gray"
+                                                                onClick={() =>
+                                                                    setDraft(
+                                                                        (
+                                                                            prev,
+                                                                        ) =>
+                                                                            duplicateBlock(
+                                                                                prev,
+                                                                                block.id,
+                                                                            ),
+                                                                    )
+                                                                }
+                                                            >
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconCopy
+                                                                    }
+                                                                />
+                                                            </ActionIcon>
+                                                        </Tooltip>
+                                                        <Tooltip label="Remove">
+                                                            <ActionIcon
+                                                                variant="subtle"
+                                                                color="red"
+                                                                onClick={() =>
+                                                                    setDraft(
+                                                                        (
+                                                                            prev,
+                                                                        ) =>
+                                                                            removeBlock(
+                                                                                prev,
+                                                                                block.id,
+                                                                            ),
+                                                                    )
+                                                                }
+                                                            >
+                                                                <MantineIcon
+                                                                    icon={
+                                                                        IconTrash
+                                                                    }
+                                                                />
+                                                            </ActionIcon>
+                                                        </Tooltip>
+                                                    </Group>
                                                 </Group>
-                                            </Group>
-                                            <Build
-                                                block={block}
-                                                projectUuid={projectUuid}
-                                                onChange={(updated) =>
-                                                    setDraft((prev) =>
-                                                        replaceBlock(
-                                                            prev,
-                                                            updated,
-                                                        ),
-                                                    )
-                                                }
-                                            />
-                                        </Card>
-                                    );
-                                })}
-                            </Group>
+                                                <Build
+                                                    block={block}
+                                                    projectUuid={projectUuid}
+                                                    onChange={(updated) =>
+                                                        setDraft((prev) =>
+                                                            replaceBlock(
+                                                                prev,
+                                                                updated,
+                                                            ),
+                                                        )
+                                                    }
+                                                />
+                                            </Card>
+                                        );
+                                    })}
+                                </Group>
+                            </Box>
                         ))}
-                        {draft.rows.length === 0 && (
-                            <Text size="sm" c="dimmed">
-                                No blocks yet — add one from the library.
+                        <Box
+                            mt="md"
+                            p="lg"
+                            style={{
+                                border: `2px dashed ${
+                                    isDropTarget({ kind: 'end' })
+                                        ? 'var(--mantine-color-blue-5)'
+                                        : 'var(--mantine-color-gray-4)'
+                                }`,
+                                borderRadius: 12,
+                                textAlign: 'center',
+                            }}
+                            {...dropZoneProps({ kind: 'end' })}
+                        >
+                            <Text size="sm" c="dimmed" fw={500}>
+                                {draft.rows.length === 0
+                                    ? 'No blocks yet — click or drag one from the library.'
+                                    : 'Drag a block here, or click one in the library.'}
                             </Text>
-                        )}
+                        </Box>
                     </Stack>
                 </Group>
             )}

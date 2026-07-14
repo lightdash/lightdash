@@ -1,8 +1,11 @@
 import { type HomepageBlock, type HomepageConfig } from '@lightdash/common';
 import {
     addBlock,
+    canDropInRow,
     canMoveDown,
     canMoveUp,
+    dropExistingBlock,
+    dropNewBlock,
     duplicateBlock,
     moveBlockDown,
     moveBlockUp,
@@ -94,6 +97,100 @@ describe('configOps', () => {
         const result = replaceBlock(config, block('a', 'edited'));
         expect(result.rows[0].blocks[0].config).toEqual({ content: 'edited' });
         expect(result.rows[0].blocks[1].config).toEqual({ content: 'b' });
+    });
+
+    describe('drag & drop', () => {
+        it('dropNewBlock into a cell places it side-by-side', () => {
+            const config = makeConfig([[block('a')]]);
+            const result = dropNewBlock(config, block('x'), {
+                kind: 'cell',
+                rowIndex: 0,
+                blockIndex: 1,
+            });
+            expect(result.rows[0].blocks.map((b) => b.id)).toEqual(['a', 'x']);
+        });
+
+        it('dropNewBlock into a full row is a no-op', () => {
+            const config = makeConfig([[block('a'), block('b'), block('c')]]);
+            const result = dropNewBlock(config, block('x'), {
+                kind: 'cell',
+                rowIndex: 0,
+                blockIndex: 1,
+            });
+            expect(result.rows[0].blocks).toHaveLength(3);
+        });
+
+        it('dropNewBlock between rows inserts a new row', () => {
+            const config = makeConfig([[block('a')], [block('b')]]);
+            const result = dropNewBlock(config, block('x'), {
+                kind: 'row',
+                rowIndex: 1,
+            });
+            expect(result.rows.map((r) => r.blocks[0].id)).toEqual([
+                'a',
+                'x',
+                'b',
+            ]);
+        });
+
+        it('dropExistingBlock re-nests into another row', () => {
+            const config = makeConfig([[block('a')], [block('b')]]);
+            const result = dropExistingBlock(config, 'a', {
+                kind: 'cell',
+                rowIndex: 1,
+                blockIndex: 1,
+            });
+            expect(result.rows).toHaveLength(1);
+            expect(result.rows[0].blocks.map((b) => b.id)).toEqual(['b', 'a']);
+        });
+
+        it('dropExistingBlock adjusts indices when the source row empties', () => {
+            const config = makeConfig([
+                [block('a')],
+                [block('b')],
+                [block('c')],
+            ]);
+            const result = dropExistingBlock(config, 'a', {
+                kind: 'row',
+                rowIndex: 3,
+            });
+            expect(result.rows.map((r) => r.blocks[0].id)).toEqual([
+                'b',
+                'c',
+                'a',
+            ]);
+        });
+
+        it('dropExistingBlock beside itself is a no-op', () => {
+            const config = makeConfig([[block('a'), block('b')]]);
+            expect(
+                dropExistingBlock(config, 'a', {
+                    kind: 'cell',
+                    rowIndex: 0,
+                    blockIndex: 1,
+                }),
+            ).toBe(config);
+        });
+
+        it('dropExistingBlock reorders within the same row', () => {
+            const config = makeConfig([[block('a'), block('b'), block('c')]]);
+            const result = dropExistingBlock(config, 'a', {
+                kind: 'cell',
+                rowIndex: 0,
+                blockIndex: 3,
+            });
+            expect(result.rows[0].blocks.map((b) => b.id)).toEqual([
+                'b',
+                'c',
+                'a',
+            ]);
+        });
+
+        it('canDropInRow respects the 3-block cap but allows same-row moves', () => {
+            const config = makeConfig([[block('a'), block('b'), block('c')]]);
+            expect(canDropInRow(config, 0)).toBe(false);
+            expect(canDropInRow(config, 0, 'a')).toBe(true);
+        });
     });
 
     it('operations never mutate the input config', () => {

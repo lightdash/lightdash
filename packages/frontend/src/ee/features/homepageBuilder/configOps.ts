@@ -128,6 +128,96 @@ export const canMoveDown = (
     return row.blocks.length > 1 || location.rowIndex < config.rows.length - 1;
 };
 
+export type DropTarget =
+    | { kind: 'row'; rowIndex: number }
+    | { kind: 'cell'; rowIndex: number; blockIndex: number }
+    | { kind: 'end' };
+
+const insertAt = (
+    rows: HomepageRow[],
+    block: HomepageBlock,
+    target: DropTarget,
+): HomepageRow[] => {
+    switch (target.kind) {
+        case 'end':
+            rows.push(newRowOf([block]));
+            return rows;
+        case 'row':
+            rows.splice(target.rowIndex, 0, newRowOf([block]));
+            return rows;
+        case 'cell': {
+            const row = rows[target.rowIndex];
+            if (!row || row.blocks.length >= HOMEPAGE_MAX_BLOCKS_PER_ROW) {
+                return rows;
+            }
+            row.blocks.splice(target.blockIndex, 0, block);
+            return rows;
+        }
+        default:
+            return rows;
+    }
+};
+
+export const dropNewBlock = (
+    config: HomepageConfig,
+    block: HomepageBlock,
+    target: DropTarget,
+): HomepageConfig =>
+    withRows(config, insertAt(cloneRows(config), block, target));
+
+export const dropExistingBlock = (
+    config: HomepageConfig,
+    blockId: string,
+    target: DropTarget,
+): HomepageConfig => {
+    const location = findBlock(config, blockId);
+    if (!location) return config;
+    if (
+        target.kind === 'cell' &&
+        target.rowIndex === location.rowIndex &&
+        (target.blockIndex === location.blockIndex ||
+            target.blockIndex === location.blockIndex + 1)
+    ) {
+        return config; // dropping beside itself is a no-op
+    }
+    const rows = cloneRows(config);
+    const sourceRow = rows[location.rowIndex];
+    const [block] = sourceRow.blocks.splice(location.blockIndex, 1);
+    const sourceRowEmptied = sourceRow.blocks.length === 0;
+
+    const adjusted: DropTarget = (() => {
+        if (target.kind === 'end') return target;
+        let { rowIndex } = target;
+        if (sourceRowEmptied && rowIndex > location.rowIndex) rowIndex -= 1;
+        if (target.kind === 'row') return { kind: 'row', rowIndex };
+        let { blockIndex } = target;
+        if (
+            rowIndex === location.rowIndex &&
+            !sourceRowEmptied &&
+            blockIndex > location.blockIndex
+        ) {
+            blockIndex -= 1;
+        }
+        return { kind: 'cell', rowIndex, blockIndex };
+    })();
+
+    if (sourceRowEmptied) rows.splice(location.rowIndex, 1);
+    return withRows(config, insertAt(rows, block, adjusted));
+};
+
+export const canDropInRow = (
+    config: HomepageConfig,
+    rowIndex: number,
+    draggedBlockId?: string,
+): boolean => {
+    const row = config.rows[rowIndex];
+    if (!row) return false;
+    const isSameRow =
+        draggedBlockId !== undefined &&
+        row.blocks.some((block) => block.id === draggedBlockId);
+    return isSameRow || row.blocks.length < HOMEPAGE_MAX_BLOCKS_PER_ROW;
+};
+
 export const replaceBlock = (
     config: HomepageConfig,
     updated: HomepageBlock,
