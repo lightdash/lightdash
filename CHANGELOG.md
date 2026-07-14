@@ -1,3 +1,10 @@
+# [0.3373.0](https://github.com/lightdash/lightdash/compare/0.3372.0...0.3373.0) (2026-07-14)
+
+
+### Features
+
+* **data-apps:** trace sandbox builds with Claude Code OTEL + per-execution GCP auth ([#24873](https://github.com/lightdash/lightdash/issues/24873)) ([1e9e548](https://github.com/lightdash/lightdash/commit/1e9e5482db2eba537fe115bd2393b787a9ec7646)), closes [/linear.app/lightdash/issue/GLITCH-521/trace-data-app-generation-with-claude-code-otel#agent-session-6dc594b4](https://github.com//linear.app/lightdash/issue/GLITCH-521/trace-data-app-generation-with-claude-code-otel/issues/agent-session-6dc594b4) [/linear.app/lightdash/issue/GLITCH-521/trace-data-app-generation-with-claude-code-otel#agent-session-6dc594b4](https://github.com//linear.app/lightdash/issue/GLITCH-521/trace-data-app-generation-with-claude-code-otel/issues/agent-session-6dc594b4) [/linear.app/lightdash/issue/GLITCH-521/trace-data-app-generation-with-claude-code-otel#agent-session-6dc594b4](https://github.com//linear.app/lightdash/issue/GLITCH-521/trace-data-app-generation-with-claude-code-otel/issues/agent-session-6dc594b4) [/linear.app/lightdash/issue/GLITCH-521/trace-data-app-generation-with-claude-code-otel#agent-session-6dc594b4](https://github.com//linear.app/lightdash/issue/GLITCH-521/trace-data-app-generation-with-claude-code-otel/issues/agent-session-6dc594b4)
+
 # [0.3372.0](https://github.com/lightdash/lightdash/compare/0.3371.3...0.3372.0) (2026-07-14)
 
 
