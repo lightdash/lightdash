@@ -1,0 +1,74 @@
+.step {
+    display: flex;
+    gap: var(--mantine-spacing-md);
+    position: relative;
+}
+
+.step:not(:last-child) .content {
+    padding-bottom: var(--mantine-spacing-xl);
+}
+
+/* Connecting line runs down the centre of the bullet column, behind bullets. */
+.step:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    top: 28px;
+    bottom: 0;
+    left: 14px;
+    width: 2px;
+    transform: translateX(-50%);
+    background-color: var(--mantine-color-default-border);
+}
+
+.bullet {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: var(--mantine-radius-xl);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 600;
+    z-index: 1;
+}
+
+.bulletActive {
+    background-color: var(--mantine-color-blue-filled);
+    color: var(--mantine-color-white);
+}
+
+.bulletInactive {
+    background-color: var(--mantine-color-blue-light);
+    color: var(--mantine-color-blue-light-color);
+}
+
+.content {
+    flex: 1;
+    min-width: 0;
+}
+
+.codeBlock {
+    position: relative;
+    background-color: var(--mantine-color-dark-8);
+    color: var(--mantine-color-gray-1);
+    border-radius: var(--mantine-radius-md);
+    padding: var(--mantine-spacing-md);
+    padding-right: 48px;
+    font-family: var(--mantine-font-family-monospace);
+    font-size: var(--mantine-font-size-sm);
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.codeBlockCopy {
+    position: absolute;
+    top: var(--mantine-spacing-xs);
+    right: var(--mantine-spacing-xs);
+}
+
+.codeMask {
+    opacity: 0.55;
+    letter-spacing: 1px;
+}
