@@ -12161,6 +12161,9 @@
             },
             "SchedulerImageOptions": {
                 "properties": {
+                    "pagePerTab": {
+                        "type": "boolean"
+                    },
                     "withPdf": {
                         "type": "boolean"
                     }
@@ -12193,13 +12196,13 @@
                 ],
                 "type": "object"
             },
-            "Record_string.never_": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
             "SchedulerPdfOptions": {
-                "$ref": "#/components/schemas/Record_string.never_"
+                "properties": {
+                    "pagePerTab": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
             },
             "SchedulerOptions": {
                 "anyOf": [
@@ -16722,6 +16725,7 @@
                     "resolveUrl",
                     "editContent",
                     "createContent",
+                    "createScheduledDelivery",
                     "runContentQuery",
                     "improveContext",
                     "listProjects",
@@ -16820,6 +16824,13 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "joinedTables": {
+                                                                            "items": {
+                                                                                "type": "string"
+                                                                            },
+                                                                            "type": "array",
+                                                                            "nullable": true
+                                                                        },
                                                                         "searchRank": {
                                                                             "type": "number",
                                                                             "format": "double",
@@ -16859,13 +16870,6 @@
                                                                                 "type": "object"
                                                                             },
                                                                             "type": "array"
-                                                                        },
-                                                                        "joinedTables": {
-                                                                            "items": {
-                                                                                "type": "string"
-                                                                            },
-                                                                            "type": "array",
-                                                                            "nullable": true
                                                                         },
                                                                         "label": {
                                                                             "type": "string"
@@ -16909,6 +16913,9 @@
                                                             "searchQueries": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "error": {
+                                                                            "type": "string"
+                                                                        },
                                                                         "pagination": {
                                                                             "properties": {
                                                                                 "totalPageCount": {
@@ -16935,9 +16942,6 @@
                                                                                 "page"
                                                                             ],
                                                                             "type": "object"
-                                                                        },
-                                                                        "error": {
-                                                                            "type": "string"
                                                                         },
                                                                         "status": {
                                                                             "type": "string",
@@ -17082,11 +17086,15 @@
                                                         "anyOf": [
                                                             {
                                                                 "properties": {
+                                                                    "rationale": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
                                                                     "fields": {
                                                                         "items": {
                                                                             "properties": {
-                                                                                "isFromJoinedTable": {
-                                                                                    "type": "boolean"
+                                                                                "fieldValueType": {
+                                                                                    "type": "string"
                                                                                 },
                                                                                 "caseSensitiveFilters": {
                                                                                     "type": "string",
@@ -17096,8 +17104,8 @@
                                                                                         "not_applicable"
                                                                                     ]
                                                                                 },
-                                                                                "fieldValueType": {
-                                                                                    "type": "string"
+                                                                                "isFromJoinedTable": {
+                                                                                    "type": "boolean"
                                                                                 },
                                                                                 "fieldFilterType": {
                                                                                     "type": "string"
@@ -17119,32 +17127,28 @@
                                                                                 "fieldId": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "table": {
+                                                                                "name": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "name": {
+                                                                                "table": {
                                                                                     "type": "string"
                                                                                 }
                                                                             },
                                                                             "required": [
-                                                                                "isFromJoinedTable",
-                                                                                "caseSensitiveFilters",
                                                                                 "fieldValueType",
+                                                                                "caseSensitiveFilters",
+                                                                                "isFromJoinedTable",
                                                                                 "fieldFilterType",
                                                                                 "fieldType",
                                                                                 "description",
                                                                                 "label",
                                                                                 "fieldId",
-                                                                                "table",
-                                                                                "name"
+                                                                                "name",
+                                                                                "table"
                                                                             ],
                                                                             "type": "object"
                                                                         },
                                                                         "type": "array"
-                                                                    },
-                                                                    "rationale": {
-                                                                        "type": "string",
-                                                                        "nullable": true
                                                                     },
                                                                     "explore": {
                                                                         "properties": {
@@ -17183,14 +17187,14 @@
                                                                                 },
                                                                                 "type": "array"
                                                                             },
+                                                                            "baseTable": {
+                                                                                "type": "string"
+                                                                            },
                                                                             "joinedTables": {
                                                                                 "items": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "type": "array"
-                                                                            },
-                                                                            "baseTable": {
-                                                                                "type": "string"
                                                                             },
                                                                             "label": {
                                                                                 "type": "string"
@@ -17200,8 +17204,8 @@
                                                                             }
                                                                         },
                                                                         "required": [
-                                                                            "joinedTables",
                                                                             "baseTable",
+                                                                            "joinedTables",
                                                                             "label",
                                                                             "name"
                                                                         ],
@@ -17216,8 +17220,8 @@
                                                                     }
                                                                 },
                                                                 "required": [
-                                                                    "fields",
                                                                     "rationale",
+                                                                    "fields",
                                                                     "explore",
                                                                     "status"
                                                                 ],
@@ -17231,10 +17235,10 @@
                                                                     "candidates": {
                                                                         "items": {
                                                                             "properties": {
-                                                                                "exploreLabel": {
+                                                                                "reason": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "reason": {
+                                                                                "exploreLabel": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "exploreName": {
@@ -17242,8 +17246,8 @@
                                                                                 }
                                                                             },
                                                                             "required": [
-                                                                                "exploreLabel",
                                                                                 "reason",
+                                                                                "exploreLabel",
                                                                                 "exploreName"
                                                                             ],
                                                                             "type": "object"
@@ -17382,15 +17386,15 @@
                                                                     "type": "string",
                                                                     "nullable": true
                                                                 },
+                                                                "repository": {
+                                                                    "type": "string",
+                                                                    "nullable": true
+                                                                },
                                                                 "isPrimary": {
                                                                     "type": "boolean"
                                                                 },
                                                                 "projectDbtSourceUuid": {
                                                                     "type": "string"
-                                                                },
-                                                                "repository": {
-                                                                    "type": "string",
-                                                                    "nullable": true
                                                                 },
                                                                 "name": {
                                                                     "type": "string"
@@ -17399,9 +17403,9 @@
                                                             "required": [
                                                                 "projectSubPath",
                                                                 "branch",
+                                                                "repository",
                                                                 "isPrimary",
                                                                 "projectDbtSourceUuid",
-                                                                "repository",
                                                                 "name"
                                                             ],
                                                             "type": "object"
@@ -17411,6 +17415,32 @@
                                                     },
                                                     "needsDbtSourceSelection": {
                                                         "type": "boolean",
+                                                        "nullable": true
+                                                    },
+                                                    "steps": {
+                                                        "items": {
+                                                            "properties": {
+                                                                "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                        "search",
+                                                                        "read",
+                                                                        "edit",
+                                                                        "compile",
+                                                                        "stage"
+                                                                    ]
+                                                                },
+                                                                "label": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "kind",
+                                                                "label"
+                                                            ],
+                                                            "type": "object"
+                                                        },
+                                                        "type": "array",
                                                         "nullable": true
                                                     },
                                                     "previewUrl": {
@@ -17440,32 +17470,6 @@
                                                         ],
                                                         "nullable": true
                                                     },
-                                                    "steps": {
-                                                        "items": {
-                                                            "properties": {
-                                                                "kind": {
-                                                                    "type": "string",
-                                                                    "enum": [
-                                                                        "search",
-                                                                        "read",
-                                                                        "edit",
-                                                                        "compile",
-                                                                        "stage"
-                                                                    ]
-                                                                },
-                                                                "label": {
-                                                                    "type": "string"
-                                                                }
-                                                            },
-                                                            "required": [
-                                                                "kind",
-                                                                "label"
-                                                            ],
-                                                            "type": "object"
-                                                        },
-                                                        "type": "array",
-                                                        "nullable": true
-                                                    },
                                                     "prUrl": {
                                                         "type": "string",
                                                         "nullable": true
@@ -17485,9 +17489,9 @@
                                                         "type": "string",
                                                         "enum": [
                                                             "unknown",
-                                                            "unsupported_source_control",
                                                             "github_not_installed",
                                                             "gitlab_not_installed",
+                                                            "unsupported_source_control",
                                                             "pull_request_not_open",
                                                             "git_write_permission",
                                                             null
@@ -17551,8 +17555,8 @@
                                                         "type": "string",
                                                         "enum": [
                                                             "error",
-                                                            "rejected",
                                                             "success",
+                                                            "rejected",
                                                             "timeout"
                                                         ]
                                                     }
@@ -23787,6 +23791,11 @@
             },
             "ApiAiDeepResearchRunResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiDeepResearchRun_"
+            },
+            "Record_string.never_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
             },
             "AiDeepResearchPhase": {
                 "type": "string",
@@ -45905,7 +45914,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3371.3",
+        "version": "0.3375.3",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
