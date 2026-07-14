@@ -18,6 +18,7 @@ import {
     SnowflakeDiagnosticErrorCategory,
     SnowflakeDiagnosticIdentity,
     SnowflakeDiagnosticSession,
+    SnowflakeSchemaSummary,
     SnowflakeWarehouseClient,
     warehouseClientFromCredentials,
 } from '@lightdash/warehouses';
@@ -94,13 +95,23 @@ type GenericDiagnosticClient = {
     test(): Promise<void>;
 };
 
-type SnowflakeDiagnosticClient = Pick<
+export type SnowflakeDiagnosticClient = Pick<
     SnowflakeWarehouseClient,
     | 'resolveDiagnosticHost'
     | 'openDiagnosticConnection'
     | 'authenticateDiagnosticConnection'
     | 'listDiagnosticTables'
     | 'selectOneDiagnosticConnection'
+    | 'closeDiagnosticConnection'
+>;
+
+export type SnowflakeConnectionValidationClient = Pick<
+    SnowflakeWarehouseClient,
+    | 'openDiagnosticConnection'
+    | 'authenticateDiagnosticConnection'
+    | 'useDiagnosticWarehouse'
+    | 'useDiagnosticDatabase'
+    | 'getSchemaSummaries'
     | 'closeDiagnosticConnection'
 >;
 
@@ -140,6 +151,18 @@ const warehouseRemedy = (
         return null;
     }
     return `GRANT USAGE ON WAREHOUSE ${warehouse} TO ROLE ${role};`;
+};
+
+const databaseUsageRemedy = (
+    credentials: CreateSnowflakeCredentials,
+    identity: SnowflakeDiagnosticIdentity | null,
+): string | null => {
+    const database = tryFormatIdentifier(credentials.database);
+    const role = tryFormatIdentifier(identity?.role ?? credentials.role);
+    if (!database || !role) {
+        return null;
+    }
+    return `GRANT USAGE ON DATABASE ${database} TO ROLE ${role};`;
 };
 
 const diagnosisForCategory = (
@@ -203,6 +226,62 @@ const diagnosisForCategory = (
         default:
             return assertUnreachable(category, 'Unknown diagnostic category');
     }
+};
+
+const diagnosisForCheck = (
+    checkId: ConnectionCheck['id'],
+    category: SnowflakeDiagnosticErrorCategory,
+    credentials: CreateSnowflakeCredentials,
+    identity: SnowflakeDiagnosticIdentity | null,
+    code: string | null,
+): ConnectionCheckDiagnosis => {
+    const role = identity?.role ?? credentials.role ?? 'the configured role';
+    const codeDetail = code ? ` Snowflake error code: ${code}.` : '';
+    if (checkId === 'use_warehouse' && category === 'warehouse_access') {
+        return {
+            title: 'Cannot use the selected warehouse',
+            detail: `Role ${role} cannot use warehouse ${credentials.warehouse}. Ask a Snowflake administrator to grant warehouse usage.${codeDetail}`,
+            remedySql: warehouseRemedy(credentials, identity),
+            docsUrl: SNOWFLAKE_DOCS_URL,
+        };
+    }
+    if (checkId === 'use_database' && category === 'database_access') {
+        return {
+            title: 'Cannot use the selected database',
+            detail: `Role ${role} cannot use database ${credentials.database}. Ask a Snowflake administrator to grant database usage.${codeDetail}`,
+            remedySql: databaseUsageRemedy(credentials, identity),
+            docsUrl: SNOWFLAKE_DOCS_URL,
+        };
+    }
+    return diagnosisForCategory(category, credentials, identity, code);
+};
+
+const diagnosticCategoryForCheck = (
+    checkId: ConnectionCheck['id'],
+    category: SnowflakeDiagnosticErrorCategory,
+): SnowflakeDiagnosticErrorCategory => {
+    if (category !== 'unknown') {
+        return category;
+    }
+    switch (checkId) {
+        case 'use_warehouse':
+            return 'warehouse_access';
+        case 'use_database':
+        case 'list_schemas':
+            return 'database_access';
+        case 'resolve_host':
+        case 'open_connection':
+        case 'authenticate':
+        case 'select_1':
+            return category;
+        default:
+            return assertUnreachable(checkId, 'Unknown connection check');
+    }
+};
+
+export type SnowflakeConnectionValidation = {
+    diagnostic: ConnectionDiagnosticResult;
+    schemas: SnowflakeSchemaSummary[] | null;
 };
 
 export class WarehouseDiagnosticsService extends BaseService {
@@ -385,6 +464,129 @@ export class WarehouseDiagnosticsService extends BaseService {
             return this.testGenericConnection(credentials);
         }
         return this.testSnowflakeConnection(credentials);
+    }
+
+    async validateSnowflakeConnection(
+        credentials: CreateSnowflakeCredentials,
+        client: SnowflakeConnectionValidationClient,
+    ): Promise<SnowflakeConnectionValidation> {
+        this.logger.debug('Validating Snowflake onboarding connection');
+        let session: SnowflakeDiagnosticSession | null = null;
+        let identity: SnowflakeDiagnosticIdentity | null = null;
+        let schemas: SnowflakeSchemaSummary[] | null = null;
+        const checks: ConnectionCheck[] = [
+            ['open_connection', 'Open connection'],
+            ['authenticate', 'Authenticate'],
+            ['use_warehouse', 'Use warehouse'],
+            ['use_database', 'Use database'],
+            ['list_schemas', 'List schemas'],
+        ].map(([id, label]) => ({
+            id: id as ConnectionCheck['id'],
+            label,
+            status: 'skipped',
+            durationMs: null,
+            diagnosis: null,
+        }));
+        const actions: (() => Promise<void>)[] = [
+            async () => {
+                session = await client.openDiagnosticConnection();
+            },
+            async () => {
+                identity = await client.authenticateDiagnosticConnection(
+                    session!,
+                );
+            },
+            async () => {
+                if (credentials.warehouse) {
+                    await client.useDiagnosticWarehouse(
+                        session!,
+                        credentials.warehouse,
+                    );
+                }
+            },
+            async () => {
+                if (credentials.database) {
+                    await client.useDiagnosticDatabase(
+                        session!,
+                        credentials.database,
+                    );
+                }
+            },
+            async () => {
+                if (credentials.database) {
+                    schemas = await client.getSchemaSummaries(
+                        credentials.database,
+                    );
+                }
+            },
+        ];
+        const shouldRun = [
+            true,
+            true,
+            Boolean(credentials.warehouse),
+            Boolean(credentials.database),
+            Boolean(credentials.database),
+        ];
+
+        const runCheck = async (index: number): Promise<void> => {
+            if (index >= checks.length) {
+                return;
+            }
+            if (!shouldRun[index]) {
+                await runCheck(index + 1);
+                return;
+            }
+            const start = performance.now();
+            try {
+                await actions[index]();
+                checks[index] = {
+                    ...checks[index],
+                    status: 'passed',
+                    durationMs: performance.now() - start,
+                };
+                await runCheck(index + 1);
+            } catch (error) {
+                const mapped =
+                    error instanceof SnowflakeDiagnosticError
+                        ? error.details
+                        : mapSnowflakeDiagnosticError(error);
+                const category = diagnosticCategoryForCheck(
+                    checks[index].id,
+                    mapped.category,
+                );
+                checks[index] = {
+                    ...checks[index],
+                    status: 'failed',
+                    durationMs: performance.now() - start,
+                    diagnosis: diagnosisForCheck(
+                        checks[index].id,
+                        category,
+                        credentials,
+                        identity,
+                        mapped.code,
+                    ),
+                };
+            }
+        };
+
+        try {
+            await runCheck(0);
+            return {
+                diagnostic: {
+                    status: checks.some((check) => check.status === 'failed')
+                        ? 'failed'
+                        : 'passed',
+                    checks,
+                },
+                schemas,
+            };
+        } finally {
+            if (session) {
+                await client
+                    .closeDiagnosticConnection(session)
+                    .catch(() => undefined);
+            }
+        }
     }
 
     async getGrantScript(

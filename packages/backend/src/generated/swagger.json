@@ -38579,23 +38579,74 @@
                 "required": ["schema", "role", "warehouse", "database"],
                 "type": "object"
             },
+            "OnboardingInventoryDatabase": {
+                "properties": {
+                    "kind": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "comment": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["kind", "comment", "name"],
+                "type": "object"
+            },
+            "OnboardingInventoryWarehouse": {
+                "properties": {
+                    "autoSuspendSeconds": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "state": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "size": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["autoSuspendSeconds", "state", "size", "name"],
+                "type": "object"
+            },
+            "OnboardingInventoryRole": {
+                "properties": {
+                    "isDefault": {
+                        "type": "boolean"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["isDefault", "name"],
+                "type": "object"
+            },
             "OnboardingConnectionInventory": {
                 "properties": {
                     "roles": {
                         "items": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/OnboardingInventoryRole"
                         },
                         "type": "array"
                     },
                     "warehouses": {
                         "items": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/OnboardingInventoryWarehouse"
                         },
                         "type": "array"
                     },
                     "databases": {
                         "items": {
-                            "type": "string"
+                            "$ref": "#/components/schemas/OnboardingInventoryDatabase"
                         },
                         "type": "array"
                     }
@@ -38613,6 +38664,8 @@
                     "resolve_host",
                     "open_connection",
                     "authenticate",
+                    "use_warehouse",
+                    "use_database",
                     "list_schemas",
                     "select_1"
                 ]
@@ -38748,6 +38801,69 @@
                 "$ref": "#/components/schemas/ApiSuccess_OnboardingConnectionDepositResult_"
             },
             "ConfigureOnboardingConnectionRequest": {
+                "properties": {
+                    "connectionValues": {
+                        "$ref": "#/components/schemas/OnboardingConnectionValues"
+                    }
+                },
+                "required": ["connectionValues"],
+                "type": "object"
+            },
+            "OnboardingSchemaSummary": {
+                "properties": {
+                    "tableCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["tableCount", "name"],
+                "type": "object"
+            },
+            "OnboardingConnectionValidationResult": {
+                "properties": {
+                    "inventory": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/OnboardingConnectionInventory"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "schemas": {
+                        "items": {
+                            "$ref": "#/components/schemas/OnboardingSchemaSummary"
+                        },
+                        "type": "array",
+                        "nullable": true
+                    },
+                    "diagnostic": {
+                        "$ref": "#/components/schemas/ConnectionDiagnosticResult"
+                    }
+                },
+                "required": ["inventory", "schemas", "diagnostic"],
+                "type": "object"
+            },
+            "ApiSuccess_OnboardingConnectionValidationResult_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/OnboardingConnectionValidationResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiOnboardingConnectionValidationResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_OnboardingConnectionValidationResult_"
+            },
+            "ValidateOnboardingConnectionRequest": {
                 "properties": {
                     "connectionValues": {
                         "$ref": "#/components/schemas/OnboardingConnectionValues"
@@ -65530,6 +65646,57 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ConfigureOnboardingConnectionRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/onboarding/connection/validate": {
+            "post": {
+                "operationId": "ValidateOnboardingConnection",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOnboardingConnectionValidationResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Validate onboarding connection choices without persisting them.",
+                "summary": "Validate onboarding connection",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ValidateOnboardingConnectionRequest"
                             }
                         }
                     }

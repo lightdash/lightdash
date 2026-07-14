@@ -38356,6 +38356,80 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    OnboardingInventoryDatabase: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                kind: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                comment: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    OnboardingInventoryWarehouse: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                autoSuspendSeconds: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'double' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                state: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                size: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    OnboardingInventoryRole: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                isDefault: { dataType: 'boolean', required: true },
+                name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     OnboardingConnectionInventory: {
         dataType: 'refAlias',
         type: {
@@ -38363,17 +38437,26 @@ const models: TsoaRoute.Models = {
             nestedProperties: {
                 roles: {
                     dataType: 'array',
-                    array: { dataType: 'string' },
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'OnboardingInventoryRole',
+                    },
                     required: true,
                 },
                 warehouses: {
                     dataType: 'array',
-                    array: { dataType: 'string' },
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'OnboardingInventoryWarehouse',
+                    },
                     required: true,
                 },
                 databases: {
                     dataType: 'array',
-                    array: { dataType: 'string' },
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'OnboardingInventoryDatabase',
+                    },
                     required: true,
                 },
             },
@@ -38401,6 +38484,8 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['resolve_host'] },
                 { dataType: 'enum', enums: ['open_connection'] },
                 { dataType: 'enum', enums: ['authenticate'] },
+                { dataType: 'enum', enums: ['use_warehouse'] },
+                { dataType: 'enum', enums: ['use_database'] },
                 { dataType: 'enum', enums: ['list_schemas'] },
                 { dataType: 'enum', enums: ['select_1'] },
             ],
@@ -38566,6 +38651,91 @@ const models: TsoaRoute.Models = {
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ConfigureOnboardingConnectionRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                connectionValues: {
+                    ref: 'OnboardingConnectionValues',
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    OnboardingSchemaSummary: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                tableCount: { dataType: 'double', required: true },
+                name: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    OnboardingConnectionValidationResult: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                inventory: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'OnboardingConnectionInventory' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                schemas: {
+                    dataType: 'union',
+                    subSchemas: [
+                        {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'OnboardingSchemaSummary',
+                            },
+                        },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                diagnostic: {
+                    ref: 'ConnectionDiagnosticResult',
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSuccess_OnboardingConnectionValidationResult_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    ref: 'OnboardingConnectionValidationResult',
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiOnboardingConnectionValidationResponse: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'ApiSuccess_OnboardingConnectionValidationResult_',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ValidateOnboardingConnectionRequest: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -76765,6 +76935,73 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'configureConnection',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOnboardingController_validateConnection: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'ValidateOnboardingConnectionRequest',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/onboarding/connection/validate',
+        ...fetchMiddlewares<RequestHandler>(OnboardingController),
+        ...fetchMiddlewares<RequestHandler>(
+            OnboardingController.prototype.validateConnection,
+        ),
+
+        async function OnboardingController_validateConnection(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsOnboardingController_validateConnection,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OnboardingController>(
+                        OnboardingController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'validateConnection',
                     controller,
                     response,
                     next,

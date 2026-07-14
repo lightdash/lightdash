@@ -1855,12 +1855,23 @@ export class ProjectService extends BaseService {
     }
 
     async getWarehouseClientForUser(user: SessionUser, projectUuid: string) {
-        const credentials = await this.getWarehouseCredentials({
+        const credentials = await this.getWarehouseCredentialsForUser(
+            user,
+            projectUuid,
+        );
+        return this._getWarehouseClient(projectUuid, credentials);
+    }
+
+    async getWarehouseCredentialsForUser(
+        user: SessionUser,
+        projectUuid: string,
+    ) {
+        return this.getWarehouseCredentials({
             projectUuid,
             userId: user.userUuid,
             isRegisteredUser: true,
+            isServiceAccount: user.serviceAccount !== undefined,
         });
-        return this._getWarehouseClient(projectUuid, credentials);
     }
 
     private async syncPreAggregateDefinitionsRegistry(

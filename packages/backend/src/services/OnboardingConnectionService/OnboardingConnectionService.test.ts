@@ -14,8 +14,13 @@ import {
     type CreateSnowflakeCredentials,
     type DepositOnboardingConnectionRequest,
     type OnboardingConnectionDepositResult,
+    type OnboardingConnectionInventory,
 } from '@lightdash/common';
-import { refreshSnowflakeOAuthToken } from '@lightdash/warehouses';
+import {
+    refreshSnowflakeOAuthToken,
+    type SnowflakeSessionDiscovery,
+    type SnowflakeWarehouseClient,
+} from '@lightdash/warehouses';
 import { fromSession } from '../../auth/account/account';
 import { defaultSessionUser } from '../../auth/account/account.mock';
 import { OnboardingConnectCodeModel } from '../../models/OnboardingConnectCodeModel';
@@ -23,7 +28,10 @@ import { OnboardingProjectStateModel } from '../../models/OnboardingProjectState
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { ProjectService } from '../ProjectService/ProjectService';
 import { UserService } from '../UserService';
-import { WarehouseDiagnosticsService } from '../WarehouseDiagnosticsService/WarehouseDiagnosticsService';
+import {
+    WarehouseDiagnosticsService,
+    type SnowflakeConnectionValidationClient,
+} from '../WarehouseDiagnosticsService/WarehouseDiagnosticsService';
 import {
     hashOnboardingConnectCode,
     OnboardingConnectionService,
@@ -98,10 +106,22 @@ const connectionValueSources = {
     schema: 'default' as const,
 };
 
-const inventory = {
-    databases: ['analytics'],
-    warehouses: ['lightdash_wh'],
-    roles: ['lightdash_role', 'PUBLIC'],
+const inventory: OnboardingConnectionInventory = {
+    databases: [
+        { name: 'analytics', comment: 'Analytics data', kind: 'STANDARD' },
+    ],
+    warehouses: [
+        {
+            name: 'lightdash_wh',
+            size: 'X-Small',
+            state: 'STARTED',
+            autoSuspendSeconds: 300,
+        },
+    ],
+    roles: [
+        { name: 'lightdash_role', isDefault: true },
+        { name: 'PUBLIC', isDefault: false },
+    ],
 };
 
 const depositRequest = (
@@ -124,6 +144,8 @@ const getSummary = vi.fn<ProjectModel['getSummary']>();
 const getWithSensitiveFields = vi.fn<ProjectModel['getWithSensitiveFields']>();
 const updateWarehouseCredentials =
     vi.fn<ProjectService['updateWarehouseCredentials']>();
+const getWarehouseCredentialsForUser =
+    vi.fn<ProjectService['getWarehouseCredentialsForUser']>();
 const getAccountByUserUuid = vi.fn<UserService['getAccountByUserUuid']>();
 const diagnoseConnection =
     vi.fn<WarehouseDiagnosticsService['diagnoseConnection']>();
@@ -139,7 +161,17 @@ const account = fromSession({
     ]),
 });
 
-const getService = () =>
+type ValidationClient = SnowflakeConnectionValidationClient &
+    Pick<SnowflakeWarehouseClient, 'getSessionDiscovery'>;
+
+const getService = (
+    overrides: {
+        warehouseDiagnosticsService?: WarehouseDiagnosticsService;
+        snowflakeClientFactory?: (
+            clientCredentials: CreateSnowflakeCredentials,
+        ) => ValidationClient;
+    } = {},
+) =>
     new OnboardingConnectionService({
         onboardingConnectCodeModel: {
             create,
@@ -156,11 +188,13 @@ const getService = () =>
         } as unknown as ProjectModel,
         projectService: {
             updateWarehouseCredentials,
+            getWarehouseCredentialsForUser,
         } as unknown as ProjectService,
         userService: { getAccountByUserUuid } as unknown as UserService,
-        warehouseDiagnosticsService: {
-            diagnoseConnection,
-        } as unknown as WarehouseDiagnosticsService,
+        warehouseDiagnosticsService:
+            overrides.warehouseDiagnosticsService ??
+            ({ diagnoseConnection } as unknown as WarehouseDiagnosticsService),
+        snowflakeClientFactory: overrides.snowflakeClientFactory,
         now: () => new Date('2026-07-14T12:00:00.000Z'),
         generateRandomCode: () => 'random-code',
     });
@@ -193,6 +227,10 @@ describe('OnboardingConnectionService', () => {
             warehouseConnection: credentials,
         } as Awaited<ReturnType<ProjectModel['getWithSensitiveFields']>>);
         diagnoseConnection.mockResolvedValue(passedDiagnostic);
+        getWarehouseCredentialsForUser.mockResolvedValue({
+            ...credentials,
+            userWarehouseCredentialsUuid: undefined,
+        });
         upsert.mockResolvedValue({
             step: OnboardingStepType.CONNECT,
             status: OnboardingStepStatus.COMPLETED,
@@ -296,6 +334,39 @@ describe('OnboardingConnectionService', () => {
                 diagnostic: passedDiagnostic,
             },
         );
+    });
+
+    it('caps rich deposited inventory without changing entry shape', async () => {
+        const largeInventory: OnboardingConnectionInventory = {
+            databases: Array.from({ length: 101 }, (_, index) => ({
+                name: `database_${index}`,
+                comment: index === 99 ? 'last included database' : null,
+                kind: 'STANDARD',
+            })),
+            warehouses: Array.from({ length: 101 }, (_, index) => ({
+                name: `warehouse_${index}`,
+                size: 'X-Small',
+                state: 'SUSPENDED',
+                autoSuspendSeconds: 60,
+            })),
+            roles: Array.from({ length: 101 }, (_, index) => ({
+                name: `role_${index}`,
+                isDefault: index === 0,
+            })),
+        };
+
+        const result = await getService().depositConnection(
+            depositRequest({ inventory: largeInventory }),
+        );
+
+        expect(result.inventory.databases).toHaveLength(100);
+        expect(result.inventory.warehouses).toHaveLength(100);
+        expect(result.inventory.roles).toHaveLength(100);
+        expect(result.inventory.databases[99]).toEqual({
+            name: 'database_99',
+            comment: 'last included database',
+            kind: 'STANDARD',
+        });
     });
 
     it('refreshes missing access credentials before storing them', async () => {
@@ -562,6 +633,289 @@ describe('OnboardingConnectionService', () => {
             expect(updateWarehouseCredentials).not.toHaveBeenCalled();
             expect(diagnoseConnection).not.toHaveBeenCalled();
             expect(upsert).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('validateConnection', () => {
+        const schemaSummaries = [
+            { name: 'PUBLIC', tableCount: 2 },
+            { name: 'FINANCE', tableCount: 1 },
+        ];
+
+        const createValidationClient = () => {
+            const events: string[] = [];
+            const openDiagnosticConnection = vi.fn<
+                ValidationClient['openDiagnosticConnection']
+            >(async () => {
+                events.push('open_connection');
+                return { connection: {} as never };
+            });
+            const authenticateDiagnosticConnection = vi.fn<
+                ValidationClient['authenticateDiagnosticConnection']
+            >(async () => {
+                events.push('authenticate');
+                return {
+                    role: 'SELECTED_ROLE',
+                    user: 'LIGHTDASH_USER',
+                    database: null,
+                    warehouse: null,
+                };
+            });
+            const useDiagnosticWarehouse = vi.fn<
+                ValidationClient['useDiagnosticWarehouse']
+            >(async () => {
+                events.push('use_warehouse');
+            });
+            const useDiagnosticDatabase = vi.fn<
+                ValidationClient['useDiagnosticDatabase']
+            >(async () => {
+                events.push('use_database');
+            });
+            const getSchemaSummaries = vi.fn<
+                ValidationClient['getSchemaSummaries']
+            >(async () => {
+                events.push('list_schemas');
+                return schemaSummaries;
+            });
+            const closeDiagnosticConnection = vi.fn<
+                ValidationClient['closeDiagnosticConnection']
+            >(async () => {
+                events.push('close_connection');
+            });
+            const discovery: SnowflakeSessionDiscovery = {
+                user: credentials.user,
+                defaults: {
+                    role: 'SELECTED_ROLE',
+                    warehouse: 'SELECTED_WAREHOUSE',
+                    database: 'SELECTED_DATABASE',
+                    schema: 'PUBLIC',
+                },
+                inventory,
+            };
+            const getSessionDiscovery = vi.fn<
+                ValidationClient['getSessionDiscovery']
+            >(async () => {
+                events.push('discovery');
+                return discovery;
+            });
+            const client: ValidationClient = {
+                openDiagnosticConnection,
+                authenticateDiagnosticConnection,
+                useDiagnosticWarehouse,
+                useDiagnosticDatabase,
+                getSchemaSummaries,
+                closeDiagnosticConnection,
+                getSessionDiscovery,
+            };
+            return {
+                client,
+                events,
+                openDiagnosticConnection,
+                authenticateDiagnosticConnection,
+                useDiagnosticWarehouse,
+                useDiagnosticDatabase,
+                getSchemaSummaries,
+                closeDiagnosticConnection,
+                getSessionDiscovery,
+            };
+        };
+
+        it('validates choices in order, returns schemas, and does not persist choices', async () => {
+            const validationClient = createValidationClient();
+            const snowflakeClientFactory = vi.fn<
+                (
+                    clientCredentials: CreateSnowflakeCredentials,
+                ) => ValidationClient
+            >(() => validationClient.client);
+            const rotatedCredentials: CreateSnowflakeCredentials = {
+                ...credentials,
+                token: 'fresh-access-token',
+                refreshToken: 'rotated-refresh-token',
+            };
+            getWarehouseCredentialsForUser.mockResolvedValueOnce({
+                ...rotatedCredentials,
+                userWarehouseCredentialsUuid: undefined,
+            });
+            const selectedValues = {
+                database: 'Selected Database',
+                warehouse: 'Selected Warehouse',
+                role: 'SELECTED_ROLE',
+                schema: 'SELECTED_SCHEMA',
+            };
+
+            const result = await getService({
+                warehouseDiagnosticsService: new WarehouseDiagnosticsService(),
+                snowflakeClientFactory,
+            }).validateConnection(account, projectUuid, selectedValues);
+
+            expect(validationClient.events).toEqual([
+                'open_connection',
+                'authenticate',
+                'use_warehouse',
+                'use_database',
+                'list_schemas',
+                'close_connection',
+                'discovery',
+            ]);
+            expect(result).toEqual({
+                diagnostic: {
+                    status: 'passed',
+                    checks: expect.arrayContaining([
+                        expect.objectContaining({
+                            id: 'use_warehouse',
+                            status: 'passed',
+                        }),
+                        expect.objectContaining({
+                            id: 'use_database',
+                            status: 'passed',
+                        }),
+                    ]),
+                },
+                schemas: schemaSummaries,
+                inventory,
+            });
+            expect(getWarehouseCredentialsForUser).toHaveBeenCalledWith(
+                expect.objectContaining({ userUuid }),
+                projectUuid,
+            );
+            expect(snowflakeClientFactory).toHaveBeenCalledWith({
+                ...rotatedCredentials,
+                userWarehouseCredentialsUuid: undefined,
+                database: selectedValues.database,
+                warehouse: selectedValues.warehouse,
+                role: selectedValues.role,
+                schema: selectedValues.schema,
+            });
+            expect(
+                validationClient.useDiagnosticWarehouse,
+            ).toHaveBeenCalledWith(expect.anything(), selectedValues.warehouse);
+            expect(validationClient.useDiagnosticDatabase).toHaveBeenCalledWith(
+                expect.anything(),
+                selectedValues.database,
+            );
+            expect(find).not.toHaveBeenCalled();
+            expect(updateWarehouseCredentials).not.toHaveBeenCalled();
+        });
+
+        it('skips selection checks when warehouse and database are absent', async () => {
+            const validationClient = createValidationClient();
+
+            const result = await getService({
+                warehouseDiagnosticsService: new WarehouseDiagnosticsService(),
+                snowflakeClientFactory: () => validationClient.client,
+            }).validateConnection(account, projectUuid, {
+                database: null,
+                warehouse: null,
+                role: null,
+                schema: null,
+            });
+
+            expect(validationClient.events).toEqual([
+                'open_connection',
+                'authenticate',
+                'close_connection',
+                'discovery',
+            ]);
+            expect(result.schemas).toBeNull();
+            expect(result.diagnostic.checks).toEqual([
+                expect.objectContaining({
+                    id: 'open_connection',
+                    status: 'passed',
+                }),
+                expect.objectContaining({
+                    id: 'authenticate',
+                    status: 'passed',
+                }),
+                expect.objectContaining({
+                    id: 'use_warehouse',
+                    status: 'skipped',
+                }),
+                expect.objectContaining({
+                    id: 'use_database',
+                    status: 'skipped',
+                }),
+                expect.objectContaining({
+                    id: 'list_schemas',
+                    status: 'skipped',
+                }),
+            ]);
+        });
+
+        it('stops after the first failed check and returns a targeted remedy', async () => {
+            const validationClient = createValidationClient();
+            validationClient.useDiagnosticWarehouse.mockImplementationOnce(
+                async () => {
+                    validationClient.events.push('use_warehouse');
+                    throw new Error('warehouse permission denied');
+                },
+            );
+
+            const result = await getService({
+                warehouseDiagnosticsService: new WarehouseDiagnosticsService(),
+                snowflakeClientFactory: () => validationClient.client,
+            }).validateConnection(account, projectUuid, {
+                database: 'ANALYTICS',
+                warehouse: 'SELECTED_WAREHOUSE',
+                role: 'SELECTED_ROLE',
+                schema: null,
+            });
+
+            expect(validationClient.events).toEqual([
+                'open_connection',
+                'authenticate',
+                'use_warehouse',
+                'close_connection',
+                'discovery',
+            ]);
+            expect(result.diagnostic.status).toBe('failed');
+            expect(result.diagnostic.checks[2]).toEqual(
+                expect.objectContaining({
+                    id: 'use_warehouse',
+                    status: 'failed',
+                    diagnosis: expect.objectContaining({
+                        title: 'Cannot use the selected warehouse',
+                        remedySql:
+                            'GRANT USAGE ON WAREHOUSE "SELECTED_WAREHOUSE" TO ROLE "SELECTED_ROLE";',
+                    }),
+                }),
+            );
+            expect(result.diagnostic.checks[3]).toEqual(
+                expect.objectContaining({ status: 'skipped' }),
+            );
+            expect(result.schemas).toBeNull();
+        });
+
+        it('returns null inventory when discovery fails', async () => {
+            const validationClient = createValidationClient();
+            validationClient.getSessionDiscovery.mockRejectedValueOnce(
+                new Error('discovery failed'),
+            );
+
+            const result = await getService({
+                warehouseDiagnosticsService: new WarehouseDiagnosticsService(),
+                snowflakeClientFactory: () => validationClient.client,
+            }).validateConnection(account, projectUuid, connectionValues);
+
+            expect(result.diagnostic.status).toBe('passed');
+            expect(result.schemas).toEqual(schemaSummaries);
+            expect(result.inventory).toBeNull();
+        });
+
+        it('rejects validation without project management permission', async () => {
+            const unauthorizedAccount = fromSession({
+                ...defaultSessionUser,
+                ability: new Ability<PossibleAbilities>([]),
+            });
+
+            await expect(
+                getService().validateConnection(
+                    unauthorizedAccount,
+                    projectUuid,
+                    connectionValues,
+                ),
+            ).rejects.toThrow(ForbiddenError);
+            expect(getWithSensitiveFields).not.toHaveBeenCalled();
+            expect(getWarehouseCredentialsForUser).not.toHaveBeenCalled();
         });
     });
 });

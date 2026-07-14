@@ -4,6 +4,7 @@ import {
     ApiGrantScriptResponse,
     ApiOnboardingConnectCodeResponse,
     ApiOnboardingConnectionDepositResponse,
+    ApiOnboardingConnectionValidationResponse,
     ApiOnboardingDashboardResponse,
     ApiOnboardingProfileResponse,
     ApiOnboardingProjectStateResponse,
@@ -18,6 +19,7 @@ import {
     TestOnboardingConnectionRequest,
     UpdateOnboardingProjectStep,
     UpdateSemanticLayerFieldRequest,
+    ValidateOnboardingConnectionRequest,
     type UUID,
 } from '@lightdash/common';
 import {
@@ -247,6 +249,32 @@ export class OnboardingController extends BaseController {
             results: await this.services
                 .getOnboardingConnectionService()
                 .configureConnection(
+                    req.account,
+                    projectUuid,
+                    body.connectionValues,
+                ),
+        };
+    }
+
+    /**
+     * Validate onboarding connection choices without persisting them.
+     * @summary Validate onboarding connection
+     */
+    @Middlewares([isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/connection/validate')
+    @OperationId('ValidateOnboardingConnection')
+    async validateConnection(
+        @Path() projectUuid: UUID,
+        @Body() body: ValidateOnboardingConnectionRequest,
+        @Request() req: express.Request,
+    ): Promise<ApiOnboardingConnectionValidationResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getOnboardingConnectionService()
+                .validateConnection(
                     req.account,
                     projectUuid,
                     body.connectionValues,
