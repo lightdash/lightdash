@@ -436,6 +436,13 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             // See createProgrammaticAccessToken for more details
             authenticationOptions = {
                 authenticator: EXTERNAL_BROWSER_AUTHENTICATOR,
+                username: credentials.user,
+                // Fall back to Snowflake's console login page when the
+                // account has no SSO integration; the SDK otherwise fails
+                // with a null SSO URL
+                disableConsoleLogin: false,
+                // Default 120s is tight for human sign-in with MFA/IdP hops
+                browserActionTimeout: 300_000,
             };
         } else if (
             credentials.privateKey &&
