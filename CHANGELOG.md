@@ -1,3 +1,16 @@
+# [0.3378.0](https://github.com/lightdash/lightdash/compare/0.3377.1...0.3378.0) (2026-07-14)
+
+
+### Bug Fixes
+
+* **cli:** friendly errors for missing metrics key and unreadable manifest ([#25511](https://github.com/lightdash/lightdash/issues/25511)) ([d519cc8](https://github.com/lightdash/lightdash/commit/d519cc824937242cc7e42885dd2f6756c820bb9d))
+
+
+### Features
+
+* add warehouse catalog CLI command ([#25517](https://github.com/lightdash/lightdash/issues/25517)) ([5366e10](https://github.com/lightdash/lightdash/commit/5366e10a9cf0a94672ae3e68d7d3711ba98bd249))
+* **ai:** expose the Deep Research API ([#25524](https://github.com/lightdash/lightdash/issues/25524)) ([53bf60f](https://github.com/lightdash/lightdash/commit/53bf60fde0e52f1dfc8ac2f3d2542d9c70f97144))
+
 ## [0.3377.1](https://github.com/lightdash/lightdash/compare/0.3377.0...0.3377.1) (2026-07-14)
 
 
