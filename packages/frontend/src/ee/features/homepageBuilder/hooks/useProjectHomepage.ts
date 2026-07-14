@@ -20,10 +20,29 @@ const getPublishedHomepage = async (projectUuid: string) =>
         body: undefined,
     });
 
-const getHomepageForBuilder = async (projectUuid: string) =>
+const getHomepageForBuilder = async (
+    projectUuid: string,
+    homepageUuid?: string,
+) =>
     lightdashApi<ProjectHomepage | null>({
-        url: `/projects/${projectUuid}/homepage/builder`,
+        url: `/projects/${projectUuid}/homepage/builder${
+            homepageUuid ? `?homepageUuid=${homepageUuid}` : ''
+        }`,
         method: 'GET',
+        body: undefined,
+    });
+
+const listHomepagesApi = async (projectUuid: string) =>
+    lightdashApi<ProjectHomepage[]>({
+        url: `/projects/${projectUuid}/homepage/list`,
+        method: 'GET',
+        body: undefined,
+    });
+
+const deleteHomepageApi = async (projectUuid: string, homepageUuid: string) =>
+    lightdashApi<undefined>({
+        url: `/projects/${projectUuid}/homepage/${homepageUuid}`,
+        method: 'DELETE',
         body: undefined,
     });
 
@@ -74,13 +93,55 @@ export const usePublishedHomepage = (
 
 export const useHomepageForBuilder = (
     projectUuid: string | undefined,
-    { enabled = true }: { enabled?: boolean } = {},
+    {
+        enabled = true,
+        homepageUuid,
+    }: { enabled?: boolean; homepageUuid?: string } = {},
 ) =>
     useQuery<ProjectHomepage | null, ApiError>({
         enabled: !!projectUuid && enabled,
-        queryKey: [PROJECT_HOMEPAGE_QUERY_KEY, projectUuid, 'builder'],
-        queryFn: () => getHomepageForBuilder(projectUuid!),
+        queryKey: [
+            PROJECT_HOMEPAGE_QUERY_KEY,
+            projectUuid,
+            'builder',
+            homepageUuid ?? 'default',
+        ],
+        queryFn: () => getHomepageForBuilder(projectUuid!, homepageUuid),
     });
+
+export const useProjectHomepages = (
+    projectUuid: string | undefined,
+    { enabled = true }: { enabled?: boolean } = {},
+) =>
+    useQuery<ProjectHomepage[], ApiError>({
+        enabled: !!projectUuid && enabled,
+        queryKey: [PROJECT_HOMEPAGE_QUERY_KEY, projectUuid, 'list'],
+        queryFn: () => listHomepagesApi(projectUuid!),
+    });
+
+export const useDeleteHomepage = (projectUuid: string) => {
+    const { showToastSuccess, showToastApiError } = useToaster();
+    const queryClient = useQueryClient();
+    return useMutation<undefined, ApiError, string>(
+        (homepageUuid) => deleteHomepageApi(projectUuid, homepageUuid),
+        {
+            mutationKey: ['delete_project_homepage'],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries([
+                    PROJECT_HOMEPAGE_QUERY_KEY,
+                    projectUuid,
+                ]);
+                showToastSuccess({ title: 'Homepage deleted' });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to delete homepage',
+                    apiError: error,
+                });
+            },
+        },
+    );
+};
 
 export const useCreateHomepage = (projectUuid: string) => {
     const { showToastApiError } = useToaster();

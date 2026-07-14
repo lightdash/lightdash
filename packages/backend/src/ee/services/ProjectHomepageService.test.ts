@@ -1,6 +1,5 @@
 import { Ability } from '@casl/ability';
 import {
-    AlreadyExistsError,
     ForbiddenError,
     NotFoundError,
     OrganizationMemberRole,
@@ -116,10 +115,13 @@ const makeService = ({
         },
         projectHomepageModel: {
             getDefault: vi.fn().mockResolvedValue(undefined),
+            getByUuid: vi.fn().mockResolvedValue(makeHomepage()),
             getPublishedDefault: vi.fn().mockResolvedValue(undefined),
+            list: vi.fn().mockResolvedValue([]),
             create: vi.fn().mockResolvedValue(makeHomepage()),
             updateDraft: vi.fn().mockResolvedValue(makeHomepage()),
             publish: vi.fn().mockResolvedValue(makeHomepage()),
+            delete: vi.fn().mockResolvedValue(undefined),
             ...projectHomepageModel,
         },
     });
@@ -151,18 +153,50 @@ describe('ProjectHomepageService', () => {
         ).rejects.toThrow(ForbiddenError);
     });
 
-    it('createHomepage throws AlreadyExistsError when a default homepage exists', async () => {
+    it('createHomepage copies the draft config when duplicating', async () => {
+        const create = vi.fn().mockResolvedValue(makeHomepage());
         const service = makeService({
             projectHomepageModel: {
-                getDefault: vi.fn().mockResolvedValue(makeHomepage()),
+                getByUuid: vi
+                    .fn()
+                    .mockResolvedValue(
+                        makeHomepage({ draftConfig: validConfig }),
+                    ),
+                create,
+            },
+        });
+
+        await service.createHomepage(makeAdminUser(), PROJECT_UUID, {
+            name: 'Copy',
+            duplicateFrom: HOMEPAGE_UUID,
+        });
+
+        expect(create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                name: 'Copy',
+                draftConfig: validConfig,
+            }),
+        );
+    });
+
+    it('deleteHomepage rejects a homepage from another project', async () => {
+        const service = makeService({
+            projectHomepageModel: {
+                getByUuid: vi
+                    .fn()
+                    .mockResolvedValue(
+                        makeHomepage({ projectUuid: 'other-project-uuid' }),
+                    ),
             },
         });
 
         await expect(
-            service.createHomepage(makeAdminUser(), PROJECT_UUID, {
-                name: 'Another',
-            }),
-        ).rejects.toThrow(AlreadyExistsError);
+            service.deleteHomepage(
+                makeAdminUser(),
+                PROJECT_UUID,
+                HOMEPAGE_UUID,
+            ),
+        ).rejects.toThrow(NotFoundError);
     });
 
     it('updateDraft rejects a row with more than 3 blocks', async () => {
@@ -195,10 +229,10 @@ describe('ProjectHomepageService', () => {
     it('updateDraft throws NotFoundError when the homepage belongs to another project', async () => {
         const service = makeService({
             projectHomepageModel: {
-                getDefault: vi
+                getByUuid: vi
                     .fn()
                     .mockResolvedValue(
-                        makeHomepage({ homepageUuid: 'other-homepage-uuid' }),
+                        makeHomepage({ projectUuid: 'other-project-uuid' }),
                     ),
             },
         });

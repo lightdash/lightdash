@@ -3,19 +3,23 @@ import {
     type ApiErrorPayload,
     type ApiProjectHomepageOrNullResponse,
     type ApiProjectHomepageResponse,
+    type ApiProjectHomepagesResponse,
     type ApiPublishedHomepageResponse,
+    type ApiSuccessEmpty,
     type CreateProjectHomepageRequest,
     type UpdateProjectHomepageDraftRequest,
     type UUID,
 } from '@lightdash/common';
 import {
     Body,
+    Delete,
     Get,
     Middlewares,
     OperationId,
     Patch,
     Path,
     Post,
+    Query,
     Request,
     Response,
     Route,
@@ -67,12 +71,33 @@ export class ProjectHomepageController extends BaseController {
     async getForBuilder(
         @Request() req: express.Request,
         @Path() projectUuid: UUID,
+        @Query() homepageUuid?: UUID,
     ): Promise<ApiProjectHomepageOrNullResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.getHomepageService().getHomepageForBuilder(
+                toSessionUser(req.account),
+                projectUuid,
+                homepageUuid,
+            ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/list')
+    @OperationId('listProjectHomepages')
+    async listHomepages(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiProjectHomepagesResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getHomepageService().listHomepages(
                 toSessionUser(req.account),
                 projectUuid,
             ),
@@ -128,6 +153,32 @@ export class ProjectHomepageController extends BaseController {
                 homepageUuid,
                 body,
             ),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Delete('/{homepageUuid}')
+    @OperationId('deleteProjectHomepage')
+    async delete(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Path() homepageUuid: UUID,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.getHomepageService().deleteHomepage(
+            toSessionUser(req.account),
+            projectUuid,
+            homepageUuid,
+        );
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 

@@ -1700,6 +1700,26 @@
             "ApiProjectHomepageOrNullResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_ProjectHomepage-or-null_"
             },
+            "ApiSuccess_ProjectHomepage-Array_": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/ProjectHomepage"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiProjectHomepagesResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_ProjectHomepage-Array_"
+            },
             "ApiSuccess_ProjectHomepage_": {
                 "properties": {
                     "results": {
@@ -1719,6 +1739,9 @@
             },
             "CreateProjectHomepageRequest": {
                 "properties": {
+                    "duplicateFrom": {
+                        "type": "string"
+                    },
                     "name": {
                         "type": "string"
                     }
@@ -48914,6 +48937,53 @@
                         "schema": {
                             "$ref": "#/components/schemas/UUID"
                         }
+                    },
+                    {
+                        "in": "query",
+                        "name": "homepageUuid",
+                        "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/homepage/list": {
+            "get": {
+                "operationId": "listProjectHomepages",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiProjectHomepagesResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Homepage"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
                     }
                 ]
             }
@@ -48973,6 +49043,51 @@
                         }
                     }
                 }
+            },
+            "delete": {
+                "operationId": "deleteProjectHomepage",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Homepage"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "homepageUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/projects/{projectUuid}/homepage/{homepageUuid}/publish": {
