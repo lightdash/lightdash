@@ -427,6 +427,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                     disabled={disabled}
                     unitOfTime={rule.settings?.unitOfTime}
                     field={field}
+                    popoverProps={popoverProps}
                     onChange={(unitOfTime) =>
                         onChange({
                             ...rule,

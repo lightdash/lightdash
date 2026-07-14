@@ -38,6 +38,11 @@ interface Props {
     unitOfTime?: UnitOfTime;
     field?: FilterableField;
     onChange: (unitOfTime: UnitOfTime) => void;
+    popoverProps?: {
+        withinPortal?: boolean;
+        onOpen?: () => void;
+        onClose?: () => void;
+    };
 }
 
 const FilterPeriodToDateSelect: FC<Props> = ({
@@ -45,6 +50,7 @@ const FilterPeriodToDateSelect: FC<Props> = ({
     unitOfTime,
     field,
     onChange,
+    popoverProps,
 }) => {
     const options = useMemo(() => {
         if (!field || !isDimension(field) || !field.timeInterval) {
@@ -66,6 +72,9 @@ const FilterPeriodToDateSelect: FC<Props> = ({
             size="xs"
             disabled={disabled}
             placeholder="Select period"
+            comboboxProps={{ withinPortal: popoverProps?.withinPortal }}
+            onDropdownOpen={popoverProps?.onOpen}
+            onDropdownClose={popoverProps?.onClose}
             data={options}
             value={unitOfTime ?? null}
             data-autofocus={!unitOfTime || undefined}
