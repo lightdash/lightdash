@@ -119,11 +119,22 @@ export const translateMetricFlowMetrics = ({
         string,
         { semanticModel: DbtSemanticModel; measure: DbtSemanticMeasure }
     >();
+    const semanticModelsByName = new Map<string, DbtSemanticModel>();
     Object.values(semanticModels).forEach((semanticModel) => {
+        semanticModelsByName.set(semanticModel.name, semanticModel);
         (semanticModel.measures ?? []).forEach((measure) => {
             measureIndex.set(measure.name, { semanticModel, measure });
         });
     });
+
+    // Names of explicit manifest metrics. Measures mirroring one of these are
+    // owned by the metrics pass below — translating the bare measure would
+    // silently drop metric-level config such as filters.
+    const manifestMetricNames = new Set(
+        Object.values(metrics)
+            .filter(isSemanticMetric)
+            .map((metric) => metric.name),
+    );
 
     const addMetric = (
         modelName: string,
@@ -206,8 +217,55 @@ export const translateMetricFlowMetrics = ({
             return;
         }
 
+        // Resolve the metric to a semantic model + measure. Legacy manifests
+        // (dbt Core) reference a measure by name; Fusion / latest-spec
+        // manifests inline the aggregation as `metric_aggregation_params`.
         const measureRef = metric.type_params.measure;
-        if (!measureRef?.name) {
+        const inlineAggParams = metric.type_params.metric_aggregation_params;
+
+        let resolved: {
+            semanticModel: DbtSemanticModel;
+            measure: DbtSemanticMeasure;
+        } | null = null;
+
+        if (measureRef?.name) {
+            if (measureRef.filter) {
+                warnings.push(
+                    `Skipped MetricFlow metric "${metric.name}": measure-level filters cannot be translated to Lightdash metrics.`,
+                );
+                skippedCount += 1;
+                return;
+            }
+            const indexed = measureIndex.get(measureRef.name);
+            if (!indexed) {
+                warnings.push(
+                    `Skipped MetricFlow metric "${metric.name}": referenced measure "${measureRef.name}" was not found in any semantic model.`,
+                );
+                skippedCount += 1;
+                return;
+            }
+            resolved = indexed;
+        } else if (inlineAggParams) {
+            const semanticModel = semanticModelsByName.get(
+                inlineAggParams.semantic_model,
+            );
+            if (!semanticModel) {
+                warnings.push(
+                    `Skipped MetricFlow metric "${metric.name}": semantic model "${inlineAggParams.semantic_model}" was not found.`,
+                );
+                skippedCount += 1;
+                return;
+            }
+            resolved = {
+                semanticModel,
+                measure: {
+                    name: metric.name,
+                    agg: inlineAggParams.agg,
+                    expr: inlineAggParams.expr,
+                    agg_params: inlineAggParams.agg_params,
+                },
+            };
+        } else {
             warnings.push(
                 `Skipped MetricFlow metric "${metric.name}": no measure reference found.`,
             );
@@ -215,27 +273,10 @@ export const translateMetricFlowMetrics = ({
             return;
         }
 
-        if (measureRef.filter) {
-            warnings.push(
-                `Skipped MetricFlow metric "${metric.name}": measure-level filters cannot be translated to Lightdash metrics.`,
-            );
-            skippedCount += 1;
-            return;
-        }
-
-        const indexed = measureIndex.get(measureRef.name);
-        if (!indexed) {
-            warnings.push(
-                `Skipped MetricFlow metric "${metric.name}": referenced measure "${measureRef.name}" was not found in any semantic model.`,
-            );
-            skippedCount += 1;
-            return;
-        }
-
         const built = buildMeasureMetric(
             metric.name,
-            indexed.semanticModel,
-            indexed.measure,
+            resolved.semanticModel,
+            resolved.measure,
             { label: metric.label, description: metric.description },
         );
         if (!built) {
@@ -253,6 +294,11 @@ export const translateMetricFlowMetrics = ({
     Object.values(semanticModels).forEach((semanticModel) => {
         (semanticModel.measures ?? []).forEach((measure) => {
             if (!measure.create_metric) {
+                return;
+            }
+            if (manifestMetricNames.has(measure.name)) {
+                // An explicit manifest metric owns this name — the metrics
+                // pass above already translated or skipped it.
                 return;
             }
             const built = buildMeasureMetric(

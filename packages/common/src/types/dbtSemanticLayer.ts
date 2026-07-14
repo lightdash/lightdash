@@ -75,12 +75,25 @@ export type DbtSemanticMetricInputMeasure = {
     alias?: string | null;
 };
 
+/**
+ * dbt Fusion / latest-spec manifests inline the aggregation on simple metrics
+ * (`type_params.measure` is null) instead of referencing a measure.
+ */
+export type DbtSemanticMetricAggregationParams = {
+    semantic_model: string;
+    agg: MetricFlowAggregation;
+    agg_params?: DbtSemanticMeasureAggParams | null;
+    expr?: string | null;
+    agg_time_dimension?: string | null;
+};
+
 export type DbtSemanticMetricTypeParams = {
     measure?: DbtSemanticMetricInputMeasure | null;
     numerator?: AnyType | null;
     denominator?: AnyType | null;
     expr?: string | null;
     metrics?: AnyType[] | null;
+    metric_aggregation_params?: DbtSemanticMetricAggregationParams | null;
 };
 
 export type DbtSemanticMetricType =

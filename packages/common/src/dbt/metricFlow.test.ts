@@ -184,6 +184,96 @@ describe('translateMetricFlowMetrics', () => {
         expect(result.translatedCount).toBe(1);
     });
 
+    // dbt Fusion / latest-spec manifests inline the aggregation on the metric
+    // (type_params.measure is null) and mirror it as a create_metric measure.
+    it('translates a Fusion-style simple metric via metric_aggregation_params', () => {
+        const result = translateMetricFlowMetrics({
+            semanticModels: {
+                sm: {
+                    ...ordersSemanticModel,
+                    measures: [
+                        {
+                            name: 'total_revenue',
+                            agg: MetricFlowAggregation.SUM,
+                            expr: 'amount',
+                            create_metric: true,
+                        },
+                    ],
+                },
+            },
+            metrics: {
+                m: {
+                    name: 'total_revenue',
+                    unique_id: 'metric.jaffle.total_revenue',
+                    type: 'simple',
+                    label: 'Total revenue',
+                    description: 'Sum of all order amounts',
+                    type_params: {
+                        measure: null,
+                        expr: 'amount',
+                        metric_aggregation_params: {
+                            semantic_model: 'orders',
+                            agg: MetricFlowAggregation.SUM,
+                            expr: 'amount',
+                            agg_params: { percentile: null },
+                        },
+                    },
+                },
+            },
+            modelNamesByUniqueId,
+        });
+
+        // Exactly one metric: the mirrored create_metric measure is deduped.
+        expect(result.translatedCount).toBe(1);
+        expect(result.metricsByModel.orders.total_revenue).toEqual({
+            type: MetricType.SUM,
+            sql: '${TABLE}.amount',
+            label: 'Total revenue',
+            description: 'Sum of all order amounts',
+        });
+    });
+
+    it('does not translate the mirrored measure of a skipped filtered metric', () => {
+        const result = translateMetricFlowMetrics({
+            semanticModels: {
+                sm: {
+                    ...ordersSemanticModel,
+                    measures: [
+                        {
+                            name: 'completed_revenue',
+                            agg: MetricFlowAggregation.SUM,
+                            expr: 'amount',
+                            create_metric: true,
+                        },
+                    ],
+                },
+            },
+            metrics: {
+                m: {
+                    name: 'completed_revenue',
+                    unique_id: 'metric.jaffle.completed_revenue',
+                    type: 'simple',
+                    filter: { where_filters: [{ where_sql_template: '1=1' }] },
+                    type_params: {
+                        measure: null,
+                        metric_aggregation_params: {
+                            semantic_model: 'orders',
+                            agg: MetricFlowAggregation.SUM,
+                            expr: 'amount',
+                        },
+                    },
+                },
+            },
+            modelNamesByUniqueId,
+        });
+
+        // The filtered metric is skipped and its mirrored create_metric
+        // measure must not resurface as an unfiltered metric.
+        expect(result.metricsByModel.orders?.completed_revenue).toBeUndefined();
+        expect(result.skippedCount).toBe(1);
+        expect(result.warnings.join(' ')).toContain('filters');
+    });
+
     it.each([
         ['ratio', { type: 'ratio' as const, type_params: {} }],
         ['derived', { type: 'derived' as const, type_params: {} }],
