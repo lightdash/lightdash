@@ -303,7 +303,10 @@ import {
     type ApiSingleValidationResponse,
     type ValidationResponse,
 } from './validation';
-import { type ApiWarehouseTableFields } from './warehouse';
+import {
+    type ApiWarehouseTableFields,
+    type ApiWarehouseTablesCatalog,
+} from './warehouse';
 
 export type ApiGetDashboardPreAggregateAuditResponse = {
     status: 'ok';
@@ -1103,6 +1106,7 @@ type ApiResults =
     | ApiCatalogAnalyticsResults
     | ApiPromotionChangesResponse['results']
     | ApiWarehouseTableFields['results']
+    | ApiWarehouseTablesCatalog['results']
     | ApiTogglePinnedItem['results']
     | ApiOrganizationMemberProfiles['results']
     | ApiSqlChart['results']
