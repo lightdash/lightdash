@@ -116,6 +116,17 @@ export class ProjectProfileService extends BaseService {
             user,
             projectUuid,
         );
+        const existingJob =
+            await this.jobModel.findMostRecentJobByProjectAndType(
+                projectUuid,
+                JobType.ONBOARDING_PROFILE,
+            );
+        if (
+            existingJob?.jobStatus === JobStatusType.STARTED ||
+            existingJob?.jobStatus === JobStatusType.RUNNING
+        ) {
+            return { jobUuid: existingJob.jobUuid };
+        }
         const job: CreateJob = {
             jobUuid: uuidv4(),
             jobType: JobType.ONBOARDING_PROFILE,

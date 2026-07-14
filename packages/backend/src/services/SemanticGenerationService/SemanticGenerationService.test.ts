@@ -15,6 +15,7 @@ import {
     SupportedDbtAdapter,
     type Dimension,
     type Explore,
+    type Job,
     type OnboardingProjectStep,
     type OnboardingSemanticPayload,
     type ProfileResult,
@@ -98,7 +99,33 @@ const profile: ProfileResult = {
     profiledAt: '2026-07-13T12:00:00.000Z',
 };
 
+const previousSemanticLayer: SemanticLayerResult = {
+    primaryExploreName: 'orders',
+    explores: [
+        {
+            name: 'orders',
+            label: 'Orders',
+            baseTable: 'orders',
+            metrics: [],
+            dimensions: [],
+            joins: [],
+        },
+        {
+            name: 'customers',
+            label: 'Customers',
+            baseTable: 'customers',
+            metrics: [],
+            dimensions: [],
+            joins: [],
+        },
+    ],
+    skippedTableCount: 0,
+    validationErrors: [],
+    generatedAt: '2026-07-14T08:00:00.000Z',
+};
+
 const projectModel = {
+    deleteCachedExploresByName: vi.fn(async () => undefined),
     getSummary: vi.fn(async () => ({
         projectUuid,
         organizationUuid,
@@ -123,11 +150,25 @@ const projectModel = {
 
 const jobModel = {
     create: vi.fn(async (job) => job),
+    findMostRecentJobByProjectAndType: vi.fn(
+        async (): Promise<Job | null> => null,
+    ),
     startJobStep: vi.fn(async () => undefined),
     updateJobStep: vi.fn(async () => undefined),
     setPendingJobsToSkipped: vi.fn(async () => undefined),
     update: vi.fn(async () => undefined),
 };
+
+const getExistingJob = (jobStatus: JobStatusType): Job => ({
+    jobUuid,
+    jobType: JobType.ONBOARDING_SEMANTIC,
+    jobStatus,
+    projectUuid,
+    userUuid: user.userUuid,
+    createdAt: new Date('2026-07-14T09:00:00.000Z'),
+    updatedAt: new Date('2026-07-14T09:00:00.000Z'),
+    steps: [],
+});
 
 const onboardingProjectStateModel = {
     find: vi.fn(
@@ -226,6 +267,9 @@ const getService = (
 describe('SemanticGenerationService', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.mocked(jobModel.findMostRecentJobByProjectAndType).mockResolvedValue(
+            null,
+        );
         onboardingProjectStateModel.find.mockResolvedValue({
             step: OnboardingStepType.PROFILE,
             status: OnboardingStepStatus.COMPLETED,
@@ -260,6 +304,74 @@ describe('SemanticGenerationService', () => {
         );
         expect(schedulerClient.onboardingSemantic).toHaveBeenCalledWith(
             expect.objectContaining({ projectUuid, organizationUuid }),
+        );
+    });
+
+    it.each([JobStatusType.STARTED, JobStatusType.RUNNING])(
+        'returns the existing %s semantic generation job',
+        async (jobStatus) => {
+            vi.mocked(
+                jobModel.findMostRecentJobByProjectAndType,
+            ).mockResolvedValueOnce(getExistingJob(jobStatus));
+
+            await expect(
+                getService().scheduleGeneration(user, projectUuid),
+            ).resolves.toEqual({ jobUuid });
+
+            expect(
+                vi.mocked(jobModel.findMostRecentJobByProjectAndType),
+            ).toHaveBeenCalledWith(projectUuid, JobType.ONBOARDING_SEMANTIC);
+            expect(vi.mocked(jobModel.create)).not.toHaveBeenCalled();
+            expect(
+                vi.mocked(schedulerClient.onboardingSemantic),
+            ).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each([JobStatusType.DONE, JobStatusType.ERROR])(
+        'schedules a new semantic generation job when the latest is %s',
+        async (jobStatus) => {
+            vi.mocked(
+                jobModel.findMostRecentJobByProjectAndType,
+            ).mockResolvedValueOnce(getExistingJob(jobStatus));
+
+            const result = await getService().scheduleGeneration(
+                user,
+                projectUuid,
+            );
+
+            expect(result.jobUuid).not.toBe(jobUuid);
+            expect(vi.mocked(jobModel.create)).toHaveBeenCalledOnce();
+            expect(
+                vi.mocked(schedulerClient.onboardingSemantic),
+            ).toHaveBeenCalledOnce();
+        },
+    );
+
+    it('preserves the previous semantic result while scheduling regeneration', async () => {
+        vi.mocked(onboardingProjectStateModel.find)
+            .mockResolvedValueOnce({
+                step: OnboardingStepType.PROFILE,
+                status: OnboardingStepStatus.COMPLETED,
+                result: profile,
+                updatedAt: new Date(),
+            })
+            .mockResolvedValueOnce({
+                step: OnboardingStepType.SEMANTIC_LAYER,
+                status: OnboardingStepStatus.COMPLETED,
+                result: previousSemanticLayer,
+                updatedAt: new Date(),
+            });
+
+        await getService().scheduleGeneration(user, projectUuid);
+
+        expect(
+            vi.mocked(onboardingProjectStateModel.upsert),
+        ).toHaveBeenCalledWith(
+            projectUuid,
+            OnboardingStepType.SEMANTIC_LAYER,
+            OnboardingStepStatus.IN_PROGRESS,
+            previousSemanticLayer,
         );
     });
 
@@ -338,6 +450,35 @@ describe('SemanticGenerationService', () => {
             jobStatus: JobStatusType.DONE,
         });
         expect(disconnect).toHaveBeenCalledOnce();
+    });
+
+    it('deletes previous generated explores before saving regeneration', async () => {
+        vi.mocked(onboardingProjectStateModel.find)
+            .mockResolvedValueOnce({
+                step: OnboardingStepType.PROFILE,
+                status: OnboardingStepStatus.COMPLETED,
+                result: profile,
+                updatedAt: new Date(),
+            })
+            .mockResolvedValueOnce({
+                step: OnboardingStepType.SEMANTIC_LAYER,
+                status: OnboardingStepStatus.IN_PROGRESS,
+                result: previousSemanticLayer,
+                updatedAt: new Date(),
+            });
+
+        await getService().runGenerationJob(user, payload);
+
+        expect(
+            vi.mocked(projectModel.deleteCachedExploresByName),
+        ).toHaveBeenCalledWith(projectUuid, ['orders', 'customers']);
+        expect(
+            vi.mocked(projectModel.deleteCachedExploresByName).mock
+                .invocationCallOrder[0],
+        ).toBeLessThan(
+            vi.mocked(projectModel.saveExploresToCache).mock
+                .invocationCallOrder[0],
+        );
     });
 
     it('collects a per-explore compiler error and completes with warnings', async () => {

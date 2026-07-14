@@ -10,6 +10,7 @@ import {
     JobStep,
     JobStepStatusType,
     JobStepType,
+    JobType,
     NotFoundError,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -41,6 +42,19 @@ export class JobModel {
             );
 
         return this.convertRowToJob(row);
+    }
+
+    async findMostRecentJobByProjectAndType(
+        projectUuid: string,
+        jobType: JobType,
+    ): Promise<Job | null> {
+        const row = await this.database(JobsTableName)
+            .where('project_uuid', projectUuid)
+            .andWhere('job_type', jobType)
+            .orderBy('created_at', 'desc')
+            .first();
+
+        return row ? this.convertRowToJob(row) : null;
     }
 
     async convertRowToJob(row: DbJobs): Promise<Job> {

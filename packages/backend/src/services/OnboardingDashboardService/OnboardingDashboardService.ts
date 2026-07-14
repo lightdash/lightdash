@@ -166,6 +166,17 @@ export class OnboardingDashboardService extends BaseService {
             true,
         );
         await this.getCompletedSemanticLayer(projectUuid);
+        const existingJob =
+            await this.jobModel.findMostRecentJobByProjectAndType(
+                projectUuid,
+                JobType.ONBOARDING_DASHBOARD,
+            );
+        if (
+            existingJob?.jobStatus === JobStatusType.STARTED ||
+            existingJob?.jobStatus === JobStatusType.RUNNING
+        ) {
+            return { jobUuid: existingJob.jobUuid };
+        }
         const job: CreateJob = {
             jobUuid: uuidv4(),
             jobType: JobType.ONBOARDING_DASHBOARD,

@@ -208,4 +208,82 @@ describe('ProjectModel generated virtual explore persistence', () => {
             hidden: true,
         });
     });
+
+    it('deletes selected VIRTUAL explores from both caches', async () => {
+        const removed = createExplore('removed_virtual', ExploreType.VIRTUAL);
+        const survivor = createExplore(
+            'surviving_virtual',
+            ExploreType.VIRTUAL,
+        );
+
+        await projectModel.saveExploresToCache(projectUuid, [
+            removed,
+            survivor,
+        ]);
+        await projectModel.deleteCachedExploresByName(projectUuid, [
+            removed.name,
+        ]);
+
+        const individualRows = await db(CachedExploreTableName)
+            .select<{ name: string }[]>('name')
+            .where('project_uuid', projectUuid);
+        expect(individualRows.map(({ name }) => name)).toEqual([survivor.name]);
+        const aggregate = await db(CachedExploresTableName)
+            .select<{ explores: Explore[] }>('explores')
+            .where('project_uuid', projectUuid)
+            .first();
+        expect(aggregate?.explores.map(({ name }) => name)).toEqual([
+            survivor.name,
+        ]);
+        await expect(
+            projectModel.getExploreFromCache(projectUuid, survivor.name),
+        ).resolves.toMatchObject({ name: survivor.name });
+    });
+
+    it('replaces overlapping generated explores during regeneration', async () => {
+        const generationA = {
+            ...createExplore('overlapping_virtual', ExploreType.VIRTUAL),
+            label: 'Generation A',
+        };
+        const staleGenerationA = createExplore(
+            'stale_generation_a',
+            ExploreType.VIRTUAL,
+        );
+        const generationB = {
+            ...createExplore('overlapping_virtual', ExploreType.VIRTUAL),
+            label: 'Generation B',
+        };
+
+        await projectModel.saveExploresToCache(projectUuid, [
+            generationA,
+            staleGenerationA,
+        ]);
+        await projectModel.deleteCachedExploresByName(projectUuid, [
+            generationA.name,
+            staleGenerationA.name,
+        ]);
+        await expect(
+            projectModel.saveExploresToCache(projectUuid, [generationB]),
+        ).resolves.toBeDefined();
+
+        await expect(
+            projectModel.getExploreFromCache(projectUuid, generationB.name),
+        ).resolves.toMatchObject({ label: 'Generation B' });
+        await expect(
+            projectModel.getExploreFromCache(
+                projectUuid,
+                staleGenerationA.name,
+            ),
+        ).rejects.toThrow('does not exist');
+        const aggregate = await db(CachedExploresTableName)
+            .select<{ explores: Explore[] }>('explores')
+            .where('project_uuid', projectUuid)
+            .first();
+        expect(aggregate?.explores).toEqual([
+            expect.objectContaining({
+                name: generationB.name,
+                label: 'Generation B',
+            }),
+        ]);
+    });
 });

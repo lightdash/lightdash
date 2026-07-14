@@ -1,4 +1,5 @@
 import {
+    LightdashMode,
     OnboardingStepStatus,
     OnboardingStepType,
     SnowflakeAuthenticationType,
@@ -22,6 +23,7 @@ import Callout from '../../../../components/common/Callout';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useFormContext } from '../../../../components/ProjectConnection/formContext';
 import { SnowflakeDefaultValues } from '../../../../components/ProjectConnection/WarehouseForms/defaultValues';
+import useApp from '../../../../providers/App/useApp';
 import { useOnboardingWizard } from '../../context/wizardContext';
 import { useConfigureConnection } from '../../hooks/useConfigureConnection';
 import { useConnectCode } from '../../hooks/useConnectCode';
@@ -133,9 +135,18 @@ const ConnectMethodCliSso: FC = () => {
         setCode(newCode);
     };
 
-    const installCommand = 'npx @lightdash/cli@latest';
+    const { health } = useApp();
+    // In dev the published CLI doesn't have this command yet; show the
+    // worktree invocation instead so the flow is copy-pasteable
+    const isDevMode = health.data?.mode === LightdashMode.DEV;
+    const installCommand = isDevMode
+        ? '# dev instance: run from your lightdash repo root'
+        : 'npx @lightdash/cli@latest';
+    const cliBinary = isDevMode
+        ? 'pnpm -F cli exec tsx src/index.ts connect-snowflake'
+        : 'lightdash connect-snowflake';
     const connectCommand = code
-        ? `lightdash connect-snowflake --url ${wizard.siteUrl} --code ${code} --account ${account}`
+        ? `${cliBinary} --url ${wizard.siteUrl} --code ${code} --account ${account}`
         : '';
 
     const inventory = CONNECT_STEP_RESULT_INVENTORY(

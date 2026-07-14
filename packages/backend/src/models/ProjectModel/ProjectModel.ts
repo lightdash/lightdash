@@ -1614,6 +1614,38 @@ export class ProjectModel {
         );
     }
 
+    async deleteCachedExploresByName(
+        projectUuid: string,
+        names: string[],
+    ): Promise<void> {
+        if (names.length === 0) return;
+
+        const namesToDelete = new Set(names);
+        await this.database.transaction(async (trx) => {
+            const cachedExplores = await trx(CachedExploresTableName)
+                .select<{
+                    explores: (Explore | ExploreError)[] | null;
+                }>('explores')
+                .where('project_uuid', projectUuid)
+                .forUpdate()
+                .first();
+
+            await trx(CachedExploreTableName)
+                .where('project_uuid', projectUuid)
+                .whereIn('name', [...namesToDelete])
+                .delete();
+
+            if (cachedExplores) {
+                const remainingExplores = (
+                    cachedExplores.explores ?? []
+                ).filter((explore) => !namesToDelete.has(explore.name));
+                await trx(CachedExploresTableName)
+                    .where('project_uuid', projectUuid)
+                    .update({ explores: JSON.stringify(remainingExplores) });
+            }
+        });
+    }
+
     async updateCachedExploreField(
         projectUuid: string,
         exploreName: string,

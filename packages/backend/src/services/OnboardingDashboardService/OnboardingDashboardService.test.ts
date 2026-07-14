@@ -12,6 +12,7 @@ import {
     ParameterError,
     PossibleAbilities,
     ProjectType,
+    type Job,
     type OnboardingDashboardPayload,
     type OnboardingProjectStep,
     type SemanticLayerResult,
@@ -135,6 +136,17 @@ const completedSemanticStep = (): OnboardingProjectStep => ({
     updatedAt: new Date('2026-07-13T12:00:00.000Z'),
 });
 
+const getExistingJob = (jobStatus: JobStatusType): Job => ({
+    jobUuid,
+    jobType: JobType.ONBOARDING_DASHBOARD,
+    jobStatus,
+    projectUuid,
+    userUuid: user.userUuid,
+    createdAt: new Date('2026-07-14T09:00:00.000Z'),
+    updatedAt: new Date('2026-07-14T09:00:00.000Z'),
+    steps: [],
+});
+
 const createMocks = () => {
     let rolledBack = false;
     const transaction = vi.fn(
@@ -166,6 +178,7 @@ const createMocks = () => {
     } as unknown as OnboardingProjectStateModel;
     const jobModel = {
         create: vi.fn(async (job) => job),
+        findMostRecentJobByProjectAndType: vi.fn(async () => null),
         update: vi.fn(async () => undefined),
         startJobStep: vi.fn(async () => undefined),
         updateJobStep: vi.fn(async () => undefined),
@@ -286,6 +299,49 @@ describe('OnboardingDashboardService', () => {
             }),
         );
     });
+
+    it.each([JobStatusType.STARTED, JobStatusType.RUNNING])(
+        'returns the existing %s dashboard build job',
+        async (jobStatus) => {
+            const mocks = createMocks();
+            vi.mocked(
+                mocks.jobModel.findMostRecentJobByProjectAndType,
+            ).mockResolvedValueOnce(getExistingJob(jobStatus));
+
+            await expect(
+                mocks.service.scheduleDashboardBuild(user, projectUuid),
+            ).resolves.toEqual({ jobUuid });
+
+            expect(
+                vi.mocked(mocks.jobModel.findMostRecentJobByProjectAndType),
+            ).toHaveBeenCalledWith(projectUuid, JobType.ONBOARDING_DASHBOARD);
+            expect(vi.mocked(mocks.jobModel.create)).not.toHaveBeenCalled();
+            expect(
+                vi.mocked(mocks.schedulerClient.onboardingDashboard),
+            ).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each([JobStatusType.DONE, JobStatusType.ERROR])(
+        'schedules a new dashboard build job when the latest is %s',
+        async (jobStatus) => {
+            const mocks = createMocks();
+            vi.mocked(
+                mocks.jobModel.findMostRecentJobByProjectAndType,
+            ).mockResolvedValueOnce(getExistingJob(jobStatus));
+
+            const result = await mocks.service.scheduleDashboardBuild(
+                user,
+                projectUuid,
+            );
+
+            expect(result.jobUuid).not.toBe(jobUuid);
+            expect(vi.mocked(mocks.jobModel.create)).toHaveBeenCalledOnce();
+            expect(
+                vi.mocked(mocks.schedulerClient.onboardingDashboard),
+            ).toHaveBeenCalledOnce();
+        },
+    );
 
     it('moves through all job steps and persists the completed result', async () => {
         const mocks = createMocks();

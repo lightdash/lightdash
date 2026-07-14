@@ -129,6 +129,13 @@ export class SemanticGenerationService extends BaseService {
         return profile.result as ProfileResult;
     }
 
+    private static getStoredSemanticLayerResult(
+        result: Record<string, unknown> | null | undefined,
+    ): SemanticLayerResult | null {
+        if (result === null || !Array.isArray(result?.explores)) return null;
+        return result as SemanticLayerResult;
+    }
+
     async scheduleGeneration(
         user: SessionUser,
         projectUuid: string,
@@ -139,6 +146,28 @@ export class SemanticGenerationService extends BaseService {
             true,
         );
         await this.getCompletedProfile(projectUuid);
+        const existingJob =
+            await this.jobModel.findMostRecentJobByProjectAndType(
+                projectUuid,
+                JobType.ONBOARDING_SEMANTIC,
+            );
+        if (
+            existingJob?.jobStatus === JobStatusType.STARTED ||
+            existingJob?.jobStatus === JobStatusType.RUNNING
+        ) {
+            return { jobUuid: existingJob.jobUuid };
+        }
+        const previousSemanticLayer =
+            await this.onboardingProjectStateModel.find(
+                projectUuid,
+                OnboardingStepType.SEMANTIC_LAYER,
+            );
+        const previousSemanticLayerResult =
+            previousSemanticLayer?.status === OnboardingStepStatus.COMPLETED
+                ? SemanticGenerationService.getStoredSemanticLayerResult(
+                      previousSemanticLayer.result,
+                  )
+                : null;
         const job: CreateJob = {
             jobUuid: uuidv4(),
             jobType: JobType.ONBOARDING_SEMANTIC,
@@ -152,7 +181,7 @@ export class SemanticGenerationService extends BaseService {
             projectUuid,
             OnboardingStepType.SEMANTIC_LAYER,
             OnboardingStepStatus.IN_PROGRESS,
-            null,
+            previousSemanticLayerResult,
         );
         await this.schedulerClient.onboardingSemantic({
             createdByUserUuid: user.userUuid,
@@ -387,12 +416,31 @@ export class SemanticGenerationService extends BaseService {
                     return result;
                 },
             );
-            await runStep(JobStepType.ONBOARDING_SEMANTIC_SAVING, async () =>
-                this.projectModel.saveExploresToCache(
+            await runStep(JobStepType.ONBOARDING_SEMANTIC_SAVING, async () => {
+                const previousSemanticLayer =
+                    await this.onboardingProjectStateModel.find(
+                        payload.projectUuid,
+                        OnboardingStepType.SEMANTIC_LAYER,
+                    );
+                const previousSemanticLayerResult =
+                    SemanticGenerationService.getStoredSemanticLayerResult(
+                        previousSemanticLayer?.result,
+                    );
+                const previousExploreNames =
+                    previousSemanticLayerResult?.explores.map(
+                        (explore) => explore.name,
+                    ) ?? [];
+                if (previousExploreNames.length > 0) {
+                    await this.projectModel.deleteCachedExploresByName(
+                        payload.projectUuid,
+                        previousExploreNames,
+                    );
+                }
+                return this.projectModel.saveExploresToCache(
                     payload.projectUuid,
                     compiled.explores,
-                ),
-            );
+                );
+            });
             const result: SemanticLayerResult = {
                 primaryExploreName: compiled.successfulExplores[0].name,
                 explores: compiled.successfulExplores.map((explore) =>

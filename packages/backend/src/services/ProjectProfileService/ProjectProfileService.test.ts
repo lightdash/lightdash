@@ -12,6 +12,7 @@ import {
     PossibleAbilities,
     ProjectType,
     WarehouseTypes,
+    type Job,
     type OnboardingProfilePayload,
     type SessionUser,
     type WarehouseCatalog,
@@ -68,11 +69,25 @@ const projectModel = {
 
 const jobModel = {
     create: vi.fn(async (job) => job),
+    findMostRecentJobByProjectAndType: vi.fn(
+        async (): Promise<Job | null> => null,
+    ),
     startJobStep: vi.fn(async () => undefined),
     updateJobStep: vi.fn(async () => undefined),
     setPendingJobsToSkipped: vi.fn(async () => undefined),
     update: vi.fn(async () => undefined),
 };
+
+const getExistingJob = (jobStatus: JobStatusType): Job => ({
+    jobUuid,
+    jobType: JobType.ONBOARDING_PROFILE,
+    jobStatus,
+    projectUuid,
+    userUuid: user.userUuid,
+    createdAt: new Date('2026-07-14T09:00:00.000Z'),
+    updatedAt: new Date('2026-07-14T09:00:00.000Z'),
+    steps: [],
+});
 
 const onboardingProjectStateModel = {
     find: vi.fn(),
@@ -152,6 +167,9 @@ const getService = (
 describe('ProjectProfileService', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        vi.mocked(jobModel.findMostRecentJobByProjectAndType).mockResolvedValue(
+            null,
+        );
     });
 
     it('schedules a profile job with the ordered checklist', async () => {
@@ -185,6 +203,47 @@ describe('ProjectProfileService', () => {
             expect.objectContaining({ projectUuid, organizationUuid }),
         );
     });
+
+    it.each([JobStatusType.STARTED, JobStatusType.RUNNING])(
+        'returns the existing %s profile job',
+        async (jobStatus) => {
+            vi.mocked(
+                jobModel.findMostRecentJobByProjectAndType,
+            ).mockResolvedValueOnce(getExistingJob(jobStatus));
+
+            await expect(
+                getService().scheduleProfile(user, projectUuid),
+            ).resolves.toEqual({ jobUuid });
+
+            expect(
+                vi.mocked(jobModel.findMostRecentJobByProjectAndType),
+            ).toHaveBeenCalledWith(projectUuid, JobType.ONBOARDING_PROFILE);
+            expect(vi.mocked(jobModel.create)).not.toHaveBeenCalled();
+            expect(
+                vi.mocked(schedulerClient.onboardingProfile),
+            ).not.toHaveBeenCalled();
+        },
+    );
+
+    it.each([JobStatusType.DONE, JobStatusType.ERROR])(
+        'schedules a new profile job when the latest is %s',
+        async (jobStatus) => {
+            vi.mocked(
+                jobModel.findMostRecentJobByProjectAndType,
+            ).mockResolvedValueOnce(getExistingJob(jobStatus));
+
+            const result = await getService().scheduleProfile(
+                user,
+                projectUuid,
+            );
+
+            expect(result.jobUuid).not.toBe(jobUuid);
+            expect(vi.mocked(jobModel.create)).toHaveBeenCalledOnce();
+            expect(
+                vi.mocked(schedulerClient.onboardingProfile),
+            ).toHaveBeenCalledOnce();
+        },
+    );
 
     it('rejects scheduling without job and compile permissions', async () => {
         const forbiddenUser = {
