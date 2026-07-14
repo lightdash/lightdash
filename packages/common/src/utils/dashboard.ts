@@ -34,19 +34,6 @@ export const isTileInSelectedTabs = (
     !selectedTabs || !tile.tabUuid || selectedTabs.includes(tile.tabUuid);
 
 /**
- * Strict variant used by the per-tab PDF export-header mode: orphan tiles (no
- * `tabUuid`) render only when `selectedTabs` explicitly contains the `null`
- * sentinel, not on every page. Tabbed tiles still match by uuid membership.
- */
-export const isTileInSelectedTabsStrict = (
-    tile: { tabUuid?: string | null },
-    selectedTabs: (string | null)[],
-): boolean =>
-    tile.tabUuid
-        ? selectedTabs.includes(tile.tabUuid)
-        : selectedTabs.includes(null);
-
-/**
  * Validates that selected tabs exist in the dashboard tiles.
  * If selectedTabs is provided and not empty, ensures at least one selected tab exists in dashboard tabs.
  * @param selectedTabs - Array of selected tab UUIDs or null

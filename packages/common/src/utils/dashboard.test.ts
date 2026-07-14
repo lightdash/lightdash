@@ -1,10 +1,6 @@
 import { type DashboardTile } from '../types/dashboard';
 import { ParameterError } from '../types/errors';
-import {
-    isTileInSelectedTabs,
-    isTileInSelectedTabsStrict,
-    validateSelectedTabs,
-} from './dashboard';
+import { isTileInSelectedTabs, validateSelectedTabs } from './dashboard';
 
 describe('validateSelectedTabs', () => {
     // Simple mock that focuses on just the tabUuid property
@@ -85,43 +81,5 @@ describe('isTileInSelectedTabs', () => {
     it('excludes non-orphan tiles when selectedTabs is empty', () => {
         expect(isTileInSelectedTabs({ tabUuid: 'tab1' }, [])).toBe(false);
         expect(isTileInSelectedTabs({ tabUuid: null }, [])).toBe(true);
-    });
-});
-
-describe('isTileInSelectedTabsStrict', () => {
-    it('includes a tabbed tile whose tab is in selectedTabs', () => {
-        expect(isTileInSelectedTabsStrict({ tabUuid: 'tab1' }, ['tab1'])).toBe(
-            true,
-        );
-        expect(
-            isTileInSelectedTabsStrict({ tabUuid: 'tab2' }, ['tab1', 'tab2']),
-        ).toBe(true);
-    });
-
-    it('excludes a tabbed tile whose tab is not in selectedTabs', () => {
-        expect(isTileInSelectedTabsStrict({ tabUuid: 'tab3' }, ['tab1'])).toBe(
-            false,
-        );
-        expect(isTileInSelectedTabsStrict({ tabUuid: 'tab1' }, [null])).toBe(
-            false,
-        );
-    });
-
-    it('includes orphan tiles only when selectedTabs contains null', () => {
-        expect(
-            isTileInSelectedTabsStrict({ tabUuid: null }, ['tab1', null]),
-        ).toBe(true);
-        expect(
-            isTileInSelectedTabsStrict({ tabUuid: undefined }, ['tab1', null]),
-        ).toBe(true);
-    });
-
-    it('excludes orphan tiles when selectedTabs does not contain null', () => {
-        expect(isTileInSelectedTabsStrict({ tabUuid: null }, ['tab1'])).toBe(
-            false,
-        );
-        expect(
-            isTileInSelectedTabsStrict({ tabUuid: undefined }, ['tab1']),
-        ).toBe(false);
     });
 });
