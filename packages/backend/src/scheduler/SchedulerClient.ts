@@ -26,6 +26,7 @@ import {
     MsTeamsBatchNotificationPayload,
     MsTeamsNotificationPayload,
     NotificationPayloadBase,
+    OnboardingDashboardPayload,
     OnboardingProfilePayload,
     OnboardingSemanticPayload,
     QueueTraceProperties,
@@ -1400,6 +1401,34 @@ export class SchedulerClient {
 
         await this.schedulerModel.logSchedulerJob({
             task: SCHEDULER_TASKS.ONBOARDING_SEMANTIC,
+            jobId,
+            scheduledTime: now,
+            status: SchedulerJobStatus.SCHEDULED,
+            details: {
+                createdByUserUuid: payload.createdByUserUuid,
+                organizationUuid: payload.organizationUuid,
+                projectUuid: payload.projectUuid,
+                jobUuid: payload.jobUuid,
+            },
+        });
+
+        return { jobId };
+    }
+
+    async onboardingDashboard(payload: OnboardingDashboardPayload) {
+        const graphileClient = await this.graphileUtils;
+        const now = new Date();
+        const jobId = await SchedulerClient.addJob(
+            graphileClient,
+            SCHEDULER_TASKS.ONBOARDING_DASHBOARD,
+            payload,
+            now,
+            JobPriority.HIGH,
+            1,
+        );
+
+        await this.schedulerModel.logSchedulerJob({
+            task: SCHEDULER_TASKS.ONBOARDING_DASHBOARD,
             jobId,
             scheduledTime: now,
             status: SchedulerJobStatus.SCHEDULED,

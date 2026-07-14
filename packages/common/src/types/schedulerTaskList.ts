@@ -31,6 +31,7 @@ import {
     type MaterializePreAggregatePayload,
     type MsTeamsBatchNotificationPayload,
     type MsTeamsNotificationPayload,
+    type OnboardingDashboardPayload,
     type OnboardingProfilePayload,
     type OnboardingSemanticPayload,
     type ReplaceCustomFieldsPayload,
@@ -136,6 +137,7 @@ export const SCHEDULER_TASKS = {
     COMPILE_PROJECT: 'compileProject',
     ONBOARDING_PROFILE: 'onboardingProfile',
     ONBOARDING_SEMANTIC: 'onboardingSemantic',
+    ONBOARDING_DASHBOARD: 'onboardingDashboard',
     CREATE_PROJECT_WITH_COMPILE: 'createProjectWithCompile',
     TEST_AND_COMPILE_PROJECT: 'testAndCompileProject',
     SQL_RUNNER: 'sqlRunner',
@@ -183,6 +185,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.COMPILE_PROJECT]: CompileProjectPayload;
     [SCHEDULER_TASKS.ONBOARDING_PROFILE]: OnboardingProfilePayload;
     [SCHEDULER_TASKS.ONBOARDING_SEMANTIC]: OnboardingSemanticPayload;
+    [SCHEDULER_TASKS.ONBOARDING_DASHBOARD]: OnboardingDashboardPayload;
     [SCHEDULER_TASKS.CREATE_PROJECT_WITH_COMPILE]: SchedulerCreateProjectWithCompilePayload;
     [SCHEDULER_TASKS.TEST_AND_COMPILE_PROJECT]: CompileProjectPayload;
     [SCHEDULER_TASKS.SQL_RUNNER]: SqlRunnerPayload;

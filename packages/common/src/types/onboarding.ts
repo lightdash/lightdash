@@ -151,6 +151,7 @@ export type SemanticLayerFieldSource = {
 };
 
 export type SemanticLayerMetric = {
+    fieldId: string;
     name: string;
     label: string;
     type: MetricType;
@@ -159,6 +160,7 @@ export type SemanticLayerMetric = {
 };
 
 export type SemanticLayerDimension = {
+    fieldId: string;
     name: string;
     label: string;
     type: DimensionType;
@@ -187,6 +189,7 @@ export type SemanticLayerValidationError = {
 };
 
 export type SemanticLayerResult = {
+    primaryExploreName: string;
     explores: SemanticLayerExplore[];
     skippedTableCount: number;
     validationErrors: SemanticLayerValidationError[];
@@ -209,5 +212,24 @@ export type ApiOnboardingSemanticLayerResponse =
     ApiSuccess<SemanticLayerResult>;
 
 export type ApiScheduleOnboardingSemanticLayerResponse = ApiSuccess<{
+    jobUuid: string;
+}>;
+
+export type DashboardBuildResult = {
+    dashboardUuid: string;
+    dashboardSlug: string;
+    spaceUuid: string;
+    chartCount: number;
+    warnings: string[];
+    builtAt: string;
+};
+
+export type DashboardBuildErrorResult = {
+    error: string;
+};
+
+export type ApiOnboardingDashboardResponse = ApiSuccess<DashboardBuildResult>;
+
+export type ApiScheduleOnboardingDashboardResponse = ApiSuccess<{
     jobUuid: string;
 }>;

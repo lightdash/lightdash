@@ -45,6 +45,7 @@ import { LightdashAnalyticsService } from './LightdashAnalyticsService/Lightdash
 import { MetricsExplorerService } from './MetricsExplorerService/MetricsExplorerService';
 import { NotificationsService } from './NotificationsService/NotificationsService';
 import { OAuthService } from './OAuthService/OAuthService';
+import { OnboardingDashboardService } from './OnboardingDashboardService/OnboardingDashboardService';
 import { OnboardingFlowService } from './OnboardingFlowService/OnboardingFlowService';
 import { OrganizationAccessService } from './OrganizationAccessService/OrganizationAccessService';
 import { OrganizationDesignService } from './OrganizationDesignService/OrganizationDesignService';
@@ -107,6 +108,7 @@ interface ServiceManifest {
     healthService: HealthService;
     notificationService: NotificationsService;
     oauthService: OAuthService;
+    onboardingDashboardService: OnboardingDashboardService;
     onboardingFlowService: OnboardingFlowService;
 
     organizationDesignService: OrganizationDesignService;
@@ -887,6 +889,27 @@ export class ServiceRepository
                     projectModel: this.models.getProjectModel(),
                     projectService: this.getProjectService(),
                     schedulerClient: this.clients.getSchedulerClient(),
+                }),
+        );
+    }
+
+    public getOnboardingDashboardService(): OnboardingDashboardService {
+        return this.getService(
+            'onboardingDashboardService',
+            () =>
+                new OnboardingDashboardService({
+                    database: this.models.getDatabase(),
+                    dashboardModel: this.models.getDashboardModel(),
+                    dashboardService: this.getDashboardService(),
+                    jobModel: this.models.getJobModel(),
+                    onboardingProjectStateModel:
+                        this.models.getOnboardingProjectStateModel(),
+                    projectModel: this.models.getProjectModel(),
+                    savedChartService: this.getSavedChartService(),
+                    schedulerClient: this.clients.getSchedulerClient(),
+                    spaceModel: this.models.getSpaceModel(),
+                    spacePermissionService: this.getSpacePermissionService(),
+                    spaceService: this.getSpaceService(),
                 }),
         );
     }

@@ -260,6 +260,10 @@ export class ModelRepository
      */
     protected modelInstances: Partial<ModelManifest> = {};
 
+    public getDatabase(): Knex {
+        return this.database;
+    }
+
     public getAnalyticsModel(): AnalyticsModel {
         return this.getModel(
             'analyticsModel',

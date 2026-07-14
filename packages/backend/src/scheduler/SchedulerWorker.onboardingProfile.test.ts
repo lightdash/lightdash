@@ -2,6 +2,7 @@ import {
     ALL_TASK_NAMES,
     SCHEDULER_TASKS,
     SchedulerJobStatus,
+    type OnboardingDashboardPayload,
     type OnboardingProfilePayload,
     type OnboardingSemanticPayload,
 } from '@lightdash/common';
@@ -26,6 +27,7 @@ const payload: OnboardingProfilePayload = {
 };
 
 const semanticPayload: OnboardingSemanticPayload = payload;
+const dashboardPayload: OnboardingDashboardPayload = payload;
 
 describe('SchedulerWorker onboarding profile task', () => {
     it('registers the task and runs the profile service through the worker', async () => {
@@ -114,6 +116,56 @@ describe('SchedulerWorker onboarding profile task', () => {
         expect(runGenerationJob).toHaveBeenCalledWith(
             sessionUser,
             semanticPayload,
+        );
+        expect(logSchedulerJob).toHaveBeenNthCalledWith(
+            1,
+            expect.objectContaining({ status: SchedulerJobStatus.STARTED }),
+        );
+        expect(logSchedulerJob).toHaveBeenNthCalledWith(
+            2,
+            expect.objectContaining({ status: SchedulerJobStatus.COMPLETED }),
+        );
+    });
+
+    it('registers the dashboard task and runs the builder service through the worker', async () => {
+        const sessionUser = { userUuid: dashboardPayload.userUuid };
+        const runDashboardBuildJob = vi.fn(async () => undefined);
+        const logSchedulerJob = vi.fn(async () => undefined);
+        const worker = new TestableSchedulerWorker({
+            lightdashConfig: {
+                scheduler: { tasks: [...ALL_TASK_NAMES] },
+            },
+            onboardingDashboardService: { runDashboardBuildJob },
+            schedulerService: { logSchedulerJob },
+            userService: {
+                getSessionByUserUuid: vi.fn(async () => sessionUser),
+            },
+        } as unknown as SchedulerWorkerArguments);
+        const processJob = vi
+            .spyOn(SchedulerClient, 'processJob')
+            .mockImplementation(async (_task, _id, _runAt, _payload, run) =>
+                run(),
+            );
+        const handler =
+            worker.exposeFullTaskList()[SCHEDULER_TASKS.ONBOARDING_DASHBOARD];
+
+        await handler?.(dashboardPayload, {
+            job: {
+                id: 'graphile-job-uuid',
+                run_at: new Date('2026-07-13T12:00:00.000Z'),
+            },
+        } as never);
+
+        expect(processJob).toHaveBeenCalledWith(
+            SCHEDULER_TASKS.ONBOARDING_DASHBOARD,
+            'graphile-job-uuid',
+            new Date('2026-07-13T12:00:00.000Z'),
+            dashboardPayload,
+            expect.any(Function),
+        );
+        expect(runDashboardBuildJob).toHaveBeenCalledWith(
+            sessionUser,
+            dashboardPayload,
         );
         expect(logSchedulerJob).toHaveBeenNthCalledWith(
             1,

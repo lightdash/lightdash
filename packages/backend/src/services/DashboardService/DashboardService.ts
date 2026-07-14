@@ -55,6 +55,7 @@ import {
     type DuplicateDashboardParams,
     type Explore,
     type ExploreError,
+    type SpaceAccess,
     type UUID,
     type UuidOrSlug,
 } from '@lightdash/common';
@@ -1040,11 +1041,15 @@ export class DashboardService
         return this.create(user, projectUuid, dashboardToCreate);
     }
 
-    async create(
+    async assertCanCreate(
         user: SessionUser,
         projectUuid: UUID,
         dashboard: CreateDashboard,
-    ): Promise<Dashboard> {
+    ): Promise<{
+        spaceUuid: string;
+        inheritsFromOrgOrProject: boolean;
+        access: SpaceAccess[];
+    }> {
         const resolvedSpaceUuid =
             dashboard.spaceUuid ??
             (await this.spacePermissionService.getFirstViewableSpaceUuid(
@@ -1061,7 +1066,6 @@ export class DashboardService
                 user.userUuid,
                 space.uuid,
             );
-
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
@@ -1082,12 +1086,27 @@ export class DashboardService
                 "You don't have access to the space this dashboard belongs to",
             );
         }
+
+        return {
+            spaceUuid: space.uuid,
+            inheritsFromOrgOrProject,
+            access,
+        };
+    }
+
+    async create(
+        user: SessionUser,
+        projectUuid: UUID,
+        dashboard: CreateDashboard,
+    ): Promise<Dashboard> {
+        const { spaceUuid, inheritsFromOrgOrProject, access } =
+            await this.assertCanCreate(user, projectUuid, dashboard);
         const createDashboard = {
             ...dashboard,
             slug: generateSlug(dashboard.name),
         };
         const newDashboard = await this.dashboardModel.create(
-            space.uuid,
+            spaceUuid,
             createDashboard,
             user,
             projectUuid,

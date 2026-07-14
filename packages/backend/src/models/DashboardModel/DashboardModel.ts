@@ -1399,71 +1399,99 @@ export class DashboardModel {
         return generateUniqueSlug(trx, DashboardsTableName, slug);
     }
 
+    async createInTransaction(
+        trx: Knex.Transaction | null,
+        spaceUuid: string,
+        dashboard: CreateDashboard & { slug: string; forceSlug?: boolean },
+        user: Pick<SessionUser, 'userUuid'>,
+        projectUuid: string,
+    ): Promise<{ uuid: string; slug: string }> {
+        if (trx === null) {
+            return this.database.transaction((transaction) =>
+                this.createInTransaction(
+                    transaction,
+                    spaceUuid,
+                    dashboard,
+                    user,
+                    projectUuid,
+                ),
+            );
+        }
+        const database = trx;
+        if (dashboard.forceSlug) {
+            await acquireProjectSlugLock(database, projectUuid, dashboard.slug);
+            const [existing] = await database(DashboardsTableName)
+                .innerJoin(
+                    SpaceTableName,
+                    `${SpaceTableName}.space_id`,
+                    `${DashboardsTableName}.space_id`,
+                )
+                .innerJoin(
+                    ProjectTableName,
+                    `${SpaceTableName}.project_id`,
+                    `${ProjectTableName}.project_id`,
+                )
+                .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                .where(`${DashboardsTableName}.slug`, dashboard.slug)
+                .whereNull(`${DashboardsTableName}.deleted_at`)
+                .select(`${DashboardsTableName}.dashboard_uuid`);
+            if (existing) {
+                return {
+                    uuid: existing.dashboard_uuid,
+                    slug: dashboard.slug,
+                };
+            }
+        }
+
+        const [space] = await database(SpaceTableName)
+            .where('space_uuid', spaceUuid)
+            .select(`${SpaceTableName}.*`)
+            .limit(1);
+        if (!space) {
+            throw new NotFoundError('Space not found');
+        }
+
+        const slug = dashboard.forceSlug
+            ? dashboard.slug
+            : await DashboardModel.generateUniqueSlug(database, dashboard.slug);
+        const [newDashboard] = await database(DashboardsTableName)
+            .insert({
+                name: dashboard.name,
+                description: dashboard.description,
+                space_id: space.space_id,
+                slug,
+            })
+            .returning(['dashboard_id', 'dashboard_uuid']);
+
+        await DashboardModel.createVersion(
+            database,
+            newDashboard.dashboard_id,
+            {
+                ...dashboard,
+                tabs: dashboard.tabs || [],
+                updatedByUser: user,
+            },
+        );
+
+        return { uuid: newDashboard.dashboard_uuid, slug };
+    }
+
     async create(
         spaceUuid: string,
         dashboard: CreateDashboard & { slug: string; forceSlug?: boolean },
         user: Pick<SessionUser, 'userUuid'>,
         projectUuid: string,
     ): Promise<DashboardDAO> {
-        const dashboardId = await this.database.transaction(async (trx) => {
-            if (dashboard.forceSlug) {
-                // Forced slugs (content-as-code / promotion) skip unique-slug
-                // generation, and there is no DB unique constraint on the slug.
-                // Serialize concurrent creates of the same (project, slug) and
-                // dedupe against a row a racing upsert already created, so we
-                // never insert a duplicate slug (PROD-7883).
-                await acquireProjectSlugLock(trx, projectUuid, dashboard.slug);
-                const [existing] = await trx(DashboardsTableName)
-                    .innerJoin(
-                        SpaceTableName,
-                        `${SpaceTableName}.space_id`,
-                        `${DashboardsTableName}.space_id`,
-                    )
-                    .innerJoin(
-                        ProjectTableName,
-                        `${SpaceTableName}.project_id`,
-                        `${ProjectTableName}.project_id`,
-                    )
-                    .where(`${ProjectTableName}.project_uuid`, projectUuid)
-                    .where(`${DashboardsTableName}.slug`, dashboard.slug)
-                    .whereNull(`${DashboardsTableName}.deleted_at`)
-                    .select(`${DashboardsTableName}.dashboard_uuid`);
-                if (existing) {
-                    return existing.dashboard_uuid;
-                }
-            }
-
-            const [space] = await trx(SpaceTableName)
-                .where('space_uuid', spaceUuid)
-                .select(`${SpaceTableName}.*`)
-                .limit(1);
-            if (!space) {
-                throw new NotFoundError('Space not found');
-            }
-
-            const [newDashboard] = await trx(DashboardsTableName)
-                .insert({
-                    name: dashboard.name,
-                    description: dashboard.description,
-                    space_id: space.space_id,
-                    slug: dashboard.forceSlug
-                        ? dashboard.slug
-                        : await DashboardModel.generateUniqueSlug(
-                              trx,
-                              dashboard.slug,
-                          ),
-                })
-                .returning(['dashboard_id', 'dashboard_uuid']);
-
-            await DashboardModel.createVersion(trx, newDashboard.dashboard_id, {
-                ...dashboard,
-                tabs: dashboard.tabs || [],
-                updatedByUser: user,
-            });
-
-            return newDashboard.dashboard_uuid;
-        });
-        return this.getByIdOrSlug(dashboardId);
+        const created = await this.database.transaction((trx) =>
+            this.createInTransaction(
+                trx,
+                spaceUuid,
+                dashboard,
+                user,
+                projectUuid,
+            ),
+        );
+        return this.getByIdOrSlug(created.uuid);
     }
 
     async update(

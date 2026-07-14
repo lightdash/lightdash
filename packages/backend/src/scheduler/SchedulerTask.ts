@@ -65,6 +65,7 @@ import {
     NotFoundError,
     NotificationFrequency,
     NotificationPayloadBase,
+    OnboardingDashboardPayload,
     OnboardingProfilePayload,
     OnboardingSemanticPayload,
     operatorActionValue,
@@ -173,6 +174,7 @@ import { EmailWhitelabelService } from '../services/EmailWhitelabelService/Email
 import { ExcelService } from '../services/ExcelService/ExcelService';
 import { WorkbookExportHelper } from '../services/ExcelService/WorkbookExportHelper';
 import type { FeatureFlagService } from '../services/FeatureFlag/FeatureFlagService';
+import { OnboardingDashboardService } from '../services/OnboardingDashboardService/OnboardingDashboardService';
 import { resolveOrganizationExportLimits } from '../services/OrganizationSettingsService/resolveExportLimits';
 import { PersistentDownloadFileService } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import { ProjectProfileService } from '../services/ProjectProfileService/ProjectProfileService';
@@ -211,6 +213,7 @@ export type SchedulerTaskArguments = {
     projectService: ProjectService;
     projectProfileService: ProjectProfileService;
     semanticGenerationService: SemanticGenerationService;
+    onboardingDashboardService: OnboardingDashboardService;
     schedulerService: SchedulerService;
     unfurlService: UnfurlService;
     userService: UserService;
@@ -379,6 +382,8 @@ export default class SchedulerTask {
 
     protected readonly semanticGenerationService: SemanticGenerationService;
 
+    protected readonly onboardingDashboardService: OnboardingDashboardService;
+
     protected readonly schedulerService: SchedulerService;
 
     protected readonly unfurlService: UnfurlService;
@@ -431,6 +436,7 @@ export default class SchedulerTask {
         this.projectService = args.projectService;
         this.projectProfileService = args.projectProfileService;
         this.semanticGenerationService = args.semanticGenerationService;
+        this.onboardingDashboardService = args.onboardingDashboardService;
         this.schedulerService = args.schedulerService;
         this.unfurlService = args.unfurlService;
         this.userService = args.userService;
@@ -2195,6 +2201,63 @@ export default class SchedulerTask {
             });
 
             await this.semanticGenerationService.runGenerationJob(
+                user,
+                payload,
+            );
+
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                details: {
+                    createdByUserUuid: payload.createdByUserUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                    jobUuid: payload.jobUuid,
+                },
+                status: SchedulerJobStatus.COMPLETED,
+            });
+        } catch (error) {
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                details: {
+                    createdByUserUuid: payload.createdByUserUuid,
+                    error: getErrorMessage(error),
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                    jobUuid: payload.jobUuid,
+                },
+                status: SchedulerJobStatus.ERROR,
+            });
+            throw error;
+        }
+    }
+
+    protected async onboardingDashboard(
+        jobId: string,
+        scheduledTime: Date,
+        payload: OnboardingDashboardPayload,
+    ) {
+        const baseLog: Pick<SchedulerLog, 'task' | 'jobId' | 'scheduledTime'> =
+            {
+                task: SCHEDULER_TASKS.ONBOARDING_DASHBOARD,
+                jobId,
+                scheduledTime,
+            };
+        try {
+            const user = await this.userService.getSessionByUserUuid(
+                payload.createdByUserUuid,
+            );
+            await this.schedulerService.logSchedulerJob({
+                ...baseLog,
+                details: {
+                    createdByUserUuid: payload.createdByUserUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                    jobUuid: payload.jobUuid,
+                },
+                status: SchedulerJobStatus.STARTED,
+            });
+
+            await this.onboardingDashboardService.runDashboardBuildJob(
                 user,
                 payload,
             );

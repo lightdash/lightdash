@@ -1422,22 +1422,20 @@ export class SavedChartService
         };
     }
 
-    async create(
-        account: Account,
+    async assertCanCreate(
+        user: SessionUser,
         projectUuid: string,
         savedChart: CreateSavedChart,
-    ): Promise<SavedChart> {
-        const { user, savedChart: chartToSave } =
-            SavedChartService.getCreateSavedChartContext(account, savedChart);
+    ): Promise<{
+        resolvedSpaceUuid: string | undefined;
+        inheritsFromOrgOrProject: boolean;
+        access: SpaceAccess[];
+    }> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
-
-        // When saving to a dashboard, always check permissions against the
-        // dashboard's space — the chart's spaceUuid may refer to a different
-        // space where the user has no access.
-        const resolvedSpaceUuid = chartToSave.dashboardUuid
+        const resolvedSpaceUuid = savedChart.dashboardUuid
             ? undefined
-            : (chartToSave.spaceUuid ??
+            : (savedChart.spaceUuid ??
               (await this.spacePermissionService.getFirstViewableSpaceUuid(
                   user,
                   projectUuid,
@@ -1454,9 +1452,9 @@ export class SavedChartService
             inheritsFromOrgOrProject =
                 spaceAccessContext.inheritsFromOrgOrProject;
             access = spaceAccessContext.access;
-        } else if (chartToSave.dashboardUuid) {
+        } else if (savedChart.dashboardUuid) {
             const dashboard = await this.dashboardModel.getByIdOrSlug(
-                chartToSave.dashboardUuid,
+                savedChart.dashboardUuid,
             );
             const dashboardSpaceAccessContext =
                 await this.spacePermissionService.getSpaceAccessContext(
@@ -1479,7 +1477,7 @@ export class SavedChartService
                     access,
                     metadata: {
                         resolvedSpaceUuid,
-                        dashboardUuid: chartToSave.dashboardUuid,
+                        dashboardUuid: savedChart.dashboardUuid,
                     },
                 }),
             )
@@ -1487,11 +1485,24 @@ export class SavedChartService
             throw new ForbiddenError();
         }
 
-        if (!resolvedSpaceUuid && !chartToSave.dashboardUuid) {
+        if (!resolvedSpaceUuid && !savedChart.dashboardUuid) {
             throw new Error(
                 'Unable to save chart; no space or dashboard provided.',
             );
         }
+
+        return { resolvedSpaceUuid, inheritsFromOrgOrProject, access };
+    }
+
+    async create(
+        account: Account,
+        projectUuid: string,
+        savedChart: CreateSavedChart,
+    ): Promise<SavedChart> {
+        const { user, savedChart: chartToSave } =
+            SavedChartService.getCreateSavedChartContext(account, savedChart);
+        const { resolvedSpaceUuid, inheritsFromOrgOrProject, access } =
+            await this.assertCanCreate(user, projectUuid, chartToSave);
 
         const chartToCreate = resolvedSpaceUuid
             ? {

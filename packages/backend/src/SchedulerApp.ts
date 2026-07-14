@@ -85,6 +85,8 @@ const schedulerWorkerFactory = (context: {
             context.serviceRepository.getProjectProfileService(),
         semanticGenerationService:
             context.serviceRepository.getSemanticGenerationService(),
+        onboardingDashboardService:
+            context.serviceRepository.getOnboardingDashboardService(),
         projectService: context.serviceRepository.getProjectService(),
         schedulerService: context.serviceRepository.getSchedulerService(),
         validationService: context.serviceRepository.getValidationService(),

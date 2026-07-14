@@ -2,9 +2,11 @@ import {
     ApiConnectionDiagnosticResponse,
     ApiErrorPayload,
     ApiGrantScriptResponse,
+    ApiOnboardingDashboardResponse,
     ApiOnboardingProfileResponse,
     ApiOnboardingProjectStateResponse,
     ApiOnboardingSemanticLayerResponse,
+    ApiScheduleOnboardingDashboardResponse,
     ApiScheduleOnboardingProfileResponse,
     ApiScheduleOnboardingSemanticLayerResponse,
     assertRegisteredAccount,
@@ -169,6 +171,43 @@ export class OnboardingController extends BaseController {
             results: await this.services
                 .getSemanticGenerationService()
                 .updateField(toSessionUser(req.account), projectUuid, body),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/dashboard')
+    @OperationId('ScheduleOnboardingDashboard')
+    async scheduleDashboard(
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiScheduleOnboardingDashboardResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getOnboardingDashboardService()
+                .scheduleDashboardBuild(
+                    toSessionUser(req.account),
+                    projectUuid,
+                ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/dashboard')
+    @OperationId('GetOnboardingDashboard')
+    async getDashboard(
+        @Path() projectUuid: UUID,
+        @Request() req: express.Request,
+    ): Promise<ApiOnboardingDashboardResponse> {
+        assertRegisteredAccount(req.account);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getOnboardingDashboardService()
+                .getDashboard(toSessionUser(req.account), projectUuid),
         };
     }
 }

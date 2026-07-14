@@ -30672,6 +30672,7 @@
                     "compileProject",
                     "onboardingProfile",
                     "onboardingSemantic",
+                    "onboardingDashboard",
                     "createProjectWithCompile",
                     "testAndCompileProject",
                     "sqlRunner",
@@ -38242,9 +38243,19 @@
                     },
                     "name": {
                         "type": "string"
+                    },
+                    "fieldId": {
+                        "type": "string"
                     }
                 },
-                "required": ["hidden", "source", "type", "label", "name"],
+                "required": [
+                    "hidden",
+                    "source",
+                    "type",
+                    "label",
+                    "name",
+                    "fieldId"
+                ],
                 "type": "object"
             },
             "SemanticLayerDimension": {
@@ -38263,9 +38274,19 @@
                     },
                     "name": {
                         "type": "string"
+                    },
+                    "fieldId": {
+                        "type": "string"
                     }
                 },
-                "required": ["hidden", "source", "type", "label", "name"],
+                "required": [
+                    "hidden",
+                    "source",
+                    "type",
+                    "label",
+                    "name",
+                    "fieldId"
+                ],
                 "type": "object"
             },
             "SemanticLayerJoin": {
@@ -38360,13 +38381,17 @@
                             "$ref": "#/components/schemas/SemanticLayerExplore"
                         },
                         "type": "array"
+                    },
+                    "primaryExploreName": {
+                        "type": "string"
                     }
                 },
                 "required": [
                     "generatedAt",
                     "validationErrors",
                     "skippedTableCount",
-                    "explores"
+                    "explores",
+                    "primaryExploreName"
                 ],
                 "type": "object"
             },
@@ -38416,6 +38441,61 @@
                     "exploreName"
                 ],
                 "type": "object"
+            },
+            "ApiScheduleOnboardingDashboardResponse": {
+                "$ref": "#/components/schemas/ApiSuccess__jobUuid-string__"
+            },
+            "DashboardBuildResult": {
+                "properties": {
+                    "builtAt": {
+                        "type": "string"
+                    },
+                    "warnings": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "chartCount": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "dashboardSlug": {
+                        "type": "string"
+                    },
+                    "dashboardUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "builtAt",
+                    "warnings",
+                    "chartCount",
+                    "spaceUuid",
+                    "dashboardSlug",
+                    "dashboardUuid"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_DashboardBuildResult_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/DashboardBuildResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiOnboardingDashboardResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_DashboardBuildResult_"
             },
             "ConnectionCheckId": {
                 "type": "string",
@@ -65088,6 +65168,82 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/projects/{projectUuid}/onboarding/dashboard": {
+            "post": {
+                "operationId": "ScheduleOnboardingDashboard",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiScheduleOnboardingDashboardResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            },
+            "get": {
+                "operationId": "GetOnboardingDashboard",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOnboardingDashboardResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/onboarding/connection/test": {

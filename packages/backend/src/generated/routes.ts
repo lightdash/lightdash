@@ -30454,6 +30454,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['compileProject'] },
                 { dataType: 'enum', enums: ['onboardingProfile'] },
                 { dataType: 'enum', enums: ['onboardingSemantic'] },
+                { dataType: 'enum', enums: ['onboardingDashboard'] },
                 { dataType: 'enum', enums: ['createProjectWithCompile'] },
                 { dataType: 'enum', enums: ['testAndCompileProject'] },
                 { dataType: 'enum', enums: ['sqlRunner'] },
@@ -38018,6 +38019,7 @@ const models: TsoaRoute.Models = {
                 type: { ref: 'MetricType', required: true },
                 label: { dataType: 'string', required: true },
                 name: { dataType: 'string', required: true },
+                fieldId: { dataType: 'string', required: true },
             },
             validators: {},
         },
@@ -38033,6 +38035,7 @@ const models: TsoaRoute.Models = {
                 type: { ref: 'DimensionType', required: true },
                 label: { dataType: 'string', required: true },
                 name: { dataType: 'string', required: true },
+                fieldId: { dataType: 'string', required: true },
             },
             validators: {},
         },
@@ -38124,6 +38127,7 @@ const models: TsoaRoute.Models = {
                     },
                     required: true,
                 },
+                primaryExploreName: { dataType: 'string', required: true },
             },
             validators: {},
         },
@@ -38180,6 +38184,48 @@ const models: TsoaRoute.Models = {
             },
             validators: {},
         },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiScheduleOnboardingDashboardResponse: {
+        dataType: 'refAlias',
+        type: { ref: 'ApiSuccess__jobUuid-string__', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    DashboardBuildResult: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                builtAt: { dataType: 'string', required: true },
+                warnings: {
+                    dataType: 'array',
+                    array: { dataType: 'string' },
+                    required: true,
+                },
+                chartCount: { dataType: 'double', required: true },
+                spaceUuid: { dataType: 'string', required: true },
+                dashboardSlug: { dataType: 'string', required: true },
+                dashboardUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSuccess_DashboardBuildResult_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'DashboardBuildResult', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiOnboardingDashboardResponse: {
+        dataType: 'refAlias',
+        type: { ref: 'ApiSuccess_DashboardBuildResult_', validators: {} },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     ConnectionCheckId: {
@@ -76201,6 +76247,128 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'updateSemanticLayerField',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOnboardingController_scheduleDashboard: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/onboarding/dashboard',
+        ...fetchMiddlewares<RequestHandler>(OnboardingController),
+        ...fetchMiddlewares<RequestHandler>(
+            OnboardingController.prototype.scheduleDashboard,
+        ),
+
+        async function OnboardingController_scheduleDashboard(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsOnboardingController_scheduleDashboard,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OnboardingController>(
+                        OnboardingController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'scheduleDashboard',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsOnboardingController_getDashboard: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+    };
+    app.get(
+        '/api/v1/projects/:projectUuid/onboarding/dashboard',
+        ...fetchMiddlewares<RequestHandler>(OnboardingController),
+        ...fetchMiddlewares<RequestHandler>(
+            OnboardingController.prototype.getDashboard,
+        ),
+
+        async function OnboardingController_getDashboard(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsOnboardingController_getDashboard,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<OnboardingController>(
+                        OnboardingController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getDashboard',
                     controller,
                     response,
                     next,

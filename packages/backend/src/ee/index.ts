@@ -909,6 +909,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     context.serviceRepository.getProjectProfileService(),
                 semanticGenerationService:
                     context.serviceRepository.getSemanticGenerationService(),
+                onboardingDashboardService:
+                    context.serviceRepository.getOnboardingDashboardService(),
                 projectService: context.serviceRepository.getProjectService(),
                 schedulerService:
                     context.serviceRepository.getSchedulerService(),

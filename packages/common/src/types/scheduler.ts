@@ -770,6 +770,11 @@ export type OnboardingSemanticPayload = TraceTaskBase & {
     jobUuid: string;
 };
 
+export type OnboardingDashboardPayload = TraceTaskBase & {
+    createdByUserUuid: string;
+    jobUuid: string;
+};
+
 export type PreAggregateMaterializationTrigger =
     | 'compile'
     | 'cron'

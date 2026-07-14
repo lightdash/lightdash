@@ -255,6 +255,7 @@ export class SemanticGenerationService extends BaseService {
             ([tableName, table]) =>
                 Object.values(table.dimensions).map<SemanticLayerDimension>(
                     (dimension) => ({
+                        fieldId: `${dimension.table}_${dimension.name.replaceAll('.', '__')}`,
                         name: dimension.name,
                         label: dimension.label,
                         type: dimension.type,
@@ -272,6 +273,7 @@ export class SemanticGenerationService extends BaseService {
             ([tableName, table]) =>
                 Object.values(table.metrics).map<SemanticLayerMetric>(
                     (metric) => ({
+                        fieldId: `${metric.table}_${metric.name.replaceAll('.', '__')}`,
                         name: metric.name,
                         label: metric.label,
                         type: metric.type,
@@ -392,6 +394,7 @@ export class SemanticGenerationService extends BaseService {
                 ),
             );
             const result: SemanticLayerResult = {
+                primaryExploreName: compiled.successfulExplores[0].name,
                 explores: compiled.successfulExplores.map((explore) =>
                     SemanticGenerationService.getSemanticExplore(
                         explore,
