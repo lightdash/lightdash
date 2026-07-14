@@ -5507,7 +5507,7 @@ export class AiAgentService extends BaseService {
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
-                'view',
+                'manage',
                 subject('ContentVerification', {
                     organizationUuid: project.organizationUuid,
                     projectUuid,

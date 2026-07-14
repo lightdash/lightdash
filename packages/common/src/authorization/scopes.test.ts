@@ -35,7 +35,7 @@ describe('scope dependency graph helpers', () => {
                 description: 'When reading saved content definitions',
             },
             {
-                name: 'view:ContentVerification',
+                name: 'manage:ContentVerification',
                 description: 'When listing verified content',
             },
         ]);
