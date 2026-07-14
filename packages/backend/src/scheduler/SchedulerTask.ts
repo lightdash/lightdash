@@ -6354,6 +6354,7 @@ export default class SchedulerTask {
                 csvUrl,
                 csvUrls,
                 pdfFile,
+                pdfPageCount,
                 failures,
             } = notificationPageData;
 
@@ -6445,6 +6446,7 @@ export default class SchedulerTask {
                     groupId: notification.jobGroup,
                     type: 'googlechat',
                     format,
+                    pdfPageCount: pdfFile ? pdfPageCount : undefined,
                     ...getSchedulerResourceTypeAndId(scheduler),
                     sendNow: schedulerUuid === undefined,
                     isThresholdAlert: scheduler.thresholds !== undefined,
