@@ -1,3 +1,10 @@
+## [0.3375.2](https://github.com/lightdash/lightdash/compare/0.3375.1...0.3375.2) (2026-07-14)
+
+
+### Bug Fixes
+
+* azure sandbox execs timeout too early ([#25431](https://github.com/lightdash/lightdash/issues/25431)) ([eede544](https://github.com/lightdash/lightdash/commit/eede54402500c7da69c06df643f64205af8c4eca))
+
 ## [0.3375.1](https://github.com/lightdash/lightdash/compare/0.3375.0...0.3375.1) (2026-07-14)
 
 
