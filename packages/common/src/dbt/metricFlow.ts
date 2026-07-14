@@ -46,6 +46,14 @@ const MEASURE_AGG_TO_METRIC_TYPE: Partial<
 const SIMPLE_COLUMN_REGEX = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /**
+ * Defensive accessor: manifests are external input, so a malformed producer
+ * can put a non-array where the schema promises one. Treat that as empty
+ * rather than crashing the whole compile.
+ */
+const measuresOf = (semanticModel: DbtSemanticModel): DbtSemanticMeasure[] =>
+    Array.isArray(semanticModel.measures) ? semanticModel.measures : [];
+
+/**
  * Build the Lightdash metric `sql` for a MetricFlow measure. The measure `expr`
  * (or the measure name when `expr` is null) is SQL evaluated against the
  * underlying model's columns. A bare column reference is qualified with
@@ -66,7 +74,10 @@ const resolveModelName = (
     semanticModel: DbtSemanticModel,
     modelNamesByUniqueId: Record<string, string>,
 ): string | null => {
-    const modelNodeId = (semanticModel.depends_on?.nodes ?? []).find((node) =>
+    const dependsOnNodes = Array.isArray(semanticModel.depends_on?.nodes)
+        ? semanticModel.depends_on.nodes
+        : [];
+    const modelNodeId = dependsOnNodes.find((node) =>
         node.startsWith('model.'),
     );
     if (modelNodeId && modelNamesByUniqueId[modelNodeId]) {
@@ -122,7 +133,7 @@ export const translateMetricFlowMetrics = ({
     const semanticModelsByName = new Map<string, DbtSemanticModel>();
     Object.values(semanticModels).forEach((semanticModel) => {
         semanticModelsByName.set(semanticModel.name, semanticModel);
-        (semanticModel.measures ?? []).forEach((measure) => {
+        measuresOf(semanticModel).forEach((measure) => {
             measureIndex.set(measure.name, { semanticModel, measure });
         });
     });
@@ -179,15 +190,22 @@ export const translateMetricFlowMetrics = ({
                 overrides.description ?? measure.description ?? undefined,
         };
 
-        if (
-            metricType === MetricType.PERCENTILE &&
-            typeof measure.agg_params?.percentile === 'number'
-        ) {
+        if (metricType === MetricType.PERCENTILE) {
+            const p = measure.agg_params?.percentile;
+            if (typeof p !== 'number' || Number.isNaN(p)) {
+                // Translating without a value would silently fall back to the
+                // warehouse default (p50) — wrong results are worse than a gap.
+                warnings.push(
+                    `Skipped MetricFlow metric "${metricName}": percentile aggregation requires a numeric agg_params.percentile (got ${JSON.stringify(
+                        p,
+                    )}).`,
+                );
+                return null;
+            }
             // MetricFlow stores percentile as a 0-1 decimal in the compiled
             // manifest (e.g. 0.95); Lightdash uses a 0-100 scale. The latest
             // YAML spec authors it as 0-100, so accept both: values <= 1 are
             // treated as fractions, anything larger is already a percentage.
-            const p = measure.agg_params.percentile;
             definition.percentile = p <= 1 ? p * 100 : p;
         }
 
@@ -195,8 +213,18 @@ export const translateMetricFlowMetrics = ({
     };
 
     // 1. Explicit `simple` metrics.
-    Object.values(metrics).forEach((rawMetric) => {
+    Object.entries(metrics).forEach(([manifestKey, rawMetric]) => {
         if (!isSemanticMetric(rawMetric)) {
+            const name =
+                typeof rawMetric === 'object' &&
+                rawMetric !== null &&
+                typeof (rawMetric as { name?: unknown }).name === 'string'
+                    ? (rawMetric as { name: string }).name
+                    : manifestKey;
+            warnings.push(
+                `Skipped MetricFlow metric "${name}": malformed metric definition in the manifest.`,
+            );
+            skippedCount += 1;
             return;
         }
         const metric = rawMetric;
@@ -292,7 +320,7 @@ export const translateMetricFlowMetrics = ({
     //    MetricFlow. Translate them too, unless an explicit metric already
     //    claimed the name.
     Object.values(semanticModels).forEach((semanticModel) => {
-        (semanticModel.measures ?? []).forEach((measure) => {
+        measuresOf(semanticModel).forEach((measure) => {
             if (!measure.create_metric) {
                 return;
             }

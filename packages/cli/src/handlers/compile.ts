@@ -133,12 +133,27 @@ const applyMetricFlowMetrics = (
         models.map((model) => [model.unique_id, model.name]),
     );
 
-    const { metricsByModel, warnings, translatedCount, skippedCount } =
-        translateMetricFlowMetrics({
+    // MetricFlow translation is best-effort: a malformed manifest must never
+    // abort the compile/deploy, so degrade to "no translated metrics".
+    let translation: ReturnType<typeof translateMetricFlowMetrics>;
+    try {
+        translation = translateMetricFlowMetrics({
             semanticModels,
             metrics: manifest.metrics ?? {},
             modelNamesByUniqueId,
         });
+    } catch (e) {
+        console.error(
+            styles.warning(
+                `> Failed to translate MetricFlow metrics, continuing without them: ${getErrorMessage(
+                    e,
+                )}`,
+            ),
+        );
+        return models;
+    }
+    const { metricsByModel, warnings, translatedCount, skippedCount } =
+        translation;
 
     warnings.forEach((warning) => GlobalState.debug(`> ${warning}`));
 

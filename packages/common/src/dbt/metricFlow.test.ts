@@ -336,6 +336,70 @@ describe('translateMetricFlowMetrics', () => {
         expect(result.warnings[0]).toContain('not supported');
     });
 
+    it('skips percentile measures without a numeric percentile value', () => {
+        // Translating without a value would silently compile to the warehouse
+        // default (p50) — must skip with a warning instead.
+        const result = translateMetricFlowMetrics({
+            semanticModels: {
+                sm: {
+                    ...ordersSemanticModel,
+                    measures: [
+                        {
+                            name: 'p95_total',
+                            agg: MetricFlowAggregation.PERCENTILE,
+                            expr: 'amount',
+                            create_metric: true,
+                            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            agg_params: { percentile: 'ninety' as any },
+                        },
+                    ],
+                },
+            },
+            metrics: {},
+            modelNamesByUniqueId,
+        });
+        expect(result.metricsByModel.orders?.p95_total).toBeUndefined();
+        expect(result.skippedCount).toBe(1);
+        expect(result.warnings[0]).toContain('numeric agg_params.percentile');
+    });
+
+    it('counts malformed metric entries as skipped with a warning', () => {
+        const result = translateMetricFlowMetrics({
+            semanticModels: { sm: ordersSemanticModel },
+            metrics: {
+                'metric.jaffle.broken': {
+                    name: 'broken',
+                    unique_id: 'metric.jaffle.broken',
+                    type: 'simple',
+                    type_params: null,
+                },
+                'metric.jaffle.garbage': 'i am not a metric object',
+            },
+            modelNamesByUniqueId,
+        });
+        expect(result.skippedCount).toBe(2);
+        expect(result.warnings).toEqual([
+            expect.stringContaining('"broken": malformed metric definition'),
+            expect.stringContaining('malformed metric definition'),
+        ]);
+    });
+
+    it('does not throw when a semantic model has a non-array measures value', () => {
+        const result = translateMetricFlowMetrics({
+            semanticModels: {
+                sm: {
+                    ...ordersSemanticModel,
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    measures: 'notanarray' as any,
+                },
+            },
+            metrics: {},
+            modelNamesByUniqueId,
+        });
+        expect(result.translatedCount).toBe(0);
+        expect(result.skippedCount).toBe(0);
+    });
+
     it('skips metrics whose semantic model targets a model that is not being deployed', () => {
         const result = translateMetricFlowMetrics({
             semanticModels: { sm: ordersSemanticModel },
