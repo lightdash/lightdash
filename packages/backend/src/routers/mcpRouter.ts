@@ -20,6 +20,7 @@ import { allowApiKeyAuthentication } from '../controllers/authentication';
 import { ExtraContext, McpService } from '../ee/services/McpService/McpService';
 import Logger from '../logging/logger';
 import { userAttributeOverridesSchema } from '../services/UserAttributesService/UserAttributeUtils';
+import { aliasMcpBearerPersonalAccessToken } from './mcpAuthentication';
 
 const mcpRouter: Router = express.Router({ mergeParams: true });
 
@@ -197,6 +198,7 @@ const returnHeaderIfUnauthenticated = (
 // - It follows the same pattern as other protocol-specific endpoints (OAuth)
 mcpRouter.all(
     '/',
+    aliasMcpBearerPersonalAccessToken,
     allowApiKeyAuthentication,
     returnHeaderIfUnauthenticated,
     async (req, res) => {
