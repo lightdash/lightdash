@@ -1,3 +1,15 @@
+# [0.3377.0](https://github.com/lightdash/lightdash/compare/0.3376.1...0.3377.0) (2026-07-14)
+
+
+### Bug Fixes
+
+* **frontend:** tolerate partial create_saved_chart_version url state ([#25515](https://github.com/lightdash/lightdash/issues/25515)) ([4af487f](https://github.com/lightdash/lightdash/commit/4af487fe6ac493e5aefead8be228a8223299e97b)), closes [#25510](https://github.com/lightdash/lightdash/issues/25510)
+
+
+### Features
+
+* **deep-research:** run managed investigations ([#25514](https://github.com/lightdash/lightdash/issues/25514)) ([676e5f0](https://github.com/lightdash/lightdash/commit/676e5f099bdddfe090e22e1c5e86ff462edcf019))
+
 ## [0.3376.1](https://github.com/lightdash/lightdash/compare/0.3376.0...0.3376.1) (2026-07-14)
 
 
