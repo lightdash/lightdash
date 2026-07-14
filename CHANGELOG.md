@@ -1,3 +1,10 @@
+# [0.3376.0](https://github.com/lightdash/lightdash/compare/0.3375.3...0.3376.0) (2026-07-14)
+
+
+### Features
+
+* add project-scoped AI agent config as code ([#25501](https://github.com/lightdash/lightdash/issues/25501)) ([6f4b8b1](https://github.com/lightdash/lightdash/commit/6f4b8b14a26eb74d5b3d23d7c2e788661ae8a241)), closes [#16763](https://github.com/lightdash/lightdash/issues/16763)
+
 ## [0.3375.3](https://github.com/lightdash/lightdash/compare/0.3375.2...0.3375.3) (2026-07-14)
 
 
