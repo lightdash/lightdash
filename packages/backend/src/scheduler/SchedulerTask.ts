@@ -190,10 +190,19 @@ import { SchedulerDeliveryError } from './SchedulerDeliveryError';
 
 // AI augmentation runner. Implemented by the EE SchedulerAiAugmentationService
 // and injected only by the commercial worker, so OSS deliveries skip it.
+
+// Reference to a query already executed for the delivery's attachments, so the
+// AI summary can read its stored results instead of re-querying the warehouse.
+export type SchedulerDeliveryQuery = {
+    chartName: string;
+    queryUuid: string;
+};
+
 export interface SchedulerAiAugmentationRunner {
     runForDelivery(args: {
         scheduler: SchedulerAndTargets | CreateSchedulerAndTargets;
         createdBy: string;
+        deliveryQueries?: SchedulerDeliveryQuery[];
     }): Promise<string | null>;
 }
 
@@ -573,7 +582,11 @@ export default class SchedulerTask {
             dashboardFilters?: ExportContentPayload['dashboardFilters'];
             dateZoomGranularity?: ExportContentPayload['dateZoomGranularity'];
         },
-    ): Promise<NotificationPayloadBase['page']> {
+    ): Promise<
+        NotificationPayloadBase['page'] & {
+            deliveryQueries?: SchedulerDeliveryQuery[];
+        }
+    > {
         const {
             createdBy: userUuid,
             savedChartUuid,
@@ -589,6 +602,7 @@ export default class SchedulerTask {
         let csvUrls;
         let pdfFile;
         let failures: PartialFailure[] | undefined;
+        let deliveryQueries: SchedulerDeliveryQuery[] | undefined;
 
         const schedulerUuid =
             'schedulerUuid' in scheduler &&
@@ -863,6 +877,12 @@ export default class SchedulerTask {
                                 downloadResult.fileUrl,
                             truncated: false,
                         };
+                        deliveryQueries = [
+                            {
+                                chartName: chart.name,
+                                queryUuid: query.queryUuid,
+                            },
+                        ];
                         this.analytics.trackAccount(account, {
                             event: 'download_results.completed',
                             userId: account.user.id,
@@ -1030,6 +1050,7 @@ export default class SchedulerTask {
                                         downloadResult.s3FileUrl ??
                                         downloadResult.fileUrl,
                                     truncated: false,
+                                    queryUuid: query.queryUuid,
                                 };
                             },
                         );
@@ -1109,6 +1130,7 @@ export default class SchedulerTask {
                                         downloadResult.s3FileUrl ??
                                         downloadResult.fileUrl,
                                     truncated: false,
+                                    queryUuid: query.queryUuid,
                                 };
                             },
                         );
@@ -1128,9 +1150,19 @@ export default class SchedulerTask {
                                 path: string;
                                 localPath: string;
                                 truncated: boolean;
+                                queryUuid: string;
                             }> => result.status === 'fulfilled',
                         );
-                        csvUrls = successfulResults.map((r) => r.value);
+                        csvUrls = successfulResults.map(
+                            ({ value: { queryUuid, ...csvUrlValue } }) =>
+                                csvUrlValue,
+                        );
+                        deliveryQueries = successfulResults.map(
+                            ({ value: { chartName, queryUuid } }) => ({
+                                chartName,
+                                queryUuid,
+                            }),
+                        );
 
                         const csvFailures = results
                             .map((result, index) => ({ result, index }))
@@ -1261,6 +1293,7 @@ export default class SchedulerTask {
             csvUrls,
             pdfFile,
             failures,
+            deliveryQueries,
         };
     }
 
@@ -4152,6 +4185,7 @@ export default class SchedulerTask {
             }
 
             let page: NotificationPayloadBase['page'] | undefined;
+            let deliveryQueries: SchedulerDeliveryQuery[] | undefined;
             let perChannelPages:
                 | {
                       email?: NotificationPayloadBase['page'];
@@ -4231,12 +4265,19 @@ export default class SchedulerTask {
                 ).reduce(
                     async (accPromise, [expiration, channels]) => {
                         const acc = await accPromise;
-                        const channelPage = await this.getNotificationPageData(
+                        // deliveryQueries is stripped so it never gets
+                        // serialised into the notification job payloads; it
+                        // only feeds the AI augmentation below.
+                        const {
+                            deliveryQueries: pageDeliveryQueries,
+                            ...channelPage
+                        } = await this.getNotificationPageData(
                             scheduler,
                             jobId,
                             isFinalAttempt,
                             expiration,
                         );
+                        deliveryQueries ??= pageDeliveryQueries;
                         for (const channel of channels) {
                             acc[channel] = channelPage;
                         }
@@ -4274,6 +4315,7 @@ export default class SchedulerTask {
                         await this.schedulerAiAugmentation.runForDelivery({
                             scheduler,
                             createdBy: userUuid,
+                            deliveryQueries,
                         });
                     if (aiMessage !== null) {
                         deliveryScheduler = {
