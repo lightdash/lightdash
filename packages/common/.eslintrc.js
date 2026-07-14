@@ -46,8 +46,11 @@ module.exports = {
         {
             // Do not check this rule for existing files, new files should be error
             files: [
+                'src/authorization/roleToScopeMapping.testUtils.ts',
                 'src/compiler/exploreCompiler.ts',
                 'src/compiler/translator.ts',
+                'src/ee/preAggregates/metricEligibility.ts',
+                'src/ee/preAggregates/numberMetricDependencies.ts',
                 'src/index.ts',
                 'src/pivot/pivotQueryResults.ts',
                 'src/types/dbt.ts',
@@ -55,6 +58,7 @@ module.exports = {
                 'src/types/filter.ts',
                 'src/types/filterGrammar.ts',
                 'src/types/metricQuery.ts',
+                'src/types/scheduler.ts',
                 'src/types/user.ts',
                 'src/utils/accessors.ts',
                 'src/utils/convertToDbt.ts',

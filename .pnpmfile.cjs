@@ -5,6 +5,19 @@
 // https://github.com/pnpm/pnpm/issues/4214
 // https://github.com/pnpm/pnpm/issues/5391
 
+// TypeScript 7 has a new API; isolate tools that still require the legacy API.
+const LEGACY_TYPESCRIPT_API_VERSION = '5.9.3';
+
+const legacyTypeScriptApiPackages = new Set([
+    '@joshwooding/vite-plugin-react-docgen-typescript',
+    'cosmiconfig',
+    'react-docgen-typescript',
+    'rollup-plugin-dts',
+    'ts-api-utils',
+    'ts-node',
+    'ts-unused-exports',
+]);
+
 const remapPeerDependencies = [
     {
         package: '@mantine/core',
@@ -70,6 +83,18 @@ const remapPeerDependencies = [
 
 function overridesPeerDependencies(pkg) {
     if (pkg.peerDependencies) {
+        if (
+            (pkg.peerDependencies.typescript ||
+                pkg.peerDependenciesMeta?.typescript) &&
+            (pkg.name.startsWith('@typescript-eslint/') ||
+                legacyTypeScriptApiPackages.has(pkg.name))
+        ) {
+            pkg.dependencies ??= {};
+            pkg.dependencies.typescript = LEGACY_TYPESCRIPT_API_VERSION;
+            delete pkg.peerDependencies.typescript;
+            delete pkg.peerDependenciesMeta?.typescript;
+        }
+
         remapPeerDependencies.map((dep) => {
             if (
                 pkg.name === dep.package &&

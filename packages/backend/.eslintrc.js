@@ -74,6 +74,7 @@ module.exports = {
                 'src/dbt/**/*.ts',
                 'src/ee/**/*.ts',
                 'src/models/**/*.ts',
+                'src/nats/**/*.ts',
                 'src/services/**/*.ts',
                 'src/utils/**/*.ts',
                 'src/logging/**/*.ts',

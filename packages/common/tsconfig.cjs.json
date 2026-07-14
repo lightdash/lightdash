@@ -5,7 +5,7 @@
         "outDir": "dist/cjs",
         "sourceMap": true,
         "composite": true,
-        "tsBuildInfoFile": "dist/cjs/.tsbuildinfo",
+        "tsBuildInfoFile": "dist/cjs/.tsgo.tsbuildinfo",
         "declaration": true,
         "declarationMap": true,
     },

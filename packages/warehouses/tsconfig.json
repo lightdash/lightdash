@@ -9,9 +9,8 @@
         "outDir": "dist",
         "rootDir": "src",
         "composite": true,
-        "tsBuildInfoFile": "dist/.tsbuildinfo",
-        "ignoreDeprecations": "6.0",
-        "moduleResolution": "node10",
+        "tsBuildInfoFile": "dist/.tsgo.tsbuildinfo",
+        "moduleResolution": "bundler",
         "resolveJsonModule": true,
         "skipLibCheck": true,
         "types": ["node", "vitest/globals"]

@@ -5,7 +5,7 @@
         "outDir": "dist/esm",
         "sourceMap": true,
         "composite": true,
-        "tsBuildInfoFile": "dist/esm/.tsbuildinfo",
+        "tsBuildInfoFile": "dist/esm/.tsgo.tsbuildinfo",
         "declaration": true,
         "declarationMap": true,
     },
