@@ -1,3 +1,12 @@
+## [0.3375.1](https://github.com/lightdash/lightdash/compare/0.3375.0...0.3375.1) (2026-07-14)
+
+
+### Bug Fixes
+
+* **frontend:** filter dropdowns close the whole popover on select ([#25504](https://github.com/lightdash/lightdash/issues/25504)) ([bcab287](https://github.com/lightdash/lightdash/commit/bcab2873f09ba85c6ee945630a48d6791cb6258b))
+* **mcp:** accept bearer authentication for PATs ([#25495](https://github.com/lightdash/lightdash/issues/25495)) ([96002a7](https://github.com/lightdash/lightdash/commit/96002a70f11d1f2e80f912e48941a4f11096137d))
+* **scheduler:** cap AI delivery summary content and reuse delivery query results ([#25497](https://github.com/lightdash/lightdash/issues/25497)) ([b8248cd](https://github.com/lightdash/lightdash/commit/b8248cd4abcd905584a4c23f4024bbacb8ab49f9))
+
 # [0.3375.0](https://github.com/lightdash/lightdash/compare/0.3374.1...0.3375.0) (2026-07-14)
 
 
