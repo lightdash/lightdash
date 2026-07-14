@@ -1244,6 +1244,40 @@ const scopes: Scope[] = [
             addUuidCondition(context, { userUuid: context.userUuid || false }),
         ],
     },
+    {
+        name: 'create:AiDeepResearch',
+        description: 'Start Deep Research runs',
+        isEnterprise: true,
+        group: ScopeGroup.AI,
+        dependencies: [
+            { name: 'view:Project' },
+            {
+                name: 'manage:Explore',
+                description: 'When querying project data',
+            },
+            {
+                name: 'view:Space',
+                description: 'When discovering or reading saved content',
+            },
+            {
+                name: 'view:Dashboard',
+                description: 'When discovering or reading dashboards',
+            },
+            {
+                name: 'view:SavedChart',
+                description: 'When discovering or reading saved charts',
+            },
+            {
+                name: 'view:ContentAsCode',
+                description: 'When reading saved content definitions',
+            },
+            {
+                name: 'manage:ContentVerification',
+                description: 'When listing verified content',
+            },
+        ],
+        getConditions: addDefaultUuidCondition,
+    },
 
     // Data Apps
     {

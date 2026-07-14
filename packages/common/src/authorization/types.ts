@@ -24,6 +24,7 @@ export type CaslSubjectNames =
     | 'AiAgent'
     | 'AiAgentDocument'
     | 'AiAgentThread'
+    | 'AiDeepResearch'
     | 'Analytics'
     | 'ChangeCsvResults'
     | 'CompileProject'

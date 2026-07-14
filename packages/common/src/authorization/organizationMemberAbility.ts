@@ -402,6 +402,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'ContentVerification', {
             organizationUuid: member.organizationUuid,
         });
+        can('create', 'AiDeepResearch', {
+            organizationUuid: member.organizationUuid,
+        });
     },
     admin(member, { can }) {
         applyOrganizationMemberStaticAbilities.developer(member, { can });

@@ -7,6 +7,40 @@ import {
 } from './scopes';
 
 describe('scope dependency graph helpers', () => {
+    it('declares the Deep Research core and conditional dependencies', () => {
+        const scope = getScopes({ isEnterprise: true }).find(
+            ({ name }) => name === 'create:AiDeepResearch',
+        );
+
+        expect(scope?.dependencies).toEqual([
+            { name: 'view:Project' },
+            {
+                name: 'manage:Explore',
+                description: 'When querying project data',
+            },
+            {
+                name: 'view:Space',
+                description: 'When discovering or reading saved content',
+            },
+            {
+                name: 'view:Dashboard',
+                description: 'When discovering or reading dashboards',
+            },
+            {
+                name: 'view:SavedChart',
+                description: 'When discovering or reading saved charts',
+            },
+            {
+                name: 'view:ContentAsCode',
+                description: 'When reading saved content definitions',
+            },
+            {
+                name: 'manage:ContentVerification',
+                description: 'When listing verified content',
+            },
+        ]);
+    });
+
     describe('getScopeAncestors', () => {
         it('returns direct and transitive dependencies for a scope', () => {
             expect(getScopeAncestors('manage:Dashboard')).toEqual([

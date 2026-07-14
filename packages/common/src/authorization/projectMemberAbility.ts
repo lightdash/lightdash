@@ -330,6 +330,9 @@ export const projectMemberAbilities: Record<
         can('manage', 'ContentVerification', {
             projectUuid: member.projectUuid,
         });
+        can('create', 'AiDeepResearch', {
+            projectUuid: member.projectUuid,
+        });
     },
     admin(member, { can }) {
         projectMemberAbilities.developer(member, { can });
