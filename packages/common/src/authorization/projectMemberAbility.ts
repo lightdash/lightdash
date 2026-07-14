@@ -238,7 +238,7 @@ export const projectMemberAbilities: Record<
         can('view', 'ContentAsCode', {
             projectUuid: member.projectUuid,
         });
-        can('write', 'ContentAsCode', {
+        can('create', 'ContentAsCode', {
             projectUuid: member.projectUuid,
         });
     },

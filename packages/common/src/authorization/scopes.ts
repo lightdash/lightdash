@@ -919,7 +919,7 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
-        name: 'write:ContentAsCode',
+        name: 'create:ContentAsCode',
         description:
             'Upload charts, dashboards and spaces as code (SQL authoring and space access are still checked)',
         isEnterprise: true,
@@ -937,7 +937,7 @@ const scopes: Scope[] = [
     {
         name: 'manage:ContentAsCode',
         description:
-            'Legacy broad content-as-code download and upload permission that bypasses granular SQL and space checks',
+            'Download and upload any content as code, without granular SQL and space checks',
         isEnterprise: true,
         group: ScopeGroup.CONTENT,
         dependencies: [
@@ -1555,7 +1555,6 @@ const MANAGE_IMPLIED_ACTIONS = new Set<AbilityAction>([
     'export',
     'update',
     'view',
-    'write',
 ]);
 
 const parseScopeNameParts = (scopeName: ScopeName): ScopeNameParts => {

@@ -135,7 +135,7 @@ describe('CoderService.upsertSqlChart - permissions', () => {
             const service = buildService(savedSqlModel);
             stubSpace(service);
             const user = makeUser([
-                { subject: 'ContentAsCode', action: 'write' },
+                { subject: 'ContentAsCode', action: 'create' },
             ]);
 
             await expect(upsert(service, user)).rejects.toThrow(ForbiddenError);
@@ -150,7 +150,7 @@ describe('CoderService.upsertSqlChart - permissions', () => {
             const service = buildService(savedSqlModel);
             stubSpace(service);
             const user = makeUser([
-                { subject: 'ContentAsCode', action: 'write' },
+                { subject: 'ContentAsCode', action: 'create' },
                 { subject: 'CustomSql', action: 'manage' },
             ]);
 
@@ -166,7 +166,7 @@ describe('CoderService.upsertSqlChart - permissions', () => {
             const service = buildService(savedSqlModel);
             stubSpace(service);
             const user = makeUser([
-                { subject: 'ContentAsCode', action: 'write' },
+                { subject: 'ContentAsCode', action: 'create' },
                 { subject: 'CustomSql', action: 'manage' },
                 {
                     subject: 'SavedChart',
@@ -200,7 +200,7 @@ describe('CoderService.upsertSqlChart - permissions', () => {
                 },
             });
             const user = makeUser([
-                { subject: 'ContentAsCode', action: 'write' },
+                { subject: 'ContentAsCode', action: 'create' },
                 { subject: 'CustomSql', action: 'manage' },
                 {
                     subject: 'Space',
@@ -249,7 +249,7 @@ describe('CoderService.upsertSqlChart - permissions', () => {
             const service = buildService(savedSqlModel);
             stubSpace(service, SPACE_UUID);
             const user = makeUser([
-                { subject: 'ContentAsCode', action: 'write' },
+                { subject: 'ContentAsCode', action: 'create' },
                 { subject: 'CustomSql', action: 'manage' },
                 {
                     subject: 'SavedChart',
@@ -270,7 +270,7 @@ describe('CoderService.upsertSqlChart - permissions', () => {
             const service = buildService(savedSqlModel);
             stubSpace(service, SPACE_UUID);
             const user = makeUser([
-                { subject: 'ContentAsCode', action: 'write' },
+                { subject: 'ContentAsCode', action: 'create' },
                 { subject: 'CustomSql', action: 'manage' },
             ]);
 
@@ -300,7 +300,7 @@ describe('CoderService.upsertSqlChart - permissions', () => {
             const service = buildService(savedSqlModel, getSpacesAccessContext);
             stubSpace(service, SPACE_UUID);
             const user = makeUser([
-                { subject: 'ContentAsCode', action: 'write' },
+                { subject: 'ContentAsCode', action: 'create' },
                 { subject: 'CustomSql', action: 'manage' },
                 {
                     subject: 'SavedChart',

@@ -589,12 +589,12 @@ describe('Organization member permissions', () => {
                     defineAbilityForOrganizationMember(ORGANIZATION_EDITOR);
             });
 
-            it('can write but cannot manage content as code', () => {
+            it('can create but cannot manage content as code', () => {
                 const contentAsCode = subject('ContentAsCode', {
                     organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
                 });
 
-                expect(ability.can('write', contentAsCode)).toEqual(true);
+                expect(ability.can('create', contentAsCode)).toEqual(true);
                 expect(ability.can('manage', contentAsCode)).toEqual(false);
             });
 
@@ -1094,10 +1094,10 @@ describe('Organization member permissions', () => {
                 );
             });
 
-            it('can write content as code through manage', () => {
+            it('can create content as code through manage', () => {
                 expect(
                     ability.can(
-                        'write',
+                        'create',
                         subject('ContentAsCode', {
                             organizationUuid:
                                 ORGANIZATION_DEVELOPER.organizationUuid,

@@ -144,7 +144,7 @@ const buildService = () =>
 
 describe('CoderService content-as-code space permissions', () => {
     const chartCreateRules: RawRuleOf<Ability<PossibleAbilities>>[] = [
-        { subject: 'ContentAsCode', action: 'write' },
+        { subject: 'ContentAsCode', action: 'create' },
         {
             subject: 'SavedChart',
             action: 'create',
@@ -259,7 +259,7 @@ describe('CoderService content-as-code space permissions', () => {
         expect(service.savedChartModel.create).not.toHaveBeenCalled();
     });
 
-    it('lets legacy manage bypass SQL and space checks', async () => {
+    it('lets manage upload any content without SQL and space checks', async () => {
         const service = buildService();
         prepareChartCreate(service);
         const chartWithSql = {
@@ -298,7 +298,7 @@ describe('CoderService content-as-code space permissions', () => {
             space: { uuid: SPACE_UUID } as AnyType,
             created: false,
         });
-        const user = makeUser([{ subject: 'ContentAsCode', action: 'write' }]);
+        const user = makeUser([{ subject: 'ContentAsCode', action: 'create' }]);
 
         await expect(
             service.upsertChart(
@@ -345,7 +345,7 @@ describe('CoderService content-as-code space permissions', () => {
             },
         });
         const user = makeUser([
-            { subject: 'ContentAsCode', action: 'write' },
+            { subject: 'ContentAsCode', action: 'create' },
             {
                 subject: 'Space',
                 action: 'create',
@@ -437,7 +437,7 @@ describe('CoderService content-as-code space permissions', () => {
             ),
         );
         const user = makeUser([
-            { subject: 'ContentAsCode', action: 'write' },
+            { subject: 'ContentAsCode', action: 'create' },
             {
                 subject: 'Space',
                 action: 'create',
@@ -473,7 +473,7 @@ describe('CoderService content-as-code space permissions', () => {
             space: { uuid: SPACE_UUID } as AnyType,
             created: false,
         });
-        const user = makeUser([{ subject: 'ContentAsCode', action: 'write' }]);
+        const user = makeUser([{ subject: 'ContentAsCode', action: 'create' }]);
 
         await expect(
             service.upsertDashboard(
@@ -502,7 +502,7 @@ describe('CoderService content-as-code space permissions', () => {
             space: { uuid: SPACE_UUID } as AnyType,
             created: false,
         });
-        const user = makeUser([{ subject: 'ContentAsCode', action: 'write' }]);
+        const user = makeUser([{ subject: 'ContentAsCode', action: 'create' }]);
 
         await expect(
             service.upsertChart(
@@ -527,7 +527,7 @@ describe('CoderService content-as-code space permissions', () => {
             space: { uuid: SPACE_UUID } as AnyType,
             created: false,
         });
-        const user = makeUser([{ subject: 'ContentAsCode', action: 'write' }]);
+        const user = makeUser([{ subject: 'ContentAsCode', action: 'create' }]);
 
         await expect(
             service.upsertChart(user, PROJECT_UUID, chartAsCode.slug, {
@@ -565,7 +565,7 @@ describe('CoderService content-as-code space permissions', () => {
             } as AnyType,
         ]);
         const user = makeUser([
-            { subject: 'ContentAsCode', action: 'write' },
+            { subject: 'ContentAsCode', action: 'create' },
             {
                 subject: 'SavedChart',
                 action: 'create',
@@ -596,7 +596,7 @@ describe('CoderService content-as-code space permissions', () => {
             space: { uuid: SPACE_UUID } as AnyType,
             created: false,
         });
-        const user = makeUser([{ subject: 'ContentAsCode', action: 'write' }]);
+        const user = makeUser([{ subject: 'ContentAsCode', action: 'create' }]);
 
         await expect(
             service.upsertDashboard(
@@ -662,7 +662,7 @@ describe('CoderService content-as-code space permissions', () => {
             [],
         ] as AnyType);
         const user = makeUser([
-            { subject: 'ContentAsCode', action: 'write' },
+            { subject: 'ContentAsCode', action: 'create' },
             {
                 subject: 'Dashboard',
                 action: 'update',
@@ -718,7 +718,7 @@ describe('CoderService content-as-code space permissions', () => {
             ),
         );
         const user = makeUser([
-            { subject: 'ContentAsCode', action: 'write' },
+            { subject: 'ContentAsCode', action: 'create' },
             {
                 subject: 'Dashboard',
                 action: 'update',
@@ -767,7 +767,7 @@ describe('CoderService content-as-code space permissions', () => {
             created: false,
         });
         const user = makeUser([
-            { subject: 'ContentAsCode', action: 'write' },
+            { subject: 'ContentAsCode', action: 'create' },
             {
                 subject: 'SavedChart',
                 action: 'update',
@@ -827,7 +827,7 @@ describe('CoderService content-as-code space permissions', () => {
             ),
         );
         const user = makeUser([
-            { subject: 'ContentAsCode', action: 'write' },
+            { subject: 'ContentAsCode', action: 'create' },
             {
                 subject: 'SavedChart',
                 action: 'create',
@@ -901,7 +901,7 @@ describe('CoderService content-as-code space permissions', () => {
             created: false,
         });
         const user = makeUser([
-            { subject: 'ContentAsCode', action: 'write' },
+            { subject: 'ContentAsCode', action: 'create' },
             {
                 subject: 'SavedChart',
                 action: 'update',
@@ -965,7 +965,7 @@ describe('CoderService content-as-code space permissions', () => {
             ),
         );
         const user = makeUser([
-            { subject: 'ContentAsCode', action: 'write' },
+            { subject: 'ContentAsCode', action: 'create' },
             {
                 subject: 'Dashboard',
                 action: 'create',
@@ -1050,7 +1050,7 @@ describe('CoderService content-as-code space permissions', () => {
             ),
         );
         const user = makeUser([
-            { subject: 'ContentAsCode', action: 'write' },
+            { subject: 'ContentAsCode', action: 'create' },
             {
                 subject: 'Dashboard',
                 action: 'update',
@@ -1112,7 +1112,7 @@ describe('CoderService content-as-code space permissions', () => {
             uuid: 'dashboard-uuid',
         } as AnyType);
         const user = makeUser([
-            { subject: 'ContentAsCode', action: 'write' },
+            { subject: 'ContentAsCode', action: 'create' },
             {
                 subject: 'Dashboard',
                 action: 'create',
@@ -1159,7 +1159,7 @@ describe('CoderService content-as-code space permissions', () => {
             uuid: 'chart-uuid',
         } as AnyType);
         const user = makeUser([
-            { subject: 'ContentAsCode', action: 'write' },
+            { subject: 'ContentAsCode', action: 'create' },
             {
                 subject: 'SavedChart',
                 action: 'create',

@@ -103,13 +103,13 @@ describe('ServiceAccountScope.SYSTEM_MEMBER', () => {
 });
 
 describe('content-as-code writes', () => {
-    it('lets system editors write but not manage', () => {
+    it('lets system editors create but not manage', () => {
         const ability = buildAbility([ServiceAccountScope.SYSTEM_EDITOR]);
         const contentAsCode = subject('ContentAsCode', {
             organizationUuid: ORG,
         });
 
-        expect(ability.can('write', contentAsCode)).toBe(true);
+        expect(ability.can('create', contentAsCode)).toBe(true);
         expect(ability.can('manage', contentAsCode)).toBe(false);
     });
 

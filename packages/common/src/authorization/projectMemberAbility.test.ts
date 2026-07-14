@@ -542,10 +542,10 @@ describe('Project member permissions', () => {
                 ability = defineAbilityForProjectMember(PROJECT_EDITOR);
             });
 
-            it('can write but cannot manage content as code', () => {
+            it('can create but cannot manage content as code', () => {
                 const contentAsCode = subject('ContentAsCode', { projectUuid });
 
-                expect(ability.can('write', contentAsCode)).toEqual(true);
+                expect(ability.can('create', contentAsCode)).toEqual(true);
                 expect(ability.can('manage', contentAsCode)).toEqual(false);
             });
 
@@ -1099,10 +1099,10 @@ describe('Project member permissions', () => {
                 ability = defineAbilityForProjectMember(PROJECT_DEVELOPER);
             });
 
-            it('can write content as code through manage', () => {
+            it('can create content as code through manage', () => {
                 expect(
                     ability.can(
-                        'write',
+                        'create',
                         subject('ContentAsCode', { projectUuid }),
                     ),
                 ).toEqual(true);

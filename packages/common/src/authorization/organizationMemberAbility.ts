@@ -282,7 +282,7 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('view', 'ContentAsCode', {
             organizationUuid: member.organizationUuid,
         });
-        can('write', 'ContentAsCode', {
+        can('create', 'ContentAsCode', {
             organizationUuid: member.organizationUuid,
         });
     },

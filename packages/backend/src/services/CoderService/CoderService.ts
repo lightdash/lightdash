@@ -2603,7 +2603,7 @@ export class CoderService extends BaseService {
         const project = await this.projectModel.get(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
-        const { hasLegacyManage, allowSpaceCreate } =
+        const { canUploadAnyContent, allowSpaceCreate } =
             CoderService.checkContentAsCodeWriteAccess({
                 auditedAbility,
                 project,
@@ -2641,7 +2641,7 @@ export class CoderService extends BaseService {
         // If chart does not exist, we can't use promoteService,
         // since it relies on information that's not available in ChartAsCode, and other uuids
         if (chart === undefined) {
-            if (!hasLegacyManage) {
+            if (!canUploadAnyContent) {
                 CoderService.handleContentAsCodeSqlPermissionChecks({
                     checks: getChartContentAsCodePermissionChecks(
                         chartWithDefaults,
@@ -2673,7 +2673,7 @@ export class CoderService extends BaseService {
                     allowSpaceCreate,
                 );
             // Fetched once, reused by the placeholder-dashboard check below
-            const spaceAccessContexts = hasLegacyManage
+            const spaceAccessContexts = canUploadAnyContent
                 ? null
                 : await this.spacePermissionService.getSpacesAccessContext(
                       user.userUuid,
@@ -2743,7 +2743,7 @@ export class CoderService extends BaseService {
                     );
 
                     dashboardUuid = newDashboard.uuid;
-                } else if (!hasLegacyManage) {
+                } else if (!canUploadAnyContent) {
                     await this.assertDashboardUpdateAccess({
                         userUuid: user.userUuid,
                         auditedAbility,
@@ -2821,14 +2821,14 @@ export class CoderService extends BaseService {
         console.info(
             `Updating chart "${chartWithDefaults.name}" on project ${projectUuid}`,
         );
-        const targetSpace = !hasLegacyManage
+        const targetSpace = !canUploadAnyContent
             ? await this.findAccessibleSpace(
                   projectUuid,
                   chartWithDefaults.spaceSlug,
                   user,
               )
             : undefined;
-        if (!hasLegacyManage) {
+        if (!canUploadAnyContent) {
             if (
                 targetSpace === undefined &&
                 !skipSpaceCreate &&
@@ -2890,7 +2890,7 @@ export class CoderService extends BaseService {
             spaceNames,
             allowSpaceCreate,
         );
-        if (!hasLegacyManage && space.uuid !== targetSpace?.uuid) {
+        if (!canUploadAnyContent && space.uuid !== targetSpace?.uuid) {
             await this.assertSpaceContentAccess({
                 userUuid: user.userUuid,
                 auditedAbility,
@@ -2971,7 +2971,7 @@ export class CoderService extends BaseService {
         const project = await this.projectModel.get(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
-        const { hasLegacyManage, allowSpaceCreate } =
+        const { canUploadAnyContent, allowSpaceCreate } =
             CoderService.checkContentAsCodeWriteAccess({
                 auditedAbility,
                 project,
@@ -3009,7 +3009,7 @@ export class CoderService extends BaseService {
             throw new ForbiddenError();
         }
 
-        if (!isUpdate && !hasLegacyManage) {
+        if (!isUpdate && !canUploadAnyContent) {
             await this.assertCreateAccessForSpaceSlug({
                 user,
                 auditedAbility,
@@ -3181,8 +3181,9 @@ export class CoderService extends BaseService {
         return accessContexts[spaceUuid];
     }
 
-    // Throws unless the caller can write content as code. `hasLegacyManage`
-    // (manage:ContentAsCode) skips the granular space/SQL checks below.
+    // Throws unless the caller can write content as code. `canUploadAnyContent`
+    // (manage:ContentAsCode) allows uploading any content, so the granular
+    // space/SQL checks below don't apply.
     private static checkContentAsCodeWriteAccess({
         auditedAbility,
         project,
@@ -3198,7 +3199,7 @@ export class CoderService extends BaseService {
             | 'createdByUserUuid'
         >;
         slug: string;
-    }): { hasLegacyManage: boolean; allowSpaceCreate: boolean } {
+    }): { canUploadAnyContent: boolean; allowSpaceCreate: boolean } {
         const contentAsCodeSubject = subject('ContentAsCode', {
             projectUuid: project.projectUuid,
             organizationUuid: project.organizationUuid,
@@ -3207,15 +3208,15 @@ export class CoderService extends BaseService {
             createdByUserUuid: project.createdByUserUuid,
             metadata: { slug },
         });
-        const hasLegacyManage = auditedAbility.can(
+        const canUploadAnyContent = auditedAbility.can(
             'manage',
             contentAsCodeSubject,
         );
-        if (auditedAbility.cannot('write', contentAsCodeSubject)) {
+        if (auditedAbility.cannot('create', contentAsCodeSubject)) {
             throw new ForbiddenError();
         }
         const allowSpaceCreate =
-            hasLegacyManage ||
+            canUploadAnyContent ||
             auditedAbility.can(
                 'create',
                 subject('Space', {
@@ -3223,7 +3224,7 @@ export class CoderService extends BaseService {
                     projectUuid: project.projectUuid,
                 }),
             );
-        return { hasLegacyManage, allowSpaceCreate };
+        return { canUploadAnyContent, allowSpaceCreate };
     }
 
     private async assertSpaceContentAccess({
@@ -3570,7 +3571,7 @@ export class CoderService extends BaseService {
         const project = await this.projectModel.get(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
-        const { hasLegacyManage, allowSpaceCreate } =
+        const { canUploadAnyContent, allowSpaceCreate } =
             CoderService.checkContentAsCodeWriteAccess({
                 auditedAbility,
                 project,
@@ -3601,7 +3602,7 @@ export class CoderService extends BaseService {
             projectUuid,
             dashboardWithDefaults.tiles,
         );
-        if (!hasLegacyManage) {
+        if (!canUploadAnyContent) {
             await this.assertTileChartsViewAccess({
                 userUuid: user.userUuid,
                 auditedAbility,
@@ -3623,7 +3624,7 @@ export class CoderService extends BaseService {
         // If chart does not exist, we can't use promoteService,
         // since it relies on information that's not available in ChartAsCode, and other uuids
         if (dashboardSummary === undefined) {
-            if (!hasLegacyManage) {
+            if (!canUploadAnyContent) {
                 await this.assertCreateAccessForSpaceSlug({
                     user,
                     auditedAbility,
@@ -3645,7 +3646,7 @@ export class CoderService extends BaseService {
                     spaceNames,
                     allowSpaceCreate,
                 );
-            if (!hasLegacyManage) {
+            if (!canUploadAnyContent) {
                 await this.assertSpaceContentAccess({
                     userUuid: user.userUuid,
                     auditedAbility,
@@ -3708,14 +3709,14 @@ export class CoderService extends BaseService {
             `Updating dashboard "${dashboard.name}" on project ${projectUuid}`,
         );
 
-        const targetSpace = !hasLegacyManage
+        const targetSpace = !canUploadAnyContent
             ? await this.findAccessibleSpace(
                   projectUuid,
                   dashboardWithDefaults.spaceSlug,
                   user,
               )
             : undefined;
-        if (!hasLegacyManage) {
+        if (!canUploadAnyContent) {
             if (
                 targetSpace === undefined &&
                 !skipSpaceCreate &&
@@ -3767,7 +3768,7 @@ export class CoderService extends BaseService {
             spaceNames,
             allowSpaceCreate,
         );
-        if (!hasLegacyManage && space.uuid !== targetSpace?.uuid) {
+        if (!canUploadAnyContent && space.uuid !== targetSpace?.uuid) {
             await this.assertSpaceContentAccess({
                 userUuid: user.userUuid,
                 auditedAbility,

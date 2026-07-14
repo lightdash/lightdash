@@ -97,7 +97,7 @@ const BASE_ROLE_SCOPES = {
         'manage:MetricsTree',
         'manage:AiAgentThread@self', // User's own threads
         'view:ContentAsCode',
-        'write:ContentAsCode',
+        'create:ContentAsCode',
         'create:DataApp',
     ],
 
@@ -267,7 +267,7 @@ export const getNonEnterpriseScopesForRole = (
         'manage:AiAgentDocument',
         'manage:AiAgentThread',
         'view:ContentAsCode',
-        'write:ContentAsCode',
+        'create:ContentAsCode',
         'manage:ContentAsCode',
         'manage:ContentAsCode@self',
         'view:DataApp',
