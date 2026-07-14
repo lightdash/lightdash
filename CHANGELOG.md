@@ -1,3 +1,10 @@
+# [0.3380.0](https://github.com/lightdash/lightdash/compare/0.3379.0...0.3380.0) (2026-07-14)
+
+
+### Features
+
+* **settings:** make in-page sub-sections searchable ([#25540](https://github.com/lightdash/lightdash/issues/25540)) ([35718ec](https://github.com/lightdash/lightdash/commit/35718ec620a2b0a249adb2c097ad313357cb5bb6))
+
 # [0.3379.0](https://github.com/lightdash/lightdash/compare/0.3378.1...0.3379.0) (2026-07-14)
 
 
