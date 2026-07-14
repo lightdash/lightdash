@@ -7,17 +7,24 @@
         "incremental": true,
         "jsx": "react",
         "jsxFactory": "xmlBuilder",
-        "declaration": true,
-        "declarationMap": true,
+        "declaration": false,
+        "declarationMap": false,
         "outDir": "dist",
         "rootDir": "src",
-        "composite": true,
-        "tsBuildInfoFile": "dist/.tsbuildinfo",
+        "composite": false,
+        "tsBuildInfoFile": "dist/.tsgo.tsbuildinfo",
         "importHelpers": true,
         "isolatedModules": true,
         "experimentalDecorators": true,
-        "ignoreDeprecations": "6.0",
-        "moduleResolution": "node10",
+        "moduleResolution": "bundler",
+        "paths": {
+            "better-ajv-errors": [
+                "../common/node_modules/better-ajv-errors/typings.d.ts"
+            ],
+            "@casl/ability/dist/types/*": [
+                "./node_modules/@casl/ability/dist/types/*"
+            ]
+        },
         "resolveJsonModule": true,
         "skipLibCheck": true,
         "types": ["node", "vitest/globals", "passport", "express-session"]

@@ -218,7 +218,7 @@ export function ContentCatalogExamplePage({
             contentItems.filter(
                 (item) =>
                     selectedSpaceUuid.length > 0 &&
-                    (item.space.uuid === selectedSpaceUuid ||
+                    (item.space?.uuid === selectedSpaceUuid ||
                         (hasContentType(item, 'space') &&
                             item.uuid === selectedSpaceUuid)),
             ),

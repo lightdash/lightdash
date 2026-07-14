@@ -11,9 +11,9 @@ interface JestDomMatchers {
 }
 
 declare module '@vitest/expect' {
-    interface Assertion<T = any> extends JestDomMatchers {}
+    interface Assertion<T = unknown> extends JestDomMatchers {}
 }
 
 declare module 'vitest' {
-    interface Assertion<T = any> extends JestDomMatchers {}
+    interface Assertion<T = unknown> extends JestDomMatchers {}
 }
