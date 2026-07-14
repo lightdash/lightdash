@@ -392,6 +392,17 @@ describe('AiDeepResearchClient', () => {
                     name: 'web_search',
                     input: { query: 'sensitive query' },
                 }),
+                event({
+                    type: 'span.model_request_end',
+                    is_error: false,
+                    model_request_start_id: 'request-1',
+                    model_usage: {
+                        input_tokens: 100,
+                        output_tokens: 20,
+                        cache_creation_input_tokens: 10,
+                        cache_read_input_tokens: 30,
+                    },
+                }),
                 endTurn,
             ],
         ]);
@@ -404,8 +415,47 @@ describe('AiDeepResearchClient', () => {
             [{ type: 'retrying' }],
             [{ type: 'thinking' }],
             [{ type: 'tool_use', source: 'built_in', name: 'web_search' }],
+            [
+                {
+                    type: 'model_usage',
+                    inputTokens: 100,
+                    outputTokens: 20,
+                    cacheCreationInputTokens: 10,
+                    cacheReadInputTokens: 30,
+                },
+            ],
         ]);
         expect(JSON.stringify(progress.mock.calls)).not.toContain('sensitive');
+    });
+
+    it('does not double-count progress recovered from persisted history', async () => {
+        const progress = vi.fn().mockResolvedValue(undefined);
+        const usage = event({
+            type: 'span.model_request_end',
+            is_error: false,
+            model_request_start_id: 'request-1',
+            model_usage: {
+                input_tokens: 100,
+                output_tokens: 20,
+                cache_creation_input_tokens: 10,
+                cache_read_input_tokens: 30,
+            },
+        });
+        const anthropic = createAnthropicMock([[usage], [endTurn]]);
+        anthropic.eventsList.mockImplementation(() => asyncIterable([usage]));
+
+        await createClient(anthropic.client).runSession(
+            createConfig({ onProgress: progress }),
+        );
+
+        expect(progress).toHaveBeenCalledOnce();
+        expect(progress).toHaveBeenCalledWith({
+            type: 'model_usage',
+            inputTokens: 100,
+            outputTokens: 20,
+            cacheCreationInputTokens: 10,
+            cacheReadInputTokens: 30,
+        });
     });
 
     it('recovers a terminal event from persisted history after stream EOF', async () => {

@@ -23,6 +23,7 @@ import { ProjectService } from '../services/ProjectService/ProjectService';
 import { RolesService } from '../services/RolesService/RolesService';
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import { AiModelCatalog } from './clients/Ai/AiModelCatalog';
+import { AiDeepResearchClient } from './clients/AiDeepResearchClient';
 import LicenseClient from './clients/License/LicenseClient';
 import { ManagedAgentClient } from './clients/ManagedAgentClient';
 import OpenAi from './clients/OpenAi';
@@ -64,6 +65,7 @@ import { AiAgentReviewClassifierService } from './services/AiAgentReviewClassifi
 import { AiAgentReviewNotificationService } from './services/AiAgentReviewNotificationService';
 import { AiAgentService } from './services/AiAgentService/AiAgentService';
 import { AiAgentToolsService } from './services/AiAgentToolsService/AiAgentToolsService';
+import { AiDeepResearchExecutor } from './services/AiDeepResearchService/AiDeepResearchExecutor';
 import { AiDeepResearchService } from './services/AiDeepResearchService/AiDeepResearchService';
 import { AiOrganizationSettingsService } from './services/AiOrganizationSettingsService';
 import { AiRouterService } from './services/AiRouterService/AiRouterService';
@@ -125,15 +127,35 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
 
     return {
         serviceProviders: {
-            aiDeepResearchService: ({ models, clients }) =>
-                new AiDeepResearchService({
-                    aiDeepResearchRunModel:
-                        models.getAiDeepResearchRunModel<AiDeepResearchRunModel>(),
+            aiDeepResearchService: ({
+                models,
+                clients,
+                context,
+                repository,
+            }) => {
+                const aiDeepResearchRunModel =
+                    models.getAiDeepResearchRunModel<AiDeepResearchRunModel>();
+                const executor = new AiDeepResearchExecutor({
+                    lightdashConfig: context.lightdashConfig,
+                    aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
+                    aiDeepResearchClient: new AiDeepResearchClient({
+                        lightdashConfig: context.lightdashConfig,
+                    }),
+                    aiDeepResearchRunModel,
+                    personalAccessTokenService:
+                        repository.getPersonalAccessTokenService(),
+                    userService: repository.getUserService(),
+                });
+
+                return new AiDeepResearchService({
+                    aiDeepResearchRunModel,
                     projectModel: models.getProjectModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,
-                }),
+                    executor: executor.execute,
+                });
+            },
             projectContextService: ({ models }) =>
                 new ProjectContextService({
                     projectModel: models.getProjectModel(),

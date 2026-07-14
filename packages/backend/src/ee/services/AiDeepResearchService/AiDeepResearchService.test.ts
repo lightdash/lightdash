@@ -2,6 +2,7 @@ import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     AnyType,
     FeatureFlags,
+    ForbiddenError,
     NotFoundError,
     ParameterError,
     type AiDeepResearchBudget,
@@ -205,6 +206,23 @@ describe('AiDeepResearchService', () => {
                     projectUuid: 'project-1',
                     prompt: 'Investigate revenue',
                     budget: { ...budget, maxTokens: 0 },
+                }),
+            ).rejects.toBeInstanceOf(ParameterError);
+            expect(model.create).not.toHaveBeenCalled();
+        });
+
+        it('rejects budget snapshots above server limits', async () => {
+            const { service, model } = buildService();
+
+            await expect(
+                service.createRun({
+                    user: userWithProjectAccess(),
+                    projectUuid: 'project-1',
+                    prompt: 'Investigate revenue',
+                    budget: {
+                        ...budget,
+                        maxRuntimeMs: 60 * 60 * 1_000 + 1,
+                    },
                 }),
             ).rejects.toBeInstanceOf(ParameterError);
             expect(model.create).not.toHaveBeenCalled();
