@@ -54,7 +54,13 @@ export type SemanticGenerationOutput = {
     skippedTableCount: number;
 };
 
-const getLabel = (value: string): string => friendlyName(value) || value;
+// Snowflake returns case-insensitive identifiers in uppercase; lowercase them
+// so snakeCaseName/friendlyName don't split on every letter
+const normalizeIdentifierCase = (value: string): string =>
+    /^[A-Z0-9_$]+$/.test(value) ? value.toLowerCase() : value;
+
+const getLabel = (value: string): string =>
+    friendlyName(normalizeIdentifierCase(value)) || value;
 
 const getSafeIdentifiers = (
     values: string[],
@@ -63,7 +69,8 @@ const getSafeIdentifiers = (
     const used = new Set<string>();
     return values.map((value, index) => {
         const normalized =
-            snakeCaseName(value) || `${fallbackPrefix}_${index + 1}`;
+            snakeCaseName(normalizeIdentifierCase(value)) ||
+            `${fallbackPrefix}_${index + 1}`;
         let identifier = normalized;
         let suffix = 2;
         while (used.has(identifier)) {
