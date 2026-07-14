@@ -1,7 +1,10 @@
 /* eslint-disable no-await-in-loop */
 /* eslint-disable no-param-reassign */
 import {
+    AgentAsCode,
     AlertAsCode,
+    ApiAgentAsCodeListResponse,
+    ApiAgentAsCodeUpsertResponse,
     ApiAlertAsCodeListResponse,
     ApiAlertAsCodeUpsertResponse,
     ApiChartAsCodeListResponse,
@@ -102,10 +105,12 @@ export type DownloadHandlerOptions = {
     charts: string[]; // These can be slugs, uuids or urls
     dashboards: string[]; // These can be slugs, uuids or urls
     alerts: string[];
+    agents: string[];
     googleSheets: string[];
     scheduledDeliveries: string[];
     virtualViews: string[];
     apps?: string[]; // specific app UUIDs (enterprise); absent = no explicit selection
+    includeAgents?: boolean;
     includeApps?: boolean; // download: all of the project's apps, capped at --apps-limit; upload: all app folders on disk
     appsLimit?: string; // download only: cap for the --include-apps listing (default 50); raw string from commander
     createNew?: boolean; // upload only: always create a new app instead of updating the manifest's app
@@ -121,6 +126,7 @@ export type DownloadHandlerOptions = {
     skipCharts: boolean; // Skip downloading charts and SQL charts
     skipDashboards: boolean; // Skip downloading dashboards
     skipAlerts: boolean;
+    skipAgents: boolean;
     skipGoogleSheets: boolean;
     skipScheduledDeliveries: boolean;
     skipVirtualViews: boolean;
@@ -146,6 +152,18 @@ const getDownloadFolder = (customPath?: string): string => {
     }
     return path.join(process.cwd(), 'lightdash');
 };
+
+const shouldDownloadAiAgents = ({
+    includeAll,
+    includeAgents,
+    agents,
+    appsOnly,
+}: Pick<
+    DownloadHandlerOptions,
+    'includeAll' | 'includeAgents' | 'agents' | 'appsOnly'
+>): boolean =>
+    appsOnly !== true &&
+    (includeAll === true || includeAgents === true || agents.length > 0);
 
 /*
     This function is used to parse the content filters.
@@ -881,6 +899,9 @@ export const downloadContent = async (
 const getScheduledDeliveriesFolder = (customPath?: string): string =>
     path.join(getDownloadFolder(customPath), 'scheduled-deliveries');
 
+const getAiAgentsFolder = (customPath?: string): string =>
+    path.join(getDownloadFolder(customPath), 'ai-agents');
+
 const getAlertsFolder = (customPath?: string): string =>
     path.join(getDownloadFolder(customPath), 'alerts');
 
@@ -1093,6 +1114,152 @@ const getScheduledContentConfig = (
     }
 };
 
+const downloadAiAgents = async (
+    projectId: string,
+    ids: string[],
+    customPath?: string,
+): Promise<number> => {
+    const outputDir = getAiAgentsFolder(customPath);
+    await fs.mkdir(outputDir, { recursive: true });
+    const idQuery = ids.map((id) => ['ids', id] as [string, string]);
+    let offset = 0;
+    let total = 0;
+    let downloaded = 0;
+
+    do {
+        const query = new URLSearchParams([
+            ...idQuery,
+            ['offset', String(offset)],
+        ]).toString();
+        const results = await lightdashApi<
+            ApiAgentAsCodeListResponse['results']
+        >({
+            method: 'GET',
+            url: `/api/v1/projects/${projectId}/aiAgents/code?${query}`,
+            body: undefined,
+        });
+
+        for (const agent of results.agents) {
+            const { updatedAt, downloadedAt, ...agentConfig } = agent;
+            // eslint-disable-next-line no-await-in-loop
+            await fs.writeFile(
+                path.join(outputDir, `${agent.slug}.yml`),
+                yaml.dump(agentConfig, { quotingType: '"', sortKeys: true }),
+            );
+        }
+
+        results.missingIds.forEach((id) =>
+            GlobalState.debug(`No AI agent with id "${id}"`),
+        );
+        downloaded += results.agents.length;
+        offset = results.offset;
+        total = results.total;
+    } while (offset < total);
+
+    return downloaded;
+};
+
+const readAiAgentFiles = async (
+    customPath?: string,
+): Promise<AgentAsCode[]> => {
+    const folder = getAiAgentsFolder(customPath);
+    try {
+        const entries = await fs.readdir(folder, {
+            recursive: true,
+            withFileTypes: true,
+        });
+        const agents: AgentAsCode[] = [];
+
+        for (const entry of entries) {
+            if (
+                entry.isFile() &&
+                (entry.name.endsWith('.yml') || entry.name.endsWith('.yaml'))
+            ) {
+                const filePath = path.join(entry.parentPath, entry.name);
+                // eslint-disable-next-line no-await-in-loop
+                const parsed = yaml.load(await fs.readFile(filePath, 'utf-8'));
+                if (
+                    typeof parsed !== 'object' ||
+                    parsed === null ||
+                    Array.isArray(parsed)
+                ) {
+                    throw new ParameterError(
+                        `Invalid AI agent file "${filePath}": expected a YAML object`,
+                    );
+                }
+                if (
+                    !('contentType' in parsed) ||
+                    parsed.contentType !== ContentAsCodeTypeEnum.AI_AGENT
+                ) {
+                    throw new ParameterError(
+                        `Invalid contentType in AI agent file "${filePath}": expected "${ContentAsCodeTypeEnum.AI_AGENT}"`,
+                    );
+                }
+                agents.push(parsed as AgentAsCode);
+            }
+        }
+
+        return agents;
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+        throw error;
+    }
+};
+
+class AiAgentAsCodeUploadError extends Error {
+    readonly originalError: Error;
+
+    constructor(error: unknown) {
+        const originalError =
+            error instanceof Error ? error : new Error(getErrorMessage(error));
+        super(originalError.message);
+        this.name = 'AiAgentAsCodeUploadError';
+        this.originalError = originalError;
+    }
+}
+
+const upsertAiAgents = async (
+    projectId: string,
+    slugs: string[],
+    changes: Record<string, number>,
+    force: boolean,
+    customPath?: string,
+): Promise<Record<string, number>> => {
+    const agents = await readAiAgentFiles(customPath);
+    const filteredAgents = slugs.length
+        ? agents.filter((agent) => slugs.includes(agent.slug))
+        : agents;
+
+    if (filteredAgents.length === 0) {
+        if (slugs.length > 0) {
+            GlobalState.log(
+                styles.warning(`No matching AI agent files found, skipping`),
+            );
+        }
+        return changes;
+    }
+    GlobalState.log(`Found ${filteredAgents.length} AI agent files`);
+
+    const results = await lightdashApi<ApiAgentAsCodeUpsertResponse['results']>(
+        {
+            method: 'POST',
+            url: `/api/v1/projects/${projectId}/aiAgents/code?force=${force}`,
+            body: JSON.stringify({ agents: filteredAgents }),
+        },
+    );
+
+    const counts = {
+        'AI agents created': results.created.length,
+        'AI agents updated': results.updated.length,
+        'AI agents skipped': results.unchanged.length,
+    };
+    Object.entries(counts).forEach(([key, value]) => {
+        if (value > 0) changes[key] = (changes[key] ?? 0) + value;
+    });
+
+    return changes;
+};
+
 const downloadScheduledContent = async (
     projectId: string,
     slugs: string[],
@@ -1288,12 +1455,13 @@ export const downloadHandler = async (
         });
         if (appsOnlySelection.mode === 'none') {
             throw new ParameterError(
-                'Nothing to download: --apps-only requires --apps <appUuids...> or --include-apps.',
+                'Nothing to download: --apps-only requires --apps <appUuids...>, --include-apps, or --include-all.',
             );
         }
         options.skipCharts = true;
         options.skipDashboards = true;
         options.skipSpaces = true;
+        options.includeAgents = false;
         options.includeAlerts = false;
         options.includeGoogleSheets = false;
         options.includeScheduledDeliveries = false;
@@ -1351,6 +1519,7 @@ export const downloadHandler = async (
         const hasFilters =
             options.charts.length > 0 ||
             options.dashboards.length > 0 ||
+            options.agents.length > 0 ||
             options.alerts.length > 0 ||
             options.googleSheets.length > 0 ||
             options.scheduledDeliveries.length > 0 ||
@@ -1511,6 +1680,16 @@ export const downloadHandler = async (
                     );
                 }
             }
+        }
+
+        if (shouldDownloadAiAgents(options)) {
+            spinner.start(`Downloading AI agents`);
+            const agentTotal = await downloadAiAgents(
+                projectId,
+                options.agents,
+                options.path,
+            );
+            spinner.succeed(`Downloaded ${agentTotal} AI agents`);
         }
 
         if (
@@ -2266,6 +2445,7 @@ export const uploadHandler = async (
         const hasFilters =
             options.charts.length > 0 ||
             options.dashboards.length > 0 ||
+            options.agents.length > 0 ||
             options.alerts.length > 0 ||
             options.googleSheets.length > 0 ||
             options.scheduledDeliveries.length > 0 ||
@@ -2392,6 +2572,27 @@ export const uploadHandler = async (
                 );
             changes = dashboardChanges;
             dashboardTotal = total;
+        }
+
+        if (!options.skipAgents) {
+            if (hasFilters && options.agents.length === 0) {
+                GlobalState.log(
+                    styles.warning(`No AI agent filters provided, skipping`),
+                );
+            } else {
+                uploadResource = 'AI agents';
+                try {
+                    changes = await upsertAiAgents(
+                        projectId,
+                        options.agents,
+                        changes,
+                        options.force,
+                        options.path,
+                    );
+                } catch (error) {
+                    throw new AiAgentAsCodeUploadError(error);
+                }
+            }
         }
 
         if (!options.skipAlerts) {
@@ -2803,11 +3004,16 @@ export const uploadHandler = async (
                 error: getErrorMessage(error),
             },
         });
+        if (error instanceof AiAgentAsCodeUploadError) {
+            throw error.originalError;
+        }
     }
 };
 
 export const testHelpers = {
     getDashboardChartSlugs,
+    readAiAgentFiles,
     sanitizeChartForDownload,
+    shouldDownloadAiAgents,
     upsertVirtualViews,
 };

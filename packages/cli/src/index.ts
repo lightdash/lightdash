@@ -728,6 +728,12 @@ program
         'specify dashboard slugs, uuids or urls to download',
         [],
     )
+    .option('--agents <slugs...>', 'specify AI agent slugs to download', [])
+    .option(
+        '--include-agents',
+        "include all of the project's AI agents (enterprise)",
+        false,
+    )
     .option('--alerts <slugs...>', 'specify alert slugs to download', [])
     .option(
         '--virtual-views <slugs...>',
@@ -833,6 +839,7 @@ program
         'specify dashboard slugs to force upload',
         [],
     )
+    .option('--agents <slugs...>', 'specify AI agent slugs to upload', [])
     .option('--alerts <slugs...>', 'specify alert slugs to upload', [])
     .option(
         '--virtual-views <slugs...>',
@@ -871,6 +878,7 @@ program
         false,
     )
     .option('--public', 'Create new spaces as public instead of private', false)
+    .option('--skip-agents', 'skip uploading AI agents', false)
     .option('--skip-alerts', 'skip uploading alerts', false)
     .option('--skip-virtual-views', 'skip uploading virtual views', false)
     .option('--skip-google-sheets', 'skip uploading Google Sheets syncs', false)

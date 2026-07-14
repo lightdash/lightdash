@@ -2845,6 +2845,7 @@ export class AiAgentService extends BaseService {
             tags: body.tags,
             integrations: body.integrations,
             instruction: body.instruction,
+            imageUrl: body.imageUrl,
             // Admin-only agents ignore the user/group lists; clear them so the
             // contradictory "admin-only + specific users" state never persists.
             groupAccess: body.adminOnly ? [] : body.groupAccess,
