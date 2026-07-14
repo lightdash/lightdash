@@ -1,3 +1,10 @@
+## [0.3377.1](https://github.com/lightdash/lightdash/compare/0.3377.0...0.3377.1) (2026-07-14)
+
+
+### Bug Fixes
+
+* **frontend:** pin per-tile SQL column select to filter panel ([#25505](https://github.com/lightdash/lightdash/issues/25505)) ([0f51deb](https://github.com/lightdash/lightdash/commit/0f51deb8ed576f5a1dc6f276df7f10da168bc96e)), closes [#25504](https://github.com/lightdash/lightdash/issues/25504)
+
 # [0.3377.0](https://github.com/lightdash/lightdash/compare/0.3376.1...0.3377.0) (2026-07-14)
 
 
