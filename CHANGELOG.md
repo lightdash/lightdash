@@ -1,3 +1,10 @@
+# [0.3374.0](https://github.com/lightdash/lightdash/compare/0.3373.0...0.3374.0) (2026-07-14)
+
+
+### Features
+
+* **ai:** agent tool to create scheduled deliveries ([#25438](https://github.com/lightdash/lightdash/issues/25438)) ([dd07880](https://github.com/lightdash/lightdash/commit/dd07880ef80b336f80ff23160bd67983666b48e0))
+
 # [0.3373.0](https://github.com/lightdash/lightdash/compare/0.3372.0...0.3373.0) (2026-07-14)
 
 
