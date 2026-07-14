@@ -116,6 +116,12 @@ import {
 } from './contentAsCodePermissions';
 import { paginateAsCode } from './pagination';
 
+type ContentAsCodeSpaceContentMetadata = {
+    savedChartUuid?: string;
+    dashboardUuid?: string;
+    savedSqlUuid?: string | null;
+};
+
 type CoderServiceArguments = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
@@ -2597,30 +2603,12 @@ export class CoderService extends BaseService {
         const project = await this.projectModel.get(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
-        const contentAsCodeSubject = subject('ContentAsCode', {
-            projectUuid: project.projectUuid,
-            organizationUuid: project.organizationUuid,
-            upstreamProjectUuid: project.upstreamProjectUuid,
-            type: project.type,
-            createdByUserUuid: project.createdByUserUuid,
-            metadata: { slug },
-        });
-        const hasLegacyManage = auditedAbility.can(
-            'manage',
-            contentAsCodeSubject,
-        );
-        if (auditedAbility.cannot('write', contentAsCodeSubject)) {
-            throw new ForbiddenError();
-        }
-        const allowSpaceCreate =
-            hasLegacyManage ||
-            auditedAbility.can(
-                'create',
-                subject('Space', {
-                    organizationUuid: project.organizationUuid,
-                    projectUuid: project.projectUuid,
-                }),
-            );
+        const { hasLegacyManage, allowSpaceCreate } =
+            CoderService.checkContentAsCodeWriteAccess({
+                auditedAbility,
+                project,
+                slug,
+            });
 
         // Default optional fields when missing (e.g. user-authored YAML)
         const chartWithDefaults = {
@@ -2663,32 +2651,15 @@ export class CoderService extends BaseService {
                     slug,
                 });
 
-                const targetSpace = await this.findAccessibleSpace(
-                    projectUuid,
-                    chartWithDefaults.spaceSlug,
+                await this.assertCreateAccessForSpaceSlug({
                     user,
-                );
-                if (targetSpace === undefined) {
-                    const ancestorSpaceAccessContext =
-                        await this.getClosestAncestorSpaceAccessContext(
-                            user.userUuid,
-                            projectUuid,
-                            chartWithDefaults.spaceSlug,
-                        );
-                    if (
-                        ancestorSpaceAccessContext !== undefined &&
-                        auditedAbility.cannot(
-                            'create',
-                            subject('SavedChart', {
-                                ...ancestorSpaceAccessContext,
-                            }),
-                        )
-                    ) {
-                        throw new ForbiddenError(
-                            "You don't have access to create charts in this space",
-                        );
-                    }
-                }
+                    auditedAbility,
+                    projectUuid,
+                    spaceSlug: chartWithDefaults.spaceSlug,
+                    subjectType: 'SavedChart',
+                    errorMessage:
+                        "You don't have access to create charts in this space",
+                });
             }
 
             const { space, created: spaceCreated } =
@@ -2701,6 +2672,7 @@ export class CoderService extends BaseService {
                     spaceNames,
                     allowSpaceCreate,
                 );
+            // Fetched once, reused by the placeholder-dashboard check below
             const spaceAccessContexts = hasLegacyManage
                 ? null
                 : await this.spacePermissionService.getSpacesAccessContext(
@@ -2708,18 +2680,16 @@ export class CoderService extends BaseService {
                       [space.uuid],
                   );
             if (spaceAccessContexts !== null) {
-                if (
-                    auditedAbility.cannot(
-                        'create',
-                        subject('SavedChart', {
-                            ...spaceAccessContexts[space.uuid],
-                        }),
-                    )
-                ) {
-                    throw new ForbiddenError(
+                await this.assertSpaceContentAccess({
+                    userUuid: user.userUuid,
+                    auditedAbility,
+                    action: 'create',
+                    subjectType: 'SavedChart',
+                    spaceUuids: [space.uuid],
+                    errorMessage:
                         "You don't have access to create charts in this space",
-                    );
-                }
+                    accessContexts: spaceAccessContexts,
+                });
             }
 
             console.info(
@@ -2741,18 +2711,16 @@ export class CoderService extends BaseService {
                 let dashboardUuid: string = dashboard?.uuid;
                 if (!dashboard) {
                     if (spaceAccessContexts !== null) {
-                        if (
-                            auditedAbility.cannot(
-                                'create',
-                                subject('Dashboard', {
-                                    ...spaceAccessContexts[space.uuid],
-                                }),
-                            )
-                        ) {
-                            throw new ForbiddenError(
+                        await this.assertSpaceContentAccess({
+                            userUuid: user.userUuid,
+                            auditedAbility,
+                            action: 'create',
+                            subjectType: 'Dashboard',
+                            spaceUuids: [space.uuid],
+                            errorMessage:
                                 "You don't have access to create dashboards in this space",
-                            );
-                        }
+                            accessContexts: spaceAccessContexts,
+                        });
                     }
                     // Charts within dashboards need a dashboard first,
                     // so we will create a placeholder dashboard for this
@@ -2776,31 +2744,11 @@ export class CoderService extends BaseService {
 
                     dashboardUuid = newDashboard.uuid;
                 } else if (!hasLegacyManage) {
-                    if (!dashboard.spaceUuid) {
-                        throw new ForbiddenError(
-                            "You don't have access to update this dashboard",
-                        );
-                    }
-                    const dashboardSpaceAccessContexts =
-                        await this.spacePermissionService.getSpacesAccessContext(
-                            user.userUuid,
-                            [dashboard.spaceUuid],
-                        );
-                    if (
-                        auditedAbility.cannot(
-                            'update',
-                            subject('Dashboard', {
-                                ...dashboardSpaceAccessContexts[
-                                    dashboard.spaceUuid
-                                ],
-                                metadata: { dashboardUuid: dashboard.uuid },
-                            }),
-                        )
-                    ) {
-                        throw new ForbiddenError(
-                            "You don't have access to update this dashboard",
-                        );
-                    }
+                    await this.assertDashboardUpdateAccess({
+                        userUuid: user.userUuid,
+                        auditedAbility,
+                        dashboard,
+                    });
                 }
                 createChart = {
                     ...chartWithDefaults,
@@ -2885,65 +2833,28 @@ export class CoderService extends BaseService {
                 );
             }
 
-            const spaceUuidsToCheck = [
-                ...(targetSpace ? [targetSpace.uuid] : []),
-                ...(chart.spaceUuid ? [chart.spaceUuid] : []),
-            ].filter(
-                (spaceUuid, index, spaceUuids) =>
-                    spaceUuids.indexOf(spaceUuid) === index,
-            );
-            if (spaceUuidsToCheck.length > 0) {
-                const spaceAccessContexts =
-                    await this.spacePermissionService.getSpacesAccessContext(
-                        user.userUuid,
-                        spaceUuidsToCheck,
-                    );
-                const lacksSavedChartAccess = spaceUuidsToCheck.some(
-                    (spaceUuid) =>
-                        auditedAbility.cannot(
-                            'update',
-                            subject('SavedChart', {
-                                ...spaceAccessContexts[spaceUuid],
-                                metadata: { savedChartUuid: chart.uuid },
-                            }),
-                        ),
-                );
-                if (lacksSavedChartAccess) {
-                    throw new ForbiddenError(
-                        "You don't have access to update this chart",
-                    );
-                }
-            }
+            await this.assertSpaceContentAccess({
+                userUuid: user.userUuid,
+                auditedAbility,
+                action: 'update',
+                subjectType: 'SavedChart',
+                spaceUuids: [
+                    ...(targetSpace ? [targetSpace.uuid] : []),
+                    ...(chart.spaceUuid ? [chart.spaceUuid] : []),
+                ],
+                metadata: { savedChartUuid: chart.uuid },
+                errorMessage: "You don't have access to update this chart",
+            });
 
             if (chart.dashboardUuid) {
                 const dashboard = await this.dashboardModel.getByIdOrSlug(
                     chart.dashboardUuid,
                 );
-                if (!dashboard.spaceUuid) {
-                    throw new ForbiddenError(
-                        "You don't have access to update this dashboard",
-                    );
-                }
-                const dashboardSpaceAccessContexts =
-                    await this.spacePermissionService.getSpacesAccessContext(
-                        user.userUuid,
-                        [dashboard.spaceUuid],
-                    );
-                if (
-                    auditedAbility.cannot(
-                        'update',
-                        subject('Dashboard', {
-                            ...dashboardSpaceAccessContexts[
-                                dashboard.spaceUuid
-                            ],
-                            metadata: { dashboardUuid: dashboard.uuid },
-                        }),
-                    )
-                ) {
-                    throw new ForbiddenError(
-                        "You don't have access to update this dashboard",
-                    );
-                }
+                await this.assertDashboardUpdateAccess({
+                    userUuid: user.userUuid,
+                    auditedAbility,
+                    dashboard,
+                });
             }
 
             const currentChart = await this.savedChartModel.get(chart.uuid);
@@ -2968,24 +2879,15 @@ export class CoderService extends BaseService {
             allowSpaceCreate,
         );
         if (!hasLegacyManage && space.uuid !== targetSpace?.uuid) {
-            const spaceAccessContexts =
-                await this.spacePermissionService.getSpacesAccessContext(
-                    user.userUuid,
-                    [space.uuid],
-                );
-            if (
-                auditedAbility.cannot(
-                    'update',
-                    subject('SavedChart', {
-                        ...spaceAccessContexts[space.uuid],
-                        metadata: { savedChartUuid: chart.uuid },
-                    }),
-                )
-            ) {
-                throw new ForbiddenError(
-                    "You don't have access to update this chart",
-                );
-            }
+            await this.assertSpaceContentAccess({
+                userUuid: user.userUuid,
+                auditedAbility,
+                action: 'update',
+                subjectType: 'SavedChart',
+                spaceUuids: [space.uuid],
+                metadata: { savedChartUuid: chart.uuid },
+                errorMessage: "You don't have access to update this chart",
+            });
         }
 
         const { promotedChart, upstreamChart } =
@@ -3057,30 +2959,12 @@ export class CoderService extends BaseService {
         const project = await this.projectModel.get(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
-        const contentAsCodeSubject = subject('ContentAsCode', {
-            projectUuid: project.projectUuid,
-            organizationUuid: project.organizationUuid,
-            upstreamProjectUuid: project.upstreamProjectUuid,
-            type: project.type,
-            createdByUserUuid: project.createdByUserUuid,
-            metadata: { slug },
-        });
-        const hasLegacyManage = auditedAbility.can(
-            'manage',
-            contentAsCodeSubject,
-        );
-        if (auditedAbility.cannot('write', contentAsCodeSubject)) {
-            throw new ForbiddenError();
-        }
-        const allowSpaceCreate =
-            hasLegacyManage ||
-            auditedAbility.can(
-                'create',
-                subject('Space', {
-                    organizationUuid: project.organizationUuid,
-                    projectUuid: project.projectUuid,
-                }),
-            );
+        const { hasLegacyManage, allowSpaceCreate } =
+            CoderService.checkContentAsCodeWriteAccess({
+                auditedAbility,
+                project,
+                slug,
+            });
 
         // Default updatedAt to now when missing (e.g. user-authored YAML)
         const sqlChartWithDefaults = {
@@ -3114,33 +2998,16 @@ export class CoderService extends BaseService {
         }
 
         if (!isUpdate && !hasLegacyManage) {
-            const targetSpace = await this.findAccessibleSpace(
-                projectUuid,
-                sqlChartWithDefaults.spaceSlug,
+            await this.assertCreateAccessForSpaceSlug({
                 user,
-            );
-            if (targetSpace === undefined) {
-                const ancestorSpaceAccessContext =
-                    await this.getClosestAncestorSpaceAccessContext(
-                        user.userUuid,
-                        projectUuid,
-                        sqlChartWithDefaults.spaceSlug,
-                    );
-                if (
-                    ancestorSpaceAccessContext !== undefined &&
-                    auditedAbility.cannot(
-                        'create',
-                        subject('SavedChart', {
-                            ...ancestorSpaceAccessContext,
-                            metadata: { savedSqlUuid: null },
-                        }),
-                    )
-                ) {
-                    throw new ForbiddenError(
-                        "You don't have access to create this Saved SQL chart",
-                    );
-                }
-            }
+                auditedAbility,
+                projectUuid,
+                spaceSlug: sqlChartWithDefaults.spaceSlug,
+                subjectType: 'SavedChart',
+                metadata: { savedSqlUuid: null },
+                errorMessage:
+                    "You don't have access to create this Saved SQL chart",
+            });
         }
 
         const { space, created: spaceCreated } = await this.getOrCreateSpace(
@@ -3155,32 +3022,20 @@ export class CoderService extends BaseService {
 
         // Moves require SavedChart access in both current and target spaces.
         const savedChartAction = isUpdate ? 'update' : 'create';
-        const spaceUuidsToCheck =
-            existingSqlChart !== undefined &&
-            existingSqlChart.space_uuid !== space.uuid
-                ? [space.uuid, existingSqlChart.space_uuid]
-                : [space.uuid];
-        const spaceAccessContexts =
-            await this.spacePermissionService.getSpacesAccessContext(
-                user.userUuid,
-                spaceUuidsToCheck,
-            );
-        const lacksSavedChartAccess = spaceUuidsToCheck.some((spaceUuid) =>
-            auditedAbility.cannot(
-                savedChartAction,
-                subject('SavedChart', {
-                    ...spaceAccessContexts[spaceUuid],
-                    metadata: {
-                        savedSqlUuid: existingSqlChart?.saved_sql_uuid ?? null,
-                    },
-                }),
-            ),
-        );
-        if (lacksSavedChartAccess) {
-            throw new ForbiddenError(
-                `You don't have access to ${savedChartAction} this Saved SQL chart`,
-            );
-        }
+        await this.assertSpaceContentAccess({
+            userUuid: user.userUuid,
+            auditedAbility,
+            action: savedChartAction,
+            subjectType: 'SavedChart',
+            spaceUuids: [
+                space.uuid,
+                ...(existingSqlChart ? [existingSqlChart.space_uuid] : []),
+            ],
+            metadata: {
+                savedSqlUuid: existingSqlChart?.saved_sql_uuid ?? null,
+            },
+            errorMessage: `You don't have access to ${savedChartAction} this Saved SQL chart`,
+        });
 
         if (existingSqlChart === undefined) {
             // Create new SQL chart
@@ -3312,6 +3167,167 @@ export class CoderService extends BaseService {
                 spaceUuid,
             ]);
         return accessContexts[spaceUuid];
+    }
+
+    // Throws unless the caller can write content as code. `hasLegacyManage`
+    // (manage:ContentAsCode) skips the granular space/SQL checks below.
+    private static checkContentAsCodeWriteAccess({
+        auditedAbility,
+        project,
+        slug,
+    }: {
+        auditedAbility: ReturnType<CoderService['createAuditedAbility']>;
+        project: Pick<
+            Project,
+            | 'projectUuid'
+            | 'organizationUuid'
+            | 'upstreamProjectUuid'
+            | 'type'
+            | 'createdByUserUuid'
+        >;
+        slug: string;
+    }): { hasLegacyManage: boolean; allowSpaceCreate: boolean } {
+        const contentAsCodeSubject = subject('ContentAsCode', {
+            projectUuid: project.projectUuid,
+            organizationUuid: project.organizationUuid,
+            upstreamProjectUuid: project.upstreamProjectUuid,
+            type: project.type,
+            createdByUserUuid: project.createdByUserUuid,
+            metadata: { slug },
+        });
+        const hasLegacyManage = auditedAbility.can(
+            'manage',
+            contentAsCodeSubject,
+        );
+        if (auditedAbility.cannot('write', contentAsCodeSubject)) {
+            throw new ForbiddenError();
+        }
+        const allowSpaceCreate =
+            hasLegacyManage ||
+            auditedAbility.can(
+                'create',
+                subject('Space', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid: project.projectUuid,
+                }),
+            );
+        return { hasLegacyManage, allowSpaceCreate };
+    }
+
+    private async assertSpaceContentAccess({
+        userUuid,
+        auditedAbility,
+        action,
+        subjectType,
+        spaceUuids,
+        metadata,
+        errorMessage,
+        accessContexts,
+    }: {
+        userUuid: string;
+        auditedAbility: ReturnType<CoderService['createAuditedAbility']>;
+        action: 'create' | 'update';
+        subjectType: 'SavedChart' | 'Dashboard';
+        spaceUuids: string[];
+        metadata?: ContentAsCodeSpaceContentMetadata;
+        errorMessage: string;
+        // Pre-fetched contexts to avoid refetching for the same spaces
+        accessContexts?: Awaited<
+            ReturnType<SpacePermissionService['getSpacesAccessContext']>
+        >;
+    }): Promise<void> {
+        const uniqueSpaceUuids = [...new Set(spaceUuids)];
+        if (uniqueSpaceUuids.length === 0) return;
+        const spaceAccessContexts =
+            accessContexts ??
+            (await this.spacePermissionService.getSpacesAccessContext(
+                userUuid,
+                uniqueSpaceUuids,
+            ));
+        const lacksAccess = uniqueSpaceUuids.some((spaceUuid) =>
+            auditedAbility.cannot(
+                action,
+                subject(subjectType, {
+                    ...spaceAccessContexts[spaceUuid],
+                    ...(metadata !== undefined ? { metadata } : {}),
+                }),
+            ),
+        );
+        if (lacksAccess) {
+            throw new ForbiddenError(errorMessage);
+        }
+    }
+
+    // Target space missing: gate create on the closest existing ancestor
+    // BEFORE creating the space, so a denied create can't orphan a space.
+    private async assertCreateAccessForSpaceSlug({
+        user,
+        auditedAbility,
+        projectUuid,
+        spaceSlug,
+        subjectType,
+        metadata,
+        errorMessage,
+    }: {
+        user: SessionUser;
+        auditedAbility: ReturnType<CoderService['createAuditedAbility']>;
+        projectUuid: string;
+        spaceSlug: string;
+        subjectType: 'SavedChart' | 'Dashboard';
+        metadata?: ContentAsCodeSpaceContentMetadata;
+        errorMessage: string;
+    }): Promise<void> {
+        const targetSpace = await this.findAccessibleSpace(
+            projectUuid,
+            spaceSlug,
+            user,
+        );
+        if (targetSpace !== undefined) return;
+        const ancestorSpaceAccessContext =
+            await this.getClosestAncestorSpaceAccessContext(
+                user.userUuid,
+                projectUuid,
+                spaceSlug,
+            );
+        if (
+            ancestorSpaceAccessContext !== undefined &&
+            auditedAbility.cannot(
+                'create',
+                subject(subjectType, {
+                    ...ancestorSpaceAccessContext,
+                    ...(metadata !== undefined ? { metadata } : {}),
+                }),
+            )
+        ) {
+            throw new ForbiddenError(errorMessage);
+        }
+    }
+
+    private async assertDashboardUpdateAccess({
+        userUuid,
+        auditedAbility,
+        dashboard,
+        additionalSpaceUuids = [],
+    }: {
+        userUuid: string;
+        auditedAbility: ReturnType<CoderService['createAuditedAbility']>;
+        dashboard: { uuid: string; spaceUuid: string | null };
+        additionalSpaceUuids?: string[];
+    }): Promise<void> {
+        if (!dashboard.spaceUuid) {
+            throw new ForbiddenError(
+                "You don't have access to update this dashboard",
+            );
+        }
+        await this.assertSpaceContentAccess({
+            userUuid,
+            auditedAbility,
+            action: 'update',
+            subjectType: 'Dashboard',
+            spaceUuids: [dashboard.spaceUuid, ...additionalSpaceUuids],
+            metadata: { dashboardUuid: dashboard.uuid },
+            errorMessage: "You don't have access to update this dashboard",
+        });
     }
 
     async getOrCreateSpace(
@@ -3477,30 +3493,12 @@ export class CoderService extends BaseService {
         const project = await this.projectModel.get(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
-        const contentAsCodeSubject = subject('ContentAsCode', {
-            projectUuid: project.projectUuid,
-            organizationUuid: project.organizationUuid,
-            upstreamProjectUuid: project.upstreamProjectUuid,
-            type: project.type,
-            createdByUserUuid: project.createdByUserUuid,
-            metadata: { slug },
-        });
-        const hasLegacyManage = auditedAbility.can(
-            'manage',
-            contentAsCodeSubject,
-        );
-        if (auditedAbility.cannot('write', contentAsCodeSubject)) {
-            throw new ForbiddenError();
-        }
-        const allowSpaceCreate =
-            hasLegacyManage ||
-            auditedAbility.can(
-                'create',
-                subject('Space', {
-                    organizationUuid: project.organizationUuid,
-                    projectUuid: project.projectUuid,
-                }),
-            );
+        const { hasLegacyManage, allowSpaceCreate } =
+            CoderService.checkContentAsCodeWriteAccess({
+                auditedAbility,
+                project,
+                slug,
+            });
 
         // Default optional fields when missing (e.g. user-authored YAML)
         const dashboardWithDefaults = {
@@ -3541,32 +3539,15 @@ export class CoderService extends BaseService {
         // since it relies on information that's not available in ChartAsCode, and other uuids
         if (dashboardSummary === undefined) {
             if (!hasLegacyManage) {
-                const targetSpace = await this.findAccessibleSpace(
-                    projectUuid,
-                    dashboardWithDefaults.spaceSlug,
+                await this.assertCreateAccessForSpaceSlug({
                     user,
-                );
-                if (targetSpace === undefined) {
-                    const ancestorSpaceAccessContext =
-                        await this.getClosestAncestorSpaceAccessContext(
-                            user.userUuid,
-                            projectUuid,
-                            dashboardWithDefaults.spaceSlug,
-                        );
-                    if (
-                        ancestorSpaceAccessContext !== undefined &&
-                        auditedAbility.cannot(
-                            'create',
-                            subject('Dashboard', {
-                                ...ancestorSpaceAccessContext,
-                            }),
-                        )
-                    ) {
-                        throw new ForbiddenError(
-                            "You don't have access to create dashboards in this space",
-                        );
-                    }
-                }
+                    auditedAbility,
+                    projectUuid,
+                    spaceSlug: dashboardWithDefaults.spaceSlug,
+                    subjectType: 'Dashboard',
+                    errorMessage:
+                        "You don't have access to create dashboards in this space",
+                });
             }
 
             const { space, created: spaceCreated } =
@@ -3580,23 +3561,15 @@ export class CoderService extends BaseService {
                     allowSpaceCreate,
                 );
             if (!hasLegacyManage) {
-                const spaceAccessContexts =
-                    await this.spacePermissionService.getSpacesAccessContext(
-                        user.userUuid,
-                        [space.uuid],
-                    );
-                if (
-                    auditedAbility.cannot(
-                        'create',
-                        subject('Dashboard', {
-                            ...spaceAccessContexts[space.uuid],
-                        }),
-                    )
-                ) {
-                    throw new ForbiddenError(
+                await this.assertSpaceContentAccess({
+                    userUuid: user.userUuid,
+                    auditedAbility,
+                    action: 'create',
+                    subjectType: 'Dashboard',
+                    spaceUuids: [space.uuid],
+                    errorMessage:
                         "You don't have access to create dashboards in this space",
-                    );
-                }
+                });
             }
 
             const newDashboard = await this.dashboardModel.create(
@@ -3667,52 +3640,12 @@ export class CoderService extends BaseService {
                     "You don't have access to create spaces",
                 );
             }
-            if (!dashboard.spaceUuid) {
-                throw new ForbiddenError(
-                    "You don't have access to update this dashboard",
-                );
-            }
-
-            const spaceUuidsToCheck = [
-                dashboard.spaceUuid,
-                ...(targetSpace ? [targetSpace.uuid] : []),
-            ].filter(
-                (spaceUuid, index, spaceUuids) =>
-                    spaceUuids.indexOf(spaceUuid) === index,
-            );
-            const spaceAccessContexts =
-                await this.spacePermissionService.getSpacesAccessContext(
-                    user.userUuid,
-                    spaceUuidsToCheck,
-                );
-            if (
-                auditedAbility.cannot(
-                    'update',
-                    subject('Dashboard', {
-                        ...spaceAccessContexts[dashboard.spaceUuid],
-                        metadata: { dashboardUuid: dashboard.uuid },
-                    }),
-                )
-            ) {
-                throw new ForbiddenError(
-                    "You don't have access to update this dashboard",
-                );
-            }
-            if (
-                targetSpace !== undefined &&
-                targetSpace.uuid !== dashboard.spaceUuid &&
-                auditedAbility.cannot(
-                    'update',
-                    subject('Dashboard', {
-                        ...spaceAccessContexts[targetSpace.uuid],
-                        metadata: { dashboardUuid: dashboard.uuid },
-                    }),
-                )
-            ) {
-                throw new ForbiddenError(
-                    "You don't have access to update this dashboard",
-                );
-            }
+            await this.assertDashboardUpdateAccess({
+                userUuid: user.userUuid,
+                auditedAbility,
+                dashboard,
+                additionalSpaceUuids: targetSpace ? [targetSpace.uuid] : [],
+            });
         }
 
         const dashboardWithUuids = {
@@ -3750,24 +3683,15 @@ export class CoderService extends BaseService {
             allowSpaceCreate,
         );
         if (!hasLegacyManage && space.uuid !== targetSpace?.uuid) {
-            const spaceAccessContexts =
-                await this.spacePermissionService.getSpacesAccessContext(
-                    user.userUuid,
-                    [space.uuid],
-                );
-            if (
-                auditedAbility.cannot(
-                    'update',
-                    subject('Dashboard', {
-                        ...spaceAccessContexts[space.uuid],
-                        metadata: { dashboardUuid: dashboard.uuid },
-                    }),
-                )
-            ) {
-                throw new ForbiddenError(
-                    "You don't have access to update this dashboard",
-                );
-            }
+            await this.assertSpaceContentAccess({
+                userUuid: user.userUuid,
+                auditedAbility,
+                action: 'update',
+                subjectType: 'Dashboard',
+                spaceUuids: [space.uuid],
+                metadata: { dashboardUuid: dashboard.uuid },
+                errorMessage: "You don't have access to update this dashboard",
+            });
         }
 
         //  we force the new space on the upstreamDashboard
