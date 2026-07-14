@@ -1996,6 +1996,7 @@ export class AsyncQueryService extends ProjectService {
                               // columnIndex is omitted when no groupBy columns
                           });
                       });
+                      pivotTotalRows += rows.length;
                       await write?.(rows);
                       return;
                   }

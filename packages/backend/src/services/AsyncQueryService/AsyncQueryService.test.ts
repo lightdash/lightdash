@@ -3954,4 +3954,87 @@ describe('AsyncQueryService', () => {
             expect(mergedJson).not.toContain('customers_segment');
         });
     });
+
+    describe('runQueryAndTransformRows', () => {
+        const buildWarehouseClientStreaming = (
+            batches: Record<string, unknown>[][],
+        ) =>
+            ({
+                executeAsyncQuery: vi.fn(
+                    async (
+                        _args: unknown,
+                        streamCallback?: (
+                            rows: Record<string, unknown>[],
+                            fields: Record<string, { type: DimensionType }>,
+                        ) => void | Promise<void>,
+                    ) => {
+                        for (const batch of batches) {
+                            // eslint-disable-next-line no-await-in-loop
+                            await streamCallback?.(batch, {
+                                dim_a: { type: DimensionType.STRING },
+                                metric_x_any: { type: DimensionType.NUMBER },
+                            });
+                        }
+                        return {
+                            queryId: 'query-id',
+                            queryMetadata: null,
+                            totalRows: batches.flat().length,
+                            durationMs: 1,
+                            phaseTimings: {},
+                        };
+                    },
+                ),
+            }) as unknown as WarehouseClient;
+
+        test('counts total rows when the pivot has no groupBy columns (collapsed totals query)', async () => {
+            const batches = [
+                [
+                    { dim_a: 'a', metric_x_any: 1 },
+                    { dim_a: 'b', metric_x_any: 2 },
+                    { dim_a: 'c', metric_x_any: 3 },
+                ],
+                [
+                    { dim_a: 'd', metric_x_any: 4 },
+                    { dim_a: 'e', metric_x_any: 5 },
+                ],
+            ];
+            const write = vi.fn();
+
+            const { pivotDetails } =
+                await AsyncQueryService.runQueryAndTransformRows({
+                    warehouseClient: buildWarehouseClientStreaming(batches),
+                    query: 'SELECT 1',
+                    queryTags: {
+                        query_context: QueryExecutionContext.EXPLORE,
+                    },
+                    write,
+                    pivotConfiguration: {
+                        indexColumn: {
+                            reference: 'dim_a',
+                            type: VizIndexType.CATEGORY,
+                        },
+                        valuesColumns: [
+                            {
+                                reference: 'metric_x',
+                                aggregation: VizAggregationOptions.ANY,
+                            },
+                        ],
+                        groupByColumns: [],
+                        sortBy: undefined,
+                    },
+                    itemsMap: {},
+                    displayTimezone: null,
+                });
+
+            // Rows pass through untransformed…
+            expect(write).toHaveBeenCalledTimes(2);
+            expect(write).toHaveBeenNthCalledWith(1, batches[0]);
+            expect(write).toHaveBeenNthCalledWith(2, batches[1]);
+            // …and totalRows must reflect every streamed row, otherwise the
+            // query history records total_row_count=0 and paginated reads of
+            // the totals result stop after the first page.
+            expect(pivotDetails).not.toBeNull();
+            expect(pivotDetails?.totalRows).toBe(5);
+        });
+    });
 });
