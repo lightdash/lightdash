@@ -3,15 +3,7 @@ import {
     contentToResourceViewItem,
     type SummaryContent,
 } from '@lightdash/common';
-import {
-    ActionIcon,
-    Anchor,
-    Box,
-    Card,
-    Group,
-    Text,
-    Tooltip,
-} from '@mantine-8/core';
+import { ActionIcon, Box, Group, Text, Tooltip } from '@mantine-8/core';
 import {
     IconCircleCheckFilled,
     IconEye,
@@ -19,10 +11,11 @@ import {
     IconStarFilled,
     IconX,
 } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { type FC, type PropsWithChildren } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { ResourceIcon } from '../../../../components/common/ResourceIcon';
+import classes from './blockStyles.module.css';
 
 const contentUrl = (projectUuid: string, content: SummaryContent): string => {
     switch (content.contentType) {
@@ -40,91 +33,151 @@ type Props = {
     projectUuid: string;
     onRemove?: () => void;
     star?: { isFavorite: boolean; onToggle: () => void };
+    variant?: 'row' | 'tile';
 };
+
+const VerifiedBadge: FC<{ content: SummaryContent }> = ({ content }) =>
+    content.verification ? (
+        <Tooltip label="Verified by the data team">
+            <Box component="span" lh={0} c="green.6">
+                <MantineIcon icon={IconCircleCheckFilled} size={15} />
+            </Box>
+        </Tooltip>
+    ) : null;
+
+const KindAndViews: FC<{ content: SummaryContent }> = ({ content }) => (
+    <Group gap={5} wrap="nowrap" className={classes.rowMeta}>
+        <Text size="xs" c="dimmed" tt="capitalize" span>
+            {content.contentType}
+        </Text>
+        <Text size="xs" c="dimmed" span>
+            ·
+        </Text>
+        <MantineIcon icon={IconEye} size={12} color="ldGray.6" />
+        <Text size="xs" c="dimmed" span>
+            {content.views}
+        </Text>
+    </Group>
+);
+
+const CardActions: FC<Pick<Props, 'content' | 'onRemove' | 'star'>> = ({
+    content,
+    onRemove,
+    star,
+}) => (
+    <>
+        {star && (
+            <ActionIcon
+                variant="subtle"
+                color={star.isFavorite ? 'yellow' : 'gray'}
+                size="sm"
+                aria-label={
+                    star.isFavorite
+                        ? `Remove ${content.name} from favorites`
+                        : `Add ${content.name} to favorites`
+                }
+                onClick={(e) => {
+                    e.preventDefault();
+                    star.onToggle();
+                }}
+            >
+                <MantineIcon
+                    icon={star.isFavorite ? IconStarFilled : IconStar}
+                />
+            </ActionIcon>
+        )}
+        {onRemove && (
+            <ActionIcon
+                variant="subtle"
+                color="gray"
+                size="sm"
+                aria-label={`Remove ${content.name} from collection`}
+                onClick={(e) => {
+                    e.preventDefault();
+                    onRemove();
+                }}
+            >
+                <MantineIcon icon={IconX} />
+            </ActionIcon>
+        )}
+    </>
+);
+
+const MaybeLink: FC<
+    PropsWithChildren<{ to: string | null; className: string }>
+> = ({ to, className, children }) =>
+    to ? (
+        <Link
+            to={to}
+            className={className}
+            style={{ color: 'inherit', textDecoration: 'none' }}
+        >
+            {children}
+        </Link>
+    ) : (
+        <div className={className}>{children}</div>
+    );
 
 export const ContentCard: FC<Props> = ({
     content,
     projectUuid,
     onRemove,
     star,
+    variant = 'row',
 }) => {
-    const card = (
-        <Card withBorder p="sm" h="100%">
-            <Group gap="sm" wrap="nowrap" align="flex-start">
+    const to = onRemove ? null : contentUrl(projectUuid, content);
+    const cardClass = `${classes.hoverCard}${to ? ` ${classes.clickable}` : ''}`;
+
+    if (variant === 'tile') {
+        return (
+            <MaybeLink to={to} className={cardClass}>
+                <Box p={14} h="100%">
+                    <Group
+                        justify="space-between"
+                        align="flex-start"
+                        mb={10}
+                        wrap="nowrap"
+                    >
+                        <ResourceIcon
+                            item={contentToResourceViewItem(content)}
+                        />
+                        <CardActions
+                            content={content}
+                            onRemove={onRemove}
+                            star={star}
+                        />
+                    </Group>
+                    <Group gap={5} wrap="nowrap" mb={2}>
+                        <Text size="sm" fw={600} truncate>
+                            {content.name}
+                        </Text>
+                        <VerifiedBadge content={content} />
+                    </Group>
+                    <KindAndViews content={content} />
+                </Box>
+            </MaybeLink>
+        );
+    }
+
+    return (
+        <MaybeLink to={to} className={cardClass}>
+            <Group gap="sm" wrap="nowrap" align="center" p="sm" h="100%">
                 <ResourceIcon item={contentToResourceViewItem(content)} />
                 <Box style={{ flex: 1, minWidth: 0 }}>
                     <Group gap={4} wrap="nowrap">
                         <Text size="sm" fw={600} truncate>
                             {content.name}
                         </Text>
-                        {content.verification && (
-                            <Tooltip label="Verified by the data team">
-                                <MantineIcon
-                                    icon={IconCircleCheckFilled}
-                                    color="green"
-                                />
-                            </Tooltip>
-                        )}
+                        <VerifiedBadge content={content} />
                     </Group>
-                    <Group gap={4}>
-                        <Text size="xs" c="dimmed" tt="capitalize">
-                            {content.contentType}
-                        </Text>
-                        <Text size="xs" c="dimmed">
-                            ·
-                        </Text>
-                        <MantineIcon icon={IconEye} color="gray" size="sm" />
-                        <Text size="xs" c="dimmed">
-                            {content.views}
-                        </Text>
-                    </Group>
+                    <KindAndViews content={content} />
                 </Box>
-                {star && (
-                    <ActionIcon
-                        variant="subtle"
-                        color={star.isFavorite ? 'yellow' : 'gray'}
-                        size="sm"
-                        aria-label={
-                            star.isFavorite
-                                ? `Remove ${content.name} from favorites`
-                                : `Add ${content.name} to favorites`
-                        }
-                        onClick={(e) => {
-                            e.preventDefault();
-                            star.onToggle();
-                        }}
-                    >
-                        <MantineIcon
-                            icon={star.isFavorite ? IconStarFilled : IconStar}
-                        />
-                    </ActionIcon>
-                )}
-                {onRemove && (
-                    <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        size="sm"
-                        aria-label={`Remove ${content.name} from collection`}
-                        onClick={(e) => {
-                            e.preventDefault();
-                            onRemove();
-                        }}
-                    >
-                        <MantineIcon icon={IconX} />
-                    </ActionIcon>
-                )}
+                <CardActions
+                    content={content}
+                    onRemove={onRemove}
+                    star={star}
+                />
             </Group>
-        </Card>
-    );
-    if (onRemove) return card;
-    return (
-        <Anchor
-            component={Link}
-            to={contentUrl(projectUuid, content)}
-            underline="never"
-            c="inherit"
-        >
-            {card}
-        </Anchor>
+        </MaybeLink>
     );
 };

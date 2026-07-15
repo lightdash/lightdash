@@ -44,9 +44,9 @@ export const PublishedHomepage: FC<Props> = ({
     projectUuid,
     personalPlaceholders = false,
 }) => (
-    <Stack gap="lg" maw={920} mx="auto" w="100%">
+    <Stack gap={26} maw={1100} mx="auto" w="100%">
         {config.rows.map((row) => (
-            <Group key={row.id} gap="md" align="stretch" wrap="nowrap">
+            <Group key={row.id} gap={14} align="stretch" wrap="nowrap">
                 {row.blocks.map((block) => (
                     <Box key={block.id} style={{ flex: 1, minWidth: 0 }}>
                         <BlockRenderer

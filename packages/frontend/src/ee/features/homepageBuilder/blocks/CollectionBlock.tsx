@@ -1,6 +1,7 @@
 import {
     ContentType,
     contentToResourceViewItem,
+    ResourceViewItemType,
     type HomepageCollectionItemRef,
     type SummaryContent,
 } from '@lightdash/common';
@@ -16,17 +17,26 @@ import {
     TextInput,
 } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import { IconPin, IconPlus } from '@tabler/icons-react';
+import { IconLayoutGrid, IconPin, IconPlus } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import { ResourceIcon } from '../../../../components/common/ResourceIcon';
+import { useFavoriteMutation } from '../../../../hooks/favorites/useFavoriteMutation';
+import { useFavorites } from '../../../../hooks/favorites/useFavorites';
 import { usePinnedItems } from '../../../../hooks/pinning/usePinnedItems';
 import { useInfiniteContent } from '../../../../hooks/useContent';
 import { useProject } from '../../../../hooks/useProject';
 import { useCollectionContent } from '../hooks/useCollectionContent';
+import { BlockHeader } from './BlockShell';
+import classes from './blockStyles.module.css';
 import { ContentCard } from './ContentCard';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
+
+const toFavoriteType = (content: SummaryContent) =>
+    content.contentType === ContentType.DASHBOARD
+        ? ResourceViewItemType.DASHBOARD
+        : ResourceViewItemType.CHART;
 
 const toItemRef = (content: SummaryContent): HomepageCollectionItemRef => ({
     contentType:
@@ -117,27 +127,39 @@ export const CollectionBlockView: FC<BlockComponentProps> = ({
         projectUuid,
         uuids,
     );
+    const { data: favorites } = useFavorites(projectUuid);
+    const { mutate: toggleFavorite } = useFavoriteMutation(projectUuid);
     if (block.type !== 'collection' || block.config.items.length === 0) {
         return null;
     }
+    const favoriteUuids = new Set(
+        (favorites ?? []).map((item) => item.data.uuid),
+    );
     return (
-        <Stack gap="xs">
-            <Text size="xs" fw={600} tt="uppercase" c="dimmed">
-                {block.config.title}
-            </Text>
+        <Stack gap={0}>
+            <BlockHeader icon={IconLayoutGrid} title={block.config.title} />
             {isInitialLoading ? (
-                <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
+                <SimpleGrid cols={{ base: 1, sm: 3 }} spacing={12}>
                     {uuids.slice(0, 3).map((uuid) => (
-                        <Skeleton key={uuid} h={72} radius="md" />
+                        <Skeleton key={uuid} h={108} radius="md" />
                     ))}
                 </SimpleGrid>
             ) : (
-                <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
+                <SimpleGrid cols={{ base: 1, sm: 3 }} spacing={12}>
                     {(contents ?? []).map((content) => (
                         <ContentCard
                             key={content.uuid}
                             content={content}
                             projectUuid={projectUuid}
+                            variant="tile"
+                            star={{
+                                isFavorite: favoriteUuids.has(content.uuid),
+                                onToggle: () =>
+                                    toggleFavorite({
+                                        contentType: toFavoriteType(content),
+                                        contentUuid: content.uuid,
+                                    }),
+                            }}
                         />
                     ))}
                 </SimpleGrid>
@@ -197,12 +219,13 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
                     })
                 }
             />
-            <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
+            <SimpleGrid cols={{ base: 1, sm: 3 }} spacing={12}>
                 {(contents ?? []).map((content) => (
                     <ContentCard
                         key={content.uuid}
                         content={content}
                         projectUuid={projectUuid}
+                        variant="tile"
                         onRemove={() =>
                             onChange({
                                 ...block,
@@ -216,14 +239,20 @@ export const CollectionBlockBuild: FC<BuildComponentProps> = ({
                         }
                     />
                 ))}
-                <Button
-                    variant="default"
-                    h={72}
-                    leftSection={<MantineIcon icon={IconPlus} />}
+                <button
+                    type="button"
+                    className={classes.addContentTile}
                     onClick={() => setIsPickerOpen(true)}
                 >
-                    Add content
-                </Button>
+                    <span>
+                        <MantineIcon
+                            icon={IconPlus}
+                            size={14}
+                            style={{ marginRight: 5, verticalAlign: -2 }}
+                        />
+                        Add content
+                    </span>
+                </button>
             </SimpleGrid>
             {block.config.items.length === 0 && importablePins.length > 0 && (
                 <Button

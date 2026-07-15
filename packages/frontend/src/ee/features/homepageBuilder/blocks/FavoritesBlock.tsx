@@ -1,19 +1,24 @@
 import { ResourceViewItemType, type ResourceViewItem } from '@lightdash/common';
-import { ActionIcon, Anchor, Badge, Group, Stack, Text } from '@mantine-8/core';
+import { Group, Stack } from '@mantine-8/core';
 import {
     IconChartBar,
     IconFolder,
     IconLayoutDashboard,
+    IconStar,
     IconStarFilled,
     IconTerminal2,
     type Icon,
 } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { type FC, type MouseEvent } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useFavoriteMutation } from '../../../../hooks/favorites/useFavoriteMutation';
 import { useFavorites } from '../../../../hooks/favorites/useFavorites';
+import { BlockHeader } from './BlockShell';
+import classes from './blockStyles.module.css';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
+
+const STAR_COLOR = 'light-dark(#de7f0b, #e08a20)';
 
 const FAVORITE_ICONS: Partial<Record<ResourceViewItemType, Icon>> = {
     [ResourceViewItemType.CHART]: IconChartBar,
@@ -38,79 +43,54 @@ const favoriteUrl = (projectUuid: string, item: ResourceViewItem): string => {
 const FavoritePills: FC<{
     projectUuid: string;
     isInteractive: boolean;
-}> = ({ projectUuid, isInteractive }) => {
+    emptyText: string;
+}> = ({ projectUuid, isInteractive, emptyText }) => {
     const { data: favorites } = useFavorites(projectUuid);
     const { mutate: toggleFavorite } = useFavoriteMutation(projectUuid);
 
     if (!favorites || favorites.length === 0) {
-        return (
-            <Text
-                size="xs"
-                c="dimmed"
-                p="sm"
-                style={{
-                    border: '1px dashed var(--mantine-color-gray-4)',
-                    borderRadius: 8,
-                }}
-            >
-                Star any dashboard or chart to keep it here — each person sees
-                their own favorites.
-            </Text>
-        );
+        return <div className={classes.dashedEmpty}>{emptyText}</div>;
     }
 
+    const handleUnfavorite = (e: MouseEvent, item: ResourceViewItem) => {
+        e.preventDefault();
+        toggleFavorite({
+            contentType: item.type,
+            contentUuid: item.data.uuid,
+        });
+    };
+
     return (
-        <Group gap="xs">
+        <Group gap={8}>
             {favorites.map((item) => (
-                <Anchor
+                <Link
                     key={item.data.uuid}
-                    component={Link}
                     to={favoriteUrl(projectUuid, item)}
-                    underline="never"
-                    c="inherit"
+                    className={classes.favPill}
                 >
-                    <Group
-                        gap={6}
-                        px="sm"
-                        py={6}
-                        style={{
-                            border: '1px solid var(--mantine-color-gray-3)',
-                            borderRadius: 8,
-                        }}
-                        wrap="nowrap"
-                    >
+                    <MantineIcon
+                        icon={FAVORITE_ICONS[item.type] ?? IconChartBar}
+                        size={15}
+                        color="ldGray.6"
+                    />
+                    {item.data.name}
+                    {isInteractive ? (
                         <MantineIcon
-                            icon={FAVORITE_ICONS[item.type] ?? IconChartBar}
-                            color="gray"
+                            icon={IconStarFilled}
+                            size={13}
+                            color={STAR_COLOR}
+                            style={{ cursor: 'pointer' }}
+                            aria-label={`Remove ${item.data.name} from favorites`}
+                            onClick={(e) => handleUnfavorite(e, item)}
                         />
-                        <Text size="sm" fw={500}>
-                            {item.data.name}
-                        </Text>
-                        {isInteractive ? (
-                            <ActionIcon
-                                variant="transparent"
-                                color="yellow"
-                                size="xs"
-                                aria-label={`Remove ${item.data.name} from favorites`}
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    toggleFavorite({
-                                        contentType: item.type,
-                                        contentUuid: item.data.uuid,
-                                    });
-                                }}
-                            >
-                                <MantineIcon icon={IconStarFilled} />
-                            </ActionIcon>
-                        ) : (
-                            <MantineIcon
-                                icon={IconStarFilled}
-                                color="yellow"
-                                size="sm"
-                            />
-                        )}
-                    </Group>
-                </Anchor>
+                    ) : (
+                        <MantineIcon
+                            icon={IconStarFilled}
+                            size={13}
+                            color={STAR_COLOR}
+                        />
+                    )}
+                </Link>
             ))}
         </Group>
     );
@@ -119,16 +99,19 @@ const FavoritePills: FC<{
 export const PersonalFavoritesStrip: FC<{ projectUuid: string }> = ({
     projectUuid,
 }) => (
-    <Stack gap="xs">
-        <Group gap="xs">
-            <Text size="xs" fw={600} tt="uppercase" c="dimmed">
-                Your favorites
-            </Text>
-            <Badge variant="default" size="xs" tt="none">
-                Only you see this
-            </Badge>
-        </Group>
-        <FavoritePills projectUuid={projectUuid} isInteractive />
+    <Stack gap={0}>
+        <BlockHeader
+            icon={IconStar}
+            iconColor={STAR_COLOR}
+            title="My favorites"
+            pill="Only you see this"
+            mb={10}
+        />
+        <FavoritePills
+            projectUuid={projectUuid}
+            isInteractive
+            emptyText="Star any dashboard or chart below to keep it here, on every homepage."
+        />
     </Stack>
 );
 
@@ -138,16 +121,18 @@ export const FavoritesBlockView: FC<BlockComponentProps> = ({
 }) => {
     if (block.type !== 'favorites') return null;
     return (
-        <Stack gap="xs">
-            <Group gap="xs">
-                <Text size="xs" fw={600} tt="uppercase" c="dimmed">
-                    {block.config.title}
-                </Text>
-                <Badge variant="default" size="xs" tt="none">
-                    Only you see this
-                </Badge>
-            </Group>
-            <FavoritePills projectUuid={projectUuid} isInteractive />
+        <Stack gap={0}>
+            <BlockHeader
+                icon={IconStar}
+                iconColor={STAR_COLOR}
+                title={block.config.title}
+                pill="Only you see this"
+            />
+            <FavoritePills
+                projectUuid={projectUuid}
+                isInteractive
+                emptyText="Star any dashboard or chart to keep it here — each person sees their own favorites."
+            />
         </Stack>
     );
 };
@@ -158,20 +143,22 @@ export const FavoritesBlockBuild: FC<BuildComponentProps> = ({
 }) => {
     if (block.type !== 'favorites') return null;
     return (
-        <Stack gap="xs">
-            <Group gap="xs">
-                <Text size="xs" fw={600} tt="uppercase" c="dimmed">
-                    {block.config.title}
-                </Text>
-                <Badge variant="default" size="xs" tt="none">
-                    Personal per viewer
-                </Badge>
-            </Group>
-            <FavoritePills projectUuid={projectUuid} isInteractive={false} />
-            <Text size="xs" c="dimmed">
+        <Stack gap={0}>
+            <BlockHeader
+                icon={IconStar}
+                iconColor={STAR_COLOR}
+                title={block.config.title}
+                pill="Personal per viewer"
+            />
+            <FavoritePills
+                projectUuid={projectUuid}
+                isInteractive={false}
+                emptyText="Empty until this viewer stars something — each person sees their own favorites here."
+            />
+            <div className={classes.buildHint}>
                 Showing your favorites as a sample — every viewer sees their
                 own.
-            </Text>
+            </div>
         </Stack>
     );
 };

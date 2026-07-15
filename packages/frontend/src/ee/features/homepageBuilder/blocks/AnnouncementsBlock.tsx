@@ -1,18 +1,12 @@
 import { type HomepageAnnouncementItem } from '@lightdash/common';
-import {
-    ActionIcon,
-    Box,
-    Card,
-    Group,
-    Stack,
-    Text,
-    Textarea,
-} from '@mantine-8/core';
-import { IconSend, IconX } from '@tabler/icons-react';
+import { ActionIcon, Group, Stack, Textarea } from '@mantine-8/core';
+import { IconSend, IconSpeakerphone, IconX } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { useTimeAgo } from '../../../../hooks/useTimeAgo';
 import useApp from '../../../../providers/App/useApp';
+import { BlockHeader } from './BlockShell';
+import classes from './blockStyles.module.css';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
 const AnnouncementRow: FC<{
@@ -21,20 +15,16 @@ const AnnouncementRow: FC<{
 }> = ({ item, onRemove }) => {
     const timeAgo = useTimeAgo(item.date);
     return (
-        <Group gap="sm" wrap="nowrap" p="sm" align="flex-start">
-            <Box
-                w={7}
-                h={7}
-                mt={6}
-                bg="violet"
-                style={{ borderRadius: '50%', flexShrink: 0 }}
-            />
-            <Box style={{ flex: 1, minWidth: 0 }}>
-                <Text size="sm">{item.text}</Text>
-                <Text size="xs" c="dimmed" mt={2}>
+        <div className={classes.listRow} style={{ alignItems: 'flex-start' }}>
+            <span className={classes.announcementDot} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, lineHeight: 1.45 }}>
+                    {item.text}
+                </div>
+                <div className={classes.rowAside} style={{ marginTop: 2 }}>
                     {timeAgo} · {item.author}
-                </Text>
-            </Box>
+                </div>
+            </div>
             {onRemove && (
                 <ActionIcon
                     variant="subtle"
@@ -46,7 +36,7 @@ const AnnouncementRow: FC<{
                     <MantineIcon icon={IconX} />
                 </ActionIcon>
             )}
-        </Group>
+        </div>
     );
 };
 
@@ -55,20 +45,20 @@ export const AnnouncementsBlockView: FC<BlockComponentProps> = ({ block }) => {
         return null;
     }
     return (
-        <Stack gap="xs">
-            <Text size="xs" fw={600} tt="uppercase" c="dimmed">
-                {block.config.title}
-            </Text>
-            <Card withBorder p={0}>
-                <Stack gap={0}>
-                    {block.config.items.map((item) => (
-                        <AnnouncementRow
-                            key={`${item.date}-${item.author}`}
-                            item={item}
-                        />
-                    ))}
-                </Stack>
-            </Card>
+        <Stack gap={0}>
+            <BlockHeader
+                icon={IconSpeakerphone}
+                iconColor="#7262FF"
+                title={block.config.title}
+            />
+            <div className={classes.listCard}>
+                {block.config.items.map((item) => (
+                    <AnnouncementRow
+                        key={`${item.date}-${item.author}`}
+                        item={item}
+                    />
+                ))}
+            </div>
         </Stack>
     );
 };
@@ -105,31 +95,31 @@ export const AnnouncementsBlockBuild: FC<BuildComponentProps> = ({
     };
 
     return (
-        <Stack gap="xs">
-            <Text size="xs" fw={600} tt="uppercase" c="dimmed">
-                {block.config.title}
-            </Text>
-            <Card withBorder p={0}>
-                <Stack gap={0}>
-                    {block.config.items.map((item, index) => (
-                        <AnnouncementRow
-                            key={`${item.date}-${item.author}`}
-                            item={item}
-                            onRemove={() =>
-                                onChange({
-                                    ...block,
-                                    config: {
-                                        ...block.config,
-                                        items: block.config.items.filter(
-                                            (_, i) => i !== index,
-                                        ),
-                                    },
-                                })
-                            }
-                        />
-                    ))}
-                </Stack>
-            </Card>
+        <Stack gap={0}>
+            <BlockHeader
+                icon={IconSpeakerphone}
+                iconColor="#7262FF"
+                title={block.config.title}
+            />
+            <div className={classes.listCard} style={{ marginBottom: 8 }}>
+                {block.config.items.map((item, index) => (
+                    <AnnouncementRow
+                        key={`${item.date}-${item.author}`}
+                        item={item}
+                        onRemove={() =>
+                            onChange({
+                                ...block,
+                                config: {
+                                    ...block.config,
+                                    items: block.config.items.filter(
+                                        (_, i) => i !== index,
+                                    ),
+                                },
+                            })
+                        }
+                    />
+                ))}
+            </div>
             <Group gap="xs" align="flex-end">
                 <Textarea
                     aria-label="New announcement"

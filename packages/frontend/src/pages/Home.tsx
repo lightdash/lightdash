@@ -1,7 +1,7 @@
 import { subject } from '@casl/ability';
 import { DbtProjectType, ProjectType } from '@lightdash/common';
-import { Button, Group, Stack } from '@mantine-8/core';
-import { IconEdit } from '@tabler/icons-react';
+import { Box, Button, Group, Stack } from '@mantine-8/core';
+import { IconEdit, IconPlus } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import { useUnmount } from 'react-use';
@@ -111,7 +111,7 @@ const Home: FC = () => {
             row.blocks.some((block) => block.type === 'favorites'),
         );
         return (
-            <Page withFixedContent withPaddedContent withFooter>
+            <Page withPaddedContent withFooter>
                 <Stack gap="md">
                     <Can
                         I="manage"
@@ -120,9 +120,20 @@ const Home: FC = () => {
                             projectUuid: project.data.projectUuid,
                         })}
                     >
-                        <Group justify="flex-end">
+                        <Group justify="flex-end" gap="xs">
                             <Button
                                 variant="default"
+                                size="xs"
+                                leftSection={<MantineIcon icon={IconPlus} />}
+                                onClick={() =>
+                                    navigate(
+                                        `/projects/${project.data.projectUuid}/homepage-builder?create=1`,
+                                    )
+                                }
+                            >
+                                New homepage
+                            </Button>
+                            <Button
                                 size="xs"
                                 leftSection={<MantineIcon icon={IconEdit} />}
                                 onClick={() =>
@@ -135,15 +146,17 @@ const Home: FC = () => {
                             </Button>
                         </Group>
                     </Can>
+                    {homepage.allowPersonal && !hasFavoritesBlock && (
+                        <Box maw={1100} mx="auto" w="100%">
+                            <PersonalFavoritesStrip
+                                projectUuid={project.data.projectUuid}
+                            />
+                        </Box>
+                    )}
                     <PublishedHomepage
                         config={homepage.config}
                         projectUuid={project.data.projectUuid}
                     />
-                    {homepage.allowPersonal && !hasFavoritesBlock && (
-                        <PersonalFavoritesStrip
-                            projectUuid={project.data.projectUuid}
-                        />
-                    )}
                 </Stack>
             </Page>
         );
@@ -155,7 +168,7 @@ const Home: FC = () => {
         onboarding.data.ranQuery
     ) {
         return (
-            <Page withFixedContent withPaddedContent withFooter>
+            <Page withPaddedContent withFooter>
                 <Stack gap="md">
                     <Can
                         I="manage"
