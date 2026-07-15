@@ -1546,6 +1546,107 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HomepageResourceKind: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'union',
+            subSchemas: [
+                { dataType: 'enum', enums: ['video'] },
+                { dataType: 'enum', enums: ['doc'] },
+                { dataType: 'enum', enums: ['link'] },
+            ],
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HomepageResourceItem: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                kind: { ref: 'HomepageResourceKind', required: true },
+                url: { dataType: 'string', required: true },
+                title: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HomepageResourcesBlock: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                config: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        items: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'HomepageResourceItem',
+                            },
+                            required: true,
+                        },
+                        title: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
+                type: {
+                    dataType: 'enum',
+                    enums: ['resources'],
+                    required: true,
+                },
+                id: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HomepageAnnouncementItem: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                author: { dataType: 'string', required: true },
+                date: { dataType: 'string', required: true },
+                text: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HomepageAnnouncementsBlock: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                config: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        items: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'HomepageAnnouncementItem',
+                            },
+                            required: true,
+                        },
+                        title: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
+                type: {
+                    dataType: 'enum',
+                    enums: ['announcements'],
+                    required: true,
+                },
+                id: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     HomepageBlock: {
         dataType: 'refAlias',
         type: {
@@ -1555,6 +1656,8 @@ const models: TsoaRoute.Models = {
                 { ref: 'HomepageHeroBlock' },
                 { ref: 'HomepageAiBlock' },
                 { ref: 'HomepageCollectionBlock' },
+                { ref: 'HomepageResourcesBlock' },
+                { ref: 'HomepageAnnouncementsBlock' },
             ],
             validators: {},
         },

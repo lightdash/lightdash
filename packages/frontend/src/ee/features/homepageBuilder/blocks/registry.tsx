@@ -1,17 +1,24 @@
 import { type HomepageBlock } from '@lightdash/common';
 import {
+    IconBook,
     IconLayoutGrid,
     IconMarkdown,
     IconSparkles,
+    IconSpeakerphone,
     IconTypography,
     type Icon,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { AiBlockBuild, AiBlockView } from './AiBlock';
+import {
+    AnnouncementsBlockBuild,
+    AnnouncementsBlockView,
+} from './AnnouncementsBlock';
 import { CollectionBlockBuild, CollectionBlockView } from './CollectionBlock';
 import { HeroBlockBuild, HeroBlockView } from './HeroBlock';
 import { MarkdownBlockBuild, MarkdownBlockView } from './MarkdownBlock';
+import { ResourcesBlockBuild, ResourcesBlockView } from './ResourcesBlock';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
 export type BlockDefinition = {
@@ -69,6 +76,32 @@ export const blockLibrary: BlockDefinition[] = [
         }),
         View: CollectionBlockView,
         Build: CollectionBlockBuild,
+    },
+    {
+        type: 'resources',
+        label: 'Resources',
+        description: 'Curated links — docs, videos, request forms.',
+        icon: IconBook,
+        create: () => ({
+            id: uuidv4(),
+            type: 'resources',
+            config: { title: 'Getting started', items: [] },
+        }),
+        View: ResourcesBlockView,
+        Build: ResourcesBlockBuild,
+    },
+    {
+        type: 'announcements',
+        label: 'Announcements',
+        description: 'Updates from the data team, newest first.',
+        icon: IconSpeakerphone,
+        create: () => ({
+            id: uuidv4(),
+            type: 'announcements',
+            config: { title: 'From the data team', items: [] },
+        }),
+        View: AnnouncementsBlockView,
+        Build: AnnouncementsBlockBuild,
     },
     {
         type: 'markdown',

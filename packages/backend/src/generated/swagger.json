@@ -1542,6 +1542,98 @@
                 "required": ["config", "type", "id"],
                 "type": "object"
             },
+            "HomepageResourceKind": {
+                "type": "string",
+                "enum": ["video", "doc", "link"]
+            },
+            "HomepageResourceItem": {
+                "properties": {
+                    "kind": {
+                        "$ref": "#/components/schemas/HomepageResourceKind"
+                    },
+                    "url": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    }
+                },
+                "required": ["kind", "url", "title"],
+                "type": "object"
+            },
+            "HomepageResourcesBlock": {
+                "properties": {
+                    "config": {
+                        "properties": {
+                            "items": {
+                                "items": {
+                                    "$ref": "#/components/schemas/HomepageResourceItem"
+                                },
+                                "type": "array"
+                            },
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["items", "title"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["resources"],
+                        "nullable": false
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["config", "type", "id"],
+                "type": "object"
+            },
+            "HomepageAnnouncementItem": {
+                "properties": {
+                    "author": {
+                        "type": "string"
+                    },
+                    "date": {
+                        "type": "string"
+                    },
+                    "text": {
+                        "type": "string"
+                    }
+                },
+                "required": ["author", "date", "text"],
+                "type": "object"
+            },
+            "HomepageAnnouncementsBlock": {
+                "properties": {
+                    "config": {
+                        "properties": {
+                            "items": {
+                                "items": {
+                                    "$ref": "#/components/schemas/HomepageAnnouncementItem"
+                                },
+                                "type": "array"
+                            },
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["items", "title"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["announcements"],
+                        "nullable": false
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["config", "type", "id"],
+                "type": "object"
+            },
             "HomepageBlock": {
                 "anyOf": [
                     {
@@ -1555,6 +1647,12 @@
                     },
                     {
                         "$ref": "#/components/schemas/HomepageCollectionBlock"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HomepageResourcesBlock"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HomepageAnnouncementsBlock"
                     }
                 ]
             },
