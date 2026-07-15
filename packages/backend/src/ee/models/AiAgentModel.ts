@@ -2674,6 +2674,38 @@ export class AiAgentModel {
         return result?.instruction ?? null;
     }
 
+    async findLastUsedProjectUuid({
+        organizationUuid,
+        userUuid,
+        projectUuids,
+    }: {
+        organizationUuid: string;
+        userUuid: string;
+        projectUuids: string[];
+    }): Promise<string | undefined> {
+        if (projectUuids.length === 0) return undefined;
+
+        const row = await this.database(AiPromptTableName)
+            .join(
+                AiThreadTableName,
+                `${AiPromptTableName}.ai_thread_uuid`,
+                `${AiThreadTableName}.ai_thread_uuid`,
+            )
+            .where(`${AiPromptTableName}.created_by_user_uuid`, userUuid)
+            .andWhere(
+                `${AiThreadTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .whereIn(`${AiThreadTableName}.project_uuid`, projectUuids)
+            .orderBy(`${AiPromptTableName}.created_at`, 'desc')
+            .select<Pick<DbAiThread, 'project_uuid'>>(
+                `${AiThreadTableName}.project_uuid`,
+            )
+            .first();
+
+        return row?.project_uuid;
+    }
+
     async deleteAgent({
         organizationUuid,
         agentUuid,

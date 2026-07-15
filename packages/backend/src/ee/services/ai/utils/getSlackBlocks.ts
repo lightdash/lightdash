@@ -1038,6 +1038,7 @@ const buildAgentOptionGroups = (
     agents: AgentSelectOption[],
     projectMap: Map<string, string>,
     buildValue: (agent: AgentSelectOption) => string,
+    lastUsedProjectUuid?: string,
 ) => {
     const agentsByProject = new Map<string, AgentSelectOption[]>();
     for (const agent of agents) {
@@ -1051,16 +1052,22 @@ const buildAgentOptionGroups = (
 
     return Array.from(agentsByProject.entries())
         .map(([projectUuid, projectAgents]) => ({
+            projectUuid,
+            name: projectMap.get(projectUuid) ?? 'Other projects',
+            agents: projectAgents,
+        }))
+        .sort((a, b) => {
+            if (a.projectUuid === lastUsedProjectUuid) return -1;
+            if (b.projectUuid === lastUsedProjectUuid) return 1;
+            return a.name.localeCompare(b.name);
+        })
+        .map((group) => ({
             label: {
                 type: 'plain_text' as const,
-                text: truncateSlackText(
-                    projectMap.get(projectUuid) || projectUuid,
-                    75,
-                ),
+                text: truncateSlackText(group.name, 75),
             },
-            options: buildAgentOptions(projectAgents, buildValue),
-        }))
-        .sort((a, b) => a.label.text.localeCompare(b.label.text));
+            options: buildAgentOptions(group.agents, buildValue),
+        }));
 };
 
 const buildAgentSelectBlocks = (args: {
@@ -1222,6 +1229,7 @@ export function getChannelLinkAgentSelectionBlocks(
     agents: AgentSelectOption[],
     channelId: string,
     projectMap: Map<string, string>,
+    lastUsedProjectUuid?: string,
 ): (Block | KnownBlock)[] {
     const limitedAgents = [...agents]
         .sort((a, b) => a.name.localeCompare(b.name))
@@ -1237,6 +1245,7 @@ export function getChannelLinkAgentSelectionBlocks(
                 projectMap,
                 // Slack caps option values at 150 chars — keep names out of the value.
                 (agent) => JSON.stringify({ a: agent.uuid, c: channelId }),
+                lastUsedProjectUuid,
             ),
         },
     });
