@@ -6,12 +6,12 @@
     // cache-hit on a fresh runner restores everything except the parser and backend tests fail.
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", "build/**", "src/grammar/parser.js"],
+      "outputs": ["dist/**", "build/**", "src/grammar/parser.js", "src/generated/routes.ts", "src/generated/swagger.json"],
       "cache": true
     },
     "build:fast": {
       "dependsOn": ["^build:fast"],
-      "outputs": ["dist/**", "build/**", "src/grammar/parser.js"],
+      "outputs": ["dist/**", "build/**", "src/grammar/parser.js", "src/generated/routes.ts", "src/generated/swagger.json"],
       "cache": true
     },
     "typecheck": {
