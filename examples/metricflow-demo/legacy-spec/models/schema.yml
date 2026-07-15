@@ -82,7 +82,7 @@ semantic_models:
         agg: count_distinct
         expr: customer_id
         create_metric: true
-      # ── Unsupported: sum_boolean has no Lightdash equivalent (skipped) ──
+      # sum_boolean translates to a Lightdash sum over CASE WHEN bool THEN 1 ELSE 0
       - name: food_order_count
         agg: sum_boolean
         expr: is_food_order
@@ -127,21 +127,39 @@ metrics:
     type_params:
       measure: p95_order_value
 
-  # ── Unsupported metric shapes (skipped with a warning on deploy) ──
+  # ── Filtered metrics: same-model Dimension() filters translate to a
+  #    CASE WHEN inside the Lightdash metric SQL ──
   - name: completed_revenue
     label: Completed revenue
-    description: Filtered metrics cannot be translated to Lightdash.
+    description: Revenue from completed orders only.
     type: simple
     type_params:
       measure: total_revenue
     filter: |
       {{ Dimension('order__status') }} = 'completed'
+
+  # ── Ratio metrics: translate to a Lightdash `number` metric dividing the
+  #    two input metrics (inputs must live on the same model) ──
   - name: revenue_per_order
     label: Revenue per order (ratio)
     type: ratio
     type_params:
       numerator: total_revenue
       denominator: order_count
+  # A filtered numerator compiles the filter into a hidden helper metric.
+  - name: completion_rate
+    label: Completion rate
+    description: Share of orders that are completed.
+    type: ratio
+    type_params:
+      numerator:
+        name: order_count
+        filter: |
+          {{ Dimension('order__status') }} = 'completed'
+      denominator: order_count
+
+  # ── Derived metrics: translate to a Lightdash `number` metric with the
+  #    expression rewritten over the input metrics ──
   - name: revenue_per_customer
     label: Revenue per customer (derived)
     type: derived
@@ -150,6 +168,8 @@ metrics:
       metrics:
         - name: total_revenue
         - name: unique_customers
+
+  # ── Still unsupported (skipped with a warning on deploy) ──
   - name: cumulative_revenue
     label: Cumulative revenue
     type: cumulative

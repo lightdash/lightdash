@@ -32,6 +32,7 @@ import type {
     ApiAiAgentVerifiedArtifactsResponse,
     ApiAiDashboardSummaryResponse,
     ApiAiGenerateChartMetadataResponse,
+    ApiAiGenerateCustomDimensionResponse,
     ApiAiGenerateFormulaTableCalculationResponse,
     ApiAiGenerateTableCalculationResponse,
     ApiAiGetDashboardSummaryResponse,
@@ -168,7 +169,11 @@ import {
     type PullRequestCreated,
     type PullRequestPreview,
 } from './gitIntegration';
-import type { ApiGroupListResponse } from './groups';
+import type {
+    ApiGroupAsCodeListResponse,
+    ApiGroupAsCodeUpsertResponse,
+    ApiGroupListResponse,
+} from './groups';
 import { type ApiImpersonationOrganizationSettingsResponse } from './impersonationOrganizationSettings';
 import { type MetricQuery, type QueryWarning } from './metricQuery';
 import type {
@@ -290,6 +295,8 @@ import { type GroupType, type TableBase } from './table';
 import { type ApiCreateTagResponse } from './tags';
 import { type ApiUpstreamDiffResults } from './upstreamDiff';
 import {
+    type ApiUserAsCodeListResponse,
+    type ApiUserAsCodeUpsertResponse,
     type LightdashUser,
     type LoginOptions,
     type UserAllowedOrganization,
@@ -311,6 +318,10 @@ import {
     type ApiWarehouseTableFields,
     type ApiWarehouseTablesCatalog,
 } from './warehouse';
+import {
+    type ApiWarehouseConnectCodeClaimResponse,
+    type ApiWarehouseConnectCodeResponse,
+} from './warehouseConnectCode';
 
 export type ApiGetDashboardPreAggregateAuditResponse = {
     status: 'ok';
@@ -415,13 +426,29 @@ export type ActivateUserWithInviteCode = ActivateUser & {
     inviteCode: string;
 };
 
+export type CreateEmailOnlyUserArgs = {
+    email: Email;
+};
+
 export type RegisterOrActivateUser =
     | ActivateUserWithInviteCode
-    | CreateUserArgs;
+    | CreateUserArgs
+    | CreateEmailOnlyUserArgs;
 
 export const hasInviteCode = (
     data: RegisterOrActivateUser,
-): data is ActivateUserWithInviteCode => 'inviteCode' in data;
+): data is ActivateUserWithInviteCode =>
+    'inviteCode' in data &&
+    typeof data.inviteCode === 'string' &&
+    data.inviteCode.length > 0;
+
+export const isEmailOnlyUser = (
+    data: RegisterOrActivateUser,
+): data is CreateEmailOnlyUserArgs =>
+    !('inviteCode' in data) &&
+    !('password' in data) &&
+    !('firstName' in data) &&
+    !('lastName' in data);
 
 export type SentryConfig = {
     backend: {
@@ -571,6 +598,7 @@ export type HealthState = {
         overrideColorPalette: string[] | undefined;
         overrideColorPaletteName: string | undefined;
     };
+    hasBrandfetch: boolean;
     isCustomRolesEnabled: boolean;
     embedding: {
         enabled: boolean;
@@ -990,6 +1018,8 @@ export type ProjectSavedChartStatus = boolean;
 export type ApiFlashResults = Record<string, string[]>;
 
 type ApiResults =
+    | ApiWarehouseConnectCodeResponse['results']
+    | ApiWarehouseConnectCodeClaimResponse['results']
     | ApiQueryResults
     | ApiSqlQueryResults
     | ApiCompiledQueryResults
@@ -1104,6 +1134,7 @@ type ApiResults =
     | ApiAiDashboardSummaryResponse['results']
     | ApiAiGetDashboardSummaryResponse['results']
     | ApiAiGenerateChartMetadataResponse['results']
+    | ApiAiGenerateCustomDimensionResponse['results']
     | ApiAiGenerateFormulaTableCalculationResponse['results']
     | ApiAiGenerateTableCalculationResponse['results']
     | ApiCatalogMetadataResults
@@ -1124,12 +1155,16 @@ type ApiResults =
     | ApiMetricsCatalog['results']
     | ApiMetricsExplorerQueryResults['results']
     | ApiGroupListResponse['results']
+    | ApiGroupAsCodeListResponse['results']
+    | ApiGroupAsCodeUpsertResponse['results']
     | ApiPullRequestsResponse['results']
     | ApiCreateTagResponse['results']
     | ApiAgentAsCodeListResponse['results']
     | ApiAgentAsCodeUpsertResponse['results']
     | ApiCustomRoleAsCodeListResponse['results']
     | ApiCustomRoleAsCodeUpsertResponse['results']
+    | ApiUserAsCodeListResponse['results']
+    | ApiUserAsCodeUpsertResponse['results']
     | ApiAlertAsCodeListResponse['results']
     | ApiAlertAsCodeUpsertResponse['results']
     | ApiChartAsCodeListResponse['results']

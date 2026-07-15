@@ -46,6 +46,7 @@ import {
     getLtreePathFromContentAsCodePath,
     getParameterReferences,
     isChartScheduler,
+    isCustomSqlDimension,
     isDashboardScheduler,
     isEmailTarget,
     isExploreError,
@@ -55,6 +56,7 @@ import {
     isSchedulerGsheetsOptions,
     isSchedulerImageOptions,
     isSlackTarget,
+    isSqlTableCalculation,
     NotFoundError,
     NotificationFrequency,
     ParameterError,
@@ -77,6 +79,7 @@ import {
     UpdatedByUser,
     VirtualViewAsCode,
     type ContentVerificationInfo,
+    type CustomDimension,
     type DashboardConfig,
     type DashboardTileWithSlug,
     type DateZoomConfig,
@@ -90,6 +93,7 @@ import {
     type FiltersInput,
     type GoogleSheetsSyncAsCode,
     type SpaceSummaryBase,
+    type TableCalculation,
 } from '@lightdash/common';
 import isEqual from 'lodash/isEqual';
 import { v4 as uuidv4 } from 'uuid';
@@ -111,6 +115,24 @@ import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { SchedulerService } from '../SchedulerService/SchedulerService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import { paginateAsCode } from './pagination';
+
+type ContentAsCodeSpaceContentMetadata = {
+    savedChartUuid?: string;
+    dashboardUuid?: string;
+    savedSqlUuid?: string | null;
+};
+
+type ContentAsCodeSqlPermissionCheckResult = {
+    check: 'customSqlDimension' | 'sqlTableCalculation';
+    message: string;
+};
+
+type CurrentChartSqlItems = {
+    metricQuery: {
+        customDimensions?: CustomDimension[];
+        tableCalculations?: TableCalculation[];
+    };
+};
 
 type CoderServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -253,6 +275,66 @@ export class CoderService extends BaseService {
     contentVerificationModel: ContentVerificationModel;
 
     projectService?: ProjectService;
+
+    static getChartContentAsCodePermissionChecks(
+        nextChart: ChartAsCode,
+        currentChart?: CurrentChartSqlItems,
+    ): ContentAsCodeSqlPermissionCheckResult[] {
+        const checks: ContentAsCodeSqlPermissionCheckResult[] = [];
+        const currentMetricQuery = currentChart?.metricQuery;
+
+        const currentSqlDimensionsById = new Map(
+            (currentMetricQuery?.customDimensions ?? [])
+                .filter(isCustomSqlDimension)
+                .map((dimension) => [dimension.id, dimension]),
+        );
+        const newOrChangedSqlDimensionIds = (
+            nextChart.metricQuery.customDimensions ?? []
+        )
+            .filter(isCustomSqlDimension)
+            .filter((dimension) => {
+                const current = currentSqlDimensionsById.get(dimension.id);
+                return !current || current.sql !== dimension.sql;
+            })
+            .map((dimension) => dimension.id);
+
+        if (newOrChangedSqlDimensionIds.length > 0) {
+            checks.push({
+                check: 'customSqlDimension',
+                message: `User cannot upload content with new or modified custom SQL dimensions: ${newOrChangedSqlDimensionIds.join(
+                    ', ',
+                )} (chart slug "${nextChart.slug}")`,
+            });
+        }
+
+        const currentSqlTableCalculationsByName = new Map(
+            (currentMetricQuery?.tableCalculations ?? [])
+                .filter(isSqlTableCalculation)
+                .map((calculation) => [calculation.name, calculation]),
+        );
+        const newOrChangedSqlTableCalculationNames = (
+            nextChart.metricQuery.tableCalculations ?? []
+        )
+            .filter(isSqlTableCalculation)
+            .filter((calculation) => {
+                const current = currentSqlTableCalculationsByName.get(
+                    calculation.name,
+                );
+                return !current || current.sql !== calculation.sql;
+            })
+            .map((calculation) => calculation.name);
+
+        if (newOrChangedSqlTableCalculationNames.length > 0) {
+            checks.push({
+                check: 'sqlTableCalculation',
+                message: `User cannot upload content with new or modified SQL table calculations: ${newOrChangedSqlTableCalculationNames.join(
+                    ', ',
+                )} (chart slug "${nextChart.slug}")`,
+            });
+        }
+
+        return checks;
+    }
 
     constructor({
         lightdashConfig,
@@ -565,6 +647,51 @@ export class CoderService extends BaseService {
             false,
         );
         return { action: PromotionAction.CREATE };
+    }
+
+    private static handleContentAsCodeSqlPermissionChecks({
+        checks,
+        auditedAbility,
+        project,
+        slug,
+    }: {
+        checks: ContentAsCodeSqlPermissionCheckResult[];
+        auditedAbility: ReturnType<CoderService['createAuditedAbility']>;
+        project: Pick<Project, 'projectUuid' | 'organizationUuid'>;
+        slug: string;
+    }) {
+        const missingChecks = checks.filter(({ check }) => {
+            switch (check) {
+                case 'customSqlDimension':
+                    return auditedAbility.cannot(
+                        'manage',
+                        subject('CustomFields', {
+                            organizationUuid: project.organizationUuid,
+                            projectUuid: project.projectUuid,
+                            metadata: { slug },
+                        }),
+                    );
+                case 'sqlTableCalculation':
+                    return auditedAbility.cannot(
+                        'manage',
+                        subject('CustomSqlTableCalculations', {
+                            organizationUuid: project.organizationUuid,
+                            projectUuid: project.projectUuid,
+                            metadata: { slug },
+                        }),
+                    );
+                default:
+                    return assertUnreachable(
+                        check,
+                        `Unknown content-as-code SQL permission check: ${check}`,
+                    );
+            }
+        });
+
+        if (missingChecks.length === 0) return;
+        throw new ForbiddenError(
+            missingChecks.map(({ message }) => message).join('; '),
+        );
     }
 
     private static transformSpaces(
@@ -2550,21 +2677,12 @@ export class CoderService extends BaseService {
         const project = await this.projectModel.get(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('ContentAsCode', {
-                    projectUuid: project.projectUuid,
-                    organizationUuid: project.organizationUuid,
-                    upstreamProjectUuid: project.upstreamProjectUuid,
-                    type: project.type,
-                    createdByUserUuid: project.createdByUserUuid,
-                    metadata: { slug },
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
+        const { canUploadAnyContent, allowSpaceCreate } =
+            CoderService.checkContentAsCodeWriteAccess({
+                auditedAbility,
+                project,
+                slug,
+            });
 
         // Default optional fields when missing (e.g. user-authored YAML)
         const chartWithDefaults = {
@@ -2597,6 +2715,26 @@ export class CoderService extends BaseService {
         // If chart does not exist, we can't use promoteService,
         // since it relies on information that's not available in ChartAsCode, and other uuids
         if (chart === undefined) {
+            if (!canUploadAnyContent) {
+                CoderService.handleContentAsCodeSqlPermissionChecks({
+                    checks: CoderService.getChartContentAsCodePermissionChecks(
+                        chartWithDefaults,
+                    ),
+                    auditedAbility,
+                    project,
+                    slug,
+                });
+
+                await this.assertCreateAccessForSpaceSlug({
+                    user,
+                    auditedAbility,
+                    projectUuid,
+                    spaceSlug: chartWithDefaults.spaceSlug,
+                    subjectType: 'SavedChart',
+                    errorMessage: `You don't have access to create charts in space "${chartWithDefaults.spaceSlug}"`,
+                });
+            }
+
             const { space, created: spaceCreated } =
                 await this.getOrCreateSpace(
                     projectUuid,
@@ -2605,7 +2743,26 @@ export class CoderService extends BaseService {
                     skipSpaceCreate,
                     publicSpaceCreate,
                     spaceNames,
+                    allowSpaceCreate,
                 );
+            // Fetched once, reused by the placeholder-dashboard check below
+            const spaceAccessContexts = canUploadAnyContent
+                ? null
+                : await this.spacePermissionService.getSpacesAccessContext(
+                      user.userUuid,
+                      [space.uuid],
+                  );
+            if (spaceAccessContexts !== null) {
+                await this.assertSpaceContentAccess({
+                    userUuid: user.userUuid,
+                    auditedAbility,
+                    action: 'create',
+                    subjectType: 'SavedChart',
+                    spaceUuids: [space.uuid],
+                    errorMessage: `You don't have access to create charts in space "${chartWithDefaults.spaceSlug}"`,
+                    accessContexts: spaceAccessContexts,
+                });
+            }
 
             console.info(
                 `Creating chart "${chartWithDefaults.name}" on project ${projectUuid}`,
@@ -2625,6 +2782,17 @@ export class CoderService extends BaseService {
 
                 let dashboardUuid: string = dashboard?.uuid;
                 if (!dashboard) {
+                    if (spaceAccessContexts !== null) {
+                        await this.assertSpaceContentAccess({
+                            userUuid: user.userUuid,
+                            auditedAbility,
+                            action: 'create',
+                            subjectType: 'Dashboard',
+                            spaceUuids: [space.uuid],
+                            errorMessage: `You don't have access to create dashboards in space "${chartWithDefaults.spaceSlug}"`,
+                            accessContexts: spaceAccessContexts,
+                        });
+                    }
                     // Charts within dashboards need a dashboard first,
                     // so we will create a placeholder dashboard for this
                     // which we can update later
@@ -2646,6 +2814,23 @@ export class CoderService extends BaseService {
                     );
 
                     dashboardUuid = newDashboard.uuid;
+                } else if (!canUploadAnyContent) {
+                    // Chart lives in the dashboard, not the YAML space.
+                    // Mirrors SavedChartService: only SavedChart create in
+                    // the dashboard's space is required.
+                    if (!dashboard.spaceUuid) {
+                        throw new ForbiddenError(
+                            `You don't have access to create charts in dashboard "${chartWithDefaults.dashboardSlug}"`,
+                        );
+                    }
+                    await this.assertSpaceContentAccess({
+                        userUuid: user.userUuid,
+                        auditedAbility,
+                        action: 'create',
+                        subjectType: 'SavedChart',
+                        spaceUuids: [dashboard.spaceUuid],
+                        errorMessage: `You don't have access to create charts in dashboard "${chartWithDefaults.dashboardSlug}"`,
+                    });
                 }
                 createChart = {
                     ...chartWithDefaults,
@@ -2706,9 +2891,57 @@ export class CoderService extends BaseService {
         console.info(
             `Updating chart "${chartWithDefaults.name}" on project ${projectUuid}`,
         );
-        // Although, promotionService already upsertSpaces
-        // We want to create a new space based on the slug, not the uuid
-        // Then there is no need to do promoteService.upsertSpaces
+        const targetSpace = !canUploadAnyContent
+            ? await this.findAccessibleSpace(
+                  projectUuid,
+                  chartWithDefaults.spaceSlug,
+                  user,
+              )
+            : undefined;
+        if (!canUploadAnyContent) {
+            if (
+                targetSpace === undefined &&
+                !skipSpaceCreate &&
+                !allowSpaceCreate
+            ) {
+                throw new ForbiddenError(
+                    `You don't have access to create space "${chartWithDefaults.spaceSlug}"`,
+                );
+            }
+
+            // find() coalesces spaceUuid to the dashboard's space for
+            // dashboard-contained charts, so this covers both kinds
+            if (!chart.spaceUuid) {
+                throw new ForbiddenError(
+                    `You don't have access to update chart "${slug}"`,
+                );
+            }
+
+            await this.assertSpaceContentAccess({
+                userUuid: user.userUuid,
+                auditedAbility,
+                action: 'update',
+                subjectType: 'SavedChart',
+                spaceUuids: [
+                    ...(targetSpace ? [targetSpace.uuid] : []),
+                    ...(chart.spaceUuid ? [chart.spaceUuid] : []),
+                ],
+                metadata: { savedChartUuid: chart.uuid },
+                errorMessage: `You don't have access to update chart "${slug}"`,
+            });
+
+            const currentChart = await this.savedChartModel.get(chart.uuid);
+            CoderService.handleContentAsCodeSqlPermissionChecks({
+                checks: CoderService.getChartContentAsCodePermissionChecks(
+                    chartWithDefaults,
+                    currentChart,
+                ),
+                auditedAbility,
+                project,
+                slug,
+            });
+        }
+
         const { space } = await this.getOrCreateSpace(
             projectUuid,
             chartWithDefaults.spaceSlug,
@@ -2716,7 +2949,19 @@ export class CoderService extends BaseService {
             skipSpaceCreate,
             undefined,
             spaceNames,
+            allowSpaceCreate,
         );
+        if (!canUploadAnyContent && space.uuid !== targetSpace?.uuid) {
+            await this.assertSpaceContentAccess({
+                userUuid: user.userUuid,
+                auditedAbility,
+                action: 'update',
+                subjectType: 'SavedChart',
+                spaceUuids: [space.uuid],
+                metadata: { savedChartUuid: chart.uuid },
+                errorMessage: `You don't have access to update chart "${slug}"`,
+            });
+        }
 
         const { promotedChart, upstreamChart } =
             await this.promoteService.getPromoteCharts(
@@ -2787,21 +3032,12 @@ export class CoderService extends BaseService {
         const project = await this.projectModel.get(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('ContentAsCode', {
-                    projectUuid: project.projectUuid,
-                    organizationUuid: project.organizationUuid,
-                    upstreamProjectUuid: project.upstreamProjectUuid,
-                    type: project.type,
-                    createdByUserUuid: project.createdByUserUuid,
-                    metadata: { slug },
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
+        const { canUploadAnyContent, allowSpaceCreate } =
+            CoderService.checkContentAsCodeWriteAccess({
+                auditedAbility,
+                project,
+                slug,
+            });
 
         // Default updatedAt to now when missing (e.g. user-authored YAML)
         const sqlChartWithDefaults = {
@@ -2815,11 +3051,8 @@ export class CoderService extends BaseService {
         });
         const existingSqlChart = sqlChartRows[0];
 
-        // Saving a SQL chart via content-as-code requires the same permissions
-        // as the UI path (SavedSqlService): manage:CustomSql plus space-level
-        // create/update on SavedChart. ContentAsCode alone is not sufficient.
-        // manage:CustomSql is project-level, so check it before resolving the
-        // space so a forbidden save can't orphan a newly created space.
+        // SQL chart uploads mirror SavedSqlService. Check CustomSql before
+        // resolving the space so a rejection cannot orphan a new space.
         const isUpdate = existingSqlChart !== undefined;
         if (
             auditedAbility.cannot(
@@ -2837,6 +3070,18 @@ export class CoderService extends BaseService {
             throw new ForbiddenError();
         }
 
+        if (!isUpdate && !canUploadAnyContent) {
+            await this.assertCreateAccessForSpaceSlug({
+                user,
+                auditedAbility,
+                projectUuid,
+                spaceSlug: sqlChartWithDefaults.spaceSlug,
+                subjectType: 'SavedChart',
+                metadata: { savedSqlUuid: null },
+                errorMessage: `You don't have access to create Saved SQL chart "${slug}"`,
+            });
+        }
+
         const { space, created: spaceCreated } = await this.getOrCreateSpace(
             projectUuid,
             sqlChartAsCode.spaceSlug,
@@ -2844,38 +3089,24 @@ export class CoderService extends BaseService {
             skipSpaceCreate,
             publicSpaceCreate,
             spaceNames,
+            allowSpaceCreate,
         );
 
-        // Space-level create/update on SavedChart. On a move (update with a
-        // different target space) require access to both the current and the
-        // target space, mirroring SavedSqlService.hasAccess.
         const savedChartAction = isUpdate ? 'update' : 'create';
-        const spaceUuidsToCheck =
-            existingSqlChart !== undefined &&
-            existingSqlChart.space_uuid !== space.uuid
-                ? [space.uuid, existingSqlChart.space_uuid]
-                : [space.uuid];
-        const spaceAccessContexts =
-            await this.spacePermissionService.getSpacesAccessContext(
-                user.userUuid,
-                spaceUuidsToCheck,
-            );
-        const lacksSavedChartAccess = spaceUuidsToCheck.some((spaceUuid) =>
-            auditedAbility.cannot(
-                savedChartAction,
-                subject('SavedChart', {
-                    ...spaceAccessContexts[spaceUuid],
-                    metadata: {
-                        savedSqlUuid: existingSqlChart?.saved_sql_uuid ?? null,
-                    },
-                }),
-            ),
-        );
-        if (lacksSavedChartAccess) {
-            throw new ForbiddenError(
-                `You don't have access to ${savedChartAction} this Saved SQL chart`,
-            );
-        }
+        await this.assertSpaceContentAccess({
+            userUuid: user.userUuid,
+            auditedAbility,
+            action: savedChartAction,
+            subjectType: 'SavedChart',
+            spaceUuids: [
+                space.uuid,
+                ...(existingSqlChart ? [existingSqlChart.space_uuid] : []),
+            ],
+            metadata: {
+                savedSqlUuid: existingSqlChart?.saved_sql_uuid ?? null,
+            },
+            errorMessage: `You don't have access to ${savedChartAction} Saved SQL chart "${slug}"`,
+        });
 
         if (existingSqlChart === undefined) {
             // Create new SQL chart
@@ -2969,6 +3200,281 @@ export class CoderService extends BaseService {
         return promotionChanges;
     }
 
+    private async findAccessibleSpace(
+        projectUuid: string,
+        spaceSlug: string,
+        user: SessionUser,
+    ): Promise<SpaceSummaryBase | undefined> {
+        const [space] = await this.spaceModel.find({
+            path: getLtreePathFromContentAsCodePath(spaceSlug),
+            projectUuid,
+        });
+
+        if (
+            space !== undefined &&
+            !(await this.spacePermissionService.can('view', user, space.uuid))
+        ) {
+            throw new ForbiddenError(
+                `You don't have access to the private space "${spaceSlug}"`,
+            );
+        }
+
+        return space;
+    }
+
+    private async getClosestAncestorSpaceAccessContext(
+        userUuid: string,
+        projectUuid: string,
+        spaceSlug: string,
+    ) {
+        const spaceUuid = await this.spaceModel.findClosestAncestorByPath({
+            path: getLtreePathFromContentAsCodePath(spaceSlug),
+            projectUuid,
+        });
+        if (spaceUuid === null) return undefined;
+
+        const accessContexts =
+            await this.spacePermissionService.getSpacesAccessContext(userUuid, [
+                spaceUuid,
+            ]);
+        return accessContexts[spaceUuid];
+    }
+
+    // Throws unless the caller can write content as code. `canUploadAnyContent`
+    // (manage:ContentAsCode) allows uploading any content, so the granular
+    // space/SQL checks below don't apply.
+    private static checkContentAsCodeWriteAccess({
+        auditedAbility,
+        project,
+        slug,
+    }: {
+        auditedAbility: ReturnType<CoderService['createAuditedAbility']>;
+        project: Pick<
+            Project,
+            | 'projectUuid'
+            | 'organizationUuid'
+            | 'upstreamProjectUuid'
+            | 'type'
+            | 'createdByUserUuid'
+        >;
+        slug: string;
+    }): { canUploadAnyContent: boolean; allowSpaceCreate: boolean } {
+        const contentAsCodeSubject = subject('ContentAsCode', {
+            projectUuid: project.projectUuid,
+            organizationUuid: project.organizationUuid,
+            upstreamProjectUuid: project.upstreamProjectUuid,
+            type: project.type,
+            createdByUserUuid: project.createdByUserUuid,
+            metadata: { slug },
+        });
+        const canUploadAnyContent = auditedAbility.can(
+            'manage',
+            contentAsCodeSubject,
+        );
+        if (auditedAbility.cannot('create', contentAsCodeSubject)) {
+            throw new ForbiddenError(
+                `You don't have permission to upload content as code to this project (content slug "${slug}")`,
+            );
+        }
+        const allowSpaceCreate =
+            canUploadAnyContent ||
+            auditedAbility.can(
+                'create',
+                subject('Space', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid: project.projectUuid,
+                }),
+            );
+        return { canUploadAnyContent, allowSpaceCreate };
+    }
+
+    private async assertSpaceContentAccess({
+        userUuid,
+        auditedAbility,
+        action,
+        subjectType,
+        spaceUuids,
+        metadata,
+        errorMessage,
+        accessContexts,
+    }: {
+        userUuid: string;
+        auditedAbility: ReturnType<CoderService['createAuditedAbility']>;
+        action: 'create' | 'update';
+        subjectType: 'SavedChart' | 'Dashboard';
+        spaceUuids: string[];
+        metadata?: ContentAsCodeSpaceContentMetadata;
+        errorMessage: string;
+        // Pre-fetched contexts to avoid refetching for the same spaces
+        accessContexts?: Awaited<
+            ReturnType<SpacePermissionService['getSpacesAccessContext']>
+        >;
+    }): Promise<void> {
+        const uniqueSpaceUuids = [...new Set(spaceUuids)];
+        if (uniqueSpaceUuids.length === 0) return;
+        const spaceAccessContexts =
+            accessContexts ??
+            (await this.spacePermissionService.getSpacesAccessContext(
+                userUuid,
+                uniqueSpaceUuids,
+            ));
+        const lacksAccess = uniqueSpaceUuids.some((spaceUuid) =>
+            auditedAbility.cannot(
+                action,
+                subject(subjectType, {
+                    ...spaceAccessContexts[spaceUuid],
+                    ...(metadata !== undefined ? { metadata } : {}),
+                }),
+            ),
+        );
+        if (lacksAccess) {
+            throw new ForbiddenError(errorMessage);
+        }
+    }
+
+    // Target space missing: gate create on the closest existing ancestor
+    // BEFORE creating the space, so a denied create can't orphan a space.
+    private async assertCreateAccessForSpaceSlug({
+        user,
+        auditedAbility,
+        projectUuid,
+        spaceSlug,
+        subjectType,
+        metadata,
+        errorMessage,
+    }: {
+        user: SessionUser;
+        auditedAbility: ReturnType<CoderService['createAuditedAbility']>;
+        projectUuid: string;
+        spaceSlug: string;
+        subjectType: 'SavedChart' | 'Dashboard';
+        metadata?: ContentAsCodeSpaceContentMetadata;
+        errorMessage: string;
+    }): Promise<void> {
+        const targetSpace = await this.findAccessibleSpace(
+            projectUuid,
+            spaceSlug,
+            user,
+        );
+        if (targetSpace !== undefined) return;
+        const ancestorSpaceAccessContext =
+            await this.getClosestAncestorSpaceAccessContext(
+                user.userUuid,
+                projectUuid,
+                spaceSlug,
+            );
+        if (
+            ancestorSpaceAccessContext !== undefined &&
+            auditedAbility.cannot(
+                'create',
+                subject(subjectType, {
+                    ...ancestorSpaceAccessContext,
+                    ...(metadata !== undefined ? { metadata } : {}),
+                }),
+            )
+        ) {
+            throw new ForbiddenError(errorMessage);
+        }
+    }
+
+    // Tiles reference charts by slug with no permission filter; ensure the
+    // caller can view every referenced chart in its own space.
+    private async assertTileChartsViewAccess({
+        userUuid,
+        auditedAbility,
+        projectUuid,
+        tiles,
+    }: {
+        userUuid: string;
+        auditedAbility: ReturnType<CoderService['createAuditedAbility']>;
+        projectUuid: string;
+        tiles: DashboardAsCode['tiles'];
+    }): Promise<void> {
+        const chartSlugs = tiles.reduce<string[]>((acc, tile) => {
+            if (!isAnyChartTile(tile) || tile.properties.chartSlug == null) {
+                return acc;
+            }
+            return [...acc, tile.properties.chartSlug];
+        }, []);
+        if (chartSlugs.length === 0) return;
+
+        const [charts, sqlChartRows] = await Promise.all([
+            this.savedChartModel.find({
+                slugs: chartSlugs,
+                projectUuid,
+                excludeChartsSavedInDashboard: false,
+                includeOrphanChartsWithinDashboard: true,
+            }),
+            this.savedSqlModel.find({
+                slugs: chartSlugs,
+                projectUuid,
+            }),
+        ]);
+        const referencedCharts = [
+            ...charts.map((chart) => ({
+                slug: chart.slug,
+                spaceUuid: chart.spaceUuid,
+                metadata: { savedChartUuid: chart.uuid },
+            })),
+            ...sqlChartRows.map((row) => ({
+                slug: row.slug,
+                spaceUuid: row.space_uuid,
+                metadata: { savedSqlUuid: row.saved_sql_uuid },
+            })),
+        ];
+        if (referencedCharts.length === 0) return;
+
+        const spaceAccessContexts =
+            await this.spacePermissionService.getSpacesAccessContext(userUuid, [
+                ...new Set(referencedCharts.map((chart) => chart.spaceUuid)),
+            ]);
+        const inaccessibleChartSlugs = referencedCharts
+            .filter((chart) =>
+                auditedAbility.cannot(
+                    'view',
+                    subject('SavedChart', {
+                        ...spaceAccessContexts[chart.spaceUuid],
+                        metadata: chart.metadata,
+                    }),
+                ),
+            )
+            .map((chart) => chart.slug);
+        if (inaccessibleChartSlugs.length > 0) {
+            throw new ForbiddenError(
+                `You don't have access to chart(s) referenced by this dashboard: ${inaccessibleChartSlugs.join(
+                    ', ',
+                )}`,
+            );
+        }
+    }
+
+    private async assertDashboardUpdateAccess({
+        userUuid,
+        auditedAbility,
+        dashboard,
+        additionalSpaceUuids = [],
+    }: {
+        userUuid: string;
+        auditedAbility: ReturnType<CoderService['createAuditedAbility']>;
+        dashboard: { uuid: string; slug: string; spaceUuid: string | null };
+        additionalSpaceUuids?: string[];
+    }): Promise<void> {
+        if (!dashboard.spaceUuid) {
+            throw new ForbiddenError(
+                `You don't have access to update dashboard "${dashboard.slug}"`,
+            );
+        }
+        await this.assertSpaceContentAccess({
+            userUuid,
+            auditedAbility,
+            action: 'update',
+            subjectType: 'Dashboard',
+            spaceUuids: [dashboard.spaceUuid, ...additionalSpaceUuids],
+            metadata: { dashboardUuid: dashboard.uuid },
+            errorMessage: `You don't have access to update dashboard "${dashboard.slug}"`,
+        });
+    }
+
     async getOrCreateSpace(
         projectUuid: string,
         spaceSlug: string,
@@ -2976,29 +3482,25 @@ export class CoderService extends BaseService {
         skipSpaceCreate?: boolean,
         publicSpaceCreate?: boolean,
         spaceNames?: Record<string, string>,
+        allowSpaceCreate = false,
     ): Promise<{ space: SpaceSummaryBase; created: boolean }> {
-        const [existingSpace] = await this.spaceModel.find({
-            path: getLtreePathFromContentAsCodePath(spaceSlug),
+        const existingSpace = await this.findAccessibleSpace(
             projectUuid,
-        });
+            spaceSlug,
+            user,
+        );
 
         if (existingSpace !== undefined) {
-            if (
-                !(await this.spacePermissionService.can(
-                    'view',
-                    user,
-                    existingSpace.uuid,
-                ))
-            ) {
-                throw new ForbiddenError(
-                    "You don't have access to a private space",
-                );
-            }
             return { space: existingSpace, created: false };
         }
         if (skipSpaceCreate) {
             throw new NotFoundError(
                 `Space ${spaceSlug} does not exist, skipping creation`,
+            );
+        }
+        if (!allowSpaceCreate) {
+            throw new ForbiddenError(
+                `You don't have access to create space "${spaceSlug}"`,
             );
         }
         const path = getLtreePathFromContentAsCodePath(spaceSlug);
@@ -3138,21 +3640,12 @@ export class CoderService extends BaseService {
         const project = await this.projectModel.get(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('ContentAsCode', {
-                    projectUuid: project.projectUuid,
-                    organizationUuid: project.organizationUuid,
-                    upstreamProjectUuid: project.upstreamProjectUuid,
-                    type: project.type,
-                    createdByUserUuid: project.createdByUserUuid,
-                    metadata: { slug },
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
+        const { canUploadAnyContent, allowSpaceCreate } =
+            CoderService.checkContentAsCodeWriteAccess({
+                auditedAbility,
+                project,
+                slug,
+            });
 
         // Default optional fields when missing (e.g. user-authored YAML)
         const dashboardWithDefaults = {
@@ -3178,6 +3671,14 @@ export class CoderService extends BaseService {
             projectUuid,
             dashboardWithDefaults.tiles,
         );
+        if (!canUploadAnyContent) {
+            await this.assertTileChartsViewAccess({
+                userUuid: user.userUuid,
+                auditedAbility,
+                projectUuid,
+                tiles: dashboardWithDefaults.tiles,
+            });
+        }
 
         const dashboardFilters = CoderService.getFiltersWithTileUuids(
             dashboardWithDefaults,
@@ -3192,6 +3693,17 @@ export class CoderService extends BaseService {
         // If chart does not exist, we can't use promoteService,
         // since it relies on information that's not available in ChartAsCode, and other uuids
         if (dashboardSummary === undefined) {
+            if (!canUploadAnyContent) {
+                await this.assertCreateAccessForSpaceSlug({
+                    user,
+                    auditedAbility,
+                    projectUuid,
+                    spaceSlug: dashboardWithDefaults.spaceSlug,
+                    subjectType: 'Dashboard',
+                    errorMessage: `You don't have access to create dashboards in space "${dashboardWithDefaults.spaceSlug}"`,
+                });
+            }
+
             const { space, created: spaceCreated } =
                 await this.getOrCreateSpace(
                     projectUuid,
@@ -3200,7 +3712,18 @@ export class CoderService extends BaseService {
                     skipSpaceCreate,
                     publicSpaceCreate,
                     spaceNames,
+                    allowSpaceCreate,
                 );
+            if (!canUploadAnyContent) {
+                await this.assertSpaceContentAccess({
+                    userUuid: user.userUuid,
+                    auditedAbility,
+                    action: 'create',
+                    subjectType: 'Dashboard',
+                    spaceUuids: [space.uuid],
+                    errorMessage: `You don't have access to create dashboards in space "${dashboardWithDefaults.spaceSlug}"`,
+                });
+            }
 
             const newDashboard = await this.dashboardModel.create(
                 space.uuid,
@@ -3253,6 +3776,31 @@ export class CoderService extends BaseService {
             `Updating dashboard "${dashboard.name}" on project ${projectUuid}`,
         );
 
+        const targetSpace = !canUploadAnyContent
+            ? await this.findAccessibleSpace(
+                  projectUuid,
+                  dashboardWithDefaults.spaceSlug,
+                  user,
+              )
+            : undefined;
+        if (!canUploadAnyContent) {
+            if (
+                targetSpace === undefined &&
+                !skipSpaceCreate &&
+                !allowSpaceCreate
+            ) {
+                throw new ForbiddenError(
+                    `You don't have access to create space "${dashboardWithDefaults.spaceSlug}"`,
+                );
+            }
+            await this.assertDashboardUpdateAccess({
+                userUuid: user.userUuid,
+                auditedAbility,
+                dashboard,
+                additionalSpaceUuids: targetSpace ? [targetSpace.uuid] : [],
+            });
+        }
+
         const dashboardWithUuids = {
             ...dashboardWithDefaults,
             tiles: tilesWithUuids,
@@ -3278,8 +3826,6 @@ export class CoderService extends BaseService {
             upstreamDashboard,
         );
 
-        // Although, promotionService already upsertSpaces
-        // We want to create a new space based on the slug, not the uuid
         const { space } = await this.getOrCreateSpace(
             projectUuid,
             dashboardWithDefaults.spaceSlug,
@@ -3287,7 +3833,19 @@ export class CoderService extends BaseService {
             skipSpaceCreate,
             undefined,
             spaceNames,
+            allowSpaceCreate,
         );
+        if (!canUploadAnyContent && space.uuid !== targetSpace?.uuid) {
+            await this.assertSpaceContentAccess({
+                userUuid: user.userUuid,
+                auditedAbility,
+                action: 'update',
+                subjectType: 'Dashboard',
+                spaceUuids: [space.uuid],
+                metadata: { dashboardUuid: dashboard.uuid },
+                errorMessage: `You don't have access to update dashboard "${slug}"`,
+            });
+        }
 
         //  we force the new space on the upstreamDashboard
         if (upstreamDashboard.dashboard)

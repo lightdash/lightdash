@@ -127,6 +127,7 @@ const DashboardHeaderContextMenu: FC<HeaderProps & { tileUuid: string }> = ({
                         <ActionIcon
                             size="xs"
                             variant="light"
+                            color="gray"
                             bg="transparent"
                             aria-label="Context menu"
                         >

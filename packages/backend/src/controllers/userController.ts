@@ -4,12 +4,19 @@ import {
     ApiGetAccountResponse,
     ApiGetAuthenticatedUserResponse,
     ApiGetLoginOptionsResponse,
+    ApiLoginEmailOtpRequest,
+    ApiLoginEmailOtpResponse,
     ApiRegisterUserResponse,
     ApiSuccessEmpty,
     ApiUserAllowedOrganizationsResponse,
+    ApiVerifyLoginEmailOtpRequest,
+    ApiVerifyLoginEmailOtpResponse,
     assertRegisteredAccount,
     CreatePersonalAccessToken,
+    getEmailSchema,
     getRequestMethod,
+    hasInviteCode,
+    isEmailOnlyUser,
     LightdashRequestMethodHeader,
     NotFoundError,
     ParameterError,
@@ -106,10 +113,23 @@ export class UserController extends BaseController {
         @Body()
         body: RegisterOrActivateUser,
     ): Promise<ApiRegisterUserResponse> {
-        if (!validatePassword(req.body.password)) {
-            throw new ParameterError(
-                'Password must contain at least 8 characters, 1 letter and 1 number or 1 special character',
-            );
+        if ('inviteCode' in body && !hasInviteCode(body)) {
+            throw new ParameterError('Invalid invite code');
+        }
+        if (!isEmailOnlyUser(body)) {
+            if (!validatePassword(body.password)) {
+                throw new ParameterError(
+                    'Password must contain at least 8 characters, 1 letter and 1 number or 1 special character',
+                );
+            }
+            if (
+                typeof body.firstName !== 'string' ||
+                typeof body.lastName !== 'string'
+            ) {
+                throw new ParameterError(
+                    'First name and last name are required',
+                );
+            }
         }
         const sessionUser = await this.services
             .getUserService()
@@ -551,6 +571,52 @@ export class UserController extends BaseController {
             status: 'ok',
             results: loginOptions,
         };
+    }
+
+    @Post('/login-email-otp')
+    @OperationId('LoginEmailOtp')
+    async requestEmailOtpLogin(
+        @Body() body: ApiLoginEmailOtpRequest,
+    ): Promise<ApiLoginEmailOtpResponse> {
+        if (!getEmailSchema().safeParse(body.email).success) {
+            throw new ParameterError('Invalid email address');
+        }
+        await this.services.getUserService().requestEmailOtpLogin(body.email);
+        this.setStatus(200);
+        return { status: 'ok' };
+    }
+
+    @Post('/login-email-otp/verify')
+    @OperationId('VerifyLoginEmailOtp')
+    async verifyEmailOtpLogin(
+        @Request() req: express.Request,
+        @Body() body: ApiVerifyLoginEmailOtpRequest,
+    ): Promise<ApiVerifyLoginEmailOtpResponse> {
+        if (!getEmailSchema().safeParse(body.email).success) {
+            throw new ParameterError('Invalid email address');
+        }
+        if (!/^\d{6}$/.test(body.passcode)) {
+            throw new ParameterError('Invalid passcode format');
+        }
+        const sessionUser = await this.services
+            .getUserService()
+            .loginWithEmailOtp(body.email, body.passcode, {
+                ip: req.ip,
+                userAgent: req.get('user-agent'),
+            });
+        return new Promise((resolve, reject) => {
+            req.login(sessionUser, (error) => {
+                if (error) {
+                    reject(error);
+                    return;
+                }
+                this.setStatus(200);
+                resolve({
+                    status: 'ok',
+                    results: sessionUser,
+                });
+            });
+        });
     }
 
     /**

@@ -99,7 +99,7 @@ type DbtCloudIntegration = BaseTrack & {
 type LoginEvent = BaseTrack & {
     event: 'user.logged_in';
     properties: {
-        loginProvider: 'password' | OpenIdIdentityIssuerType;
+        loginProvider: 'password' | 'email_otp' | OpenIdIdentityIssuerType;
     };
 };
 
@@ -117,7 +117,10 @@ export type CreateUserEvent = BaseTrack & {
         context: string; // context on where/why this user was created
         createdUserId: string;
         organizationId: string | undefined; // undefined because they can join an org later
-        userConnectionType: 'password' | OpenIdIdentityIssuerType;
+        userConnectionType:
+            | 'password'
+            | 'email_only'
+            | OpenIdIdentityIssuerType;
     };
 };
 
@@ -176,6 +179,20 @@ type UserWarehouseCredentialsDeleteEvent = BaseTrack & {
     event: 'user_warehouse_credentials.deleted';
     properties: {
         credentialsId: string;
+    };
+};
+
+type WarehouseConnectEvent = BaseTrack & {
+    event:
+        | 'warehouse_connect_code.created'
+        | 'warehouse_connect.deposited'
+        | 'warehouse_connect.claimed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        userId?: string;
+        warehouseType?: WarehouseTypes.SNOWFLAKE;
+        authenticationMethod?: 'private_key' | 'password';
     };
 };
 
@@ -1242,6 +1259,7 @@ export type SchedulerNotificationJobEvent = BaseTrack & {
         type: 'slack' | 'email' | 'gsheets' | 'msteams' | 'googlechat';
         format?: SchedulerFormat;
         withPdf?: boolean;
+        pdfPageCount?: number;
         sendNow: boolean;
         isThresholdAlert?: boolean;
         targetCount?: number;
@@ -2038,6 +2056,16 @@ export type AiAgentUpdatedEvent = BaseTrack & {
     };
 };
 
+export type AiAgentSlackChannelLinkedEvent = BaseTrack & {
+    event: 'ai_agent.slack_channel_linked';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+    };
+};
+
 export type AiAgentDocumentCreatedEvent = BaseTrack & {
     event: 'ai_agent_document.created';
     userId: string;
@@ -2530,6 +2558,7 @@ type TypedEvent =
     | OrganizationAllowedEmailDomainUpdatedEvent
     | UserWarehouseCredentialsEvent
     | UserWarehouseCredentialsDeleteEvent
+    | WarehouseConnectEvent
     | LoginEvent
     | IdentityLinkedEvent
     | DbtCloudIntegration
@@ -2597,6 +2626,7 @@ type TypedEvent =
     | AiAgentGithubMcpConnectedEvent
     | AiAgentDeletedEvent
     | AiAgentUpdatedEvent
+    | AiAgentSlackChannelLinkedEvent
     | AiAgentDocumentCreatedEvent
     | AiAgentDocumentUpdatedEvent
     | AiAgentDocumentDeletedEvent

@@ -11,6 +11,7 @@ import {
     ParameterError,
     ProjectGroupAccess,
     ProjectMemberRole,
+    PromotionAction,
     UnexpectedDatabaseError,
     UpdateGroupWithMembers,
     type KnexPaginateArgs,
@@ -27,6 +28,7 @@ import {
     GroupMembershipTableName,
 } from '../database/entities/groupMemberships';
 import { DbGroup, GroupTableName } from '../database/entities/groups';
+import { OrganizationMembershipsTableName } from '../database/entities/organizationMemberships';
 import {
     OrganizationTableName,
     type DbOrganization,
@@ -618,6 +620,162 @@ export class GroupsModel {
             }
         });
         return this.getGroupWithMembers(groupUuid, 10000);
+    }
+
+    async upsertGroupAsCode({
+        organizationUuid,
+        name,
+        memberEmails,
+        actorUserUuid,
+    }: {
+        organizationUuid: string;
+        name: string;
+        memberEmails: string[];
+        actorUserUuid: string;
+    }): Promise<{
+        action:
+            | PromotionAction.CREATE
+            | PromotionAction.UPDATE
+            | PromotionAction.NO_CHANGES;
+        groupUuid: string;
+    }> {
+        return this.database.transaction(async (trx) => {
+            const organization = await trx(OrganizationTableName)
+                .where('organization_uuid', organizationUuid)
+                .first('organization_id');
+            if (!organization) {
+                throw new NotFoundError('Cannot find organization');
+            }
+
+            const normalizedEmails = memberEmails.map((email) =>
+                email.toLowerCase(),
+            );
+            const members =
+                normalizedEmails.length === 0
+                    ? []
+                    : await trx(UserTableName)
+                          .innerJoin(
+                              OrganizationMembershipsTableName,
+                              `${UserTableName}.user_id`,
+                              `${OrganizationMembershipsTableName}.user_id`,
+                          )
+                          .innerJoin(
+                              EmailTableName,
+                              `${UserTableName}.user_id`,
+                              `${EmailTableName}.user_id`,
+                          )
+                          .where(
+                              `${OrganizationMembershipsTableName}.organization_id`,
+                              organization.organization_id,
+                          )
+                          .where(`${UserTableName}.is_internal`, false)
+                          .where(`${EmailTableName}.is_primary`, true)
+                          .whereRaw(`LOWER(??) = ANY(?::text[])`, [
+                              `${EmailTableName}.email`,
+                              normalizedEmails,
+                          ])
+                          .select<
+                              Array<
+                                  Pick<DbUser, 'user_id'> &
+                                      Pick<DbEmail, 'email'>
+                              >
+                          >(
+                              `${UserTableName}.user_id`,
+                              `${EmailTableName}.email`,
+                          );
+
+            const resolvedEmails = new Set(
+                members.map((member) => member.email.toLowerCase()),
+            );
+            const unresolvedEmails = normalizedEmails.filter(
+                (email) => !resolvedEmails.has(email),
+            );
+            if (unresolvedEmails.length > 0) {
+                throw new ParameterError(
+                    `Users are not members of this organization: ${unresolvedEmails.join(', ')}`,
+                );
+            }
+
+            const existingGroup = await trx(GroupTableName)
+                .where({
+                    organization_id: organization.organization_id,
+                    name,
+                })
+                .first<Pick<DbGroup, 'group_uuid'>>('group_uuid');
+
+            if (!existingGroup) {
+                const [createdGroup] = await trx(GroupTableName)
+                    .insert({
+                        organization_id: organization.organization_id,
+                        name,
+                        created_by_user_uuid: actorUserUuid,
+                        updated_by_user_uuid: actorUserUuid,
+                    })
+                    .returning<Pick<DbGroup, 'group_uuid'>[]>('group_uuid');
+                if (!createdGroup) {
+                    throw new UnexpectedDatabaseError('Failed to create group');
+                }
+                if (members.length > 0) {
+                    await trx(GroupMembershipTableName).insert(
+                        members.map((member) => ({
+                            group_uuid: createdGroup.group_uuid,
+                            user_id: member.user_id,
+                            organization_id: organization.organization_id,
+                        })),
+                    );
+                }
+                return {
+                    action: PromotionAction.CREATE,
+                    groupUuid: createdGroup.group_uuid,
+                };
+            }
+
+            const existingMemberships = await trx(GroupMembershipTableName)
+                .where('group_uuid', existingGroup.group_uuid)
+                .select<Pick<DbGroupMembership, 'user_id'>[]>('user_id');
+            const existingUserIds = existingMemberships
+                .map((membership) => membership.user_id)
+                .sort((left, right) => left - right);
+            const desiredUserIds = members
+                .map((member) => member.user_id)
+                .sort((left, right) => left - right);
+            const membershipChanged =
+                existingUserIds.length !== desiredUserIds.length ||
+                existingUserIds.some(
+                    (userId, index) => userId !== desiredUserIds[index],
+                );
+
+            if (!membershipChanged) {
+                return {
+                    action: PromotionAction.NO_CHANGES,
+                    groupUuid: existingGroup.group_uuid,
+                };
+            }
+
+            await trx(GroupMembershipTableName)
+                .where('group_uuid', existingGroup.group_uuid)
+                .delete();
+            if (members.length > 0) {
+                await trx(GroupMembershipTableName).insert(
+                    members.map((member) => ({
+                        group_uuid: existingGroup.group_uuid,
+                        user_id: member.user_id,
+                        organization_id: organization.organization_id,
+                    })),
+                );
+            }
+            await trx(GroupTableName)
+                .where('group_uuid', existingGroup.group_uuid)
+                .update({
+                    updated_at: new Date(),
+                    updated_by_user_uuid: actorUserUuid,
+                });
+
+            return {
+                action: PromotionAction.UPDATE,
+                groupUuid: existingGroup.group_uuid,
+            };
+        });
     }
 
     async addProjectAccess({

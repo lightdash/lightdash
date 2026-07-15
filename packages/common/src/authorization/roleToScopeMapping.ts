@@ -96,7 +96,8 @@ const BASE_ROLE_SCOPES = {
         // Enterprise scopes
         'manage:MetricsTree',
         'manage:AiAgentThread@self', // User's own threads
-        'view:ContentAsCode', // Download (but not upload) content as code
+        'view:ContentAsCode',
+        'create:ContentAsCode',
         'create:DataApp',
     ],
 
@@ -266,6 +267,7 @@ export const getNonEnterpriseScopesForRole = (
         'manage:AiAgentDocument',
         'manage:AiAgentThread',
         'view:ContentAsCode',
+        'create:ContentAsCode',
         'manage:ContentAsCode',
         'manage:ContentAsCode@self',
         'view:DataApp',

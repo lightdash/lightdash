@@ -1,3 +1,112 @@
+# [0.3388.0](https://github.com/lightdash/lightdash/compare/0.3387.0...0.3388.0) (2026-07-15)
+
+
+### Bug Fixes
+
+* **ai-router:** gate router reads on view AiAgent instead of org-scoped subject ([#25582](https://github.com/lightdash/lightdash/issues/25582)) ([85d2e5a](https://github.com/lightdash/lightdash/commit/85d2e5a2c77886c25aaa09c07dbd67b9820a49a4))
+
+
+### Features
+
+* add email-only signup behind feature flag ([#25577](https://github.com/lightdash/lightdash/issues/25577)) ([f6480ab](https://github.com/lightdash/lightdash/commit/f6480ab209b0f689d54f6c2216edb2cf86c42811))
+* add groups as organization content as code ([#25592](https://github.com/lightdash/lightdash/issues/25592)) ([0751fd3](https://github.com/lightdash/lightdash/commit/0751fd301485588260928b6e328a364b6f4e12be))
+* **cli:** translate MetricFlow ratio, derived, filtered and sum_boolean metrics ([#25594](https://github.com/lightdash/lightdash/issues/25594)) ([36041b6](https://github.com/lightdash/lightdash/commit/36041b6b3978cc2dc463ae3881c50d208c0c74bd))
+* OTP login for passwordless accounts ([#25590](https://github.com/lightdash/lightdash/issues/25590)) ([f6ba3f6](https://github.com/lightdash/lightdash/commit/f6ba3f615257eecce68562a4c7d9ba313dca9d75))
+* Snowflake CLI SSO login and warehouse-first onboarding option ([#25581](https://github.com/lightdash/lightdash/issues/25581)) ([7ea0ac4](https://github.com/lightdash/lightdash/commit/7ea0ac43fb241970736b69afed31684dcbcbacf0))
+
+# [0.3387.0](https://github.com/lightdash/lightdash/compare/0.3386.0...0.3387.0) (2026-07-15)
+
+
+### Features
+
+* full-page organization setup experience behind feature flag ([#25580](https://github.com/lightdash/lightdash/issues/25580)) ([5bdb8ad](https://github.com/lightdash/lightdash/commit/5bdb8ad165e000bb6cf1acee315a205081f1c2d5))
+* gate scheduled deliveries on unmet dashboard filter requirements ([#25449](https://github.com/lightdash/lightdash/issues/25449)) ([b4eb1a2](https://github.com/lightdash/lightdash/commit/b4eb1a252f4d4c6de48028d7321e48624e665ee3))
+* render each dashboard tab as its own PDF page via CSS pagination (opt-in) ([#25572](https://github.com/lightdash/lightdash/issues/25572)) ([943e929](https://github.com/lightdash/lightdash/commit/943e929887418668e9ef6727e05a0f8b2c02cd09))
+
+# [0.3386.0](https://github.com/lightdash/lightdash/compare/0.3385.0...0.3386.0) (2026-07-15)
+
+
+### Bug Fixes
+
+* align content as code dashboard-attach checks with UI SavedChart permissions ([#25518](https://github.com/lightdash/lightdash/issues/25518)) ([8e3cb23](https://github.com/lightdash/lightdash/commit/8e3cb23df2fd2ce909b35ff38c8c6244797c0d86)), closes [#25219](https://github.com/lightdash/lightdash/issues/25219)
+* include content slugs and failing resources in content as code error messages ([#25564](https://github.com/lightdash/lightdash/issues/25564)) ([f909245](https://github.com/lightdash/lightdash/commit/f9092451841da637ca63c48df831ee9d48d50dcb))
+* keep authentication state out of users as code ([#25584](https://github.com/lightdash/lightdash/issues/25584)) ([3af5a4b](https://github.com/lightdash/lightdash/commit/3af5a4b8d11968d800485a1c05b1de2a91f24307))
+
+
+### Features
+
+* add users as organization content as code ([#25574](https://github.com/lightdash/lightdash/issues/25574)) ([637cac2](https://github.com/lightdash/lightdash/commit/637cac217add26592181eb1576281bcfbf86969f))
+* unlock content as code writes for editors ([#25219](https://github.com/lightdash/lightdash/issues/25219)) ([a06dab5](https://github.com/lightdash/lightdash/commit/a06dab5c0a9ff104fbea17cbad0a82a8c42d2146))
+
+# [0.3385.0](https://github.com/lightdash/lightdash/compare/0.3384.0...0.3385.0) (2026-07-15)
+
+
+### Bug Fixes
+
+* **e2e:** remove focused space test ([#25534](https://github.com/lightdash/lightdash/issues/25534)) ([a25a409](https://github.com/lightdash/lightdash/commit/a25a409255d7fb9d46bd967faebe16c4cd2249fb))
+
+
+### Features
+
+* mount dashboard filter requirements behind its feature flag ([#25306](https://github.com/lightdash/lightdash/issues/25306)) ([c33a7f8](https://github.com/lightdash/lightdash/commit/c33a7f8cdfbf55fb3a678363d12c027914db69d6))
+
+# [0.3384.0](https://github.com/lightdash/lightdash/compare/0.3383.1...0.3384.0) (2026-07-15)
+
+
+### Features
+
+* **slack:** link an agent from the channel when none is configured ([#25516](https://github.com/lightdash/lightdash/issues/25516)) ([6a66e49](https://github.com/lightdash/lightdash/commit/6a66e49897b5e19786fcf90bfacec3a41f187211))
+
+## [0.3383.1](https://github.com/lightdash/lightdash/compare/0.3383.0...0.3383.1) (2026-07-15)
+
+
+### Bug Fixes
+
+* **custom-roles:** keep permissions panel usable on short viewports ([#25571](https://github.com/lightdash/lightdash/issues/25571)) ([1135f99](https://github.com/lightdash/lightdash/commit/1135f9945cbec1c6bda7feef8bcc2f8e0303ee34)), closes [#25340](https://github.com/lightdash/lightdash/issues/25340)
+
+# [0.3383.0](https://github.com/lightdash/lightdash/compare/0.3382.2...0.3383.0) (2026-07-15)
+
+
+### Bug Fixes
+
+* **ai-agents:** clarify agent access hints for custom roles ([#25569](https://github.com/lightdash/lightdash/issues/25569)) ([f01580b](https://github.com/lightdash/lightdash/commit/f01580b4a674f6bc25a0da364a0eced3b377f8ac))
+
+
+### Features
+
+* add AI custom dimension assistant ([#25567](https://github.com/lightdash/lightdash/issues/25567)) ([4934e4d](https://github.com/lightdash/lightdash/commit/4934e4dd4e462a135915764ee75a929a3c9b8832)), closes [#25474](https://github.com/lightdash/lightdash/issues/25474)
+
+## [0.3382.2](https://github.com/lightdash/lightdash/compare/0.3382.1...0.3382.2) (2026-07-15)
+
+
+### Bug Fixes
+
+* reduce API error toast text size ([#25562](https://github.com/lightdash/lightdash/issues/25562)) ([da145b8](https://github.com/lightdash/lightdash/commit/da145b895d2d86cf810df119a3ecdc5cb0b8a9f8))
+
+## [0.3382.1](https://github.com/lightdash/lightdash/compare/0.3382.0...0.3382.1) (2026-07-14)
+
+
+### Bug Fixes
+
+* make dashboard table overflow menu gray instead of blue ([#25559](https://github.com/lightdash/lightdash/issues/25559)) ([8f4decc](https://github.com/lightdash/lightdash/commit/8f4decc46339efa10ae3137ca72dd989ec0491db))
+
+# [0.3382.0](https://github.com/lightdash/lightdash/compare/0.3381.0...0.3382.0) (2026-07-14)
+
+
+### Features
+
+* **appearance:** view and edit organization brand appearance ([#25303](https://github.com/lightdash/lightdash/issues/25303)) ([63e5074](https://github.com/lightdash/lightdash/commit/63e50745ae9349b4bf17afb43183f6bc910d771a))
+
+# [0.3381.0](https://github.com/lightdash/lightdash/compare/0.3380.0...0.3381.0) (2026-07-14)
+
+
+### Features
+
+* add custom roles as code ([#25520](https://github.com/lightdash/lightdash/issues/25520)) ([bad6d01](https://github.com/lightdash/lightdash/commit/bad6d015d456e6869e1f75b75aa33deb8b786a1d)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* add dashboard filter requirements module (unmounted) ([#25305](https://github.com/lightdash/lightdash/issues/25305)) ([2934bd7](https://github.com/lightdash/lightdash/commit/2934bd7b84b5f7a478a4507719ccf23590f72230))
+* **cli:** rename selected project ([#25538](https://github.com/lightdash/lightdash/issues/25538)) ([dd0fdef](https://github.com/lightdash/lightdash/commit/dd0fdefa1d23c636b6b1c325e8396270863dcd1b))
+* **deep-research:** gate runs with a dedicated scope ([#25539](https://github.com/lightdash/lightdash/issues/25539)) ([1e70ae1](https://github.com/lightdash/lightdash/commit/1e70ae19b86f934dbe33a30a35ec067968f8586a))
+
 # [0.3380.0](https://github.com/lightdash/lightdash/compare/0.3379.0...0.3380.0) (2026-07-14)
 
 

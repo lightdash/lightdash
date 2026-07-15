@@ -18,6 +18,7 @@ interface Props {
     disabled: boolean;
     defaultType?: DbtProjectType;
     isProjectUpdate?: boolean;
+    warehouseOnly?: boolean;
 }
 
 export const ProjectForm: FC<Props> = ({
@@ -25,6 +26,7 @@ export const ProjectForm: FC<Props> = ({
     disabled,
     defaultType,
     isProjectUpdate,
+    warehouseOnly = false,
 }) => {
     const { health } = useApp();
     const form = useFormContext();
@@ -79,27 +81,29 @@ export const ProjectForm: FC<Props> = ({
                 </div>
             </SettingsGridCard>
 
-            <SettingsGridCard>
-                <div>
-                    <Avatar size="md" src={DbtLogo} alt="dbt icon" />
+            {!warehouseOnly && (
+                <SettingsGridCard>
+                    <div>
+                        <Avatar size="md" src={DbtLogo} alt="dbt icon" />
 
-                    <Flex align="center" gap={2}>
-                        <Title order={5}>dbt connection</Title>
-                        <DocumentationHelpButton
-                            href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project"
-                            pos="relative"
-                            top="2px"
+                        <Flex align="center" gap={2}>
+                            <Title order={5}>dbt connection</Title>
+                            <DocumentationHelpButton
+                                href="https://docs.lightdash.com/get-started/setup-lightdash/connect-project"
+                                pos="relative"
+                                top="2px"
+                            />
+                        </Flex>
+                    </div>
+
+                    <div>
+                        <DbtSettingsForm
+                            disabled={disabled}
+                            defaultType={defaultType}
                         />
-                    </Flex>
-                </div>
-
-                <div>
-                    <DbtSettingsForm
-                        disabled={disabled}
-                        defaultType={defaultType}
-                    />
-                </div>
-            </SettingsGridCard>
+                    </div>
+                </SettingsGridCard>
+            )}
 
             {savedProject && savedProject.type !== ProjectType.PREVIEW && (
                 <DbtSourcesPanel projectUuid={savedProject.projectUuid} />

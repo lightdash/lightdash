@@ -2306,6 +2306,37 @@ export class AiAgentModel {
         });
     }
 
+    async addSlackChannelIntegration(args: {
+        organizationUuid: string;
+        agentUuid: string;
+        slackChannelId: string;
+    }): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            try {
+                const [baseIntegration] = await trx(AiAgentIntegrationTableName)
+                    .insert({
+                        ai_agent_uuid: args.agentUuid,
+                        integration_type: 'slack',
+                    })
+                    .returning('*');
+
+                await trx(AiAgentSlackIntegrationTableName).insert({
+                    ai_agent_integration_uuid:
+                        baseIntegration.ai_agent_integration_uuid,
+                    organization_uuid: args.organizationUuid,
+                    slack_channel_id: args.slackChannelId,
+                });
+            } catch (error) {
+                if (isUniqueConstraintViolation(error)) {
+                    throw new AlreadyExistsError(
+                        'This Slack channel is already assigned to another AI agent',
+                    );
+                }
+                throw error;
+            }
+        });
+    }
+
     private async getGroupAccess(
         agentUuid: AiAgent['uuid'],
         { trx = this.database }: { trx?: Knex } = {},

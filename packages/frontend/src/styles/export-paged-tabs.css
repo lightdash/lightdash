@@ -1,0 +1,10 @@
+/* Per-tab PDF export: each tab renders inside its own page container. These
+   fragmentation rules only take effect under paged media (Chromium page.pdf),
+   so they are inert during normal screen rendering.
+   The class must match EXPORT_TAB_PAGE_CLASS in @lightdash/common. */
+.lightdash-export-tab-page {
+    break-inside: avoid;
+}
+.lightdash-export-tab-page:not(:first-child) {
+    break-before: page;
+}

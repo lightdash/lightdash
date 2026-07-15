@@ -80,6 +80,7 @@ import { UnfurlService } from './UnfurlService/UnfurlService';
 import { UserAttributesService } from './UserAttributesService/UserAttributesService';
 import { UserService } from './UserService';
 import { ValidationService } from './ValidationService/ValidationService';
+import { WarehouseConnectService } from './WarehouseConnectService/WarehouseConnectService';
 /**
  * Interface outlining all services available under the `ServiceRepository`. Add new services to
  * this list (in alphabetical order, please!) to have typescript help ensure you've updated the
@@ -131,6 +132,7 @@ interface ServiceManifest {
     userAttributesService: UserAttributesService;
     userService: UserService;
     validationService: ValidationService;
+    warehouseConnectService: WarehouseConnectService;
     catalogService: CatalogService;
     metricsExplorerService: MetricsExplorerService;
     promoteService: PromoteService;
@@ -1156,6 +1158,19 @@ export class ServiceRepository
         );
     }
 
+    public getWarehouseConnectService(): WarehouseConnectService {
+        return this.getService(
+            'warehouseConnectService',
+            () =>
+                new WarehouseConnectService({
+                    warehouseConnectCodeModel:
+                        this.models.getWarehouseConnectCodeModel(),
+                    encryptionUtil: this.utils.getEncryptionUtil(),
+                    analytics: this.context.lightdashAnalytics,
+                }),
+        );
+    }
+
     public getCoderService(): CoderService {
         return this.getService(
             'coderService',
@@ -1468,6 +1483,9 @@ export class ServiceRepository
                     emailClient: this.clients.getEmailClient(),
                     adminNotificationService:
                         this.getAdminNotificationService(),
+                    inviteLinkModel: this.models.getInviteLinkModel(),
+                    organizationMemberProfileModel:
+                        this.models.getOrganizationMemberProfileModel(),
                 }),
         );
     }

@@ -520,6 +520,7 @@ const LogsTable: FC<LogsTableProps> = ({
                                         <Menu.Target>
                                             <ActionIcon
                                                 variant="subtle"
+                                                color="gray"
                                                 style={{
                                                     ':hover': {
                                                         backgroundColor:

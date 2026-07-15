@@ -97,15 +97,28 @@ export class AiRouterService extends BaseService {
         }
     }
 
+    /**
+     * Read/route paths require only `view AiAgent`, so agent access granted
+     * via project roles (system or custom) is enough; writes keep requiring
+     * `manage OrganizationAiAgent`. This doesn't widen agent access —
+     * candidates are filtered per-user by `getAvailableAgents`, and
+     * `commitDecision` only accepts recorded candidates. Project-scoped
+     * rules carry a `projectUuid` condition, so without project context we
+     * check the subject type instead; abilities are built solely from the
+     * caller's own memberships, so any matching rule is scoped to their org.
+     */
     private assertViewAiAgent(
         account: RegisteredAccount,
         organizationUuid: string,
+        projectUuid?: string,
     ): void {
         const ability = this.createAuditedAbility(account);
         if (
             ability.cannot(
                 'view',
-                subject('OrganizationAiAgent', { organizationUuid }),
+                projectUuid
+                    ? subject('AiAgent', { organizationUuid, projectUuid })
+                    : 'AiAgent',
             )
         ) {
             throw new ForbiddenError();
@@ -136,7 +149,7 @@ export class AiRouterService extends BaseService {
         },
     ): Promise<PromptRouteSelection> {
         const organizationUuid = AiRouterService.organizationUuidOf(account);
-        this.assertViewAiAgent(account, organizationUuid);
+        this.assertViewAiAgent(account, organizationUuid, projectUuid);
 
         const candidates = await this.aiAgentService.getAvailableAgents(
             organizationUuid,
@@ -357,7 +370,7 @@ export class AiRouterService extends BaseService {
         { prompt, projectUuid }: { prompt: string; projectUuid: string },
     ): Promise<AiRouterRouteResponseResult> {
         const organizationUuid = AiRouterService.organizationUuidOf(account);
-        this.assertViewAiAgent(account, organizationUuid);
+        this.assertViewAiAgent(account, organizationUuid, projectUuid);
         const selection = await this.routePromptToAgent(account, {
             prompt,
             projectUuid,

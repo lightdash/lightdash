@@ -64,7 +64,7 @@ const SchedulersViewActionMenu: FC<SchedulersViewActionMenuProps> = ({
                 closeOnClickOutside
             >
                 <Menu.Target>
-                    <ActionIcon variant="subtle">
+                    <ActionIcon variant="subtle" color="gray">
                         <MantineIcon icon={IconDots} />
                     </ActionIcon>
                 </Menu.Target>

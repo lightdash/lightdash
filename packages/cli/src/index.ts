@@ -17,6 +17,7 @@ import {
 import { getDiagnosticsHint } from './error';
 import GlobalState from './globalState';
 import { compileHandler } from './handlers/compile';
+import { connectSnowflakeHandler } from './handlers/connectSnowflake';
 import { refreshHandler } from './handlers/dbt/refresh';
 import { dbtRunHandler } from './handlers/dbt/run';
 import { deployHandler } from './handlers/deploy';
@@ -175,6 +176,19 @@ ${styles.bold('Examples:')}
   )} ${styles.secondary('-- logs in to a Lightdash instance')}
 `,
     );
+
+program
+    .command('connect-snowflake')
+    .description('Connects Lightdash to Snowflake using browser-based SSO')
+    .requiredOption('--code <one-time-code>', 'One-time Lightdash connect code')
+    .requiredOption('--url <lightdash-url>', 'Lightdash instance URL')
+    .requiredOption('--account <account>', 'Snowflake account identifier')
+    .option('--user <username>', 'Snowflake username override')
+    .option('--database <database>', 'Snowflake database override')
+    .option('--warehouse <warehouse>', 'Snowflake warehouse override')
+    .option('--role <role>', 'Snowflake role override')
+    .option('--schema <schema>', 'Snowflake schema override')
+    .action((options) => connectSnowflakeHandler(options));
 
 // LOGIN
 program
@@ -722,13 +736,24 @@ program
     .option('--verbose', undefined, false)
     .action(stopPreviewHandler);
 
-const ORGANIZATION_MODE_OPTIONS = new Set(['organization', 'path', 'verbose']);
+const ORGANIZATION_MODE_OPTIONS = new Set([
+    'organization',
+    'path',
+    'sendInvites',
+    'verbose',
+]);
 
 const withOrganizationMode =
-    <Options extends { organization: boolean }>(
+    <Options extends { organization: boolean; sendInvites?: boolean }>(
         handler: (options: Options) => Promise<void>,
     ) =>
     async (options: Options, command: Command): Promise<void> => {
+        if (!options.organization && options.sendInvites) {
+            command.error(
+                `error: option '--send-invites' requires option '--organization'`,
+                { code: 'commander.missingMandatoryOptionValue' },
+            );
+        }
         if (options.organization) {
             const conflictingOption = Object.keys(options).find(
                 (optionName) => {
@@ -962,6 +987,11 @@ const uploadCommand = program
     .option(
         '--organization',
         'upload all organization-scoped resources without selecting a project',
+        false,
+    )
+    .option(
+        '--send-invites',
+        'send invitations to eligible pending users during organization upload',
         false,
     );
 

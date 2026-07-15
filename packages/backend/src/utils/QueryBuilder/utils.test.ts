@@ -471,7 +471,7 @@ ELSE 2
         });
     });
 
-    it('getCustomDimensionSql with sorted custom dimension ', () => {
+    it('getCustomDimensionSql with sorted custom dimension', () => {
         expect(
             getCustomBinDimensionSql({
                 warehouseSqlBuilder: bigqueryClientMock,

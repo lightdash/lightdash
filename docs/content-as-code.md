@@ -179,6 +179,7 @@ The CLI implementation lives under
 `packages/cli/src/handlers/organizationContent/`. It only:
 
 - reads and writes `lightdash/custom-roles/*.yml`;
+- treats a missing or empty custom-roles directory as a no-op;
 - creates safe filenames and disambiguates normalized filename collisions;
 - rejects duplicate role names within the local bundle;
 - calls the two `/roles/code` endpoints;
@@ -189,6 +190,83 @@ The CLI implementation lives under
 It intentionally does not list roles through the general roles API, validate
 scope names, calculate scope diffs, or call the lower-level create and patch
 role endpoints.
+
+## Users
+
+Organization users are stored under `lightdash/users/*.yml`:
+
+```yaml
+version: 1
+email: analyst@example.com
+disabled: false
+role:
+  type: system
+  name: editor
+```
+
+The endpoints are:
+
+- `GET /api/v2/orgs/{orgUuid}/users/code`
+- `POST /api/v2/orgs/{orgUuid}/users/code`
+
+Email is the portable identity and is normalized to lowercase. An upload
+creates a missing organization member or reconciles the existing member's
+organization role and disabled state. A custom role is referenced by its exact
+organization-level role name, so organization uploads process custom roles
+before users.
+
+Credentials are not portable, so authentication status is not written to user
+files. A missing user is staged without an authentication method and reported
+as awaiting authentication. Uploads never add or remove credentials. Omitting a
+user file does not remove the remote user.
+
+Invitations are a separate side effect and are not sent by default. Passing
+`lightdash upload --organization --send-invites` sends invitations only to
+eligible staged users. Authenticated users, disabled users, and users with a
+valid invitation are skipped. Without that flag, users authenticate through
+the instance's existing domain, SSO, or manually triggered invitation flows.
+
+Uploads also preserve the organization admin invariant. Enabled admin
+promotions are processed before admin demotions or disables, and the backend
+rejects any individual operation that would leave the organization without an
+enabled authenticated admin.
+
+## Groups
+
+Organization groups are stored under `lightdash/groups/*.yml`:
+
+```yaml
+version: 1
+name: Finance
+members:
+  - alice@example.com
+  - bob@example.com
+```
+
+The endpoints are:
+
+- `GET /api/v2/orgs/{orgUuid}/groups/code`
+- `POST /api/v2/orgs/{orgUuid}/groups/code`
+
+The exact, case-sensitive group name is the portable identity. Upload creates a
+missing group or replaces the complete membership of an existing group. Every
+member email must resolve to the primary email of a non-internal user in the
+destination organization before any mutation begins. Empty membership is
+represented explicitly as `members: []`.
+
+Group files intentionally exclude UUIDs, project roles, space access, AI-agent
+access, user attributes, and ownership metadata. Changing the name creates a
+new group and leaves the original group intact; missing files do not delete
+groups.
+
+Organization uploads run dependency phases sequentially: custom roles, then
+users, then groups. A failed phase prevents every dependent phase from
+starting, so group emails are resolved only after the complete users phase has
+succeeded.
+
+SCIM and content as code should not manage the same group. Groups do not yet
+record management provenance, so this limitation cannot be enforced by the
+first version.
 
 ## Adding another content-as-code resource
 

@@ -6,6 +6,7 @@ import {
     LOGIN_PAGE_ID,
     SEED_ORG_1_ADMIN_EMAIL,
     SEED_ORG_1_ADMIN_PASSWORD,
+    type LightdashUser,
     type OpenIdIdentityIssuerType,
 } from '@lightdash/common';
 import {
@@ -43,6 +44,7 @@ import {
     readLastLoginMethod,
     writeLastLoginMethod,
 } from '../utils/lastLoginMethod';
+import LoginWithEmailOtp from './LoginWithEmailOtp';
 
 const Login: FC<{}> = () => {
     const { health } = useApp();
@@ -159,19 +161,24 @@ const Login: FC<{}> = () => {
         }
     }, [loginOptionsFetching, startDelayedState, clearDelayedState]);
 
-    const { mutate, isLoading, isSuccess, isIdle } = useLoginWithEmailMutation({
-        onSuccess: (data) => {
+    const handleLoginSuccess = useCallback(
+        (data: LightdashUser, issuerType: LocalIssuerTypes) => {
             // Use the authenticated user's email rather than the form value so
             // it's always the real address (e.g. the demo auto-login path).
             if (data.email) {
                 writeLastLoginMethod({
-                    issuerType: LocalIssuerTypes.EMAIL,
+                    issuerType,
                     email: data.email,
                 });
             }
             identify({ id: data.userUuid });
             window.location.href = redirectUrl;
         },
+        [identify, redirectUrl],
+    );
+
+    const { mutate, isLoading, isSuccess, isIdle } = useLoginWithEmailMutation({
+        onSuccess: (data) => handleLoginSuccess(data, LocalIssuerTypes.EMAIL),
         onError: ({ error }) => {
             showToastApiError({
                 title: `Failed to login`,
@@ -194,6 +201,10 @@ const Login: FC<{}> = () => {
     const isEmailLoginAvailable =
         loginOptions?.showOptions &&
         loginOptions?.showOptions.includes(LocalIssuerTypes.EMAIL);
+
+    const isEmailOtpLoginAvailable =
+        loginOptions?.showOptions &&
+        loginOptions?.showOptions.includes(LocalIssuerTypes.EMAIL_OTP);
 
     const formStage =
         preCheckEmail &&
@@ -311,6 +322,18 @@ const Login: FC<{}> = () => {
                                 </Button>
                             </>
                         )}
+                        {isEmailOtpLoginAvailable && formStage === 'login' && (
+                            <LoginWithEmailOtp
+                                email={preCheckEmail ?? form.values.email}
+                                disabled={isFormLoading}
+                                onSuccess={(data) =>
+                                    handleLoginSuccess(
+                                        data,
+                                        LocalIssuerTypes.EMAIL_OTP,
+                                    )
+                                }
+                            />
+                        )}
                         {formStage === 'precheck' && (
                             <Button
                                 type="submit"
@@ -324,6 +347,7 @@ const Login: FC<{}> = () => {
                         {ssoOptionsLastUsedFirst.length > 0 && (
                             <>
                                 {(isEmailLoginAvailable ||
+                                    isEmailOtpLoginAvailable ||
                                     formStage === 'precheck') && (
                                     <Divider
                                         my="sm"

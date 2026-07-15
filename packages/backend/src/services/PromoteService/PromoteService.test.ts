@@ -458,7 +458,7 @@ describe('PromoteService dashboard changes', () => {
         ]);
     });
 
-    test('getPromotionDashboardChanges update dashboard with chart tiles ', async () => {
+    test('getPromotionDashboardChanges update dashboard with chart tiles', async () => {
         const updatedAt = new Date();
         const updatedPromotedChart = { ...promotedChart.chart, updatedAt };
         (savedChartModel.get as import('vitest').Mock).mockImplementationOnce(

@@ -26,4 +26,5 @@ export enum ConnectMethod {
     CLI = 'cli',
     MANUAL = 'manual',
     AGENT = 'agent',
+    WAREHOUSE = 'warehouse',
 }

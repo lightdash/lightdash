@@ -7,3 +7,4 @@ export const PASSWORD_LABEL = `Password`;
 export const EXTERNAL_BROWSER_LABEL = `External Browser`;
 export const PERSONAL_ACCESS_TOKEN_LABEL = `Personal Access Token`;
 export const NONE_LABEL = `None`;
+export const CLI_SSO_LABEL = `Connect via Lightdash CLI (SSO)`;

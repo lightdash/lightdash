@@ -24,6 +24,7 @@ import {
     LightdashRequestMethodHeader,
     OrganizationMemberProfileUpdate,
     ReassignUserSchedulersRequest,
+    SaveOrganizationBrandRequest,
     UpdateAllowedEmailDomains,
     UpdateColorPalette,
     UpdateImpersonationOrganizationSettings,
@@ -168,9 +169,10 @@ export class OrganizationController extends BaseController {
     }
 
     /**
-     * Fetch the brand profile for a domain from Brandfetch and store it on the
-     * organization. Requires the Brandfetch API key to be configured on the instance.
-     * @summary Update organization brand
+     * Fetch the brand profile for a domain from Brandfetch without storing it.
+     * Used to preview a brand in the appearance settings before saving.
+     * Requires the Brandfetch API key to be configured on the instance.
+     * @summary Fetch organization brand
      * @param req express request
      * @param body the domain to fetch the brand for
      */
@@ -179,9 +181,9 @@ export class OrganizationController extends BaseController {
         isAuthenticated,
         unauthorisedInDemo,
     ])
-    @Post('/brand')
-    @OperationId('UpdateOrganizationBrand')
-    async updateOrganizationBrand(
+    @Post('/brand/fetch')
+    @OperationId('FetchOrganizationBrand')
+    async fetchOrganizationBrand(
         @Request() req: express.Request,
         @Body() body: UpdateOrganizationBrandRequest,
     ): Promise<ApiOrganizationBrandResponse> {
@@ -191,7 +193,35 @@ export class OrganizationController extends BaseController {
             status: 'ok',
             results: await this.services
                 .getOrganizationService()
-                .updateBrand(req.account, body.domain),
+                .fetchBrandFromDomain(req.account, body.domain),
+        };
+    }
+
+    /**
+     * Save the organization's brand appearance as edited by the user. Stores the
+     * provided colors, logos, fonts and domain as-is without calling Brandfetch.
+     * @summary Save organization brand
+     * @param req express request
+     * @param body the brand appearance to persist
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @Put('/brand')
+    @OperationId('SaveOrganizationBrand')
+    async saveOrganizationBrand(
+        @Request() req: express.Request,
+        @Body() body: SaveOrganizationBrandRequest,
+    ): Promise<ApiOrganizationBrandResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getOrganizationService()
+                .saveBrand(req.account, body),
         };
     }
 

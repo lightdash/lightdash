@@ -69,6 +69,7 @@ import { UserModel } from './UserModel';
 import { UserWarehouseCredentialsModel } from './UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { ValidationModel } from './ValidationModel/ValidationModel';
 import { WarehouseAvailableTablesModel } from './WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
+import { WarehouseConnectCodeModel } from './WarehouseConnectCodeModel';
 /**
  * Interface outlining all models. Add new models to
  * this list (in alphabetical order, please!).
@@ -131,6 +132,7 @@ export type ModelManifest = {
     userModel: UserModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
+    warehouseConnectCodeModel: WarehouseConnectCodeModel;
     validationModel: ValidationModel;
     catalogModel: CatalogModel;
     savedSqlModel: SavedSqlModel;
@@ -726,6 +728,13 @@ export class ModelRepository
         return this.getModel(
             'warehouseAvailableTablesModel',
             () => new WarehouseAvailableTablesModel(this.database),
+        );
+    }
+
+    public getWarehouseConnectCodeModel(): WarehouseConnectCodeModel {
+        return this.getModel(
+            'warehouseConnectCodeModel',
+            () => new WarehouseConnectCodeModel({ database: this.database }),
         );
     }
 

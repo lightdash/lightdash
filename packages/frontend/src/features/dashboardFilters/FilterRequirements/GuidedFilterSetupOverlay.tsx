@@ -3,7 +3,6 @@ import { Modal } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
 import { type FC } from 'react';
 import GuidedFilterSetup from './GuidedFilterSetup';
-import classes from './GuidedFilterSetup.module.css';
 
 type Props = {
     /** Applied to the modal root (embed passes its contract class) */
@@ -14,8 +13,8 @@ type Props = {
 
 /**
  * Composes Modal.Root directly (like SchedulerModal) instead of MantineModal:
- * the takeover card has no dialog chrome, and the header/footer MantineModal
- * hard-codes doesn't fit.
+ * the footer is a progress readout rather than the cancel/confirm button bar
+ * MantineModal hard-codes. The content surface stays stock Modal.Content.
  */
 const GuidedFilterSetupOverlay: FC<Props> = ({
     className,
@@ -39,10 +38,7 @@ const GuidedFilterSetupOverlay: FC<Props> = ({
             className={className}
         >
             <Modal.Overlay />
-            <Modal.Content
-                className={classes.content}
-                aria-label="Set filters to load this dashboard"
-            >
+            <Modal.Content aria-label="Set filters to load this dashboard">
                 <GuidedFilterSetup
                     startOfWeek={startOfWeek}
                     onDismiss={onDismiss}

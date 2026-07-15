@@ -7,7 +7,7 @@ import {
     queryResponse,
     querySchemaResponse,
 } from './TrinoWarehouseClient.mock';
-import * as wharehouseClient from './WarehouseClient.mock';
+import * as warehouseClient from './WarehouseClient.mock';
 
 const queryResultMock = vi.fn();
 
@@ -23,16 +23,16 @@ vi.mock('trino-client', () => ({
 }));
 
 describe('TrinoWarehouseClient', () => {
-    const lowerCaseFields = Object.keys(wharehouseClient.expectedFields).reduce<
+    const lowerCaseFields = Object.keys(warehouseClient.expectedFields).reduce<
         Record<string, AnyType>
     >((acc, key) => {
-        acc[key.toLowerCase()] = wharehouseClient.expectedFields[key];
+        acc[key.toLowerCase()] = warehouseClient.expectedFields[key];
         return acc;
     }, {});
-    const lowerCaseRow = Object.keys(wharehouseClient.expectedRow).reduce<
+    const lowerCaseRow = Object.keys(warehouseClient.expectedRow).reduce<
         Record<string, AnyType>
     >((acc, key) => {
-        acc[key.toLowerCase()] = wharehouseClient.expectedRow[key];
+        acc[key.toLowerCase()] = warehouseClient.expectedRow[key];
         return acc;
     }, {});
     it('expect query rows', async () => {
@@ -74,9 +74,9 @@ describe('TrinoWarehouseClient', () => {
                 .mockResolvedValue({ done: true, value: querySchemaResponse }),
         });
 
-        expect(warehouse.getCatalog(wharehouseClient.config)).resolves.toEqual(
-            wharehouseClient.expectedWarehouseSchema,
-        );
+        await expect(
+            warehouse.getCatalog(warehouseClient.config),
+        ).resolves.toEqual(warehouseClient.expectedWarehouseSchema);
     });
 
     describe('streamQuery client tag headers', () => {

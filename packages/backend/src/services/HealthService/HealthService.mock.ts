@@ -108,6 +108,7 @@ export const BaseResponse: HealthState = {
         overrideColorPalette: undefined,
         overrideColorPaletteName: undefined,
     },
+    hasBrandfetch: false,
     isServiceAccountEnabled: false,
     isOrganizationWarehouseCredentialsEnabled: false,
     isAthenaWarehouseIamRoleAuthEnabled: false,

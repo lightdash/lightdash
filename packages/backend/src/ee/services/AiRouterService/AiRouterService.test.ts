@@ -1,4 +1,14 @@
-import type { AiAgentWithContext, RegisteredAccount } from '@lightdash/common';
+import { Ability, AbilityBuilder } from '@casl/ability';
+import {
+    buildAbilityFromScopes,
+    defineUserAbility,
+    ForbiddenError,
+    OrganizationMemberRole,
+    ProjectMemberRole,
+    type AiAgentWithContext,
+    type MemberAbility,
+    type RegisteredAccount,
+} from '@lightdash/common';
 import { selectAgent } from '../ai/agents/agentSelector';
 import { getModel } from '../ai/models';
 import { AiRouterService } from './AiRouterService';
@@ -22,24 +32,72 @@ const ability = {
     rules: [],
 };
 
-const account = {
-    isAnonymousUser: () => false,
-    isServiceAccount: () => false,
-    isRegisteredUser: () => true,
-    isPatUser: () => true,
-    isOauthUser: () => false,
-    organization: { organizationUuid },
-    user: {
+const makeAccount = (userAbility: unknown): RegisteredAccount =>
+    ({
+        isAnonymousUser: () => false,
+        isServiceAccount: () => false,
+        isRegisteredUser: () => true,
+        isPatUser: () => true,
+        isOauthUser: () => false,
+        organization: { organizationUuid },
+        user: {
+            userUuid,
+            id: userUuid,
+            email: 'user@example.com',
+            firstName: 'Test',
+            lastName: 'User',
+            role: 'member',
+            ability: userAbility,
+        },
+        authentication: { type: 'pat' },
+    }) as unknown as RegisteredAccount;
+
+const account = makeAccount(ability);
+
+// Org base role `member` plus a project system role — no org-level AI grants.
+const orgMemberProjectEditorAbility = defineUserAbility(
+    {
+        role: OrganizationMemberRole.MEMBER,
+        organizationUuid,
         userUuid,
-        id: userUuid,
-        email: 'user@example.com',
-        firstName: 'Test',
-        lastName: 'User',
-        role: 'member',
-        ability,
+        roleUuid: undefined,
     },
-    authentication: { type: 'pat' },
-} as unknown as RegisteredAccount;
+    [
+        {
+            projectUuid,
+            role: ProjectMemberRole.EDITOR,
+            userUuid,
+            roleUuid: undefined,
+        },
+    ],
+);
+
+// Org `member` with no project access anywhere.
+const orgMemberOnlyAbility = defineUserAbility(
+    {
+        role: OrganizationMemberRole.MEMBER,
+        organizationUuid,
+        userUuid,
+        roleUuid: undefined,
+    },
+    [],
+);
+
+// Project-level custom role holding only the agent view scopes.
+const projectCustomRoleAbility = (() => {
+    const builder = new AbilityBuilder<MemberAbility>(Ability);
+    buildAbilityFromScopes(
+        {
+            projectUuid,
+            userUuid,
+            scopes: ['view:Project', 'view:AiAgent'],
+            isEnterprise: true,
+            organizationRole: OrganizationMemberRole.MEMBER,
+        },
+        builder,
+    );
+    return builder.build();
+})();
 
 const createCandidate = (
     overrides: Partial<AiAgentWithContext> & { uuid: string; name: string },
@@ -115,6 +173,23 @@ const makeService = ({
         createDecision: vi.fn().mockResolvedValue({
             decisionUuid: 'decision-uuid',
         }),
+        upsert: vi.fn().mockResolvedValue({
+            routerUuid: 'router-uuid',
+            organizationUuid,
+            enabled: true,
+            projectUuids: [projectUuid],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        }),
+        getDecision: vi.fn().mockResolvedValue({
+            decisionUuid: 'decision-uuid',
+            routerUuid: 'router-uuid',
+            userUuid,
+            suggestedAgentUuid: 'agent-2',
+            confidence: 'high',
+            candidateAgentUuids: ['agent-1', 'agent-2'],
+        }),
+        commitDecision: vi.fn().mockResolvedValue(undefined),
     };
     const aiAgentService = {
         getAvailableAgents: vi.fn().mockResolvedValue(candidates),
@@ -279,6 +354,126 @@ describe('AiRouterService', () => {
                 candidateAgentUuids: ['agent-1', 'agent-2'],
             }),
         );
+    });
+
+    describe('permission guards', () => {
+        const candidates = [
+            createCandidate({ uuid: 'agent-1', name: 'General' }),
+            createCandidate({ uuid: 'agent-2', name: 'Finance' }),
+        ];
+
+        const mockHighConfidenceSelection = () => {
+            (selectAgent as import('vitest').Mock).mockResolvedValue({
+                selectedAgentUuid: 'agent-2',
+                confidence: 'high',
+                reasoning: 'Finance agent matches the request.',
+                shouldSkipForwardingQuery: false,
+            });
+        };
+
+        it('lets an org member with a project system role read config, route, and commit', async () => {
+            const memberAccount = makeAccount(orgMemberProjectEditorAbility);
+            const { service, aiRouterModel } = makeService({ candidates });
+            mockHighConfidenceSelection();
+
+            const config = await service.getConfig(memberAccount);
+            expect(config.enabled).toBe(true);
+
+            const result = await service.route(memberAccount, {
+                prompt: 'show revenue by month',
+                projectUuid,
+            });
+            expect(result.decision.suggestedAgentUuid).toBe('agent-2');
+
+            await service.commitDecision(memberAccount, 'decision-uuid', {
+                chosenAgentUuid: 'agent-2',
+                threadUuid: 'thread-uuid',
+            });
+            expect(aiRouterModel.commitDecision).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    chosenAgentUuid: 'agent-2',
+                    selectionMode: 'auto_routed',
+                }),
+            );
+        });
+
+        it('lets an org member with a project custom role holding view:AiAgent read config and route', async () => {
+            const memberAccount = makeAccount(projectCustomRoleAbility);
+            const { service } = makeService({ candidates });
+            mockHighConfidenceSelection();
+
+            const config = await service.getConfig(memberAccount);
+            expect(config.enabled).toBe(true);
+
+            const result = await service.route(memberAccount, {
+                prompt: 'show revenue by month',
+                projectUuid,
+            });
+            expect(result.decision.suggestedAgentUuid).toBe('agent-2');
+        });
+
+        it('rejects an org member with no agent access anywhere', async () => {
+            const memberAccount = makeAccount(orgMemberOnlyAbility);
+            const { service, aiAgentService } = makeService({ candidates });
+
+            await expect(service.getConfig(memberAccount)).rejects.toThrow(
+                ForbiddenError,
+            );
+            await expect(
+                service.route(memberAccount, {
+                    prompt: 'show revenue by month',
+                    projectUuid,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            await expect(
+                service.commitDecision(memberAccount, 'decision-uuid', {
+                    chosenAgentUuid: 'agent-2',
+                    threadUuid: 'thread-uuid',
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(aiAgentService.getAvailableAgents).not.toHaveBeenCalled();
+        });
+
+        it('rejects routing in a project the user has no access to', async () => {
+            const memberAccount = makeAccount(orgMemberProjectEditorAbility);
+            const { service, aiAgentService } = makeService({ candidates });
+
+            await expect(
+                service.route(memberAccount, {
+                    prompt: 'show revenue by month',
+                    projectUuid: 'other-project-uuid',
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(aiAgentService.getAvailableAgents).not.toHaveBeenCalled();
+        });
+
+        it('keeps config writes admin-gated for org members with project roles', async () => {
+            const memberAccount = makeAccount(orgMemberProjectEditorAbility);
+            const { service, aiRouterModel } = makeService({ candidates });
+
+            await expect(
+                service.upsertConfig(memberAccount, {
+                    enabled: true,
+                    projectUuids: [projectUuid],
+                }),
+            ).rejects.toThrow(ForbiddenError);
+            expect(aiRouterModel.upsert).not.toHaveBeenCalled();
+        });
+
+        it('rejects committing an agent that was not a routing candidate', async () => {
+            const memberAccount = makeAccount(orgMemberProjectEditorAbility);
+            const { service, aiRouterModel } = makeService({ candidates });
+
+            await expect(
+                service.commitDecision(memberAccount, 'decision-uuid', {
+                    chosenAgentUuid: 'agent-not-a-candidate',
+                    threadUuid: 'thread-uuid',
+                }),
+            ).rejects.toThrow(
+                'Chosen agent was not among the routing candidates',
+            );
+            expect(aiRouterModel.commitDecision).not.toHaveBeenCalled();
+        });
     });
 
     it('requires at least two agents on the web route', async () => {

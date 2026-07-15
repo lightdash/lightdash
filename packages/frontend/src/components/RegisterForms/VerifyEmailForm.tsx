@@ -1,7 +1,7 @@
 import { type EmailStatusExpiring } from '@lightdash/common';
 import { Anchor, Button, PinInput, Stack, Text, Title } from '@mantine-8/core';
 import { isNotEmpty, useForm } from '@mantine/form';
-import { useEffect, type FC } from 'react';
+import { useEffect, useRef, type FC } from 'react';
 import Countdown, { zeroPad } from 'react-countdown';
 import {
     useOneTimePassword,
@@ -31,6 +31,18 @@ const VerifyEmailForm: FC<{
         },
     });
     const { setFieldError, clearFieldError } = form;
+    const submitInFlightRef = useRef(false);
+    const submitCode = (code: string) => {
+        if (submitInFlightRef.current || verificationLoading) {
+            return;
+        }
+        submitInFlightRef.current = true;
+        verifyCode(code, {
+            onSettled: () => {
+                submitInFlightRef.current = false;
+            },
+        });
+    };
     const errorMessage = form.errors.code;
     const expirationTime = data?.otp?.expiresAt || new Date();
     const loadingState =
@@ -70,7 +82,7 @@ const VerifyEmailForm: FC<{
             <form
                 name="verifyEmail"
                 onSubmit={form.onSubmit((values: { code: string }) =>
-                    verifyCode(values.code),
+                    submitCode(values.code),
                 )}
             >
                 <Stack gap="xs" justify="center" align="center">
@@ -80,9 +92,12 @@ const VerifyEmailForm: FC<{
                         length={6}
                         oneTimeCode
                         disabled={
-                            data?.otp?.isMaxAttempts || data?.otp?.isExpired
+                            data?.otp?.isMaxAttempts ||
+                            data?.otp?.isExpired ||
+                            verificationLoading
                         }
                         {...form.getInputProps('code')}
+                        onComplete={submitCode}
                         data-testid="pin-input"
                         autoFocus
                     />

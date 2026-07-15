@@ -48,7 +48,6 @@ import React, {
 } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useDeepCompareEffect, useMount } from 'react-use';
-import { getConditionalRuleLabelFromItem } from '../../components/common/Filters/FilterInputs/utils';
 import { type SdkFilter } from '../../ee/features/embed/EmbedDashboard/types';
 import {
     convertSdkFilterToDashboardFilter,
@@ -90,7 +89,7 @@ type DashboardProviderProps = React.PropsWithChildren<{
     schedulerDashboardFilters?: DashboardFilters | undefined;
     schedulerFilters?: DashboardFilterRule[] | undefined;
     schedulerParameters?: ParametersValuesMap | undefined;
-    schedulerTabsSelected?: string[] | undefined;
+    schedulerTabsSelected?: (string | null)[] | undefined;
     dateZoom?: DateGranularity | string | undefined;
     projectUuid?: string;
     embedToken?: string;
@@ -1652,47 +1651,6 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         setSavedParameters,
     ]);
 
-    // Filters that are required to have a value set
-    const requiredDashboardFilters = useMemo(
-        () =>
-            [...dashboardFilters.dimensions, ...dashboardFilters.metrics]
-                // Get filters that are required to have a value set (required) and that have no default value set (disabled)
-                .filter((f) => f.required && f.disabled)
-                .reduce<Pick<DashboardFilterRule, 'id' | 'label'>[]>(
-                    (acc, f) => {
-                        const field =
-                            allFilterableFieldsMap[f.target.fieldId] ??
-                            allFilterableMetricsMap[f.target.fieldId];
-
-                        let label = '';
-
-                        if (f.label) {
-                            label = f.label;
-                        } else if (field) {
-                            label = getConditionalRuleLabelFromItem(
-                                f,
-                                field,
-                            ).field;
-                        }
-
-                        return [
-                            ...acc,
-                            {
-                                id: f.id,
-                                label,
-                            },
-                        ];
-                    },
-                    [],
-                ),
-        [
-            dashboardFilters.dimensions,
-            dashboardFilters.metrics,
-            allFilterableFieldsMap,
-            allFilterableMetricsMap,
-        ],
-    );
-
     // Unmet filter requirements. Flag off = main parity: `requiredGroupId`
     // is ignored and the legacy disabled-only test applies.
     const { data: filterRequirementsFlag, isSuccess: isFilterFlagResolved } =
@@ -1780,7 +1738,6 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         dashboardCommentsCheck,
         dashboardComments,
         hasTileComments,
-        requiredDashboardFilters,
         unmetFilterRequirements,
         isFilterRequirementsEnabled,
         isDateZoomDisabled,

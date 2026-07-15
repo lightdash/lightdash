@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     getMetricsFromItemsMap,
     getTableCalculationsFromItemsMap,
     isNumericItem,
@@ -6,17 +7,19 @@ import {
     type ApiError,
     type CreateSchedulerAndTargets,
     type CreateSchedulerAndTargetsWithoutIds,
+    type DashboardFilters,
     type ItemsMap,
     type ParametersValuesMap,
     type SchedulerAndTargets,
 } from '@lightdash/common';
 import { type UseMutationResult } from '@tanstack/react-query';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useAiAgentButtonVisibility } from '../../../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useDashboardQuery } from '../../../hooks/dashboard/useDashboard';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useUser from '../../../hooks/user/useUser';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { isInvalidCronExpression } from '../../../utils/fieldValidators';
@@ -30,6 +33,7 @@ import {
     type SchedulerFormValues,
 } from '../components/SchedulerForm/schedulerFormContext';
 import { Limit } from '../components/types';
+import { getSchedulerFilterRequirements } from '../utils/filterRequirements';
 import { useScheduler, useSendNowScheduler } from './useScheduler';
 import {
     useSchedulerAiAugmentation,
@@ -142,6 +146,21 @@ export const useSchedulerFormModal = ({
     const isDashboardTabsAvailable =
         dashboard?.tabs !== undefined && dashboard.tabs.length > 1;
 
+    const { data: filterRequirementsFlag } = useServerFeatureFlag(
+        FeatureFlags.DashboardFilterRequirements,
+    );
+    const isFilterRequirementsEnabled =
+        filterRequirementsFlag?.enabled === true;
+
+    // The form's validate closure is captured once, so it reads the saved
+    // filters and flag through refs updated on every render.
+    const savedDashboardFiltersRef = useRef<DashboardFilters | undefined>(
+        undefined,
+    );
+    savedDashboardFiltersRef.current = dashboard?.filters;
+    const isFilterRequirementsEnabledRef = useRef(false);
+    isFilterRequirementsEnabledRef.current = isFilterRequirementsEnabled;
+
     // Use the explicitly passed parameter values
     const dashboardParameterValues = currentParameterValues || {};
 
@@ -193,13 +212,14 @@ export const useSchedulerFormModal = ({
                     // Dashboard filters are undefined/null for charts
                     return null;
                 }
-                const requiredFiltersWithoutValues = value.filter(
-                    (filter) =>
-                        filter.required &&
-                        (!filter.values || filter.values.length === 0),
-                );
+                const { filtersWithUnmetRequirements } =
+                    getSchedulerFilterRequirements(
+                        savedDashboardFiltersRef.current,
+                        value,
+                        isFilterRequirementsEnabledRef.current,
+                    );
 
-                if (requiredFiltersWithoutValues.length > 0) {
+                if (filtersWithUnmetRequirements.length > 0) {
                     return `Required filters must have values`;
                 }
                 return null;
@@ -236,12 +256,12 @@ export const useSchedulerFormModal = ({
     const isThresholdAlertWithNoFields =
         isThresholdAlert && Object.keys(numericMetrics).length === 0;
 
-    const requiredFiltersWithoutValues = (
-        form.values.dashboardFilters ?? []
-    ).filter(
-        (filter) =>
-            filter.required && (!filter.values || filter.values.length === 0),
-    );
+    const { filtersWithUnmetRequirements: requiredFiltersWithoutValues } =
+        getSchedulerFilterRequirements(
+            dashboard?.filters,
+            form.values.dashboardFilters,
+            isFilterRequirementsEnabled,
+        );
 
     // Sync form values when data is loaded. The AI augmentation is omitted —
     // it loads via a separate query and is synced by the effect below, so a

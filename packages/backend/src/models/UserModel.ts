@@ -75,6 +75,14 @@ import { PersonalAccessTokenModel } from './DashboardModel/PersonalAccessTokenMo
 import { FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
 import Transaction = Knex.Transaction;
 
+export type CreatePasswordlessUserArgs = {
+    firstName: string;
+    lastName: string;
+    email: CreateUserArgs['email'];
+};
+
+type CreateLocalUserArgs = CreateUserArgs | CreatePasswordlessUserArgs;
+
 export type DbUserDetails = {
     user_id: number;
     user_uuid: string;
@@ -255,10 +263,13 @@ export class UserModel {
                 `${UserTableName}.user_id`,
                 `${OpenIdIdentitiesTableName}.user_id`,
             )
+            .joinRaw(
+                `LEFT JOIN ${EmailTableName} AS verified_primary_emails ON ${UserTableName}.user_id = verified_primary_emails.user_id AND verified_primary_emails.is_primary AND verified_primary_emails.is_verified`,
+            )
             .select<{ user_uuid: string; has_authentication: false }[]>(
                 `${UserTableName}.user_uuid`,
                 trx.raw(
-                    `CASE WHEN COALESCE(password_logins.user_id, openid_identities.user_id, null) IS NOT NULL THEN TRUE ELSE FALSE END as has_authentication`,
+                    `CASE WHEN COALESCE(password_logins.user_id, openid_identities.user_id, verified_primary_emails.user_id, null) IS NOT NULL THEN TRUE ELSE FALSE END as has_authentication`,
                 ),
             )
             .distinctOn(`user_uuid`)
@@ -325,7 +336,7 @@ export class UserModel {
                 email: createUser.email.toLowerCase(),
                 is_primary: true,
             });
-            if (createUser.password) {
+            if ('password' in createUser && createUser.password) {
                 if (!validatePassword(createUser.password)) {
                     throw new ParameterError(
                         "Password doesn't meet requirements",
@@ -450,6 +461,14 @@ export class UserModel {
             .leftJoin('users', 'users.user_id', 'password_logins.user_id')
             .where('users.user_uuid', userUuid);
         return user !== undefined;
+    }
+
+    async hasOpenIdIdentity(userUuid: string): Promise<boolean> {
+        const identity = await this.database('openid_identities')
+            .innerJoin('users', 'users.user_id', 'openid_identities.user_id')
+            .where('users.user_uuid', userUuid)
+            .first('openid_identities.user_id');
+        return identity !== undefined;
     }
 
     async hasPasswordByEmail(email: string): Promise<boolean> {
@@ -982,6 +1001,7 @@ export class UserModel {
     async createPendingUser(
         organizationUuid: string,
         createUser: CreateUserWithRole,
+        isActive: boolean = true,
     ): Promise<LightdashUser> {
         const [org] = await this.database(OrganizationTableName)
             .where('organization_uuid', organizationUuid)
@@ -1007,7 +1027,7 @@ export class UserModel {
         const user = await this.database.transaction(async (trx) => {
             const newUser = await this.createUserTransaction(trx, {
                 ...createUser,
-                isActive: true,
+                isActive,
             });
             await trx(OrganizationMembershipsTableName).insert({
                 organization_id: org.organization_id,
@@ -1067,12 +1087,13 @@ export class UserModel {
     }
 
     async createUser(
-        createUser: CreateUserArgs | OpenIdUser,
+        createUser: CreateLocalUserArgs | OpenIdUser,
         isActive: boolean = true,
     ): Promise<LightdashUser> {
         const user = await this.database.transaction(async (trx) => {
             if (
                 !isOpenIdUser(createUser) &&
+                'password' in createUser &&
                 createUser.password &&
                 !validatePassword(createUser.password)
             ) {
@@ -1194,15 +1215,17 @@ export class UserModel {
         if (!validatePassword(password)) {
             throw new ParameterError("Password doesn't meet requirements");
         }
-        const user = await this.findSessionUserByUUID(userUuid);
+        const user = await this.database(UserTableName)
+            .where('user_uuid', userUuid)
+            .first('user_id');
 
-        if (!user?.userId) {
-            throw new NotFoundError('User is missing user_id');
+        if (!user) {
+            throw new NotFoundError(`Cannot find user with uuid ${userUuid}`);
         }
 
         await this.database(PasswordLoginTableName)
             .insert({
-                user_id: user.userId,
+                user_id: user.user_id,
                 password_hash: await bcrypt.hash(
                     password,
                     await bcrypt.genSalt(),

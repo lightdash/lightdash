@@ -7,7 +7,10 @@ import { lightdashApi } from '../api';
  * unified DB-backed flag system (env-var allowlists → per-flag config
  * handlers → DB).
  */
-export const useServerFeatureFlag = (featureFlagId: string) => {
+export const useServerFeatureFlag = (
+    featureFlagId: string,
+    options?: { retry?: number | boolean },
+) => {
     return useQuery<FeatureFlag, ApiError>(
         ['feature-flag', featureFlagId],
         () => {
@@ -19,7 +22,7 @@ export const useServerFeatureFlag = (featureFlagId: string) => {
             });
         },
         {
-            retry: false,
+            retry: options?.retry ?? false,
             refetchOnMount: false,
         },
     );

@@ -5,10 +5,11 @@
     "typeAware": true
   },
   "ignorePatterns": ["**/*.css"],
-  "plugins": ["typescript", "react", "jsx-a11y", "import"],
+  "plugins": ["typescript", "react", "jsx-a11y", "import", "vitest"],
   "jsPlugins": [
     "eslint-plugin-jest-dom",
-    "eslint-plugin-lodash"
+    "eslint-plugin-lodash",
+    { "name": "vitest-js", "specifier": "@vitest/eslint-plugin" }
   ],
   "rules": {
     /* ── eslint core (from root + frontend + airbnb) ──────────────── */
@@ -171,6 +172,28 @@
         "react-hooks/rules-of-hooks": "off",
         "react-hooks/exhaustive-deps": "off",
         "react/only-export-components": "off"
+      }
+    },
+    {
+      "files": ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"],
+      "rules": {
+        "vitest/no-import-node-test": "error",
+        "vitest-js/expect-expect": "off",
+        "vitest-js/no-commented-out-tests": "warn",
+        "vitest-js/no-conditional-expect": "off",
+        "vitest-js/no-disabled-tests": "warn",
+        "vitest-js/no-focused-tests": "error",
+        "vitest-js/no-identical-title": "error",
+        "vitest-js/no-interpolation-in-snapshots": "error",
+        "vitest-js/no-mocks-import": "error",
+        "vitest-js/no-standalone-expect": "error",
+        "vitest-js/no-unneeded-async-expect-function": "error",
+        "vitest-js/prefer-called-exactly-once-with": "error",
+        "vitest-js/require-local-test-context-for-concurrent-snapshots": "error",
+        "vitest-js/valid-describe-callback": "error",
+        "vitest-js/valid-expect": "error",
+        "vitest-js/valid-expect-in-promise": "error",
+        "vitest-js/valid-title": ["error", { "allowArguments": true }]
       }
     }
   ]

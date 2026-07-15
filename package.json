@@ -1,6 +1,6 @@
 {
     "name": "lightdash",
-    "version": "0.3380.0",
+    "version": "0.3388.0",
     "main": "index.js",
     "license": "MIT",
     "private": true,
@@ -53,6 +53,7 @@
         "@types/pegjs": "0.10.3",
         "@typescript-eslint/eslint-plugin": "7.18.0",
         "@typescript-eslint/parser": "7.18.0",
+        "@vitest/eslint-plugin": "1.6.23",
         "confusing-browser-globals": "1.0.11",
         "dotenv": "16.0.3",
         "dotenv-cli": "6.0.0",

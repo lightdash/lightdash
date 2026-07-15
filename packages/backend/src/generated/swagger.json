@@ -12161,6 +12161,9 @@
             },
             "SchedulerImageOptions": {
                 "properties": {
+                    "pagePerTab": {
+                        "type": "boolean"
+                    },
                     "withPdf": {
                         "type": "boolean"
                     }
@@ -12193,13 +12196,13 @@
                 ],
                 "type": "object"
             },
-            "Record_string.never_": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
             "SchedulerPdfOptions": {
-                "$ref": "#/components/schemas/Record_string.never_"
+                "properties": {
+                    "pagePerTab": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
             },
             "SchedulerOptions": {
                 "anyOf": [
@@ -13616,6 +13619,72 @@
                     "fieldsContext": {
                         "items": {
                             "$ref": "#/components/schemas/TableCalculationFieldContext"
+                        },
+                        "type": "array"
+                    },
+                    "tableName": {
+                        "type": "string"
+                    },
+                    "prompt": {
+                        "type": "string"
+                    }
+                },
+                "required": ["fieldsContext", "tableName", "prompt"],
+                "type": "object"
+            },
+            "GeneratedCustomDimension": {
+                "properties": {
+                    "dimensionType": {
+                        "$ref": "#/components/schemas/DimensionType"
+                    },
+                    "displayName": {
+                        "type": "string"
+                    },
+                    "sql": {
+                        "type": "string"
+                    }
+                },
+                "required": ["dimensionType", "displayName", "sql"],
+                "type": "object"
+            },
+            "ApiAiGenerateCustomDimensionResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/GeneratedCustomDimension"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "CustomDimensionFieldContext": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_Field.name-or-label-or-description-or-type-or-table_"
+                    },
+                    {
+                        "properties": {
+                            "id": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["id"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "GenerateCustomDimensionRequest": {
+                "properties": {
+                    "currentSql": {
+                        "type": "string"
+                    },
+                    "fieldsContext": {
+                        "items": {
+                            "$ref": "#/components/schemas/CustomDimensionFieldContext"
                         },
                         "type": "array"
                     },
@@ -16968,10 +17037,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -16980,8 +17049,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "label",
                                                                         "tableName",
+                                                                        "label",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -17004,28 +17073,28 @@
                                                                                         "items": {},
                                                                                         "type": "array"
                                                                                     },
-                                                                                    "required": {
-                                                                                        "type": "boolean"
-                                                                                    },
-                                                                                    "tableName": {
-                                                                                        "type": "string"
-                                                                                    },
                                                                                     "fieldRef": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "fieldId": {
                                                                                         "type": "string"
                                                                                     },
+                                                                                    "tableName": {
+                                                                                        "type": "string"
+                                                                                    },
                                                                                     "operator": {
                                                                                         "type": "string"
+                                                                                    },
+                                                                                    "required": {
+                                                                                        "type": "boolean"
                                                                                     }
                                                                                 },
                                                                                 "required": [
-                                                                                    "required",
-                                                                                    "tableName",
                                                                                     "fieldRef",
                                                                                     "fieldId",
-                                                                                    "operator"
+                                                                                    "tableName",
+                                                                                    "operator",
+                                                                                    "required"
                                                                                 ],
                                                                                 "type": "object"
                                                                             },
@@ -17080,6 +17149,9 @@
                                                             "searchQueries": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "error": {
+                                                                            "type": "string"
+                                                                        },
                                                                         "pagination": {
                                                                             "properties": {
                                                                                 "totalPageCount": {
@@ -17106,9 +17178,6 @@
                                                                                 "page"
                                                                             ],
                                                                             "type": "object"
-                                                                        },
-                                                                        "error": {
-                                                                            "type": "string"
                                                                         },
                                                                         "status": {
                                                                             "type": "string",
@@ -17488,22 +17557,22 @@
                                                         ],
                                                         "type": "object"
                                                     },
+                                                    "href": {
+                                                        "type": "string"
+                                                    },
                                                     "warnings": {
                                                         "items": {
                                                             "type": "string"
                                                         },
                                                         "type": "array"
                                                     },
-                                                    "href": {
-                                                        "type": "string"
-                                                    },
-                                                    "slug": {
-                                                        "type": "string"
-                                                    },
                                                     "status": {
                                                         "type": "string",
                                                         "enum": ["success"],
                                                         "nullable": false
+                                                    },
+                                                    "slug": {
+                                                        "type": "string"
                                                     },
                                                     "uuid": {
                                                         "type": "string"
@@ -17514,10 +17583,10 @@
                                                 },
                                                 "required": [
                                                     "versionUuids",
-                                                    "warnings",
                                                     "href",
-                                                    "slug",
+                                                    "warnings",
                                                     "status",
+                                                    "slug",
                                                     "uuid",
                                                     "name"
                                                 ],
@@ -17679,13 +17748,13 @@
                                                     "href": {
                                                         "type": "string"
                                                     },
-                                                    "slug": {
-                                                        "type": "string"
-                                                    },
                                                     "status": {
                                                         "type": "string",
                                                         "enum": ["success"],
                                                         "nullable": false
+                                                    },
+                                                    "slug": {
+                                                        "type": "string"
                                                     },
                                                     "name": {
                                                         "type": "string"
@@ -17693,8 +17762,8 @@
                                                 },
                                                 "required": [
                                                     "href",
-                                                    "slug",
                                                     "status",
+                                                    "slug",
                                                     "name"
                                                 ],
                                                 "type": "object"
@@ -17721,10 +17790,10 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success",
                                                             "timeout",
-                                                            "rejected"
+                                                            "error",
+                                                            "rejected",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -17735,10 +17804,6 @@
                                                 "properties": {
                                                     "ranking": {
                                                         "properties": {
-                                                            "searchQuery": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            },
                                                             "fields": {
                                                                 "items": {
                                                                     "properties": {
@@ -17755,10 +17820,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -17767,27 +17832,31 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "tableName",
                                                                         "label",
+                                                                        "tableName",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
                                                                 },
                                                                 "type": "array"
                                                             },
+                                                            "searchQuery": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
                                                             "type": {
                                                                 "type": "string",
                                                                 "enum": [
-                                                                    "metric",
                                                                     "dimension",
+                                                                    "metric",
                                                                     null
                                                                 ],
                                                                 "nullable": true
                                                             }
                                                         },
                                                         "required": [
-                                                            "searchQuery",
                                                             "fields",
+                                                            "searchQuery",
                                                             "type"
                                                         ],
                                                         "type": "object"
@@ -20254,6 +20323,7 @@
                     "private_key",
                     "sso",
                     "external_browser",
+                    "oauth_authorization_code",
                     "none"
                 ],
                 "type": "string"
@@ -22348,6 +22418,143 @@
                 },
                 "type": "object"
             },
+            "UserAsCodeRole": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "name": {
+                                "$ref": "#/components/schemas/OrganizationMemberRole"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["system"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["name", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["custom"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["name", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "UserAsCode": {
+                "properties": {
+                    "role": {
+                        "$ref": "#/components/schemas/UserAsCodeRole"
+                    },
+                    "disabled": {
+                        "type": "boolean"
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "version": {
+                        "type": "number",
+                        "enum": [1],
+                        "nullable": false
+                    }
+                },
+                "required": ["role", "disabled", "email", "version"],
+                "type": "object"
+            },
+            "ApiUserAsCodeListResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "users": {
+                                "items": {
+                                    "$ref": "#/components/schemas/UserAsCode"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["users"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "PromotionAction.CREATE": {
+                "enum": ["create"],
+                "type": "string"
+            },
+            "PromotionAction.UPDATE": {
+                "enum": ["update"],
+                "type": "string"
+            },
+            "PromotionAction.NO_CHANGES": {
+                "enum": ["no changes"],
+                "type": "string"
+            },
+            "UserAsCodeLifecycleStatus": {
+                "enum": ["ready", "awaiting authentication"],
+                "type": "string"
+            },
+            "UserAsCodeInvitationStatus": {
+                "enum": [
+                    "not requested",
+                    "sent",
+                    "skipped authenticated",
+                    "skipped disabled",
+                    "skipped valid invite"
+                ],
+                "type": "string"
+            },
+            "ApiUserAsCodeUpsertResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "invitation": {
+                                "$ref": "#/components/schemas/UserAsCodeInvitationStatus"
+                            },
+                            "lifecycle": {
+                                "$ref": "#/components/schemas/UserAsCodeLifecycleStatus"
+                            },
+                            "action": {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/PromotionAction.CREATE"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PromotionAction.UPDATE"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PromotionAction.NO_CHANGES"
+                                    }
+                                ]
+                            }
+                        },
+                        "required": ["invitation", "lifecycle", "action"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "Pick_AzureAdSsoConfig.oauth2ClientId-or-oauth2TenantId_": {
                 "properties": {
                     "oauth2ClientId": {
@@ -22839,6 +23046,79 @@
             "UpsertGoogleSsoConfig": {
                 "$ref": "#/components/schemas/Partial_OrganizationSsoMethodFlags_"
             },
+            "GroupAsCode": {
+                "properties": {
+                    "members": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "version": {
+                        "type": "number",
+                        "enum": [1],
+                        "nullable": false
+                    }
+                },
+                "required": ["members", "name", "version"],
+                "type": "object"
+            },
+            "ApiGroupAsCodeListResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "groups": {
+                                "items": {
+                                    "$ref": "#/components/schemas/GroupAsCode"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["groups"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiGroupAsCodeUpsertResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "action": {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/PromotionAction.CREATE"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PromotionAction.UPDATE"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PromotionAction.NO_CHANGES"
+                                    }
+                                ]
+                            }
+                        },
+                        "required": ["action"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "VerifiedDomain": {
                 "properties": {
                     "verifiedByUserUuid": {
@@ -23136,18 +23416,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "PromotionAction.CREATE": {
-                "enum": ["create"],
-                "type": "string"
-            },
-            "PromotionAction.UPDATE": {
-                "enum": ["update"],
-                "type": "string"
-            },
-            "PromotionAction.NO_CHANGES": {
-                "enum": ["no changes"],
-                "type": "string"
             },
             "ApiCustomRoleAsCodeUpsertResponse": {
                 "properties": {
@@ -24074,6 +24342,11 @@
                 },
                 "required": ["prompt"],
                 "type": "object"
+            },
+            "Record_string.never_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
             },
             "AiDeepResearchPhase": {
                 "type": "string",
@@ -26761,6 +27034,306 @@
                 },
                 "type": "object"
             },
+            "WarehouseConnectCode": {
+                "properties": {
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "code": {
+                        "type": "string"
+                    }
+                },
+                "required": ["expiresAt", "code"],
+                "type": "object"
+            },
+            "ApiWarehouseConnectCodeResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/WarehouseConnectCode"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiDepositWarehouseConnectionResponse": {
+                "properties": {
+                    "results": {},
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["status"],
+                "type": "object"
+            },
+            "Pick_CreateSnowflakeCredentials.Exclude_keyofCreateSnowflakeCredentials.database-or-warehouse-or-schema__": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/WarehouseTypes.SNOWFLAKE"
+                    },
+                    "user": {
+                        "type": "string"
+                    },
+                    "password": {
+                        "type": "string"
+                    },
+                    "privateKey": {
+                        "type": "string"
+                    },
+                    "privateKeyPass": {
+                        "type": "string"
+                    },
+                    "token": {
+                        "type": "string"
+                    },
+                    "refreshToken": {
+                        "type": "string"
+                    },
+                    "account": {
+                        "type": "string"
+                    },
+                    "requireUserCredentials": {
+                        "type": "boolean"
+                    },
+                    "authenticationType": {
+                        "$ref": "#/components/schemas/SnowflakeAuthenticationType"
+                    },
+                    "role": {
+                        "type": "string"
+                    },
+                    "threads": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "clientSessionKeepAlive": {
+                        "type": "boolean"
+                    },
+                    "queryTag": {
+                        "type": "string"
+                    },
+                    "accessUrl": {
+                        "type": "string"
+                    },
+                    "startOfWeek": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WeekDay"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "dataTimezone": {
+                        "type": "string"
+                    },
+                    "quotedIdentifiersIgnoreCase": {
+                        "type": "boolean"
+                    },
+                    "disableTimestampConversion": {
+                        "type": "boolean"
+                    },
+                    "timeoutSeconds": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "override": {
+                        "type": "boolean"
+                    },
+                    "organizationWarehouseCredentialsUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["type", "user", "account"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "Omit_CreateSnowflakeCredentials.database-or-warehouse-or-schema_": {
+                "$ref": "#/components/schemas/Pick_CreateSnowflakeCredentials.Exclude_keyofCreateSnowflakeCredentials.database-or-warehouse-or-schema__",
+                "description": "Construct a type with the properties of T except for those in type K."
+            },
+            "Partial_Pick_CreateSnowflakeCredentials.database-or-warehouse-or-schema__": {
+                "properties": {
+                    "database": {
+                        "type": "string"
+                    },
+                    "warehouse": {
+                        "type": "string"
+                    },
+                    "schema": {
+                        "type": "string"
+                    }
+                },
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "DepositSnowflakeCredentials": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Omit_CreateSnowflakeCredentials.database-or-warehouse-or-schema_"
+                    },
+                    {
+                        "$ref": "#/components/schemas/Partial_Pick_CreateSnowflakeCredentials.database-or-warehouse-or-schema__"
+                    }
+                ]
+            },
+            "WarehouseConnectInventory": {
+                "properties": {
+                    "schemas": {
+                        "items": {
+                            "properties": {
+                                "name": {
+                                    "type": "string"
+                                },
+                                "database": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["name", "database"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "roles": {
+                        "items": {
+                            "properties": {
+                                "isDefault": {
+                                    "type": "boolean"
+                                },
+                                "name": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["isDefault", "name"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "warehouses": {
+                        "items": {
+                            "properties": {
+                                "state": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "size": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "name": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["state", "size", "name"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
+                    "databases": {
+                        "items": {
+                            "properties": {
+                                "comment": {
+                                    "type": "string",
+                                    "nullable": true
+                                },
+                                "name": {
+                                    "type": "string"
+                                }
+                            },
+                            "required": ["comment", "name"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["schemas", "roles", "warehouses", "databases"],
+                "type": "object"
+            },
+            "DepositWarehouseConnectionRequest": {
+                "properties": {
+                    "inventory": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/WarehouseConnectInventory"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "credentials": {
+                        "$ref": "#/components/schemas/DepositSnowflakeCredentials"
+                    },
+                    "code": {
+                        "type": "string"
+                    }
+                },
+                "required": ["inventory", "credentials", "code"],
+                "type": "object"
+            },
+            "WarehouseConnectCodeClaimResult": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "status": {
+                                "type": "string",
+                                "enum": ["pending"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["status"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "inventory": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/WarehouseConnectInventory"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "credentials": {
+                                "$ref": "#/components/schemas/DepositSnowflakeCredentials"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["deposited"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["inventory", "credentials", "status"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiWarehouseConnectCodeClaimResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/WarehouseConnectCodeClaimResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ClaimWarehouseConnectCodeRequest": {
+                "properties": {
+                    "code": {
+                        "type": "string"
+                    }
+                },
+                "required": ["code"],
+                "type": "object"
+            },
             "ApiJobScheduledResponse": {
                 "properties": {
                     "results": {
@@ -27402,6 +27975,15 @@
                 "required": ["password", "email", "lastName", "firstName"],
                 "type": "object"
             },
+            "CreateEmailOnlyUserArgs": {
+                "properties": {
+                    "email": {
+                        "$ref": "#/components/schemas/Email"
+                    }
+                },
+                "required": ["email"],
+                "type": "object"
+            },
             "RegisterOrActivateUser": {
                 "anyOf": [
                     {
@@ -27409,6 +27991,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/CreateUserArgs"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CreateEmailOnlyUserArgs"
                     }
                 ]
             },
@@ -28066,7 +28651,7 @@
                 "type": "string"
             },
             "LocalIssuerTypes": {
-                "enum": ["email", "apiToken"],
+                "enum": ["email", "emailOtp", "apiToken"],
                 "type": "string"
             },
             "LoginOptionTypes": {
@@ -28109,6 +28694,52 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiLoginEmailOtpResponse": {
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["status"],
+                "type": "object"
+            },
+            "ApiLoginEmailOtpRequest": {
+                "properties": {
+                    "email": {
+                        "type": "string"
+                    }
+                },
+                "required": ["email"],
+                "type": "object"
+            },
+            "ApiVerifyLoginEmailOtpResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/LightdashUser"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiVerifyLoginEmailOtpRequest": {
+                "properties": {
+                    "passcode": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string"
+                    }
+                },
+                "required": ["passcode", "email"],
                 "type": "object"
             },
             "PersonalAccessToken": {
@@ -33358,36 +33989,40 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "ProjectSummary": {
+            "Pick_Project.name-or-projectUuid-or-organizationUuid-or-type-or-upstreamProjectUuid-or-createdByUserUuid_": {
                 "properties": {
-                    "createdByUserUuid": {
-                        "type": "string",
-                        "nullable": true
-                    },
-                    "upstreamProjectUuid": {
+                    "name": {
                         "type": "string"
                     },
                     "type": {
                         "$ref": "#/components/schemas/ProjectType"
-                    },
-                    "name": {
-                        "type": "string"
                     },
                     "projectUuid": {
                         "type": "string"
                     },
                     "organizationUuid": {
                         "type": "string"
+                    },
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "upstreamProjectUuid": {
+                        "type": "string"
                     }
                 },
                 "required": [
-                    "createdByUserUuid",
-                    "type",
                     "name",
+                    "type",
                     "projectUuid",
-                    "organizationUuid"
+                    "organizationUuid",
+                    "createdByUserUuid"
                 ],
-                "type": "object"
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "ProjectSummary": {
+                "$ref": "#/components/schemas/Pick_Project.name-or-projectUuid-or-organizationUuid-or-type-or-upstreamProjectUuid-or-createdByUserUuid_"
             },
             "ApiSuccess_ProjectSummary_": {
                 "properties": {
@@ -33403,13 +34038,17 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
-            "UpdateProjectDetails": {
+            "Partial_Pick_Project.name__": {
                 "properties": {
                     "name": {
                         "type": "string"
                     }
                 },
-                "type": "object"
+                "type": "object",
+                "description": "Make all properties in T optional"
+            },
+            "UpdateProjectDetails": {
+                "$ref": "#/components/schemas/Partial_Pick_Project.name__"
             },
             "ApiChartListResponse": {
                 "properties": {
@@ -38430,7 +39069,7 @@
                         },
                         "required": ["port", "host", "enabled"],
                         "type": "object",
-                        "description": "Postgres wire protocol connection details for the semantic layer, only\npopulated on the authenticated `GET /org` response (not the public health\nendpoint). `enabled` reflects whether the instance exposes a pgwire port;\n`host`/`port` are what clients use to connect."
+                        "description": "Postgres wire protocol connection details for the semantic layer, only\npopulated on the authenticated `GET /org` response (not the public health\nendpoint). `enabled` reflects whether the instance exposes a pgwire port\nand is returned to every org member; `host`/`port` are the infra endpoint\nclients connect to and are only populated for org admins (null otherwise)."
                     },
                     "createdAt": {
                         "type": "string",
@@ -38535,6 +39174,25 @@
                     "defaultProjectUuid": {
                         "type": "string",
                         "description": "The project a user sees when they first log in to the organization"
+                    },
+                    "pgWire": {
+                        "properties": {
+                            "port": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            },
+                            "host": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "enabled": {
+                                "type": "boolean"
+                            }
+                        },
+                        "required": ["port", "host", "enabled"],
+                        "type": "object",
+                        "description": "Postgres wire protocol connection details for the semantic layer, only\npopulated on the authenticated `GET /org` response (not the public health\nendpoint). `enabled` reflects whether the instance exposes a pgwire port\nand is returned to every org member; `host`/`port` are the infra endpoint\nclients connect to and are only populated for org admins (null otherwise)."
                     }
                 },
                 "type": "object",
@@ -38556,7 +39214,7 @@
                     "theme": {
                         "type": "string",
                         "nullable": true,
-                        "description": "Theme the asset is designed for, e.g. 'light' or 'dark'"
+                        "description": "Colour of the artwork itself: 'light' is a light/white logo (for dark\nbackgrounds), 'dark' is a dark logo (for light backgrounds)."
                     },
                     "type": {
                         "type": "string",
@@ -38683,6 +39341,49 @@
                 },
                 "required": ["domain"],
                 "type": "object"
+            },
+            "SaveOrganizationBrandRequest": {
+                "properties": {
+                    "fonts": {
+                        "items": {
+                            "$ref": "#/components/schemas/OrganizationBrandFont"
+                        },
+                        "type": "array"
+                    },
+                    "colors": {
+                        "items": {
+                            "$ref": "#/components/schemas/OrganizationBrandColor"
+                        },
+                        "type": "array"
+                    },
+                    "logos": {
+                        "items": {
+                            "$ref": "#/components/schemas/OrganizationBrandLogo"
+                        },
+                        "type": "array"
+                    },
+                    "description": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "domain": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "fonts",
+                    "colors",
+                    "logos",
+                    "description",
+                    "name",
+                    "domain"
+                ],
+                "type": "object",
+                "description": "The editable brand payload persisted when the user saves their brand\nappearance. Unlike a fetch, this does not call Brandfetch — it stores the\nvalues exactly as edited in the settings form."
             },
             "OrganizationProject": {
                 "properties": {
@@ -39531,11 +40232,11 @@
                     "organizationWarehouseCredentialsUuid": {
                         "type": "string"
                     },
-                    "dbtConnection": {
-                        "$ref": "#/components/schemas/DbtProjectConfig"
-                    },
                     "upstreamProjectUuid": {
                         "type": "string"
+                    },
+                    "dbtConnection": {
+                        "$ref": "#/components/schemas/DbtProjectConfig"
                     },
                     "dbtVersion": {
                         "$ref": "#/components/schemas/DbtVersionOption"
@@ -46263,7 +46964,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3376.0",
+        "version": "0.3387.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -52583,6 +53284,101 @@
                 ]
             }
         },
+        "/api/v2/orgs/{orgUuid}/users/code": {
+            "get": {
+                "operationId": "GetOrganizationUsersAsCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiUserAsCodeListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "orgUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "UpsertOrganizationUserAsCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiUserAsCodeUpsertResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "orgUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "sendInvite",
+                        "required": false,
+                        "schema": {
+                            "default": false,
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UserAsCode"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/org/sso/azuread": {
             "get": {
                 "operationId": "GetAzureAdSsoConfig",
@@ -53091,6 +53887,92 @@
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": []
+            }
+        },
+        "/api/v2/orgs/{orgUuid}/groups/code": {
+            "get": {
+                "operationId": "GetOrganizationGroupsAsCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGroupAsCodeListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "orgUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "UpsertOrganizationGroupAsCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGroupAsCodeUpsertResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "orgUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/GroupAsCode"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/org/domains": {
@@ -55266,6 +56148,122 @@
                 }
             }
         },
+        "/api/v1/warehouse-connect/code": {
+            "post": {
+                "operationId": "CreateWarehouseConnectCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiWarehouseConnectCodeResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Creates a short-lived, single-use connect code the Lightdash CLI can use\nto deposit warehouse credentials on behalf of the current user",
+                "summary": "Create connect code",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/warehouse-connect/deposit": {
+            "post": {
+                "operationId": "DepositWarehouseConnection",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDepositWarehouseConnectionResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Deposits durable warehouse credentials against a connect code. Called by\nthe Lightdash CLI; the connect code is the bearer credential, so this\nendpoint is intentionally unauthenticated",
+                "summary": "Deposit connection",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DepositWarehouseConnectionRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/warehouse-connect/claim": {
+            "post": {
+                "operationId": "ClaimWarehouseConnectCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiWarehouseConnectCodeClaimResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Retrieves credentials deposited against a connect code created by the\ncurrent user. Returns them once and deletes the code",
+                "summary": "Claim connect code",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ClaimWarehouseConnectCodeRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/projects/{projectUuid}/validate": {
             "post": {
                 "operationId": "ValidateProject",
@@ -56150,6 +57148,86 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/user/login-email-otp": {
+            "post": {
+                "operationId": "LoginEmailOtp",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiLoginEmailOtpResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["My Account"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiLoginEmailOtpRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/login-email-otp/verify": {
+            "post": {
+                "operationId": "VerifyLoginEmailOtp",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiVerifyLoginEmailOtpResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["My Account"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiVerifyLoginEmailOtpRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/user/me/personal-access-tokens": {
@@ -65834,8 +66912,8 @@
                 "security": [],
                 "parameters": []
             },
-            "post": {
-                "operationId": "UpdateOrganizationBrand",
+            "put": {
+                "operationId": "SaveOrganizationBrand",
                 "responses": {
                     "200": {
                         "description": "Ok",
@@ -65858,8 +66936,52 @@
                         }
                     }
                 },
-                "description": "Fetch the brand profile for a domain from Brandfetch and store it on the\norganization. Requires the Brandfetch API key to be configured on the instance.",
-                "summary": "Update organization brand",
+                "description": "Save the organization's brand appearance as edited by the user. Stores the\nprovided colors, logos, fonts and domain as-is without calling Brandfetch.",
+                "summary": "Save organization brand",
+                "tags": ["Organizations"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "description": "the brand appearance to persist",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SaveOrganizationBrandRequest",
+                                "description": "the brand appearance to persist"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/org/brand/fetch": {
+            "post": {
+                "operationId": "FetchOrganizationBrand",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOrganizationBrandResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Fetch the brand profile for a domain from Brandfetch without storing it.\nUsed to preview a brand in the appearance settings before saving.\nRequires the Brandfetch API key to be configured on the instance.",
+                "summary": "Fetch organization brand",
                 "tags": ["Organizations"],
                 "security": [],
                 "parameters": [],

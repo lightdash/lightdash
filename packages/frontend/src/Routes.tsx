@@ -143,6 +143,22 @@ const PUBLIC_ROUTES: RouteObject[] = [
             };
         },
     },
+    {
+        path: '/organization-setup',
+        lazy: async () => {
+            const OrganizationSetup = await loadLazyRouteDefault(
+                './pages/OrganizationSetup',
+                () => import('./pages/OrganizationSetup'),
+            );
+            return {
+                Component: () => (
+                    <TrackPage name={PageName.ORGANIZATION_SETUP}>
+                        <OrganizationSetup />
+                    </TrackPage>
+                ),
+            };
+        },
+    },
 ];
 
 const MINIMAL_ROUTES: RouteObject[] = [
@@ -738,18 +754,6 @@ const PRIVATE_ROUTES: RouteObject[] = [
             {
                 path: '/',
                 element: <Navigate to="/projects" replace />,
-            },
-            {
-                // Hidden prototype page — only accessible via direct link
-                path: '/brand-prototype',
-                handle: { hideAILauncher: true },
-                lazy: async () => {
-                    const BrandPrototype = await loadLazyRouteDefault(
-                        './pages/BrandPrototype',
-                        () => import('./pages/BrandPrototype'),
-                    );
-                    return { Component: BrandPrototype };
-                },
             },
             {
                 path: '/createProject/:method?',

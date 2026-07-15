@@ -268,14 +268,8 @@ const GuidedFilterSetup: FC<Props> = ({
             filterableFieldsByTileUuid={filterableFieldsByTileUuid}
             activeTabUuid={activeTab?.uuid}
         >
-            <Paper
-                shadow="xl"
-                radius="md"
-                withBorder
-                className={classes.cardWrapper}
-                data-testid="guided-filter-setup"
-            >
-                <Stack gap="xs" p="lg" pb="md">
+            <Box data-testid="guided-filter-setup">
+                <Stack gap="xs" px="xl" py="md">
                     <Group
                         justify="space-between"
                         align="flex-start"
@@ -309,7 +303,7 @@ const GuidedFilterSetup: FC<Props> = ({
                     mah="min(400px, 45vh)"
                     viewportRef={viewportRef}
                 >
-                    <Stack gap="sm" p="lg" py="md">
+                    <Stack gap="sm" px="xl" py="md">
                         {rules.map((rule, ruleIndex) => {
                             const isSatisfied =
                                 isRequirementRuleSatisfied(rule);
@@ -413,7 +407,7 @@ const GuidedFilterSetup: FC<Props> = ({
                     </Stack>
                 </ScrollArea.Autosize>
                 <Divider />
-                <Stack gap={6} p="lg" pt="md">
+                <Stack gap={6} px="xl" py="md">
                     <Group justify="space-between">
                         <Text size="xs" c="ldGray.6">
                             {satisfiedCount} of {rules.length} set
@@ -454,7 +448,7 @@ const GuidedFilterSetup: FC<Props> = ({
                         Set filters in the toolbar instead
                     </Anchor>
                 </Stack>
-            </Paper>
+            </Box>
         </FiltersProvider>
     );
 };

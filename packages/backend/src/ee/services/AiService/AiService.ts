@@ -6,7 +6,9 @@ import {
     FeatureFlags,
     ForbiddenError,
     GenerateChartMetadataRequest,
+    GenerateCustomDimensionRequest,
     GeneratedChartMetadata,
+    GeneratedCustomDimension,
     GeneratedFormulaTableCalculation,
     GeneratedTableCalculation,
     GeneratedTooltip,
@@ -38,6 +40,7 @@ import {
     DashboardSummaryCreated,
     DashboardSummaryViewed,
     GenerateChartMetadataGenerated,
+    GenerateCustomDimensionGenerated,
     GenerateFormulaTableCalculationGenerated,
     GenerateTableCalculationGenerated,
     GenerateTooltipGenerated,
@@ -45,6 +48,7 @@ import {
 import OpenAi from '../../clients/OpenAi';
 import { DashboardSummaryModel } from '../../models/DashboardSummaryModel';
 import { generateChartMetadata as generateChartMetadataFromContext } from '../ai/agents/chartMetadataGenerator';
+import { generateCustomDimension as generateCustomDimensionFromContext } from '../ai/agents/customDimensionGenerator';
 import {
     generateFormulaTableCalculation as generateFormulaTableCalculationFromContext,
     sanitizeCustomFormat as sanitizeFormulaCustomFormat,
@@ -569,6 +573,42 @@ export class AiService {
             type: result.type as TableCalculationType,
             format: sanitizeCustomFormat(result.format ?? undefined),
         };
+    }
+
+    async generateCustomDimension(
+        user: SessionUser,
+        projectUuid: string,
+        payload: GenerateCustomDimensionRequest,
+    ): Promise<GeneratedCustomDimension> {
+        const modelOptions = await this.getAmbientAiModel(user, {
+            projectUuid,
+        });
+        const project = await this.projectService.getProject(
+            projectUuid,
+            fromSession(user),
+        );
+        const warehouseType = project.warehouseConnection?.type;
+
+        if (!warehouseType) {
+            throw new ForbiddenError('Warehouse type is not available');
+        }
+
+        const result = await generateCustomDimensionFromContext(modelOptions, {
+            ...payload,
+            warehouseType,
+        });
+
+        this.analytics.track<GenerateCustomDimensionGenerated>({
+            userId: user.userUuid,
+            event: 'ai.custom_dimension.generated',
+            properties: {
+                organizationId: user.organizationUuid!,
+                projectId: projectUuid,
+                userId: user.userUuid,
+            },
+        });
+
+        return result;
     }
 
     async generateFormulaTableCalculation(

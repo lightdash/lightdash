@@ -155,6 +155,18 @@ export const SchedulerDataFormatSection: FC<Props> = ({
                         })}
                     />
                 )}
+                {isDashboardTabsAvailable &&
+                    (format === SchedulerFormat.PDF ||
+                        (format === SchedulerFormat.IMAGE &&
+                            form.values.options.withPdf)) && (
+                        <Checkbox
+                            size="xs"
+                            label="Each tab on its own page (with dashboard and tab title)"
+                            {...form.getInputProps('options.pagePerTab', {
+                                type: 'checkbox',
+                            })}
+                        />
+                    )}
                 {format === SchedulerFormat.CSV && (
                     <Tooltip
                         label="You must have at least one email recipient to attach a file to emails"

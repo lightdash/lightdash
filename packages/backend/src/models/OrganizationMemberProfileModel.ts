@@ -56,6 +56,7 @@ const SelectColumns = [
     `${EmailTableName}.email`,
     `${OrganizationTableName}.organization_uuid`,
     `${OrganizationMembershipsTableName}.role`,
+    `${OrganizationMembershipsTableName}.role_uuid`,
     `${InviteLinkTableName}.expires_at`,
     `${UserTableName}.created_at as user_created_at`,
     `${UserTableName}.updated_at as user_updated_at`,
@@ -226,6 +227,36 @@ export class OrganizationMemberProfileModel {
                 ),
             ),
         };
+    }
+
+    async getAllOrganizationMembers(
+        organizationUuid: string,
+    ): Promise<OrganizationMemberProfile[]> {
+        const members = await this.queryBuilder()
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .select<DbOrganizationMemberProfile[]>(SelectColumns)
+            .orderBy(`${EmailTableName}.email`, 'asc');
+
+        const usersHaveAuthenticationRows =
+            await UserModel.findIfUsersHaveAuthentication(this.database, {
+                userUuids: members.map((member) => member.user_uuid),
+            });
+        const usersHaveAuthenticationMap = new Map(
+            usersHaveAuthenticationRows.map((row) => [
+                row.user_uuid,
+                row.has_authentication,
+            ]),
+        );
+
+        return members.map((member) =>
+            OrganizationMemberProfileModel.parseRow(
+                member,
+                usersHaveAuthenticationMap.get(member.user_uuid) || false,
+            ),
+        );
     }
 
     async getOrganizationMembersAndGroups(

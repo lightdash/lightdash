@@ -19,6 +19,7 @@ import {
     type SchedulerAndTargets,
     type SchedulerCsvOptions,
     type SchedulerImageOptions,
+    type SchedulerPdfOptions,
 } from '@lightdash/common';
 import { createFormContext } from '@mantine/form';
 import intersection from 'lodash/intersection';
@@ -35,6 +36,7 @@ export interface SchedulerFormValues {
         limit: Limit;
         customLimit: number;
         withPdf: boolean;
+        pagePerTab: boolean;
         asAttachment: boolean;
         exportPivotedData: boolean;
         xlsxFileLayout: NonNullable<SchedulerCsvOptions['xlsxFileLayout']>;
@@ -75,6 +77,7 @@ export const DEFAULT_VALUES: SchedulerFormValues = {
         limit: Limit.TABLE,
         customLimit: 1,
         withPdf: false,
+        pagePerTab: false,
         asAttachment: false,
         exportPivotedData: true,
         xlsxFileLayout: 'zip',
@@ -152,6 +155,13 @@ export const getFormValuesFromScheduler = (
         formOptions.xlsxFileLayout = options.xlsxFileLayout ?? 'zip';
     } else if (isSchedulerImageOptions(options)) {
         formOptions.withPdf = options.withPdf || false;
+        formOptions.pagePerTab = options.pagePerTab || false;
+    }
+    if (
+        schedulerData.format === SchedulerFormat.PDF &&
+        'pagePerTab' in options
+    ) {
+        formOptions.pagePerTab = options.pagePerTab || false;
     }
 
     const emailTargets: string[] = [];
@@ -227,9 +237,14 @@ export const transformFormValues = (
     } else if (values.format === SchedulerFormat.IMAGE) {
         options = {
             withPdf: values.options.withPdf,
+            pagePerTab: values.options.withPdf
+                ? values.options.pagePerTab
+                : undefined,
         } satisfies SchedulerImageOptions;
     } else if (values.format === SchedulerFormat.PDF) {
-        options = {};
+        options = {
+            pagePerTab: values.options.pagePerTab,
+        } satisfies SchedulerPdfOptions;
     }
 
     const emailTargets = (values.emailTargets || []).map((email: string) => ({
