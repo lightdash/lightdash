@@ -27,6 +27,7 @@ const createAccessToken = async (data: CreatePersonalAccessToken) =>
         url: `/user/me/personal-access-tokens`,
         method: 'POST',
         body: JSON.stringify(data),
+        sensitive: true,
     });
 
 const deleteAccessToken = async (tokenUuid: string) =>

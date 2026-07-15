@@ -2502,6 +2502,14 @@ export type ImpersonationEvent = BaseTrack & {
     };
 };
 
+export type PromptFetchedEvent = BaseTrack & {
+    event: 'prompt.fetched';
+    anonymousId: string;
+    properties: {
+        promptName: string;
+    };
+};
+
 type TypedEvent =
     | TrackSimpleEvent
     | CreateUserEvent
@@ -2644,6 +2652,7 @@ type TypedEvent =
     | ContentVerificationEvent
     | SchedulerOwnershipReassignedEvent
     | ImpersonationEvent
+    | PromptFetchedEvent
     | AiUsageEvent;
 
 type UntypedEvent<T extends BaseTrack> = Omit<BaseTrack, 'event'> &

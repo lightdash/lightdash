@@ -1,10 +1,12 @@
+import { FeatureFlags } from '@lightdash/common';
 import { useState, type FC } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { Navigate, useNavigate, useParams } from 'react-router';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import ConnectManually from '../components/ProjectConnection/ProjectConnectFlow/ConnectManually';
 import ConnectManuallyStep2 from '../components/ProjectConnection/ProjectConnectFlow/ConnectManually/ConnectManuallyStep2';
 import ConnectSuccess from '../components/ProjectConnection/ProjectConnectFlow/ConnectSuccess';
+import ConnectUsingAgent from '../components/ProjectConnection/ProjectConnectFlow/ConnectUsingAgent';
 import ConnectUsingCLI from '../components/ProjectConnection/ProjectConnectFlow/ConnectUsingCLI';
 import SelectConnectMethod from '../components/ProjectConnection/ProjectConnectFlow/SelectConnectMethod';
 import SelectWarehouse from '../components/ProjectConnection/ProjectConnectFlow/SelectWarehouse';
@@ -17,6 +19,7 @@ import UnsupportedWarehouse from '../components/ProjectConnection/ProjectConnect
 import { ProjectFormProvider } from '../components/ProjectConnection/ProjectFormProvider';
 import { useOrganization } from '../hooks/organization/useOrganization';
 import useSearchParams from '../hooks/useSearchParams';
+import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 
 const CreateProject: FC = () => {
@@ -30,11 +33,27 @@ const CreateProject: FC = () => {
 
     const { method } = useParams<{ method: ConnectMethod }>();
     const projectUuid = useSearchParams('projectUuid');
+    const codingAgentOnboardingFlag = useServerFeatureFlag(
+        FeatureFlags.CodingAgentOnboarding,
+    );
 
     const [warehouse, setWarehouse] = useState<SelectedWarehouse>();
 
-    if (isLoadingHealth || !health || isLoadingOrganization || !organization) {
+    if (
+        isLoadingHealth ||
+        !health ||
+        isLoadingOrganization ||
+        !organization ||
+        codingAgentOnboardingFlag.isInitialLoading
+    ) {
         return <PageSpinner />;
+    }
+
+    const isCodingAgentOnboardingEnabled =
+        codingAgentOnboardingFlag.data?.enabled === true;
+
+    if (method === ConnectMethod.AGENT && !isCodingAgentOnboardingEnabled) {
+        return <Navigate to="/createProject" replace />;
     }
 
     const isCreatingFirstProject = !!organization.needsProject;
@@ -67,6 +86,9 @@ const CreateProject: FC = () => {
                                         isCreatingFirstProject={
                                             isCreatingFirstProject
                                         }
+                                        isCodingAgentOnboardingEnabled={
+                                            isCodingAgentOnboardingEnabled
+                                        }
                                         onSelect={(newMethod) => {
                                             void navigate(
                                                 `/createProject/${newMethod}`,
@@ -90,6 +112,22 @@ const CreateProject: FC = () => {
                                         }}
                                     />
                                 )}
+
+                                {warehouse &&
+                                    method === ConnectMethod.AGENT && (
+                                        <ConnectUsingAgent
+                                            selectedWarehouse={warehouse}
+                                            siteUrl={health.siteUrl}
+                                            onBack={() => {
+                                                void navigate(
+                                                    '/createProject',
+                                                    {
+                                                        replace: true,
+                                                    },
+                                                );
+                                            }}
+                                        />
+                                    )}
 
                                 {warehouse &&
                                     method === ConnectMethod.MANUAL && (
