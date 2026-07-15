@@ -70,14 +70,26 @@ Run `lightdash lint`, execute every chart with `lightdash run-chart -p <chart-ya
 
 **Gate:** Lint passes, every chart executes successfully, and validated upload succeeds.
 
-## 6. Verify and hand off
+## 6. Hand off the completed project
+
+### Verify before handoff
 
 1. Run `lightdash config get-project` and confirm the prepared UUID and chosen name.
 2. Run `lightdash validate --project <Prepared project UUID>` and resolve every reported semantic-layer error.
 3. Create a temporary directory outside the repository.
 4. Run `lightdash download --project <Prepared project UUID> --path <temporary-directory> --charts <every agent-starter chart slug> --dashboards agent-starter-dashboard`.
 5. Inspect the downloaded YAML for every expected chart slug, the dashboard slug and chart references, and the `Lightdash Starter` space metadata.
-6. Remove the temporary directory.
-7. Return the working project and dashboard URLs with a concise completion summary. Keep the PAT, warehouse credentials, organization identity, user identity, and other secrets out of the handoff.
+6. Remove the temporary directory after every expected artifact is confirmed.
 
-**Gate:** Project UUID and name match, validation reports no errors, every expected artifact downloads successfully, and both URLs work.
+### Handoff
+
+Return a compact handoff containing:
+
+- A one-sentence summary of the analytics use case delivered.
+- The working project and dashboard URLs.
+- Confirmation that project selection, validation, chart execution, upload, and download verification passed.
+- One useful next action when further work would add value.
+
+Reference the Lightdash URLs instead of reproducing generated YAML. Keep the PAT, warehouse credentials, organization identity, user identity, and other secrets out of the handoff.
+
+**Gate:** The user receives a concise, secret-free handoff with working project and dashboard URLs and confirmation that every verification passed.
