@@ -73,3 +73,43 @@ export const useLoginWithEmailMutation = ({
         onSuccess: onSuccess,
         onError: onError,
     });
+
+const emailOtpRequestQuery = async (email: string) =>
+    lightdashApi<null>({
+        url: `/user/login-email-otp`,
+        method: 'POST',
+        body: JSON.stringify({ email }),
+    });
+
+export const useEmailOtpRequestMutation = () =>
+    useMutation<null, ApiError, string>(
+        (email) => emailOtpRequestQuery(email),
+        {
+            mutationKey: ['login-email-otp-request'],
+        },
+    );
+
+export type EmailOtpVerifyParams = { email: string; passcode: string };
+
+const emailOtpVerifyQuery = async (data: EmailOtpVerifyParams) =>
+    lightdashApi<LightdashUser>({
+        url: `/user/login-email-otp/verify`,
+        method: 'POST',
+        body: JSON.stringify(data),
+    });
+
+export const useEmailOtpVerifyMutation = ({
+    onSuccess,
+    onError,
+}: {
+    onSuccess: (user: LightdashUser) => void;
+    onError: (error: ApiError) => void;
+}) =>
+    useMutation<LightdashUser, ApiError, EmailOtpVerifyParams>(
+        emailOtpVerifyQuery,
+        {
+            mutationKey: ['login-email-otp-verify'],
+            onSuccess,
+            onError,
+        },
+    );

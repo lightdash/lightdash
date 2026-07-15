@@ -20,6 +20,7 @@ import {
     DatabricksAuthenticationType,
     DeactivatedAccountError,
     DeleteOpenIdentity,
+    EmailStatus,
     EmailStatusExpiring,
     ExpiredError,
     FeatureFlags,
@@ -1876,6 +1877,143 @@ export class UserService extends BaseService {
         };
     }
 
+    private async assertEmailOtpLoginEnabled(): Promise<void> {
+        const featureFlag = await this.featureFlagModel.get({
+            user: undefined,
+            featureFlagId: FeatureFlags.EmailOnlySignup,
+        });
+        if (!featureFlag.enabled) {
+            throw new ForbiddenError('Email OTP login is not enabled');
+        }
+    }
+
+    private async isStrictlyPasswordlessUser(
+        user: LightdashUser,
+        email: string,
+    ): Promise<boolean> {
+        const [hasPassword, hasOpenIdIdentity, isEmailLoginAllowed] =
+            await Promise.all([
+                this.userModel.hasPassword(user.userUuid),
+                this.userModel.hasOpenIdIdentity(user.userUuid),
+                this.isLoginMethodAllowed(email, LocalIssuerTypes.EMAIL_OTP),
+            ]);
+        return !hasPassword && !hasOpenIdIdentity && isEmailLoginAllowed;
+    }
+
+    async requestEmailOtpLogin(email: string): Promise<void> {
+        await this.assertEmailOtpLoginEnabled();
+        const normalizedEmail = email.toLowerCase();
+        const user = await this.userModel.findUserByEmail(normalizedEmail);
+        if (
+            !user ||
+            !user.isActive ||
+            !(await this.isStrictlyPasswordlessUser(user, normalizedEmail))
+        ) {
+            return;
+        }
+        await this.sendOneTimePasscodeToPrimaryEmail(user);
+    }
+
+    async loginWithEmailOtp(
+        email: string,
+        passcode: string,
+        context?: AuthAuditContext,
+    ): Promise<SessionUser> {
+        await this.assertEmailOtpLoginEnabled();
+        const normalizedEmail = email.toLowerCase();
+        const invalidCode = () => {
+            emitAuthAuditEvent({
+                actor: createUnknownAuthActor(normalizedEmail),
+                action: 'login',
+                resourceType: 'Session',
+                status: 'denied',
+                reason: 'Invalid or expired code',
+                metadata: { loginProvider: 'email_otp' },
+                context,
+            });
+            return new AuthorizationError('Invalid or expired code');
+        };
+
+        const user = await this.userModel.findUserByEmail(normalizedEmail);
+        if (
+            !user ||
+            !user.isActive ||
+            !(await this.isStrictlyPasswordlessUser(user, normalizedEmail))
+        ) {
+            throw invalidCode();
+        }
+
+        let emailStatus: EmailStatus;
+        try {
+            emailStatus = await this.emailModel.getPrimaryEmailStatus(
+                user.userUuid,
+            );
+        } catch (error) {
+            if (error instanceof NotFoundError) {
+                throw invalidCode();
+            }
+            throw error;
+        }
+
+        if (
+            !emailStatus.otp ||
+            this.isOtpMaxAttempts(emailStatus.otp.numberOfAttempts) ||
+            this.isOtpExpired(emailStatus.otp.createdAt)
+        ) {
+            throw invalidCode();
+        }
+
+        try {
+            await this.emailModel.getPrimaryEmailStatusByUserAndOtp({
+                userUuid: user.userUuid,
+                passcode,
+            });
+        } catch (error) {
+            if (error instanceof NotFoundError) {
+                await this.emailModel.incrementPrimaryEmailOtpAttempts(
+                    user.userUuid,
+                );
+                throw invalidCode();
+            }
+            throw error;
+        }
+
+        let sessionUser: SessionUser;
+        try {
+            sessionUser = await this.userModel.findSessionUserByUUID(
+                user.userUuid,
+            );
+        } catch (error) {
+            if (error instanceof NotFoundError) {
+                throw invalidCode();
+            }
+            throw error;
+        }
+        await this.tryVerifyUserEmail(sessionUser, emailStatus.email);
+        await this.emailModel.deleteEmailOtp(
+            sessionUser.userUuid,
+            emailStatus.email,
+        );
+        this.identifyUser(sessionUser);
+        this.analytics.track({
+            userId: sessionUser.userUuid,
+            event: 'user.logged_in',
+            properties: {
+                loginProvider: 'email_otp',
+            },
+        });
+        emitAuthAuditEvent({
+            actor: createActorFromUser(sessionUser),
+            action: 'login',
+            resourceType: 'Session',
+            status: 'allowed',
+            organizationUuid: sessionUser.organizationUuid,
+            metadata: { loginProvider: 'email_otp' },
+            context,
+        });
+        return sessionUser;
+    }
+
     private isOtpExpired(createdAt: Date) {
         return this.otpExpirationDate(createdAt) < new Date();
     }
@@ -2521,6 +2659,7 @@ export class UserService extends BaseService {
     async isLoginMethodAllowed(email: string, loginMethod: LoginOptionTypes) {
         switch (loginMethod) {
             case LocalIssuerTypes.EMAIL:
+            case LocalIssuerTypes.EMAIL_OTP:
                 return !this.lightdashConfig.auth.disablePasswordAuthentication;
             case OpenIdIdentityIssuerType.GOOGLE:
                 // Enabled by default, but an org can disable Google sign-in
@@ -3116,6 +3255,36 @@ export class UserService extends BaseService {
 
         const openIdIssuers = await this.userModel.getOpenIdIssuers(email);
         const hasPassword = await this.userModel.hasPasswordByEmail(email);
+        let shouldShowEmailOtp = false;
+        if (existingUser && !hasPassword) {
+            const [
+                featureFlag,
+                hasPasswordLogin,
+                hasOpenIdIdentity,
+                isEmailLoginAllowed,
+            ] = await Promise.all([
+                this.featureFlagModel.get({
+                    user: undefined,
+                    featureFlagId: FeatureFlags.EmailOnlySignup,
+                }),
+                this.userModel.hasPassword(existingUser.userUuid),
+                this.userModel.hasOpenIdIdentity(existingUser.userUuid),
+                this.isLoginMethodAllowed(email, LocalIssuerTypes.EMAIL_OTP),
+            ]);
+            shouldShowEmailOtp =
+                featureFlag.enabled &&
+                !hasPasswordLogin &&
+                !hasOpenIdIdentity &&
+                isEmailLoginAllowed;
+        }
+        const applyEmailOtpOption = (options: LoginOptionTypes[]) =>
+            shouldShowEmailOtp && options.includes(LocalIssuerTypes.EMAIL)
+                ? options.map((option) =>
+                      option === LocalIssuerTypes.EMAIL
+                          ? LocalIssuerTypes.EMAIL_OTP
+                          : option,
+                  )
+                : options;
 
         let ssoOptionsForUser: OpenIdIdentityIssuerType[];
         let passwordAllowedForUser: boolean;
@@ -3161,10 +3330,12 @@ export class UserService extends BaseService {
         // new signup.
         if (showOptions.length === 0) {
             return {
-                showOptions: Array.from(instancesOptions).filter(
-                    (o) =>
-                        googleEnabledForUser ||
-                        o !== OpenIdIdentityIssuerType.GOOGLE,
+                showOptions: applyEmailOtpOption(
+                    Array.from(instancesOptions).filter(
+                        (o) =>
+                            googleEnabledForUser ||
+                            o !== OpenIdIdentityIssuerType.GOOGLE,
+                    ),
                 ),
                 forceRedirect: false,
                 redirectUri: undefined,
@@ -3188,8 +3359,9 @@ export class UserService extends BaseService {
                 ).href,
             };
         }
+        const loginOptions = applyEmailOtpOption(showOptions);
         return {
-            showOptions,
+            showOptions: loginOptions,
             forceRedirect: false,
             redirectUri: undefined,
         };

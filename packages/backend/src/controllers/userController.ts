@@ -4,9 +4,13 @@ import {
     ApiGetAccountResponse,
     ApiGetAuthenticatedUserResponse,
     ApiGetLoginOptionsResponse,
+    ApiLoginEmailOtpRequest,
+    ApiLoginEmailOtpResponse,
     ApiRegisterUserResponse,
     ApiSuccessEmpty,
     ApiUserAllowedOrganizationsResponse,
+    ApiVerifyLoginEmailOtpRequest,
+    ApiVerifyLoginEmailOtpResponse,
     assertRegisteredAccount,
     CreatePersonalAccessToken,
     getRequestMethod,
@@ -566,6 +570,43 @@ export class UserController extends BaseController {
             status: 'ok',
             results: loginOptions,
         };
+    }
+
+    @Post('/login-email-otp')
+    @OperationId('LoginEmailOtp')
+    async requestEmailOtpLogin(
+        @Body() body: ApiLoginEmailOtpRequest,
+    ): Promise<ApiLoginEmailOtpResponse> {
+        await this.services.getUserService().requestEmailOtpLogin(body.email);
+        this.setStatus(200);
+        return { status: 'ok' };
+    }
+
+    @Post('/login-email-otp/verify')
+    @OperationId('VerifyLoginEmailOtp')
+    async verifyEmailOtpLogin(
+        @Request() req: express.Request,
+        @Body() body: ApiVerifyLoginEmailOtpRequest,
+    ): Promise<ApiVerifyLoginEmailOtpResponse> {
+        const sessionUser = await this.services
+            .getUserService()
+            .loginWithEmailOtp(body.email, body.passcode, {
+                ip: req.ip,
+                userAgent: req.get('user-agent'),
+            });
+        return new Promise((resolve, reject) => {
+            req.login(sessionUser, (error) => {
+                if (error) {
+                    reject(error);
+                    return;
+                }
+                this.setStatus(200);
+                resolve({
+                    status: 'ok',
+                    results: sessionUser,
+                });
+            });
+        });
     }
 
     /**

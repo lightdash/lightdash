@@ -28144,7 +28144,7 @@
                 "type": "string"
             },
             "LocalIssuerTypes": {
-                "enum": ["email", "apiToken"],
+                "enum": ["email", "emailOtp", "apiToken"],
                 "type": "string"
             },
             "LoginOptionTypes": {
@@ -28187,6 +28187,52 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiLoginEmailOtpResponse": {
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["status"],
+                "type": "object"
+            },
+            "ApiLoginEmailOtpRequest": {
+                "properties": {
+                    "email": {
+                        "type": "string"
+                    }
+                },
+                "required": ["email"],
+                "type": "object"
+            },
+            "ApiVerifyLoginEmailOtpResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/LightdashUser"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiVerifyLoginEmailOtpRequest": {
+                "properties": {
+                    "passcode": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string"
+                    }
+                },
+                "required": ["passcode", "email"],
                 "type": "object"
             },
             "PersonalAccessToken": {
@@ -56298,6 +56344,86 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/user/login-email-otp": {
+            "post": {
+                "operationId": "LoginEmailOtp",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiLoginEmailOtpResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["My Account"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiLoginEmailOtpRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/login-email-otp/verify": {
+            "post": {
+                "operationId": "VerifyLoginEmailOtp",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiVerifyLoginEmailOtpResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["My Account"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiVerifyLoginEmailOtpRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/user/me/personal-access-tokens": {

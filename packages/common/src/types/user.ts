@@ -179,8 +179,27 @@ export type ApiRegisterUserResponse = {
     results: LightdashUser;
 };
 
+export type ApiLoginEmailOtpRequest = {
+    email: string;
+};
+
+export type ApiLoginEmailOtpResponse = {
+    status: 'ok';
+};
+
+export type ApiVerifyLoginEmailOtpRequest = {
+    email: string;
+    passcode: string;
+};
+
+export type ApiVerifyLoginEmailOtpResponse = {
+    status: 'ok';
+    results: LightdashUser;
+};
+
 export enum LocalIssuerTypes {
     EMAIL = 'email',
+    EMAIL_OTP = 'emailOtp',
     API_TOKEN = 'apiToken',
 }
 

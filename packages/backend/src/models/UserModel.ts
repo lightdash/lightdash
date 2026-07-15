@@ -463,6 +463,14 @@ export class UserModel {
         return user !== undefined;
     }
 
+    async hasOpenIdIdentity(userUuid: string): Promise<boolean> {
+        const identity = await this.database('openid_identities')
+            .innerJoin('users', 'users.user_id', 'openid_identities.user_id')
+            .where('users.user_uuid', userUuid)
+            .first('openid_identities.user_id');
+        return identity !== undefined;
+    }
+
     async hasPasswordByEmail(email: string): Promise<boolean> {
         const results = await this.database('password_logins')
             .leftJoin('emails', 'password_logins.user_id', 'emails.user_id')
