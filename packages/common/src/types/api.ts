@@ -432,7 +432,10 @@ export const hasInviteCode = (
 export const isEmailOnlyUser = (
     data: RegisterOrActivateUser,
 ): data is CreateEmailOnlyUserArgs =>
-    !('inviteCode' in data) && !('password' in data);
+    !('inviteCode' in data) &&
+    !('password' in data) &&
+    !('firstName' in data) &&
+    !('lastName' in data);
 
 export type SentryConfig = {
     backend: {
