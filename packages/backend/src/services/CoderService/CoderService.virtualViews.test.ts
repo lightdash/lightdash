@@ -108,6 +108,9 @@ const buildService = (existing: Explore | null = virtualView) => {
         spacePermissionService: {} as never,
         contentVerificationModel: {} as never,
         projectService: projectService as never,
+        groupsModel: {} as never,
+        organizationMemberProfileModel: {} as never,
+        userModel: {} as never,
     });
     return { service, projectService };
 };

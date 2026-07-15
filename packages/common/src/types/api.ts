@@ -124,6 +124,8 @@ import {
     type ApiGoogleSheetsSyncAsCodeUpsertResponse,
     type ApiScheduledDeliveryAsCodeListResponse,
     type ApiScheduledDeliveryAsCodeUpsertResponse,
+    type ApiSpaceAsCodeListResponse,
+    type ApiSpaceAsCodeUpsertResponse,
     type ApiSqlChartAsCodeListResponse,
     type ApiVirtualViewAsCodeListResponse,
     type ApiVirtualViewAsCodeUpsertResponse,
@@ -1179,6 +1181,8 @@ type ApiResults =
     | ApiScheduledDeliveryAsCodeUpsertResponse['results']
     | ApiVirtualViewAsCodeListResponse['results']
     | ApiVirtualViewAsCodeUpsertResponse['results']
+    | ApiSpaceAsCodeListResponse['results']
+    | ApiSpaceAsCodeUpsertResponse['results']
     | ApiChartAsCodeUpsertResponse['results']
     | ApiGetMetricsTree['results']
     | ApiGetMetricsTreeResponse['results']

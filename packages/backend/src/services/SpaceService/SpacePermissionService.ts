@@ -13,6 +13,7 @@ import {
     type SpaceAccessUserMetadata,
     type SpaceGroup,
 } from '@lightdash/common';
+import { Knex } from 'knex';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SpacePermissionModel } from '../../models/SpacePermissionModel';
 import { BaseService } from '../BaseService';
@@ -51,18 +52,35 @@ export class SpacePermissionService extends BaseService {
         action: AbilityAction,
         user: SessionUser,
         spaceUuids: string[] | string,
+        { trx }: { trx?: Knex } = {},
     ): Promise<boolean> {
         const spaceUuidsArray = Array.isArray(spaceUuids)
             ? spaceUuids
             : [spaceUuids];
 
-        const accessContext = await this.getSpacesCaslContext(spaceUuidsArray, {
-            userUuid: user.userUuid,
-        });
+        const accessContext = await this.getSpacesCaslContext(
+            spaceUuidsArray,
+            {
+                userUuid: user.userUuid,
+            },
+            { trx },
+        );
+
+        const uniqueSpaceUuids = [...new Set(spaceUuidsArray)];
+        if (
+            uniqueSpaceUuids.some(
+                (spaceUuid) => accessContext[spaceUuid] === undefined,
+            )
+        ) {
+            return false;
+        }
 
         const auditedAbility = this.createAuditedAbility(user);
-        return Object.values(accessContext).every((access) =>
-            auditedAbility.can(action, subject('Space', access)),
+        return uniqueSpaceUuids.every((spaceUuid) =>
+            auditedAbility.can(
+                action,
+                subject('Space', accessContext[spaceUuid]),
+            ),
         );
     }
 
@@ -90,6 +108,11 @@ export class SpacePermissionService extends BaseService {
             .map(([spaceUuid]) => spaceUuid);
     }
 
+    /** Returns persisted direct grants without inherited or expanded access. */
+    async getRawDirectAccess(spaceUuids: string[]) {
+        return this.spacePermissionModel.getRawDirectAccess(spaceUuids);
+    }
+
     /**
      * Returns the CASL context for a space (organizationUuid, projectUuid, inheritsFromOrgOrProject, access)
      * without performing any permission checks. Callers use this to build their own
@@ -98,10 +121,15 @@ export class SpacePermissionService extends BaseService {
     async getSpaceAccessContext(
         userUuid: string,
         spaceUuid: string,
+        { trx }: { trx?: Knex } = {},
     ): Promise<SpaceAccessContextForCasl> {
-        const accessContext = await this.getSpacesCaslContext([spaceUuid], {
-            userUuid,
-        });
+        const accessContext = await this.getSpacesCaslContext(
+            [spaceUuid],
+            {
+                userUuid,
+            },
+            { trx },
+        );
         const ctx = accessContext[spaceUuid];
         if (!ctx) {
             throw new NotFoundError(
@@ -120,8 +148,9 @@ export class SpacePermissionService extends BaseService {
     async getSpacesAccessContext(
         userUuid: string,
         spaceUuids: string[],
+        { trx }: { trx?: Knex } = {},
     ): Promise<Record<string, SpaceAccessContextForCasl>> {
-        return this.getSpacesCaslContext(spaceUuids, { userUuid });
+        return this.getSpacesCaslContext(spaceUuids, { userUuid }, { trx });
     }
 
     /**
@@ -156,14 +185,15 @@ export class SpacePermissionService extends BaseService {
     private async getSpacesCaslContext(
         spaceUuidsArg: string[],
         filters?: { userUuid?: string },
+        { trx }: { trx?: Knex } = {},
     ): Promise<Record<string, SpaceAccessContextForCasl>> {
         const uniqueSpaceUuids = [...new Set(spaceUuidsArg)];
 
         // Get inheritance chains for all spaces in a single batched query
-        const chainMap =
-            await this.spacePermissionModel.getInheritanceChains(
-                uniqueSpaceUuids,
-            );
+        const chainMap = await this.spacePermissionModel.getInheritanceChains(
+            uniqueSpaceUuids,
+            { trx },
+        );
         const chains = uniqueSpaceUuids
             .filter((uuid) => chainMap[uuid] !== undefined)
             .map((uuid) => ({
@@ -196,11 +226,13 @@ export class SpacePermissionService extends BaseService {
                 this.spacePermissionModel.getDirectSpaceAccess(
                     allChainSpaceUuids,
                     filters,
+                    { trx },
                 ),
                 allChainsRootSpaceUuids.length > 0
                     ? this.spacePermissionModel.getProjectSpaceAccess(
                           allChainsRootSpaceUuids,
                           filters,
+                          { trx },
                       )
                     : Promise.resolve(
                           {} as Record<string, ProjectSpaceAccess[]>,
@@ -209,11 +241,14 @@ export class SpacePermissionService extends BaseService {
                     ? this.spacePermissionModel.getOrganizationSpaceAccess(
                           allChainsRootSpaceUuids,
                           filters,
+                          { trx },
                       )
                     : Promise.resolve(
                           {} as Record<string, OrganizationSpaceAccess[]>,
                       ),
-                this.spacePermissionModel.getSpaceInfo(uniqueSpaceUuids),
+                this.spacePermissionModel.getSpaceInfo(uniqueSpaceUuids, {
+                    trx,
+                }),
             ]);
 
         // For each requested space, aggregate access from its chain

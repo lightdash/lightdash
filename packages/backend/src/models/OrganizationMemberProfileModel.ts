@@ -259,6 +259,47 @@ export class OrganizationMemberProfileModel {
         );
     }
 
+    async findOrganizationMembersByEmails(
+        organizationUuid: string,
+        emails: string[],
+    ): Promise<OrganizationMemberProfile[]> {
+        const normalizedEmails = [
+            ...new Set(emails.map((email) => email.trim().toLowerCase())),
+        ];
+        if (normalizedEmails.length === 0) return [];
+
+        const members = await this.queryBuilder()
+            .where(
+                `${OrganizationTableName}.organization_uuid`,
+                organizationUuid,
+            )
+            .whereRaw('LOWER(??) = ANY(?::text[])', [
+                `${EmailTableName}.email`,
+                normalizedEmails,
+            ])
+            .select<DbOrganizationMemberProfile[]>(SelectColumns)
+            .orderBy(`${EmailTableName}.email`, 'asc')
+            .orderBy(`${UserTableName}.user_uuid`, 'asc');
+
+        const usersHaveAuthenticationRows =
+            await UserModel.findIfUsersHaveAuthentication(this.database, {
+                userUuids: members.map((member) => member.user_uuid),
+            });
+        const usersHaveAuthenticationMap = new Map(
+            usersHaveAuthenticationRows.map((row) => [
+                row.user_uuid,
+                row.has_authentication,
+            ]),
+        );
+
+        return members.map((member) =>
+            OrganizationMemberProfileModel.parseRow(
+                member,
+                usersHaveAuthenticationMap.get(member.user_uuid) || false,
+            ),
+        );
+    }
+
     async getOrganizationMembersAndGroups(
         organizationUuid: string,
         includeGroups?: number,

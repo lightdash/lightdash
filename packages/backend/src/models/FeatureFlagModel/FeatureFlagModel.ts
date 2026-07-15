@@ -15,6 +15,8 @@ export type FeatureFlagLogicArgs = {
     featureFlagId: string;
 };
 
+type FeatureFlagQueryOptions = { trx?: Knex };
+
 export class FeatureFlagModel {
     protected readonly database: Knex;
 
@@ -22,7 +24,10 @@ export class FeatureFlagModel {
 
     protected featureFlagHandlers: Record<
         string,
-        (args: FeatureFlagLogicArgs) => Promise<FeatureFlag>
+        (
+            args: FeatureFlagLogicArgs,
+            options?: FeatureFlagQueryOptions,
+        ) => Promise<FeatureFlag>
     >;
 
     constructor(args: { database: Knex; lightdashConfig: LightdashConfig }) {
@@ -35,15 +40,19 @@ export class FeatureFlagModel {
                 this.getEnableTimezoneSupportEnabled.bind(this),
             [FeatureFlags.EnableDataApps]:
                 this.getEnableDataAppsEnabled.bind(this),
-            [FeatureFlags.ResultsCacheEnabled]: (flagArgs) =>
+            [FeatureFlags.ResultsCacheEnabled]: (flagArgs, options) =>
                 this.getWithEnvFallback(
                     flagArgs,
                     this.lightdashConfig.results.cacheEnabled,
+                    options,
                 ),
         };
     }
 
-    public async get(args: FeatureFlagLogicArgs): Promise<FeatureFlag> {
+    public async get(
+        args: FeatureFlagLogicArgs,
+        options: FeatureFlagQueryOptions = {},
+    ): Promise<FeatureFlag> {
         // 1a. Check env var enable-allowlist (self-hosted escape hatch)
         if (this.lightdashConfig.enabledFeatureFlags.has(args.featureFlagId)) {
             return { id: args.featureFlagId, enabled: true };
@@ -57,11 +66,11 @@ export class FeatureFlagModel {
         // 2. Check per-flag config handlers
         const handler = this.featureFlagHandlers[args.featureFlagId];
         if (handler) {
-            return handler(args);
+            return handler(args, options);
         }
 
         // 3. Check database (user override > org override > flag default)
-        const dbResult = await this.tryGetFromDatabase(args);
+        const dbResult = await this.tryGetFromDatabase(args, options);
         if (dbResult !== null) {
             return dbResult;
         }
@@ -82,21 +91,23 @@ export class FeatureFlagModel {
 
     private async getEnableTimezoneSupportEnabled(
         args: FeatureFlagLogicArgs,
+        options: FeatureFlagQueryOptions = {},
     ): Promise<FeatureFlag> {
         if (this.lightdashConfig.query.enableTimezoneSupport) {
             return { id: args.featureFlagId, enabled: true };
         }
-        const dbResult = await this.tryGetFromDatabase(args);
+        const dbResult = await this.tryGetFromDatabase(args, options);
         return dbResult ?? { id: args.featureFlagId, enabled: false };
     }
 
     private async getEnableDataAppsEnabled(
         args: FeatureFlagLogicArgs,
+        options: FeatureFlagQueryOptions = {},
     ): Promise<FeatureFlag> {
         if (this.lightdashConfig.appRuntime.enabled) {
             return { id: args.featureFlagId, enabled: true };
         }
-        const dbResult = await this.tryGetFromDatabase(args);
+        const dbResult = await this.tryGetFromDatabase(args, options);
         return dbResult ?? { id: args.featureFlagId, enabled: false };
     }
 
@@ -106,16 +117,18 @@ export class FeatureFlagModel {
     private async getWithEnvFallback(
         args: FeatureFlagLogicArgs,
         envFallback: boolean,
+        options: FeatureFlagQueryOptions = {},
     ): Promise<FeatureFlag> {
-        const dbResult = await this.tryGetFromDatabase(args);
+        const dbResult = await this.tryGetFromDatabase(args, options);
         return dbResult ?? { id: args.featureFlagId, enabled: envFallback };
     }
 
     protected async tryGetFromDatabase(
         args: FeatureFlagLogicArgs,
+        { trx = this.database }: FeatureFlagQueryOptions = {},
     ): Promise<FeatureFlag | null> {
         try {
-            return await this.getFromDatabase(args);
+            return await FeatureFlagModel.getFromDatabase(args, trx);
         } catch (e) {
             Logger.warn(
                 `Failed to check feature flag ${args.featureFlagId} from database, falling through: ${e}`,
@@ -124,10 +137,11 @@ export class FeatureFlagModel {
         }
     }
 
-    private async getFromDatabase(
+    private static async getFromDatabase(
         args: FeatureFlagLogicArgs,
+        trx: Knex,
     ): Promise<FeatureFlag | null> {
-        const flag = await this.database(FeatureFlagsTableName)
+        const flag = await trx(FeatureFlagsTableName)
             .where('flag_id', args.featureFlagId)
             .first();
 
@@ -141,9 +155,7 @@ export class FeatureFlagModel {
         // `user.userUuid`; passing it to a `uuid` column raises a Postgres
         // type error and would prevent the org-override lookup below.
         if (args.user?.userUuid && UUID_REGEX.test(args.user.userUuid)) {
-            const userOverride = await this.database(
-                FeatureFlagOverridesTableName,
-            )
+            const userOverride = await trx(FeatureFlagOverridesTableName)
                 .where('flag_id', args.featureFlagId)
                 .where('user_uuid', args.user.userUuid)
                 .first();
@@ -156,9 +168,7 @@ export class FeatureFlagModel {
         }
 
         if (args.user?.organizationUuid) {
-            const orgOverride = await this.database(
-                FeatureFlagOverridesTableName,
-            )
+            const orgOverride = await trx(FeatureFlagOverridesTableName)
                 .where('flag_id', args.featureFlagId)
                 .where('organization_uuid', args.user.organizationUuid)
                 .whereNull('user_uuid')

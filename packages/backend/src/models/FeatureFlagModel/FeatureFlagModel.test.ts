@@ -264,6 +264,27 @@ describe('FeatureFlagModel', () => {
 
             expect(result).toEqual({ id: DB_FLAG, enabled: true });
         });
+
+        it('uses the supplied transaction executor for database resolution', async () => {
+            const defaultDatabase = vi.fn(() => {
+                throw new Error('default database should not be used');
+            }) as unknown as Knex;
+            const trx = buildFakeDatabase({
+                flag: { default_enabled: true },
+            });
+            const model = buildModel({}, defaultDatabase);
+
+            await expect(
+                model.get(
+                    {
+                        featureFlagId: DB_FLAG,
+                        user: dbUser,
+                    },
+                    { trx },
+                ),
+            ).resolves.toEqual({ id: DB_FLAG, enabled: true });
+            expect(defaultDatabase).not.toHaveBeenCalled();
+        });
     });
 
     describe('default_enabled honoured over env fallback', () => {

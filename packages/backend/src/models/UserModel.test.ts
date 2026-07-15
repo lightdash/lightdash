@@ -21,14 +21,21 @@ import {
 } from './UserModel';
 
 type TestableUserModel = {
-    hasAuthentication: (userUuid: string) => Promise<boolean>;
-    getUserProjectRoles: (userUuid: string) => Promise<never[]>;
+    hasAuthentication: (userUuid: string, trx?: Knex) => Promise<boolean>;
+    getUserProjectRoles: (
+        userUuid: string,
+        options?: { trx?: Knex },
+    ) => Promise<never[]>;
     getUserGroupProjectRoles: (
         userId: number,
         organizationId: number,
         userUuid: string,
+        trx?: Knex,
     ) => Promise<never[]>;
-    findServiceAccountByUserUuid: (userUuid: string) => Promise<
+    findServiceAccountByUserUuid: (
+        userUuid: string,
+        options?: { trx?: Knex },
+    ) => Promise<
         | {
               uuid: string;
               description: string;
@@ -39,13 +46,18 @@ type TestableUserModel = {
     >;
     customRoleScopes: (
         roleUuids: string[],
+        trx?: Knex,
     ) => Promise<Record<string, string[]>>;
     applyServiceAccountProjectMemberships: (
         userId: number,
         userUuid: string,
         builder: AbilityBuilder<MemberAbility>,
+        trx?: Knex,
     ) => Promise<void>;
-    generateUserAbilityBuilder: (user: DbUserDetails) => Promise<{
+    generateUserAbilityBuilder: (
+        user: DbUserDetails,
+        trx?: Knex,
+    ) => Promise<{
         abilityBuilder: AbilityBuilder<MemberAbility>;
     }>;
 };
@@ -294,8 +306,45 @@ describe('UserModel', () => {
             role_uuid: 'custom-role',
         });
 
-        expect(model.customRoleScopes).toHaveBeenCalledWith(['custom-role']);
+        expect(model.customRoleScopes).toHaveBeenCalledWith(
+            ['custom-role'],
+            expect.anything(),
+        );
         expect(model.findServiceAccountByUserUuid).not.toHaveBeenCalled();
         expectCollapsedDashboardProjectRule(abilityBuilder.rules);
+    });
+
+    it('uses one transaction executor for every ability source', async () => {
+        const model = createUserModel();
+        const trx = vi.fn() as unknown as Knex;
+
+        await model.generateUserAbilityBuilder(userDetails, trx);
+
+        expect(model.hasAuthentication).toHaveBeenCalledWith(
+            userDetails.user_uuid,
+            trx,
+        );
+        expect(model.getUserProjectRoles).toHaveBeenCalledWith(
+            userDetails.user_uuid,
+            { trx },
+        );
+        expect(model.getUserGroupProjectRoles).toHaveBeenCalledWith(
+            userDetails.user_id,
+            userDetails.organization_id,
+            userDetails.user_uuid,
+            trx,
+        );
+        expect(model.findServiceAccountByUserUuid).toHaveBeenCalledWith(
+            userDetails.user_uuid,
+            { trx },
+        );
+        expect(
+            model.applyServiceAccountProjectMemberships,
+        ).toHaveBeenCalledWith(
+            userDetails.user_id,
+            userDetails.user_uuid,
+            expect.anything(),
+            trx,
+        );
     });
 });

@@ -90,6 +90,9 @@ const buildService = () =>
         spacePermissionService: {} as unknown as SpacePermissionService,
         contentVerificationModel:
             contentVerificationModel as unknown as ContentVerificationModel,
+        groupsModel: {} as never,
+        organizationMemberProfileModel: {} as never,
+        userModel: {} as never,
     });
 
 const callSync = (

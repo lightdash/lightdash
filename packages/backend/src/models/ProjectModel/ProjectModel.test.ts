@@ -114,6 +114,28 @@ describe('ProjectModel', () => {
         expect(tracker.history.update).toHaveLength(1);
     });
 
+    test('checks project membership without requiring an email row', async () => {
+        tracker.on
+            .select(({ sql }) => sql.includes(ProjectMembershipsTableName))
+            .response([{ user_id: 1 }]);
+
+        await expect(
+            model.hasProjectMembership(projectUuid, 'service-account-user'),
+        ).resolves.toBe(true);
+        expect(tracker.history.select).toHaveLength(1);
+        expect(tracker.history.select[0].sql).not.toContain('emails');
+    });
+
+    test('returns false when a user has no project membership', async () => {
+        tracker.on
+            .select(({ sql }) => sql.includes(ProjectMembershipsTableName))
+            .response([]);
+
+        await expect(
+            model.hasProjectMembership(projectUuid, 'unassigned-user'),
+        ).resolves.toBe(false);
+    });
+
     describe('should convert outdated metric filters in explores', () => {
         test('should add fieldRef property when metric filters have fieldId', () => {
             expect(

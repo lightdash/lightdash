@@ -140,6 +140,9 @@ const buildService = () =>
             })),
         } as AnyType,
         contentVerificationModel: {} as AnyType,
+        groupsModel: {} as AnyType,
+        organizationMemberProfileModel: {} as AnyType,
+        userModel: {} as AnyType,
     });
 
 describe('CoderService content-as-code space permissions', () => {

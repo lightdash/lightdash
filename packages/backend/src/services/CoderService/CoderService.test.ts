@@ -676,6 +676,9 @@ describe('CoderService', () => {
                 schedulerClient: {} as AnyType,
                 spaceModel: {} as AnyType,
                 spacePermissionService: {} as AnyType,
+                groupsModel: {} as AnyType,
+                organizationMemberProfileModel: {} as AnyType,
+                userModel: {} as AnyType,
             });
 
             const result = await service.convertTileWithSlugsToUuids(

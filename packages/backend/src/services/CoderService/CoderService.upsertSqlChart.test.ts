@@ -101,6 +101,9 @@ const buildService = (
             can: vi.fn(async () => true),
         } as unknown as SpacePermissionService,
         contentVerificationModel: {} as unknown as ContentVerificationModel,
+        groupsModel: {} as never,
+        organizationMemberProfileModel: {} as never,
+        userModel: {} as never,
     });
 
 const stubSpace = (service: CoderService, uuid: string = SPACE_UUID) =>

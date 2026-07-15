@@ -313,6 +313,9 @@ const buildService = ({
         promoteService: {} as never,
         spacePermissionService: {} as never,
         contentVerificationModel: {} as never,
+        groupsModel: {} as never,
+        organizationMemberProfileModel: {} as never,
+        userModel: {} as never,
     });
 
     return {
