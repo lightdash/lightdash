@@ -1699,6 +1699,7 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         setActiveTab,
         setDashboardTemporaryFilters,
         dashboardFilters,
+        originalDashboardFilters,
         dashboardTemporaryFilters: safeTemporaryFilters,
         addDimensionDashboardFilter,
         updateDimensionDashboardFilter,

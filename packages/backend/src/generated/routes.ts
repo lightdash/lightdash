@@ -13622,8 +13622,8 @@ const models: TsoaRoute.Models = {
                     imageUrlSource: {
                         dataType: 'union',
                         subSchemas: [
-                            { dataType: 'enum', enums: ['url'] },
                             { dataType: 'enum', enums: ['upload'] },
+                            { dataType: 'enum', enums: ['url'] },
                             { dataType: 'enum', enums: [null] },
                         ],
                         required: true,
@@ -14428,8 +14428,8 @@ const models: TsoaRoute.Models = {
                     imageUrlSource: {
                         dataType: 'union',
                         subSchemas: [
-                            { dataType: 'enum', enums: ['url'] },
                             { dataType: 'enum', enums: ['upload'] },
+                            { dataType: 'enum', enums: ['url'] },
                             { dataType: 'enum', enums: [null] },
                         ],
                         required: true,
@@ -15348,6 +15348,132 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id-or-tileTargets-or-lockedTabUuids-or-requiredGroupId__':
+        {
+            dataType: 'refAlias',
+            type: {
+                dataType: 'nestedObjectLiteral',
+                nestedProperties: {
+                    label: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'string' },
+                            { dataType: 'undefined' },
+                        ],
+                        required: true,
+                    },
+                    target: { ref: 'DashboardFieldTarget', required: true },
+                    settings: { dataType: 'any' },
+                    disabled: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    required: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    caseSensitive: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    operator: { ref: 'FilterOperator', required: true },
+                    values: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'array', array: { dataType: 'any' } },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    includeNull: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                    singleValue: {
+                        dataType: 'union',
+                        subSchemas: [
+                            { dataType: 'boolean' },
+                            { dataType: 'undefined' },
+                        ],
+                    },
+                },
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'Omit_DashboardFilterRule.id-or-tileTargets-or-lockedTabUuids-or-requiredGroupId_':
+        {
+            dataType: 'refAlias',
+            type: {
+                ref: 'Pick_DashboardFilterRule.Exclude_keyofDashboardFilterRule.id-or-tileTargets-or-lockedTabUuids-or-requiredGroupId__',
+                validators: {},
+            },
+        },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiDashboardFilterRule: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'Omit_DashboardFilterRule.id-or-tileTargets-or-lockedTabUuids-or-requiredGroupId_',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiDashboardFilters: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                tableCalculations: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'AiDashboardFilterRule',
+                    },
+                    required: true,
+                },
+                metrics: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'AiDashboardFilterRule',
+                    },
+                    required: true,
+                },
+                dimensions: {
+                    dataType: 'array',
+                    array: {
+                        dataType: 'refAlias',
+                        ref: 'AiDashboardFilterRule',
+                    },
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    AiDashboardRuntimeOverrides: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                dashboardFilters: { ref: 'AiDashboardFilters' },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     PullRequestProvider: {
         dataType: 'refEnum',
         enums: ['github', 'gitlab'],
@@ -15843,6 +15969,14 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        runtimeOverrides: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { ref: 'AiDashboardRuntimeOverrides' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
                         displayName: {
                             dataType: 'union',
                             subSchemas: [
@@ -17466,13 +17600,13 @@ const models: TsoaRoute.Models = {
                                                     dataType: 'string',
                                                     required: true,
                                                 },
+                                                slug: {
+                                                    dataType: 'string',
+                                                    required: true,
+                                                },
                                                 status: {
                                                     dataType: 'enum',
                                                     enums: ['success'],
-                                                    required: true,
-                                                },
-                                                slug: {
-                                                    dataType: 'string',
                                                     required: true,
                                                 },
                                                 uuid: {
@@ -17950,13 +18084,13 @@ const models: TsoaRoute.Models = {
                                                     dataType: 'string',
                                                     required: true,
                                                 },
+                                                slug: {
+                                                    dataType: 'string',
+                                                    required: true,
+                                                },
                                                 status: {
                                                     dataType: 'enum',
                                                     enums: ['success'],
-                                                    required: true,
-                                                },
-                                                slug: {
-                                                    dataType: 'string',
                                                     required: true,
                                                 },
                                                 name: {
@@ -18838,6 +18972,9 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        runtimeOverrides: {
+                            ref: 'AiDashboardRuntimeOverrides',
+                        },
                         dashboardSlug: {
                             dataType: 'union',
                             subSchemas: [
@@ -36781,6 +36918,27 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
+                tileTargets: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'Record_string.DashboardTileTarget_' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                lockedTabUuids: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'array', array: { dataType: 'string' } },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                requiredGroupId: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'undefined' },
+                    ],
+                },
                 target: { ref: 'DashboardFieldTarget', required: true },
                 settings: { dataType: 'any' },
                 disabled: {
@@ -36819,31 +36977,10 @@ const models: TsoaRoute.Models = {
                         { dataType: 'undefined' },
                     ],
                 },
-                tileTargets: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { ref: 'Record_string.DashboardTileTarget_' },
-                        { dataType: 'undefined' },
-                    ],
-                },
                 singleValue: {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'boolean' },
-                        { dataType: 'undefined' },
-                    ],
-                },
-                requiredGroupId: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'undefined' },
-                    ],
-                },
-                lockedTabUuids: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'array', array: { dataType: 'string' } },
                         { dataType: 'undefined' },
                     ],
                 },
@@ -42667,17 +42804,17 @@ const models: TsoaRoute.Models = {
                     array: { dataType: 'string' },
                     required: true,
                 },
-                warehouse: {
-                    dataType: 'union',
-                    subSchemas: [
-                        { dataType: 'string' },
-                        { dataType: 'undefined' },
-                    ],
-                },
                 caseSensitive: {
                     dataType: 'union',
                     subSchemas: [
                         { dataType: 'boolean' },
+                        { dataType: 'undefined' },
+                    ],
+                },
+                warehouse: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
                         { dataType: 'undefined' },
                     ],
                 },

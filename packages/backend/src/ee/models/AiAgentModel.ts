@@ -78,6 +78,8 @@ import {
     type AgentAsCode,
     type AiAgent,
     type AiAgentIntegration,
+    type AiChartRuntimeOverrides,
+    type AiDashboardRuntimeOverrides,
     type VerifiedContentListItem,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -5426,6 +5428,7 @@ export class AiAgentModel {
                         pinned_version_uuid:
                             dashboard?.dashboard_version_uuid ?? null,
                         display_name: dashboard?.name ?? null,
+                        runtime_overrides: ctx.runtimeOverrides ?? null,
                     };
                 }
                 case 'thread': {
@@ -5732,7 +5735,8 @@ export class AiAgentModel {
                     chartSlug: chartData?.slug ?? null,
                     pinnedVersionUuid: row.pinned_version_uuid,
                     displayName: row.display_name,
-                    runtimeOverrides: row.runtime_overrides,
+                    runtimeOverrides:
+                        row.runtime_overrides as AiChartRuntimeOverrides | null,
                     chartKind: chartData?.chartKind ?? null,
                 };
             }
@@ -5744,6 +5748,8 @@ export class AiAgentModel {
                     dashboardSlug: dashboardSlugByUuid.get(entityUuid) ?? null,
                     pinnedVersionUuid: row.pinned_version_uuid,
                     displayName: row.display_name,
+                    runtimeOverrides:
+                        row.runtime_overrides as AiDashboardRuntimeOverrides | null,
                 };
             }
             case 'thread':

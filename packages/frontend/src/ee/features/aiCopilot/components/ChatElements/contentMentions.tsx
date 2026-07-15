@@ -902,6 +902,7 @@ export const extractContentMentionContext = (
                 dashboardSlug: attrs.dashboardSlug ?? null,
                 displayName: attrs.dashboardName ?? null,
                 pinnedVersionUuid: null,
+                runtimeOverrides: null,
             });
         }
 
@@ -935,6 +936,7 @@ export const extractContentMentionContext = (
                 dashboardSlug: attrs.slug ?? null,
                 displayName: attrs.label ?? null,
                 pinnedVersionUuid: null,
+                runtimeOverrides: null,
             });
             return;
         }

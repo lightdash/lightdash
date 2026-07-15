@@ -665,6 +665,7 @@ const toOptimisticContextItem = (
                 dashboardSlug: item.dashboardSlug ?? null,
                 displayName: null,
                 pinnedVersionUuid: null,
+                runtimeOverrides: item.runtimeOverrides ?? null,
             };
         case 'thread':
             return {

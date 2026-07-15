@@ -91,6 +91,7 @@ import {
     PullRequestProvider,
     QueryExecutionContext,
     ReadinessScore,
+    serializeDashboardFiltersForAiContext,
     ShareUrl,
     SlackPrompt,
     sleep,
@@ -6322,7 +6323,7 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                     const overrideLines: string[] = [];
                     if (overrides.dashboardFilters) {
                         overrideLines.push(
-                            `    Dashboard filters: ${JSON.stringify(overrides.dashboardFilters)}`,
+                            `    Dashboard filters: ${JSON.stringify(serializeDashboardFiltersForAiContext(overrides.dashboardFilters))}`,
                         );
                     }
                     if (overrides.dashboardParameters) {
@@ -6340,7 +6341,11 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 }
                 case 'dashboard': {
                     const name = item.displayName ?? '(name unavailable)';
-                    return `- Dashboard "${name}" (dashboardSlug: ${item.dashboardSlug ?? '(slug unavailable)'})`;
+                    const headline = `- Dashboard "${name}" (dashboardSlug: ${item.dashboardSlug ?? '(slug unavailable)'})`;
+                    const filters = item.runtimeOverrides?.dashboardFilters;
+                    return filters
+                        ? `${headline}\n  Filters applied:\n    ${JSON.stringify(serializeDashboardFiltersForAiContext(filters))}`
+                        : headline;
                 }
                 case 'thread': {
                     const name = item.displayName ?? '(name unavailable)';

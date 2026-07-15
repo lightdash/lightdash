@@ -1,3 +1,4 @@
+import { type AiDashboardRuntimeOverrides } from '@lightdash/common';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import { type LauncherActiveAgentUuid } from '../components/Launcher/launcherAgentSelection';
 
@@ -17,6 +18,7 @@ export type LauncherCurrentDashboard = {
     uuid: string;
     name: string;
     activeTabUuid: string | null;
+    runtimeOverrides: AiDashboardRuntimeOverrides | null;
 };
 
 export type DashboardRefreshRequest = {

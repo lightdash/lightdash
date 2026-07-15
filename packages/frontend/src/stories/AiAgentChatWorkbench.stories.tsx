@@ -57,6 +57,7 @@ const contextItems: AiPromptContextItem[] = [
         dashboardSlug: 'executive-overview',
         pinnedVersionUuid: null,
         displayName: 'Executive overview',
+        runtimeOverrides: null,
     },
     {
         type: 'thread',
@@ -326,6 +327,7 @@ const verifyContext: AiPromptContextItem[] = [
         dashboardSlug: 'preview-executive-overview',
         pinnedVersionUuid: null,
         displayName: 'Preview Executive overview',
+        runtimeOverrides: null,
     },
     {
         type: 'chart',

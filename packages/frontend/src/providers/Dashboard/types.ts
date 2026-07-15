@@ -58,6 +58,7 @@ export type DashboardContextType = {
         SetStateAction<Dashboard['tabs'][number] | undefined>
     >;
     dashboardFilters: DashboardFilters;
+    originalDashboardFilters: DashboardFilters;
     dashboardTemporaryFilters: DashboardFilters;
     allFilters: DashboardFilters;
     isLoadingDashboardFilters: boolean;

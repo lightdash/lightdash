@@ -103,6 +103,7 @@ export const usePinnedContext = ({
                 dashboardSlug: dashboard?.slug ?? null,
                 displayName: dashboard?.name ?? null,
                 pinnedVersionUuid: null,
+                runtimeOverrides: null,
             });
         }
         return sortPinnedContext(items);
