@@ -166,9 +166,10 @@ const applyMetricFlow = (
         });
         columnsByModel = dimensionTranslation.columnsByModel;
 
-        [...metricTranslation.warnings, ...dimensionTranslation.warnings].forEach(
-            (warning) => GlobalState.debug(`> ${warning}`),
-        );
+        [
+            ...metricTranslation.warnings,
+            ...dimensionTranslation.warnings,
+        ].forEach((warning) => GlobalState.debug(`> ${warning}`));
 
         const { translatedCount, skippedCount } = metricTranslation;
         if (translatedCount > 0) {

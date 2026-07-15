@@ -862,11 +862,11 @@ const hasLightdashColumnConfig = (column: DbtModelColumn): boolean => {
     const configMeta = column.config?.meta ?? {};
     return Boolean(
         meta.dimension ||
-            meta.additional_dimensions ||
-            meta.metrics ||
-            configMeta.dimension ||
-            configMeta.additional_dimensions ||
-            configMeta.metrics,
+        meta.additional_dimensions ||
+        meta.metrics ||
+        configMeta.dimension ||
+        configMeta.additional_dimensions ||
+        configMeta.metrics,
     );
 };
 
@@ -928,10 +928,7 @@ export const translateMetricFlowDimensions = ({
     };
 
     Object.values(semanticModels).forEach((semanticModel) => {
-        const modelName = resolveModelName(
-            semanticModel,
-            modelNamesByUniqueId,
-        );
+        const modelName = resolveModelName(semanticModel, modelNamesByUniqueId);
         if (!modelName) {
             warnings.push(
                 `Could not resolve the dbt model for semantic model "${semanticModel.name}"; keeping all columns as dimensions.`,
@@ -974,9 +971,7 @@ export const translateMetricFlowDimensions = ({
                         name,
                         type,
                         sql: dimensionSql(expr),
-                        ...(overrides.label
-                            ? { label: overrides.label }
-                            : {}),
+                        ...(overrides.label ? { label: overrides.label } : {}),
                         ...(overrides.description
                             ? { description: overrides.description }
                             : {}),
@@ -999,8 +994,8 @@ export const translateMetricFlowDimensions = ({
                     ? timeGranularityToDimensionType(
                           dimension.type_params?.time_granularity,
                       )
-                    : lookupColumnType(originalColumns, expr) ??
-                      DimensionType.STRING;
+                    : (lookupColumnType(originalColumns, expr) ??
+                      DimensionType.STRING);
             columns[dimension.name] = buildColumn(dimension.name, expr, type, {
                 label: dimension.label,
                 description: dimension.description,
