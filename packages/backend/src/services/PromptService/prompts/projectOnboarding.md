@@ -87,9 +87,8 @@ Return a compact handoff containing:
 
 - A one-sentence summary of the analytics use case delivered.
 - The working project and dashboard URLs.
-- Confirmation that project selection, validation, chart execution, upload, and download verification passed.
 - One useful next action when further work would add value.
 
 Reference the Lightdash URLs instead of reproducing generated YAML. Keep the PAT, warehouse credentials, organization identity, user identity, and other secrets out of the handoff.
 
-**Gate:** The user receives a concise, secret-free handoff with working project and dashboard URLs and confirmation that every verification passed.
+**Gate:** The user receives a concise, secret-free handoff with working project and dashboard URLs.
