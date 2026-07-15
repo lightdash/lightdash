@@ -17,7 +17,7 @@ import {
 } from '@mantine-8/core';
 import { NumberInput, PasswordInput, Tooltip } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
-import { useCallback, useEffect, useState, type FC } from 'react';
+import { useCallback, useEffect, useRef, useState, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { useOrganizationWarehouseCredentials } from '../../../hooks/organization/useOrganizationWarehouseCredentials';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
@@ -142,6 +142,7 @@ const SnowflakeForm: FC<{
     const isCliSsoEnabled =
         !savedProject && (warehouseConnectFlag.data?.enabled ?? false);
     const [isCliSsoMode, setIsCliSsoMode] = useState(false);
+    const userSelectedAuthType = useRef(false);
     const [cliSsoCredentials, setCliSsoCredentials] =
         useState<DepositSnowflakeCredentials | null>(null);
 
@@ -171,6 +172,13 @@ const SnowflakeForm: FC<{
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [defaultAuthType]);
+
+    useEffect(() => {
+        if (isCliSsoEnabled && !userSelectedAuthType.current) {
+            setIsCliSsoMode(true);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isCliSsoEnabled]);
     const authenticationType: SnowflakeAuthenticationType =
         form.values.warehouse.authenticationType ?? defaultAuthType;
 
@@ -313,6 +321,7 @@ const SnowflakeForm: FC<{
                         <TextInput
                             name="warehouse.account"
                             label="Account"
+                            placeholder="AAA99827"
                             description={
                                 isCliSsoMode && cliSsoCredentials !== null
                                     ? 'Your CLI SSO connection is bound to this account.'
@@ -337,6 +346,7 @@ const SnowflakeForm: FC<{
                                         : authenticationType
                                 }
                                 onChange={(value) => {
+                                    userSelectedAuthType.current = true;
                                     if (value === CLI_SSO_OPTION_VALUE) {
                                         track({
                                             name: EventName.CREATE_PROJECT_CLI_SSO_OPTION_CLICKED,

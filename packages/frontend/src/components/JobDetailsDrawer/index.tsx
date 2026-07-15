@@ -159,7 +159,10 @@ const JobDetailsDrawer: FC = () => {
 
                     <Box>
                         <Title order={4} fw={600}>
-                            {jobStatusLabel(activeJob.jobStatus)}
+                            {jobStatusLabel(
+                                activeJob.jobStatus,
+                                activeJob.jobType,
+                            )}
                         </Title>
                         {hasSteps && (
                             <Text c="ldGray.6" fz="sm" fw={500}>{`${

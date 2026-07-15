@@ -24,13 +24,6 @@
     flex-shrink: 0;
 }
 
-.nameInput {
-    font-weight: 600;
-    font-size: 26px;
-    line-height: 1.2;
-    text-align: center;
-}
-
 .dataSourceTile {
     width: 40px;
     height: 40px;
@@ -40,4 +33,8 @@
     justify-content: center;
     background-color: var(--mantine-color-orange-0);
     flex-shrink: 0;
+}
+
+.dataSourceTileConnected {
+    background-color: var(--mantine-color-green-0);
 }

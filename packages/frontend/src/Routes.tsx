@@ -784,6 +784,23 @@ const PRIVATE_ROUTES: RouteObject[] = [
                 },
             },
             {
+                path: '/onboarding/data-source/:warehouse?',
+                handle: { hideAILauncher: true },
+                lazy: async () => {
+                    const OnboardingDataSource = await loadLazyRouteDefault(
+                        './pages/OnboardingDataSource',
+                        () => import('./pages/OnboardingDataSource'),
+                    );
+                    return {
+                        Component: () => (
+                            <TrackPage name={PageName.ONBOARDING_DATA_SOURCE}>
+                                <OnboardingDataSource />
+                            </TrackPage>
+                        ),
+                    };
+                },
+            },
+            {
                 path: '/createProject/:method?',
                 lazy: async () => {
                     const CreateProject = await loadLazyRouteDefault(

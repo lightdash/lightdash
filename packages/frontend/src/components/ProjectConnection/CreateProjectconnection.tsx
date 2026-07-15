@@ -27,12 +27,14 @@ interface CreateProjectConnectionProps {
     isCreatingFirstProject: boolean;
     selectedWarehouse?: WarehouseTypes | undefined;
     warehouseOnly?: boolean;
+    successRedirect?: (projectUuid: string) => string;
 }
 
 const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     isCreatingFirstProject,
     selectedWarehouse,
     warehouseOnly = false,
+    successRedirect,
 }) => {
     const navigate = useNavigate();
     const { user, health } = useApp();
@@ -103,11 +105,14 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
             isCreateProjectJob(activeJob) &&
             activeJob.jobResults?.projectUuid
         ) {
+            const { projectUuid } = activeJob.jobResults;
             void navigate({
-                pathname: `/createProjectSettings/${activeJob?.jobResults?.projectUuid}`,
+                pathname: successRedirect
+                    ? successRedirect(projectUuid)
+                    : `/createProjectSettings/${projectUuid}`,
             });
         }
-    }, [activeJob, createProjectJobId, navigate]);
+    }, [activeJob, createProjectJobId, navigate, successRedirect]);
 
     const isSavingProject = useMemo<boolean>(
         () =>
@@ -133,7 +138,9 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                             type="submit"
                             loading={isSavingProject}
                         >
-                            Test & deploy project
+                            {warehouseOnly
+                                ? 'Test & save'
+                                : 'Test & deploy project'}
                         </Button>
                     </ProjectFormProvider>
                 </FormContainer>

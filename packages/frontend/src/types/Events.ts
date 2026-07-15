@@ -51,6 +51,7 @@ export enum PageName {
     JOIN_ORGANIZATION = 'join_organization',
     ORGANIZATION_SETUP = 'organization_setup',
     ONBOARDING_AGENT = 'onboarding_agent',
+    ONBOARDING_DATA_SOURCE = 'onboarding_data_source',
     EMBED_DASHBOARD = 'embed_dashboard',
     EMBED_SAVED_CHART = 'embed_saved_chart',
     EMBED_EXPLORE = 'embed_explore',

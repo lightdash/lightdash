@@ -27,7 +27,7 @@ const ActiveJobProvider: FC<React.PropsWithChildren<{}>> = ({ children }) => {
         async (job: Job | undefined) => {
             if (!job || isJobsDrawerOpen) return;
 
-            const toastTitle = jobStatusLabel(job?.jobStatus);
+            const toastTitle = jobStatusLabel(job?.jobStatus, job?.jobType);
 
             switch (job.jobStatus) {
                 case 'DONE':
