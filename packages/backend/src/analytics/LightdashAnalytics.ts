@@ -182,6 +182,20 @@ type UserWarehouseCredentialsDeleteEvent = BaseTrack & {
     };
 };
 
+type WarehouseConnectEvent = BaseTrack & {
+    event:
+        | 'warehouse_connect_code.created'
+        | 'warehouse_connect.deposited'
+        | 'warehouse_connect.claimed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        userId?: string;
+        warehouseType?: WarehouseTypes.SNOWFLAKE;
+        authenticationMethod?: 'private_key' | 'password';
+    };
+};
+
 type UserJoinOrganizationEvent = BaseTrack & {
     event: 'user.joined_organization';
     properties: {
@@ -2536,6 +2550,7 @@ type TypedEvent =
     | OrganizationAllowedEmailDomainUpdatedEvent
     | UserWarehouseCredentialsEvent
     | UserWarehouseCredentialsDeleteEvent
+    | WarehouseConnectEvent
     | LoginEvent
     | IdentityLinkedEvent
     | DbtCloudIntegration

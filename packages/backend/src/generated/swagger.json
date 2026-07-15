@@ -20323,6 +20323,7 @@
                     "private_key",
                     "sso",
                     "external_browser",
+                    "oauth_authorization_code",
                     "none"
                 ],
                 "type": "string"
@@ -26958,6 +26959,109 @@
                         "type": "boolean"
                     }
                 },
+                "type": "object"
+            },
+            "WarehouseConnectCode": {
+                "properties": {
+                    "expiresAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "code": {
+                        "type": "string"
+                    }
+                },
+                "required": ["expiresAt", "code"],
+                "type": "object"
+            },
+            "ApiWarehouseConnectCodeResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/WarehouseConnectCode"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiDepositWarehouseConnectionResponse": {
+                "properties": {
+                    "results": {},
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["status"],
+                "type": "object"
+            },
+            "DepositWarehouseConnectionRequest": {
+                "properties": {
+                    "credentials": {
+                        "$ref": "#/components/schemas/CreateSnowflakeCredentials"
+                    },
+                    "code": {
+                        "type": "string"
+                    }
+                },
+                "required": ["credentials", "code"],
+                "type": "object"
+            },
+            "WarehouseConnectCodeClaimResult": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "status": {
+                                "type": "string",
+                                "enum": ["pending"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["status"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "credentials": {
+                                "$ref": "#/components/schemas/CreateSnowflakeCredentials"
+                            },
+                            "status": {
+                                "type": "string",
+                                "enum": ["deposited"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["credentials", "status"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "ApiWarehouseConnectCodeClaimResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/WarehouseConnectCodeClaimResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ClaimWarehouseConnectCodeRequest": {
+                "properties": {
+                    "code": {
+                        "type": "string"
+                    }
+                },
+                "required": ["code"],
                 "type": "object"
             },
             "ApiJobScheduledResponse": {
@@ -55682,6 +55786,122 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/UpdateAiOrganizationSettings"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/warehouse-connect/code": {
+            "post": {
+                "operationId": "CreateWarehouseConnectCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiWarehouseConnectCodeResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Creates a short-lived, single-use connect code the Lightdash CLI can use\nto deposit warehouse credentials on behalf of the current user",
+                "summary": "Create connect code",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/warehouse-connect/deposit": {
+            "post": {
+                "operationId": "DepositWarehouseConnection",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDepositWarehouseConnectionResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Deposits durable warehouse credentials against a connect code. Called by\nthe Lightdash CLI; the connect code is the bearer credential, so this\nendpoint is intentionally unauthenticated",
+                "summary": "Deposit connection",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DepositWarehouseConnectionRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/warehouse-connect/claim": {
+            "post": {
+                "operationId": "ClaimWarehouseConnectCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiWarehouseConnectCodeClaimResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Retrieves credentials deposited against a connect code created by the\ncurrent user. Returns them once and deletes the code",
+                "summary": "Claim connect code",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ClaimWarehouseConnectCodeRequest"
                             }
                         }
                     }

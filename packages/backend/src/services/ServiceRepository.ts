@@ -79,6 +79,7 @@ import { UnfurlService } from './UnfurlService/UnfurlService';
 import { UserAttributesService } from './UserAttributesService/UserAttributesService';
 import { UserService } from './UserService';
 import { ValidationService } from './ValidationService/ValidationService';
+import { WarehouseConnectService } from './WarehouseConnectService/WarehouseConnectService';
 /**
  * Interface outlining all services available under the `ServiceRepository`. Add new services to
  * this list (in alphabetical order, please!) to have typescript help ensure you've updated the
@@ -129,6 +130,7 @@ interface ServiceManifest {
     userAttributesService: UserAttributesService;
     userService: UserService;
     validationService: ValidationService;
+    warehouseConnectService: WarehouseConnectService;
     catalogService: CatalogService;
     metricsExplorerService: MetricsExplorerService;
     promoteService: PromoteService;
@@ -1139,6 +1141,19 @@ export class ServiceRepository
                     schedulerClient: this.clients.getSchedulerClient(),
                     spacePermissionService: this.getSpacePermissionService(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
+                }),
+        );
+    }
+
+    public getWarehouseConnectService(): WarehouseConnectService {
+        return this.getService(
+            'warehouseConnectService',
+            () =>
+                new WarehouseConnectService({
+                    warehouseConnectCodeModel:
+                        this.models.getWarehouseConnectCodeModel(),
+                    encryptionUtil: this.utils.getEncryptionUtil(),
+                    analytics: this.context.lightdashAnalytics,
                 }),
         );
     }
