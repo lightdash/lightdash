@@ -56,6 +56,19 @@ export type HomepageAnnouncementsBlock = {
     config: { title: string; items: HomepageAnnouncementItem[] };
 };
 
+export type HomepageQuickAction =
+    | { type: 'ask-ai' }
+    | { type: 'run-query' }
+    | { type: 'browse-dashboards' }
+    | { type: 'browse-spaces' }
+    | { type: 'dashboard'; dashboardUuid: string; label: string };
+
+export type HomepageQuickActionsBlock = {
+    id: string;
+    type: 'quick-actions';
+    config: { actions: HomepageQuickAction[] };
+};
+
 export type HomepageMetricRef = {
     tableName: string;
     metricName: string;
@@ -88,6 +101,7 @@ export type HomepageBlock =
     | HomepageResourcesBlock
     | HomepageAnnouncementsBlock
     | HomepageMetricsBlock
+    | HomepageQuickActionsBlock
     | HomepageFavoritesBlock
     | HomepageRecentBlock;
 

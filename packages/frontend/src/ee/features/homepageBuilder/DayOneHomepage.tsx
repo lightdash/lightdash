@@ -7,7 +7,6 @@ import {
     Anchor,
     Box,
     Button,
-    Card,
     Group,
     SimpleGrid,
     Skeleton,
@@ -19,8 +18,6 @@ import {
     IconChartBar,
     IconFolder,
     IconLayoutDashboard,
-    IconTable,
-    type Icon,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Link } from 'react-router';
@@ -32,6 +29,8 @@ import useApp from '../../../providers/App/useApp';
 import AiSearchBox from '../../components/Home/AiSearchBox';
 import { useAiAgentButtonVisibility } from '../aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { ContentCard } from './blocks/ContentCard';
+import { getDefaultQuickActions } from './blocks/quickActionDefaults';
+import { QuickActionCards } from './blocks/QuickActionsBlock';
 
 type DiscoverGroupDefinition = {
     key: string;
@@ -127,32 +126,6 @@ const GroupSection: FC<{
     );
 };
 
-const GET_STARTED_CARDS: Array<{
-    icon: Icon;
-    title: string;
-    description: string;
-    url: (projectUuid: string) => string;
-}> = [
-    {
-        icon: IconTable,
-        title: 'Run a query',
-        description: 'Explore your data and answer a business question.',
-        url: (projectUuid) => `/projects/${projectUuid}/tables`,
-    },
-    {
-        icon: IconLayoutDashboard,
-        title: 'Browse dashboards',
-        description: 'See what your team has already built.',
-        url: (projectUuid) => `/projects/${projectUuid}/dashboards`,
-    },
-    {
-        icon: IconFolder,
-        title: 'Browse spaces',
-        description: 'Content organized by team and topic.',
-        url: (projectUuid) => `/projects/${projectUuid}/spaces`,
-    },
-];
-
 type Props = {
     projectUuid: string;
     projectName: string;
@@ -202,32 +175,10 @@ export const DayOneHomepage: FC<Props> = ({ projectUuid, projectName }) => {
                             your data team can build this page.
                         </Text>
                     </Box>
-                    <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
-                        {GET_STARTED_CARDS.map((card) => (
-                            <Anchor
-                                key={card.title}
-                                component={Link}
-                                to={card.url(projectUuid)}
-                                underline="never"
-                                c="inherit"
-                            >
-                                <Card withBorder p="md" h="100%">
-                                    <Stack gap="xs">
-                                        <MantineIcon
-                                            icon={card.icon}
-                                            size="xl"
-                                        />
-                                        <Text fw={600} size="sm">
-                                            {card.title}
-                                        </Text>
-                                        <Text size="xs" c="dimmed">
-                                            {card.description}
-                                        </Text>
-                                    </Stack>
-                                </Card>
-                            </Anchor>
-                        ))}
-                    </SimpleGrid>
+                    <QuickActionCards
+                        actions={getDefaultQuickActions(false)}
+                        projectUuid={projectUuid}
+                    />
                 </Stack>
             )}
 
