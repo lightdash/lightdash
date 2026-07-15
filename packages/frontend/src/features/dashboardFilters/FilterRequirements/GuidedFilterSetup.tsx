@@ -45,6 +45,7 @@ import { hasFilterValueSet } from '../FilterConfiguration/utils';
 import classes from './GuidedFilterSetup.module.css';
 import { AndSeparator, OrSeparator } from './RuleSeparators';
 import { useFilterableItemsMap } from './useFilterableItemsMap';
+import { useUpdateDashboardFilterRule } from './useUpdateDashboardFilterRule';
 import {
     getDashboardFilterRuleLabel,
     getFilterRequirementRules,
@@ -183,12 +184,9 @@ const GuidedFilterSetup: FC<Props> = ({
         (c) => c.requiredFiltersNote,
     );
     const activeTab = useDashboardContext((c) => c.activeTab);
-    const updateDimensionDashboardFilter = useDashboardContext(
-        (c) => c.updateDimensionDashboardFilter,
-    );
-    const updateMetricDashboardFilter = useDashboardContext(
-        (c) => c.updateMetricDashboardFilter,
-    );
+    const updateFilterRule = useUpdateDashboardFilterRule({
+        isEditMode: false,
+    });
 
     // Rules a viewer re-opened via "Change"; satisfied rules collapse to a
     // summary line unless they're in here
@@ -221,39 +219,12 @@ const GuidedFilterSetup: FC<Props> = ({
         (newRule: DashboardFilterRule) => {
             // Mirrors the chip popover's view-mode behavior: a value enables the
             // filter, clearing it goes back to "any value" (and re-locks)
-            const updatedRule = {
+            updateFilterRule(newRule.id, {
                 ...newRule,
                 disabled: !hasFilterValueSet(newRule),
-            };
-            const dimensionIndex = dashboardFilters.dimensions.findIndex(
-                (filter) => filter.id === newRule.id,
-            );
-            if (dimensionIndex >= 0) {
-                updateDimensionDashboardFilter(
-                    updatedRule,
-                    dimensionIndex,
-                    false,
-                    false,
-                );
-                return;
-            }
-            const metricIndex = dashboardFilters.metrics.findIndex(
-                (filter) => filter.id === newRule.id,
-            );
-            if (metricIndex >= 0) {
-                updateMetricDashboardFilter(
-                    updatedRule,
-                    metricIndex,
-                    false,
-                    false,
-                );
-            }
+            });
         },
-        [
-            dashboardFilters,
-            updateDimensionDashboardFilter,
-            updateMetricDashboardFilter,
-        ],
+        [updateFilterRule],
     );
 
     if (!allFilterableFieldsMap) return null;
