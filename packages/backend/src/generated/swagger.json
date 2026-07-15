@@ -12161,6 +12161,9 @@
             },
             "SchedulerImageOptions": {
                 "properties": {
+                    "pagePerTab": {
+                        "type": "boolean"
+                    },
                     "withPdf": {
                         "type": "boolean"
                     }
@@ -12193,13 +12196,13 @@
                 ],
                 "type": "object"
             },
-            "Record_string.never_": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
             "SchedulerPdfOptions": {
-                "$ref": "#/components/schemas/Record_string.never_"
+                "properties": {
+                    "pagePerTab": {
+                        "type": "boolean"
+                    }
+                },
+                "type": "object"
             },
             "SchedulerOptions": {
                 "anyOf": [
@@ -17057,11 +17060,6 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
                                                                         "requiredFilters": {
                                                                             "items": {
                                                                                 "properties": {
@@ -17096,6 +17094,11 @@
                                                                                 "type": "object"
                                                                             },
                                                                             "type": "array"
+                                                                        },
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
                                                                         },
                                                                         "joinedTables": {
                                                                             "items": {
@@ -17146,6 +17149,9 @@
                                                             "searchQueries": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "error": {
+                                                                            "type": "string"
+                                                                        },
                                                                         "pagination": {
                                                                             "properties": {
                                                                                 "totalPageCount": {
@@ -17172,9 +17178,6 @@
                                                                                 "page"
                                                                             ],
                                                                             "type": "object"
-                                                                        },
-                                                                        "error": {
-                                                                            "type": "string"
                                                                         },
                                                                         "status": {
                                                                             "type": "string",
@@ -17319,6 +17322,10 @@
                                                         "anyOf": [
                                                             {
                                                                 "properties": {
+                                                                    "rationale": {
+                                                                        "type": "string",
+                                                                        "nullable": true
+                                                                    },
                                                                     "fields": {
                                                                         "items": {
                                                                             "properties": {
@@ -17333,10 +17340,10 @@
                                                                                         "not_applicable"
                                                                                     ]
                                                                                 },
-                                                                                "fieldValueType": {
+                                                                                "fieldFilterType": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "fieldFilterType": {
+                                                                                "fieldValueType": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "fieldType": {
@@ -17366,8 +17373,8 @@
                                                                             "required": [
                                                                                 "isFromJoinedTable",
                                                                                 "caseSensitiveFilters",
-                                                                                "fieldValueType",
                                                                                 "fieldFilterType",
+                                                                                "fieldValueType",
                                                                                 "fieldType",
                                                                                 "description",
                                                                                 "label",
@@ -17378,10 +17385,6 @@
                                                                             "type": "object"
                                                                         },
                                                                         "type": "array"
-                                                                    },
-                                                                    "rationale": {
-                                                                        "type": "string",
-                                                                        "nullable": true
                                                                     },
                                                                     "explore": {
                                                                         "properties": {
@@ -17453,8 +17456,8 @@
                                                                     }
                                                                 },
                                                                 "required": [
-                                                                    "fields",
                                                                     "rationale",
+                                                                    "fields",
                                                                     "explore",
                                                                     "status"
                                                                 ],
@@ -17468,10 +17471,10 @@
                                                                     "candidates": {
                                                                         "items": {
                                                                             "properties": {
-                                                                                "exploreLabel": {
+                                                                                "reason": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "reason": {
+                                                                                "exploreLabel": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "exploreName": {
@@ -17479,8 +17482,8 @@
                                                                                 }
                                                                             },
                                                                             "required": [
-                                                                                "exploreLabel",
                                                                                 "reason",
+                                                                                "exploreLabel",
                                                                                 "exploreName"
                                                                             ],
                                                                             "type": "object"
@@ -17619,15 +17622,15 @@
                                                                     "type": "string",
                                                                     "nullable": true
                                                                 },
+                                                                "repository": {
+                                                                    "type": "string",
+                                                                    "nullable": true
+                                                                },
                                                                 "isPrimary": {
                                                                     "type": "boolean"
                                                                 },
                                                                 "projectDbtSourceUuid": {
                                                                     "type": "string"
-                                                                },
-                                                                "repository": {
-                                                                    "type": "string",
-                                                                    "nullable": true
                                                                 },
                                                                 "name": {
                                                                     "type": "string"
@@ -17636,9 +17639,9 @@
                                                             "required": [
                                                                 "projectSubPath",
                                                                 "branch",
+                                                                "repository",
                                                                 "isPrimary",
                                                                 "projectDbtSourceUuid",
-                                                                "repository",
                                                                 "name"
                                                             ],
                                                             "type": "object"
@@ -17648,6 +17651,32 @@
                                                     },
                                                     "needsDbtSourceSelection": {
                                                         "type": "boolean",
+                                                        "nullable": true
+                                                    },
+                                                    "steps": {
+                                                        "items": {
+                                                            "properties": {
+                                                                "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                        "search",
+                                                                        "read",
+                                                                        "edit",
+                                                                        "compile",
+                                                                        "stage"
+                                                                    ]
+                                                                },
+                                                                "label": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "kind",
+                                                                "label"
+                                                            ],
+                                                            "type": "object"
+                                                        },
+                                                        "type": "array",
                                                         "nullable": true
                                                     },
                                                     "previewUrl": {
@@ -17677,32 +17706,6 @@
                                                         ],
                                                         "nullable": true
                                                     },
-                                                    "steps": {
-                                                        "items": {
-                                                            "properties": {
-                                                                "kind": {
-                                                                    "type": "string",
-                                                                    "enum": [
-                                                                        "search",
-                                                                        "read",
-                                                                        "edit",
-                                                                        "compile",
-                                                                        "stage"
-                                                                    ]
-                                                                },
-                                                                "label": {
-                                                                    "type": "string"
-                                                                }
-                                                            },
-                                                            "required": [
-                                                                "kind",
-                                                                "label"
-                                                            ],
-                                                            "type": "object"
-                                                        },
-                                                        "type": "array",
-                                                        "nullable": true
-                                                    },
                                                     "prUrl": {
                                                         "type": "string",
                                                         "nullable": true
@@ -17722,9 +17725,9 @@
                                                         "type": "string",
                                                         "enum": [
                                                             "unknown",
-                                                            "unsupported_source_control",
                                                             "github_not_installed",
                                                             "gitlab_not_installed",
+                                                            "unsupported_source_control",
                                                             "pull_request_not_open",
                                                             "git_write_permission",
                                                             null
@@ -17787,10 +17790,10 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
+                                                            "timeout",
                                                             "error",
                                                             "rejected",
-                                                            "success",
-                                                            "timeout"
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -17801,10 +17804,6 @@
                                                 "properties": {
                                                     "ranking": {
                                                         "properties": {
-                                                            "searchQuery": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            },
                                                             "fields": {
                                                                 "items": {
                                                                     "properties": {
@@ -17841,6 +17840,10 @@
                                                                 },
                                                                 "type": "array"
                                                             },
+                                                            "searchQuery": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
                                                             "type": {
                                                                 "type": "string",
                                                                 "enum": [
@@ -17852,8 +17855,8 @@
                                                             }
                                                         },
                                                         "required": [
-                                                            "searchQuery",
                                                             "fields",
+                                                            "searchQuery",
                                                             "type"
                                                         ],
                                                         "type": "object"
@@ -22415,6 +22418,143 @@
                 },
                 "type": "object"
             },
+            "UserAsCodeRole": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "name": {
+                                "$ref": "#/components/schemas/OrganizationMemberRole"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["system"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["name", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["custom"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["name", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "UserAsCode": {
+                "properties": {
+                    "role": {
+                        "$ref": "#/components/schemas/UserAsCodeRole"
+                    },
+                    "disabled": {
+                        "type": "boolean"
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "version": {
+                        "type": "number",
+                        "enum": [1],
+                        "nullable": false
+                    }
+                },
+                "required": ["role", "disabled", "email", "version"],
+                "type": "object"
+            },
+            "ApiUserAsCodeListResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "users": {
+                                "items": {
+                                    "$ref": "#/components/schemas/UserAsCode"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["users"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "PromotionAction.CREATE": {
+                "enum": ["create"],
+                "type": "string"
+            },
+            "PromotionAction.UPDATE": {
+                "enum": ["update"],
+                "type": "string"
+            },
+            "PromotionAction.NO_CHANGES": {
+                "enum": ["no changes"],
+                "type": "string"
+            },
+            "UserAsCodeLifecycleStatus": {
+                "enum": ["ready", "awaiting authentication"],
+                "type": "string"
+            },
+            "UserAsCodeInvitationStatus": {
+                "enum": [
+                    "not requested",
+                    "sent",
+                    "skipped authenticated",
+                    "skipped disabled",
+                    "skipped valid invite"
+                ],
+                "type": "string"
+            },
+            "ApiUserAsCodeUpsertResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "invitation": {
+                                "$ref": "#/components/schemas/UserAsCodeInvitationStatus"
+                            },
+                            "lifecycle": {
+                                "$ref": "#/components/schemas/UserAsCodeLifecycleStatus"
+                            },
+                            "action": {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/PromotionAction.CREATE"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PromotionAction.UPDATE"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PromotionAction.NO_CHANGES"
+                                    }
+                                ]
+                            }
+                        },
+                        "required": ["invitation", "lifecycle", "action"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "Pick_AzureAdSsoConfig.oauth2ClientId-or-oauth2TenantId_": {
                 "properties": {
                     "oauth2ClientId": {
@@ -23203,18 +23343,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "PromotionAction.CREATE": {
-                "enum": ["create"],
-                "type": "string"
-            },
-            "PromotionAction.UPDATE": {
-                "enum": ["update"],
-                "type": "string"
-            },
-            "PromotionAction.NO_CHANGES": {
-                "enum": ["no changes"],
-                "type": "string"
             },
             "ApiCustomRoleAsCodeUpsertResponse": {
                 "properties": {
@@ -24141,6 +24269,11 @@
                 },
                 "required": ["prompt"],
                 "type": "object"
+            },
+            "Record_string.never_": {
+                "properties": {},
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
             },
             "AiDeepResearchPhase": {
                 "type": "string",
@@ -27769,6 +27902,15 @@
                 "required": ["password", "email", "lastName", "firstName"],
                 "type": "object"
             },
+            "CreateEmailOnlyUserArgs": {
+                "properties": {
+                    "email": {
+                        "$ref": "#/components/schemas/Email"
+                    }
+                },
+                "required": ["email"],
+                "type": "object"
+            },
             "RegisterOrActivateUser": {
                 "anyOf": [
                     {
@@ -27776,6 +27918,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/CreateUserArgs"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CreateEmailOnlyUserArgs"
                     }
                 ]
             },
@@ -28433,7 +28578,7 @@
                 "type": "string"
             },
             "LocalIssuerTypes": {
-                "enum": ["email", "apiToken"],
+                "enum": ["email", "emailOtp", "apiToken"],
                 "type": "string"
             },
             "LoginOptionTypes": {
@@ -28476,6 +28621,52 @@
                     }
                 },
                 "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiLoginEmailOtpResponse": {
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["status"],
+                "type": "object"
+            },
+            "ApiLoginEmailOtpRequest": {
+                "properties": {
+                    "email": {
+                        "type": "string"
+                    }
+                },
+                "required": ["email"],
+                "type": "object"
+            },
+            "ApiVerifyLoginEmailOtpResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/LightdashUser"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiVerifyLoginEmailOtpRequest": {
+                "properties": {
+                    "passcode": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string"
+                    }
+                },
+                "required": ["passcode", "email"],
                 "type": "object"
             },
             "PersonalAccessToken": {
@@ -46700,7 +46891,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3382.2",
+        "version": "0.3387.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -53020,6 +53211,101 @@
                 ]
             }
         },
+        "/api/v2/orgs/{orgUuid}/users/code": {
+            "get": {
+                "operationId": "GetOrganizationUsersAsCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiUserAsCodeListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "orgUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "UpsertOrganizationUserAsCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiUserAsCodeUpsertResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "orgUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "sendInvite",
+                        "required": false,
+                        "schema": {
+                            "default": false,
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UserAsCode"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/org/sso/azuread": {
             "get": {
                 "operationId": "GetAzureAdSsoConfig",
@@ -56703,6 +56989,86 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/user/login-email-otp": {
+            "post": {
+                "operationId": "LoginEmailOtp",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiLoginEmailOtpResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["My Account"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiLoginEmailOtpRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/user/login-email-otp/verify": {
+            "post": {
+                "operationId": "VerifyLoginEmailOtp",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiVerifyLoginEmailOtpResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["My Account"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiVerifyLoginEmailOtpRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/user/me/personal-access-tokens": {
