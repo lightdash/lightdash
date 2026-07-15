@@ -1,3 +1,15 @@
+# [0.3383.0](https://github.com/lightdash/lightdash/compare/0.3382.2...0.3383.0) (2026-07-15)
+
+
+### Bug Fixes
+
+* **ai-agents:** clarify agent access hints for custom roles ([#25569](https://github.com/lightdash/lightdash/issues/25569)) ([f01580b](https://github.com/lightdash/lightdash/commit/f01580b4a674f6bc25a0da364a0eced3b377f8ac))
+
+
+### Features
+
+* add AI custom dimension assistant ([#25567](https://github.com/lightdash/lightdash/issues/25567)) ([4934e4d](https://github.com/lightdash/lightdash/commit/4934e4dd4e462a135915764ee75a929a3c9b8832)), closes [#25474](https://github.com/lightdash/lightdash/issues/25474)
+
 ## [0.3382.2](https://github.com/lightdash/lightdash/compare/0.3382.1...0.3382.2) (2026-07-15)
 
 
