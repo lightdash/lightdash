@@ -16,6 +16,7 @@ import PageSpinner from '../components/PageSpinner';
 import PinnedAndFavoritesSection from '../components/PinnedAndFavoritesSection';
 import AiSearchBox from '../ee/components/Home/AiSearchBox';
 import { useAiAgentButtonVisibility } from '../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
+import { DayOneHomepage } from '../ee/features/homepageBuilder/DayOneHomepage';
 import {
     useHomepageBuilderFlag,
     usePublishedHomepage,
@@ -117,6 +118,45 @@ const Home: FC = () => {
                     <PublishedHomepage
                         config={publishedHomepage.data.config}
                         projectUuid={project.data.projectUuid}
+                    />
+                </Stack>
+            </Page>
+        );
+    }
+
+    if (
+        isHomepageBuilderEnabled &&
+        publishedHomepage.data === null &&
+        onboarding.data.ranQuery
+    ) {
+        return (
+            <Page withFixedContent withPaddedContent withFooter>
+                <Stack gap="md">
+                    <Can
+                        I="manage"
+                        this={subject('ProjectHomepage', {
+                            organizationUuid: project.data.organizationUuid,
+                            projectUuid: project.data.projectUuid,
+                        })}
+                    >
+                        <Group justify="flex-end">
+                            <Button
+                                variant="default"
+                                size="xs"
+                                leftSection={<MantineIcon icon={IconEdit} />}
+                                onClick={() =>
+                                    navigate(
+                                        `/projects/${project.data.projectUuid}/homepage-builder`,
+                                    )
+                                }
+                            >
+                                Customize homepage
+                            </Button>
+                        </Group>
+                    </Can>
+                    <DayOneHomepage
+                        projectUuid={project.data.projectUuid}
+                        projectName={project.data.name}
                     />
                 </Stack>
             </Page>

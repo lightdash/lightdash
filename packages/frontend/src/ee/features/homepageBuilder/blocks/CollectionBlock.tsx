@@ -5,11 +5,8 @@ import {
     type SummaryContent,
 } from '@lightdash/common';
 import {
-    ActionIcon,
-    Anchor,
     Box,
     Button,
-    Card,
     Group,
     Loader,
     SimpleGrid,
@@ -17,18 +14,10 @@ import {
     Stack,
     Text,
     TextInput,
-    Tooltip,
 } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
-import {
-    IconCircleCheckFilled,
-    IconEye,
-    IconPin,
-    IconPlus,
-    IconX,
-} from '@tabler/icons-react';
+import { IconPin, IconPlus } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
-import { Link } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import { ResourceIcon } from '../../../../components/common/ResourceIcon';
@@ -36,84 +25,14 @@ import { usePinnedItems } from '../../../../hooks/pinning/usePinnedItems';
 import { useInfiniteContent } from '../../../../hooks/useContent';
 import { useProject } from '../../../../hooks/useProject';
 import { useCollectionContent } from '../hooks/useCollectionContent';
+import { ContentCard } from './ContentCard';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
-
-const contentUrl = (projectUuid: string, content: SummaryContent): string =>
-    content.contentType === ContentType.DASHBOARD
-        ? `/projects/${projectUuid}/dashboards/${content.uuid}/view`
-        : `/projects/${projectUuid}/saved/${content.uuid}`;
 
 const toItemRef = (content: SummaryContent): HomepageCollectionItemRef => ({
     contentType:
         content.contentType === ContentType.DASHBOARD ? 'dashboard' : 'chart',
     uuid: content.uuid,
 });
-
-const ContentCard: FC<{
-    content: SummaryContent;
-    projectUuid: string;
-    onRemove?: () => void;
-}> = ({ content, projectUuid, onRemove }) => {
-    const card = (
-        <Card withBorder p="sm" h="100%">
-            <Group gap="sm" wrap="nowrap" align="flex-start">
-                <ResourceIcon item={contentToResourceViewItem(content)} />
-                <Box style={{ flex: 1, minWidth: 0 }}>
-                    <Group gap={4} wrap="nowrap">
-                        <Text size="sm" fw={600} truncate>
-                            {content.name}
-                        </Text>
-                        {content.verification && (
-                            <Tooltip label="Verified by the data team">
-                                <MantineIcon
-                                    icon={IconCircleCheckFilled}
-                                    color="green"
-                                />
-                            </Tooltip>
-                        )}
-                    </Group>
-                    <Group gap={4}>
-                        <Text size="xs" c="dimmed" tt="capitalize">
-                            {content.contentType}
-                        </Text>
-                        <Text size="xs" c="dimmed">
-                            ·
-                        </Text>
-                        <MantineIcon icon={IconEye} color="gray" size="sm" />
-                        <Text size="xs" c="dimmed">
-                            {content.views}
-                        </Text>
-                    </Group>
-                </Box>
-                {onRemove && (
-                    <ActionIcon
-                        variant="subtle"
-                        color="gray"
-                        size="sm"
-                        aria-label={`Remove ${content.name} from collection`}
-                        onClick={(e) => {
-                            e.preventDefault();
-                            onRemove();
-                        }}
-                    >
-                        <MantineIcon icon={IconX} />
-                    </ActionIcon>
-                )}
-            </Group>
-        </Card>
-    );
-    if (onRemove) return card;
-    return (
-        <Anchor
-            component={Link}
-            to={contentUrl(projectUuid, content)}
-            underline="never"
-            c="inherit"
-        >
-            {card}
-        </Anchor>
-    );
-};
 
 const CollectionPickerModal: FC<{
     opened: boolean;
