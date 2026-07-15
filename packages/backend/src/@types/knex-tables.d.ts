@@ -328,6 +328,10 @@ import {
     WarehouseAvailableTablesTableName,
 } from '../database/entities/warehouseAvailableTables';
 import {
+    WarehouseConnectCodeTable,
+    WarehouseConnectCodeTableName,
+} from '../database/entities/warehouseConnectCode';
+import {
     WarehouseCredentialTable,
     WarehouseCredentialTableName,
 } from '../database/entities/warehouseCredentials';
@@ -624,6 +628,7 @@ declare module 'knex/types/tables' {
         [CatalogTableName]: CatalogTable;
         [SlackChannelProjectMappingsTableName]: SlackChannelProjectMappingsTable;
         [WarehouseAvailableTablesTableName]: WarehouseAvailableTablesTable;
+        [WarehouseConnectCodeTableName]: WarehouseConnectCodeTable;
         [TagsTableName]: TagsTable;
         [CatalogTagsTableName]: CatalogTagsTable;
         [ServiceAccountsTableName]: ServiceAccountTable;

@@ -482,6 +482,22 @@ type CliCommandExecuted = BaseTrack & {
     };
 };
 
+type CliConnectSnowflake = BaseTrack &
+    (
+        | {
+              event: 'connect_snowflake.started';
+              properties: Record<string, never>;
+          }
+        | {
+              event: 'connect_snowflake.completed';
+              properties: { method: 'key_pair' | 'pat' };
+          }
+        | {
+              event: 'connect_snowflake.error';
+              properties: { error: string; errorCategory: string };
+          }
+    );
+
 type Track =
     | CliGenerateStarted
     | CliGenerateCompleted
@@ -521,7 +537,8 @@ type Track =
     | CliLintError
     | CliRenameCompleted
     | CliRenameError
-    | CliCommandExecuted;
+    | CliCommandExecuted
+    | CliConnectSnowflake;
 
 const ERROR_NAME_TO_CATEGORY: Record<string, string> = {
     ForbiddenError: 'forbidden',
