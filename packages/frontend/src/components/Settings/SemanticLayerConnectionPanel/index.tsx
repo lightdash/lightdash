@@ -456,17 +456,19 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
                 </SettingsCard>
             )}
 
-            <GenerateTokenModal
-                opened={isModalOpen}
-                onClose={() => setModalOpen(false)}
-                projectUuid={projectUuid}
-                projectName={project?.name ?? ''}
-                onGenerated={(token) => {
-                    setManualToken('');
-                    setGenerated(token);
-                    setModalOpen(false);
-                }}
-            />
+            {isEnabled && isOrgAdmin && isServiceAccountsEnabled && (
+                <GenerateTokenModal
+                    opened={isModalOpen}
+                    onClose={() => setModalOpen(false)}
+                    projectUuid={projectUuid}
+                    projectName={project?.name ?? ''}
+                    onGenerated={(token) => {
+                        setManualToken('');
+                        setGenerated(token);
+                        setModalOpen(false);
+                    }}
+                />
+            )}
         </Stack>
     );
 };
