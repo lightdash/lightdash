@@ -18,7 +18,7 @@ import * as path from 'path';
 import { aiRollingUpdateReview } from './ai-migration-review';
 import { lintMigrations, renderFindings, SqlLintFinding } from './sql-migration-lint';
 import { compareVersions, findExpandFloor } from './expand-version';
-import { diffRestApi } from './rest-api-diff';
+import { diffRestApi, SPEC_PATH } from './rest-api-diff';
 import { diffMcpTools } from './mcp-tools-diff';
 import {
     CarriedFloor,
@@ -649,7 +649,7 @@ async function main(): Promise<void> {
     if (args.lastTag) {
         restApi = diffRestApi({
             lastTag: args.lastTag,
-            newRef: 'HEAD',
+            newSpecPath: SPEC_PATH,
             log: (m) => console.warn(`[rest-api-diff] ${m}`),
         });
     }

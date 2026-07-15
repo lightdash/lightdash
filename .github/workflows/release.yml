@@ -30,6 +30,8 @@ jobs:
           cache-dependency-path: 'pnpm-lock.yaml'
       - name: Install packages
         run: sfw pnpm install --frozen-lockfile --prefer-offline
+      - name: Generate backend API artifacts
+        run: pnpm generate-api:backend
       - name: Build all packages
         run: pnpm build
 

@@ -12,9 +12,8 @@
  * cheap it needs no opt-in flag — the generator runs it automatically whenever
  * `oasdiff` is on PATH (or `OASDIFF_BIN` points at it) and a previous tag exists.
  *
- * Both spec sides are read from git (`git show <ref>:<path>`), exactly like the
- * P1 migration detector diffs `<lastTag>..HEAD` — never the working tree — so a
- * mid-release regen of the spec can't perturb the diff.
+ * The old spec is read from git. The new spec normally comes from another git
+ * ref, but release preparation can explicitly use the freshly generated file.
  *
  * FAIL-SAFE (soft): any failure (oasdiff missing, spec absent at a ref, oasdiff
  * error, unparseable output) degrades to `checked: false` — the honest "not
@@ -113,11 +112,21 @@ function showAtRef(ref: string, repoPath: string): string | null {
     }
 }
 
+function readSpecFile(specPath: string): string | null {
+    try {
+        return fs.readFileSync(specPath, 'utf-8');
+    } catch {
+        return null;
+    }
+}
+
 export interface DiffRestApiOpts {
     /** Previous release tag/ref — the old spec side. */
     lastTag: string;
     /** New spec side; defaults to HEAD (the release commit). */
     newRef?: string;
+    /** Generated working-tree spec to use instead of newRef. */
+    newSpecPath?: string;
     /** Explicit oasdiff binary; defaults to findOasdiff(). */
     oasdiffBin?: string | null;
     log?: (msg: string) => void;
@@ -133,6 +142,10 @@ export function diffRestApi(opts: DiffRestApiOpts): ApiSurface {
     const newRef = opts.newRef ?? 'HEAD';
     const bin = opts.oasdiffBin === undefined ? findOasdiff() : opts.oasdiffBin;
 
+    if (opts.newRef !== undefined && opts.newSpecPath !== undefined) {
+        throw new Error('Provide either newRef or newSpecPath, not both');
+    }
+
     if (!bin) {
         log('oasdiff not found (OASDIFF_BIN unset, not on PATH); api.rest stays unchecked');
         return UNCHECKED;
@@ -143,9 +156,12 @@ export function diffRestApi(opts: DiffRestApiOpts): ApiSurface {
         log(`spec not found at ${opts.lastTag}:${SPEC_PATH}; api.rest stays unchecked`);
         return UNCHECKED;
     }
-    const newSpec = showAtRef(newRef, SPEC_PATH);
+    const newSpec = opts.newSpecPath
+        ? readSpecFile(opts.newSpecPath)
+        : showAtRef(newRef, SPEC_PATH);
     if (newSpec === null) {
-        log(`spec not found at ${newRef}:${SPEC_PATH}; api.rest stays unchecked`);
+        const source = opts.newSpecPath ?? `${newRef}:${SPEC_PATH}`;
+        log(`spec not found at ${source}; api.rest stays unchecked`);
         return UNCHECKED;
     }
 

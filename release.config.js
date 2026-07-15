@@ -41,6 +41,14 @@ module.exports = {
         [
             '@semantic-release/exec',
             {
+                prepareCmd:
+                    'pnpm generate-api:backend',
+            },
+        ],
+
+        [
+            '@semantic-release/exec',
+            {
                 prepareCmd: 'pnpm build-published-packages',
                 publishCmd: 'pnpm release-packages',
             },
@@ -78,6 +86,8 @@ module.exports = {
                     'packages/warehouses/package.json',
                     'packages/query-sdk/package.json',
                     'packages/frontend/sdk/package.json',
+                    'packages/backend/src/generated/routes.ts',
+                    'packages/backend/src/generated/swagger.json',
                     // PROD-8359: when the marker generator auto-records this
                     // release's expand/contract upgrade floor, the change to this
                     // committed file ships in the release commit so future releases
