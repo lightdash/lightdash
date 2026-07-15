@@ -921,7 +921,7 @@ const scopes: Scope[] = [
     {
         name: 'create:ContentAsCode',
         description:
-            'Upload charts, dashboards and spaces as code (SQL authoring and space access are still checked)',
+            'Upload charts, dashboards and spaces as code. Respects CustomSql, CustomFields and CustomSqlTableCalculations scopes',
         isEnterprise: true,
         group: ScopeGroup.CONTENT,
         dependencies: [
@@ -936,8 +936,7 @@ const scopes: Scope[] = [
     },
     {
         name: 'manage:ContentAsCode',
-        description:
-            'Download and upload any content as code, without granular SQL and space checks',
+        description: 'Download and upload any content as code',
         isEnterprise: true,
         group: ScopeGroup.CONTENT,
         dependencies: [

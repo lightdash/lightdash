@@ -46,6 +46,7 @@ import {
     getLtreePathFromContentAsCodePath,
     getParameterReferences,
     isChartScheduler,
+    isCustomSqlDimension,
     isDashboardScheduler,
     isEmailTarget,
     isExploreError,
@@ -55,6 +56,7 @@ import {
     isSchedulerGsheetsOptions,
     isSchedulerImageOptions,
     isSlackTarget,
+    isSqlTableCalculation,
     NotFoundError,
     NotificationFrequency,
     ParameterError,
@@ -77,6 +79,7 @@ import {
     UpdatedByUser,
     VirtualViewAsCode,
     type ContentVerificationInfo,
+    type CustomDimension,
     type DashboardConfig,
     type DashboardTileWithSlug,
     type DateZoomConfig,
@@ -90,6 +93,7 @@ import {
     type FiltersInput,
     type GoogleSheetsSyncAsCode,
     type SpaceSummaryBase,
+    type TableCalculation,
 } from '@lightdash/common';
 import isEqual from 'lodash/isEqual';
 import { v4 as uuidv4 } from 'uuid';
@@ -110,16 +114,24 @@ import { PromoteService } from '../PromoteService/PromoteService';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
 import { SchedulerService } from '../SchedulerService/SchedulerService';
 import type { SpacePermissionService } from '../SpaceService/SpacePermissionService';
-import {
-    getChartContentAsCodePermissionChecks,
-    type ContentAsCodeSqlPermissionCheckResult,
-} from './contentAsCodePermissions';
 import { paginateAsCode } from './pagination';
 
 type ContentAsCodeSpaceContentMetadata = {
     savedChartUuid?: string;
     dashboardUuid?: string;
     savedSqlUuid?: string | null;
+};
+
+type ContentAsCodeSqlPermissionCheckResult = {
+    check: 'customSqlDimension' | 'sqlTableCalculation';
+    message: string;
+};
+
+type CurrentChartSqlItems = {
+    metricQuery: {
+        customDimensions?: CustomDimension[];
+        tableCalculations?: TableCalculation[];
+    };
 };
 
 type CoderServiceArguments = {
@@ -263,6 +275,62 @@ export class CoderService extends BaseService {
     contentVerificationModel: ContentVerificationModel;
 
     projectService?: ProjectService;
+
+    static getChartContentAsCodePermissionChecks(
+        nextChart: ChartAsCode,
+        currentChart?: CurrentChartSqlItems,
+    ): ContentAsCodeSqlPermissionCheckResult[] {
+        const checks: ContentAsCodeSqlPermissionCheckResult[] = [];
+        const currentMetricQuery = currentChart?.metricQuery;
+
+        const currentSqlDimensionsById = new Map(
+            (currentMetricQuery?.customDimensions ?? [])
+                .filter(isCustomSqlDimension)
+                .map((dimension) => [dimension.id, dimension]),
+        );
+        const hasNewOrChangedSqlDimension = (
+            nextChart.metricQuery.customDimensions ?? []
+        )
+            .filter(isCustomSqlDimension)
+            .some((dimension) => {
+                const current = currentSqlDimensionsById.get(dimension.id);
+                return !current || current.sql !== dimension.sql;
+            });
+
+        if (hasNewOrChangedSqlDimension) {
+            checks.push({
+                check: 'customSqlDimension',
+                message:
+                    'User cannot upload content with new or modified custom SQL dimensions',
+            });
+        }
+
+        const currentSqlTableCalculationsByName = new Map(
+            (currentMetricQuery?.tableCalculations ?? [])
+                .filter(isSqlTableCalculation)
+                .map((calculation) => [calculation.name, calculation]),
+        );
+        const hasNewOrChangedSqlTableCalculation = (
+            nextChart.metricQuery.tableCalculations ?? []
+        )
+            .filter(isSqlTableCalculation)
+            .some((calculation) => {
+                const current = currentSqlTableCalculationsByName.get(
+                    calculation.name,
+                );
+                return !current || current.sql !== calculation.sql;
+            });
+
+        if (hasNewOrChangedSqlTableCalculation) {
+            checks.push({
+                check: 'sqlTableCalculation',
+                message:
+                    'User cannot upload content with new or modified SQL table calculations',
+            });
+        }
+
+        return checks;
+    }
 
     constructor({
         lightdashConfig,
@@ -2643,7 +2711,7 @@ export class CoderService extends BaseService {
         if (chart === undefined) {
             if (!canUploadAnyContent) {
                 CoderService.handleContentAsCodeSqlPermissionChecks({
-                    checks: getChartContentAsCodePermissionChecks(
+                    checks: CoderService.getChartContentAsCodePermissionChecks(
                         chartWithDefaults,
                     ),
                     auditedAbility,
@@ -2871,7 +2939,7 @@ export class CoderService extends BaseService {
 
             const currentChart = await this.savedChartModel.get(chart.uuid);
             CoderService.handleContentAsCodeSqlPermissionChecks({
-                checks: getChartContentAsCodePermissionChecks(
+                checks: CoderService.getChartContentAsCodePermissionChecks(
                     chartWithDefaults,
                     currentChart,
                 ),

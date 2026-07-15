@@ -3,7 +3,7 @@ import {
     DimensionType,
     type ChartAsCode,
 } from '@lightdash/common';
-import { getChartContentAsCodePermissionChecks } from './contentAsCodePermissions';
+import { CoderService } from './CoderService';
 
 const baseChart = {
     name: 'Chart',
@@ -49,7 +49,7 @@ describe('content-as-code SQL permission detector', () => {
         } as ChartAsCode;
 
         expect(
-            getChartContentAsCodePermissionChecks(chart, {
+            CoderService.getChartContentAsCodePermissionChecks(chart, {
                 metricQuery: chart.metricQuery,
             }),
         ).toEqual([]);
@@ -57,7 +57,9 @@ describe('content-as-code SQL permission detector', () => {
 
     it('detects new and changed SQL-bearing chart items only', () => {
         const current: NonNullable<
-            Parameters<typeof getChartContentAsCodePermissionChecks>[1]
+            Parameters<
+                typeof CoderService.getChartContentAsCodePermissionChecks
+            >[1]
         > = {
             metricQuery: {
                 customDimensions: [
@@ -109,7 +111,7 @@ describe('content-as-code SQL permission detector', () => {
         } as ChartAsCode;
 
         expect(
-            getChartContentAsCodePermissionChecks(next, current),
+            CoderService.getChartContentAsCodePermissionChecks(next, current),
         ).toMatchObject([
             { check: 'customSqlDimension' },
             { check: 'sqlTableCalculation' },
