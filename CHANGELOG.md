@@ -1,3 +1,10 @@
+## [0.3389.1](https://github.com/lightdash/lightdash/compare/0.3389.0...0.3389.1) (2026-07-15)
+
+
+### Bug Fixes
+
+* **ux:** redesign semantic layer connection UI with token generation modal ([#25558](https://github.com/lightdash/lightdash/issues/25558)) ([b916c31](https://github.com/lightdash/lightdash/commit/b916c310918c744981aeb166d78bdef454e5270d))
+
 # [0.3389.0](https://github.com/lightdash/lightdash/compare/0.3388.0...0.3389.0) (2026-07-15)
 
 
