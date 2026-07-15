@@ -1018,4 +1018,176 @@ describe('translateMetricFlowMetrics', () => {
             '((SUM("myTable".myColumnName)) * 1.0) / NULLIF((SUM("myTable".myOtherColumn)), 0)',
         );
     });
+
+    describe('config.meta', () => {
+        it('carries hidden and group_label from a measure config.meta', () => {
+            const result = translateMetricFlowMetrics({
+                semanticModels: {
+                    sm: {
+                        ...ordersSemanticModel,
+                        measures: [
+                            {
+                                name: 'clean_claim_count',
+                                agg: MetricFlowAggregation.COUNT_DISTINCT,
+                                expr: 'claim_id',
+                                create_metric: true,
+                                config: {
+                                    meta: {
+                                        hidden: true,
+                                        group_label: 'Clean Claim Metrics',
+                                    },
+                                },
+                            },
+                        ],
+                    },
+                },
+                metrics: {},
+                modelNamesByUniqueId,
+            });
+            expect(result.metricsByModel.orders.clean_claim_count).toEqual({
+                type: MetricType.COUNT_DISTINCT,
+                sql: '${TABLE}.claim_id',
+                label: undefined,
+                description: undefined,
+                hidden: true,
+                group_label: 'Clean Claim Metrics',
+            });
+        });
+
+        it('carries hidden and group_label from a simple metric config.meta', () => {
+            const result = translateMetricFlowMetrics({
+                semanticModels: { sm: ordersSemanticModel },
+                metrics: {
+                    m: simpleMetric('revenue', 'order_total', {
+                        config: {
+                            meta: {
+                                hidden: true,
+                                group_label: 'Claim Metrics',
+                            },
+                        },
+                    }),
+                },
+                modelNamesByUniqueId,
+            });
+            expect(result.metricsByModel.orders.revenue.hidden).toBe(true);
+            expect(result.metricsByModel.orders.revenue.group_label).toBe(
+                'Claim Metrics',
+            );
+        });
+
+        it('lets metric-level meta win over measure-level meta', () => {
+            const result = translateMetricFlowMetrics({
+                semanticModels: {
+                    sm: {
+                        ...ordersSemanticModel,
+                        measures: [
+                            {
+                                name: 'order_total',
+                                agg: MetricFlowAggregation.SUM,
+                                expr: 'amount',
+                                config: {
+                                    meta: {
+                                        hidden: true,
+                                        group_label: 'Measure group',
+                                    },
+                                },
+                            },
+                        ],
+                    },
+                },
+                metrics: {
+                    m: simpleMetric('revenue', 'order_total', {
+                        config: {
+                            meta: {
+                                hidden: false,
+                                group_label: 'Metric group',
+                            },
+                        },
+                    }),
+                },
+                modelNamesByUniqueId,
+            });
+            expect(result.metricsByModel.orders.revenue.hidden).toBe(false);
+            expect(result.metricsByModel.orders.revenue.group_label).toBe(
+                'Metric group',
+            );
+        });
+
+        it('falls back to measure meta when the metric has no config.meta', () => {
+            const result = translateMetricFlowMetrics({
+                semanticModels: {
+                    sm: {
+                        ...ordersSemanticModel,
+                        measures: [
+                            {
+                                name: 'order_total',
+                                agg: MetricFlowAggregation.SUM,
+                                expr: 'amount',
+                                config: {
+                                    meta: { group_label: 'Measure group' },
+                                },
+                            },
+                        ],
+                    },
+                },
+                metrics: { m: simpleMetric('revenue', 'order_total') },
+                modelNamesByUniqueId,
+            });
+            expect(result.metricsByModel.orders.revenue.group_label).toBe(
+                'Measure group',
+            );
+            expect(result.metricsByModel.orders.revenue.hidden).toBeUndefined();
+        });
+
+        it('carries config.meta onto a ratio metric', () => {
+            const result = translateMetricFlowMetrics({
+                semanticModels: { sm: ordersSemanticModel },
+                metrics: {
+                    n: simpleMetric('revenue', 'order_total'),
+                    d: simpleMetric('orders', 'order_count'),
+                    r: {
+                        name: 'revenue_per_order',
+                        unique_id: 'metric.jaffle.revenue_per_order',
+                        type: 'ratio',
+                        type_params: {
+                            numerator: { name: 'revenue' },
+                            denominator: { name: 'orders' },
+                        },
+                        config: { meta: { group_label: 'Claim Metrics' } },
+                    },
+                },
+                modelNamesByUniqueId,
+            });
+            expect(
+                result.metricsByModel.orders.revenue_per_order.group_label,
+            ).toBe('Claim Metrics');
+        });
+
+        it('ignores unknown meta keys such as a third-party hex block', () => {
+            const result = translateMetricFlowMetrics({
+                semanticModels: { sm: ordersSemanticModel },
+                metrics: {
+                    m: simpleMetric('revenue', 'order_total', {
+                        config: {
+                            // Real manifests carry third-party keys we ignore.
+                            meta: {
+                                group_label: 'Claim Metrics',
+                                hex: { synced: true },
+                                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                            } as any,
+                        },
+                    }),
+                },
+                modelNamesByUniqueId,
+            });
+            expect(result.metricsByModel.orders.revenue).toEqual({
+                type: MetricType.SUM,
+                sql: '${TABLE}.amount',
+                label: undefined,
+                description: undefined,
+                hidden: undefined,
+                group_label: 'Claim Metrics',
+            });
+        });
+    });
 });

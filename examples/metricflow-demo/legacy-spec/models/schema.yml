@@ -87,6 +87,19 @@ semantic_models:
         agg: sum_boolean
         expr: is_food_order
         create_metric: true
+      # create_metric denominator helper hidden via config.meta — Lightdash
+      # carries hidden + group_label over so it doesn't clutter the explore.
+      - name: internal_order_count
+        agg: count_distinct
+        expr: customer_id
+        create_metric: true
+        config:
+          meta:
+            hidden: true
+            group_label: Internal
+            # Unknown third-party keys are ignored during translation.
+            hex:
+              synced: true
 
 metrics:
   # ── Supported: simple metrics without filters ──
@@ -96,6 +109,10 @@ metrics:
     type: simple
     type_params:
       measure: total_revenue
+    # group_label from config.meta carries over to the Lightdash metric.
+    config:
+      meta:
+        group_label: Order Metrics
   - name: order_count
     label: Order count
     type: simple

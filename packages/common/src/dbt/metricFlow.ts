@@ -307,7 +307,12 @@ export const translateMetricFlowMetrics = ({
         semanticModel: DbtSemanticModel,
         measure: DbtSemanticMeasure,
         filterConditions: string[],
-        overrides: { label?: string | null; description?: string | null },
+        overrides: {
+            label?: string | null;
+            description?: string | null;
+            hidden?: boolean | null;
+            groupLabel?: string | null;
+        },
     ):
         | { modelName: string; definition: DbtModelLightdashMetric }
         | { error: string } => {
@@ -333,12 +338,19 @@ export const translateMetricFlowMetrics = ({
                       .join(' AND ')} THEN (${baseSql}) END`
                 : baseSql;
 
+        // Metric-level meta wins over measure-level, mirroring label/description.
         const definition: DbtModelLightdashMetric = {
             type: metricType,
             sql,
             label: overrides.label ?? measure.label ?? undefined,
             description:
                 overrides.description ?? measure.description ?? undefined,
+            hidden:
+                overrides.hidden ?? measure.config?.meta?.hidden ?? undefined,
+            group_label:
+                overrides.groupLabel ??
+                measure.config?.meta?.group_label ??
+                undefined,
         };
 
         if (metricType === MetricType.PERCENTILE) {
@@ -472,7 +484,12 @@ export const translateMetricFlowMetrics = ({
             resolved.semanticModel,
             resolved.measure,
             filterTranslation.conditions,
-            { label: metric.label, description: metric.description },
+            {
+                label: metric.label,
+                description: metric.description,
+                hidden: metric.config?.meta?.hidden,
+                groupLabel: metric.config?.meta?.group_label,
+            },
         );
         if ('error' in built) {
             skip(metric.name, built.error);
@@ -666,6 +683,8 @@ export const translateMetricFlowMetrics = ({
             sql,
             label: metric.label ?? undefined,
             description: metric.description ?? undefined,
+            hidden: metric.config?.meta?.hidden ?? undefined,
+            group_label: metric.config?.meta?.group_label ?? undefined,
         });
         translatedCount += 1;
         return undefined;

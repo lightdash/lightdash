@@ -107,7 +107,7 @@ explore the result in the Lightdash UI).
 
 ## What translates (and what doesn't)
 
-Both specs produce the identical result: **13 translated, 1 skipped (with
+Both specs produce the identical result: **14 translated, 1 skipped (with
 a warning)**.
 
 ### Supported → Lightdash metrics
@@ -128,6 +128,7 @@ a warning)**.
 | measure `create_metric: true` (no explicit metric) | translated like a simple metric |
 | measure `expr` (bare column or SQL expression) | metric `sql` (bare columns qualified as `${TABLE}.col`) |
 | metric/measure `label` + `description` | carried over (metric-level wins) |
+| metric/measure `config.meta.hidden` + `config.meta.group_label` | carried over to the Lightdash metric's `hidden` / `group_label` (metric-level wins); unknown meta keys (e.g. a third-party `hex:` block) are ignored |
 
 YAML-defined `meta.metrics` win over translated MetricFlow metrics on name
 collision — so you can always override a translated metric by hand.
