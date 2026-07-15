@@ -101,7 +101,7 @@ const SnowflakeForm: FC<{
     const form = useFormContext();
     const {
         data,
-        isLoading: isLoadingAuth,
+        isInitialLoading: isLoadingAuth,
         error: snowflakeAuthError,
         refetch: refetchAuth,
     } = useIsSnowflakeAuthenticated();
