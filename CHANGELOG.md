@@ -1,3 +1,10 @@
+## [0.3382.2](https://github.com/lightdash/lightdash/compare/0.3382.1...0.3382.2) (2026-07-15)
+
+
+### Bug Fixes
+
+* reduce API error toast text size ([#25562](https://github.com/lightdash/lightdash/issues/25562)) ([da145b8](https://github.com/lightdash/lightdash/commit/da145b895d2d86cf810df119a3ecdc5cb0b8a9f8))
+
 ## [0.3382.1](https://github.com/lightdash/lightdash/compare/0.3382.0...0.3382.1) (2026-07-14)
 
 
