@@ -1,3 +1,15 @@
+# [0.3385.0](https://github.com/lightdash/lightdash/compare/0.3384.0...0.3385.0) (2026-07-15)
+
+
+### Bug Fixes
+
+* **e2e:** remove focused space test ([#25534](https://github.com/lightdash/lightdash/issues/25534)) ([a25a409](https://github.com/lightdash/lightdash/commit/a25a409255d7fb9d46bd967faebe16c4cd2249fb))
+
+
+### Features
+
+* mount dashboard filter requirements behind its feature flag ([#25306](https://github.com/lightdash/lightdash/issues/25306)) ([c33a7f8](https://github.com/lightdash/lightdash/commit/c33a7f8cdfbf55fb3a678363d12c027914db69d6))
+
 # [0.3384.0](https://github.com/lightdash/lightdash/compare/0.3383.1...0.3384.0) (2026-07-15)
 
 
