@@ -34,7 +34,9 @@ export const HomepageBuilderPage: FC = () => {
             }),
         ) ?? false;
 
-    if (isFlagLoading || homepage.isInitialLoading) {
+    // Wait for a fresh fetch: the editor snapshots the draft on mount, so
+    // seeding it from a stale cache would autosave old state over the server
+    if (isFlagLoading || (isFlagEnabled && !homepage.isFetchedAfterMount)) {
         return <PageSpinner />;
     }
 

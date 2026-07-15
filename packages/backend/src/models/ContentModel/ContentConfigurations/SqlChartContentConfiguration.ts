@@ -186,6 +186,13 @@ export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> 
                         );
                     }
 
+                    if (filters.uuids) {
+                        void builder.whereIn(
+                            `${SavedSqlTableName}.saved_sql_uuid`,
+                            filters.uuids,
+                        );
+                    }
+
                     if (filters.spaceUuids) {
                         void builder.whereIn(
                             `${SpaceTableName}.space_uuid`,

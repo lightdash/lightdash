@@ -1496,6 +1496,56 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HomepageCollectionItemRef: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                uuid: { dataType: 'string', required: true },
+                contentType: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['chart'] },
+                        { dataType: 'enum', enums: ['dashboard'] },
+                    ],
+                    required: true,
+                },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HomepageCollectionBlock: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                config: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        items: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'HomepageCollectionItemRef',
+                            },
+                            required: true,
+                        },
+                        title: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
+                type: {
+                    dataType: 'enum',
+                    enums: ['collection'],
+                    required: true,
+                },
+                id: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     HomepageBlock: {
         dataType: 'refAlias',
         type: {
@@ -1504,6 +1554,7 @@ const models: TsoaRoute.Models = {
                 { ref: 'HomepageMarkdownBlock' },
                 { ref: 'HomepageHeroBlock' },
                 { ref: 'HomepageAiBlock' },
+                { ref: 'HomepageCollectionBlock' },
             ],
             validators: {},
         },
@@ -90287,6 +90338,12 @@ export function RegisterRoutes(app: Router) {
         spaceUuids: {
             in: 'query',
             name: 'spaceUuids',
+            dataType: 'array',
+            array: { dataType: 'string' },
+        },
+        uuids: {
+            in: 'query',
+            name: 'uuids',
             dataType: 'array',
             array: { dataType: 'string' },
         },

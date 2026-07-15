@@ -1500,6 +1500,48 @@
                 "required": ["config", "type", "id"],
                 "type": "object"
             },
+            "HomepageCollectionItemRef": {
+                "properties": {
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "contentType": {
+                        "type": "string",
+                        "enum": ["chart", "dashboard"]
+                    }
+                },
+                "required": ["uuid", "contentType"],
+                "type": "object"
+            },
+            "HomepageCollectionBlock": {
+                "properties": {
+                    "config": {
+                        "properties": {
+                            "items": {
+                                "items": {
+                                    "$ref": "#/components/schemas/HomepageCollectionItemRef"
+                                },
+                                "type": "array"
+                            },
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["items", "title"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["collection"],
+                        "nullable": false
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["config", "type", "id"],
+                "type": "object"
+            },
             "HomepageBlock": {
                 "anyOf": [
                     {
@@ -1510,6 +1552,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/HomepageAiBlock"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HomepageCollectionBlock"
                     }
                 ]
             },
@@ -76611,6 +76656,17 @@
                     {
                         "in": "query",
                         "name": "spaceUuids",
+                        "required": false,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "uuids",
                         "required": false,
                         "schema": {
                             "type": "array",

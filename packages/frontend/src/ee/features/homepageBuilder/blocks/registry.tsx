@@ -1,5 +1,6 @@
 import { type HomepageBlock } from '@lightdash/common';
 import {
+    IconLayoutGrid,
     IconMarkdown,
     IconSparkles,
     IconTypography,
@@ -8,6 +9,7 @@ import {
 import { type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { AiBlockBuild, AiBlockView } from './AiBlock';
+import { CollectionBlockBuild, CollectionBlockView } from './CollectionBlock';
 import { HeroBlockBuild, HeroBlockView } from './HeroBlock';
 import { MarkdownBlockBuild, MarkdownBlockView } from './MarkdownBlock';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
@@ -54,6 +56,19 @@ export const blockLibrary: BlockDefinition[] = [
         }),
         View: AiBlockView,
         Build: AiBlockBuild,
+    },
+    {
+        type: 'collection',
+        label: 'Collection',
+        description: 'A curated set of dashboards and charts.',
+        icon: IconLayoutGrid,
+        create: () => ({
+            id: uuidv4(),
+            type: 'collection',
+            config: { title: 'Key dashboards', items: [] },
+        }),
+        View: CollectionBlockView,
+        Build: CollectionBlockBuild,
     },
     {
         type: 'markdown',

@@ -197,6 +197,13 @@ export const spaceContentConfiguration: ContentConfiguration<SpaceContentRow> =
                         );
                     }
 
+                    if (filters.uuids) {
+                        void builder.whereIn(
+                            `${SpaceTableName}.space_uuid`,
+                            filters.uuids,
+                        );
+                    }
+
                     if (filters.search) {
                         applyContentNameSearch(
                             builder,

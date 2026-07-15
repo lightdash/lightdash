@@ -18,10 +18,22 @@ export type HomepageAiBlock = {
     config: { chips: string[] };
 };
 
+export type HomepageCollectionItemRef = {
+    contentType: 'chart' | 'dashboard';
+    uuid: string;
+};
+
+export type HomepageCollectionBlock = {
+    id: string;
+    type: 'collection';
+    config: { title: string; items: HomepageCollectionItemRef[] };
+};
+
 export type HomepageBlock =
     | HomepageMarkdownBlock
     | HomepageHeroBlock
-    | HomepageAiBlock;
+    | HomepageAiBlock
+    | HomepageCollectionBlock;
 
 export type HomepageRow = {
     id: string;

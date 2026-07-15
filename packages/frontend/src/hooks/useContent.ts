@@ -25,6 +25,7 @@ import useToaster from './toaster/useToaster';
 export type ContentArgs = {
     projectUuids: string[];
     spaceUuids?: string[];
+    uuids?: string[];
     contentTypes?: ContentType[];
     pageSize?: number;
     page?: number;

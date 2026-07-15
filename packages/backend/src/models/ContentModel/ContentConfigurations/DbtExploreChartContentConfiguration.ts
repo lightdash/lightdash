@@ -196,6 +196,13 @@ export const dbtExploreChartContentConfiguration: ContentConfiguration<SelectSav
                         );
                     }
 
+                    if (filters.uuids) {
+                        void builder.whereIn(
+                            `${SavedChartsTableName}.saved_query_uuid`,
+                            filters.uuids,
+                        );
+                    }
+
                     if (filters.spaceUuids) {
                         void builder.whereIn(
                             `${SpaceTableName}.space_uuid`,
