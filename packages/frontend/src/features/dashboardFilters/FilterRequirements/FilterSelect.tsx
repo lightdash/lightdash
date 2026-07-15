@@ -27,6 +27,7 @@ const FilterSelect: FC<FilterSelectProps> = ({
     <Select
         size="xs"
         w={150}
+        aria-label="Add filter to rule"
         placeholder={placeholder}
         value={null}
         data={selectableFilters}
