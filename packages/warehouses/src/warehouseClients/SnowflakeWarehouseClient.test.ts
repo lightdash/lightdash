@@ -281,7 +281,12 @@ describe('SnowflakeWarehouseClient', () => {
                 }) => {
                     let rows: Record<string, string>[] = [];
                     if (sqlText.startsWith('SHOW USER')) {
-                        rows = [{ name: 'LIGHTDASH_ONBOARDING_11111111' }];
+                        rows = [
+                            {
+                                name: 'LIGHTDASH_ONBOARDING_11111111',
+                                status: 'ACTIVE',
+                            },
+                        ];
                     } else if (sqlText.startsWith('ALTER USER ADD')) {
                         rows = [{ TOKEN_SECRET: 'pat-secret' }];
                     }
@@ -328,6 +333,149 @@ describe('SnowflakeWarehouseClient', () => {
             );
         },
     );
+
+    it('prunes only non-active Lightdash onboarding PATs', async () => {
+        const execute = vi.fn(
+            ({
+                sqlText,
+                complete,
+            }: {
+                sqlText: string;
+                complete: (
+                    error: undefined,
+                    statement: { getColumns: () => typeof queryColumnsMock },
+                    rows: Record<string, string>[],
+                ) => void;
+            }) => {
+                let rows: Record<string, string>[] = [];
+                if (sqlText.startsWith('SHOW USER')) {
+                    rows = [
+                        {
+                            name: 'LIGHTDASH_ONBOARDING_EXPIRED',
+                            status: 'EXPIRED',
+                        },
+                        {
+                            name: 'LIGHTDASH_ONBOARDING_DISABLED',
+                            status: 'DISABLED',
+                        },
+                        {
+                            name: 'LIGHTDASH_ONBOARDING_ACTIVE',
+                            status: 'ACTIVE',
+                        },
+                        { name: 'OTHER_EXPIRED', status: 'EXPIRED' },
+                        { name: 'OTHER_ACTIVE', status: 'ACTIVE' },
+                    ];
+                } else if (sqlText.startsWith('ALTER USER ADD')) {
+                    rows = [{ TOKEN_SECRET: 'pat-secret' }];
+                }
+                complete(
+                    undefined,
+                    { getColumns: () => queryColumnsMock },
+                    rows,
+                );
+            },
+        );
+        vi.mocked(createConnection).mockImplementationOnce(() =>
+            interactiveConnectionMock(execute),
+        );
+        const warehouse = new SnowflakeWarehouseClient({
+            ...credentials,
+            authenticationType:
+                SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE,
+        });
+
+        await expect(
+            warehouse.createProgrammaticAccessToken('LIGHTDASH_ONBOARDING_NEW'),
+        ).resolves.toEqual({
+            tokenName: 'LIGHTDASH_ONBOARDING_NEW',
+            tokenSecret: 'pat-secret',
+        });
+
+        expect(execute).toHaveBeenCalledWith(
+            expect.objectContaining({
+                sqlText:
+                    'ALTER USER REMOVE PROGRAMMATIC ACCESS TOKEN LIGHTDASH_ONBOARDING_EXPIRED',
+            }),
+        );
+        expect(execute).toHaveBeenCalledWith(
+            expect.objectContaining({
+                sqlText:
+                    'ALTER USER REMOVE PROGRAMMATIC ACCESS TOKEN LIGHTDASH_ONBOARDING_DISABLED',
+            }),
+        );
+        expect(execute).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                sqlText:
+                    'ALTER USER REMOVE PROGRAMMATIC ACCESS TOKEN LIGHTDASH_ONBOARDING_ACTIVE',
+            }),
+        );
+        expect(execute).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                sqlText:
+                    'ALTER USER REMOVE PROGRAMMATIC ACCESS TOKEN OTHER_EXPIRED',
+            }),
+        );
+        expect(execute).not.toHaveBeenCalledWith(
+            expect.objectContaining({
+                sqlText:
+                    'ALTER USER REMOVE PROGRAMMATIC ACCESS TOKEN OTHER_ACTIVE',
+            }),
+        );
+    });
+
+    it('creates a PAT when pruning an inactive PAT fails', async () => {
+        const execute = vi.fn(
+            ({
+                sqlText,
+                complete,
+            }: {
+                sqlText: string;
+                complete: (
+                    error: Error | undefined,
+                    statement: { getColumns: () => typeof queryColumnsMock },
+                    rows: Record<string, string>[],
+                ) => void;
+            }) => {
+                const statement = { getColumns: () => queryColumnsMock };
+                if (sqlText.startsWith('SHOW USER')) {
+                    complete(undefined, statement, [
+                        {
+                            name: 'LIGHTDASH_ONBOARDING_EXPIRED',
+                            status: 'EXPIRED',
+                        },
+                    ]);
+                } else if (sqlText.startsWith('ALTER USER REMOVE')) {
+                    complete(new Error('Failed to remove PAT'), statement, []);
+                } else {
+                    complete(undefined, statement, [
+                        { TOKEN_SECRET: 'pat-secret' },
+                    ]);
+                }
+            },
+        );
+        vi.mocked(createConnection).mockImplementationOnce(() =>
+            interactiveConnectionMock(execute),
+        );
+        const warehouse = new SnowflakeWarehouseClient({
+            ...credentials,
+            authenticationType:
+                SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE,
+        });
+
+        await expect(
+            warehouse.createProgrammaticAccessToken('LIGHTDASH_ONBOARDING_NEW'),
+        ).resolves.toEqual({
+            tokenName: 'LIGHTDASH_ONBOARDING_NEW',
+            tokenSecret: 'pat-secret',
+        });
+        expect(execute).toHaveBeenCalledWith(
+            expect.objectContaining({
+                sqlText: expect.stringMatching(
+                    /^ALTER USER ADD PROGRAMMATIC ACCESS TOKEN LIGHTDASH_ONBOARDING_NEW/,
+                ),
+            }),
+        );
+    });
 
     it('discovers session defaults and capped inventory for interactive sessions', async () => {
         const execute = vi.fn(

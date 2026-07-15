@@ -1006,6 +1006,41 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                     `ALTER USER REMOVE PROGRAMMATIC ACCESS TOKEN ${tokenName}`,
                 );
             }
+            const inactiveLightdashTokenNames = existingTokens.rows.flatMap(
+                (row) => {
+                    const name = Object.entries(row).find(
+                        ([key]) => key.toLowerCase() === 'name',
+                    )?.[1];
+                    const status = Object.entries(row).find(
+                        ([key]) => key.toLowerCase() === 'status',
+                    )?.[1];
+                    return name !== undefined &&
+                        /^[A-Za-z_][A-Za-z0-9_$]*$/.test(String(name)) &&
+                        String(name)
+                            .toUpperCase()
+                            .startsWith('LIGHTDASH_ONBOARDING') &&
+                        String(name).toUpperCase() !==
+                            tokenName.toUpperCase() &&
+                        status !== undefined &&
+                        String(status).toUpperCase() !== 'ACTIVE'
+                        ? [String(name)]
+                        : [];
+                },
+            );
+            try {
+                await inactiveLightdashTokenNames.reduce<Promise<void>>(
+                    async (previousRemoval, inactiveTokenName) => {
+                        await previousRemoval;
+                        await this.executeStatements(
+                            connection,
+                            `ALTER USER REMOVE PROGRAMMATIC ACCESS TOKEN ${inactiveTokenName}`,
+                        );
+                    },
+                    Promise.resolve(),
+                );
+            } catch {
+                // Stale-token cleanup must not prevent minting a new token.
+            }
             const roleClause = roleRestriction
                 ? ` ROLE_RESTRICTION = '${roleRestriction.replace(/'/g, "''")}'`
                 : '';

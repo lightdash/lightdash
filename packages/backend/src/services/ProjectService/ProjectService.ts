@@ -7265,6 +7265,9 @@ export class ProjectService extends BaseService {
             return warehouseCatalog[database][schemaName][tableName];
         } catch (error) {
             this.logger.error('Error fetching warehouse fields', { error });
+            if (error instanceof WarehouseConnectionError) {
+                throw error;
+            }
             throw new NotFoundError(
                 `Could not find table "${tableName}" in schema "${schemaName}" of database "${database}". Please verify the table exists and you have access to it.`,
             );

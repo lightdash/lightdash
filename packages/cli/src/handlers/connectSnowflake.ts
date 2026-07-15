@@ -392,7 +392,7 @@ const createDurableCredential = async (
     try {
         const { tokenSecret } =
             await warehouseClient.createProgrammaticAccessToken(
-                'LIGHTDASH_ONBOARDING',
+                `LIGHTDASH_ONBOARDING_${Date.now()}`,
                 PAT_EXPIRY_DAYS,
                 PAT_NETWORK_POLICY_BYPASS_MINUTES,
             );
