@@ -56,7 +56,7 @@ const GoogleSheetsReauthMessage = ({ message }: { message: string }) => {
     const { mutate: openLoginPopup } = useGoogleLoginPopup('gdrive');
 
     return (
-        <Text mb={0}>
+        <Text mb={0} fz="xs">
             {message}{' '}
             <Anchor
                 inherit
@@ -81,14 +81,14 @@ const ApiErrorDisplayStatic = ({ apiError }: { apiError: ApiErrorDetail }) => {
     if (apiError.sentryEventId || apiError.sentryTraceId) {
         return (
             <Stack gap="xxs">
-                <Text mb={0} style={{ whiteSpace: 'pre-wrap' }}>
+                <Text mb={0} fz="xs" style={{ whiteSpace: 'pre-wrap' }}>
                     {apiError.message}
                 </Text>
-                <Text mb={0} fw="bold">
+                <Text mb={0} fz="xs" fw="bold">
                     Contact support with the following information:
                 </Text>
                 <Group gap="xxs" align="flex-start">
-                    <Text mb={0} fw="bold">
+                    <Text mb={0} fz="xs" fw="bold">
                         Error ID: {apiError.sentryEventId || 'n/a'}
                         <br />
                         Trace ID: {apiError.sentryTraceId || 'n/a'}
@@ -105,7 +105,7 @@ const ApiErrorDisplayStatic = ({ apiError }: { apiError: ApiErrorDetail }) => {
     }
 
     return (
-        <Text mb={0} style={{ whiteSpace: 'pre-wrap' }}>
+        <Text mb={0} fz="xs" style={{ whiteSpace: 'pre-wrap' }}>
             {apiError.message}
         </Text>
     );
@@ -158,7 +158,9 @@ const ApiErrorDisplayWithHealth = ({
                             />
                         </Stack>
                     </Modal>
-                    <Text mb={0}>{apiError.message}</Text>
+                    <Text mb={0} fz="xs">
+                        {apiError.message}
+                    </Text>
                 </>
             );
         default:
@@ -172,7 +174,12 @@ const ApiErrorDisplayWithHealth = ({
         if (showSupportButton) {
             return (
                 <Stack gap="xxs" align="start">
-                    <Text mb={0} c="red.6" style={{ whiteSpace: 'pre-wrap' }}>
+                    <Text
+                        mb={0}
+                        fz="xs"
+                        c="red.6"
+                        style={{ whiteSpace: 'pre-wrap' }}
+                    >
                         {apiError.message}
                     </Text>
                     <Group gap="xs">
@@ -196,7 +203,7 @@ const ApiErrorDisplayWithHealth = ({
                                 });
                             }}
                         >
-                            <Text c="red.6" fw="lighter">
+                            <Text fz="xs" c="red.6" fw="lighter">
                                 Notify support
                             </Text>
                         </Button>
@@ -214,14 +221,14 @@ const ApiErrorDisplayWithHealth = ({
         // Self-hosted: show IDs with copy button
         return (
             <Stack gap="xxs">
-                <Text mb={0} style={{ whiteSpace: 'pre-wrap' }}>
+                <Text mb={0} fz="xs" style={{ whiteSpace: 'pre-wrap' }}>
                     {apiError.message}
                 </Text>
-                <Text mb={0} fw="bold">
+                <Text mb={0} fz="xs" fw="bold">
                     Contact support with the following information:
                 </Text>
                 <Group gap="xxs" align="flex-start">
-                    <Text mb={0} fw="bold">
+                    <Text mb={0} fz="xs" fw="bold">
                         Error ID: {apiError.sentryEventId || 'n/a'}
                         <br />
                         Trace ID: {apiError.sentryTraceId || 'n/a'}
@@ -238,7 +245,7 @@ const ApiErrorDisplayWithHealth = ({
     }
 
     return (
-        <Text mb={0} style={{ whiteSpace: 'pre-wrap' }}>
+        <Text mb={0} fz="xs" style={{ whiteSpace: 'pre-wrap' }}>
             {apiError.message}
         </Text>
     );
