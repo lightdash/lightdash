@@ -522,8 +522,10 @@ export const getDefaultTimeDimension = (
     metric: CompiledMetric,
     table?: CompiledTable,
 ): DefaultTimeDimension | undefined => {
+    // Malformed yml (e.g. wrong keys inside default_time_dimension) compiles
+    // to a field-less object — treat it as absent
     // Priority 1: Use metric-level default time dimension if defined in yml
-    if (metric.defaultTimeDimension) {
+    if (metric.defaultTimeDimension?.field) {
         return {
             field: metric.defaultTimeDimension.field,
             interval:
@@ -533,7 +535,7 @@ export const getDefaultTimeDimension = (
     }
 
     // Priority 2: Use model-level default time dimension if defined in yml
-    if (table?.defaultTimeDimension) {
+    if (table?.defaultTimeDimension?.field) {
         return {
             field: table.defaultTimeDimension.field,
             interval:

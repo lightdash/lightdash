@@ -1,14 +1,18 @@
 import dayjs from 'dayjs';
 import type { CatalogField } from '../types/catalog';
+import type { CompiledTable } from '../types/explore';
 import {
     DimensionType,
     FieldType,
+    MetricType,
     type CompiledDimension,
+    type CompiledMetric,
 } from '../types/field';
 import { FilterOperator } from '../types/filter';
-import { TimeFrames } from '../types/timeFrames';
+import { TimeFrames, type DefaultTimeDimension } from '../types/timeFrames';
 import {
     getDateCalcUtils,
+    getDefaultTimeDimension,
     getInitialDefaultFilterRule,
     getInitialDefaultSegment,
 } from './metricsExplorer';
@@ -176,5 +180,53 @@ describe('getInitialDefaultFilterRule', () => {
                 [dimRegion],
             ),
         ).toBeUndefined();
+    });
+});
+
+describe('getDefaultTimeDimension', () => {
+    const metric: CompiledMetric = {
+        name: 'revenue',
+        table: 'orders',
+        fieldType: FieldType.METRIC,
+        type: MetricType.SUM,
+        label: 'Revenue',
+        tableLabel: 'Orders',
+        sql: '${TABLE}.revenue',
+        compiledSql: 'SUM("orders".revenue)',
+        tablesReferences: ['orders'],
+        hidden: false,
+    };
+
+    // Malformed dbt YAML (wrong keys inside default_time_dimension) compiles
+    // to an empty object; treat it as absent instead of returning
+    // { field: undefined } that crashes downstream getItemId calls.
+    test('ignores a metric-level default time dimension without a field', () => {
+        expect(
+            getDefaultTimeDimension({
+                ...metric,
+                defaultTimeDimension: {} as DefaultTimeDimension,
+            }),
+        ).toBeUndefined();
+    });
+
+    test('ignores a model-level default time dimension without a field', () => {
+        const table = {
+            name: 'orders',
+            defaultTimeDimension: {} as DefaultTimeDimension,
+        } as CompiledTable;
+
+        expect(getDefaultTimeDimension(metric, table)).toBeUndefined();
+    });
+
+    test('returns the metric-level default time dimension when valid', () => {
+        expect(
+            getDefaultTimeDimension({
+                ...metric,
+                defaultTimeDimension: {
+                    field: 'created_at',
+                    interval: TimeFrames.DAY,
+                },
+            }),
+        ).toEqual({ field: 'created_at', interval: TimeFrames.DAY });
     });
 });
