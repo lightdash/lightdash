@@ -31,8 +31,7 @@ Inspect repository documentation and project metadata, then use the first suppor
 
 1. An explicitly documented business or analytics purpose.
 2. The dbt or repository analytics project name.
-3. `<Warehouse type> Analytics`.
-4. `Lightdash Analytics`.
+3. `Lightdash Analytics`.
 
 Run `lightdash config rename-project --name "<chosen name>"`, then run `lightdash config get-project`.
 
