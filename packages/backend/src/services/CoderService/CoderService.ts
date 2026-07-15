@@ -2812,20 +2812,20 @@ export class CoderService extends BaseService {
 
                     dashboardUuid = newDashboard.uuid;
                 } else if (!canUploadAnyContent) {
-                    await this.assertDashboardUpdateAccess({
-                        userUuid: user.userUuid,
-                        auditedAbility,
-                        dashboard,
-                    });
-                    // Chart lives in the dashboard, not the YAML space
+                    // Chart lives in the dashboard, not the YAML space.
+                    // Mirrors SavedChartService: only SavedChart create in
+                    // the dashboard's space is required.
+                    if (!dashboard.spaceUuid) {
+                        throw new ForbiddenError(
+                            "You don't have access to create charts in this space",
+                        );
+                    }
                     await this.assertSpaceContentAccess({
                         userUuid: user.userUuid,
                         auditedAbility,
                         action: 'create',
                         subjectType: 'SavedChart',
-                        spaceUuids: dashboard.spaceUuid
-                            ? [dashboard.spaceUuid]
-                            : [],
+                        spaceUuids: [dashboard.spaceUuid],
                         errorMessage:
                             "You don't have access to create charts in this space",
                     });
@@ -2907,7 +2907,9 @@ export class CoderService extends BaseService {
                 );
             }
 
-            if (!chart.spaceUuid && !chart.dashboardUuid) {
+            // find() coalesces spaceUuid to the dashboard's space for
+            // dashboard-contained charts, so this covers both kinds
+            if (!chart.spaceUuid) {
                 throw new ForbiddenError(
                     "You don't have access to update this chart",
                 );
@@ -2925,17 +2927,6 @@ export class CoderService extends BaseService {
                 metadata: { savedChartUuid: chart.uuid },
                 errorMessage: "You don't have access to update this chart",
             });
-
-            if (chart.dashboardUuid) {
-                const dashboard = await this.dashboardModel.getByIdOrSlug(
-                    chart.dashboardUuid,
-                );
-                await this.assertDashboardUpdateAccess({
-                    userUuid: user.userUuid,
-                    auditedAbility,
-                    dashboard,
-                });
-            }
 
             const currentChart = await this.savedChartModel.get(chart.uuid);
             CoderService.handleContentAsCodeSqlPermissionChecks({

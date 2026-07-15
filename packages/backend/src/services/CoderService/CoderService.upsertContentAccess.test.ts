@@ -552,7 +552,7 @@ describe('CoderService content-as-code space permissions', () => {
         expect(service.getOrCreateSpace).not.toHaveBeenCalled();
     });
 
-    it('does not let chart create attach to a dashboard without dashboard update access', async () => {
+    it('lets chart create attach to a dashboard with chart create access but no dashboard ability (UI parity)', async () => {
         const service = buildService();
         vi.spyOn(service, 'getOrCreateSpace').mockResolvedValue({
             space: { uuid: SPACE_UUID } as AnyType,
@@ -564,6 +564,9 @@ describe('CoderService content-as-code space permissions', () => {
                 spaceUuid: OTHER_SPACE_UUID,
             } as AnyType,
         ]);
+        vi.mocked(service.savedChartModel.create).mockResolvedValue({
+            uuid: 'chart-uuid',
+        } as AnyType);
         const user = makeUser([
             { subject: 'ContentAsCode', action: 'create' },
             {
@@ -578,8 +581,8 @@ describe('CoderService content-as-code space permissions', () => {
                 ...chartAsCode,
                 dashboardSlug: 'dashboard',
             }),
-        ).rejects.toThrow(ForbiddenError);
-        expect(service.savedChartModel.create).not.toHaveBeenCalled();
+        ).resolves.toMatchObject({ charts: [{ action: 'create' }] });
+        expect(service.savedChartModel.create).toHaveBeenCalled();
     });
 
     it('does not let ContentAsCode alone update dashboards into target spaces', async () => {
@@ -745,12 +748,13 @@ describe('CoderService content-as-code space permissions', () => {
         expect(service.spaceModel.createSpace).not.toHaveBeenCalled();
     });
 
-    it('does not let chart update bypass dashboard access for dashboard-contained charts', async () => {
+    it('gates dashboard-contained chart update on SavedChart update in the dashboard space', async () => {
         const service = buildService();
+        // Model coalesces spaceUuid to the dashboard's space
         vi.mocked(service.savedChartModel.find).mockResolvedValue([
             {
                 uuid: 'chart-uuid',
-                spaceUuid: null,
+                spaceUuid: OTHER_SPACE_UUID,
                 dashboardUuid: 'dashboard-uuid',
                 metricQuery: {
                     tableCalculations: [],
@@ -758,10 +762,6 @@ describe('CoderService content-as-code space permissions', () => {
                 },
             } as AnyType,
         ]);
-        vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
-            uuid: 'dashboard-uuid',
-            spaceUuid: OTHER_SPACE_UUID,
-        } as AnyType);
         vi.spyOn(service, 'getOrCreateSpace').mockResolvedValue({
             space: { uuid: SPACE_UUID } as AnyType,
             created: false,
@@ -771,7 +771,14 @@ describe('CoderService content-as-code space permissions', () => {
             {
                 subject: 'SavedChart',
                 action: 'update',
-                conditions: { projectUuid: PROJECT_UUID },
+                conditions: {
+                    access: {
+                        $elemMatch: {
+                            userUuid: 'user-uuid',
+                            role: SpaceMemberRole.EDITOR,
+                        },
+                    },
+                },
             },
         ]);
 
@@ -784,6 +791,7 @@ describe('CoderService content-as-code space permissions', () => {
             ),
         ).rejects.toThrow(ForbiddenError);
         expect(service.promoteService.getPromoteCharts).not.toHaveBeenCalled();
+        expect(service.dashboardModel.getByIdOrSlug).not.toHaveBeenCalled();
     });
 
     it('does not let chart create attach to a dashboard without SavedChart create access in the dashboard space', async () => {
