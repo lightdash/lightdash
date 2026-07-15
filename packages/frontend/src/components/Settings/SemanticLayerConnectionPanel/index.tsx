@@ -7,10 +7,10 @@ import {
     Button,
     CopyButton,
     Group,
-    SegmentedControl,
     Select,
     Stack,
     Switch,
+    Tabs,
     Text,
     TextInput,
     Title,
@@ -433,13 +433,23 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
                             description="Pick your tool and copy the ready-made string."
                         >
                             <Stack gap="sm">
-                                <SegmentedControl
-                                    data={SNIPPET_TABS}
+                                <Tabs
                                     value={activeSnippet}
                                     onChange={(value) =>
                                         setActiveSnippet(value as SnippetKey)
                                     }
-                                />
+                                >
+                                    <Tabs.List>
+                                        {SNIPPET_TABS.map((tab) => (
+                                            <Tabs.Tab
+                                                key={tab.value}
+                                                value={tab.value}
+                                            >
+                                                {tab.label}
+                                            </Tabs.Tab>
+                                        ))}
+                                    </Tabs.List>
+                                </Tabs>
                                 <CodeBlock
                                     displayValue={displaySnippet}
                                     copyValue={snippets[activeSnippet]}
