@@ -405,7 +405,6 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
                                     />
                                     <CopyableField
                                         label="User"
-                                        description="Not enforced — any value works."
                                         value={DEFAULT_USER}
                                     />
                                 </Group>
