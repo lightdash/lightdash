@@ -25,6 +25,70 @@
     flex-shrink: 0;
 }
 
+.tbBtn {
+    border: 1px solid var(--mantine-color-ldGray-2);
+    background: light-dark(#fff, var(--mantine-color-dark-6));
+    border-radius: 8px;
+    padding: 6px 11px;
+    height: 32px;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    color: var(--mantine-color-ldGray-7);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    transition: background 0.12s ease-in-out;
+}
+
+.tbBtn:hover {
+    background: var(--mantine-color-ldGray-1);
+}
+
+.tbBtnStrong {
+    background: var(--mantine-color-ldGray-0);
+    color: var(--mantine-color-ldGray-9);
+}
+
+.tbBtnStrong strong {
+    font-weight: 600;
+}
+
+.tbBtnPrimary {
+    border: none;
+    background: #141414;
+    color: #fff;
+    border-radius: 8px;
+    padding: 7px 14px;
+    height: 32px;
+    font-size: 13px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    transition:
+        opacity 0.12s ease-in-out,
+        transform 0.1s ease-in-out;
+}
+
+.tbBtnPrimary:hover {
+    opacity: 0.85;
+}
+
+.tbBtnPrimary:active {
+    transform: scale(0.97);
+}
+
+.tbBtnPrimary:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
 .conflictBanner {
     flex-shrink: 0;
     display: flex;
@@ -123,6 +187,13 @@
     border-radius: 12px;
     background: light-dark(#fff, var(--mantine-color-dark-6));
     padding: 14px;
+    transition: opacity 0.12s ease-in-out;
+}
+
+/* In-layout ghost while its clone rides the DragOverlay (Kanban-style) */
+.blockChrome[data-dragging='true'] {
+    opacity: 0.4;
+    pointer-events: none;
 }
 
 .blockTypeLabel {
@@ -131,6 +202,129 @@
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--mantine-color-ldGray-5);
+}
+
+.blockDragArea {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: grab;
+    touch-action: none;
+    min-width: 0;
+}
+
+.blockDragArea:active {
+    cursor: grabbing;
+}
+
+.blockHandle {
+    display: inline-flex;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.12s ease-in-out;
+    border-radius: 5px;
+    padding: 2px;
+}
+
+.blockActions {
+    opacity: 0;
+    transition: opacity 0.12s ease-in-out;
+}
+
+.blockChrome:hover .blockHandle,
+.blockChrome:focus-within .blockHandle,
+.blockChrome:hover .blockActions,
+.blockChrome:focus-within .blockActions {
+    opacity: 1;
+}
+
+.rowDropZone {
+    height: 12px;
+    display: flex;
+    align-items: center;
+}
+
+.rowDropZone[data-drag-active='true'] {
+    height: 18px;
+}
+
+.dropLine {
+    height: 3px;
+    width: 100%;
+    border-radius: 2px;
+    background: transparent;
+    transition: background 0.12s ease-in-out;
+}
+
+.dropLine[data-over='true'] {
+    background: var(--mantine-color-blue-5);
+}
+
+/* The real card clone riding the cursor — tilt + heavy shadow, like the Kanban */
+.dragOverlayCard {
+    transform: rotate(2deg) scale(1.02);
+    box-shadow: 0 12px 28px rgba(20, 22, 28, 0.22);
+    border-radius: 12px;
+    cursor: grabbing;
+    pointer-events: none;
+    max-height: 260px;
+    overflow: hidden;
+}
+
+.dragOverlayCard .railCard {
+    width: 240px;
+    box-shadow: none;
+}
+
+.rowDropZone {
+    position: relative;
+}
+
+.gapAdd {
+    position: absolute;
+    inset: -7px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s ease-in-out;
+    z-index: 25;
+}
+
+.rowDropZone:hover .gapAdd,
+.rowDropZone[data-menu-open='true'] .gapAdd {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.gapAddLine {
+    flex: 1;
+    height: 1px;
+    background: var(--mantine-color-ldGray-3);
+}
+
+.gapAddBtn {
+    border: 1px solid var(--mantine-color-ldGray-3);
+    background: light-dark(#fff, var(--mantine-color-dark-6));
+    border-radius: 999px;
+    padding: 3px 11px;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: inherit;
+    color: var(--mantine-color-ldGray-6);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    box-shadow: var(--mantine-shadow-subtle);
+    transition: all 0.12s ease-in-out;
+}
+
+.gapAddBtn:hover {
+    color: var(--mantine-color-ldGray-9);
+    border-color: var(--mantine-color-ldGray-5);
+    box-shadow: var(--mantine-shadow-heavy);
 }
 
 .endZone {

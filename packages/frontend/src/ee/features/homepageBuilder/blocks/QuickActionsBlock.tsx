@@ -122,13 +122,7 @@ export const QuickActionCards: FC<{
                             p={18}
                             h="100%"
                         >
-                            <IconSquare
-                                icon={presentation.icon}
-                                tint={
-                                    action.type === 'ask-ai' ? 'violet' : 'gray'
-                                }
-                                size="lg"
-                            />
+                            <IconSquare icon={presentation.icon} size="lg" />
                             <Text fw={600} fz={15} mt={13} mb={3}>
                                 {presentation.title}
                             </Text>

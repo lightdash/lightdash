@@ -13,6 +13,7 @@ type Props = {
     onApply: (config: HomepageConfig) => void;
 };
 
+// ts-unused-exports:disable-next-line
 export const PresetsModal: FC<Props> = ({ opened, onClose, onApply }) => {
     const isAiEnabled = useAiAgentButtonVisibility();
     const [presetToConfirm, setPresetToConfirm] =
@@ -56,11 +57,7 @@ export const PresetsModal: FC<Props> = ({ opened, onClose, onApply }) => {
                                 onClick={() => setPresetToConfirm(preset)}
                             >
                                 <Group gap={9} mb={7} wrap="nowrap">
-                                    <IconSquare
-                                        icon={preset.icon}
-                                        tint={preset.tint}
-                                        size="lg"
-                                    />
+                                    <IconSquare icon={preset.icon} size="lg" />
                                     <Text fw={600} fz={14.5}>
                                         {preset.name}
                                     </Text>
