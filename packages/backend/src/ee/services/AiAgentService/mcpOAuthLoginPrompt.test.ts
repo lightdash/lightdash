@@ -31,8 +31,6 @@ const buildService = () => {
         },
     };
     const slackClient = {
-        addReaction: vi.fn().mockResolvedValue(undefined),
-        removeReaction: vi.fn().mockResolvedValue(undefined),
         getWebClient: vi.fn().mockResolvedValue(webClient),
     };
     const aiAgentModel = {
@@ -90,79 +88,9 @@ const postMcpOAuthLoginMessages = (
         },
     });
 
-describe('AiAgentService :eyes: ack reaction lifecycle', () => {
+describe('AiAgentService MCP OAuth login prompts', () => {
     afterEach(() => {
         vi.restoreAllMocks();
-    });
-
-    it('adds the :eyes: ack reaction on app_mention', async () => {
-        const { service } = buildService();
-        const reactionsAdd = vi.fn().mockResolvedValue({});
-        await service.handleAppMention({
-            event: { channel: 'C123', ts: 'ts-1', text: 'hi', user: 'U1' },
-            // No teamId -> handler returns right after the early ack reaction.
-            context: {},
-            say: vi.fn(),
-            client: { reactions: { add: reactionsAdd } },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        } as any);
-
-        expect(reactionsAdd).toHaveBeenCalledWith({
-            channel: 'C123',
-            timestamp: 'ts-1',
-            name: 'eyes',
-        });
-    });
-
-    it('removes the :eyes: reaction after a successful reply', async () => {
-        const { service, slackClient } = buildService();
-        vi.spyOn(
-            service as unknown as {
-                generateSlackPromptReply: () => Promise<void>;
-            },
-            'generateSlackPromptReply',
-        ).mockResolvedValue(undefined);
-
-        await service.replyToSlackPrompt('prompt-1');
-
-        expect(slackClient.removeReaction).toHaveBeenCalledWith({
-            organizationUuid: 'org-1',
-            channel: 'C123',
-            timestamp: '1700000000.000100',
-            name: 'eyes',
-        });
-    });
-
-    it('removes the :eyes: reaction after a failed reply', async () => {
-        const { service, slackClient } = buildService();
-        vi.spyOn(
-            service as unknown as {
-                generateSlackPromptReply: () => Promise<void>;
-            },
-            'generateSlackPromptReply',
-        ).mockRejectedValue(new Error('boom'));
-
-        await expect(service.replyToSlackPrompt('prompt-1')).rejects.toThrow(
-            'boom',
-        );
-        expect(slackClient.removeReaction).toHaveBeenCalledTimes(1);
-    });
-
-    it('does not fail the prompt when reaction cleanup fails', async () => {
-        const { service, slackClient } = buildService();
-        vi.spyOn(
-            service as unknown as {
-                generateSlackPromptReply: () => Promise<void>;
-            },
-            'generateSlackPromptReply',
-        ).mockResolvedValue(undefined);
-        slackClient.removeReaction.mockRejectedValue(
-            new Error('missing_scope'),
-        );
-
-        await expect(
-            service.replyToSlackPrompt('prompt-1'),
-        ).resolves.toBeUndefined();
     });
 
     it('posts one MCP OAuth login ephemeral per unavailable OAuth server', async () => {

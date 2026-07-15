@@ -6270,6 +6270,16 @@ export class AiAgentService extends BaseService {
     private static readonly EMPTY_PROMPT_WELCOME =
         "Hi! 👋 What would you like to know? Ask me a question about your data and I'll take a look.";
 
+    // Rendered by Slack as "<agent name> <status>" under the user's message.
+    private static readonly THINKING_STATUS = 'is thinking...';
+
+    private static readonly THINKING_LOADING_MESSAGES = [
+        'Checking the project context...',
+        'Finding the relevant metrics...',
+        'Reviewing available content...',
+        'Preparing the answer...',
+    ];
+
     static createRelevantArtifactsMessage(
         artifacts: {
             chartConfig: Record<string, unknown>;
@@ -8993,7 +9003,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     // Delivers a finished answer across one or more Slack messages (first
     // finalizes the stream, rest post as replies), falling back to a Lightdash
     // link if too large — the answer is already persisted, so this never fails.
-    private async deliverModernSlackAnswer({
+    // Closes the task card's stream with the first answer chunk; the rest
+    // post as replies, with a Lightdash link fallback when too large.
+    private async deliverSlackAnswerWithCard({
         slackPrompt,
         threadTs,
         streamTs,
@@ -9111,6 +9123,99 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     );
                 break;
             }
+        }
+    }
+
+    private async deliverSlackAnswerMessages({
+        slackPrompt,
+        threadTs,
+        agentUuid,
+        agentName,
+        slackResponse,
+        slackifiedMarkdown,
+        trailingBlocks,
+    }: {
+        slackPrompt: SlackPrompt;
+        threadTs: string;
+        agentUuid: string | undefined;
+        agentName: string | undefined;
+        slackResponse: string;
+        slackifiedMarkdown: string;
+        trailingBlocks: (Block | KnownBlock)[];
+    }): Promise<void> {
+        const { messages: answerMessages, truncated } =
+            splitMarkdownIntoMessages(slackResponse);
+        // Always ≥1 message so trailing cards attach even to an empty answer.
+        const messages = answerMessages.length > 0 ? answerMessages : [[]];
+        const threadUrl = this.getAgentThreadUrl(slackPrompt, agentUuid);
+
+        // Cards + feedback + any truncation notice ride on the last message only.
+        const lastExtraBlocks: (Block | KnownBlock)[] = [
+            ...trailingBlocks,
+            ...(truncated
+                ? [
+                      AiAgentService.slackLinkSection(
+                          ':scroll: This answer was too long to show in full here.',
+                          threadUrl,
+                      ),
+                  ]
+                : []),
+        ];
+        const linkFallbackBlocks: (Block | KnownBlock)[] = [
+            AiAgentService.slackLinkSection(
+                ':scroll: This answer was too long to show in Slack.',
+                threadUrl,
+            ),
+        ];
+        // Notification fallback only; keep it small.
+        const notificationText = slackifiedMarkdown.slice(0, 3000);
+        const isLast = (index: number) => index === messages.length - 1;
+
+        let firstMessageTs: string | undefined;
+        for (let index = 0; index < messages.length; index += 1) {
+            try {
+                // eslint-disable-next-line no-await-in-loop
+                const posted = await this.slackClient.postMessage({
+                    organizationUuid: slackPrompt.organizationUuid,
+                    channel: slackPrompt.slackChannelId,
+                    thread_ts: threadTs,
+                    text: notificationText,
+                    blocks: [
+                        ...messages[index],
+                        ...(isLast(index) ? lastExtraBlocks : []),
+                    ],
+                    unfurl_links: false,
+                    ...(agentName ? { username: agentName } : {}),
+                });
+                firstMessageTs = firstMessageTs ?? posted.ts;
+            } catch (error) {
+                if (!isSlackMessageTooLongError(error)) throw error;
+                // eslint-disable-next-line no-await-in-loop
+                await this.slackClient
+                    .postMessage({
+                        organizationUuid: slackPrompt.organizationUuid,
+                        channel: slackPrompt.slackChannelId,
+                        thread_ts: threadTs,
+                        text: 'The rest of your answer is in Lightdash.',
+                        blocks: linkFallbackBlocks,
+                        unfurl_links: false,
+                        ...(agentName ? { username: agentName } : {}),
+                    })
+                    .catch((e) =>
+                        Logger.error(
+                            'Failed to post Slack answer link fallback',
+                            e,
+                        ),
+                    );
+                break;
+            }
+        }
+
+        if (firstMessageTs) {
+            await this.aiAgentModel.updateSlackResponseTs({
+                promptUuid: slackPrompt.promptUuid,
+                responseSlackTs: firstMessageTs,
+            });
         }
     }
 
@@ -9291,31 +9396,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         });
     }
 
-    private static isSlackModernStreamUnsupported(error: unknown) {
-        const errorCode =
-            typeof error === 'object' && error !== null && 'data' in error
-                ? (error as { data?: { error?: string } }).data?.error
-                : undefined;
-        const message = getErrorMessage(error).toLowerCase();
-        return [
-            errorCode,
-            message.includes('missing_scope') ? 'missing_scope' : undefined,
-            message.includes('unknown_method') ? 'unknown_method' : undefined,
-            message.includes('not_allowed') ? 'not_allowed' : undefined,
-            message.includes('unsupported') ? 'unsupported' : undefined,
-        ].some((code) =>
-            [
-                'missing_scope',
-                'unknown_method',
-                'invalid_arguments',
-                'not_allowed_token_type',
-                'method_not_supported_for_channel_type',
-                'unsupported',
-            ].includes(code ?? ''),
-        );
-    }
-
-    private async replyToSlackPromptWithModernBlocks({
+    // The under-message status carries the quiet phase; the first tool call
+    // posts the task card (clearing the status) and progress renders there.
+    // Answers with no tool calls stay status-only until the reply posts.
+    private async replyToSlackPromptWithStatus({
         user,
         slackPrompt,
         threadMessages,
@@ -9334,19 +9418,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const reasoningTaskId = 'agent_reasoning';
         let streamTs: string | undefined;
 
-        try {
-            void this.slackClient
+        const setStatus = (status: string, loadingMessages?: string[]) =>
+            this.slackClient
                 .setAssistantStatus({
                     organizationUuid: slackPrompt.organizationUuid,
                     channelId: slackPrompt.slackChannelId,
                     threadTs,
-                    status: 'thinking...',
-                    loadingMessages: [
-                        'Checking the project context...',
-                        'Finding the relevant metrics...',
-                        'Reviewing available content...',
-                        'Preparing the answer...',
-                    ],
+                    status,
+                    ...(loadingMessages ? { loadingMessages } : {}),
                 })
                 .catch((error) => {
                     Logger.debug(
@@ -9354,98 +9433,62 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         error,
                     );
                 });
-            void this.slackClient
-                .setAssistantTitle({
-                    organizationUuid: slackPrompt.organizationUuid,
-                    channelId: slackPrompt.slackChannelId,
-                    threadTs,
-                    title: agent
-                        ? `${agent.name} is working`
-                        : 'Lightdash is working',
-                })
-                .catch((error) => {
-                    Logger.debug('Failed to set Slack assistant title:', error);
-                });
-            if (threadMessages.length <= 1) {
-                void this.slackClient
-                    .setSuggestedPrompts({
-                        organizationUuid: slackPrompt.organizationUuid,
-                        channelId: slackPrompt.slackChannelId,
-                        threadTs,
-                        title: 'Try asking',
-                        prompts: [
-                            {
-                                title: 'Find the right metric',
-                                message:
-                                    'Which metric should I use for this question?',
-                            },
-                            {
-                                title: 'Explain this dashboard',
-                                message:
-                                    'Explain the main takeaways from this dashboard.',
-                            },
-                            {
-                                title: 'Build a chart',
-                                message:
-                                    'Build a chart that answers this question.',
-                            },
-                            {
-                                title: 'Improve project context',
-                                message:
-                                    'What context is missing from this project?',
-                            },
-                        ],
-                    })
-                    .catch((error) => {
-                        Logger.debug(
-                            'Failed to set Slack suggested prompts:',
+
+        void setStatus(
+            AiAgentService.THINKING_STATUS,
+            AiAgentService.THINKING_LOADING_MESSAGES,
+        );
+        // Slack drops the status ~2 minutes after the last set; re-arm it.
+        let statusActive = true;
+        const statusKeepAlive = setInterval(() => {
+            if (statusActive) {
+                void setStatus(AiAgentService.THINKING_STATUS);
+            }
+        }, 60_000);
+        const endStatusPhase = () => {
+            statusActive = false;
+            clearInterval(statusKeepAlive);
+        };
+
+        // Posting the card clears the status, so the phases never overlap.
+        // On failure the run stays status-only and the answer still posts.
+        let streamStart: Promise<void> | undefined;
+        const ensureStreamStarted = () => {
+            streamStart =
+                streamStart ??
+                (async () => {
+                    endStatusPhase();
+                    try {
+                        const stream = await this.slackClient.startAgentStream({
+                            organizationUuid: slackPrompt.organizationUuid,
+                            channelId: slackPrompt.slackChannelId,
+                            threadTs,
+                            username: agent?.name,
+                            recipientUserId: slackPrompt.slackUserId,
+                            chunks: [
+                                {
+                                    type: 'plan_update',
+                                    title: 'Answering your question',
+                                },
+                                buildSlackTaskUpdate({
+                                    toolName: 'agent_reasoning',
+                                    taskId: reasoningTaskId,
+                                    status: 'in_progress',
+                                }),
+                            ],
+                        });
+                        streamTs = stream.ts;
+                    } catch (error) {
+                        Logger.warn(
+                            'Failed to start Slack agent task card; continuing without it',
                             error,
                         );
-                    });
-            }
-
-            const stream = await this.slackClient.startAgentStream({
-                organizationUuid: slackPrompt.organizationUuid,
-                channelId: slackPrompt.slackChannelId,
-                threadTs,
-                username: agent?.name,
-                recipientUserId: slackPrompt.slackUserId,
-                chunks: [
-                    {
-                        type: 'plan_update',
-                        title: 'Answering your question',
-                    },
-                    buildSlackTaskUpdate({
-                        toolName: 'agent_reasoning',
-                        taskId: reasoningTaskId,
-                        status: 'in_progress',
-                    }),
-                ],
-            });
-            streamTs = stream.ts;
-            if (!streamTs) {
-                throw new Error('Slack stream did not return a message ts');
-            }
-        } catch (error) {
-            if (AiAgentService.isSlackModernStreamUnsupported(error)) {
-                Sentry.captureException(error, {
-                    tags: { tag: 'slack.modernStreamUnsupported' },
-                });
-                Logger.warn(
-                    'Slack modern AI stream unsupported; asking workspace admin to reconnect Slack',
-                    error,
-                );
-                const reconnectNotice =
-                    '⚠️ Lightdash AI cannot reply here yet. A workspace admin needs to reconnect Slack in Lightdash (Integrations → Slack) so the app has the latest permissions.';
-                await this.editPlaceholderOrPost(slackPrompt, reconnectNotice);
-                return;
-            }
-            Logger.error('Failed to start Slack modern AI stream', error);
-            throw error;
-        }
+                    }
+                })();
+            return streamStart;
+        };
 
         let taskUpdateChain: Promise<void> = Promise.resolve();
-        let pendingTaskUpdateCount = 0;
         // Keyed by tool type so repeated calls collapse into one counted block.
         const taskStates = new Map<
             string,
@@ -9477,21 +9520,125 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             | 'complete'
             | 'error' = 'in_progress';
 
-        const enqueueTaskUpdate = (run: () => Promise<unknown>) => {
-            pendingTaskUpdateCount += 1;
-            taskUpdateChain = taskUpdateChain
-                .then(async () => {
-                    await run();
-                })
-                .finally(() => {
-                    pendingTaskUpdateCount -= 1;
-                });
+        const enqueueTaskUpdate = (
+            run: (cardTs: string) => Promise<unknown>,
+        ) => {
+            taskUpdateChain = taskUpdateChain.then(async () => {
+                await ensureStreamStarted();
+                if (!streamTs) return;
+                await run(streamTs);
+            });
         };
 
         const flushTaskUpdates = async () => {
-            const pending = pendingTaskUpdateCount;
-            const chain = taskUpdateChain;
-            await chain;
+            await taskUpdateChain;
+        };
+
+        const queueReasoningTaskUpdate = ({
+            status = 'in_progress',
+            output,
+        }: {
+            status?: 'pending' | 'in_progress' | 'complete' | 'error';
+            output?: string;
+        }) => {
+            // Only meaningful once a card exists; never create one for this.
+            if (!streamStart) return;
+            if (status === currentReasoningStatus && output === undefined) {
+                return;
+            }
+            currentReasoningStatus = status;
+            enqueueTaskUpdate((cardTs) =>
+                this.slackClient
+                    .appendAgentStream({
+                        organizationUuid: slackPrompt.organizationUuid,
+                        channelId: slackPrompt.slackChannelId,
+                        threadTs,
+                        messageTs: cardTs,
+                        chunks: [
+                            buildSlackTaskUpdate({
+                                toolName: 'agent_reasoning',
+                                taskId: reasoningTaskId,
+                                status,
+                                ...(output ? { output } : {}),
+                            }),
+                        ],
+                    })
+                    .catch((error) => {
+                        Logger.debug(
+                            'Failed to append Slack AI reasoning task update:',
+                            error,
+                        );
+                    }),
+            );
+        };
+
+        const finalizeToolTasksForSuccess = () => {
+            for (const [taskId, taskState] of taskStates.entries()) {
+                const aggregate = computeTaskAggregate(taskState.calls);
+                if (aggregate.status !== 'complete') {
+                    const hadError = aggregate.status === 'error';
+                    for (const callId of taskState.calls.keys()) {
+                        taskState.calls.set(callId, 'complete');
+                    }
+                    const finalOutput =
+                        taskState.output ??
+                        (hadError
+                            ? 'Continued with another approach'
+                            : (taskState.details ?? 'Step finished'));
+                    // Skip if already streamed, else Slack appends a duplicate.
+                    const includeOutput = !taskState.sent.has(finalOutput);
+                    if (includeOutput) taskState.sent.add(finalOutput);
+                    enqueueTaskUpdate((cardTs) =>
+                        this.slackClient
+                            .appendAgentStream({
+                                organizationUuid: slackPrompt.organizationUuid,
+                                channelId: slackPrompt.slackChannelId,
+                                threadTs,
+                                messageTs: cardTs,
+                                chunks: [
+                                    buildSlackTaskUpdate({
+                                        toolName: taskState.toolName,
+                                        taskId,
+                                        status: 'complete',
+                                        count: aggregate.count,
+                                        ...(includeOutput
+                                            ? { output: finalOutput }
+                                            : {}),
+                                    }),
+                                ],
+                            })
+                            .catch((error) => {
+                                Logger.debug(
+                                    'Failed to finalize Slack AI tool task:',
+                                    error,
+                                );
+                            }),
+                    );
+                }
+            }
+        };
+
+        const updatePlanTitle = async (title: string) => {
+            if (!streamTs) return;
+            await this.slackClient
+                .appendAgentStream({
+                    organizationUuid: slackPrompt.organizationUuid,
+                    channelId: slackPrompt.slackChannelId,
+                    threadTs,
+                    messageTs: streamTs,
+                    chunks: [
+                        {
+                            type: 'plan_update',
+                            title,
+                        },
+                    ],
+                })
+                .catch((error) => {
+                    Logger.debug(
+                        'Failed to update Slack AI plan title:',
+                        error,
+                    );
+                });
         };
 
         const getSlackReasoningDetails = (toolName?: string): string => {
@@ -9528,122 +9675,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             }
         };
 
-        const queueReasoningTaskUpdate = ({
-            status = 'in_progress',
-            output,
-        }: {
-            status?: 'pending' | 'in_progress' | 'complete' | 'error';
-            output?: string;
-        }) => {
-            if (!streamTs) return;
-            const nextStatus = status;
-            if (nextStatus === currentReasoningStatus && output === undefined) {
-                return;
-            }
-            currentReasoningStatus = nextStatus;
-            enqueueTaskUpdate(() =>
-                this.slackClient
-                    .appendAgentStream({
-                        organizationUuid: slackPrompt.organizationUuid,
-                        channelId: slackPrompt.slackChannelId,
-                        threadTs,
-                        messageTs: streamTs,
-                        chunks: [
-                            buildSlackTaskUpdate({
-                                toolName: 'agent_reasoning',
-                                taskId: reasoningTaskId,
-                                status,
-                                ...(output ? { output } : {}),
-                            }),
-                        ],
-                    })
-                    .catch((error) => {
-                        Logger.debug(
-                            'Failed to append Slack AI reasoning task update:',
-                            error,
-                        );
-                    }),
-            );
-        };
-
-        const finalizeToolTasksForSuccess = () => {
-            if (!streamTs) return;
-            for (const [taskId, taskState] of taskStates.entries()) {
-                const aggregate = computeTaskAggregate(taskState.calls);
-                if (aggregate.status !== 'complete') {
-                    const hadError = aggregate.status === 'error';
-                    for (const callId of taskState.calls.keys()) {
-                        taskState.calls.set(callId, 'complete');
-                    }
-                    const finalOutput =
-                        taskState.output ??
-                        (hadError
-                            ? 'Continued with another approach'
-                            : (taskState.details ?? 'Step finished'));
-                    // Skip if already streamed, else Slack appends a duplicate.
-                    const includeOutput = !taskState.sent.has(finalOutput);
-                    if (includeOutput) taskState.sent.add(finalOutput);
-                    enqueueTaskUpdate(() =>
-                        this.slackClient
-                            .appendAgentStream({
-                                organizationUuid: slackPrompt.organizationUuid,
-                                channelId: slackPrompt.slackChannelId,
-                                threadTs,
-                                messageTs: streamTs,
-                                chunks: [
-                                    buildSlackTaskUpdate({
-                                        toolName: taskState.toolName,
-                                        taskId,
-                                        status: 'complete',
-                                        count: aggregate.count,
-                                        ...(includeOutput
-                                            ? { output: finalOutput }
-                                            : {}),
-                                    }),
-                                ],
-                            })
-                            .catch((error) => {
-                                Logger.debug(
-                                    'Failed to finalize Slack AI tool task:',
-                                    error,
-                                );
-                            }),
-                    );
-                }
-            }
-        };
-
-        const updatePlanTitle = async (title: string) => {
-            await this.slackClient
-                .appendAgentStream({
-                    organizationUuid: slackPrompt.organizationUuid,
-                    channelId: slackPrompt.slackChannelId,
-                    threadTs,
-                    messageTs: streamTs,
-                    chunks: [
-                        {
-                            type: 'plan_update',
-                            title,
-                        },
-                    ],
-                })
-                .catch((error) => {
-                    Logger.debug(
-                        'Failed to update Slack AI plan title:',
-                        error,
-                    );
-                });
-        };
-
         const appendTaskUpdate = (
             progress: string,
             toolName?: string,
             progressId?: string,
             progressStatus?: 'in_progress' | 'complete' | 'error',
         ) => {
-            if (!streamTs) return;
             if (!toolName || !progressId) return;
-            const resolvedToolName = toolName ?? 'lightdash_agent';
+            const resolvedToolName = toolName;
             let resolvedStatus: 'in_progress' | 'complete' | 'error' =
                 'in_progress';
             if (progressStatus === 'error') {
@@ -9673,13 +9712,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             if (isNewLine) taskState.sent.add(progress);
             taskStates.set(resolvedToolName, taskState);
             const aggregate = computeTaskAggregate(taskState.calls);
-            enqueueTaskUpdate(() =>
+            enqueueTaskUpdate((cardTs) =>
                 this.slackClient
                     .appendAgentStream({
                         organizationUuid: slackPrompt.organizationUuid,
                         channelId: slackPrompt.slackChannelId,
                         threadTs,
-                        messageTs: streamTs,
+                        messageTs: cardTs,
                         chunks: [
                             buildSlackTaskUpdate({
                                 toolName: resolvedToolName,
@@ -9710,33 +9749,19 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 enqueueTaskUpdate(() =>
                     updatePlanTitle('Answering your question'),
                 );
-            } else if (resolvedStatus === 'error') {
+            } else {
                 enqueueTaskUpdate(() =>
                     updatePlanTitle('Trying another path...'),
                 );
             }
         };
 
-        const persistStreamResponseTsAndDeletePlaceholder = async () => {
+        const persistCardResponseTs = async () => {
+            if (!streamTs) return;
             await this.aiAgentModel.updateSlackResponseTs({
                 promptUuid: slackPrompt.promptUuid,
                 responseSlackTs: streamTs,
             });
-
-            if (slackPrompt.response_slack_ts !== streamTs) {
-                void this.slackClient
-                    .deleteMessage({
-                        organizationUuid: slackPrompt.organizationUuid,
-                        channelId: slackPrompt.slackChannelId,
-                        messageTs: slackPrompt.response_slack_ts,
-                    })
-                    .catch((error) => {
-                        Logger.debug(
-                            'Failed to delete Slack placeholder:',
-                            error,
-                        );
-                    });
-            }
         };
 
         try {
@@ -9754,26 +9779,31 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             );
 
             // Native SQL approval: the loop halted awaiting approval. Finalize
-            // the task card and post the approval card below it; the run resumes
-            // via a re-enqueued reply job once the user decides.
+            // the task card (when one exists) and post the approval card below
+            // it; the run resumes via a re-enqueued reply job once the user
+            // decides.
             const pendingApproval =
                 await this.aiAgentModel.getPendingSqlApprovalForPrompt(
                     slackPrompt.promptUuid,
                 );
             if (pendingApproval) {
-                finalizeToolTasksForSuccess();
                 await flushTaskUpdates();
-                await updatePlanTitle('Waiting for SQL approval');
-                // Finalize the task card without extra copy — its header plus
-                // the approval card below already say we're waiting.
-                await this.slackClient.stopAgentStream({
-                    organizationUuid: slackPrompt.organizationUuid,
-                    channelId: slackPrompt.slackChannelId,
-                    threadTs,
-                    messageTs: streamTs,
-                    text: 'Waiting for approval to run SQL.',
-                    chunks: [],
-                });
+                if (streamTs) {
+                    finalizeToolTasksForSuccess();
+                    await flushTaskUpdates();
+                    // Finalize the task card without extra copy — its header
+                    // plus the approval card below already say we're waiting.
+                    await updatePlanTitle('Waiting for SQL approval');
+                    await this.slackClient.stopAgentStream({
+                        organizationUuid: slackPrompt.organizationUuid,
+                        channelId: slackPrompt.slackChannelId,
+                        threadTs,
+                        messageTs: streamTs,
+                        text: 'Waiting for approval to run SQL.',
+                        chunks: [],
+                    });
+                    await persistCardResponseTs();
+                }
                 await this.postSqlApprovalCard({
                     slackPrompt,
                     threadTs,
@@ -9781,32 +9811,44 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     sql: pendingApproval.sql,
                     agentName: agent?.name,
                 });
-                await persistStreamResponseTsAndDeletePlaceholder();
                 return;
             }
 
             if (!response) {
                 await flushTaskUpdates();
-                await updatePlanTitle('No answer generated');
-                queueReasoningTaskUpdate({
-                    status: 'error',
-                    output: 'No response generated',
-                });
-                await flushTaskUpdates();
-                await this.slackClient.stopAgentStream({
-                    organizationUuid: slackPrompt.organizationUuid,
-                    channelId: slackPrompt.slackChannelId,
-                    threadTs,
-                    messageTs: streamTs,
-                    text: 'No response generated.',
-                    chunks: [
-                        {
-                            type: 'blocks',
-                            blocks: getMarkdownBlocks('No response generated.'),
-                        },
-                    ],
-                });
-                await persistStreamResponseTsAndDeletePlaceholder();
+                if (streamTs) {
+                    await updatePlanTitle('No answer generated');
+                    queueReasoningTaskUpdate({
+                        status: 'error',
+                        output: 'No response generated',
+                    });
+                    await flushTaskUpdates();
+                    await this.slackClient.stopAgentStream({
+                        organizationUuid: slackPrompt.organizationUuid,
+                        channelId: slackPrompt.slackChannelId,
+                        threadTs,
+                        messageTs: streamTs,
+                        text: 'No response generated.',
+                        chunks: [
+                            {
+                                type: 'blocks',
+                                blocks: getMarkdownBlocks(
+                                    'No response generated.',
+                                ),
+                            },
+                        ],
+                    });
+                    await persistCardResponseTs();
+                } else {
+                    await this.slackClient.postMessage({
+                        organizationUuid: slackPrompt.organizationUuid,
+                        channel: slackPrompt.slackChannelId,
+                        thread_ts: threadTs,
+                        text: 'No response generated.',
+                        blocks: getMarkdownBlocks('No response generated.'),
+                        ...(agent?.name ? { username: agent.name } : {}),
+                    });
+                }
                 return;
             }
 
@@ -9815,9 +9857,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 slackPrompt,
                 agent,
             });
-            enqueueTaskUpdate(() =>
-                updatePlanTitle('Preparing the final answer...'),
-            );
             const sqlRunnerUrl = await this.getSqlRunnerShareUrl(
                 user,
                 slackPrompt,
@@ -9831,22 +9870,35 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 '\n',
             );
 
-            finalizeToolTasksForSuccess();
-            queueReasoningTaskUpdate({ status: 'complete' });
             await flushTaskUpdates();
-            await updatePlanTitle('Answered');
-            await this.deliverModernSlackAnswer({
-                slackPrompt,
-                threadTs,
-                streamTs,
-                agentUuid: agent?.uuid,
-                agentName: agent?.name,
-                slackResponse,
-                slackifiedMarkdown,
-                trailingBlocks: blocks,
-            });
+            if (streamTs) {
+                finalizeToolTasksForSuccess();
+                queueReasoningTaskUpdate({ status: 'complete' });
+                await flushTaskUpdates();
+                await updatePlanTitle('Answered');
+                await this.deliverSlackAnswerWithCard({
+                    slackPrompt,
+                    threadTs,
+                    streamTs,
+                    agentUuid: agent?.uuid,
+                    agentName: agent?.name,
+                    slackResponse,
+                    slackifiedMarkdown,
+                    trailingBlocks: blocks,
+                });
+                await persistCardResponseTs();
+            } else {
+                await this.deliverSlackAnswerMessages({
+                    slackPrompt,
+                    threadTs,
+                    agentUuid: agent?.uuid,
+                    agentName: agent?.name,
+                    slackResponse,
+                    slackifiedMarkdown,
+                    trailingBlocks: blocks,
+                });
+            }
 
-            await persistStreamResponseTsAndDeletePlaceholder();
             await this.aiAgentModel.updateModelResponse({
                 promptUuid: slackPrompt.promptUuid,
                 response,
@@ -9858,9 +9910,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 agent,
             );
         } catch (error) {
+            await flushTaskUpdates();
+            // Status-only phase: let the caller post the error message.
+            if (!streamTs) throw error;
+
             // Delivery failure on an already-persisted answer: link, don't fail.
             if (isSlackMessageTooLongError(error)) {
-                await flushTaskUpdates();
                 await updatePlanTitle('Answered');
                 await this.slackClient
                     .stopAgentStream({
@@ -9889,7 +9944,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             e,
                         ),
                     );
-                await persistStreamResponseTsAndDeletePlaceholder();
+                await persistCardResponseTs();
                 Logger.warn(
                     'Slack agent answer too long to deliver; linked to Lightdash instead',
                     error,
@@ -9927,26 +9982,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     },
                 ],
             });
-            await persistStreamResponseTsAndDeletePlaceholder();
-            Logger.error(
-                'Failed to generate modern Slack agent response',
-                error,
-            );
-            return;
+            await persistCardResponseTs();
+            Logger.error('Failed to generate Slack agent response', error);
         } finally {
-            void this.slackClient
-                .setAssistantStatus({
-                    organizationUuid: slackPrompt.organizationUuid,
-                    channelId: slackPrompt.slackChannelId,
-                    threadTs,
-                    status: '',
-                })
-                .catch((error) => {
-                    Logger.debug(
-                        'Failed to clear Slack assistant status:',
-                        error,
-                    );
-                });
+            endStatusPhase();
+            // Posting already clears the status; this covers paths where
+            // nothing was posted so it doesn't linger for two minutes.
+            void setStatus('');
         }
     }
 
@@ -9956,26 +9998,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         if (slackPrompt === undefined) {
             throw new Error('Prompt not found');
         }
-        // Always clear the :eyes: ack (added on app_mention) once we finish —
-        // success or failure — so prompts don't keep a stale reaction forever.
-        try {
-            await this.generateSlackPromptReply(promptUuid, slackPrompt);
-        } finally {
-            await this.cleanupAckReaction(slackPrompt);
-        }
-    }
-
-    private async cleanupAckReaction(slackPrompt: SlackPrompt): Promise<void> {
-        try {
-            await this.slackClient.removeReaction({
-                organizationUuid: slackPrompt.organizationUuid,
-                channel: slackPrompt.slackChannelId,
-                timestamp: slackPrompt.promptSlackTs,
-                name: 'eyes',
-            });
-        } catch (err) {
-            Logger.debug('Failed to remove :eyes: ack reaction:', err);
-        }
+        await this.generateSlackPromptReply(promptUuid, slackPrompt);
     }
 
     private async generateSlackPromptReply(
@@ -10043,7 +10066,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     currentPromptUuid: promptUuid,
                 });
 
-            await this.replyToSlackPromptWithModernBlocks({
+            await this.replyToSlackPromptWithStatus({
                 user,
                 slackPrompt,
                 threadMessages,
@@ -10059,6 +10082,24 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             await this.slackClient.postMessage({
                 organizationUuid: slackPrompt.organizationUuid,
                 text: `🔴 ${userFacingMessage}`,
+                blocks: [
+                    {
+                        type: 'section',
+                        text: {
+                            type: 'mrkdwn',
+                            text: `🔴 ${userFacingMessage}`,
+                        },
+                    },
+                    {
+                        type: 'context',
+                        elements: [
+                            {
+                                type: 'plain_text',
+                                text: `Reference: ${promptUuid}`,
+                            },
+                        ],
+                    },
+                ],
                 channel: slackPrompt.slackChannelId,
                 thread_ts: slackPrompt.slackThreadTs,
                 username: agent?.name,
@@ -11525,69 +11566,33 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         });
     }
 
-    /**
-     * Post initial response message and schedule the AI prompt
-     */
-    private async postInitialResponseAndSchedule(
-        agentConfig: AiAgent,
-        slackPromptUuid: string,
-        userUuid: string,
-        userId: string,
-        threadTs: string | undefined,
-        createdThread: boolean,
-        say: SayFn,
-    ): Promise<void> {
-        // Best-effort placeholder: if `say()` throws (e.g. Slack rate-limiting)
-        // we must still schedule the job, else the prompt is orphaned.
-        try {
-            const postedMessage = await say({
-                username: agentConfig.name,
-                thread_ts: threadTs,
-                text: createdThread
-                    ? `Hi <@${userId}>, working on your request now.`
-                    : 'Let me check that for you. One moment.',
-                blocks: [
-                    {
-                        type: 'section',
-                        text: {
-                            type: 'mrkdwn',
-                            text: createdThread
-                                ? `Hi <@${userId}>, working on your request now :rocket:`
-                                : `Let me check that for you. One moment! :books:`,
-                        },
-                    },
-                    {
-                        type: 'divider',
-                    },
-                    {
-                        type: 'context',
-                        elements: [
-                            {
-                                type: 'plain_text',
-                                text: `It can take up to 15s to get a response.`,
-                            },
-                            {
-                                type: 'plain_text',
-                                text: `Reference: ${slackPromptUuid}`,
-                            },
-                        ],
-                    },
-                ],
+    // Slack clears the status when the agent posts in the thread or after
+    // ~2 minutes of silence; the worker re-sets it when it picks up the job.
+    private async setThinkingStatusAndSchedule({
+        agentConfig,
+        slackPromptUuid,
+        userUuid,
+        channelId,
+        threadTs,
+    }: {
+        agentConfig: AiAgent;
+        slackPromptUuid: string;
+        userUuid: string;
+        channelId: string;
+        threadTs: string;
+    }): Promise<void> {
+        // Best-effort: a failed status call shouldn't block scheduling.
+        void this.slackClient
+            .setAssistantStatus({
+                organizationUuid: agentConfig.organizationUuid,
+                channelId,
+                threadTs,
+                status: AiAgentService.THINKING_STATUS,
+                loadingMessages: AiAgentService.THINKING_LOADING_MESSAGES,
+            })
+            .catch((error) => {
+                Logger.debug('Failed to set Slack assistant status:', error);
             });
-
-            if (postedMessage.ts) {
-                await this.aiAgentModel.updateSlackResponseTs({
-                    promptUuid: slackPromptUuid,
-                    responseSlackTs: postedMessage.ts,
-                });
-            }
-        } catch (error) {
-            Logger.error(
-                `Failed to post Slack placeholder for prompt ${slackPromptUuid}; scheduling generation anyway`,
-                error,
-            );
-            Sentry.captureException(error);
-        }
 
         await this.schedulerClient.slackAiPrompt({
             slackPromptUuid,
@@ -11671,7 +11676,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const { userUuid } = authResult;
 
         let slackPromptUuid: string;
-        let createdThread: boolean;
         let agentConfig: AiAgent | undefined;
 
         try {
@@ -11731,7 +11735,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             await this.verifyAgentAccess(agentConfig, userUuid, slackSettings);
 
             // Create the slack prompt
-            [slackPromptUuid, createdThread] = await this.createSlackPrompt({
+            [slackPromptUuid] = await this.createSlackPrompt({
                 userUuid,
                 projectUuid: agentConfig.projectUuid,
                 slackUserId: event.user,
@@ -11755,15 +11759,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             throw e;
         }
 
-        await this.postInitialResponseAndSchedule(
-            agentConfig!,
+        await this.setThinkingStatusAndSchedule({
+            agentConfig: agentConfig!,
             slackPromptUuid,
             userUuid,
-            event.user,
-            event.ts,
-            createdThread,
-            say,
-        );
+            channelId: event.channel,
+            threadTs: event.ts,
+        });
     }
 
     private async getSlackVoteOrganizationUuid({
@@ -11884,7 +11886,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
     }
 
     private async createAndScheduleSlackPromptFromAction(args: {
-        client: WebClient;
         channelId: string;
         threadTs: string | undefined;
         agentConfig: AiAgent;
@@ -11892,7 +11893,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         slackUserId: string;
         promptText: string;
         promptSlackTs: string;
-        organizationUuid: string;
     }): Promise<void> {
         const [slackPromptUuid] = await this.createSlackPrompt({
             userUuid: args.userUuid,
@@ -11905,50 +11905,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             agentUuid: args.agentConfig.uuid,
         });
 
-        const postedMessage = await args.client.chat.postMessage({
-            channel: args.channelId,
-            thread_ts: args.threadTs,
-            username: args.agentConfig.name,
-            blocks: [
-                {
-                    type: 'section',
-                    text: {
-                        type: 'mrkdwn',
-                        text: `Hi <@${args.slackUserId}>, working on your request now :rocket:`,
-                    },
-                },
-                {
-                    type: 'divider',
-                },
-                {
-                    type: 'context',
-                    elements: [
-                        {
-                            type: 'plain_text',
-                            text: `It can take up to 15s to get a response.`,
-                        },
-                        {
-                            type: 'plain_text',
-                            text: `Reference: ${slackPromptUuid}`,
-                        },
-                    ],
-                },
-            ],
-            text: `Working on your request now...`,
-        });
-
-        if (postedMessage.ts) {
-            await this.aiAgentModel.updateSlackResponseTs({
-                promptUuid: slackPromptUuid,
-                responseSlackTs: postedMessage.ts,
-            });
-        }
-
-        await this.schedulerClient.slackAiPrompt({
+        await this.setThinkingStatusAndSchedule({
+            agentConfig: args.agentConfig,
             slackPromptUuid,
             userUuid: args.userUuid,
-            projectUuid: args.agentConfig.projectUuid,
-            organizationUuid: args.organizationUuid,
+            channelId: args.channelId,
+            threadTs: args.threadTs ?? args.promptSlackTs,
         });
     }
 
@@ -12144,7 +12106,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 }
 
                 await this.createAndScheduleSlackPromptFromAction({
-                    client,
                     channelId,
                     threadTs,
                     agentConfig,
@@ -12152,7 +12113,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     slackUserId: body.user.id,
                     promptText: originalMessage.text,
                     promptSlackTs: originalMessage.ts || '',
-                    organizationUuid,
                 });
             } catch (e) {
                 Logger.error('Error handling agent selection', e);
@@ -12397,37 +12357,21 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         agentUuid: agent.uuid,
                     });
 
-                    const postedMessage = await client.chat.postMessage({
-                        channel: channelId,
-                        thread_ts: threadTs,
-                        username: agent.name,
-                        blocks: [
-                            {
-                                type: 'section',
-                                text: {
-                                    type: 'mrkdwn',
-                                    text: `Hi <@${body.user.id}>, working on your request now :rocket:`,
-                                },
-                            },
-                            {
-                                type: 'context',
-                                elements: [
-                                    {
-                                        type: 'plain_text',
-                                        text: `Reference: ${slackPromptUuid}`,
-                                    },
-                                ],
-                            },
-                        ],
-                        text: 'Working on your request now...',
-                    });
-
-                    if (postedMessage.ts) {
-                        await this.aiAgentModel.updateSlackResponseTs({
-                            promptUuid: slackPromptUuid,
-                            responseSlackTs: postedMessage.ts,
+                    void this.slackClient
+                        .setAssistantStatus({
+                            organizationUuid,
+                            channelId,
+                            threadTs: threadTs ?? originalMessage.ts,
+                            status: AiAgentService.THINKING_STATUS,
+                            loadingMessages:
+                                AiAgentService.THINKING_LOADING_MESSAGES,
+                        })
+                        .catch((error) => {
+                            Logger.debug(
+                                'Failed to set Slack assistant status:',
+                                error,
+                            );
                         });
-                    }
 
                     await this.schedulerClient.slackAiPrompt({
                         slackPromptUuid,
@@ -12720,7 +12664,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     }
 
                     await this.createAndScheduleSlackPromptFromAction({
-                        client,
                         channelId,
                         threadTs,
                         agentConfig,
@@ -12728,7 +12671,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         slackUserId: originalMessage.user,
                         promptText: originalMessage.text,
                         promptSlackTs: originalMessage.ts,
-                        organizationUuid,
                     });
                 } catch (e) {
                     if (e instanceof AiDuplicateSlackPromptError) {
@@ -13099,10 +13041,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         // Create prompt
         let slackPromptUuid: string;
-        let createdThread: boolean;
 
         try {
-            [slackPromptUuid, createdThread] = await this.createSlackPrompt({
+            [slackPromptUuid] = await this.createSlackPrompt({
                 userUuid,
                 projectUuid: agentConfig.projectUuid,
                 slackUserId,
@@ -13120,15 +13061,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             throw e;
         }
 
-        await this.postInitialResponseAndSchedule(
+        await this.setThinkingStatusAndSchedule({
             agentConfig,
             slackPromptUuid,
             userUuid,
-            slackUserId,
-            threadTs || messageTs,
-            createdThread,
-            say,
-        );
+            channelId,
+            threadTs: threadTs || messageTs,
+        });
 
         Logger.info(
             `Successfully scheduled AI processing for pending message: ${slackPromptUuid}`,
@@ -13143,23 +13082,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         client,
     }: SlackEventMiddlewareArgs<'app_mention'> & AllMiddlewareArgs) {
         Logger.info(`Got app_mention event ${event.text}`);
-
-        // Best-effort ack reaction — gives the user immediate visual feedback
-        // that the bot saw their @mention, before any auth / agent resolution.
-        // Fire-and-forget: installs that haven't re-authorized to grant
-        // `reactions:write` silently skip the reaction without breaking the
-        // mention flow. We use the per-event Slack client here rather than
-        // SlackClient.addReaction because we don't yet have the orgUuid at
-        // this point (it's resolved a few lines below).
-        void client.reactions
-            .add({
-                channel: event.channel,
-                timestamp: event.ts,
-                name: 'eyes',
-            })
-            .catch((err) => {
-                Logger.debug('Failed to add :eyes: reaction to mention:', err);
-            });
 
         const { teamId } = context;
         if (!teamId || !event.user) {
@@ -13200,7 +13122,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const { userUuid } = authResult;
 
         let slackPromptUuid: string;
-        let createdThread: boolean;
         let threadMessages: ThreadMessageContext | undefined;
         let agentConfig: AiAgent | undefined;
 
@@ -13412,7 +13333,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 return;
             }
 
-            [slackPromptUuid, createdThread] = await this.createSlackPrompt({
+            [slackPromptUuid] = await this.createSlackPrompt({
                 userUuid,
                 projectUuid: agentConfig.projectUuid,
                 slackUserId: event.user,
@@ -13436,15 +13357,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             throw e;
         }
 
-        await this.postInitialResponseAndSchedule(
-            agentConfig!,
+        await this.setThinkingStatusAndSchedule({
+            agentConfig: agentConfig!,
             slackPromptUuid,
             userUuid,
-            event.user,
-            event.ts,
-            createdThread,
-            say,
-        );
+            channelId: event.channel,
+            threadTs: event.thread_ts ?? event.ts,
+        });
     }
 
     private static processThreadMessages(
