@@ -33,7 +33,6 @@ describe('users as code', () => {
         version: 1,
         email,
         disabled: false,
-        pending: false,
         role: { type: 'system', name: OrganizationMemberRole.EDITOR },
         ...overrides,
     });
@@ -65,7 +64,6 @@ describe('users as code', () => {
             users: [
                 user('z@example.com', {
                     disabled: true,
-                    pending: true,
                     role: { type: 'custom', name: 'Data steward' },
                 }),
                 user('a@example.com'),
@@ -90,7 +88,6 @@ describe('users as code', () => {
         ).toStrictEqual({
             disabled: true,
             email: 'z@example.com',
-            pending: true,
             role: { name: 'Data steward', type: 'custom' },
             version: 1,
         });

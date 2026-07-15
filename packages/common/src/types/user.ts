@@ -20,7 +20,6 @@ export type UserAsCode = {
     version: 1;
     email: string;
     disabled: boolean;
-    pending: boolean;
     role: UserAsCodeRole;
 };
 
