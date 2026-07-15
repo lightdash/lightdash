@@ -9479,6 +9479,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         });
                         streamTs = stream.ts;
                     } catch (error) {
+                        Sentry.captureException(error, {
+                            tags: { tag: 'slack.agentTaskCardFailed' },
+                        });
                         Logger.warn(
                             'Failed to start Slack agent task card; continuing without it',
                             error,
