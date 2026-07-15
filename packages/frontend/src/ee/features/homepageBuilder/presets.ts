@@ -16,6 +16,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 export type HomepagePreset = {
     key: string;
+    tint: 'gray' | 'dimension' | 'metric' | 'calculation' | 'violet';
     name: string;
     description: string;
     icon: Icon;
@@ -72,6 +73,7 @@ const config = (...rows: HomepageRow[]): HomepageConfig => ({
 export const homepagePresets: HomepagePreset[] = [
     {
         key: 'exec-overview',
+        tint: 'metric',
         name: 'Exec overview',
         description: 'Company KPIs and the board pack, front and center.',
         icon: IconBriefcase,
@@ -90,6 +92,7 @@ export const homepagePresets: HomepagePreset[] = [
     },
     {
         key: 'team-hub',
+        tint: 'dimension',
         name: 'Team hub',
         description: 'A landing page for one team: dashboards, links, news.',
         icon: IconUsersGroup,
@@ -118,6 +121,7 @@ export const homepagePresets: HomepagePreset[] = [
     },
     {
         key: 'business-user-starter',
+        tint: 'violet',
         name: 'Business-user starter',
         description: 'Curated essentials for people who just need answers.',
         icon: IconUserStar,
@@ -136,6 +140,7 @@ export const homepagePresets: HomepagePreset[] = [
     },
     {
         key: 'analyst-workspace',
+        tint: 'calculation',
         name: 'Analyst workspace',
         description: 'Power-user shortcuts and a scratchpad.',
         icon: IconChartHistogram,
@@ -156,6 +161,7 @@ export const homepagePresets: HomepagePreset[] = [
     },
     {
         key: 'dashboard-as-homepage',
+        tint: 'dimension',
         name: 'Dashboard as homepage',
         description: 'One key dashboard is the whole page.',
         icon: IconLayoutDashboard,
@@ -164,6 +170,7 @@ export const homepagePresets: HomepagePreset[] = [
     },
     {
         key: 'blank',
+        tint: 'gray',
         name: 'Blank',
         description: 'Start from nothing.',
         icon: IconFile,
