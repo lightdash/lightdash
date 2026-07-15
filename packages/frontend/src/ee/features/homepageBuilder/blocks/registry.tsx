@@ -19,7 +19,6 @@ import {
     AnnouncementsBlockBuild,
     AnnouncementsBlockView,
 } from './AnnouncementsBlock';
-import { type IconTint } from './BlockShell';
 import { CollectionBlockBuild, CollectionBlockView } from './CollectionBlock';
 import { FavoritesBlockBuild, FavoritesBlockView } from './FavoritesBlock';
 import { HeroBlockBuild, HeroBlockView } from './HeroBlock';
@@ -39,7 +38,6 @@ export type BlockDefinition = {
     label: string;
     description: string;
     icon: Icon;
-    tint: IconTint;
     requiresAi?: boolean;
     create: () => HomepageBlock;
     View: FC<BlockComponentProps>;
@@ -49,7 +47,6 @@ export type BlockDefinition = {
 export const blockLibrary: BlockDefinition[] = [
     {
         type: 'hero',
-        tint: 'gray',
         label: 'Greeting',
         description:
             'Personalized welcome headline — {name} becomes the viewer.',
@@ -67,7 +64,6 @@ export const blockLibrary: BlockDefinition[] = [
     },
     {
         type: 'ai',
-        tint: 'violet',
         label: 'Ask AI',
         description: 'Natural-language ask box with curated suggestions.',
         icon: IconSparkles,
@@ -82,7 +78,6 @@ export const blockLibrary: BlockDefinition[] = [
     },
     {
         type: 'quick-actions',
-        tint: 'calculation',
         label: 'Quick actions',
         description: 'Primary CTA cards — tailor the main action per audience.',
         icon: IconBolt,
@@ -96,7 +91,6 @@ export const blockLibrary: BlockDefinition[] = [
     },
     {
         type: 'metrics',
-        tint: 'metric',
         label: 'Metrics',
         description: 'KPI cards from the metrics catalog, with deltas.',
         icon: IconChartDots,
@@ -110,7 +104,6 @@ export const blockLibrary: BlockDefinition[] = [
     },
     {
         type: 'collection',
-        tint: 'dimension',
         label: 'Collection',
         description: 'A curated set of dashboards and charts.',
         icon: IconLayoutGrid,
@@ -124,7 +117,6 @@ export const blockLibrary: BlockDefinition[] = [
     },
     {
         type: 'resources',
-        tint: 'gray',
         label: 'Resources',
         description: 'Curated links — docs, videos, request forms.',
         icon: IconBook,
@@ -138,7 +130,6 @@ export const blockLibrary: BlockDefinition[] = [
     },
     {
         type: 'announcements',
-        tint: 'violet',
         label: 'Announcements',
         description: 'Updates from the data team, newest first.',
         icon: IconSpeakerphone,
@@ -152,7 +143,6 @@ export const blockLibrary: BlockDefinition[] = [
     },
     {
         type: 'favorites',
-        tint: 'metric',
         label: 'Favorites',
         description: 'Each viewer’s starred content, only visible to them.',
         icon: IconStar,
@@ -166,7 +156,6 @@ export const blockLibrary: BlockDefinition[] = [
     },
     {
         type: 'recent',
-        tint: 'gray',
         label: 'Recently viewed',
         description: 'Each viewer’s recently opened charts and dashboards.',
         icon: IconClock,
@@ -180,7 +169,6 @@ export const blockLibrary: BlockDefinition[] = [
     },
     {
         type: 'markdown',
-        tint: 'gray',
         label: 'Text / banner',
         description: 'Markdown text, notes or a welcome banner.',
         icon: IconMarkdown,

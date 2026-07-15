@@ -36,34 +36,16 @@ export const BlockHeader: FC<PropsWithChildren<BlockHeaderProps>> = ({
     </Box>
 );
 
-export type IconTint =
-    | 'gray'
-    | 'dimension'
-    | 'metric'
-    | 'calculation'
-    | 'violet';
-
-const TINT_CLASSES: Record<IconTint, string | undefined> = {
-    gray: undefined,
-    dimension: classes.tintDimension,
-    metric: classes.tintMetric,
-    calculation: classes.tintCalculation,
-    violet: classes.tintViolet,
-};
-
 export const IconSquare: FC<{
     icon: Icon;
-    tint?: IconTint;
     size?: 'md' | 'lg';
-}> = ({ icon, tint = 'gray', size = 'md' }) => (
+}> = ({ icon, size = 'md' }) => (
     <div
-        className={[
-            classes.iconSquare,
-            size === 'lg' ? classes.iconSquareLg : undefined,
-            TINT_CLASSES[tint],
-        ]
-            .filter(Boolean)
-            .join(' ')}
+        className={
+            size === 'lg'
+                ? `${classes.iconSquare} ${classes.iconSquareLg}`
+                : classes.iconSquare
+        }
     >
         <MantineIcon icon={icon} size={size === 'lg' ? 18 : 16} />
     </div>

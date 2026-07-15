@@ -162,7 +162,7 @@ export const HomepageBuilderPage: FC = () => {
     }
 
     return (
-        <Page>
+        <Page noContentPadding>
             {
                 <HomepageEditor
                     key={`${homepage.data.homepageUuid}-${editorEpoch}`}
