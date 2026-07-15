@@ -20,6 +20,8 @@ import { v4 as uuidv4 } from 'uuid';
 import FieldIcon from '../../../components/common/Filters/FieldIcon';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import useTracking from '../../../providers/Tracking/useTracking';
+import { EventName } from '../../../types/Events';
 import classes from './FilterRequirements.module.css';
 import FilterSelect, { type SelectableFilter } from './FilterSelect';
 import { AndSeparator } from './RuleSeparators';
@@ -122,10 +124,12 @@ const FilterRequirementsButton: FC = () => {
     const close = popovers?.closeRulesPopover ?? closeLocal;
     const [draftRuleIds, setDraftRuleIds] = useState<string[]>([]);
 
+    const dashboard = useDashboardContext((c) => c.dashboard);
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
     const requiredFiltersNote = useDashboardContext(
         (c) => c.requiredFiltersNote,
     );
+    const { track } = useTracking();
     const setRequiredFiltersNote = useDashboardContext(
         (c) => c.setRequiredFiltersNote,
     );
@@ -280,6 +284,18 @@ const FilterRequirementsButton: FC = () => {
         if (noteDraft !== null) {
             setRequiredFiltersNote(noteDraft);
         }
+        track({
+            name: EventName.DASHBOARD_FILTER_REQUIREMENTS_SAVED,
+            properties: {
+                dashboardUuid: dashboard?.uuid,
+                ruleCount: requirementRules.length,
+                memberCount: requirementRules.reduce(
+                    (count, rule) => count + rule.members.length,
+                    0,
+                ),
+                hasNote: (noteDraft ?? requiredFiltersNote ?? '').length > 0,
+            },
+        });
         setStagedRuleUpdates(null);
         setNoteDraft(null);
         setDraftRuleIds([]);
@@ -290,6 +306,10 @@ const FilterRequirementsButton: FC = () => {
         updateFilterRule,
         setRequiredFiltersNote,
         close,
+        track,
+        dashboard?.uuid,
+        requirementRules,
+        requiredFiltersNote,
     ]);
 
     const handleClose = useCallback(() => {
