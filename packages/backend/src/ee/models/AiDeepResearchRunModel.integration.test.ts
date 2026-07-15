@@ -7,6 +7,7 @@ import {
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { getTestContext } from '../../vitest.setup.integration';
+import { AiThreadTableName } from '../database/entities/ai';
 import {
     AiDeepResearchEventsTableName,
     AiDeepResearchRunsTableName,
@@ -54,12 +55,14 @@ describe('AiDeepResearchRunModel integration', () => {
         runUuids.clear();
     });
 
-    const createRun = async (): Promise<DbAiDeepResearchRun> => {
+    const createRun = async (
+        overrides: { aiThreadUuid?: string | null } = {},
+    ): Promise<DbAiDeepResearchRun> => {
         const run = await model.create({
             organizationUuid: SEED_ORG_1.organization_uuid,
             projectUuid: SEED_PROJECT.project_uuid,
             createdByUserUuid: SEED_ORG_1_ADMIN.user_uuid,
-            aiThreadUuid: null,
+            aiThreadUuid: overrides.aiThreadUuid ?? null,
             promptUuid: null,
             toolCallId: null,
             prompt: `Integration race ${crypto.randomUUID()}`,
@@ -67,6 +70,17 @@ describe('AiDeepResearchRunModel integration', () => {
         });
         runUuids.add(run.ai_deep_research_run_uuid);
         return run;
+    };
+
+    const backdateHeartbeat = async (
+        runUuid: string,
+        interval: string,
+    ): Promise<void> => {
+        await database(AiDeepResearchRunsTableName)
+            .where('ai_deep_research_run_uuid', runUuid)
+            .update({
+                updated_at: database.raw(`now() - interval '${interval}'`),
+            });
     };
 
     const getEventSequence = async (runUuid: string): Promise<string[]> => {
@@ -208,5 +222,210 @@ describe('AiDeepResearchRunModel integration', () => {
             'status_changed:running',
             'status_changed:failed',
         ]);
+    });
+
+    it('refuses to reclaim a running run with a fresh heartbeat', async () => {
+        const run = await createRun();
+        const claimed = await model.claimRun(run.ai_deep_research_run_uuid);
+
+        const reclaimed = await model.claimRun(run.ai_deep_research_run_uuid);
+
+        expect(claimed).toMatchObject({ execution_attempts: 1 });
+        expect(reclaimed).toBeUndefined();
+        expect(
+            await model.findByUuid(run.ai_deep_research_run_uuid),
+        ).toMatchObject({ status: 'running', execution_attempts: 1 });
+    });
+
+    it('reclaims a stale running run, keeping the original start and counting the attempt', async () => {
+        const run = await createRun();
+        const firstClaim = await model.claimRun(run.ai_deep_research_run_uuid);
+        await backdateHeartbeat(run.ai_deep_research_run_uuid, '2 minutes');
+
+        const reclaimed = await model.claimRun(run.ai_deep_research_run_uuid);
+
+        expect(reclaimed).toMatchObject({
+            status: 'running',
+            execution_attempts: 2,
+            started_at: firstClaim?.started_at,
+        });
+        expect(await getEventSequence(run.ai_deep_research_run_uuid)).toEqual([
+            'status_changed:queued',
+            'status_changed:running',
+            'status_changed:running',
+        ]);
+    });
+
+    it('never reclaims a stale run once cancellation has been requested', async () => {
+        const run = await createRun();
+        await model.claimRun(run.ai_deep_research_run_uuid);
+        await model.requestCancellation(run.ai_deep_research_run_uuid);
+        await backdateHeartbeat(run.ai_deep_research_run_uuid, '2 minutes');
+
+        const reclaimed = await model.claimRun(run.ai_deep_research_run_uuid);
+
+        expect(reclaimed).toBeUndefined();
+        expect(
+            await model.findByUuid(run.ai_deep_research_run_uuid),
+        ).toMatchObject({ status: 'running', execution_attempts: 1 });
+    });
+
+    it('releases a running run back to queued so Graphile can retry it', async () => {
+        const run = await createRun();
+        await model.claimRun(run.ai_deep_research_run_uuid);
+
+        const released = await model.releaseForRetry(
+            run.ai_deep_research_run_uuid,
+        );
+
+        expect(released).toBe(true);
+        expect(
+            await model.findByUuid(run.ai_deep_research_run_uuid),
+        ).toMatchObject({ status: 'queued', execution_attempts: 1 });
+        expect(await getEventSequence(run.ai_deep_research_run_uuid)).toEqual([
+            'status_changed:queued',
+            'status_changed:running',
+            'status_changed:queued',
+        ]);
+    });
+
+    it('does not release a cancellation-requested run for retry', async () => {
+        const run = await createRun();
+        await model.claimRun(run.ai_deep_research_run_uuid);
+        await model.requestCancellation(run.ai_deep_research_run_uuid);
+
+        const released = await model.releaseForRetry(
+            run.ai_deep_research_run_uuid,
+        );
+
+        expect(released).toBe(false);
+        expect(
+            await model.findByUuid(run.ai_deep_research_run_uuid),
+        ).toMatchObject({ status: 'running' });
+    });
+
+    it('does not release a run that is not running', async () => {
+        const run = await createRun();
+
+        expect(await model.releaseForRetry(run.ai_deep_research_run_uuid)).toBe(
+            false,
+        );
+        expect(
+            await model.findByUuid(run.ai_deep_research_run_uuid),
+        ).toMatchObject({ status: 'queued' });
+    });
+
+    it('persists the artifact with its events exactly once across duplicate saves', async () => {
+        const run = await createRun();
+        await model.claimRun(run.ai_deep_research_run_uuid);
+        const queries = [
+            {
+                queryUuid: crypto.randomUUID(),
+                toolCallId: 'call-1',
+                toolName: 'runSql',
+            },
+        ];
+
+        const firstSave = await model.saveArtifactWithEvents(
+            run.ai_deep_research_run_uuid,
+            artifact,
+            queries,
+        );
+        const secondSave = await model.saveArtifactWithEvents(
+            run.ai_deep_research_run_uuid,
+            artifact,
+            queries,
+        );
+
+        expect(firstSave).toBe(true);
+        expect(secondSave).toBe(false);
+        expect(
+            await model.findByUuid(run.ai_deep_research_run_uuid),
+        ).toMatchObject({
+            status: 'running',
+            result: artifact,
+            checkpoint: 'artifact_created',
+        });
+        expect(await getEventSequence(run.ai_deep_research_run_uuid)).toEqual([
+            'status_changed:queued',
+            'status_changed:running',
+            'checkpoint',
+            'artifact_created',
+            'query_provenance',
+        ]);
+    });
+
+    it('finds the active run for a thread only while it is queued or running', async () => {
+        const [threadUuid] = await database(AiThreadTableName)
+            .insert({
+                organization_uuid: SEED_ORG_1.organization_uuid,
+                project_uuid: SEED_PROJECT.project_uuid,
+                created_from: 'web_app',
+                agent_uuid: null,
+            })
+            .returning('ai_thread_uuid')
+            .then((rows) => rows.map((row) => row.ai_thread_uuid));
+        try {
+            const run = await createRun({ aiThreadUuid: threadUuid });
+
+            expect(await model.findActiveRunByThread(threadUuid)).toMatchObject(
+                {
+                    ai_deep_research_run_uuid: run.ai_deep_research_run_uuid,
+                },
+            );
+
+            await model.claimRun(run.ai_deep_research_run_uuid);
+            expect(await model.findActiveRunByThread(threadUuid)).toMatchObject(
+                {
+                    ai_deep_research_run_uuid: run.ai_deep_research_run_uuid,
+                },
+            );
+
+            await model.markFailed(run.ai_deep_research_run_uuid, 'boom');
+            expect(
+                await model.findActiveRunByThread(threadUuid),
+            ).toBeUndefined();
+        } finally {
+            await database(AiDeepResearchRunsTableName)
+                .where('ai_thread_uuid', threadUuid)
+                .delete();
+            await database(AiThreadTableName)
+                .where('ai_thread_uuid', threadUuid)
+                .delete();
+        }
+    });
+
+    it('persists and clears the policy limit marker only while the run is running', async () => {
+        const run = await createRun();
+
+        expect(
+            await model.savePolicyLimitReached(
+                run.ai_deep_research_run_uuid,
+                'The runtime policy limit was reached.',
+            ),
+        ).toBe(false);
+
+        await model.claimRun(run.ai_deep_research_run_uuid);
+        expect(
+            await model.savePolicyLimitReached(
+                run.ai_deep_research_run_uuid,
+                'The runtime policy limit was reached.',
+            ),
+        ).toBe(true);
+        expect(
+            await model.findByUuid(run.ai_deep_research_run_uuid),
+        ).toMatchObject({
+            policy_limit_reached: 'The runtime policy limit was reached.',
+        });
+
+        expect(
+            await model.savePolicyLimitReached(
+                run.ai_deep_research_run_uuid,
+                null,
+            ),
+        ).toBe(true);
+        expect(
+            await model.findByUuid(run.ai_deep_research_run_uuid),
+        ).toMatchObject({ policy_limit_reached: null });
     });
 });

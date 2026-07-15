@@ -3,8 +3,10 @@ import {
     type AiDeepResearchExecutionContextSnapshot,
 } from '@lightdash/common';
 import { defaultSessionUser } from '../../../auth/account/account.mock';
+import Logger from '../../../logging/logger';
 import { type DbAiDeepResearchRun } from '../../database/entities/aiDeepResearch';
 import { AiDeepResearchExecutor } from './AiDeepResearchExecutor';
+import { AiDeepResearchPermanentError } from './errors';
 
 const snapshot: AiDeepResearchExecutionContextSnapshot = {
     schemaVersion: 1,
@@ -393,7 +395,8 @@ describe('AiDeepResearchExecutor', () => {
     });
 
     it('does not double-count repeated progress events for the same tool call', async () => {
-        const { executor, aiAgentService } = buildExecutor();
+        const { executor, aiAgentService, aiDeepResearchRunModel } =
+            buildExecutor();
         aiAgentService.generateAgentThreadResponse.mockImplementation(
             async (_user, options) => {
                 await options.onExecutionContextResolved(snapshot);
@@ -438,6 +441,16 @@ describe('AiDeepResearchExecutor', () => {
         expect(
             aiAgentService.interruptAgentThreadMessage,
         ).not.toHaveBeenCalled();
+        const toolCallEvents = aiDeepResearchRunModel.appendEvent.mock.calls
+            .filter(([, eventType]) => eventType === 'tool_call')
+            .map(([, , payload]) => payload);
+        // The id-less mid-tool progress line never becomes a tool_call event.
+        expect(toolCallEvents).toHaveLength(3);
+        expect(
+            toolCallEvents.every(
+                (payload) => (payload as AnyType).toolCallId === 'call-1',
+            ),
+        ).toBe(true);
     });
 
     it('completes a run whose researcher submitted before a tripped runtime limit interrupted it', async () => {
@@ -476,5 +489,243 @@ describe('AiDeepResearchExecutor', () => {
         expect(
             aiAgentService.generateAgentThreadResponse,
         ).not.toHaveBeenCalled();
+    });
+
+    it('returns cancelled without generating when the signal is already aborted', async () => {
+        const { executor, aiAgentService } = buildExecutor();
+        const abortController = new AbortController();
+        abortController.abort();
+
+        const result = await executor.execute(run(), {
+            signal: abortController.signal,
+        });
+
+        expect(result).toEqual({ status: 'cancelled' });
+        expect(
+            aiAgentService.generateAgentThreadResponse,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('returns cancelled without generating when cancellation was already requested', async () => {
+        const { executor, aiAgentService } = buildExecutor();
+
+        const result = await executor.execute(
+            run({ cancellation_requested_at: new Date() }),
+            { signal: new AbortController().signal },
+        );
+
+        expect(result).toEqual({ status: 'cancelled' });
+        expect(
+            aiAgentService.generateAgentThreadResponse,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('fails the run when the execution context is never resolved', async () => {
+        const { executor, aiAgentService, aiDeepResearchRunModel } =
+            buildExecutor();
+        aiAgentService.generateAgentThreadResponse.mockResolvedValue(undefined);
+
+        const result = await executor.execute(run(), {
+            signal: new AbortController().signal,
+        });
+
+        expect(result).toEqual({
+            status: 'failed',
+            errorMessage: 'AI Agent execution context was not resolved',
+        });
+        expect(
+            aiDeepResearchRunModel.saveArtifactWithEvents,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('throws a permanent error when the submitted artifact fails validation', async () => {
+        const { executor, aiAgentModel, aiDeepResearchRunModel } =
+            buildExecutor();
+        aiAgentModel.getToolCallsAndResultsForPrompt.mockResolvedValue([
+            {
+                toolCall: {
+                    uuid: 'call-row-1',
+                    promptUuid: 'prompt-1',
+                    toolCallId: 'call-1',
+                    parentToolCallId: null,
+                    createdAt: new Date(),
+                    toolArgs: { finalReport: '' },
+                    toolType: 'built-in',
+                    toolName: 'submitResearchArtifact',
+                },
+                toolResult: null,
+                approvalDecision: null,
+            },
+        ]);
+
+        await expect(
+            executor.execute(run(), {
+                signal: new AbortController().signal,
+            }),
+        ).rejects.toBeInstanceOf(AiDeepResearchPermanentError);
+        expect(
+            aiDeepResearchRunModel.saveArtifactWithEvents,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('stops on a breached warehouse query limit and returns a partial artifact', async () => {
+        const {
+            executor,
+            aiAgentService,
+            aiAgentModel,
+            aiDeepResearchRunModel,
+        } = buildExecutor();
+        aiAgentService.generateAgentThreadResponse.mockImplementation(
+            async (_user, options) => {
+                await options.onExecutionContextResolved(snapshot);
+                await options.onStepProgress(
+                    'First query',
+                    'runSql',
+                    'call-1',
+                    'in_progress',
+                );
+                await options.onStepProgress(
+                    'Second query',
+                    'runContentQuery',
+                    'call-2',
+                    'in_progress',
+                );
+            },
+        );
+        aiAgentModel.getToolCallsAndResultsForPrompt.mockResolvedValue([]);
+
+        const result = await executor.execute(
+            run({
+                policy_snapshot: {
+                    instructions: null,
+                    maxSteps: 40,
+                    maxToolCalls: 10,
+                    maxWarehouseQueries: 1,
+                    maxRuntimeMs: 60_000,
+                },
+            }),
+            { signal: new AbortController().signal },
+        );
+
+        expect(result).toMatchObject({
+            status: 'partially_completed',
+            artifact: {
+                limitations: ['The warehouse query policy limit was reached.'],
+            },
+        });
+        expect(
+            aiDeepResearchRunModel.savePolicyLimitReached,
+        ).toHaveBeenCalledWith(
+            'run-1',
+            'The warehouse query policy limit was reached.',
+        );
+        expect(
+            aiAgentService.interruptAgentThreadMessage,
+        ).toHaveBeenCalledOnce();
+    });
+
+    describe('timers', () => {
+        beforeEach(() => {
+            vi.useFakeTimers();
+            vi.setSystemTime(new Date('2026-07-15T12:00:51.000Z'));
+        });
+
+        afterEach(() => {
+            vi.useRealTimers();
+        });
+
+        const pendingGeneration = () => {
+            let finish!: () => void;
+            const generation = new Promise<void>((resolve) => {
+                finish = resolve;
+            });
+            return { generation, finish };
+        };
+
+        it('interrupts on the runtime limit anchored to the first attempt start', async () => {
+            const {
+                executor,
+                aiAgentService,
+                aiAgentModel,
+                aiDeepResearchRunModel,
+            } = buildExecutor();
+            const { generation, finish } = pendingGeneration();
+            aiAgentService.generateAgentThreadResponse.mockImplementation(
+                async (_user, options) => {
+                    await options.onExecutionContextResolved(snapshot);
+                    return generation;
+                },
+            );
+            aiAgentModel.getToolCallsAndResultsForPrompt.mockResolvedValue([]);
+
+            // started_at is 50s in the past, so only 10s of the 60s runtime
+            // budget remains for this attempt.
+            const execution = executor.execute(
+                run({ started_at: new Date('2026-07-15T12:00:01.000Z') }),
+                { signal: new AbortController().signal },
+            );
+
+            await vi.advanceTimersByTimeAsync(9_000);
+            expect(
+                aiDeepResearchRunModel.savePolicyLimitReached,
+            ).not.toHaveBeenCalled();
+
+            await vi.advanceTimersByTimeAsync(1_000);
+            expect(
+                aiDeepResearchRunModel.savePolicyLimitReached,
+            ).toHaveBeenCalledWith(
+                'run-1',
+                'The runtime policy limit was reached.',
+            );
+            expect(
+                aiAgentService.interruptAgentThreadMessage,
+            ).toHaveBeenCalledOnce();
+
+            finish();
+            const result = await execution;
+            expect(result).toMatchObject({
+                status: 'partially_completed',
+                artifact: {
+                    limitations: ['The runtime policy limit was reached.'],
+                },
+            });
+        });
+
+        it('touches the heartbeat every 15 seconds and logs a failed touch instead of crashing', async () => {
+            const { executor, aiAgentService, aiDeepResearchRunModel } =
+                buildExecutor();
+            const loggerErrorSpy = vi
+                .spyOn(Logger, 'error')
+                .mockImplementation(() => Logger);
+            const { generation, finish } = pendingGeneration();
+            aiAgentService.generateAgentThreadResponse.mockImplementation(
+                async (_user, options) => {
+                    await options.onExecutionContextResolved(snapshot);
+                    return generation;
+                },
+            );
+
+            const execution = executor.execute(
+                run({ started_at: new Date('2026-07-15T12:00:51.000Z') }),
+                { signal: new AbortController().signal },
+            );
+
+            await vi.advanceTimersByTimeAsync(15_000);
+            expect(aiDeepResearchRunModel.touch).toHaveBeenCalledTimes(1);
+
+            aiDeepResearchRunModel.touch.mockRejectedValueOnce(
+                new Error('connection reset'),
+            );
+            await vi.advanceTimersByTimeAsync(15_000);
+            expect(aiDeepResearchRunModel.touch).toHaveBeenCalledTimes(2);
+            expect(loggerErrorSpy).toHaveBeenCalledWith(
+                expect.stringContaining('heartbeat failed'),
+            );
+
+            finish();
+            const result = await execution;
+            expect(result).toMatchObject({ status: 'completed' });
+            loggerErrorSpy.mockRestore();
+        });
     });
 });
