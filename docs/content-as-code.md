@@ -179,6 +179,7 @@ The CLI implementation lives under
 `packages/cli/src/handlers/organizationContent/`. It only:
 
 - reads and writes `lightdash/custom-roles/*.yml`;
+- treats a missing or empty custom-roles directory as a no-op;
 - creates safe filenames and disambiguates normalized filename collisions;
 - rejects duplicate role names within the local bundle;
 - calls the two `/roles/code` endpoints;
@@ -189,6 +190,47 @@ The CLI implementation lives under
 It intentionally does not list roles through the general roles API, validate
 scope names, calculate scope diffs, or call the lower-level create and patch
 role endpoints.
+
+## Users
+
+Organization users are stored under `lightdash/users/*.yml`:
+
+```yaml
+version: 1
+email: analyst@example.com
+disabled: false
+pending: false
+role:
+  type: system
+  name: editor
+```
+
+The endpoints are:
+
+- `GET /api/v2/orgs/{orgUuid}/users/code`
+- `POST /api/v2/orgs/{orgUuid}/users/code`
+
+Email is the portable identity and is normalized to lowercase. An upload
+creates a missing organization member or reconciles the existing member's
+organization role and disabled state. A custom role is referenced by its exact
+organization-level role name, so organization uploads process custom roles
+before users.
+
+Credentials are not portable. A missing user is staged without an
+authentication method and reported as awaiting authentication. Setting
+`pending: true` preserves that staged state; it never removes credentials from
+an authenticated user. Omitting a user file does not remove the remote user.
+
+Invitations are a separate side effect and are not sent by default. Passing
+`lightdash upload --organization --send-invites` sends invitations only to
+eligible staged users. Authenticated users, disabled users, and users with a
+valid invitation are skipped. Without that flag, users authenticate through
+the instance's existing domain, SSO, or manually triggered invitation flows.
+
+Uploads also preserve the organization admin invariant. Enabled admin
+promotions are processed before admin demotions or disables, and the backend
+rejects any individual operation that would leave the organization without an
+enabled authenticated admin.
 
 ## Adding another content-as-code resource
 

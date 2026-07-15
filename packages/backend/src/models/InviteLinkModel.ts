@@ -110,6 +110,18 @@ export class InviteLinkModel {
         return this.getByCode(inviteCode);
     }
 
+    async hasValidInviteLink(
+        userUuid: string,
+        now: Date = new Date(),
+    ): Promise<boolean> {
+        const inviteLink = await this.database(InviteLinkTableName)
+            .where('user_uuid', userUuid)
+            .andWhere('expires_at', '>', now)
+            .first('user_uuid');
+
+        return inviteLink !== undefined;
+    }
+
     async deleteByOrganization(organizationUuid: string) {
         const orgs = await this.database('organizations')
             .where('organization_uuid', organizationUuid)

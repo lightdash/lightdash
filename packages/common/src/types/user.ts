@@ -3,7 +3,58 @@ import { type MemberAbility } from '../authorization/types';
 import { type AnyType } from './any';
 import { type OpenIdIdentityIssuerType } from './openIdIdentity';
 import { type OrganizationMemberRole } from './organizationMemberProfile';
+import { type PromotionAction } from './promotion';
 import { type UserAvatarColorValue } from './userAvatars';
+
+export type UserAsCodeRole =
+    | {
+          type: 'system';
+          name: OrganizationMemberRole;
+      }
+    | {
+          type: 'custom';
+          name: string;
+      };
+
+export type UserAsCode = {
+    version: 1;
+    email: string;
+    disabled: boolean;
+    pending: boolean;
+    role: UserAsCodeRole;
+};
+
+export enum UserAsCodeLifecycleStatus {
+    READY = 'ready',
+    AWAITING_AUTHENTICATION = 'awaiting authentication',
+}
+
+export enum UserAsCodeInvitationStatus {
+    NOT_REQUESTED = 'not requested',
+    SENT = 'sent',
+    SKIPPED_AUTHENTICATED = 'skipped authenticated',
+    SKIPPED_DISABLED = 'skipped disabled',
+    SKIPPED_VALID_INVITE = 'skipped valid invite',
+}
+
+export type ApiUserAsCodeListResponse = {
+    status: 'ok';
+    results: {
+        users: UserAsCode[];
+    };
+};
+
+export type ApiUserAsCodeUpsertResponse = {
+    status: 'ok';
+    results: {
+        action:
+            | PromotionAction.CREATE
+            | PromotionAction.UPDATE
+            | PromotionAction.NO_CHANGES;
+        lifecycle: UserAsCodeLifecycleStatus;
+        invitation: UserAsCodeInvitationStatus;
+    };
+};
 
 export type AccountUser = {
     /**
