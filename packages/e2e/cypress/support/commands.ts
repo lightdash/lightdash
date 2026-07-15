@@ -44,7 +44,6 @@ import {
     SEED_PROJECT,
 } from '@lightdash/common';
 import '@testing-library/cypress/add-commands';
-import 'cypress-file-upload';
 
 declare global {
     namespace Cypress {
