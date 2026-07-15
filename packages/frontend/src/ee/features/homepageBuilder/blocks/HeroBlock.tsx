@@ -1,64 +1,23 @@
-import { subject } from '@casl/ability';
-import {
-    Box,
-    Button,
-    Code,
-    Group,
-    Stack,
-    Text,
-    TextInput,
-} from '@mantine-8/core';
-import { IconSquareRoundedPlus } from '@tabler/icons-react';
+import { Box, Code, Stack, Text, TextInput } from '@mantine-8/core';
 import { type FC } from 'react';
-import { Link } from 'react-router';
-import MantineIcon from '../../../../components/common/MantineIcon';
-import { Can } from '../../../../providers/Ability';
 import useApp from '../../../../providers/App/useApp';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
 const resolveTokens = (text: string, firstName: string | undefined): string =>
     text.replaceAll('{name}', firstName ?? 'there');
 
-export const HeroBlockView: FC<BlockComponentProps> = ({
-    block,
-    projectUuid,
-}) => {
+export const HeroBlockView: FC<BlockComponentProps> = ({ block }) => {
     const { user } = useApp();
     if (block.type !== 'hero') return null;
     return (
-        <Group justify="space-between" align="flex-end" gap="md" wrap="nowrap">
-            <Box>
-                <Text
-                    component="h1"
-                    fz={28}
-                    fw={600}
-                    lts="-0.02em"
-                    m={0}
-                    lh={1.2}
-                >
-                    {resolveTokens(block.config.title, user.data?.firstName)}
-                </Text>
-                <Text fz={15} c="dimmed" mt={5}>
-                    {resolveTokens(block.config.subtitle, user.data?.firstName)}
-                </Text>
-            </Box>
-            <Can
-                I="manage"
-                this={subject('Explore', {
-                    organizationUuid: user.data?.organizationUuid,
-                    projectUuid,
-                })}
-            >
-                <Button
-                    component={Link}
-                    to={`/projects/${projectUuid}/tables`}
-                    leftSection={<MantineIcon icon={IconSquareRoundedPlus} />}
-                    flex="0 0 auto"
-                >
-                    New
-                </Button>
-            </Can>
-        </Group>
+        <Box>
+            <Text component="h1" fz={28} fw={600} lts="-0.02em" m={0} lh={1.2}>
+                {resolveTokens(block.config.title, user.data?.firstName)}
+            </Text>
+            <Text fz={15} c="dimmed" mt={5}>
+                {resolveTokens(block.config.subtitle, user.data?.firstName)}
+            </Text>
+        </Box>
     );
 };
 

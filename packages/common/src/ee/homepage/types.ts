@@ -45,6 +45,9 @@ export type HomepageResourcesBlock = {
 };
 
 export type HomepageAnnouncementItem = {
+    /** Markdown — @-mentioned charts/dashboards are plain markdown links
+     * (`[label](/projects/.../saved/:uuid/view)`), rendered as rich chips by
+     * `rehypeAiAgentContentLinks`. */
     text: string;
     date: string;
     author: string;

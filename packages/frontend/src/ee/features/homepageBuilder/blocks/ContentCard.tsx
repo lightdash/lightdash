@@ -69,7 +69,7 @@ const CardActions: FC<Pick<Props, 'content' | 'onRemove' | 'star'>> = ({
         {star && (
             <ActionIcon
                 variant="subtle"
-                color={star.isFavorite ? 'yellow' : 'gray'}
+                color={star.isFavorite ? 'yellow' : 'ldGray.6'}
                 size="sm"
                 aria-label={
                     star.isFavorite
@@ -89,7 +89,7 @@ const CardActions: FC<Pick<Props, 'content' | 'onRemove' | 'star'>> = ({
         {onRemove && (
             <ActionIcon
                 variant="subtle"
-                color="gray"
+                color="ldGray.6"
                 size="sm"
                 aria-label={`Remove ${content.name} from collection`}
                 onClick={(e) => {

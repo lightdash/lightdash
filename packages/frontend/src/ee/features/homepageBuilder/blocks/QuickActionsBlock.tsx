@@ -7,7 +7,6 @@ import {
     Group,
     Loader,
     Menu,
-    SimpleGrid,
     Stack,
     Text,
     TextInput,
@@ -32,7 +31,6 @@ import { useInfiniteContent } from '../../../../hooks/useContent';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../types/Events';
 import { useAiAgentButtonVisibility } from '../../aiCopilot/hooks/useAiAgentsButtonVisibility';
-import { IconSquare } from './BlockShell';
 import classes from './blockStyles.module.css';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
@@ -100,7 +98,7 @@ export const QuickActionCards: FC<{
     );
     if (visibleActions.length === 0) return null;
     return (
-        <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
+        <Group gap={8}>
             {visibleActions.map((action, index) => {
                 const presentation = actionPresentation(action, projectUuid);
                 return (
@@ -110,6 +108,7 @@ export const QuickActionCards: FC<{
                         to={presentation.url}
                         underline="never"
                         c="inherit"
+                        className={classes.quickActionChip}
                         onClick={() =>
                             track({
                                 name: EventName.HOMEPAGE_QUICK_ACTION_CLICKED,
@@ -117,23 +116,16 @@ export const QuickActionCards: FC<{
                             })
                         }
                     >
-                        <Box
-                            className={`${classes.hoverCard} ${classes.clickable}`}
-                            p={18}
-                            h="100%"
-                        >
-                            <IconSquare icon={presentation.icon} size="lg" />
-                            <Text fw={600} fz={15} mt={13} mb={3}>
-                                {presentation.title}
-                            </Text>
-                            <Text fz={13} c="dimmed" lh={1.45}>
-                                {presentation.description}
-                            </Text>
-                        </Box>
+                        <MantineIcon
+                            icon={presentation.icon}
+                            size={14}
+                            color="ldGray.6"
+                        />
+                        {presentation.title}
                     </Anchor>
                 );
             })}
-        </SimpleGrid>
+        </Group>
     );
 };
 
@@ -181,12 +173,12 @@ const DashboardPickerModal: FC<{
                         >
                             <MantineIcon
                                 icon={IconLayoutDashboard}
-                                color="gray"
+                                color="ldGray.6"
                             />
                             <Text size="sm" fw={500} flex={1} truncate>
                                 {content.name}
                             </Text>
-                            <MantineIcon icon={IconPlus} color="gray" />
+                            <MantineIcon icon={IconPlus} color="ldGray.6" />
                         </Group>
                     ))}
                 </Stack>
@@ -251,14 +243,14 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                         >
                             <MantineIcon
                                 icon={presentation.icon}
-                                color="gray"
+                                color="ldGray.6"
                             />
                             <Text size="sm" fw={500} flex={1}>
                                 {presentation.title}
                             </Text>
                             <ActionIcon
                                 variant="subtle"
-                                color="gray"
+                                color="ldGray.6"
                                 size="sm"
                                 disabled={index === 0}
                                 aria-label={`Move ${presentation.title} earlier`}
@@ -268,7 +260,7 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                             </ActionIcon>
                             <ActionIcon
                                 variant="subtle"
-                                color="gray"
+                                color="ldGray.6"
                                 size="sm"
                                 disabled={
                                     index === block.config.actions.length - 1
@@ -280,7 +272,7 @@ export const QuickActionsBlockBuild: FC<BuildComponentProps> = ({
                             </ActionIcon>
                             <ActionIcon
                                 variant="subtle"
-                                color="gray"
+                                color="ldGray.6"
                                 size="sm"
                                 aria-label={`Remove ${presentation.title}`}
                                 onClick={() =>

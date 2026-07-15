@@ -1,25 +1,3 @@
-.page {
-    display: flex;
-    flex-direction: column;
-    padding: 0 24px 64px;
-}
-
-.heroSection {
-    min-height: calc(100vh - var(--navbar-height) - 72px);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-}
-
-.hero {
-    width: 100%;
-    max-width: 720px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-}
-
 .welcome {
     width: 100%;
     max-width: 1040px;
