@@ -1,3 +1,12 @@
+# [0.3387.0](https://github.com/lightdash/lightdash/compare/0.3386.0...0.3387.0) (2026-07-15)
+
+
+### Features
+
+* full-page organization setup experience behind feature flag ([#25580](https://github.com/lightdash/lightdash/issues/25580)) ([5bdb8ad](https://github.com/lightdash/lightdash/commit/5bdb8ad165e000bb6cf1acee315a205081f1c2d5))
+* gate scheduled deliveries on unmet dashboard filter requirements ([#25449](https://github.com/lightdash/lightdash/issues/25449)) ([b4eb1a2](https://github.com/lightdash/lightdash/commit/b4eb1a252f4d4c6de48028d7321e48624e665ee3))
+* render each dashboard tab as its own PDF page via CSS pagination (opt-in) ([#25572](https://github.com/lightdash/lightdash/issues/25572)) ([943e929](https://github.com/lightdash/lightdash/commit/943e929887418668e9ef6727e05a0f8b2c02cd09))
+
 # [0.3386.0](https://github.com/lightdash/lightdash/compare/0.3385.0...0.3386.0) (2026-07-15)
 
 
