@@ -37,6 +37,12 @@ export type PaletteModalBaseProps = Pick<ModalProps, 'opened' | 'onClose'> & {
     title: string;
     submitButtonText: string;
     existingPaletteNames?: string[];
+    /**
+     * When false, the submit button only requires the form to be valid (not
+     * dirty). Used when the form is pre-seeded — e.g. generating a palette from
+     * brand colors — so the user can submit without editing first.
+     */
+    requireDirty?: boolean;
 };
 
 export const PaletteModalBase: FC<PaletteModalBaseProps> = ({
@@ -48,6 +54,7 @@ export const PaletteModalBase: FC<PaletteModalBaseProps> = ({
     title,
     submitButtonText,
     existingPaletteNames = [],
+    requireDirty = true,
 }) => {
     const [showAllColors, setShowAllColors] = useState(false);
     const { colorScheme } = useMantineColorScheme();
@@ -185,7 +192,7 @@ export const PaletteModalBase: FC<PaletteModalBaseProps> = ({
                     type="submit"
                     form="palette-form"
                     loading={isLoading}
-                    disabled={!form.isDirty() || !form.isValid()}
+                    disabled={(requireDirty && !form.isDirty()) || !form.isValid()}
                 >
                     {submitButtonText}
                 </Button>
