@@ -1716,6 +1716,37 @@ export const getScopeSubstitutes = (
         });
 };
 
+/**
+ * Returns the granted scopes that coveringScopeNames does not satisfy, using
+ * getScopeSubstitutes semantics (manage:X covers view:X, unmodified covers
+ * @modifier variants). Organization-only scopes are excluded.
+ */
+export const getUncoveredProjectScopes = (
+    grantedScopeNames: string[],
+    coveringScopeNames: string[],
+    { isEnterprise = false }: ScopeGraphOptions = {},
+): ScopeName[] => {
+    const scopeMap = getAllScopeMap({ isEnterprise });
+    const coveringParts = getValidScopeNames(coveringScopeNames, scopeMap).map(
+        parseScopeNameParts,
+    );
+
+    const isCovered = (required: ScopeNameParts): boolean =>
+        coveringParts.some(
+            (substitute) =>
+                substitute.subject === required.subject &&
+                canSubstituteActionSatisfy(
+                    substitute.action,
+                    required.action,
+                ) &&
+                canSubstituteModifierSatisfy(substitute, required),
+        );
+
+    return [...new Set(getValidScopeNames(grantedScopeNames, scopeMap))]
+        .filter((scopeName) => !isOrganizationOnlyScope(scopeName))
+        .filter((scopeName) => !isCovered(parseScopeNameParts(scopeName)));
+};
+
 export const getUnsatisfiedScopeDependencies = (
     existingScopeNames: string[],
     scopeName: string,
