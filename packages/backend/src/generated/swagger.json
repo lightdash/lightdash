@@ -1938,6 +1938,11 @@
             },
             "UpdateProjectHomepageDraftRequest": {
                 "properties": {
+                    "baseUpdatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Compare-and-set token: the updatedAt the client based its edit on"
+                    },
                     "draftConfig": {
                         "$ref": "#/components/schemas/HomepageConfig"
                     },
@@ -1945,7 +1950,7 @@
                         "type": "string"
                     }
                 },
-                "required": ["draftConfig"],
+                "required": ["baseUpdatedAt", "draftConfig"],
                 "type": "object"
             },
             "ManagedAgentScheduleOption": {

@@ -1,4 +1,8 @@
-import { NotFoundError, type HomepageConfig } from '@lightdash/common';
+import {
+    ConflictError,
+    NotFoundError,
+    type HomepageConfig,
+} from '@lightdash/common';
 import knex, { Knex } from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { HomepagesTableName } from '../database/entities/projectHomepages';
@@ -51,12 +55,47 @@ describe('ProjectHomepageModel', () => {
     });
 
     describe('updateDraft', () => {
-        it('throws NotFoundError when no row is updated', async () => {
+        const baseUpdatedAt = new Date('2026-01-02T00:00:00Z');
+
+        it('throws NotFoundError when the homepage does not exist', async () => {
             tracker.on.update(HomepagesTableName).responseOnce([]);
+            tracker.on.select(HomepagesTableName).responseOnce([]);
 
             await expect(
-                model.updateDraft(HOMEPAGE_UUID, { draftConfig }),
+                model.updateDraft(HOMEPAGE_UUID, {
+                    draftConfig,
+                    baseUpdatedAt,
+                }),
             ).rejects.toThrow(NotFoundError);
+        });
+
+        it('throws ConflictError when the base timestamp is stale', async () => {
+            tracker.on.update(HomepagesTableName).responseOnce([]);
+            tracker.on
+                .select(HomepagesTableName)
+                .responseOnce([makeDbHomepage()]);
+
+            await expect(
+                model.updateDraft(HOMEPAGE_UUID, {
+                    draftConfig,
+                    baseUpdatedAt,
+                }),
+            ).rejects.toThrow(ConflictError);
+        });
+
+        it('includes the compare-and-set condition in the update', async () => {
+            tracker.on
+                .update(HomepagesTableName)
+                .responseOnce([makeDbHomepage()]);
+
+            await model.updateDraft(HOMEPAGE_UUID, {
+                draftConfig,
+                baseUpdatedAt,
+            });
+
+            const updateQuery = tracker.history.update[0];
+            expect(updateQuery.sql).toContain('updated_at');
+            expect(updateQuery.bindings).toContainEqual(baseUpdatedAt);
         });
     });
 

@@ -211,6 +211,7 @@ export class ProjectHomepageService extends BaseService {
         return this.projectHomepageModel.updateDraft(homepageUuid, {
             name: data.name,
             draftConfig: data.draftConfig,
+            baseUpdatedAt: data.baseUpdatedAt,
         });
     }
 

@@ -389,6 +389,17 @@ export class AlreadyExistsError extends LightdashError {
     }
 }
 
+export class ConflictError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'ConflictError',
+            statusCode: 409,
+            data: {},
+        });
+    }
+}
+
 export class MissingConfigError extends LightdashError {
     constructor(message: string) {
         super({

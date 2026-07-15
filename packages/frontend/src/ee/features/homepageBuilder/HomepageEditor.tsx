@@ -62,6 +62,7 @@ type Props = {
     onSwitchHomepage: (homepageUuid: string) => void;
     onCreateNew: () => void;
     onDeleted: () => void;
+    onConflictReload: () => void;
 };
 
 export const HomepageEditor: FC<Props> = ({
@@ -71,6 +72,7 @@ export const HomepageEditor: FC<Props> = ({
     onSwitchHomepage,
     onCreateNew,
     onDeleted,
+    onConflictReload,
 }) => {
     const navigate = useNavigate();
     const updateMutation = useUpdateHomepageDraft(
@@ -93,19 +95,53 @@ export const HomepageEditor: FC<Props> = ({
     const [draft, setDraft] = useState<HomepageConfig>(homepage.draftConfig);
     const [isPreviewing, setIsPreviewing] = useState(false);
     const [debouncedDraft] = useDebouncedValue(draft, 800);
+    const [hasConflict, setHasConflict] = useState(false);
     const lastSavedRef = useRef<HomepageConfig>(homepage.draftConfig);
+    // Compare-and-set token so a stale editor can never clobber newer state
+    const baseUpdatedAtRef = useRef<Date>(homepage.updatedAt);
 
     const { mutate: saveDraft } = updateMutation;
     useEffect(() => {
-        if (debouncedDraft === lastSavedRef.current) return;
+        if (hasConflict || debouncedDraft === lastSavedRef.current) return;
         lastSavedRef.current = debouncedDraft;
-        saveDraft({ draftConfig: debouncedDraft });
-    }, [debouncedDraft, saveDraft]);
+        saveDraft(
+            {
+                draftConfig: debouncedDraft,
+                baseUpdatedAt: baseUpdatedAtRef.current,
+            },
+            {
+                onSuccess: (saved) => {
+                    baseUpdatedAtRef.current = saved.updatedAt;
+                },
+                onError: (error) => {
+                    if (error.error.statusCode === 409) setHasConflict(true);
+                },
+            },
+        );
+    }, [debouncedDraft, hasConflict, saveDraft]);
 
     const handlePublish = async () => {
+        if (hasConflict) return;
         if (draft !== lastSavedRef.current) {
             lastSavedRef.current = draft;
-            await updateMutation.mutateAsync({ draftConfig: draft });
+            try {
+                const saved = await updateMutation.mutateAsync(
+                    {
+                        draftConfig: draft,
+                        baseUpdatedAt: baseUpdatedAtRef.current,
+                    },
+                    {
+                        onError: (error) => {
+                            if (error.error.statusCode === 409) {
+                                setHasConflict(true);
+                            }
+                        },
+                    },
+                );
+                baseUpdatedAtRef.current = saved.updatedAt;
+            } catch {
+                return;
+            }
         }
         publishMutation.mutate();
     };
@@ -114,6 +150,25 @@ export const HomepageEditor: FC<Props> = ({
 
     return (
         <Stack gap="lg" w="100%">
+            {hasConflict && (
+                <Group
+                    justify="space-between"
+                    p="sm"
+                    style={{
+                        border: '1px solid var(--mantine-color-orange-4)',
+                        borderRadius: 8,
+                        background: 'var(--mantine-color-orange-0)',
+                    }}
+                >
+                    <Text size="sm" fw={500}>
+                        This homepage was changed somewhere else — your latest
+                        edits here can’t be saved.
+                    </Text>
+                    <Button size="xs" onClick={onConflictReload}>
+                        Reload homepage
+                    </Button>
+                </Group>
+            )}
             <Group justify="space-between">
                 <Group gap="sm">
                     <Button
