@@ -63,6 +63,7 @@ import {
 } from './hooks/useProjectHomepage';
 import { PresetsModal } from './PresetsModal';
 import { PublishedHomepage } from './PublishedHomepage';
+import { PublishModal } from './PublishModal';
 
 type Props = {
     homepage: ProjectHomepageType;
@@ -95,6 +96,7 @@ export const HomepageEditor: FC<Props> = ({
     const deleteMutation = useDeleteHomepage(projectUuid);
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isPresetsModalOpen, setIsPresetsModalOpen] = useState(false);
+    const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
 
     const isAiEnabled = useAiAgentButtonVisibility();
     const availableBlocks = blockLibrary.filter(
@@ -129,7 +131,7 @@ export const HomepageEditor: FC<Props> = ({
         );
     }, [debouncedDraft, hasConflict, saveDraft]);
 
-    const handlePublish = async () => {
+    const handleOpenPublish = async () => {
         if (hasConflict) return;
         if (draft !== lastSavedRef.current) {
             lastSavedRef.current = draft;
@@ -152,7 +154,7 @@ export const HomepageEditor: FC<Props> = ({
                 return;
             }
         }
-        publishMutation.mutate();
+        setIsPublishModalOpen(true);
     };
 
     const isDirty = draft !== lastSavedRef.current || updateMutation.isLoading;
@@ -326,7 +328,7 @@ export const HomepageEditor: FC<Props> = ({
                     <Button
                         leftSection={<MantineIcon icon={IconSend} />}
                         loading={publishMutation.isLoading}
-                        onClick={handlePublish}
+                        onClick={handleOpenPublish}
                     >
                         Publish
                     </Button>
@@ -698,6 +700,19 @@ export const HomepageEditor: FC<Props> = ({
                 opened={isPresetsModalOpen}
                 onClose={() => setIsPresetsModalOpen(false)}
                 onApply={setDraft}
+            />
+            <PublishModal
+                opened={isPublishModalOpen}
+                onClose={() => setIsPublishModalOpen(false)}
+                projectUuid={projectUuid}
+                homepageUuid={homepage.homepageUuid}
+                homepageName={homepage.name}
+                isPublishing={publishMutation.isLoading}
+                onPublish={(audience) =>
+                    publishMutation.mutate(audience, {
+                        onSuccess: () => setIsPublishModalOpen(false),
+                    })
+                }
             />
             <MantineModal
                 opened={isDeleteModalOpen}

@@ -482,6 +482,8 @@ import {
     ProjectCiStatusTableName,
 } from '../ee/database/entities/projectCiStatus';
 import {
+    HomepageAssignmentsTable,
+    HomepageAssignmentsTableName,
     HomepagesTableName,
     ProjectHomepagesTable,
 } from '../ee/database/entities/projectHomepages';
@@ -619,6 +621,7 @@ declare module 'knex/types/tables' {
         [AiAgentMcpServerTableName]: AiAgentMcpServerTable;
         [AiAgentUserPreferencesTableName]: AiAgentUserPreferencesTable;
         [HomepagesTableName]: ProjectHomepagesTable;
+        [HomepageAssignmentsTableName]: HomepageAssignmentsTable;
         [AiAgentReasoningTableName]: AiAgentReasoningTable;
         [AiAgentToolCallTableName]: AiAgentToolCallTable;
         [AiAgentToolResultTableName]: AiAgentToolResultTable;

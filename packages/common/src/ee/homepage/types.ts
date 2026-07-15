@@ -1,4 +1,5 @@
 import { type ApiSuccess } from '../../types/api/success';
+import { type ProjectMemberRole } from '../../types/projectMemberRole';
 
 export type HomepageMarkdownBlock = {
     id: string;
@@ -76,6 +77,33 @@ export type HomepageBlock =
     | HomepageAnnouncementsBlock
     | HomepageFavoritesBlock
     | HomepageRecentBlock;
+
+export type HomepageAudience =
+    | { type: 'everyone' }
+    | { type: 'groups'; groupUuids: string[] }
+    | { type: 'roles'; roles: ProjectMemberRole[] };
+
+export type PublishProjectHomepageRequest = {
+    audience: HomepageAudience;
+};
+
+export type HomepageAssignment = {
+    assignmentUuid: string;
+    homepageUuid: string;
+    homepageName: string;
+    targetType: 'group' | 'role';
+    groupUuid: string | null;
+    groupName: string | null;
+    role: ProjectMemberRole | null;
+    priority: number;
+};
+
+export type UpdateHomepageGroupPrioritiesRequest = {
+    /** Group uuids in priority order — first wins for multi-group users */
+    groupUuids: string[];
+};
+
+export type ApiHomepageAssignmentsResponse = ApiSuccess<HomepageAssignment[]>;
 
 export type HomepageRecentlyViewedItem = {
     contentType: 'chart' | 'dashboard';

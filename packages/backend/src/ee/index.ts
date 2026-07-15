@@ -134,6 +134,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectHomepageModel:
                         models.getProjectHomepageModel<ProjectHomepageModel>(),
                     featureFlagService: repository.getFeatureFlagService(),
+                    groupsModel: models.getGroupsModel(),
+                    projectModel: models.getProjectModel(),
                 }),
             aiDeepResearchService: ({
                 models,

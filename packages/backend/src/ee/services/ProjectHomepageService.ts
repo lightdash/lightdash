@@ -7,6 +7,8 @@ import {
     NotFoundError,
     ParameterError,
     type CreateProjectHomepageRequest,
+    type HomepageAssignment,
+    type HomepageAudience,
     type HomepageConfig,
     type HomepageRecentlyViewedItem,
     type ProjectHomepage,
@@ -14,6 +16,8 @@ import {
     type SessionUser,
     type UpdateProjectHomepageDraftRequest,
 } from '@lightdash/common';
+import { type GroupsModel } from '../../models/GroupsModel';
+import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../services/BaseService';
 import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { type ProjectHomepageModel } from '../models/ProjectHomepageModel';
@@ -25,6 +29,9 @@ export type ProjectHomepageServiceArguments = {
         | 'getByUuid'
         | 'getPublishedDefault'
         | 'getRecentlyViewed'
+        | 'getAssignments'
+        | 'updateGroupPriorities'
+        | 'resolvePublished'
         | 'list'
         | 'create'
         | 'updateDraft'
@@ -32,6 +39,8 @@ export type ProjectHomepageServiceArguments = {
         | 'delete'
     >;
     featureFlagService: Pick<FeatureFlagService, 'get'>;
+    groupsModel: Pick<GroupsModel, 'findUserGroups'>;
+    projectModel: Pick<ProjectModel, 'getProjectMemberAccess'>;
 };
 
 export class ProjectHomepageService extends BaseService {
@@ -39,10 +48,16 @@ export class ProjectHomepageService extends BaseService {
 
     private readonly featureFlagService: ProjectHomepageServiceArguments['featureFlagService'];
 
+    private readonly groupsModel: ProjectHomepageServiceArguments['groupsModel'];
+
+    private readonly projectModel: ProjectHomepageServiceArguments['projectModel'];
+
     constructor(args: ProjectHomepageServiceArguments) {
         super();
         this.projectHomepageModel = args.projectHomepageModel;
         this.featureFlagService = args.featureFlagService;
+        this.groupsModel = args.groupsModel;
+        this.projectModel = args.projectModel;
     }
 
     private async assertFlagEnabled(user: SessionUser): Promise<void> {
@@ -119,15 +134,55 @@ export class ProjectHomepageService extends BaseService {
         return homepage;
     }
 
+    // Resolution: group priority → role → project default (personal = ZAP-628)
     async getPublishedHomepage(
         user: SessionUser,
         projectUuid: string,
     ): Promise<PublishedProjectHomepage | null> {
         await this.assertFlagEnabled(user);
         this.assertCanView(user, projectUuid);
-        const published =
-            await this.projectHomepageModel.getPublishedDefault(projectUuid);
+        const [groups, membership] = await Promise.all([
+            user.organizationUuid
+                ? this.groupsModel.findUserGroups({
+                      userUuid: user.userUuid,
+                      organizationUuid: user.organizationUuid,
+                  })
+                : Promise.resolve([]),
+            this.projectModel.getProjectMemberAccess(
+                projectUuid,
+                user.userUuid,
+            ),
+        ]);
+        const published = await this.projectHomepageModel.resolvePublished(
+            projectUuid,
+            {
+                groupUuids: groups.map((group) => group.uuid),
+                role: membership?.role,
+            },
+        );
         return published ?? null;
+    }
+
+    async getAssignments(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<HomepageAssignment[]> {
+        await this.assertFlagEnabled(user);
+        this.assertCanManage(user, projectUuid);
+        return this.projectHomepageModel.getAssignments(projectUuid);
+    }
+
+    async updateGroupPriorities(
+        user: SessionUser,
+        projectUuid: string,
+        groupUuids: string[],
+    ): Promise<void> {
+        await this.assertFlagEnabled(user);
+        this.assertCanManage(user, projectUuid);
+        await this.projectHomepageModel.updateGroupPriorities(
+            projectUuid,
+            groupUuids,
+        );
     }
 
     async getRecentlyViewed(
@@ -219,10 +274,11 @@ export class ProjectHomepageService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         homepageUuid: string,
+        audience: HomepageAudience,
     ): Promise<ProjectHomepage> {
         await this.assertFlagEnabled(user);
         this.assertCanManage(user, projectUuid);
         await this.getOwnedHomepage(projectUuid, homepageUuid);
-        return this.projectHomepageModel.publish(homepageUuid);
+        return this.projectHomepageModel.publish(homepageUuid, audience);
     }
 }

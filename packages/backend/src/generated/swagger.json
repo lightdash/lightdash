@@ -1887,6 +1887,87 @@
             "ApiRecentlyViewedResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_HomepageRecentlyViewedItem-Array_"
             },
+            "HomepageAssignment": {
+                "properties": {
+                    "priority": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "role": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ProjectMemberRole"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "groupName": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "groupUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "targetType": {
+                        "type": "string",
+                        "enum": ["group", "role"]
+                    },
+                    "homepageName": {
+                        "type": "string"
+                    },
+                    "homepageUuid": {
+                        "type": "string"
+                    },
+                    "assignmentUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "priority",
+                    "role",
+                    "groupName",
+                    "groupUuid",
+                    "targetType",
+                    "homepageName",
+                    "homepageUuid",
+                    "assignmentUuid"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_HomepageAssignment-Array_": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/HomepageAssignment"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiHomepageAssignmentsResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_HomepageAssignment-Array_"
+            },
+            "UpdateHomepageGroupPrioritiesRequest": {
+                "properties": {
+                    "groupUuids": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "description": "Group uuids in priority order — first wins for multi-group users"
+                    }
+                },
+                "required": ["groupUuids"],
+                "type": "object"
+            },
             "ApiSuccess_ProjectHomepage-Array_": {
                 "properties": {
                     "results": {
@@ -1951,6 +2032,64 @@
                     }
                 },
                 "required": ["baseUpdatedAt", "draftConfig"],
+                "type": "object"
+            },
+            "HomepageAudience": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "type": {
+                                "type": "string",
+                                "enum": ["everyone"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "groupUuids": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["groups"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["groupUuids", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "roles": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ProjectMemberRole"
+                                },
+                                "type": "array"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["roles"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["roles", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "PublishProjectHomepageRequest": {
+                "properties": {
+                    "audience": {
+                        "$ref": "#/components/schemas/HomepageAudience"
+                    }
+                },
+                "required": ["audience"],
                 "type": "object"
             },
             "ManagedAgentScheduleOption": {
@@ -49180,6 +49319,94 @@
                 ]
             }
         },
+        "/api/v1/projects/{projectUuid}/homepage/assignments": {
+            "get": {
+                "operationId": "getHomepageAssignments",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiHomepageAssignmentsResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Homepage"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/homepage/group-priorities": {
+            "patch": {
+                "operationId": "updateHomepageGroupPriorities",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Homepage"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UpdateHomepageGroupPrioritiesRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/projects/{projectUuid}/homepage/list": {
             "get": {
                 "operationId": "listProjectHomepages",
@@ -49365,7 +49592,17 @@
                             "$ref": "#/components/schemas/UUID"
                         }
                     }
-                ]
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublishProjectHomepageRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/databricks/sso/is-authenticated": {

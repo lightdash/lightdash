@@ -103,12 +103,12 @@ describe('ProjectHomepageModel', () => {
         it('throws NotFoundError when homepage does not exist', async () => {
             tracker.on.select(HomepagesTableName).responseOnce([]);
 
-            await expect(model.publish(HOMEPAGE_UUID)).rejects.toThrow(
-                NotFoundError,
-            );
+            await expect(
+                model.publish(HOMEPAGE_UUID, { type: 'everyone' }),
+            ).rejects.toThrow(NotFoundError);
         });
 
-        it('copies the draft config into published_config and promotes to default', async () => {
+        it('publishing to everyone copies the draft and promotes to default', async () => {
             tracker.on
                 .select(HomepagesTableName)
                 .responseOnce([makeDbHomepage()]);
@@ -120,7 +120,9 @@ describe('ProjectHomepageModel', () => {
                     makeDbHomepage({ published_config: draftConfig }),
                 ]);
 
-            const result = await model.publish(HOMEPAGE_UUID);
+            const result = await model.publish(HOMEPAGE_UUID, {
+                type: 'everyone',
+            });
 
             expect(tracker.history.update).toHaveLength(2);
             const unsetQuery = tracker.history.update[0];
@@ -128,6 +130,38 @@ describe('ProjectHomepageModel', () => {
             const publishQuery = tracker.history.update[1];
             expect(publishQuery.bindings).toContainEqual(draftConfig);
             expect(result.publishedConfig).toEqual(draftConfig);
+        });
+
+        it('publishing to groups replaces assignments without touching the default', async () => {
+            tracker.on
+                .select(HomepagesTableName)
+                .responseOnce([makeDbHomepage({ is_default: false })]);
+            tracker.on
+                .update(HomepagesTableName)
+                .responseOnce([
+                    makeDbHomepage({
+                        is_default: false,
+                        published_config: draftConfig,
+                    }),
+                ]);
+            tracker.on.delete('homepage_assignments').responseOnce(1);
+            tracker.on
+                .select('homepage_assignments')
+                .responseOnce([{ max: 1 }]);
+            tracker.on.insert('homepage_assignments').responseOnce([]);
+
+            const result = await model.publish(HOMEPAGE_UUID, {
+                type: 'groups',
+                groupUuids: ['group-a', 'group-b'],
+            });
+
+            // publish update must not set is_default for group audiences
+            const publishQuery = tracker.history.update[0];
+            expect(publishQuery.sql).not.toContain('is_default');
+            const insertQuery = tracker.history.insert[0];
+            expect(insertQuery.bindings).toContainEqual('group-a');
+            expect(insertQuery.bindings).toContainEqual('group-b');
+            expect(result.isDefault).toBe(false);
         });
     });
 

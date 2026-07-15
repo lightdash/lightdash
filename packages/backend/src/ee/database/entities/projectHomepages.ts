@@ -40,3 +40,31 @@ export type ProjectHomepagesTable = Knex.CompositeTableType<
     DbProjectHomepageIn,
     DbProjectHomepageUpdate
 >;
+
+export const HomepageAssignmentsTableName = 'homepage_assignments';
+
+export type DbHomepageAssignment = {
+    assignment_uuid: string;
+    project_uuid: string;
+    homepage_uuid: string;
+    target_type: 'group' | 'role';
+    group_uuid: string | null;
+    role: string | null;
+    priority: number;
+    created_at: Date;
+};
+
+export type DbHomepageAssignmentIn = Pick<
+    DbHomepageAssignment,
+    'project_uuid' | 'homepage_uuid' | 'target_type' | 'group_uuid' | 'role' | 'priority'
+>;
+
+export type DbHomepageAssignmentUpdate = Partial<
+    Pick<DbHomepageAssignment, 'priority'>
+>;
+
+export type HomepageAssignmentsTable = Knex.CompositeTableType<
+    DbHomepageAssignment,
+    DbHomepageAssignmentIn,
+    DbHomepageAssignmentUpdate
+>;

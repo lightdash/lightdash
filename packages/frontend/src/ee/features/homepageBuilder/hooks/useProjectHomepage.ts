@@ -2,6 +2,8 @@ import {
     CommercialFeatureFlags,
     type ApiError,
     type CreateProjectHomepageRequest,
+    type HomepageAssignment,
+    type HomepageAudience,
     type ProjectHomepage,
     type PublishedProjectHomepage,
     type UpdateProjectHomepageDraftRequest,
@@ -67,11 +69,32 @@ const updateHomepageDraftApi = async (
         body: JSON.stringify(data),
     });
 
-const publishHomepageApi = async (projectUuid: string, homepageUuid: string) =>
+const publishHomepageApi = async (
+    projectUuid: string,
+    homepageUuid: string,
+    audience: HomepageAudience,
+) =>
     lightdashApi<ProjectHomepage>({
         url: `/projects/${projectUuid}/homepage/${homepageUuid}/publish`,
         method: 'POST',
+        body: JSON.stringify({ audience }),
+    });
+
+const getAssignmentsApi = async (projectUuid: string) =>
+    lightdashApi<HomepageAssignment[]>({
+        url: `/projects/${projectUuid}/homepage/assignments`,
+        method: 'GET',
         body: undefined,
+    });
+
+const updateGroupPrioritiesApi = async (
+    projectUuid: string,
+    groupUuids: string[],
+) =>
+    lightdashApi<undefined>({
+        url: `/projects/${projectUuid}/homepage/group-priorities`,
+        method: 'PATCH',
+        body: JSON.stringify({ groupUuids }),
     });
 
 export const useHomepageBuilderFlag = () => {
@@ -194,14 +217,48 @@ export const useUpdateHomepageDraft = (
     });
 };
 
+export const useHomepageAssignments = (
+    projectUuid: string,
+    { enabled = true }: { enabled?: boolean } = {},
+) =>
+    useQuery<HomepageAssignment[], ApiError>({
+        enabled,
+        queryKey: [PROJECT_HOMEPAGE_QUERY_KEY, projectUuid, 'assignments'],
+        queryFn: () => getAssignmentsApi(projectUuid),
+    });
+
+export const useUpdateGroupPriorities = (projectUuid: string) => {
+    const { showToastApiError } = useToaster();
+    const queryClient = useQueryClient();
+    return useMutation<undefined, ApiError, string[]>(
+        (groupUuids) => updateGroupPrioritiesApi(projectUuid, groupUuids),
+        {
+            mutationKey: ['update_homepage_group_priorities'],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries([
+                    PROJECT_HOMEPAGE_QUERY_KEY,
+                    projectUuid,
+                    'assignments',
+                ]);
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to reorder group priority',
+                    apiError: error,
+                });
+            },
+        },
+    );
+};
+
 export const usePublishHomepage = (
     projectUuid: string,
     homepageUuid: string | undefined,
 ) => {
     const { showToastSuccess, showToastApiError } = useToaster();
     const queryClient = useQueryClient();
-    return useMutation<ProjectHomepage, ApiError, void>(
-        () => publishHomepageApi(projectUuid, homepageUuid!),
+    return useMutation<ProjectHomepage, ApiError, HomepageAudience>(
+        (audience) => publishHomepageApi(projectUuid, homepageUuid!, audience),
         {
             mutationKey: ['publish_project_homepage'],
             onSuccess: async () => {
