@@ -6,7 +6,22 @@ export type HomepageMarkdownBlock = {
     config: { content: string };
 };
 
-export type HomepageBlock = HomepageMarkdownBlock;
+export type HomepageHeroBlock = {
+    id: string;
+    type: 'hero';
+    config: { title: string; subtitle: string };
+};
+
+export type HomepageAiBlock = {
+    id: string;
+    type: 'ai';
+    config: { chips: string[] };
+};
+
+export type HomepageBlock =
+    | HomepageMarkdownBlock
+    | HomepageHeroBlock
+    | HomepageAiBlock;
 
 export type HomepageRow = {
     id: string;

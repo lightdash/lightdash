@@ -7,7 +7,7 @@ import {
     moveBlockDown,
     moveBlockUp,
     removeBlock,
-    updateBlockConfig,
+    replaceBlock,
 } from './configOps';
 
 const block = (id: string, content = id): HomepageBlock => ({
@@ -45,7 +45,7 @@ describe('configOps', () => {
         const config = makeConfig([[block('a'), block('b')]]);
         const result = duplicateBlock(config, 'a');
         expect(result.rows[0].blocks).toHaveLength(3);
-        expect(result.rows[0].blocks[1].config.content).toBe('a');
+        expect(result.rows[0].blocks[1].config).toEqual({ content: 'a' });
         expect(result.rows[0].blocks[1].id).not.toBe('a');
     });
 
@@ -57,7 +57,7 @@ describe('configOps', () => {
         const result = duplicateBlock(config, 'b');
         expect(result.rows).toHaveLength(3);
         expect(result.rows[0].blocks).toHaveLength(3);
-        expect(result.rows[1].blocks[0].config.content).toBe('b');
+        expect(result.rows[1].blocks[0].config).toEqual({ content: 'b' });
         expect(result.rows[2].blocks[0].id).toBe('d');
     });
 
@@ -89,11 +89,11 @@ describe('configOps', () => {
         expect(canMoveDown(config, 'c')).toBe(true);
     });
 
-    it('updateBlockConfig replaces only the target block config', () => {
+    it('replaceBlock replaces only the target block', () => {
         const config = makeConfig([[block('a'), block('b')]]);
-        const result = updateBlockConfig(config, 'a', { content: 'edited' });
-        expect(result.rows[0].blocks[0].config.content).toBe('edited');
-        expect(result.rows[0].blocks[1].config.content).toBe('b');
+        const result = replaceBlock(config, block('a', 'edited'));
+        expect(result.rows[0].blocks[0].config).toEqual({ content: 'edited' });
+        expect(result.rows[0].blocks[1].config).toEqual({ content: 'b' });
     });
 
     it('operations never mutate the input config', () => {
@@ -103,7 +103,7 @@ describe('configOps', () => {
         removeBlock(config, 'a');
         duplicateBlock(config, 'a');
         moveBlockDown(config, 'a');
-        updateBlockConfig(config, 'a', { content: 'x' });
+        replaceBlock(config, block('a', 'x'));
         expect(config).toEqual(snapshot);
     });
 });

@@ -128,18 +128,13 @@ export const canMoveDown = (
     return row.blocks.length > 1 || location.rowIndex < config.rows.length - 1;
 };
 
-export const updateBlockConfig = (
+export const replaceBlock = (
     config: HomepageConfig,
-    blockId: string,
-    blockConfig: HomepageBlock['config'],
+    updated: HomepageBlock,
 ): HomepageConfig => {
-    const location = findBlock(config, blockId);
+    const location = findBlock(config, updated.id);
     if (!location) return config;
     const rows = cloneRows(config);
-    const block = rows[location.rowIndex].blocks[location.blockIndex];
-    rows[location.rowIndex].blocks[location.blockIndex] = {
-        ...block,
-        config: blockConfig,
-    };
+    rows[location.rowIndex].blocks[location.blockIndex] = updated;
     return withRows(config, rows);
 };
