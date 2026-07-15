@@ -3,7 +3,7 @@ import { DbtProjectType, ProjectType } from '@lightdash/common';
 import { Button, Group, Stack } from '@mantine-8/core';
 import { IconEdit } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { Navigate, useNavigate, useParams } from 'react-router';
 import { useUnmount } from 'react-use';
 import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
@@ -16,10 +16,11 @@ import PageSpinner from '../components/PageSpinner';
 import PinnedAndFavoritesSection from '../components/PinnedAndFavoritesSection';
 import AiSearchBox from '../ee/components/Home/AiSearchBox';
 import { useAiAgentButtonVisibility } from '../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
+import { PersonalFavoritesStrip } from '../ee/features/homepageBuilder/blocks/FavoritesBlock';
 import { DayOneHomepage } from '../ee/features/homepageBuilder/DayOneHomepage';
 import {
     useHomepageBuilderFlag,
-    usePublishedHomepage,
+    useResolvedHomepage,
 } from '../ee/features/homepageBuilder/hooks/useProjectHomepage';
 import { PublishedHomepage } from '../ee/features/homepageBuilder/PublishedHomepage';
 import { ManagedAgentHomeCard } from '../ee/features/managedAgent/ManagedAgentHomeCard';
@@ -54,7 +55,7 @@ const Home: FC = () => {
     const { user } = useApp();
     const isAiAgentsEnabled = useAiAgentButtonVisibility();
     const { isEnabled: isHomepageBuilderEnabled } = useHomepageBuilderFlag();
-    const publishedHomepage = usePublishedHomepage(selectedProjectUuid, {
+    const resolvedHomepage = useResolvedHomepage(selectedProjectUuid, {
         enabled: isHomepageBuilderEnabled,
     });
 
@@ -89,7 +90,26 @@ const Home: FC = () => {
         project.data.type !== ProjectType.PREVIEW &&
         project.data.dbtConnection.type === DbtProjectType.GITHUB;
 
-    if (isHomepageBuilderEnabled && publishedHomepage.data) {
+    if (
+        isHomepageBuilderEnabled &&
+        resolvedHomepage.data?.type === 'dashboard'
+    ) {
+        return (
+            <Navigate
+                to={`/projects/${project.data.projectUuid}/dashboards/${resolvedHomepage.data.dashboardUuid}/view`}
+                replace
+            />
+        );
+    }
+
+    if (
+        isHomepageBuilderEnabled &&
+        resolvedHomepage.data?.type === 'homepage'
+    ) {
+        const { homepage } = resolvedHomepage.data;
+        const hasFavoritesBlock = homepage.config.rows.some((row) =>
+            row.blocks.some((block) => block.type === 'favorites'),
+        );
         return (
             <Page withFixedContent withPaddedContent withFooter>
                 <Stack gap="md">
@@ -116,9 +136,14 @@ const Home: FC = () => {
                         </Group>
                     </Can>
                     <PublishedHomepage
-                        config={publishedHomepage.data.config}
+                        config={homepage.config}
                         projectUuid={project.data.projectUuid}
                     />
+                    {homepage.allowPersonal && !hasFavoritesBlock && (
+                        <PersonalFavoritesStrip
+                            projectUuid={project.data.projectUuid}
+                        />
+                    )}
                 </Stack>
             </Page>
         );
@@ -126,7 +151,7 @@ const Home: FC = () => {
 
     if (
         isHomepageBuilderEnabled &&
-        publishedHomepage.data === null &&
+        resolvedHomepage.data === null &&
         onboarding.data.ranQuery
     ) {
         return (

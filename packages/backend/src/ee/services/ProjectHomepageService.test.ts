@@ -41,6 +41,7 @@ const makeHomepage = (
     draftConfig: validConfig,
     publishedConfig: null,
     isDefault: true,
+    allowPersonal: true,
     createdByUserUuid: USER_UUID,
     createdAt: NOW,
     updatedAt: NOW,
@@ -123,6 +124,9 @@ const makeService = ({
             getPublishedDefault: vi.fn().mockResolvedValue(undefined),
             getRecentlyViewed: vi.fn().mockResolvedValue([]),
             getAssignments: vi.fn().mockResolvedValue([]),
+            getPersonalOverride: vi.fn().mockResolvedValue(undefined),
+            setPersonalOverride: vi.fn().mockResolvedValue(undefined),
+            deletePersonalOverride: vi.fn().mockResolvedValue(undefined),
             updateGroupPriorities: vi.fn().mockResolvedValue(undefined),
             resolvePublished: vi.fn().mockResolvedValue(undefined),
             list: vi.fn().mockResolvedValue([]),
@@ -147,7 +151,7 @@ describe('ProjectHomepageService', () => {
         const service = makeService({ flagEnabled: false });
 
         await expect(
-            service.getPublishedHomepage(makeAdminUser(), PROJECT_UUID),
+            service.getResolvedHomepage(makeAdminUser(), PROJECT_UUID),
         ).rejects.toThrow(ForbiddenError);
     });
 
@@ -155,7 +159,7 @@ describe('ProjectHomepageService', () => {
         const service = makeService();
 
         await expect(
-            service.getPublishedHomepage(makeViewerUser(), PROJECT_UUID),
+            service.getResolvedHomepage(makeViewerUser(), PROJECT_UUID),
         ).resolves.toBeNull();
     });
 
@@ -278,11 +282,14 @@ describe('ProjectHomepageService', () => {
             PROJECT_UUID,
             HOMEPAGE_UUID,
             { type: 'everyone' },
+            true,
         );
 
-        expect(publish).toHaveBeenCalledWith(HOMEPAGE_UUID, {
-            type: 'everyone',
-        });
+        expect(publish).toHaveBeenCalledWith(
+            HOMEPAGE_UUID,
+            { type: 'everyone' },
+            true,
+        );
         expect(result.publishedConfig).toEqual(validConfig);
     });
 
@@ -291,6 +298,7 @@ describe('ProjectHomepageService', () => {
             homepageUuid: HOMEPAGE_UUID,
             name: 'Sales homepage',
             config: validConfig,
+            allowPersonal: true,
         });
         const service = makeService({
             projectHomepageModel: { resolvePublished },
@@ -311,7 +319,7 @@ describe('ProjectHomepageService', () => {
             },
         });
 
-        const result = await service.getPublishedHomepage(
+        const result = await service.getResolvedHomepage(
             makeViewerUser(),
             PROJECT_UUID,
         );
@@ -320,6 +328,11 @@ describe('ProjectHomepageService', () => {
             groupUuids: ['group-1'],
             role: 'editor',
         });
-        expect(result?.name).toBe('Sales homepage');
+        expect(result).toEqual(
+            expect.objectContaining({
+                type: 'homepage',
+                homepage: expect.objectContaining({ name: 'Sales homepage' }),
+            }),
+        );
     });
 });

@@ -12,6 +12,7 @@ import {
     Group,
     SegmentedControl,
     Stack,
+    Switch,
     Text,
 } from '@mantine-8/core';
 import {
@@ -37,7 +38,8 @@ type Props = {
     homepageUuid: string;
     homepageName: string;
     isPublishing: boolean;
-    onPublish: (audience: HomepageAudience) => void;
+    initialAllowPersonal: boolean;
+    onPublish: (audience: HomepageAudience, allowPersonal: boolean) => void;
 };
 
 export const PublishModal: FC<Props> = ({
@@ -47,9 +49,11 @@ export const PublishModal: FC<Props> = ({
     homepageUuid,
     homepageName,
     isPublishing,
+    initialAllowPersonal,
     onPublish,
 }) => {
     const [mode, setMode] = useState<string>('everyone');
+    const [allowPersonal, setAllowPersonal] = useState(initialAllowPersonal);
     const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
     const [selectedRoles, setSelectedRoles] = useState<ProjectMemberRole[]>([]);
     const { data: groups } = useOrganizationGroups({}, { enabled: opened });
@@ -93,11 +97,14 @@ export const PublishModal: FC<Props> = ({
 
     const handlePublish = () => {
         if (mode === 'groups') {
-            onPublish({ type: 'groups', groupUuids: selectedGroups });
+            onPublish(
+                { type: 'groups', groupUuids: selectedGroups },
+                allowPersonal,
+            );
         } else if (mode === 'roles') {
-            onPublish({ type: 'roles', roles: selectedRoles });
+            onPublish({ type: 'roles', roles: selectedRoles }, allowPersonal);
         } else {
-            onPublish({ type: 'everyone' });
+            onPublish({ type: 'everyone' }, allowPersonal);
         }
     };
 
@@ -287,6 +294,17 @@ export const PublishModal: FC<Props> = ({
                         </Stack>
                     </Card>
                 )}
+
+                <Card withBorder p="sm">
+                    <Switch
+                        label="Let people set a dashboard as their own homepage"
+                        description="When off, everyone in this audience always lands here — personal picks are ignored."
+                        checked={allowPersonal}
+                        onChange={(e) =>
+                            setAllowPersonal(e.currentTarget.checked)
+                        }
+                    />
+                </Card>
 
                 <Group gap={4} wrap="nowrap">
                     <Text size="xs" c="dimmed">

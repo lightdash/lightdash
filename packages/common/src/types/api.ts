@@ -68,7 +68,7 @@ import type {
     ApiProjectHomepageResponse,
     ApiPromoteAppDiffResponse,
     ApiPromoteAppResponse,
-    ApiPublishedHomepageResponse,
+    ApiResolvedHomepageResponse,
     ApiUpdateAiOrganizationSettingsResponse,
     ApiUpdateUserAgentPreferencesResponse,
     AppExternalConnectionLink,
@@ -1282,7 +1282,7 @@ type ApiResults =
     | ApiOrganizationDesignFileResponse['results']
     | ApiProjectHomepageResponse['results']
     | ApiProjectHomepageOrNullResponse['results']
-    | ApiPublishedHomepageResponse['results']
+    | ApiResolvedHomepageResponse['results']
     | ApiProjectColorPaletteResponse['results']
     | ApiOrganizationBrandResponse['results']
     | ApiManagedAgentRunResponse['results']

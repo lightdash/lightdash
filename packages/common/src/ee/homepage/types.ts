@@ -112,6 +112,7 @@ export type HomepageAudience =
 
 export type PublishProjectHomepageRequest = {
     audience: HomepageAudience;
+    allowPersonal: boolean;
 };
 
 export type HomepageAssignment = {
@@ -180,6 +181,7 @@ export type ProjectHomepage = {
     draftConfig: HomepageConfig;
     publishedConfig: HomepageConfig | null;
     isDefault: boolean;
+    allowPersonal: boolean;
     createdByUserUuid: string | null;
     createdAt: Date;
     updatedAt: Date;
@@ -189,7 +191,18 @@ export type PublishedProjectHomepage = {
     homepageUuid: string;
     name: string;
     config: HomepageConfig;
+    allowPersonal: boolean;
 };
+
+export type ResolvedHomepage =
+    | { type: 'homepage'; homepage: PublishedProjectHomepage }
+    | { type: 'dashboard'; dashboardUuid: string };
+
+export type SetPersonalHomepageRequest = {
+    dashboardUuid: string;
+};
+
+export type ApiResolvedHomepageResponse = ApiSuccess<ResolvedHomepage | null>;
 
 export type CreateProjectHomepageRequest = {
     name: string;
@@ -207,5 +220,3 @@ export type ApiProjectHomepageResponse = ApiSuccess<ProjectHomepage>;
 export type ApiProjectHomepagesResponse = ApiSuccess<ProjectHomepage[]>;
 export type ApiProjectHomepageOrNullResponse =
     ApiSuccess<ProjectHomepage | null>;
-export type ApiPublishedHomepageResponse =
-    ApiSuccess<PublishedProjectHomepage | null>;
