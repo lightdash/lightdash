@@ -89,6 +89,15 @@ export type GenerateTableCalculationGenerated = BaseTrack & {
     };
 };
 
+export type GenerateCustomDimensionGenerated = BaseTrack & {
+    event: 'ai.custom_dimension.generated';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        userId: string;
+    };
+};
+
 export type GenerateFormulaTableCalculationGenerated = BaseTrack & {
     event: 'ai.formula_table_calculation.generated';
     properties: {

@@ -19,6 +19,7 @@ export type AiCallFeature =
     | 'artifact-question'
     | 'agent-suggestions'
     | 'table-calc'
+    | 'custom-dimension'
     | 'formula-table-calc'
     | 'compaction'
     | 'embedding'
