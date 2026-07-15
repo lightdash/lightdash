@@ -99,7 +99,7 @@ type DbtCloudIntegration = BaseTrack & {
 type LoginEvent = BaseTrack & {
     event: 'user.logged_in';
     properties: {
-        loginProvider: 'password' | OpenIdIdentityIssuerType;
+        loginProvider: 'password' | 'email_otp' | OpenIdIdentityIssuerType;
     };
 };
 

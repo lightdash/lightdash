@@ -1,4 +1,5 @@
 import {
+    AuthorizationError,
     defineUserAbility,
     EmailStatus,
     FeatureFlags,
@@ -49,8 +50,12 @@ import {
 } from './UserService.mock';
 
 const userModel = {
-    getOpenIdIssuers: vi.fn(async () => []),
-    hasPasswordByEmail: vi.fn(async () => false),
+    getOpenIdIssuers: vi.fn<UserModel['getOpenIdIssuers']>(async () => []),
+    hasOpenIdIdentity: vi.fn<UserModel['hasOpenIdIdentity']>(async () => false),
+    hasPassword: vi.fn<UserModel['hasPassword']>(async () => false),
+    hasPasswordByEmail: vi.fn<UserModel['hasPasswordByEmail']>(
+        async () => false,
+    ),
     findSessionUserByOpenId: vi.fn(async () => undefined),
     findSessionUserByUUID: vi.fn<UserModel['findSessionUserByUUID']>(
         async () => sessionUser,
@@ -79,14 +84,34 @@ const openIdIdentityModel = {
 };
 
 const emailModel = {
-    getPrimaryEmailStatus: vi.fn(
+    createPrimaryEmailOtp: vi.fn<EmailModel['createPrimaryEmailOtp']>(
+        async () => ({
+            email: 'email',
+            isVerified: false,
+            otp: { createdAt: new Date(), numberOfAttempts: 0 },
+        }),
+    ),
+    getPrimaryEmailStatus: vi.fn<EmailModel['getPrimaryEmailStatus']>(
         async () =>
             <EmailStatus>{
                 email: 'example',
                 isVerified: true,
             },
     ),
-    verifyUserEmailIfExists: vi.fn(async () => []),
+    getPrimaryEmailStatusByUserAndOtp: vi.fn<
+        EmailModel['getPrimaryEmailStatusByUserAndOtp']
+    >(async () => ({
+        email: 'email',
+        isVerified: false,
+        otp: { createdAt: new Date(), numberOfAttempts: 0 },
+    })),
+    incrementPrimaryEmailOtpAttempts: vi.fn<
+        EmailModel['incrementPrimaryEmailOtpAttempts']
+    >(async () => undefined),
+    deleteEmailOtp: vi.fn<EmailModel['deleteEmailOtp']>(async () => undefined),
+    verifyUserEmailIfExists: vi.fn<EmailModel['verifyUserEmailIfExists']>(
+        async () => [],
+    ),
 };
 
 const inviteLinkModel = {
@@ -97,6 +122,7 @@ const inviteLinkModel = {
 
 const emailClient = {
     sendInviteEmail: vi.fn(),
+    sendOneTimePasscodeEmail: vi.fn(),
 };
 
 const organizationModel = {
@@ -163,10 +189,12 @@ const createUserService = (
         featureFlagModel:
             (overrides.featureFlagModel as FeatureFlagModel) ??
             ({
-                get: vi.fn<FeatureFlagModel['get']>(async () => ({
-                    id: 'leave-organization',
-                    enabled: true,
-                })),
+                get: vi.fn<FeatureFlagModel['get']>(
+                    async ({ featureFlagId }) => ({
+                        id: featureFlagId,
+                        enabled: featureFlagId !== FeatureFlags.EmailOnlySignup,
+                    }),
+                ),
             } as unknown as FeatureFlagModel),
         userAvatarModel: {} as UserAvatarModel,
     });
@@ -334,6 +362,241 @@ describe('UserService', () => {
         });
     });
 
+    describe('email OTP login', () => {
+        const createFeatureFlagModel = (enabled: boolean) => ({
+            get: vi.fn<FeatureFlagModel['get']>(async ({ featureFlagId }) => ({
+                id: featureFlagId,
+                enabled,
+            })),
+        });
+        const activeOtp = (
+            numberOfAttempts = 0,
+            createdAt = new Date(),
+        ): EmailStatus => ({
+            email: 'email',
+            isVerified: false,
+            otp: { createdAt, numberOfAttempts },
+        });
+        const expectInvalidCode = async (promise: Promise<unknown>) => {
+            await expect(promise).rejects.toMatchObject(
+                new AuthorizationError('Invalid or expired code'),
+            );
+        };
+
+        describe('requestEmailOtpLogin', () => {
+            test('rejects when the feature flag is disabled', async () => {
+                const service = createUserService(lightdashConfigMock, {
+                    featureFlagModel: createFeatureFlagModel(false),
+                });
+
+                await expect(
+                    service.requestEmailOtpLogin('email'),
+                ).rejects.toThrow(
+                    new ForbiddenError('Email OTP login is not enabled'),
+                );
+                expect(userModel.findUserByEmail).not.toHaveBeenCalled();
+            });
+
+            test('does not create or send an OTP for a passworded account', async () => {
+                const service = createUserService(lightdashConfigMock, {
+                    featureFlagModel: createFeatureFlagModel(true),
+                });
+                userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
+                userModel.hasPassword.mockResolvedValueOnce(true);
+
+                await expect(
+                    service.requestEmailOtpLogin('email'),
+                ).resolves.toBeUndefined();
+
+                expect(emailModel.createPrimaryEmailOtp).not.toHaveBeenCalled();
+                expect(
+                    emailClient.sendOneTimePasscodeEmail,
+                ).not.toHaveBeenCalled();
+            });
+
+            test('does not create or send an OTP for a nonexistent account', async () => {
+                const service = createUserService(lightdashConfigMock, {
+                    featureFlagModel: createFeatureFlagModel(true),
+                });
+                userModel.findUserByEmail.mockResolvedValueOnce(undefined);
+
+                await expect(
+                    service.requestEmailOtpLogin('missing@example.com'),
+                ).resolves.toBeUndefined();
+
+                expect(emailModel.createPrimaryEmailOtp).not.toHaveBeenCalled();
+                expect(
+                    emailClient.sendOneTimePasscodeEmail,
+                ).not.toHaveBeenCalled();
+            });
+
+            test('creates and emails an OTP for a passwordless account', async () => {
+                const service = createUserService(lightdashConfigMock, {
+                    featureFlagModel: createFeatureFlagModel(true),
+                });
+                userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
+                userModel.hasPassword.mockResolvedValueOnce(false);
+                userModel.hasOpenIdIdentity.mockResolvedValueOnce(false);
+
+                await service.requestEmailOtpLogin('EMAIL');
+
+                const [{ passcode, userUuid }] = vi.mocked(
+                    emailModel.createPrimaryEmailOtp,
+                ).mock.calls[0];
+                expect(userUuid).toBe(sessionUser.userUuid);
+                expect(passcode).toMatch(/^\d{6}$/);
+                expect(
+                    emailClient.sendOneTimePasscodeEmail,
+                ).toHaveBeenCalledWith({
+                    recipient: 'email',
+                    passcode,
+                });
+            });
+        });
+
+        describe('loginWithEmailOtp', () => {
+            test('verifies the email, consumes the OTP, and returns the session user', async () => {
+                const service = createUserService(lightdashConfigMock, {
+                    featureFlagModel: createFeatureFlagModel(true),
+                });
+                const emailStatus = activeOtp();
+                userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
+                userModel.hasPassword.mockResolvedValueOnce(false);
+                userModel.hasOpenIdIdentity.mockResolvedValueOnce(false);
+                emailModel.getPrimaryEmailStatus.mockResolvedValueOnce(
+                    emailStatus,
+                );
+                emailModel.getPrimaryEmailStatusByUserAndOtp.mockResolvedValueOnce(
+                    emailStatus,
+                );
+                emailModel.verifyUserEmailIfExists.mockResolvedValueOnce([
+                    { email: emailStatus.email },
+                ]);
+
+                await expect(
+                    service.loginWithEmailOtp('EMAIL', '123456'),
+                ).resolves.toBe(sessionUser);
+
+                expect(
+                    emailModel.getPrimaryEmailStatusByUserAndOtp,
+                ).toHaveBeenCalledWith({
+                    userUuid: sessionUser.userUuid,
+                    passcode: '123456',
+                });
+                expect(emailModel.verifyUserEmailIfExists).toHaveBeenCalledWith(
+                    sessionUser.userUuid,
+                    emailStatus.email,
+                );
+                expect(emailModel.deleteEmailOtp).toHaveBeenCalledWith(
+                    sessionUser.userUuid,
+                    emailStatus.email,
+                );
+                expect(analyticsMock.track).toHaveBeenCalledWith({
+                    userId: sessionUser.userUuid,
+                    event: 'user.logged_in',
+                    properties: { loginProvider: 'email_otp' },
+                });
+            });
+
+            test('increments attempts for a wrong code', async () => {
+                const service = createUserService(lightdashConfigMock, {
+                    featureFlagModel: createFeatureFlagModel(true),
+                });
+                userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
+                emailModel.getPrimaryEmailStatus.mockResolvedValueOnce(
+                    activeOtp(),
+                );
+                emailModel.getPrimaryEmailStatusByUserAndOtp.mockRejectedValueOnce(
+                    new NotFoundError('No matching OTP'),
+                );
+
+                await expectInvalidCode(
+                    service.loginWithEmailOtp('email', 'wrong'),
+                );
+
+                expect(
+                    emailModel.incrementPrimaryEmailOtpAttempts,
+                ).toHaveBeenCalledWith(sessionUser.userUuid);
+            });
+
+            test('rejects a sixth attempt without comparing the code', async () => {
+                const service = createUserService(lightdashConfigMock, {
+                    featureFlagModel: createFeatureFlagModel(true),
+                });
+                userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
+                emailModel.getPrimaryEmailStatus.mockResolvedValueOnce(
+                    activeOtp(5),
+                );
+
+                await expectInvalidCode(
+                    service.loginWithEmailOtp('email', '123456'),
+                );
+
+                expect(
+                    emailModel.getPrimaryEmailStatusByUserAndOtp,
+                ).not.toHaveBeenCalled();
+                expect(
+                    emailModel.incrementPrimaryEmailOtpAttempts,
+                ).not.toHaveBeenCalled();
+            });
+
+            test('rejects an expired OTP', async () => {
+                const service = createUserService(lightdashConfigMock, {
+                    featureFlagModel: createFeatureFlagModel(true),
+                });
+                userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
+                emailModel.getPrimaryEmailStatus.mockResolvedValueOnce(
+                    activeOtp(0, new Date(Date.now() - 16 * 60 * 1000)),
+                );
+
+                await expectInvalidCode(
+                    service.loginWithEmailOtp('email', '123456'),
+                );
+
+                expect(
+                    emailModel.getPrimaryEmailStatusByUserAndOtp,
+                ).not.toHaveBeenCalled();
+            });
+
+            test('rejects a passworded account with the generic error', async () => {
+                const service = createUserService(lightdashConfigMock, {
+                    featureFlagModel: createFeatureFlagModel(true),
+                });
+                userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
+                userModel.hasPassword.mockResolvedValueOnce(true);
+
+                await expectInvalidCode(
+                    service.loginWithEmailOtp('email', '123456'),
+                );
+
+                expect(emailModel.getPrimaryEmailStatus).not.toHaveBeenCalled();
+            });
+
+            test('uses the generic error for a nonexistent account', async () => {
+                const service = createUserService(lightdashConfigMock, {
+                    featureFlagModel: createFeatureFlagModel(true),
+                });
+                userModel.findUserByEmail.mockResolvedValueOnce(undefined);
+
+                await expectInvalidCode(
+                    service.loginWithEmailOtp('missing@example.com', '123456'),
+                );
+            });
+
+            test('rejects before account lookup when the feature is disabled', async () => {
+                const service = createUserService(lightdashConfigMock, {
+                    featureFlagModel: createFeatureFlagModel(false),
+                });
+
+                await expect(
+                    service.loginWithEmailOtp('email', '123456'),
+                ).rejects.toThrow(
+                    new ForbiddenError('Email OTP login is not enabled'),
+                );
+            });
+        });
+    });
+
     describe('resetPassword', () => {
         test('upserts the first password for a passwordless user', async () => {
             const resetLink: PasswordResetLink = {
@@ -368,6 +631,94 @@ describe('UserService', () => {
             expect(passwordResetLinkModel.deleteByCode).toHaveBeenCalledWith(
                 resetLink.code,
             );
+        });
+    });
+
+    describe('getLoginOptions email OTP', () => {
+        const createFeatureFlagModel = (enabled: boolean) => ({
+            get: vi.fn<FeatureFlagModel['get']>(async ({ featureFlagId }) => ({
+                id: featureFlagId,
+                enabled,
+            })),
+        });
+
+        test('replaces email with email OTP for a passwordless user when enabled', async () => {
+            const featureFlagModel = createFeatureFlagModel(true);
+            const service = createUserService(lightdashConfigMock, {
+                featureFlagModel,
+            });
+            userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
+            userModel.hasPassword.mockResolvedValueOnce(false);
+            userModel.hasOpenIdIdentity.mockResolvedValueOnce(false);
+
+            await expect(service.getLoginOptions('email')).resolves.toEqual({
+                forceRedirect: false,
+                redirectUri: undefined,
+                showOptions: ['emailOtp'],
+            });
+            expect(featureFlagModel.get).toHaveBeenCalledWith({
+                user: undefined,
+                featureFlagId: FeatureFlags.EmailOnlySignup,
+            });
+        });
+
+        test('keeps email unchanged when the feature is disabled', async () => {
+            const service = createUserService(lightdashConfigMock, {
+                featureFlagModel: createFeatureFlagModel(false),
+            });
+            userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
+            userModel.hasPassword.mockResolvedValueOnce(false);
+            userModel.hasOpenIdIdentity.mockResolvedValueOnce(false);
+
+            await expect(service.getLoginOptions('email')).resolves.toEqual({
+                forceRedirect: false,
+                redirectUri: undefined,
+                showOptions: ['email'],
+            });
+        });
+
+        test('keeps email unchanged for a passworded user', async () => {
+            const service = createUserService(lightdashConfigMock, {
+                featureFlagModel: createFeatureFlagModel(true),
+            });
+            userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
+            userModel.hasPassword.mockResolvedValueOnce(true);
+
+            await expect(service.getLoginOptions('email')).resolves.toEqual({
+                forceRedirect: false,
+                redirectUri: undefined,
+                showOptions: ['email'],
+            });
+        });
+
+        test('keeps SSO options unchanged for an OpenID user', async () => {
+            const service = createUserService(
+                {
+                    ...lightdashConfigMock,
+                    auth: {
+                        ...lightdashConfigMock.auth,
+                        okta: {
+                            ...lightdashConfigMock.auth.okta,
+                            oauth2ClientId: 'client-id',
+                            loginPath: '/login/okta',
+                        },
+                    },
+                },
+                { featureFlagModel: createFeatureFlagModel(true) },
+            );
+            userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
+            userModel.hasPassword.mockResolvedValueOnce(false);
+            userModel.hasOpenIdIdentity.mockResolvedValueOnce(true);
+            userModel.getOpenIdIssuers.mockResolvedValueOnce([
+                OpenIdIdentityIssuerType.OKTA,
+            ]);
+
+            await expect(service.getLoginOptions('email')).resolves.toEqual({
+                forceRedirect: true,
+                redirectUri:
+                    'https://test.lightdash.cloud/api/v1/login/okta?login_hint=email',
+                showOptions: ['okta'],
+            });
         });
     });
 
