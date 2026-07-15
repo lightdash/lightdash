@@ -117,8 +117,9 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
         );
     }
 
+    const isDev = import.meta.env.DEV;
     const connectCommand = code
-        ? buildSnowflakeConnectCommand({ siteUrl, code, account })
+        ? buildSnowflakeConnectCommand({ siteUrl, code, account, dev: isDev })
         : '';
 
     return (
@@ -147,17 +148,21 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
                 </Group>
             ) : (
                 <Stack gap="md">
+                    {!isDev && (
+                        <Stack gap="xs">
+                            <Text size="sm" fw={500}>
+                                1. Install the CLI
+                            </Text>
+                            <CopyableCommand
+                                command={SNOWFLAKE_CLI_INSTALL_COMMAND}
+                            />
+                        </Stack>
+                    )}
                     <Stack gap="xs">
                         <Text size="sm" fw={500}>
-                            1. Install the CLI
-                        </Text>
-                        <CopyableCommand
-                            command={SNOWFLAKE_CLI_INSTALL_COMMAND}
-                        />
-                    </Stack>
-                    <Stack gap="xs">
-                        <Text size="sm" fw={500}>
-                            2. Connect with SSO
+                            {isDev
+                                ? 'Connect with SSO (dev CLI — run from the repo root)'
+                                : '2. Connect with SSO'}
                         </Text>
                         <CopyableCommand command={connectCommand} />
                     </Stack>

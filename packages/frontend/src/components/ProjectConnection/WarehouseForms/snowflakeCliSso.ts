@@ -4,9 +4,13 @@ export const buildSnowflakeConnectCommand = ({
     siteUrl,
     code,
     account,
+    dev = false,
 }: {
     siteUrl: string;
     code: string;
     account: string;
-}): string =>
-    `lightdash connect-snowflake --url ${siteUrl} --code ${code} --account ${account}`;
+    dev?: boolean;
+}): string => {
+    const cli = dev ? 'pnpm -F cli exec tsx src/index.ts' : 'lightdash';
+    return `${cli} connect-snowflake --url ${siteUrl} --code ${code} --account ${account}`;
+};
