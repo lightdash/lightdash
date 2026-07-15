@@ -50,6 +50,7 @@ export enum PageName {
     VERIFY_EMAIL = 'verify_email',
     JOIN_ORGANIZATION = 'join_organization',
     ORGANIZATION_SETUP = 'organization_setup',
+    ONBOARDING_AGENT = 'onboarding_agent',
     EMBED_DASHBOARD = 'embed_dashboard',
     EMBED_SAVED_CHART = 'embed_saved_chart',
     EMBED_EXPLORE = 'embed_explore',
