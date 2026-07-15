@@ -313,10 +313,17 @@ const SnowflakeForm: FC<{
                         <TextInput
                             name="warehouse.account"
                             label="Account"
-                            description="This is the account to connect to."
+                            description={
+                                isCliSsoMode && cliSsoCredentials !== null
+                                    ? 'Your CLI SSO connection is bound to this account.'
+                                    : 'This is the account to connect to.'
+                            }
                             required
                             {...form.getInputProps('warehouse.account')}
-                            disabled={disabled}
+                            disabled={
+                                disabled ||
+                                (isCliSsoMode && cliSsoCredentials !== null)
+                            }
                             labelProps={{ style: { marginTop: '8px' } }}
                         />
 

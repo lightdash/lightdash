@@ -241,6 +241,14 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
                     required
                     disabled={disabled}
                     {...form.getInputProps('warehouse.database')}
+                    onChange={(value) => {
+                        if (value === warehouseValues?.database) return;
+                        form.setFieldValue(
+                            'warehouse.database',
+                            value ?? undefined,
+                        );
+                        form.setFieldValue('warehouse.schema', '');
+                    }}
                 />
                 <Select
                     label="Warehouse"
