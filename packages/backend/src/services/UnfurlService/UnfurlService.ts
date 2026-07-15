@@ -12,6 +12,7 @@ import {
     HealthState,
     isDashboardChartTileType,
     isDashboardSqlChartTile,
+    isTileInPagedExport,
     isTileInSelectedTabs,
     LightdashMode,
     LightdashPage,
@@ -796,13 +797,14 @@ export class UnfurlService extends BaseService {
                 // record instead of unfurlDetails — unfurlDetails runs
                 // validateSelectedTabs, which throws on a zero-tile selection
                 // and would kill a scheduler that picked ONLY an empty tab.
-                // Non-strict isTileInSelectedTabs keeps orphan tiles in the set
-                // (they render on the first page), matching the frontend.
+                // isTileInPagedExport is the shared predicate the frontend
+                // renders by, so the awaited-tile sets (charts + looms) stay in
+                // lock-step — orphan tiles ride the first resolved tab's page.
                 const resolvedTabUuids = resolvedTabs.map((tab) => tab.uuid);
                 const renderedTiles = isUntabbed
                     ? dashboard.tiles
                     : dashboard.tiles.filter((tile) =>
-                          isTileInSelectedTabs(tile, resolvedTabUuids),
+                          isTileInPagedExport(tile, resolvedTabUuids),
                       );
 
                 const result = await this.saveScreenshot({
@@ -2353,6 +2355,7 @@ export class UnfurlService extends BaseService {
                             sendNowSchedulerParameters,
                             outputFormat,
                             withPdf,
+                            pdfPagination,
                         });
                     }
 

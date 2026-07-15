@@ -10,6 +10,7 @@ import {
     DASHBOARD_GRID_CLASS,
     DashboardTileTypes,
     EXPORT_TAB_PAGE_CLASS,
+    getPagedExportOrphanHomeTabUuid,
     isDashboardScheduler,
     isTileInSelectedTabs,
     SessionStorageKeys,
@@ -527,20 +528,21 @@ const MinimalDashboard: FC = () => {
                 : (tilesByTab.get(tab.uuid)?.length ?? 0) > 0,
         );
 
-        const firstTabUuid = sortedTabs[0]?.uuid;
+        // Orphans ride the first RESOLVED tab's page (not the literal first
+        // dashboard tab), so a hidden/unselected first tab doesn't silently
+        // drop them. Shared with the backend readiness set via the common
+        // helper. The stacked image keeps riding orphans on the first group.
+        const orphanHomeTabUuid = getPagedExportOrphanHomeTabUuid(
+            groupTabs.map((t) => t.uuid),
+        );
         const groups: TabGroup[] = [];
         let orphansAssigned = false;
         for (const tab of groupTabs) {
             const tabTiles = tilesByTab.get(tab.uuid) ?? [];
-            // Orphan (legacy, no-tab) tiles belong to the dashboard's first
-            // tab. In paged export they attach only when that first tab is in
-            // the export, so an empty-tab-only export renders an empty page
-            // instead of absorbing orphans. The stacked image keeps the legacy
-            // behaviour of riding orphans on the first rendered group.
             const attachOrphansHere =
                 orphanTiles.length > 0 &&
                 !orphansAssigned &&
-                (!exportPagedTabs || tab.uuid === firstTabUuid);
+                (!exportPagedTabs || tab.uuid === orphanHomeTabUuid);
             const tiles = attachOrphansHere
                 ? [...orphanTiles, ...tabTiles]
                 : tabTiles;
@@ -590,8 +592,14 @@ const MinimalDashboard: FC = () => {
         return <span>No tiles</span>;
     }
 
+    // In paged export the tabGroups branch renders a per-tab header + "Tab is
+    // empty" state inside each page container, so an all-empty selection must
+    // NOT short-circuit to a single bare empty state (which would emit zero
+    // page containers and break the one-page-per-tab count).
     const isTabEmpty =
-        activeTab && filteredAndSortedDashboardTiles.length === 0;
+        !exportPagedTabs &&
+        !!activeTab &&
+        filteredAndSortedDashboardTiles.length === 0;
 
     const canNavigateBetweenTabs =
         !schedulerTabsSelected && tabsWithUrls.length > 0;

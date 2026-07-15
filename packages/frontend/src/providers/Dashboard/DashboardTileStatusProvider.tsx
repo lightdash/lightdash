@@ -1,6 +1,7 @@
 import {
     isDashboardChartTileType,
     isDashboardSqlChartTile,
+    isTileInPagedExport,
     type CacheMetadata,
     type Dashboard,
 } from '@lightdash/common';
@@ -123,9 +124,27 @@ const DashboardTileStatusProvider: React.FC<
 
         // When schedulerTabsSelected is provided, use it to filter tiles for screenshots
         if (schedulerTabsSelected && schedulerTabsSelected.length > 0) {
-            const firstTabUuid = [...dashboardTabs].sort(
-                (a, b) => a.order - b.order,
-            )[0]?.uuid;
+            if (exportPagedTabs) {
+                // Paged export: mirror the backend's rendered-tile set exactly
+                // via the shared isTileInPagedExport predicate, so readiness
+                // never waits on a chart the frontend won't render. Orphans
+                // ride the first resolved tab (drop the null sentinel here).
+                const resolvedTabUuids = schedulerTabsSelected.filter(
+                    (t): t is string => t !== null,
+                );
+                return dashboardTiles
+                    .filter(
+                        (tile) =>
+                            isDashboardChartTileType(tile) ||
+                            isDashboardSqlChartTile(tile),
+                    )
+                    .filter((tile) =>
+                        isTileInPagedExport(tile, resolvedTabUuids),
+                    )
+                    .map((tile) => tile.uuid);
+            }
+            // Stacked multi-tab image: orphans ride the aggregated view (null
+            // sentinel is present in the selection). Existing behaviour.
             return dashboardTiles
                 .filter(
                     (tile) =>
@@ -133,17 +152,10 @@ const DashboardTileStatusProvider: React.FC<
                         isDashboardSqlChartTile(tile),
                 )
                 .filter((tile) => {
-                    // Orphan (no-tab) chart tiles ride the dashboard's first
-                    // tab; in paged export they only render when that first tab
-                    // is selected, so don't wait on them otherwise — the
-                    // empty-tab-only page has no charts to load.
                     if (!tile.tabUuid) {
-                        return exportPagedTabs
-                            ? !!firstTabUuid &&
-                                  schedulerTabsSelected.includes(firstTabUuid)
-                            : schedulerTabsSelected.includes(
-                                  tile.tabUuid as unknown as string,
-                              );
+                        return schedulerTabsSelected.includes(
+                            tile.tabUuid as unknown as string,
+                        );
                     }
                     return schedulerTabsSelected.includes(tile.tabUuid);
                 })
