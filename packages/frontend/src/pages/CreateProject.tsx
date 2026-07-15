@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router';
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import ConnectManually from '../components/ProjectConnection/ProjectConnectFlow/ConnectManually';
+import ConnectManuallyStep2 from '../components/ProjectConnection/ProjectConnectFlow/ConnectManually/ConnectManuallyStep2';
 import ConnectSuccess from '../components/ProjectConnection/ProjectConnectFlow/ConnectSuccess';
 import ConnectUsingCLI from '../components/ProjectConnection/ProjectConnectFlow/ConnectUsingCLI';
 import SelectConnectMethod from '../components/ProjectConnection/ProjectConnectFlow/SelectConnectMethod';
@@ -97,6 +98,25 @@ const CreateProject: FC = () => {
                                                 isCreatingFirstProject
                                             }
                                             selectedWarehouse={warehouse}
+                                            onBack={() => {
+                                                void navigate(
+                                                    '/createProject',
+                                                    {
+                                                        replace: true,
+                                                    },
+                                                );
+                                            }}
+                                        />
+                                    )}
+
+                                {warehouse &&
+                                    method === ConnectMethod.WAREHOUSE && (
+                                        <ConnectManuallyStep2
+                                            isCreatingFirstProject={
+                                                isCreatingFirstProject
+                                            }
+                                            selectedWarehouse={warehouse}
+                                            warehouseOnly
                                             onBack={() => {
                                                 void navigate(
                                                     '/createProject',

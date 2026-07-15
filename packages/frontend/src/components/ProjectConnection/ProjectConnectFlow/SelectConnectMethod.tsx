@@ -1,12 +1,15 @@
+import { FeatureFlags } from '@lightdash/common';
 import { Button, Stack, Text } from '@mantine-8/core';
 import { Avatar } from '@mantine/core';
 import {
     IconChecklist,
     IconChevronLeft,
     IconChevronRight,
+    IconDatabase,
     IconTerminal,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import MantineIcon from '../../common/MantineIcon';
@@ -29,6 +32,12 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
 }) => {
     const { track } = useTracking();
 
+    const warehouseConnectFlag = useServerFeatureFlag(
+        FeatureFlags.WarehouseConnectOnboarding,
+    );
+    const isWarehouseConnectEnabled =
+        warehouseConnectFlag.data?.enabled ?? false;
+
     return (
         <OnboardingWrapper>
             <Button
@@ -49,8 +58,9 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
                     />
 
                     <Text c="dimmed">
-                        To get started, choose how you want to upload your dbt
-                        project:
+                        {isWarehouseConnectEnabled
+                            ? 'To get started, choose how you want to connect:'
+                            : 'To get started, choose how you want to upload your dbt project:'}
                     </Text>
 
                     <Stack>
@@ -114,6 +124,35 @@ const SelectConnectMethod: FC<SelectConnectMethodProps> = ({
                         >
                             Manually
                         </OnboardingButton>
+
+                        {isWarehouseConnectEnabled && (
+                            <OnboardingButton
+                                onClick={() => {
+                                    track({
+                                        name: EventName.CREATE_PROJECT_WAREHOUSE_BUTTON_CLICKED,
+                                    });
+                                    onSelect(ConnectMethod.WAREHOUSE);
+                                }}
+                                leftIcon={
+                                    <Avatar radius="xl">
+                                        <MantineIcon
+                                            icon={IconDatabase}
+                                            color="black"
+                                            size="lg"
+                                        />
+                                    </Avatar>
+                                }
+                                rightIcon={
+                                    <MantineIcon
+                                        icon={IconChevronRight}
+                                        color="black"
+                                    />
+                                }
+                                description="Fastest way to get started — connect directly and query your tables"
+                            >
+                                Connect to your warehouse
+                            </OnboardingButton>
+                        )}
                     </Stack>
                 </Stack>
             </ProjectCreationCard>

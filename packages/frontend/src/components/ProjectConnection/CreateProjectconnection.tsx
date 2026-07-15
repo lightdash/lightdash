@@ -12,7 +12,7 @@ import useActiveJob from '../../providers/ActiveJob/useActiveJob';
 import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
-import { dbtDefaults } from './DbtForms/defaultValues';
+import { dbtDefaults, noneDefaultValues } from './DbtForms/defaultValues';
 import { dbtFormValidators } from './DbtForms/validators';
 import { FormContainer } from './FormContainer';
 import { FormProvider, useForm } from './formContext';
@@ -26,11 +26,13 @@ import { warehouseValueValidators } from './WarehouseForms/validators';
 interface CreateProjectConnectionProps {
     isCreatingFirstProject: boolean;
     selectedWarehouse?: WarehouseTypes | undefined;
+    warehouseOnly?: boolean;
 }
 
 const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     isCreatingFirstProject,
     selectedWarehouse,
+    warehouseOnly = false,
 }) => {
     const navigate = useNavigate();
     const { user, health } = useApp();
@@ -44,17 +46,19 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
     const form = useForm({
         initialValues: {
             name: user.data?.organizationName || '',
-            dbt: {
-                ...dbtDefaults.formValues[dbtType],
-                ...health.data?.defaultProject,
-            },
+            dbt: warehouseOnly
+                ? noneDefaultValues
+                : {
+                      ...dbtDefaults.formValues[dbtType],
+                      ...health.data?.defaultProject,
+                  },
             warehouse: warehouseDefaultValues[warehouseType],
             dbtVersion: dbtDefaults.dbtVersion,
             organizationWarehouseCredentialsUuid: undefined,
         },
         validate: {
             warehouse: warehouseValueValidators[warehouseType],
-            dbt: dbtFormValidators,
+            dbt: warehouseOnly ? {} : dbtFormValidators,
         },
         validateInputOnBlur: true,
     });
@@ -121,6 +125,7 @@ const CreateProjectConnection: FC<CreateProjectConnectionProps> = ({
                             showGeneralSettings={!isCreatingFirstProject}
                             disabled={isSavingProject}
                             defaultType={health.data?.defaultProject?.type}
+                            warehouseOnly={warehouseOnly}
                         />
 
                         <Button
