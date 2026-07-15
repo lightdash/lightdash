@@ -166,6 +166,38 @@ describe('getDefaultTimeDimensionFieldIds', () => {
             defaultTimeDimensionGranularity: 'orders_shipped_at_day',
         });
     });
+
+    // Malformed dbt YAML (wrong keys inside default_time_dimension) compiles
+    // to {}; must not crash the whole grep_fields index build
+    it('returns null when the model default time dimension has no field', () => {
+        const explore = makeExplore({
+            name: 'orders',
+            fields: [{ name: 'created_at' }],
+        });
+        explore.tables.orders.defaultTimeDimension =
+            {} as (typeof explore.tables.orders)['defaultTimeDimension'];
+
+        expect(
+            getDefaultTimeDimensionFieldIds(
+                makeMetric('orders', 'revenue'),
+                explore.tables.orders,
+            ),
+        ).toBeNull();
+    });
+
+    it('does not throw when building an index over a field-less model default', () => {
+        const explore = makeExplore({
+            name: 'orders',
+            fields: [{ name: 'created_at' }],
+        });
+        explore.tables.orders.defaultTimeDimension =
+            {} as (typeof explore.tables.orders)['defaultTimeDimension'];
+        explore.tables.orders.metrics = {
+            revenue: makeMetric('orders', 'revenue'),
+        };
+
+        expect(() => buildFieldIndex([explore])).not.toThrow();
+    });
 });
 
 describe('compileMatcher word boundaries for short terms', () => {
