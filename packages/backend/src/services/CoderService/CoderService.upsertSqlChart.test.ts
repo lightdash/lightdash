@@ -154,7 +154,9 @@ describe('CoderService.upsertSqlChart - permissions', () => {
                 { subject: 'CustomSql', action: 'manage' },
             ]);
 
-            await expect(upsert(service, user)).rejects.toThrow(ForbiddenError);
+            await expect(upsert(service, user)).rejects.toThrow(
+                'You don\'t have access to create Saved SQL chart "my-sql-chart"',
+            );
             expect(savedSqlModel.create).not.toHaveBeenCalled();
         });
 
@@ -309,7 +311,9 @@ describe('CoderService.upsertSqlChart - permissions', () => {
                 },
             ]);
 
-            await expect(upsert(service, user)).rejects.toThrow(ForbiddenError);
+            await expect(upsert(service, user)).rejects.toThrow(
+                'You don\'t have access to update Saved SQL chart "my-sql-chart"',
+            );
             expect(savedSqlModel.update).not.toHaveBeenCalled();
             // both the target and the current space were checked
             expect(getSpacesAccessContext).toHaveBeenCalledWith('user-uuid', [

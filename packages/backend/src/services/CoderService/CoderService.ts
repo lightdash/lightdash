@@ -288,20 +288,22 @@ export class CoderService extends BaseService {
                 .filter(isCustomSqlDimension)
                 .map((dimension) => [dimension.id, dimension]),
         );
-        const hasNewOrChangedSqlDimension = (
+        const newOrChangedSqlDimensionIds = (
             nextChart.metricQuery.customDimensions ?? []
         )
             .filter(isCustomSqlDimension)
-            .some((dimension) => {
+            .filter((dimension) => {
                 const current = currentSqlDimensionsById.get(dimension.id);
                 return !current || current.sql !== dimension.sql;
-            });
+            })
+            .map((dimension) => dimension.id);
 
-        if (hasNewOrChangedSqlDimension) {
+        if (newOrChangedSqlDimensionIds.length > 0) {
             checks.push({
                 check: 'customSqlDimension',
-                message:
-                    'User cannot upload content with new or modified custom SQL dimensions',
+                message: `User cannot upload content with new or modified custom SQL dimensions: ${newOrChangedSqlDimensionIds.join(
+                    ', ',
+                )} (chart slug "${nextChart.slug}")`,
             });
         }
 
@@ -310,22 +312,24 @@ export class CoderService extends BaseService {
                 .filter(isSqlTableCalculation)
                 .map((calculation) => [calculation.name, calculation]),
         );
-        const hasNewOrChangedSqlTableCalculation = (
+        const newOrChangedSqlTableCalculationNames = (
             nextChart.metricQuery.tableCalculations ?? []
         )
             .filter(isSqlTableCalculation)
-            .some((calculation) => {
+            .filter((calculation) => {
                 const current = currentSqlTableCalculationsByName.get(
                     calculation.name,
                 );
                 return !current || current.sql !== calculation.sql;
-            });
+            })
+            .map((calculation) => calculation.name);
 
-        if (hasNewOrChangedSqlTableCalculation) {
+        if (newOrChangedSqlTableCalculationNames.length > 0) {
             checks.push({
                 check: 'sqlTableCalculation',
-                message:
-                    'User cannot upload content with new or modified SQL table calculations',
+                message: `User cannot upload content with new or modified SQL table calculations: ${newOrChangedSqlTableCalculationNames.join(
+                    ', ',
+                )} (chart slug "${nextChart.slug}")`,
             });
         }
 
@@ -685,7 +689,9 @@ export class CoderService extends BaseService {
         });
 
         if (missingChecks.length === 0) return;
-        throw new ForbiddenError(missingChecks[0].message);
+        throw new ForbiddenError(
+            missingChecks.map(({ message }) => message).join('; '),
+        );
     }
 
     private static transformSpaces(
@@ -2725,8 +2731,7 @@ export class CoderService extends BaseService {
                     projectUuid,
                     spaceSlug: chartWithDefaults.spaceSlug,
                     subjectType: 'SavedChart',
-                    errorMessage:
-                        "You don't have access to create charts in this space",
+                    errorMessage: `You don't have access to create charts in space "${chartWithDefaults.spaceSlug}"`,
                 });
             }
 
@@ -2754,8 +2759,7 @@ export class CoderService extends BaseService {
                     action: 'create',
                     subjectType: 'SavedChart',
                     spaceUuids: [space.uuid],
-                    errorMessage:
-                        "You don't have access to create charts in this space",
+                    errorMessage: `You don't have access to create charts in space "${chartWithDefaults.spaceSlug}"`,
                     accessContexts: spaceAccessContexts,
                 });
             }
@@ -2785,8 +2789,7 @@ export class CoderService extends BaseService {
                             action: 'create',
                             subjectType: 'Dashboard',
                             spaceUuids: [space.uuid],
-                            errorMessage:
-                                "You don't have access to create dashboards in this space",
+                            errorMessage: `You don't have access to create dashboards in space "${chartWithDefaults.spaceSlug}"`,
                             accessContexts: spaceAccessContexts,
                         });
                     }
@@ -2817,7 +2820,7 @@ export class CoderService extends BaseService {
                     // the dashboard's space is required.
                     if (!dashboard.spaceUuid) {
                         throw new ForbiddenError(
-                            "You don't have access to create charts in this space",
+                            `You don't have access to create charts in dashboard "${chartWithDefaults.dashboardSlug}"`,
                         );
                     }
                     await this.assertSpaceContentAccess({
@@ -2826,8 +2829,7 @@ export class CoderService extends BaseService {
                         action: 'create',
                         subjectType: 'SavedChart',
                         spaceUuids: [dashboard.spaceUuid],
-                        errorMessage:
-                            "You don't have access to create charts in this space",
+                        errorMessage: `You don't have access to create charts in dashboard "${chartWithDefaults.dashboardSlug}"`,
                     });
                 }
                 createChart = {
@@ -2903,7 +2905,7 @@ export class CoderService extends BaseService {
                 !allowSpaceCreate
             ) {
                 throw new ForbiddenError(
-                    "You don't have access to create spaces",
+                    `You don't have access to create space "${chartWithDefaults.spaceSlug}"`,
                 );
             }
 
@@ -2911,7 +2913,7 @@ export class CoderService extends BaseService {
             // dashboard-contained charts, so this covers both kinds
             if (!chart.spaceUuid) {
                 throw new ForbiddenError(
-                    "You don't have access to update this chart",
+                    `You don't have access to update chart "${slug}"`,
                 );
             }
 
@@ -2925,7 +2927,7 @@ export class CoderService extends BaseService {
                     ...(chart.spaceUuid ? [chart.spaceUuid] : []),
                 ],
                 metadata: { savedChartUuid: chart.uuid },
-                errorMessage: "You don't have access to update this chart",
+                errorMessage: `You don't have access to update chart "${slug}"`,
             });
 
             const currentChart = await this.savedChartModel.get(chart.uuid);
@@ -2957,7 +2959,7 @@ export class CoderService extends BaseService {
                 subjectType: 'SavedChart',
                 spaceUuids: [space.uuid],
                 metadata: { savedChartUuid: chart.uuid },
-                errorMessage: "You don't have access to update this chart",
+                errorMessage: `You don't have access to update chart "${slug}"`,
             });
         }
 
@@ -3076,8 +3078,7 @@ export class CoderService extends BaseService {
                 spaceSlug: sqlChartWithDefaults.spaceSlug,
                 subjectType: 'SavedChart',
                 metadata: { savedSqlUuid: null },
-                errorMessage:
-                    "You don't have access to create this Saved SQL chart",
+                errorMessage: `You don't have access to create Saved SQL chart "${slug}"`,
             });
         }
 
@@ -3091,7 +3092,6 @@ export class CoderService extends BaseService {
             allowSpaceCreate,
         );
 
-        // Moves require SavedChart access in both current and target spaces.
         const savedChartAction = isUpdate ? 'update' : 'create';
         await this.assertSpaceContentAccess({
             userUuid: user.userUuid,
@@ -3105,7 +3105,7 @@ export class CoderService extends BaseService {
             metadata: {
                 savedSqlUuid: existingSqlChart?.saved_sql_uuid ?? null,
             },
-            errorMessage: `You don't have access to ${savedChartAction} this Saved SQL chart`,
+            errorMessage: `You don't have access to ${savedChartAction} Saved SQL chart "${slug}"`,
         });
 
         if (existingSqlChart === undefined) {
@@ -3215,7 +3215,7 @@ export class CoderService extends BaseService {
             !(await this.spacePermissionService.can('view', user, space.uuid))
         ) {
             throw new ForbiddenError(
-                "You don't have access to a private space",
+                `You don't have access to the private space "${spaceSlug}"`,
             );
         }
 
@@ -3272,7 +3272,9 @@ export class CoderService extends BaseService {
             contentAsCodeSubject,
         );
         if (auditedAbility.cannot('create', contentAsCodeSubject)) {
-            throw new ForbiddenError();
+            throw new ForbiddenError(
+                `You don't have permission to upload content as code to this project (content slug "${slug}")`,
+            );
         }
         const allowSpaceCreate =
             canUploadAnyContent ||
@@ -3410,10 +3412,12 @@ export class CoderService extends BaseService {
         ]);
         const referencedCharts = [
             ...charts.map((chart) => ({
+                slug: chart.slug,
                 spaceUuid: chart.spaceUuid,
                 metadata: { savedChartUuid: chart.uuid },
             })),
             ...sqlChartRows.map((row) => ({
+                slug: row.slug,
                 spaceUuid: row.space_uuid,
                 metadata: { savedSqlUuid: row.saved_sql_uuid },
             })),
@@ -3424,18 +3428,22 @@ export class CoderService extends BaseService {
             await this.spacePermissionService.getSpacesAccessContext(userUuid, [
                 ...new Set(referencedCharts.map((chart) => chart.spaceUuid)),
             ]);
-        const lacksAccess = referencedCharts.some((chart) =>
-            auditedAbility.cannot(
-                'view',
-                subject('SavedChart', {
-                    ...spaceAccessContexts[chart.spaceUuid],
-                    metadata: chart.metadata,
-                }),
-            ),
-        );
-        if (lacksAccess) {
+        const inaccessibleChartSlugs = referencedCharts
+            .filter((chart) =>
+                auditedAbility.cannot(
+                    'view',
+                    subject('SavedChart', {
+                        ...spaceAccessContexts[chart.spaceUuid],
+                        metadata: chart.metadata,
+                    }),
+                ),
+            )
+            .map((chart) => chart.slug);
+        if (inaccessibleChartSlugs.length > 0) {
             throw new ForbiddenError(
-                "You don't have access to a chart referenced by this dashboard",
+                `You don't have access to chart(s) referenced by this dashboard: ${inaccessibleChartSlugs.join(
+                    ', ',
+                )}`,
             );
         }
     }
@@ -3448,12 +3456,12 @@ export class CoderService extends BaseService {
     }: {
         userUuid: string;
         auditedAbility: ReturnType<CoderService['createAuditedAbility']>;
-        dashboard: { uuid: string; spaceUuid: string | null };
+        dashboard: { uuid: string; slug: string; spaceUuid: string | null };
         additionalSpaceUuids?: string[];
     }): Promise<void> {
         if (!dashboard.spaceUuid) {
             throw new ForbiddenError(
-                "You don't have access to update this dashboard",
+                `You don't have access to update dashboard "${dashboard.slug}"`,
             );
         }
         await this.assertSpaceContentAccess({
@@ -3463,7 +3471,7 @@ export class CoderService extends BaseService {
             subjectType: 'Dashboard',
             spaceUuids: [dashboard.spaceUuid, ...additionalSpaceUuids],
             metadata: { dashboardUuid: dashboard.uuid },
-            errorMessage: "You don't have access to update this dashboard",
+            errorMessage: `You don't have access to update dashboard "${dashboard.slug}"`,
         });
     }
 
@@ -3491,7 +3499,9 @@ export class CoderService extends BaseService {
             );
         }
         if (!allowSpaceCreate) {
-            throw new ForbiddenError("You don't have access to create spaces");
+            throw new ForbiddenError(
+                `You don't have access to create space "${spaceSlug}"`,
+            );
         }
         const path = getLtreePathFromContentAsCodePath(spaceSlug);
 
@@ -3690,8 +3700,7 @@ export class CoderService extends BaseService {
                     projectUuid,
                     spaceSlug: dashboardWithDefaults.spaceSlug,
                     subjectType: 'Dashboard',
-                    errorMessage:
-                        "You don't have access to create dashboards in this space",
+                    errorMessage: `You don't have access to create dashboards in space "${dashboardWithDefaults.spaceSlug}"`,
                 });
             }
 
@@ -3712,8 +3721,7 @@ export class CoderService extends BaseService {
                     action: 'create',
                     subjectType: 'Dashboard',
                     spaceUuids: [space.uuid],
-                    errorMessage:
-                        "You don't have access to create dashboards in this space",
+                    errorMessage: `You don't have access to create dashboards in space "${dashboardWithDefaults.spaceSlug}"`,
                 });
             }
 
@@ -3782,7 +3790,7 @@ export class CoderService extends BaseService {
                 !allowSpaceCreate
             ) {
                 throw new ForbiddenError(
-                    "You don't have access to create spaces",
+                    `You don't have access to create space "${dashboardWithDefaults.spaceSlug}"`,
                 );
             }
             await this.assertDashboardUpdateAccess({
@@ -3835,7 +3843,7 @@ export class CoderService extends BaseService {
                 subjectType: 'Dashboard',
                 spaceUuids: [space.uuid],
                 metadata: { dashboardUuid: dashboard.uuid },
-                errorMessage: "You don't have access to update this dashboard",
+                errorMessage: `You don't have access to update dashboard "${slug}"`,
             });
         }
 

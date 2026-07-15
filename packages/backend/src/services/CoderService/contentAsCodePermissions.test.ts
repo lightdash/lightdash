@@ -94,6 +94,14 @@ describe('content-as-code SQL permission detector', () => {
                         sql: '${TABLE}.new_status',
                         dimensionType: DimensionType.STRING,
                     },
+                    {
+                        id: 'new_dim',
+                        name: 'new_dim',
+                        table: 'orders',
+                        type: CustomDimensionType.SQL,
+                        sql: '${TABLE}.category',
+                        dimensionType: DimensionType.STRING,
+                    },
                 ],
                 tableCalculations: [
                     {
@@ -106,15 +114,28 @@ describe('content-as-code SQL permission detector', () => {
                         displayName: 'Formula',
                         formula: '=A1',
                     },
+                    {
+                        name: 'new_calc',
+                        displayName: 'New calc',
+                        sql: '${orders.count} + 3',
+                    },
                 ],
             },
         } as ChartAsCode;
 
         expect(
             CoderService.getChartContentAsCodePermissionChecks(next, current),
-        ).toMatchObject([
-            { check: 'customSqlDimension' },
-            { check: 'sqlTableCalculation' },
+        ).toEqual([
+            {
+                check: 'customSqlDimension',
+                message:
+                    'User cannot upload content with new or modified custom SQL dimensions: dim, new_dim (chart slug "chart")',
+            },
+            {
+                check: 'sqlTableCalculation',
+                message:
+                    'User cannot upload content with new or modified SQL table calculations: calc, new_calc (chart slug "chart")',
+            },
         ]);
     });
 });

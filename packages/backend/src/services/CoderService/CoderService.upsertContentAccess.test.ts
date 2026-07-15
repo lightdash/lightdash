@@ -162,6 +162,21 @@ describe('CoderService content-as-code space permissions', () => {
         } as AnyType);
     };
 
+    it('identifies content denied at the project upload gate', async () => {
+        const service = buildService();
+
+        await expect(
+            service.upsertChart(
+                makeUser([]),
+                PROJECT_UUID,
+                chartAsCode.slug,
+                chartAsCode,
+            ),
+        ).rejects.toThrow(
+            'You don\'t have permission to upload content as code to this project (content slug "chart")',
+        );
+    });
+
     it('allows write-only callers to create basic charts', async () => {
         const service = buildService();
         prepareChartCreate(service);
@@ -228,7 +243,9 @@ describe('CoderService content-as-code space permissions', () => {
                     },
                 },
             ),
-        ).rejects.toThrow(ForbiddenError);
+        ).rejects.toThrow(
+            'User cannot upload content with new or modified custom SQL dimensions: sql_dim (chart slug "chart")',
+        );
         expect(service.savedChartModel.create).not.toHaveBeenCalled();
     });
 
@@ -255,8 +272,48 @@ describe('CoderService content-as-code space permissions', () => {
                     },
                 },
             ),
-        ).rejects.toThrow(ForbiddenError);
+        ).rejects.toThrow(
+            'User cannot upload content with new or modified SQL table calculations: sql_calc (chart slug "chart")',
+        );
         expect(service.savedChartModel.create).not.toHaveBeenCalled();
+    });
+
+    it('reports all missing SQL permissions together', async () => {
+        const service = buildService();
+        prepareChartCreate(service);
+
+        await expect(
+            service.upsertChart(
+                makeUser(chartCreateRules),
+                PROJECT_UUID,
+                chartAsCode.slug,
+                {
+                    ...chartAsCode,
+                    metricQuery: {
+                        ...chartAsCode.metricQuery,
+                        customDimensions: [
+                            {
+                                id: 'sql_dim',
+                                name: 'sql_dim',
+                                table: 'orders',
+                                type: CustomDimensionType.SQL,
+                                sql: '${TABLE}.status',
+                                dimensionType: DimensionType.STRING,
+                            },
+                        ],
+                        tableCalculations: [
+                            {
+                                name: 'sql_calc',
+                                displayName: 'SQL calc',
+                                sql: '${orders.count} + 1',
+                            },
+                        ],
+                    },
+                },
+            ),
+        ).rejects.toThrow(
+            'User cannot upload content with new or modified custom SQL dimensions: sql_dim (chart slug "chart"); User cannot upload content with new or modified SQL table calculations: sql_calc (chart slug "chart")',
+        );
     });
 
     it('lets manage upload any content without SQL and space checks', async () => {
@@ -307,7 +364,9 @@ describe('CoderService content-as-code space permissions', () => {
                 chartAsCode.slug,
                 chartAsCode,
             ),
-        ).rejects.toThrow(ForbiddenError);
+        ).rejects.toThrow(
+            'You don\'t have access to create charts in space "space"',
+        );
         expect(service.savedChartModel.create).not.toHaveBeenCalled();
     });
 
@@ -323,7 +382,7 @@ describe('CoderService content-as-code space permissions', () => {
                 chartAsCode.slug,
                 chartAsCode,
             ),
-        ).rejects.toThrow(ForbiddenError);
+        ).rejects.toThrow('You don\'t have access to create space "space"');
         expect(service.spaceModel.createSpace).not.toHaveBeenCalled();
     });
 
@@ -370,7 +429,9 @@ describe('CoderService content-as-code space permissions', () => {
                 ...chartAsCode,
                 spaceSlug: 'restricted/new-space',
             }),
-        ).rejects.toThrow(ForbiddenError);
+        ).rejects.toThrow(
+            'You don\'t have access to create charts in space "restricted/new-space"',
+        );
         expect(service.spaceModel.createSpace).not.toHaveBeenCalled();
     });
 
@@ -462,7 +523,7 @@ describe('CoderService content-as-code space permissions', () => {
                 ...chartAsCode,
                 spaceSlug: 'restricted/new-space',
             }),
-        ).rejects.toThrow(ForbiddenError);
+        ).rejects.toThrow('You don\'t have access to update chart "chart"');
         expect(service.spaceModel.createSpace).toHaveBeenCalledOnce();
         expect(service.promoteService.getPromoteCharts).not.toHaveBeenCalled();
     });
@@ -482,7 +543,9 @@ describe('CoderService content-as-code space permissions', () => {
                 dashboardAsCode.slug,
                 dashboardAsCode,
             ),
-        ).rejects.toThrow(ForbiddenError);
+        ).rejects.toThrow(
+            'You don\'t have access to create dashboards in space "space"',
+        );
         expect(service.dashboardModel.create).not.toHaveBeenCalled();
     });
 
@@ -592,6 +655,7 @@ describe('CoderService content-as-code space permissions', () => {
         ]);
         vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
             uuid: 'dashboard-uuid',
+            slug: 'dashboard',
             name: 'Dashboard',
             filters: { dimensions: [], metrics: [], tableCalculations: [] },
         } as AnyType);
@@ -621,6 +685,7 @@ describe('CoderService content-as-code space permissions', () => {
         ]);
         vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
             uuid: 'dashboard-uuid',
+            slug: 'dashboard',
             name: 'Dashboard',
             spaceUuid: SPACE_UUID,
             filters: { dimensions: [], metrics: [], tableCalculations: [] },
@@ -697,6 +762,7 @@ describe('CoderService content-as-code space permissions', () => {
         ]);
         vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
             uuid: 'dashboard-uuid',
+            slug: 'dashboard',
             name: 'Dashboard',
             spaceUuid: OTHER_SPACE_UUID,
             filters: { dimensions: [], metrics: [], tableCalculations: [] },
@@ -741,11 +807,83 @@ describe('CoderService content-as-code space permissions', () => {
                 dashboardAsCode.slug,
                 dashboardAsCode,
             ),
-        ).rejects.toThrow(ForbiddenError);
+        ).rejects.toThrow(
+            'You don\'t have access to update dashboard "dashboard"',
+        );
         expect(
             service.promoteService.getPromotedDashboard,
         ).not.toHaveBeenCalled();
         expect(service.spaceModel.createSpace).not.toHaveBeenCalled();
+    });
+
+    it('identifies a restricted dashboard destination space', async () => {
+        const service = buildService();
+        vi.mocked(service.dashboardModel.find).mockResolvedValue([
+            { uuid: 'dashboard-uuid' } as AnyType,
+        ]);
+        vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
+            uuid: 'dashboard-uuid',
+            slug: 'dashboard',
+            name: 'Dashboard',
+            spaceUuid: OTHER_SPACE_UUID,
+            filters: { dimensions: [], metrics: [], tableCalculations: [] },
+        } as AnyType);
+        vi.mocked(
+            service.spacePermissionService.getSpacesAccessContext,
+        ).mockImplementation(async (_userUuid, spaceUuids) =>
+            Object.fromEntries(
+                spaceUuids.map((spaceUuid) => [
+                    spaceUuid,
+                    {
+                        organizationUuid: ORG_UUID,
+                        projectUuid:
+                            spaceUuid === SPACE_UUID
+                                ? 'restricted-project'
+                                : PROJECT_UUID,
+                        inheritsFromOrgOrProject: true,
+                        access: [],
+                        admins: [],
+                    },
+                ]),
+            ),
+        );
+        const user = makeUser([
+            { subject: 'ContentAsCode', action: 'create' },
+            {
+                subject: 'Dashboard',
+                action: 'update',
+                conditions: { projectUuid: PROJECT_UUID },
+            },
+        ]);
+
+        await expect(
+            service.upsertDashboard(
+                user,
+                PROJECT_UUID,
+                dashboardAsCode.slug,
+                dashboardAsCode,
+            ),
+        ).rejects.toThrow(
+            'You don\'t have access to update dashboard "dashboard"',
+        );
+        expect(
+            service.promoteService.getPromotedDashboard,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('identifies inaccessible private spaces', async () => {
+        const service = buildService();
+        vi.mocked(service.spacePermissionService.can).mockResolvedValue(false);
+
+        await expect(
+            service.getOrCreateSpace(
+                PROJECT_UUID,
+                'private/space',
+                makeUser([{ subject: 'ContentAsCode', action: 'create' }]),
+            ),
+        ).rejects.toThrow(
+            'You don\'t have access to the private space "private/space"',
+        );
     });
 
     it('gates dashboard-contained chart update on SavedChart update in the dashboard space', async () => {
@@ -944,6 +1082,13 @@ describe('CoderService content-as-code space permissions', () => {
                 spaceUuid: OTHER_SPACE_UUID,
             } as AnyType,
         ]);
+        vi.mocked(service.savedSqlModel.find).mockResolvedValue([
+            {
+                saved_sql_uuid: 'private-sql-chart-uuid',
+                slug: 'private-sql-chart',
+                space_uuid: OTHER_SPACE_UUID,
+            } as AnyType,
+        ]);
         vi.mocked(
             service.spacePermissionService.getSpacesAccessContext,
         ).mockImplementation(async (_userUuid, spaceUuids) =>
@@ -1005,9 +1150,19 @@ describe('CoderService content-as-code space permissions', () => {
                         w: 3,
                         properties: { chartSlug: 'private-chart' },
                     },
+                    {
+                        type: DashboardTileTypes.SQL_CHART,
+                        x: 3,
+                        y: 0,
+                        h: 3,
+                        w: 3,
+                        properties: { chartSlug: 'private-sql-chart' },
+                    },
                 ],
             } as DashboardAsCode),
-        ).rejects.toThrow(ForbiddenError);
+        ).rejects.toThrow(
+            "You don't have access to chart(s) referenced by this dashboard: private-chart, private-sql-chart",
+        );
         expect(service.dashboardModel.create).not.toHaveBeenCalled();
     });
 
@@ -1018,6 +1173,7 @@ describe('CoderService content-as-code space permissions', () => {
         ]);
         vi.mocked(service.dashboardModel.getByIdOrSlug).mockResolvedValue({
             uuid: 'dashboard-uuid',
+            slug: 'dashboard',
             name: 'Dashboard',
             spaceUuid: SPACE_UUID,
             filters: { dimensions: [], metrics: [], tableCalculations: [] },
