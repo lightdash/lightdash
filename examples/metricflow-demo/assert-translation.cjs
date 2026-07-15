@@ -45,15 +45,45 @@ const expected = {
     max_order_value: { type: 'max', sql: '${TABLE}.amount' },
     min_order_value: { type: 'min', sql: '${TABLE}.amount' },
     p95_order_value: { type: 'percentile', sql: '${TABLE}.amount', percentile: 95 },
+    // Filtered simple metric → CASE WHEN over the measure
+    completed_revenue: {
+        type: 'sum',
+        sql: "CASE WHEN (${TABLE}.status = 'completed') THEN (${TABLE}.amount) END",
+    },
+    // sum_boolean → sum over CASE WHEN bool THEN 1 ELSE 0
+    food_order_count: {
+        type: 'sum',
+        sql: 'CASE WHEN (${TABLE}.is_food_order) THEN 1 ELSE 0 END',
+    },
+    // Ratio → number metric over the two input metrics
+    revenue_per_order: {
+        type: 'number',
+        sql: '(${total_revenue} * 1.0) / NULLIF(${order_count}, 0)',
+    },
+    // Ratio with a filtered numerator → hidden helper metric + number metric
+    completion_rate: {
+        type: 'number',
+        sql: '(${completion_rate_numerator} * 1.0) / NULLIF(${order_count}, 0)',
+    },
+    completion_rate_numerator: {
+        type: 'count',
+        sql: "CASE WHEN (${TABLE}.status = 'completed') THEN (${TABLE}.order_id) END",
+        hidden: true,
+    },
+    // Derived → number metric with the expression rewritten over input metrics
+    revenue_per_customer: {
+        type: 'number',
+        sql: '${total_revenue} / ${unique_customers}',
+    },
 };
+
+// Hidden helper metrics are emitted alongside a manifest metric and are not
+// counted in translatedCount.
+const helperCount = Object.values(expected).filter((e) => e.hidden).length;
 
 // Metrics that must be skipped (unsupported in the Lightdash translation).
 const expectedSkipped = [
-    'completed_revenue', // metric-level filter
-    'revenue_per_order', // ratio
-    'revenue_per_customer', // derived
-    'cumulative_revenue', // cumulative
-    'food_order_count', // sum_boolean aggregation
+    'cumulative_revenue', // cumulative — needs time-spine semantics
 ];
 
 let failures = 0;
@@ -77,8 +107,10 @@ for (const [name, exp] of Object.entries(expected)) {
         fail(`metric "${name}": sql ${got.sql} !== ${exp.sql}`);
     } else if (exp.percentile !== undefined && got.percentile !== exp.percentile) {
         fail(`metric "${name}": percentile ${got.percentile} !== ${exp.percentile}`);
+    } else if (exp.hidden !== undefined && got.hidden !== exp.hidden) {
+        fail(`metric "${name}": hidden ${got.hidden} !== ${exp.hidden}`);
     } else {
-        ok(`${name} → ${exp.type}(${exp.sql})${exp.percentile ? ` p${exp.percentile}` : ''}`);
+        ok(`${name} → ${exp.type}(${exp.sql})${exp.percentile ? ` p${exp.percentile}` : ''}${exp.hidden ? ' [hidden]' : ''}`);
     }
 }
 
@@ -92,7 +124,7 @@ for (const name of expectedSkipped) {
     }
 }
 
-const expectedCount = Object.keys(expected).length;
+const expectedCount = Object.keys(expected).length - helperCount;
 if (result.translatedCount !== expectedCount) {
     fail(`translatedCount ${result.translatedCount} !== ${expectedCount}`);
 }

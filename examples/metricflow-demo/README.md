@@ -107,8 +107,8 @@ explore the result in the Lightdash UI).
 
 ## What translates (and what doesn't)
 
-Both specs produce the identical result: **8 translated, 5 skipped (with
-warnings)**.
+Both specs produce the identical result: **13 translated, 1 skipped (with
+a warning)**.
 
 ### Supported → Lightdash metrics
 
@@ -121,6 +121,10 @@ warnings)**.
 | `agg: median` | `median` |
 | `agg: min` / `agg: max` | `min` / `max` |
 | `agg: percentile` | `percentile` (legacy 0–1 fractions and latest 0–100 values both normalized to Lightdash's 0–100) |
+| `agg: sum_boolean` | `sum` over `CASE WHEN bool THEN 1 ELSE 0 END` |
+| metric or measure `filter:` (same-model `Dimension()` refs) | filter compiled into the metric SQL as `CASE WHEN <condition> THEN <expr> END` |
+| `ratio` metrics (inputs on the same model) | `number` metric: `(${numerator} * 1.0) / NULLIF(${denominator}, 0)`; filtered inputs compile to hidden helper metrics |
+| `derived` metrics (inputs on the same model, no offsets) | `number` metric with the expression rewritten over `${metric}` references (aliases supported) |
 | measure `create_metric: true` (no explicit metric) | translated like a simple metric |
 | measure `expr` (bare column or SQL expression) | metric `sql` (bare columns qualified as `${TABLE}.col`) |
 | metric/measure `label` + `description` | carried over (metric-level wins) |
@@ -128,18 +132,33 @@ warnings)**.
 YAML-defined `meta.metrics` win over translated MetricFlow metrics on name
 collision — so you can always override a translated metric by hand.
 
+Notes on filters, ratio, and derived metrics:
+
+- **Filters** translate when every `{{ Dimension('entity__dim') }}` reference
+  resolves on the metric's own semantic model. Cross-model references and
+  other template functions (`TimeDimension()`, `Entity()`, `Metric()`) skip
+  the metric with a warning.
+- **Ratio/derived inputs** must all resolve to metrics on the same dbt model.
+  In MetricFlow, inputs may come from any semantic model because each input is
+  aggregated in its own subquery; Lightdash compiles a single query per
+  explore, so cross-model inputs are skipped with a warning (join the models
+  in a Lightdash explore and author a `number` metric if you need one today).
+- **Filtered inputs** (e.g. a ratio whose numerator has a `filter:`) compile
+  the filter into a hidden helper metric (`<metric>_numerator`, …) which the
+  visible metric references.
+- **Time-offset inputs** (`offset_window` / `offset_to_grain` on a derived
+  metric input) are skipped with a warning.
+
 ### Not currently supported (skipped, warning on deploy; details under `--verbose`)
 
 | MetricFlow feature | Why |
 |---|---|
-| `ratio` metrics | Lightdash has no native multi-metric division |
-| `derived` metrics | expression over other metrics |
 | `cumulative` metrics | needs time-spine semantics Lightdash doesn't have |
 | `conversion` metrics | needs entity-journey semantics |
-| metric `filter:` / measure-level filters | MetricFlow where-filter templates (`{{ Dimension('order__status') }}`) don't map to Lightdash metric filters |
-| `agg: sum_boolean` | no Lightdash equivalent |
+| cross-model `ratio` / `derived` inputs, `offset_window` / `offset_to_grain` | see notes above |
+| cross-model or non-`Dimension()` `filter:` templates | see notes above |
 | **entities / join resolution** | MetricFlow joins semantic models implicitly at query time through shared entity keys (`order`, `customer`). Lightdash joins are explicit, authored per-explore (`meta.joins`). Entities are ignored — each semantic model's metrics land only on its own dbt model, and cross-model dimension access does not happen. |
-| dimensions (`categorical` / `time`) | ignored — Lightdash derives dimensions from the model's real columns, so you keep all columns as dimensions anyway |
+| dimensions (`categorical` / `time`) | ignored — Lightdash derives dimensions from the model's real columns, so you keep all columns as dimensions anyway (dimension `expr` is used when resolving filter references) |
 | `agg_time_dimension` | ignored — Lightdash metrics aggregate over whatever dimension you group by |
 | `join_to_timespine`, `fill_nulls_with`, `non_additive_dimension`, `percentile_type: discrete` | no equivalents (percentiles always compile to `PERCENTILE_CONT`) |
 | saved queries / exports | out of scope |

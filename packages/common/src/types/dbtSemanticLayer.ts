@@ -69,10 +69,36 @@ export type DbtSemanticModel = {
     depends_on?: { nodes?: string[] };
 };
 
+/** A single rendered-SQL where filter (dbt manifest `WhereFilter`). */
+export type DbtSemanticWhereFilter = {
+    where_sql_template?: string | null;
+};
+
+/**
+ * Metric/measure `filter:` as it appears in the manifest. dbt Core and Fusion
+ * both normalise the YAML string into `{ where_filters: [...] }`.
+ */
+export type DbtSemanticFilter =
+    | string
+    | { where_filters?: DbtSemanticWhereFilter[] | null }
+    | null;
+
 export type DbtSemanticMetricInputMeasure = {
     name: string;
-    filter?: AnyType | null;
+    filter?: DbtSemanticFilter;
     alias?: string | null;
+};
+
+/**
+ * Reference to another metric used as an input to a ratio/derived metric
+ * (dbt manifest `MetricInput`).
+ */
+export type DbtSemanticMetricInput = {
+    name: string;
+    filter?: DbtSemanticFilter;
+    alias?: string | null;
+    offset_window?: AnyType | null;
+    offset_to_grain?: string | null;
 };
 
 /**
@@ -89,10 +115,10 @@ export type DbtSemanticMetricAggregationParams = {
 
 export type DbtSemanticMetricTypeParams = {
     measure?: DbtSemanticMetricInputMeasure | null;
-    numerator?: AnyType | null;
-    denominator?: AnyType | null;
+    numerator?: DbtSemanticMetricInput | null;
+    denominator?: DbtSemanticMetricInput | null;
     expr?: string | null;
-    metrics?: AnyType[] | null;
+    metrics?: DbtSemanticMetricInput[] | null;
     metric_aggregation_params?: DbtSemanticMetricAggregationParams | null;
 };
 
@@ -110,6 +136,6 @@ export type DbtSemanticMetric = {
     type_params: DbtSemanticMetricTypeParams;
     label?: string | null;
     description?: string | null;
-    filter?: AnyType | null;
+    filter?: DbtSemanticFilter;
     depends_on?: { nodes?: string[] };
 };

@@ -72,15 +72,17 @@ models:
         # Latest spec authors percentile on the 0-100 scale
         percentile: 95.0
         expr: amount
-      # ── Unsupported shapes (skipped with a warning on deploy) ──
+      # ── Filtered metrics: same-model Dimension() filters translate to a
+      #    CASE WHEN inside the Lightdash metric SQL ──
       - name: completed_revenue
         label: Completed revenue
-        description: Filtered metrics cannot be translated to Lightdash.
+        description: Revenue from completed orders only.
         type: simple
         agg: sum
         expr: amount
         filter: |
           {{ Dimension('order__status') }} = 'completed'
+      # sum_boolean translates to a Lightdash sum over CASE WHEN bool THEN 1 ELSE 0
       - name: food_order_count
         label: Food order count
         type: simple
@@ -88,12 +90,24 @@ models:
         expr: is_food_order
 
 # Advanced (multi-metric) shapes still live in a top-level metrics: block in
-# the latest spec — all currently skipped by the Lightdash translation.
+# the latest spec. Ratio and derived metrics translate to Lightdash `number`
+# metrics over their input metrics (inputs must live on the same model);
+# cumulative metrics are still skipped.
 metrics:
   - name: revenue_per_order
     label: Revenue per order (ratio)
     type: ratio
     numerator: total_revenue
+    denominator: order_count
+  # A filtered numerator compiles the filter into a hidden helper metric.
+  - name: completion_rate
+    label: Completion rate
+    description: Share of orders that are completed.
+    type: ratio
+    numerator:
+      name: order_count
+      filter: |
+        {{ Dimension('order__status') }} = 'completed'
     denominator: order_count
   - name: revenue_per_customer
     label: Revenue per customer (derived)
