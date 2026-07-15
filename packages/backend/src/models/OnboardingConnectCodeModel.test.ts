@@ -99,6 +99,43 @@ describe('OnboardingConnectCodeModel', () => {
         });
     });
 
+    it('finds an unused unexpired code without consuming it', async () => {
+        const now = vi.fn(() => 'database-now');
+        const builder = {
+            where: vi.fn(),
+            whereNull: vi.fn(),
+            first: vi.fn(async () => ({ ...dbRow, used_at: null })),
+        };
+        builder.where.mockReturnValue(builder);
+        builder.whereNull.mockReturnValue(builder);
+        const database = Object.assign(
+            vi.fn(() => builder),
+            {
+                fn: { now },
+            },
+        ) as unknown as Knex;
+        const model = new OnboardingConnectCodeModel({ database });
+
+        await expect(model.find('hashed-code')).resolves.toEqual({
+            projectUuid,
+            createdByUserUuid: userUuid,
+            expiresAt,
+            usedAt: null,
+        });
+        expect(builder.where).toHaveBeenNthCalledWith(
+            1,
+            'code_hash',
+            'hashed-code',
+        );
+        expect(builder.where).toHaveBeenNthCalledWith(
+            2,
+            'expires_at',
+            '>',
+            'database-now',
+        );
+        expect(builder.whereNull).toHaveBeenCalledWith('used_at');
+    });
+
     it.each(['replayed', 'expired'])('returns null for a %s code', async () => {
         const builder = {
             where: vi.fn(),
