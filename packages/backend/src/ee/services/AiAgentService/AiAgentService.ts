@@ -9440,15 +9440,21 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         );
         // Slack drops the status ~2 minutes after the last set; re-arm it.
         let statusActive = true;
-        const statusKeepAlive = setInterval(() => {
-            if (statusActive) {
-                void setStatus(AiAgentService.THINKING_STATUS);
-            }
-        }, 60_000);
+        let statusKeepAlive: NodeJS.Timeout | undefined;
+        const startStatusKeepAlive = () => {
+            clearInterval(statusKeepAlive);
+            statusActive = true;
+            statusKeepAlive = setInterval(() => {
+                if (statusActive) {
+                    void setStatus(AiAgentService.THINKING_STATUS);
+                }
+            }, 60_000);
+        };
         const endStatusPhase = () => {
             statusActive = false;
             clearInterval(statusKeepAlive);
         };
+        startStatusKeepAlive();
 
         // Posting the card clears the status, so the phases never overlap.
         // On failure the run stays status-only and the answer still posts.
@@ -9486,6 +9492,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             'Failed to start Slack agent task card; continuing without it',
                             error,
                         );
+                        // No card to show progress: resume the status phase so
+                        // long runs keep visible feedback until the answer.
+                        void setStatus(AiAgentService.THINKING_STATUS);
+                        startStatusKeepAlive();
                     }
                 })();
             return streamStart;
@@ -9685,7 +9695,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             progressStatus?: 'in_progress' | 'complete' | 'error',
         ) => {
             if (!toolName || !progressId) return;
-            const resolvedToolName = toolName;
             let resolvedStatus: 'in_progress' | 'complete' | 'error' =
                 'in_progress';
             if (progressStatus === 'error') {
@@ -9696,8 +9705,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             ) {
                 resolvedStatus = 'complete';
             }
-            const taskState = taskStates.get(resolvedToolName) ?? {
-                toolName: resolvedToolName,
+            const taskState = taskStates.get(toolName) ?? {
+                toolName,
                 calls: new Map<string, 'in_progress' | 'complete' | 'error'>(),
                 sent: new Set<string>(),
             };
@@ -9713,7 +9722,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             const isNewLine =
                 progress.length > 0 && !taskState.sent.has(progress);
             if (isNewLine) taskState.sent.add(progress);
-            taskStates.set(resolvedToolName, taskState);
+            taskStates.set(toolName, taskState);
             const aggregate = computeTaskAggregate(taskState.calls);
             enqueueTaskUpdate((cardTs) =>
                 this.slackClient
@@ -9724,8 +9733,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         messageTs: cardTs,
                         chunks: [
                             buildSlackTaskUpdate({
-                                toolName: resolvedToolName,
-                                taskId: resolvedToolName,
+                                toolName,
+                                taskId: toolName,
                                 status: aggregate.status,
                                 count: aggregate.count,
                                 ...(isNewLine && isDone
@@ -9746,7 +9755,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             );
             if (resolvedStatus === 'in_progress') {
                 enqueueTaskUpdate(() =>
-                    updatePlanTitle(getSlackReasoningDetails(resolvedToolName)),
+                    updatePlanTitle(getSlackReasoningDetails(toolName)),
                 );
             } else if (resolvedStatus === 'complete') {
                 enqueueTaskUpdate(() =>
