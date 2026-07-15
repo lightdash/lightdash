@@ -177,7 +177,6 @@ const SnowflakeForm: FC<{
         if (isCliSsoEnabled && !userSelectedAuthType.current) {
             setIsCliSsoMode(true);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isCliSsoEnabled]);
     const authenticationType: SnowflakeAuthenticationType =
         form.values.warehouse.authenticationType ?? defaultAuthType;

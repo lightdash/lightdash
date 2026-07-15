@@ -34,7 +34,3 @@
     background-color: var(--mantine-color-orange-0);
     flex-shrink: 0;
 }
-
-.dataSourceTileConnected {
-    background-color: var(--mantine-color-green-0);
-}

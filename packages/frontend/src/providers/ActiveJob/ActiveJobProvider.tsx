@@ -37,6 +37,7 @@ const ActiveJobProvider: FC<React.PropsWithChildren<{}>> = ({ children }) => {
                             'projects',
                             'defaultProject',
                         ]);
+                        await queryClient.invalidateQueries(['organization']);
                     }
                     await queryClient.invalidateQueries(['parameters']);
                     showToastSuccess({

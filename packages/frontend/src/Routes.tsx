@@ -801,6 +801,23 @@ const PRIVATE_ROUTES: RouteObject[] = [
                 },
             },
             {
+                path: '/onboarding/project-ready/:projectUuid',
+                handle: { hideAILauncher: true },
+                lazy: async () => {
+                    const OnboardingProjectReady = await loadLazyRouteDefault(
+                        './pages/OnboardingProjectReady',
+                        () => import('./pages/OnboardingProjectReady'),
+                    );
+                    return {
+                        Component: () => (
+                            <TrackPage name={PageName.ONBOARDING_PROJECT_READY}>
+                                <OnboardingProjectReady />
+                            </TrackPage>
+                        ),
+                    };
+                },
+            },
+            {
                 path: '/createProject/:method?',
                 lazy: async () => {
                     const CreateProject = await loadLazyRouteDefault(

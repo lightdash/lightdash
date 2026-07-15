@@ -1,4 +1,5 @@
-import { FeatureFlags, WarehouseTypes } from '@lightdash/common';
+import { subject } from '@casl/ability';
+import { ProjectType, WarehouseTypes } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -19,6 +20,7 @@ import {
 import { type FC } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import { DocumentTitle } from '../components/common/DocumentTitle';
+import ErrorState from '../components/common/ErrorState';
 import MantineIcon from '../components/common/MantineIcon';
 import PageSpinner from '../components/PageSpinner';
 import ConnectManuallyStep2 from '../components/ProjectConnection/ProjectConnectFlow/ConnectManually/ConnectManuallyStep2';
@@ -30,8 +32,7 @@ import {
 } from '../components/ProjectConnection/ProjectConnectFlow/utils';
 import { ProjectFormProvider } from '../components/ProjectConnection/ProjectFormProvider';
 import { useOrganization } from '../hooks/organization/useOrganization';
-import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
-import useApp from '../providers/App/useApp';
+import { useOnboardingPageGuard } from '../hooks/useOnboardingPageGuard';
 import classes from './OnboardingDataSource.module.css';
 
 const WAREHOUSE_ORDER = [
@@ -232,11 +233,18 @@ const DataSourcePicker: FC = () => {
 
 const SnowflakeConnect: FC = () => {
     const navigate = useNavigate();
-    const { isInitialLoading: isLoadingOrganization, data: organization } =
-        useOrganization();
+    const {
+        isInitialLoading: isLoadingOrganization,
+        data: organization,
+        error: organizationError,
+    } = useOrganization();
 
-    if (isLoadingOrganization || !organization) {
+    if (isLoadingOrganization) {
         return <PageSpinner />;
+    }
+
+    if (organizationError || !organization) {
+        return <ErrorState error={organizationError?.error} />;
     }
 
     return (
@@ -247,7 +255,9 @@ const SnowflakeConnect: FC = () => {
                     selectedWarehouse={WarehouseTypes.SNOWFLAKE}
                     warehouseOnly
                     onBack={() => void navigate('/onboarding/data-source')}
-                    successRedirect={() => '/onboarding/agent'}
+                    successRedirect={(projectUuid) =>
+                        `/onboarding/project-ready/${projectUuid}`
+                    }
                 />
             </ProjectFormProvider>
         </Box>
@@ -275,36 +285,25 @@ const OnboardingDataSourceContent: FC = () => {
 };
 
 const OnboardingDataSource: FC = () => {
-    const { health, user } = useApp();
-    const orgSetupPageFlag = useServerFeatureFlag(
-        FeatureFlags.OrganizationSetupPage,
+    const guard = useOnboardingPageGuard();
+
+    if (guard.status === 'blocked') {
+        return guard.element;
+    }
+
+    const canCreateProject = guard.user.ability.can(
+        'create',
+        subject('Project', {
+            organizationUuid: guard.user.organizationUuid,
+            type: ProjectType.DEFAULT,
+        }),
     );
 
-    if (health.isInitialLoading || health.error) {
-        return <PageSpinner />;
+    if (!canCreateProject) {
+        return <Navigate to="/onboarding/agent" replace />;
     }
 
-    if (!health.data?.isAuthenticated) {
-        return <Navigate to="/login" />;
-    }
-
-    if (user.isInitialLoading || orgSetupPageFlag.isLoading) {
-        return <PageSpinner />;
-    }
-
-    if (!user.data) {
-        return <PageSpinner />;
-    }
-
-    if (!user.data.organizationUuid) {
-        return <Navigate to="/join-organization" />;
-    }
-
-    if (!orgSetupPageFlag.data?.enabled) {
-        return <Navigate to="/" />;
-    }
-
-    return <OnboardingDataSourceContent key={user.data.userUuid} />;
+    return <OnboardingDataSourceContent key={guard.user.userUuid} />;
 };
 
 export default OnboardingDataSource;

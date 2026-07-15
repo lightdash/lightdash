@@ -467,15 +467,11 @@ const OrganizationSetup: FC = () => {
     const orgSetupPageFlag = useServerFeatureFlag(
         FeatureFlags.OrganizationSetupPage,
     );
-    const completeMutation = useUserCompleteMutation();
+    const completeMutation = useUserCompleteMutation({
+        onSuccess: () => void navigate('/onboarding/agent'),
+    });
     const isCompletingSetup =
         completeMutation.isLoading || completeMutation.isSuccess;
-
-    useEffect(() => {
-        if (completeMutation.isSuccess) {
-            void navigate('/onboarding/agent');
-        }
-    }, [completeMutation.isSuccess, navigate]);
 
     if (health.isInitialLoading || health.error) {
         return <PageSpinner />;

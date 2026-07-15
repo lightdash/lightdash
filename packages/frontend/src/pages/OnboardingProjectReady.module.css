@@ -1,0 +1,86 @@
+.page {
+    min-height: 100vh;
+    background-color: var(--mantine-color-white);
+}
+
+.column {
+    width: 100%;
+    max-width: 580px;
+    margin: 0 auto;
+    padding: 15vh var(--mantine-spacing-md) var(--mantine-spacing-xl);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.checkCircle {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--mantine-color-green-6);
+    flex-shrink: 0;
+}
+
+.heading {
+    margin-top: 24px;
+}
+
+.progressSection {
+    width: 100%;
+    margin-top: 32px;
+}
+
+.percentText {
+    font-family: var(--mantine-font-family-monospace);
+    font-size: 13px;
+    text-align: right;
+    margin-top: 6px;
+}
+
+.checklist {
+    width: 100%;
+    margin-top: 24px;
+}
+
+.pendingDot {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.pendingDot::after {
+    content: '';
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--mantine-color-ldGray-3);
+}
+
+.annotation {
+    font-family: var(--mantine-font-family-monospace);
+    font-size: 14px;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.startButton {
+    width: 100%;
+    margin-top: 32px;
+    animation: fadeInUp 400ms ease;
+}

@@ -1,15 +1,12 @@
-import { FeatureFlags } from '@lightdash/common';
 import { Box, Button, Group, Paper, Stack, Text, Title } from '@mantine-8/core';
-import { IconDatabase, IconDatabaseHeart } from '@tabler/icons-react';
+import { IconDatabase } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { Navigate, useNavigate } from 'react-router';
+import { useNavigate } from 'react-router';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import MantineIcon from '../components/common/MantineIcon';
-import PageSpinner from '../components/PageSpinner';
 import { AgentChatInput } from '../ee/features/aiCopilot/components/ChatElements/AgentChatInput';
 import { useOrganization } from '../hooks/organization/useOrganization';
-import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
-import useApp from '../providers/App/useApp';
+import { useOnboardingPageGuard } from '../hooks/useOnboardingPageGuard';
 import classes from './OnboardingAgent.module.css';
 
 const DEFAULT_AGENT_NAME = 'Aurora';
@@ -73,52 +70,27 @@ const OnboardingAgentContent: FC = () => {
                     showSuggestions={false}
                 />
 
-                <Paper withBorder radius="md" p="lg">
-                    <Group justify="space-between" gap="lg">
-                        <Group gap="md">
-                            {isConnected ? (
-                                <>
-                                    <Box
-                                        className={`${classes.dataSourceTile} ${classes.dataSourceTileConnected}`}
-                                    >
-                                        <MantineIcon
-                                            icon={IconDatabaseHeart}
-                                            color="green"
-                                            size={24}
-                                        />
-                                    </Box>
-                                    <Stack gap={2}>
-                                        <Text fw={600}>
-                                            Data source connected
-                                        </Text>
-                                        <Text size="sm" c="dimmed">
-                                            {agentName} is getting ready to
-                                            answer questions.
-                                        </Text>
-                                    </Stack>
-                                </>
-                            ) : (
-                                <>
-                                    <Box className={classes.dataSourceTile}>
-                                        <MantineIcon
-                                            icon={IconDatabase}
-                                            color="orange"
-                                            size={24}
-                                        />
-                                    </Box>
-                                    <Stack gap={2}>
-                                        <Text fw={600}>
-                                            Connect a data source to get started
-                                        </Text>
-                                        <Text size="sm" c="dimmed">
-                                            {agentName} needs data before it can
-                                            answer anything.
-                                        </Text>
-                                    </Stack>
-                                </>
-                            )}
-                        </Group>
-                        {!isConnected && (
+                {organization && !isConnected && (
+                    <Paper withBorder radius="md" p="lg">
+                        <Group justify="space-between" gap="lg">
+                            <Group gap="md">
+                                <Box className={classes.dataSourceTile}>
+                                    <MantineIcon
+                                        icon={IconDatabase}
+                                        color="orange"
+                                        size={24}
+                                    />
+                                </Box>
+                                <Stack gap={2}>
+                                    <Text fw={600}>
+                                        Connect a data source to get started
+                                    </Text>
+                                    <Text size="sm" c="dimmed">
+                                        {agentName} needs data before it can
+                                        answer anything.
+                                    </Text>
+                                </Stack>
+                            </Group>
                             <Button
                                 color="dark"
                                 onClick={() =>
@@ -127,45 +99,22 @@ const OnboardingAgentContent: FC = () => {
                             >
                                 Add data source
                             </Button>
-                        )}
-                    </Group>
-                </Paper>
+                        </Group>
+                    </Paper>
+                )}
             </Box>
         </Box>
     );
 };
 
 const OnboardingAgent: FC = () => {
-    const { health, user } = useApp();
-    const orgSetupPageFlag = useServerFeatureFlag(
-        FeatureFlags.OrganizationSetupPage,
-    );
+    const guard = useOnboardingPageGuard();
 
-    if (health.isInitialLoading || health.error) {
-        return <PageSpinner />;
+    if (guard.status === 'blocked') {
+        return guard.element;
     }
 
-    if (!health.data?.isAuthenticated) {
-        return <Navigate to="/login" />;
-    }
-
-    if (user.isInitialLoading || orgSetupPageFlag.isLoading) {
-        return <PageSpinner />;
-    }
-
-    if (!user.data) {
-        return <PageSpinner />;
-    }
-
-    if (!user.data.organizationUuid) {
-        return <Navigate to="/join-organization" />;
-    }
-
-    if (!orgSetupPageFlag.data?.enabled) {
-        return <Navigate to="/" />;
-    }
-
-    return <OnboardingAgentContent key={user.data.userUuid} />;
+    return <OnboardingAgentContent key={guard.user.userUuid} />;
 };
 
 export default OnboardingAgent;
