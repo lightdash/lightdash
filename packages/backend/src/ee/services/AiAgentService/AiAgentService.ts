@@ -10923,6 +10923,27 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         return agentsWithContext;
     }
 
+    // Projects whose summary can't be fetched are omitted — the blocks render a fallback label.
+    private async getAgentSelectProjectMap(
+        agents: Pick<AiAgent, 'projectUuid'>[],
+    ): Promise<Map<string, string>> {
+        const uniqueProjectUuids = [
+            ...new Set(agents.map((a) => a.projectUuid)),
+        ];
+        const entries = await Promise.all(
+            uniqueProjectUuids.map(async (projectUuid) => {
+                try {
+                    const project =
+                        await this.projectModel.getSummary(projectUuid);
+                    return [projectUuid, project.name] as const;
+                } catch {
+                    return undefined;
+                }
+            }),
+        );
+        return new Map(entries.filter((entry) => entry !== undefined));
+    }
+
     /**
      * Show agent selection UI when multiple agents are available
      */
@@ -10933,23 +10954,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         say: SayFn,
         shouldSkipForwardingQuery = false,
     ): Promise<void> {
-        // Fetch project names for grouping
-        const uniqueProjectUuids = [
-            ...new Set(availableAgents.map((a) => a.projectUuid)),
-        ];
-        const projectMap = new Map<string, string>();
-        await Promise.all(
-            uniqueProjectUuids.map(async (projectUuid) => {
-                try {
-                    const project =
-                        await this.projectModel.getSummary(projectUuid);
-                    projectMap.set(projectUuid, project.name);
-                } catch {
-                    // If project fetch fails, use UUID as fallback
-                    projectMap.set(projectUuid, projectUuid);
-                }
-            }),
-        );
+        const projectMap = await this.getAgentSelectProjectMap(availableAgents);
 
         await say({
             blocks: getAgentSelectionBlocks(
@@ -10971,12 +10976,35 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         channelId: string;
         threadTs: string;
         say: SayFn;
+        // Reuses the multi-agent channel "filter agents by project" setting.
+        visibleProjectUuids?: string[] | null;
     }): Promise<AiAgent | undefined> {
-        const { organizationUuid, userUuid, channelId, threadTs, say } = args;
+        const {
+            organizationUuid,
+            userUuid,
+            channelId,
+            threadTs,
+            say,
+            visibleProjectUuids,
+        } = args;
         const { siteUrl } = this.lightdashConfig;
+
+        // Drop deleted projects so a stale filter doesn't hide every agent.
+        const validProjectUuids = visibleProjectUuids?.length
+            ? await this.aiAgentModel.filterExistingProjectUuids(
+                  visibleProjectUuids,
+              )
+            : [];
 
         const allAgents = await this.aiAgentModel.findAllAgents({
             organizationUuid,
+            // Preview-project agents are excluded, matching the multi-agent channel.
+            filter: {
+                projectType: ProjectType.DEFAULT,
+                ...(validProjectUuids.length > 0
+                    ? { projectFilter: { projectUuids: validProjectUuids } }
+                    : {}),
+            },
         });
 
         if (allAgents.length === 0) {
@@ -11051,21 +11079,16 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             return agent;
         }
 
-        const uniqueProjectUuids = [
-            ...new Set(manageableAgents.map((a) => a.projectUuid)),
-        ];
-        const projectMap = new Map<string, string>();
-        await Promise.all(
-            uniqueProjectUuids.map(async (projectUuid) => {
-                try {
-                    const project =
-                        await this.projectModel.getSummary(projectUuid);
-                    projectMap.set(projectUuid, project.name);
-                } catch {
-                    projectMap.set(projectUuid, projectUuid);
-                }
+        const [projectMap, lastUsedProjectUuid] = await Promise.all([
+            this.getAgentSelectProjectMap(manageableAgents),
+            this.aiAgentModel.findLastUsedProjectUuid({
+                organizationUuid,
+                userUuid,
+                projectUuids: [
+                    ...new Set(manageableAgents.map((a) => a.projectUuid)),
+                ],
             }),
-        );
+        ]);
 
         await say({
             text: 'No agent is linked to this channel yet — pick one to answer here.',
@@ -11073,6 +11096,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 manageableAgents,
                 channelId,
                 projectMap,
+                lastUsedProjectUuid,
             ),
             thread_ts: threadTs,
         });
@@ -13048,6 +13072,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         channelId,
                         threadTs: threadTs || messageTs,
                         say,
+                        visibleProjectUuids:
+                            slackSettings.aiMultiAgentProjectUuids,
                     });
                     if (!agentConfig) {
                         return;
@@ -13337,6 +13363,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             channelId: event.channel,
                             threadTs: event.thread_ts ?? event.ts,
                             say,
+                            visibleProjectUuids:
+                                slackSettings.aiMultiAgentProjectUuids,
                         });
                         if (!agentConfig) {
                             return;
