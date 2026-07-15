@@ -580,13 +580,6 @@ export const HomepageEditor: FC<Props> = ({
         });
     };
 
-    const activeDragBlock =
-        activeDrag?.kind === 'existing'
-            ? draft.rows
-                  .flatMap((row) => row.blocks)
-                  .find((block) => block.id === activeDrag.blockId)
-            : undefined;
-
     const handleDragCancel = () => {
         const snapshot = preDragDraftRef.current;
         setActiveDrag(null);
@@ -903,26 +896,7 @@ export const HomepageEditor: FC<Props> = ({
                     </div>
                 </div>
                 <DragOverlay>
-                    {activeDrag?.kind === 'existing' && activeDragBlock ? (
-                        <div className={classes.dragOverlayCard}>
-                            <div className={classes.blockChrome}>
-                                <Group gap={6} mb="xs" wrap="nowrap">
-                                    <MantineIcon
-                                        icon={IconGripVertical}
-                                        color="gray"
-                                    />
-                                    <span className={classes.blockTypeLabel}>
-                                        {activeDrag.definition.label}
-                                    </span>
-                                </Group>
-                                <activeDrag.definition.Build
-                                    block={activeDragBlock}
-                                    projectUuid={projectUuid}
-                                    onChange={() => {}}
-                                />
-                            </div>
-                        </div>
-                    ) : activeDrag ? (
+                    {activeDrag ? (
                         <div className={classes.dragOverlayCard}>
                             <div className={classes.railCard}>
                                 <IconSquare icon={activeDrag.definition.icon} />
