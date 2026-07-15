@@ -89,6 +89,9 @@ services:
             # The listener still binds inside the container, which is all the
             # UI needs to render.
             PGWIRE_PORT: 5433
+            # Preview has no TLS certs; plaintext is fine inside the compose
+            # network. Production requires PGWIRE_SSL_CERT_PATH/KEY_PATH.
+            PGWIRE_SSL_MODE: disabled
             # Enables the combined timezone feature (incl. user-level timezone
             # resolution) so the timezone api-tests pass.
             LIGHTDASH_ENABLE_TIMEZONE_SUPPORT: true

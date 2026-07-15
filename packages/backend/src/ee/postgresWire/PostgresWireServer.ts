@@ -1,4 +1,6 @@
+import * as fs from 'fs';
 import * as net from 'net';
+import * as tls from 'tls';
 import Logger from '../../logging/logger';
 
 /**
@@ -6,6 +8,12 @@ import Logger from '../../logging/logger';
  * message flow, supporting cleartext password authentication and the simple
  * query protocol. Enough for psql, node-postgres and most drivers that don't
  * force the extended protocol for parameterless queries.
+ *
+ * TLS: the pg handshake is StartTLS-style — a plaintext `SSLRequest` precedes
+ * the TLS upgrade — so generic TLS-terminating load balancers cannot front
+ * this server; TLS is terminated here. When TLS is configured it is REQUIRED:
+ * a plaintext startup is rejected before a password is ever requested, so
+ * credentials (which are Lightdash tokens) never cross the wire unencrypted.
  *
  * Protocol reference: https://www.postgresql.org/docs/current/protocol-message-formats.html
  */
@@ -53,6 +61,82 @@ export type PgWireHandlers<TSession> = {
     /** Throw PgWireServerError to return an error to the client */
     query: (session: TSession, sql: string) => Promise<PgWireQueryResult>;
 };
+
+export type PgWireTlsOptions = {
+    /** Path to the PEM server certificate (leaf first, then chain) */
+    certPath: string;
+    /** Path to the PEM private key */
+    keyPath: string;
+};
+
+export type PgWireServerOptions = {
+    /**
+     * When set, TLS is terminated by this server and REQUIRED: `SSLRequest`
+     * upgrades the socket and a plaintext startup message is rejected before
+     * authentication is ever requested. When absent the server is
+     * plaintext-only (explicit config opt-out).
+     */
+    tls?: PgWireTlsOptions;
+};
+
+/**
+ * Loads the TLS cert/key eagerly (so a bad path or unreadable PEM fails at
+ * boot) and transparently reloads them when the files change on disk, so
+ * cert-manager style renewals apply without a restart. If a reload fails the
+ * previous context is kept and an error is logged.
+ */
+class SecureContextProvider {
+    private context: tls.SecureContext;
+
+    private certMtimeMs: number;
+
+    private keyMtimeMs: number;
+
+    constructor(private options: PgWireTlsOptions) {
+        const loaded = SecureContextProvider.load(options);
+        this.context = loaded.context;
+        this.certMtimeMs = loaded.certMtimeMs;
+        this.keyMtimeMs = loaded.keyMtimeMs;
+    }
+
+    private static load(options: PgWireTlsOptions): {
+        context: tls.SecureContext;
+        certMtimeMs: number;
+        keyMtimeMs: number;
+    } {
+        const certMtimeMs = fs.statSync(options.certPath).mtimeMs;
+        const keyMtimeMs = fs.statSync(options.keyPath).mtimeMs;
+        const context = tls.createSecureContext({
+            cert: fs.readFileSync(options.certPath),
+            key: fs.readFileSync(options.keyPath),
+        });
+        return { context, certMtimeMs, keyMtimeMs };
+    }
+
+    get(): tls.SecureContext {
+        try {
+            const certMtimeMs = fs.statSync(this.options.certPath).mtimeMs;
+            const keyMtimeMs = fs.statSync(this.options.keyPath).mtimeMs;
+            if (
+                certMtimeMs !== this.certMtimeMs ||
+                keyMtimeMs !== this.keyMtimeMs
+            ) {
+                const loaded = SecureContextProvider.load(this.options);
+                this.context = loaded.context;
+                this.certMtimeMs = loaded.certMtimeMs;
+                this.keyMtimeMs = loaded.keyMtimeMs;
+                Logger.info('pgwire: reloaded TLS certificate from disk');
+            }
+        } catch (e) {
+            Logger.error(
+                `pgwire: failed to reload TLS certificate, keeping the previous one: ${
+                    e instanceof Error ? e.message : e
+                }`,
+            );
+        }
+        return this.context;
+    }
+}
 
 // --- message encoding helpers ---
 
@@ -154,26 +238,59 @@ class PgWireConnection<TSession> {
     /** serializes async message handling for this connection */
     private chain: Promise<void> = Promise.resolve();
 
+    private socket: net.Socket;
+
+    /** true once the socket has been upgraded to TLS */
+    private isSecure = false;
+
+    private readonly onData = (chunk: Buffer): void => {
+        try {
+            this.buffer = Buffer.concat([this.buffer, chunk]);
+            this.drainBuffer();
+        } catch (e) {
+            Logger.warn(
+                `pgwire: closing connection after protocol error: ${
+                    e instanceof Error ? e.message : e
+                }`,
+            );
+            this.socket.destroy();
+        }
+    };
+
     constructor(
-        private socket: net.Socket,
+        socket: net.Socket,
         private handlers: PgWireHandlers<TSession>,
+        private secureContextProvider: SecureContextProvider | null,
     ) {
-        socket.on('data', (chunk) => {
-            try {
-                this.buffer = Buffer.concat([this.buffer, chunk]);
-                this.drainBuffer();
-            } catch (e) {
-                Logger.warn(
-                    `pgwire: closing connection after protocol error: ${
-                        e instanceof Error ? e.message : e
-                    }`,
-                );
-                socket.destroy();
-            }
-        });
+        this.socket = socket;
+        this.attachSocket(socket);
+    }
+
+    private attachSocket(socket: net.Socket): void {
+        this.socket = socket;
+        socket.on('data', this.onData);
         socket.on('error', (e) => {
             Logger.debug(`pgwire: socket error: ${e.message}`);
         });
+    }
+
+    /**
+     * Perform the StartTLS-style upgrade: answer `SSLRequest` with 'S' and
+     * wrap the raw socket in a TLS socket. The client re-sends its startup
+     * message over the encrypted channel, so the connection stays in the
+     * `startup` phase. Everything here is synchronous, so no data events can
+     * slip through between detaching from the raw socket and the TLS wrap.
+     */
+    private startTls(provider: SecureContextProvider): void {
+        const plainSocket = this.socket;
+        plainSocket.removeListener('data', this.onData);
+        plainSocket.write('S');
+        const secureSocket = new tls.TLSSocket(plainSocket, {
+            isServer: true,
+            secureContext: provider.get(),
+        });
+        this.isSecure = true;
+        this.attachSocket(secureSocket);
     }
 
     /** Extract complete frontend messages from the buffer and queue them */
@@ -190,13 +307,49 @@ class PgWireConnection<TSession> {
                 const code = this.buffer.readInt32BE(4);
                 const payload = this.buffer.subarray(8, length);
                 this.buffer = this.buffer.subarray(length);
-                if (code === SSL_REQUEST_CODE || code === GSSENC_REQUEST_CODE) {
-                    // SSL/GSS not supported: client falls back to plaintext
+                if (code === SSL_REQUEST_CODE) {
+                    if (this.isSecure) {
+                        throw new Error(
+                            'duplicate SSLRequest on an encrypted connection',
+                        );
+                    }
+                    if (this.secureContextProvider === null) {
+                        // TLS explicitly disabled: client falls back to plaintext
+                        this.socket.write('N');
+                    } else {
+                        if (this.buffer.length > 0) {
+                            // TLS-stripping defense (cf. CVE-2021-23214): no
+                            // plaintext data may be pipelined behind SSLRequest
+                            throw new Error(
+                                'unexpected data pipelined after SSLRequest',
+                            );
+                        }
+                        this.startTls(this.secureContextProvider);
+                        return;
+                    }
+                } else if (code === GSSENC_REQUEST_CODE) {
+                    // GSS encryption not supported; clients retry with SSLRequest
                     this.socket.write('N');
                 } else if (code === CANCEL_REQUEST_CODE) {
                     this.socket.end();
                     return;
                 } else if (code === PROTOCOL_VERSION) {
+                    if (this.secureContextProvider !== null && !this.isSecure) {
+                        // Reject before AuthenticationCleartextPassword is ever
+                        // sent, so no client is prompted for credentials over
+                        // an unencrypted connection.
+                        this.socket.write(
+                            errorResponse(
+                                new PgWireServerError(
+                                    'connection requires TLS',
+                                    '28000',
+                                    'Connect with sslmode=require (or verify-full)',
+                                ),
+                            ),
+                        );
+                        this.socket.end();
+                        return;
+                    }
                     this.handleStartup(payload);
                 } else {
                     throw new Error(`unsupported protocol version ${code}`);
@@ -396,9 +549,18 @@ class PgWireConnection<TSession> {
 export class PostgresWireServer<TSession> {
     private server: net.Server;
 
-    constructor(handlers: PgWireHandlers<TSession>) {
+    constructor(
+        handlers: PgWireHandlers<TSession>,
+        options: PgWireServerOptions = {},
+    ) {
+        // Loads the cert eagerly: a bad TLS config fails at boot, not at the
+        // first connection.
+        const secureContextProvider = options.tls
+            ? new SecureContextProvider(options.tls)
+            : null;
         this.server = net.createServer(
-            (socket) => new PgWireConnection(socket, handlers),
+            (socket) =>
+                new PgWireConnection(socket, handlers, secureContextProvider),
         );
     }
 
@@ -410,6 +572,12 @@ export class PostgresWireServer<TSession> {
                 resolve();
             });
         });
+    }
+
+    /** Bound address, or null before listen() resolves (port 0 = ephemeral) */
+    address(): net.AddressInfo | null {
+        const address = this.server.address();
+        return typeof address === 'object' ? address : null;
     }
 
     async close(): Promise<void> {
