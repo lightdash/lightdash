@@ -99,6 +99,9 @@ describe('DeepResearchRunCard', () => {
             expect(
                 screen.queryByRole('button', { name: 'Stop research' }),
             ).not.toBeInTheDocument();
+            expect(
+                screen.getByText('This run is saved in this thread.'),
+            ).toBeInTheDocument();
         },
     );
 

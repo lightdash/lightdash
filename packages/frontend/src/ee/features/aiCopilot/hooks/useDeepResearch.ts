@@ -28,6 +28,7 @@ import {
 
 const DEEP_RESEARCH_QUERY_KEY = 'deepResearch';
 const DEEP_RESEARCH_POLL_INTERVAL_MS = 2_000;
+const DEEP_RESEARCH_EVENT_PAGE_SIZE = 100;
 
 const getBaseUrl = (projectUuid: string) =>
     `/ee/projects/${projectUuid}/ai-deep-research`;
@@ -58,7 +59,7 @@ const getDeepResearchEventsPage = (
 ) =>
     lightdashApi<AnyType>({
         version: 'v1',
-        url: `${getBaseUrl(projectUuid)}/${runUuid}/events?limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`,
+        url: `${getBaseUrl(projectUuid)}/${runUuid}/events?limit=${DEEP_RESEARCH_EVENT_PAGE_SIZE}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`,
         method: 'GET',
         body: undefined,
     }) as Promise<ApiAiDeepResearchEventsResponse['results']>;
@@ -69,15 +70,23 @@ const getDeepResearchEvents = async (
 ): Promise<AiDeepResearchEventsPage> => {
     const events: AiDeepResearchEventsPage['events'] = [];
     let cursor: string | undefined;
-    do {
+    while (true) {
         const page = await getDeepResearchEventsPage(
             projectUuid,
             runUuid,
             cursor,
         );
         events.push(...page.events);
-        cursor = page.nextCursor ?? undefined;
-    } while (cursor);
+        const nextCursor = page.nextCursor ?? undefined;
+        if (
+            !nextCursor ||
+            nextCursor === cursor ||
+            page.events.length < DEEP_RESEARCH_EVENT_PAGE_SIZE
+        ) {
+            break;
+        }
+        cursor = nextCursor;
+    }
     return { events, nextCursor: null };
 };
 

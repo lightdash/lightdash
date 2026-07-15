@@ -109,7 +109,11 @@ export const DeepResearchRunCard = ({
                             <Text fw={600}>{run.question}</Text>
                         </Stack>
                     </Group>
-                    <Badge color={status.color} variant="light">
+                    <Badge
+                        color={status.color}
+                        variant="light"
+                        style={{ flexShrink: 0 }}
+                    >
                         {status.label}
                     </Badge>
                 </Group>
@@ -301,7 +305,9 @@ export const DeepResearchRunCard = ({
                 <Divider />
                 <Group justify="space-between" align="center">
                     <Text size="xs" c="dimmed">
-                        You can leave this page while research continues.
+                        {isTerminal
+                            ? 'This run is saved in this thread.'
+                            : 'You can leave this page while research continues.'}
                     </Text>
                     {!isTerminal && (
                         <Button

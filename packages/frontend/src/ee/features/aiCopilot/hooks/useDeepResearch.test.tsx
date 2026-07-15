@@ -119,7 +119,13 @@ describe('useDeepResearchRun', () => {
         lightdashApiMock.mockImplementation(({ url }: { url: string }) => {
             if (url.includes('/events') && !url.includes('cursor=')) {
                 return Promise.resolve({
-                    events: [],
+                    events: Array.from({ length: 100 }, (_, index) => ({
+                        aiDeepResearchEventUuid: `event-${index}`,
+                        aiDeepResearchRunUuid: 'run-1',
+                        eventType: 'status_changed',
+                        payload: { status: 'running' },
+                        createdAt: '2026-07-15T09:00:30.000Z',
+                    })),
                     nextCursor: 'next page',
                 });
             }
@@ -152,6 +158,43 @@ describe('useDeepResearchRun', () => {
         });
 
         await waitFor(() => expect(result.current.data?.queryCount).toBe(1));
+        expect(
+            lightdashApiMock.mock.calls.filter(([args]) =>
+                (args as { url: string }).url.includes('/events'),
+            ),
+        ).toHaveLength(2);
+    });
+
+    it('stops paging when the backend returns a reusable unchanged cursor', async () => {
+        lightdashApiMock.mockImplementation(({ url }: { url: string }) => {
+            if (url.includes('/events') && !url.includes('cursor=')) {
+                return Promise.resolve({
+                    events: Array.from({ length: 100 }, (_, index) => ({
+                        aiDeepResearchEventUuid: `event-${index}`,
+                        aiDeepResearchRunUuid: 'run-1',
+                        eventType: 'status_changed',
+                        payload: { status: 'running' },
+                        createdAt: '2026-07-15T09:00:30.000Z',
+                    })),
+                    nextCursor: 'stable cursor',
+                });
+            }
+            if (url.includes('cursor=stable%20cursor')) {
+                return Promise.resolve({
+                    events: [],
+                    nextCursor: 'stable cursor',
+                });
+            }
+            return Promise.resolve(getRun('completed'));
+        });
+
+        const { result } = renderHook(() => useDeepResearchRun(registration), {
+            wrapper: getWrapper(),
+        });
+
+        await waitFor(() =>
+            expect(result.current.data?.status).toBe('completed'),
+        );
         expect(
             lightdashApiMock.mock.calls.filter(([args]) =>
                 (args as { url: string }).url.includes('/events'),
