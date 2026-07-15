@@ -1,3 +1,19 @@
+# [0.3388.0](https://github.com/lightdash/lightdash/compare/0.3387.0...0.3388.0) (2026-07-15)
+
+
+### Bug Fixes
+
+* **ai-router:** gate router reads on view AiAgent instead of org-scoped subject ([#25582](https://github.com/lightdash/lightdash/issues/25582)) ([85d2e5a](https://github.com/lightdash/lightdash/commit/85d2e5a2c77886c25aaa09c07dbd67b9820a49a4))
+
+
+### Features
+
+* add email-only signup behind feature flag ([#25577](https://github.com/lightdash/lightdash/issues/25577)) ([f6480ab](https://github.com/lightdash/lightdash/commit/f6480ab209b0f689d54f6c2216edb2cf86c42811))
+* add groups as organization content as code ([#25592](https://github.com/lightdash/lightdash/issues/25592)) ([0751fd3](https://github.com/lightdash/lightdash/commit/0751fd301485588260928b6e328a364b6f4e12be))
+* **cli:** translate MetricFlow ratio, derived, filtered and sum_boolean metrics ([#25594](https://github.com/lightdash/lightdash/issues/25594)) ([36041b6](https://github.com/lightdash/lightdash/commit/36041b6b3978cc2dc463ae3881c50d208c0c74bd))
+* OTP login for passwordless accounts ([#25590](https://github.com/lightdash/lightdash/issues/25590)) ([f6ba3f6](https://github.com/lightdash/lightdash/commit/f6ba3f615257eecce68562a4c7d9ba313dca9d75))
+* Snowflake CLI SSO login and warehouse-first onboarding option ([#25581](https://github.com/lightdash/lightdash/issues/25581)) ([7ea0ac4](https://github.com/lightdash/lightdash/commit/7ea0ac43fb241970736b69afed31684dcbcbacf0))
+
 # [0.3387.0](https://github.com/lightdash/lightdash/compare/0.3386.0...0.3387.0) (2026-07-15)
 
 
