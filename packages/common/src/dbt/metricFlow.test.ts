@@ -23,6 +23,14 @@ const ordersSemanticModel: DbtSemanticModel = {
         relation_name: '"db"."jaffle"."orders"',
     },
     depends_on: { nodes: ['model.jaffle.orders'] },
+    entities: [
+        { name: 'order', type: 'primary', expr: 'order_id' },
+        { name: 'customer', type: 'foreign', expr: 'customer_id' },
+    ],
+    dimensions: [
+        { name: 'status', type: 'categorical', expr: null },
+        { name: 'ordered_at', type: 'time', expr: 'ordered_at' },
+    ],
     measures: [
         { name: 'order_total', agg: MetricFlowAggregation.SUM, expr: 'amount' },
         { name: 'order_count', agg: MetricFlowAggregation.COUNT, expr: '1' },
@@ -253,7 +261,16 @@ describe('translateMetricFlowMetrics', () => {
                     name: 'completed_revenue',
                     unique_id: 'metric.jaffle.completed_revenue',
                     type: 'simple',
-                    filter: { where_filters: [{ where_sql_template: '1=1' }] },
+                    // TimeDimension() templates are untranslatable, so this
+                    // metric must be skipped entirely.
+                    filter: {
+                        where_filters: [
+                            {
+                                where_sql_template:
+                                    "{{ TimeDimension('order__ordered_at', 'day') }} >= '2024-01-01'",
+                            },
+                        ],
+                    },
                     type_params: {
                         measure: null,
                         metric_aggregation_params: {
@@ -267,17 +284,16 @@ describe('translateMetricFlowMetrics', () => {
             modelNamesByUniqueId,
         });
 
-        // The filtered metric is skipped and its mirrored create_metric
+        // The untranslatable metric is skipped and its mirrored create_metric
         // measure must not resurface as an unfiltered metric.
         expect(result.metricsByModel.orders?.completed_revenue).toBeUndefined();
         expect(result.skippedCount).toBe(1);
-        expect(result.warnings.join(' ')).toContain('filters');
+        expect(result.warnings.join(' ')).toContain('template functions');
     });
 
     it.each([
-        ['ratio', { type: 'ratio' as const, type_params: {} }],
-        ['derived', { type: 'derived' as const, type_params: {} }],
         ['cumulative', { type: 'cumulative' as const, type_params: {} }],
+        ['conversion', { type: 'conversion' as const, type_params: {} }],
     ])(
         'skips unsupported metric type %s with a warning',
         (_label, overrides) => {
@@ -300,22 +316,165 @@ describe('translateMetricFlowMetrics', () => {
         },
     );
 
-    it('skips filtered metrics', () => {
-        const result = translateMetricFlowMetrics({
-            semanticModels: { sm: ordersSemanticModel },
-            metrics: {
-                m: simpleMetric('filtered', 'order_total', {
-                    filter: { where_filters: [{ where_sql_template: '1=1' }] },
-                }),
-            },
-            modelNamesByUniqueId,
+    describe('where filters', () => {
+        it('translates a metric filter into a CASE WHEN over the measure', () => {
+            const result = translateMetricFlowMetrics({
+                semanticModels: { sm: ordersSemanticModel },
+                metrics: {
+                    m: simpleMetric('completed_revenue', 'order_total', {
+                        filter: {
+                            where_filters: [
+                                {
+                                    where_sql_template:
+                                        "{{ Dimension('order__status') }} = 'completed'\n",
+                                },
+                            ],
+                        },
+                    }),
+                },
+                modelNamesByUniqueId,
+            });
+            expect(result.metricsByModel.orders.completed_revenue).toEqual({
+                type: MetricType.SUM,
+                sql: "CASE WHEN (${TABLE}.status = 'completed') THEN (${TABLE}.amount) END",
+                label: undefined,
+                description: undefined,
+            });
         });
-        expect(result.metricsByModel.orders?.filtered).toBeUndefined();
-        expect(result.skippedCount).toBe(1);
-        expect(result.warnings[0]).toContain('filters');
+
+        it('combines metric-level and measure-level filters with AND', () => {
+            const result = translateMetricFlowMetrics({
+                semanticModels: { sm: ordersSemanticModel },
+                metrics: {
+                    m: {
+                        ...simpleMetric('completed_recent', 'order_total', {
+                            filter: {
+                                where_filters: [
+                                    {
+                                        where_sql_template:
+                                            "{{ Dimension('order__status') }} = 'completed'",
+                                    },
+                                ],
+                            },
+                        }),
+                        type_params: {
+                            measure: {
+                                name: 'order_total',
+                                filter: {
+                                    where_filters: [
+                                        {
+                                            where_sql_template:
+                                                "{{ Dimension('order__status') }} != 'returned'",
+                                        },
+                                    ],
+                                },
+                            },
+                        },
+                    },
+                },
+                modelNamesByUniqueId,
+            });
+            expect(result.metricsByModel.orders.completed_recent.sql).toBe(
+                "CASE WHEN (${TABLE}.status = 'completed') AND (${TABLE}.status != 'returned') THEN (${TABLE}.amount) END",
+            );
+        });
+
+        it('inlines a dimension expr when the dimension is not a plain column', () => {
+            const result = translateMetricFlowMetrics({
+                semanticModels: {
+                    sm: {
+                        ...ordersSemanticModel,
+                        dimensions: [
+                            {
+                                name: 'status',
+                                type: 'categorical',
+                                expr: "lower(raw_status || '')",
+                            },
+                        ],
+                    },
+                },
+                metrics: {
+                    m: simpleMetric('completed_revenue', 'order_total', {
+                        filter: {
+                            where_filters: [
+                                {
+                                    where_sql_template:
+                                        "{{ Dimension('order__status') }} = 'completed'",
+                                },
+                            ],
+                        },
+                    }),
+                },
+                modelNamesByUniqueId,
+            });
+            expect(result.metricsByModel.orders.completed_revenue.sql).toBe(
+                "CASE WHEN ((lower(raw_status || '')) = 'completed') THEN (${TABLE}.amount) END",
+            );
+        });
+
+        it('skips filters referencing dimensions that do not resolve on the semantic model', () => {
+            const result = translateMetricFlowMetrics({
+                semanticModels: { sm: ordersSemanticModel },
+                metrics: {
+                    m: simpleMetric('eu_revenue', 'order_total', {
+                        // `customer` is an entity here but `region` lives on
+                        // another semantic model — cross-model filters can't
+                        // be translated.
+                        filter: {
+                            where_filters: [
+                                {
+                                    where_sql_template:
+                                        "{{ Dimension('customer__region') }} = 'EU'",
+                                },
+                            ],
+                        },
+                    }),
+                },
+                modelNamesByUniqueId,
+            });
+            expect(result.metricsByModel.orders?.eu_revenue).toBeUndefined();
+            expect(result.skippedCount).toBe(1);
+            expect(result.warnings[0]).toContain('customer__region');
+        });
+
+        it('skips filters using template functions other than Dimension()', () => {
+            const result = translateMetricFlowMetrics({
+                semanticModels: { sm: ordersSemanticModel },
+                metrics: {
+                    m: simpleMetric('recent_revenue', 'order_total', {
+                        filter: {
+                            where_filters: [
+                                {
+                                    where_sql_template:
+                                        "{{ TimeDimension('order__ordered_at', 'day') }} >= '2024-01-01'",
+                                },
+                            ],
+                        },
+                    }),
+                },
+                modelNamesByUniqueId,
+            });
+            expect(result.skippedCount).toBe(1);
+            expect(result.warnings[0]).toContain('template functions');
+        });
+
+        it('skips filters in an unrecognised format', () => {
+            const result = translateMetricFlowMetrics({
+                semanticModels: { sm: ordersSemanticModel },
+                metrics: {
+                    m: simpleMetric('weird', 'order_total', {
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        filter: { not_where_filters: true } as any,
+                    }),
+                },
+                modelNamesByUniqueId,
+            });
+            expect(result.skippedCount).toBe(1);
+            expect(result.warnings[0]).toContain('unrecognised format');
+        });
     });
 
-    it('skips sum_boolean measures', () => {
+    it('translates sum_boolean measures as a sum over CASE WHEN 1/0', () => {
         const result = translateMetricFlowMetrics({
             semanticModels: {
                 sm: {
@@ -332,8 +491,326 @@ describe('translateMetricFlowMetrics', () => {
             metrics: { m: simpleMetric('food_orders', 'is_food') },
             modelNamesByUniqueId,
         });
-        expect(result.skippedCount).toBe(1);
-        expect(result.warnings[0]).toContain('not supported');
+        expect(result.metricsByModel.orders.food_orders).toEqual({
+            type: MetricType.SUM,
+            sql: 'CASE WHEN (${TABLE}.is_food_order) THEN 1 ELSE 0 END',
+            label: undefined,
+            description: undefined,
+        });
+        expect(result.skippedCount).toBe(0);
+    });
+
+    describe('ratio metrics', () => {
+        const ratioMetric = (
+            name: string,
+            numerator: DbtSemanticMetric['type_params']['numerator'],
+            denominator: DbtSemanticMetric['type_params']['denominator'],
+            extra: Partial<DbtSemanticMetric> = {},
+        ): DbtSemanticMetric => ({
+            name,
+            unique_id: `metric.jaffle.${name}`,
+            type: 'ratio',
+            type_params: { numerator, denominator },
+            ...extra,
+        });
+
+        it('translates a same-model ratio into a number metric over its inputs', () => {
+            const result = translateMetricFlowMetrics({
+                semanticModels: { sm: ordersSemanticModel },
+                metrics: {
+                    m1: simpleMetric('revenue', 'order_total'),
+                    m2: simpleMetric('orders_count', 'order_count'),
+                    m3: ratioMetric(
+                        'revenue_per_order',
+                        { name: 'revenue' },
+                        { name: 'orders_count' },
+                        { label: 'Revenue per order' },
+                    ),
+                },
+                modelNamesByUniqueId,
+            });
+            expect(result.metricsByModel.orders.revenue_per_order).toEqual({
+                type: MetricType.NUMBER,
+                sql: '(${revenue} * 1.0) / NULLIF(${orders_count}, 0)',
+                label: 'Revenue per order',
+                description: undefined,
+            });
+            expect(result.translatedCount).toBe(4); // 2 simple + create_metric + ratio
+            expect(result.skippedCount).toBe(0);
+        });
+
+        it('bakes input filters into hidden helper metrics', () => {
+            const result = translateMetricFlowMetrics({
+                semanticModels: { sm: ordersSemanticModel },
+                metrics: {
+                    m1: simpleMetric('orders_count', 'order_count'),
+                    m2: ratioMetric(
+                        'completion_rate',
+                        {
+                            name: 'orders_count',
+                            filter: {
+                                where_filters: [
+                                    {
+                                        where_sql_template:
+                                            "{{ Dimension('order__status') }} = 'completed'",
+                                    },
+                                ],
+                            },
+                        },
+                        { name: 'orders_count' },
+                    ),
+                },
+                modelNamesByUniqueId,
+            });
+            expect(
+                result.metricsByModel.orders.completion_rate_numerator,
+            ).toEqual({
+                type: MetricType.COUNT,
+                sql: "CASE WHEN (${TABLE}.status = 'completed') THEN (1) END",
+                label: undefined,
+                description: undefined,
+                hidden: true,
+            });
+            expect(result.metricsByModel.orders.completion_rate.sql).toBe(
+                '(${completion_rate_numerator} * 1.0) / NULLIF(${orders_count}, 0)',
+            );
+        });
+
+        it('applies a ratio-level filter to both inputs', () => {
+            const result = translateMetricFlowMetrics({
+                semanticModels: { sm: ordersSemanticModel },
+                metrics: {
+                    m1: simpleMetric('revenue', 'order_total'),
+                    m2: simpleMetric('orders_count', 'order_count'),
+                    m3: ratioMetric(
+                        'food_revenue_per_order',
+                        { name: 'revenue' },
+                        { name: 'orders_count' },
+                        {
+                            filter: {
+                                where_filters: [
+                                    {
+                                        where_sql_template:
+                                            "{{ Dimension('order__status') }} = 'completed'",
+                                    },
+                                ],
+                            },
+                        },
+                    ),
+                },
+                modelNamesByUniqueId,
+            });
+            const helpers = result.metricsByModel.orders;
+            expect(helpers.food_revenue_per_order_numerator.hidden).toBe(true);
+            expect(helpers.food_revenue_per_order_denominator.hidden).toBe(
+                true,
+            );
+            expect(helpers.food_revenue_per_order.sql).toBe(
+                '(${food_revenue_per_order_numerator} * 1.0) / NULLIF(${food_revenue_per_order_denominator}, 0)',
+            );
+        });
+
+        it('skips cross-model ratios with a warning', () => {
+            const customersSemanticModel: DbtSemanticModel = {
+                ...ordersSemanticModel,
+                name: 'customers',
+                unique_id: 'semantic_model.jaffle.customers',
+                model: "ref('customers')",
+                depends_on: { nodes: ['model.jaffle.customers'] },
+                measures: [
+                    {
+                        name: 'customer_count',
+                        agg: MetricFlowAggregation.COUNT_DISTINCT,
+                        expr: 'customer_id',
+                    },
+                ],
+            };
+            const result = translateMetricFlowMetrics({
+                semanticModels: {
+                    sm1: ordersSemanticModel,
+                    sm2: customersSemanticModel,
+                },
+                metrics: {
+                    m1: simpleMetric('revenue', 'order_total'),
+                    m2: simpleMetric('customers_count', 'customer_count'),
+                    m3: ratioMetric(
+                        'revenue_per_customer',
+                        { name: 'revenue' },
+                        { name: 'customers_count' },
+                    ),
+                },
+                modelNamesByUniqueId: {
+                    ...modelNamesByUniqueId,
+                    'model.jaffle.customers': 'customers',
+                },
+            });
+            expect(
+                result.metricsByModel.orders?.revenue_per_customer,
+            ).toBeUndefined();
+            expect(result.skippedCount).toBe(1);
+            expect(result.warnings.join(' ')).toContain('different models');
+        });
+
+        it('skips ratios whose inputs were not translated', () => {
+            const result = translateMetricFlowMetrics({
+                semanticModels: { sm: ordersSemanticModel },
+                metrics: {
+                    m1: simpleMetric('revenue', 'order_total'),
+                    m2: ratioMetric(
+                        'broken_ratio',
+                        { name: 'revenue' },
+                        { name: 'does_not_exist' },
+                    ),
+                },
+                modelNamesByUniqueId,
+            });
+            expect(result.metricsByModel.orders?.broken_ratio).toBeUndefined();
+            expect(result.skippedCount).toBe(1);
+            expect(result.warnings.join(' ')).toContain('does_not_exist');
+        });
+    });
+
+    describe('derived metrics', () => {
+        it('translates a same-model derived metric, rewriting names and aliases', () => {
+            const result = translateMetricFlowMetrics({
+                semanticModels: { sm: ordersSemanticModel },
+                metrics: {
+                    m1: simpleMetric('revenue', 'order_total'),
+                    m2: {
+                        name: 'double_revenue_per_customer',
+                        unique_id: 'metric.jaffle.double_revenue_per_customer',
+                        type: 'derived',
+                        label: 'Double revenue per customer',
+                        type_params: {
+                            expr: 'rev * 2 / unique_customers',
+                            metrics: [
+                                { name: 'revenue', alias: 'rev' },
+                                { name: 'unique_customers' },
+                            ],
+                        },
+                    },
+                },
+                modelNamesByUniqueId,
+            });
+            expect(
+                result.metricsByModel.orders.double_revenue_per_customer,
+            ).toEqual({
+                type: MetricType.NUMBER,
+                sql: '${revenue} * 2 / ${unique_customers}',
+                label: 'Double revenue per customer',
+                description: undefined,
+            });
+            expect(result.skippedCount).toBe(0);
+        });
+
+        it('bakes input filters into hidden helper metrics named by alias', () => {
+            const result = translateMetricFlowMetrics({
+                semanticModels: { sm: ordersSemanticModel },
+                metrics: {
+                    m1: simpleMetric('revenue', 'order_total'),
+                    m2: {
+                        name: 'completed_share',
+                        unique_id: 'metric.jaffle.completed_share',
+                        type: 'derived',
+                        type_params: {
+                            expr: 'completed_rev / revenue',
+                            metrics: [
+                                {
+                                    name: 'revenue',
+                                    alias: 'completed_rev',
+                                    filter: {
+                                        where_filters: [
+                                            {
+                                                where_sql_template:
+                                                    "{{ Dimension('order__status') }} = 'completed'",
+                                            },
+                                        ],
+                                    },
+                                },
+                                { name: 'revenue' },
+                            ],
+                        },
+                    },
+                },
+                modelNamesByUniqueId,
+            });
+            const { orders } = result.metricsByModel;
+            expect(orders.completed_share_completed_rev).toEqual({
+                type: MetricType.SUM,
+                sql: "CASE WHEN (${TABLE}.status = 'completed') THEN (${TABLE}.amount) END",
+                label: undefined,
+                description: undefined,
+                hidden: true,
+            });
+            expect(orders.completed_share.sql).toBe(
+                '${completed_share_completed_rev} / ${revenue}',
+            );
+        });
+
+        it('skips derived metrics with time-offset inputs', () => {
+            const result = translateMetricFlowMetrics({
+                semanticModels: { sm: ordersSemanticModel },
+                metrics: {
+                    m1: simpleMetric('revenue', 'order_total'),
+                    m2: {
+                        name: 'revenue_growth',
+                        unique_id: 'metric.jaffle.revenue_growth',
+                        type: 'derived',
+                        type_params: {
+                            expr: '(revenue - revenue_last_month) / revenue_last_month',
+                            metrics: [
+                                { name: 'revenue' },
+                                {
+                                    name: 'revenue',
+                                    alias: 'revenue_last_month',
+                                    offset_window: '1 month',
+                                },
+                            ],
+                        },
+                    },
+                },
+                modelNamesByUniqueId,
+            });
+            expect(
+                result.metricsByModel.orders?.revenue_growth,
+            ).toBeUndefined();
+            expect(result.skippedCount).toBe(1);
+            expect(result.warnings.join(' ')).toContain('offset_window');
+        });
+
+        it('resolves chains where a derived metric references a later ratio metric', () => {
+            const result = translateMetricFlowMetrics({
+                semanticModels: { sm: ordersSemanticModel },
+                metrics: {
+                    // Deliberately listed before the ratio it references.
+                    m1: {
+                        name: 'double_aov',
+                        unique_id: 'metric.jaffle.double_aov',
+                        type: 'derived',
+                        type_params: {
+                            expr: 'aov * 2',
+                            metrics: [{ name: 'aov' }],
+                        },
+                    },
+                    m2: simpleMetric('revenue', 'order_total'),
+                    m3: simpleMetric('orders_count', 'order_count'),
+                    m4: {
+                        name: 'aov',
+                        unique_id: 'metric.jaffle.aov',
+                        type: 'ratio',
+                        type_params: {
+                            numerator: { name: 'revenue' },
+                            denominator: { name: 'orders_count' },
+                        },
+                    },
+                },
+                modelNamesByUniqueId,
+            });
+            expect(result.metricsByModel.orders.double_aov.sql).toBe(
+                '${aov} * 2',
+            );
+            expect(result.skippedCount).toBe(0);
+        });
     });
 
     it('skips percentile measures without a numeric percentile value', () => {
@@ -466,5 +943,79 @@ describe('translateMetricFlowMetrics', () => {
         expect(metric.type).toBe(MetricType.SUM);
         expect(metric.label).toBe('Total revenue');
         expect(metric.compiledSql).toBe('SUM("myTable".myColumnName)');
+    });
+
+    // End-to-end: a translated ratio must compile into a real Explore metric
+    // with the referenced input metrics inlined.
+    it('produces a ratio metric that compiles through convertExplores', async () => {
+        const modelUniqueId = 'model.test.myTable';
+        const semanticModel: DbtSemanticModel = {
+            name: 'my_table',
+            unique_id: 'semantic_model.test.my_table',
+            model: "ref('myTable')",
+            node_relation: { alias: 'myTable', schema_name: 'mySchema' },
+            depends_on: { nodes: [modelUniqueId] },
+            measures: [
+                {
+                    name: 'total_column',
+                    agg: MetricFlowAggregation.SUM,
+                    expr: 'myColumnName',
+                },
+                {
+                    // The mock warehouse client only compiles SUM/AVG/MAX
+                    // aggregates, so the denominator is a sum too.
+                    name: 'total_other',
+                    agg: MetricFlowAggregation.SUM,
+                    expr: 'myOtherColumn',
+                },
+            ],
+        };
+
+        const { metricsByModel, translatedCount } = translateMetricFlowMetrics({
+            semanticModels: { [semanticModel.unique_id]: semanticModel },
+            metrics: {
+                m1: simpleMetric('total_revenue', 'total_column'),
+                m2: simpleMetric('order_count', 'total_other'),
+                m3: {
+                    name: 'revenue_per_order',
+                    unique_id: 'metric.test.revenue_per_order',
+                    type: 'ratio',
+                    label: 'Revenue per order',
+                    type_params: {
+                        numerator: { name: 'total_revenue' },
+                        denominator: { name: 'order_count' },
+                    },
+                },
+            },
+            modelNamesByUniqueId: { [modelUniqueId]: MOCK_MODEL.name },
+        });
+        expect(translatedCount).toBe(3);
+
+        const modelWithMetrics: DbtModelNode = {
+            ...MOCK_MODEL,
+            unique_id: modelUniqueId,
+            meta: {
+                ...MOCK_MODEL.meta,
+                metrics: metricsByModel[MOCK_MODEL.name],
+            },
+        };
+
+        const explores = await convertExplores(
+            [modelWithMetrics],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            warehouseClientMock,
+            { spotlight: DEFAULT_SPOTLIGHT_CONFIG },
+        );
+
+        const explore = explores.find(
+            (e) => 'name' in e && e.name === MOCK_MODEL.name,
+        ) as Explore;
+        const metric =
+            explore.tables[MOCK_MODEL.name].metrics.revenue_per_order;
+        expect(metric.type).toBe(MetricType.NUMBER);
+        expect(metric.compiledSql).toBe(
+            '((SUM("myTable".myColumnName)) * 1.0) / NULLIF((SUM("myTable".myOtherColumn)), 0)',
+        );
     });
 });
