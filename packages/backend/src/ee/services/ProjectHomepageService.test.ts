@@ -4,6 +4,7 @@ import {
     NotFoundError,
     OrganizationMemberRole,
     ParameterError,
+    ProjectMemberRole,
     type HomepageConfig,
     type PossibleAbilities,
     type ProjectHomepage,
@@ -295,10 +296,13 @@ describe('ProjectHomepageService', () => {
 
     it('getPublishedHomepage resolves with the viewer’s groups and role', async () => {
         const resolvePublished = vi.fn().mockResolvedValue({
-            homepageUuid: HOMEPAGE_UUID,
-            name: 'Sales homepage',
-            config: validConfig,
-            allowPersonal: true,
+            homepage: {
+                homepageUuid: HOMEPAGE_UUID,
+                name: 'Sales homepage',
+                config: validConfig,
+                allowPersonal: true,
+            },
+            source: { type: 'group', groupUuid: 'group-1', priority: 1 },
         });
         const service = makeService({
             projectHomepageModel: { resolvePublished },
@@ -334,5 +338,71 @@ describe('ProjectHomepageService', () => {
                 homepage: expect.objectContaining({ name: 'Sales homepage' }),
             }),
         );
+    });
+
+    it('viewAsHomepage is forbidden for a viewer', async () => {
+        const service = makeService();
+
+        await expect(
+            service.viewAsHomepage(makeViewerUser(), PROJECT_UUID, {
+                type: 'role',
+                role: ProjectMemberRole.EDITOR,
+            }),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    it('viewAsHomepage resolves a role target through the shared resolver with a reason', async () => {
+        const resolvePublished = vi.fn().mockResolvedValue({
+            homepage: {
+                homepageUuid: HOMEPAGE_UUID,
+                name: 'Editors homepage',
+                config: validConfig,
+                allowPersonal: true,
+            },
+            source: { type: 'role', role: 'editor' },
+        });
+        const getPersonalOverride = vi.fn();
+        const service = makeService({
+            projectHomepageModel: { resolvePublished, getPersonalOverride },
+        });
+
+        const result = await service.viewAsHomepage(
+            makeAdminUser(),
+            PROJECT_UUID,
+            { type: 'role', role: ProjectMemberRole.EDITOR },
+        );
+
+        expect(resolvePublished).toHaveBeenCalledWith(PROJECT_UUID, {
+            groupUuids: [],
+            role: 'editor',
+        });
+        // group/role targets never consult the target's personal override
+        expect(getPersonalOverride).not.toHaveBeenCalled();
+        expect(result.reason).toEqual({ type: 'role', role: 'editor' });
+        expect(result.resolved).toEqual(
+            expect.objectContaining({ type: 'homepage' }),
+        );
+    });
+
+    it("viewAsHomepage for a user target applies the target's personal override", async () => {
+        const service = makeService({
+            projectHomepageModel: {
+                getPersonalOverride: vi
+                    .fn()
+                    .mockResolvedValue('dashboard-uuid-1'),
+                resolvePublished: vi.fn().mockResolvedValue(undefined),
+            },
+        });
+
+        const result = await service.viewAsHomepage(
+            makeAdminUser(),
+            PROJECT_UUID,
+            { type: 'user', userUuid: USER_UUID },
+        );
+
+        expect(result).toEqual({
+            resolved: { type: 'dashboard', dashboardUuid: 'dashboard-uuid-1' },
+            reason: { type: 'personal', dashboardUuid: 'dashboard-uuid-1' },
+        });
     });
 });

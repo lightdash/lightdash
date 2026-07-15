@@ -4,6 +4,8 @@ import {
     type CreateProjectHomepageRequest,
     type HomepageAssignment,
     type HomepageAudience,
+    type HomepageViewAsResult,
+    type HomepageViewAsTarget,
     type ProjectHomepage,
     type ResolvedHomepage,
     type UpdateProjectHomepageDraftRequest,
@@ -104,6 +106,18 @@ const publishHomepageApi = async (
         method: 'POST',
         body: JSON.stringify({ audience, allowPersonal }),
     });
+
+const viewAsApi = async (projectUuid: string, target: HomepageViewAsTarget) => {
+    const params = new URLSearchParams({ targetType: target.type });
+    if (target.type === 'user') params.set('userUuid', target.userUuid);
+    if (target.type === 'group') params.set('groupUuid', target.groupUuid);
+    if (target.type === 'role') params.set('role', target.role);
+    return lightdashApi<HomepageViewAsResult>({
+        url: `/projects/${projectUuid}/homepage/view-as?${params.toString()}`,
+        method: 'GET',
+        body: undefined,
+    });
+};
 
 const getAssignmentsApi = async (projectUuid: string) =>
     lightdashApi<HomepageAssignment[]>({
@@ -301,6 +315,16 @@ export const useUpdateHomepageDraft = (
         },
     });
 };
+
+export const useHomepageViewAs = (
+    projectUuid: string,
+    target: HomepageViewAsTarget | null,
+) =>
+    useQuery<HomepageViewAsResult, ApiError>({
+        enabled: !!target,
+        queryKey: [PROJECT_HOMEPAGE_QUERY_KEY, projectUuid, 'view-as', target],
+        queryFn: () => viewAsApi(projectUuid, target!),
+    });
 
 export const useHomepageAssignments = (
     projectUuid: string,

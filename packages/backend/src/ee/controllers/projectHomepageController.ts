@@ -1,7 +1,9 @@
 import {
     assertRegisteredAccount,
+    ParameterError,
     type ApiErrorPayload,
     type ApiHomepageAssignmentsResponse,
+    type ApiHomepageViewAsResponse,
     type ApiProjectHomepageOrNullResponse,
     type ApiProjectHomepageResponse,
     type ApiProjectHomepagesResponse,
@@ -10,6 +12,8 @@ import {
     type ApiSuccess,
     type ApiSuccessEmpty,
     type CreateProjectHomepageRequest,
+    type HomepageViewAsTarget,
+    type ProjectMemberRole,
     type PublishProjectHomepageRequest,
     type SetPersonalHomepageRequest,
     type UpdateHomepageGroupPrioritiesRequest,
@@ -130,6 +134,42 @@ export class ProjectHomepageController extends BaseController {
         );
         this.setStatus(200);
         return { status: 'ok', results: undefined };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/view-as')
+    @OperationId('viewHomepageAs')
+    async viewAs(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Query() targetType: 'user' | 'group' | 'role',
+        @Query() userUuid?: UUID,
+        @Query() groupUuid?: UUID,
+        @Query() role?: ProjectMemberRole,
+    ): Promise<ApiHomepageViewAsResponse> {
+        assertRegisteredAccount(req.account);
+        let target: HomepageViewAsTarget;
+        if (targetType === 'user' && userUuid) {
+            target = { type: 'user', userUuid };
+        } else if (targetType === 'group' && groupUuid) {
+            target = { type: 'group', groupUuid };
+        } else if (targetType === 'role' && role) {
+            target = { type: 'role', role };
+        } else {
+            throw new ParameterError(
+                'View-as target requires a matching userUuid, groupUuid or role',
+            );
+        }
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getHomepageService().viewAsHomepage(
+                toSessionUser(req.account),
+                projectUuid,
+                target,
+            ),
+        };
     }
 
     // Literal route must be declared before '/{homepageUuid}' param routes

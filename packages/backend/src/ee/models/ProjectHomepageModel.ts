@@ -8,6 +8,7 @@ import {
     type ProjectHomepage,
     type ProjectMemberRole,
     type PublishedProjectHomepage,
+    type ResolvedPublishedHomepage,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import {
@@ -409,7 +410,7 @@ export class ProjectHomepageModel {
     async resolvePublished(
         projectUuid: string,
         viewer: { groupUuids: string[]; role: ProjectMemberRole | undefined },
-    ): Promise<PublishedProjectHomepage | undefined> {
+    ): Promise<ResolvedPublishedHomepage | undefined> {
         const publishedAssigned = async (
             builderFilter: (builder: Knex.QueryBuilder) => void,
         ) => {
@@ -425,7 +426,11 @@ export class ProjectHomepageModel {
                 )
                 .whereNotNull(`${HomepagesTableName}.published_config`)
                 .orderBy(`${HomepageAssignmentsTableName}.priority`, 'asc')
-                .select(`${HomepagesTableName}.*`)
+                .select(
+                    `${HomepagesTableName}.*`,
+                    `${HomepageAssignmentsTableName}.group_uuid as assignment_group_uuid`,
+                    `${HomepageAssignmentsTableName}.priority as assignment_priority`,
+                )
                 .first();
             builderFilter(query);
             return query;
@@ -439,10 +444,17 @@ export class ProjectHomepageModel {
             });
             if (byGroup && byGroup.published_config) {
                 return {
-                    homepageUuid: byGroup.homepage_uuid,
-                    name: byGroup.name,
-                    config: byGroup.published_config,
-                    allowPersonal: byGroup.allow_personal,
+                    homepage: {
+                        homepageUuid: byGroup.homepage_uuid,
+                        name: byGroup.name,
+                        config: byGroup.published_config,
+                        allowPersonal: byGroup.allow_personal,
+                    },
+                    source: {
+                        type: 'group',
+                        groupUuid: byGroup.assignment_group_uuid,
+                        priority: byGroup.assignment_priority,
+                    },
                 };
             }
         }
@@ -454,13 +466,19 @@ export class ProjectHomepageModel {
             });
             if (byRole && byRole.published_config) {
                 return {
-                    homepageUuid: byRole.homepage_uuid,
-                    name: byRole.name,
-                    config: byRole.published_config,
-                    allowPersonal: byRole.allow_personal,
+                    homepage: {
+                        homepageUuid: byRole.homepage_uuid,
+                        name: byRole.name,
+                        config: byRole.published_config,
+                        allowPersonal: byRole.allow_personal,
+                    },
+                    source: { type: 'role', role: viewer.role },
                 };
             }
         }
-        return this.getPublishedDefault(projectUuid);
+        const publishedDefault = await this.getPublishedDefault(projectUuid);
+        return publishedDefault
+            ? { homepage: publishedDefault, source: { type: 'default' } }
+            : undefined;
     }
 }
