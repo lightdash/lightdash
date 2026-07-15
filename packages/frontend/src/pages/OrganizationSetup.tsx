@@ -77,6 +77,29 @@ const pickTileLogo = (logos: OrganizationBrandLogo[]): string | null => {
     return dark?.url ?? neutral?.url ?? logos[0]?.url ?? null;
 };
 
+const inferOrganizationName = (domain: string): string =>
+    (domain.split('.')[0] ?? '')
+        .split(/[-_]/)
+        .filter(Boolean)
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+
+const buildBrandColors = (
+    selectedColor: string,
+    brandColors: OrganizationBrandColor[],
+): OrganizationBrandColor[] => {
+    const matchesSelected = (hex: string) =>
+        hex.toLowerCase() === selectedColor.toLowerCase();
+    const existing = brandColors.find((color) => matchesSelected(color.hex));
+    const selectedEntry: OrganizationBrandColor = existing
+        ? { ...existing, type: 'accent' }
+        : { hex: selectedColor, type: 'accent', brightness: null };
+    return [
+        selectedEntry,
+        ...brandColors.filter((color) => !matchesSelected(color.hex)),
+    ];
+};
+
 type OrganizationSetupFormValues = {
     organizationName: string;
     jobTitle: string;
@@ -106,7 +129,10 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
 
     const form = useForm<OrganizationSetupFormValues>({
         initialValues: {
-            organizationName: '',
+            organizationName:
+                canEnterOrganizationName && isCompanyDomain
+                    ? inferOrganizationName(emailDomain)
+                    : '',
             jobTitle: '',
             enableEmailDomainAccess: canEnableEmailDomainAccess,
             isMarketingOptedIn: true,
@@ -127,7 +153,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
     const saveBrand = useSaveOrganizationBrand();
     const completeMutation = useUserCompleteMutation();
 
-    const { setValues } = form;
+    const { setValues, isDirty } = form;
     const hasAppliedDetectedBrand = useRef(false);
 
     useEffect(() => {
@@ -136,14 +162,14 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
         hasAppliedDetectedBrand.current = true;
         const detected = brandColorsSorted(brand.colors);
         setValues((current) => ({
-            ...(current.organizationName === '' && brand.name
+            ...(brand.name && !isDirty('organizationName')
                 ? { organizationName: brand.name }
                 : {}),
             ...(current.selectedColor === DEFAULT_COLOR && detected[0]
                 ? { selectedColor: detected[0] }
                 : {}),
         }));
-    }, [brandDetection.data, setValues]);
+    }, [brandDetection.data, isDirty, setValues]);
 
     useEffect(() => {
         if (completeMutation.isSuccess) {
@@ -160,6 +186,17 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
         ? pickTileLogo(detectedBrand.logos)
         : null;
     const selectedColor = form.values.selectedColor;
+
+    const previewColors = buildBrandColors(
+        selectedColor,
+        detectedBrand?.colors ?? [],
+    );
+    const previewDomain =
+        detectedBrand?.domain ?? (isCompanyDomain ? emailDomain : '');
+    const titleFont =
+        detectedBrand?.fonts.find((font) => font.type === 'title') ?? null;
+    const bodyFont =
+        detectedBrand?.fonts.find((font) => font.type === 'body') ?? null;
 
     const showWorkspaceStep = canEnterOrganizationName;
     const totalSteps = showWorkspaceStep ? 2 : 1;
@@ -195,23 +232,12 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
         }
 
         if (detectedBrand) {
-            const matchesSelected = (hex: string) =>
-                hex.toLowerCase() === selectedColor.toLowerCase();
-            const existing = detectedBrand.colors.find((color) =>
-                matchesSelected(color.hex),
-            );
-            const selectedEntry: OrganizationBrandColor = existing
-                ? { ...existing, type: 'accent' }
-                : { hex: selectedColor, type: 'accent', brightness: null };
-            const rest = detectedBrand.colors.filter(
-                (color) => !matchesSelected(color.hex),
-            );
             saveBrand.mutate({
                 domain: detectedBrand.domain,
                 name: detectedBrand.name,
                 description: detectedBrand.description,
                 logos: detectedBrand.logos,
-                colors: [selectedEntry, ...rest],
+                colors: buildBrandColors(selectedColor, detectedBrand.colors),
                 fonts: detectedBrand.fonts,
             });
         }
@@ -427,7 +453,12 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
 
                 <Box className={classes.rightPane}>
                     <OrganizationSetupPreview
-                        themeColor={selectedColor}
+                        domain={previewDomain}
+                        name={form.values.organizationName || null}
+                        logos={detectedBrand?.logos ?? []}
+                        colors={previewColors}
+                        titleFont={titleFont}
+                        bodyFont={bodyFont}
                         detectedDomain={detectedBrand?.domain ?? null}
                         detectedLogoUrl={detectedLogoUrl}
                     />

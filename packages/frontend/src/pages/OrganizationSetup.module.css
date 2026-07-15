@@ -121,44 +121,6 @@
     flex-shrink: 0;
 }
 
-.chartGrid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: var(--mantine-spacing-md);
-}
-
-.chartCard {
-    padding: var(--mantine-spacing-md);
-    border-radius: var(--mantine-radius-md);
-    border: 1px solid var(--mantine-color-ldGray-2);
-    background-color: var(--mantine-color-white);
-    display: flex;
-    flex-direction: column;
-    gap: var(--mantine-spacing-xs);
-    min-height: 132px;
-}
-
-.barsRow {
-    display: flex;
-    align-items: flex-end;
-    gap: 8px;
-    height: 76px;
-    margin-top: auto;
-}
-
-.bar {
-    flex: 1;
-    border-radius: 3px 3px 0 0;
-    min-height: 4px;
-}
-
-.donutWrap {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-top: auto;
-}
-
 @media (max-width: 992px) {
     .body {
         flex-direction: column;
