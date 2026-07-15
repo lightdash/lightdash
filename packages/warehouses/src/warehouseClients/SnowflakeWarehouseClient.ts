@@ -97,6 +97,7 @@ const normaliseSnowflakeType = (type: string): string => {
 const EXTERNAL_BROWSER_AUTHENTICATOR = 'EXTERNALBROWSER';
 const OAUTH_AUTHORIZATION_CODE_AUTHENTICATOR = 'OAUTH_AUTHORIZATION_CODE';
 const SESSION_DISCOVERY_LIMIT = 100;
+const SESSION_SCHEMA_DISCOVERY_LIMIT = 1000;
 
 export type SnowflakeOAuthTokens = {
     accessToken: string;
@@ -210,6 +211,10 @@ export type SnowflakeSessionInventory = {
         name: string;
         isDefault: boolean;
     }[];
+    schemas: {
+        databaseName: string;
+        name: string;
+    }[];
 };
 
 export type SnowflakeSessionDiscovery = {
@@ -267,6 +272,19 @@ const getSnowflakeRowNumber = (
     const parsed = Number(resultValue);
     return Number.isFinite(parsed) ? parsed : null;
 };
+
+const listSnowflakeSchemas = (
+    rows: AnyType[],
+): SnowflakeSessionInventory['schemas'] =>
+    rows.flatMap((rawRow) => {
+        const row = rawRow as Record<string, AnyType>;
+        const name = getSnowflakeRowValue(row, 'name');
+        const databaseName = getSnowflakeRowValue(row, 'database_name');
+        if (!name || !databaseName || name === 'INFORMATION_SCHEMA') {
+            return [];
+        }
+        return [{ databaseName, name }];
+    });
 
 const listSnowflakeDatabases = (
     rows: AnyType[],
@@ -838,6 +856,16 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 sessionUser,
             )} LIMIT ${SESSION_DISCOVERY_LIMIT}`,
         );
+        let schemaRows: AnyType[] = [];
+        try {
+            const schemasResult = await this.executeStatements(
+                connection,
+                `SHOW SCHEMAS IN ACCOUNT LIMIT ${SESSION_SCHEMA_DISCOVERY_LIMIT}`,
+            );
+            schemaRows = schemasResult.rows;
+        } catch {
+            schemaRows = [];
+        }
         const defaultRole = getSnowflakeRowValue(defaultsRow, 'role');
         const grantedRoles = [
             ...new Set([
@@ -870,6 +898,7 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 databases: listSnowflakeDatabases(databasesResult.rows),
                 warehouses: listSnowflakeWarehouses(warehousesResult.rows),
                 roles,
+                schemas: listSnowflakeSchemas(schemaRows),
             },
         };
     }

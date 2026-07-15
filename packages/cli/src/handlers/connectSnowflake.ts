@@ -116,8 +116,18 @@ const parseDepositResponse = async (response: Response): Promise<void> => {
                 'code expired — generate a new one in the Lightdash setup wizard',
             );
         }
+        const serverMessage =
+            typeof body === 'object' &&
+            body !== null &&
+            'error' in body &&
+            typeof body.error === 'object' &&
+            body.error !== null &&
+            'message' in body.error &&
+            typeof body.error.message === 'string'
+                ? ` (${response.status}: ${body.error.message})`
+                : ` (${response.status})`;
         throw new WarehouseConnectionError(
-            'Lightdash could not accept the Snowflake credential',
+            `Lightdash could not accept the Snowflake credential${serverMessage}`,
         );
     }
     if (
@@ -174,12 +184,17 @@ const buildInventory = (
     }
     return {
         databases: discovery.inventory.databases
-            .map(({ name }) => name)
+            .map(({ name, comment }) => ({ name, comment }))
             .slice(0, 100),
         warehouses: discovery.inventory.warehouses
-            .map(({ name }) => name)
+            .map(({ name, size, state }) => ({ name, size, state }))
             .slice(0, 100),
-        roles: discovery.inventory.roles.map(({ name }) => name).slice(0, 100),
+        roles: discovery.inventory.roles
+            .map(({ name, isDefault }) => ({ name, isDefault }))
+            .slice(0, 100),
+        schemas: discovery.inventory.schemas
+            .map(({ databaseName, name }) => ({ database: databaseName, name }))
+            .slice(0, 1000),
     };
 };
 

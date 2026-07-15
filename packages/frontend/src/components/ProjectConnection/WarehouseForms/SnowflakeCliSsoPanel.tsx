@@ -6,19 +6,22 @@ import {
 import {
     ActionIcon,
     Alert,
+    Autocomplete,
+    Badge,
     Button,
     Code,
+    Combobox,
     CopyButton,
     Group,
     Loader,
     Select,
     Stack,
     Text,
-    TextInput,
     Tooltip,
+    type ComboboxItem,
 } from '@mantine-8/core';
 import { IconAlertTriangle, IconCheck, IconCopy } from '@tabler/icons-react';
-import { useEffect, useState, type FC } from 'react';
+import { useEffect, useState, type FC, type ReactNode } from 'react';
 import {
     useMintWarehouseConnectCode,
     useWarehouseConnectCodeClaim,
@@ -28,7 +31,9 @@ import MantineIcon from '../../common/MantineIcon';
 import { useFormContext } from '../formContext';
 import {
     buildSnowflakeConnectCommand,
+    recommendedWarehouseName,
     SNOWFLAKE_CLI_INSTALL_COMMAND,
+    warehouseSecondaryText,
 } from './snowflakeCliSso';
 
 const CopyableCommand: FC<{ command: string }> = ({ command }) => (
@@ -62,6 +67,32 @@ type Props = {
 
 const withCurrentValue = (options: string[], current: string | undefined) =>
     current && !options.includes(current) ? [current, ...options] : options;
+
+const twoLineOption = (
+    label: string,
+    secondary: string | null,
+    badge: ReactNode,
+): ReactNode => (
+    <Group justify="space-between" wrap="nowrap" gap="xs" w="100%">
+        <Stack gap={0} miw={0}>
+            <Text size="sm" truncate="end">
+                {label}
+            </Text>
+            {secondary && (
+                <Text size="xs" c="dimmed" truncate="end">
+                    {secondary}
+                </Text>
+            )}
+        </Stack>
+        {badge}
+    </Group>
+);
+
+const defaultBadge = (
+    <Badge size="xs" color="blue" variant="light" radius="sm">
+        Your Snowflake default
+    </Badge>
+);
 
 const SnowflakeCliSsoPanel: FC<Props> = ({
     account,
@@ -121,6 +152,70 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
             form.values.warehouse?.type === WarehouseTypes.SNOWFLAKE
                 ? form.values.warehouse
                 : undefined;
+        const databaseMeta = new Map(
+            (inventory?.databases ?? []).map((d) => [d.name, d]),
+        );
+        const warehouseMeta = new Map(
+            (inventory?.warehouses ?? []).map((w) => [w.name, w]),
+        );
+        const defaultRoleNames = new Set(
+            (inventory?.roles ?? [])
+                .filter((r) => r.isDefault)
+                .map((r) => r.name)
+                .concat(
+                    connectedCredentials.role
+                        ? [connectedCredentials.role]
+                        : [],
+                ),
+        );
+        const recommendedWarehouse = recommendedWarehouseName(
+            inventory?.warehouses ?? [],
+        );
+        const schemaOptions = [
+            ...new Set(
+                (inventory?.schemas ?? [])
+                    .filter(
+                        (schema) =>
+                            !warehouseValues?.database ||
+                            schema.database === warehouseValues.database,
+                    )
+                    .map((schema) => schema.name),
+            ),
+        ];
+        const renderDatabaseOption = ({ option }: { option: ComboboxItem }) =>
+            twoLineOption(
+                option.label,
+                databaseMeta.get(option.value)?.comment ?? null,
+                option.value === connectedCredentials.database
+                    ? defaultBadge
+                    : null,
+            );
+        const renderWarehouseOption = ({
+            option,
+        }: {
+            option: ComboboxItem;
+        }) => {
+            const meta = warehouseMeta.get(option.value);
+            const badge =
+                option.value === connectedCredentials.warehouse ? (
+                    defaultBadge
+                ) : option.value === recommendedWarehouse ? (
+                    <Badge size="xs" color="green" variant="light" radius="sm">
+                        Recommended · cheapest
+                    </Badge>
+                ) : null;
+            return twoLineOption(
+                option.label,
+                meta ? warehouseSecondaryText(meta) : null,
+                badge,
+            );
+        };
+        const renderRoleOption = ({ option }: { option: ComboboxItem }) =>
+            twoLineOption(
+                option.label,
+                null,
+                defaultRoleNames.has(option.value) ? defaultBadge : null,
+            );
         return (
             <Stack gap="md">
                 <Alert
@@ -135,43 +230,52 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
                 </Alert>
                 <Select
                     label="Database"
-                    description="This is the database name."
+                    description="Where your data lives. You can add more later."
                     data={withCurrentValue(
-                        inventory?.databases ?? [],
+                        (inventory?.databases ?? []).map((d) => d.name),
                         warehouseValues?.database,
                     )}
+                    renderOption={renderDatabaseOption}
                     searchable
+                    nothingFoundMessage="No databases match"
                     required
                     disabled={disabled}
                     {...form.getInputProps('warehouse.database')}
                 />
                 <Select
                     label="Warehouse"
-                    description="This is the warehouse name."
+                    description="The compute Snowflake uses to run queries. A small one is fine for BI."
                     data={withCurrentValue(
-                        inventory?.warehouses ?? [],
+                        (inventory?.warehouses ?? []).map((w) => w.name),
                         warehouseValues?.warehouse,
                     )}
+                    renderOption={renderWarehouseOption}
                     searchable
+                    nothingFoundMessage="No warehouses match"
                     required
                     disabled={disabled}
                     {...form.getInputProps('warehouse.warehouse')}
                 />
                 <Select
                     label="Role"
-                    description="This is the role to assume when running queries."
+                    description="Controls what Lightdash can see. A read-only role is best."
                     data={withCurrentValue(
-                        inventory?.roles ?? [],
+                        (inventory?.roles ?? []).map((r) => r.name),
                         warehouseValues?.role,
                     )}
+                    renderOption={renderRoleOption}
                     searchable
+                    nothingFoundMessage="No roles match"
                     clearable
                     disabled={disabled}
                     {...form.getInputProps('warehouse.role')}
                 />
-                <TextInput
+                <Autocomplete
                     label="Schema"
-                    description="This is the schema name."
+                    description="We'll start with this schema — you can add more later."
+                    data={schemaOptions}
+                    rightSection={<Combobox.Chevron />}
+                    rightSectionPointerEvents="none"
                     required
                     disabled={disabled}
                     {...form.getInputProps('warehouse.schema')}

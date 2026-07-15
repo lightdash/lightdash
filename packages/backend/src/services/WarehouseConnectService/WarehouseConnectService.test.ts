@@ -62,9 +62,10 @@ const createModelMock = () => ({
 });
 
 const testInventory = {
-    databases: ['ANALYTICS'],
-    warehouses: ['COMPUTE_WH'],
-    roles: ['ANALYST'],
+    databases: [{ name: 'ANALYTICS', comment: 'Analytics models' }],
+    warehouses: [{ name: 'COMPUTE_WH', size: 'X-Small', state: 'STARTED' }],
+    roles: [{ name: 'ANALYST', isDefault: true }],
+    schemas: [{ database: 'ANALYTICS', name: 'PUBLIC' }],
 };
 
 const createEncryptionUtilMock = () => ({

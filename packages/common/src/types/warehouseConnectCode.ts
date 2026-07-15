@@ -19,9 +19,14 @@ export type DepositSnowflakeCredentials = Omit<
     >;
 
 export type WarehouseConnectInventory = {
-    databases: string[];
-    warehouses: string[];
-    roles: string[];
+    databases: { name: string; comment: string | null }[];
+    warehouses: {
+        name: string;
+        size: string | null;
+        state: string | null;
+    }[];
+    roles: { name: string; isDefault: boolean }[];
+    schemas: { database: string; name: string }[];
 };
 
 export type DepositWarehouseConnectionRequest = {

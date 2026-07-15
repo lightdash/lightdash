@@ -370,6 +370,15 @@ describe('SnowflakeWarehouseClient', () => {
                     ];
                 } else if (sqlText.startsWith('SHOW GRANTS')) {
                     rows = [{ role: 'ANALYST' }, { role: 'REPORTER' }];
+                } else if (sqlText.startsWith('SHOW SCHEMAS')) {
+                    rows = [
+                        { name: 'PUBLIC', database_name: 'ANALYTICS' },
+                        { name: 'JAFFLE', database_name: 'ANALYTICS' },
+                        {
+                            name: 'INFORMATION_SCHEMA',
+                            database_name: 'ANALYTICS',
+                        },
+                    ];
                 }
                 complete(
                     undefined,
@@ -416,8 +425,17 @@ describe('SnowflakeWarehouseClient', () => {
                     { name: 'REPORTER', isDefault: false },
                     { name: 'PUBLIC', isDefault: false },
                 ],
+                schemas: [
+                    { databaseName: 'ANALYTICS', name: 'PUBLIC' },
+                    { databaseName: 'ANALYTICS', name: 'JAFFLE' },
+                ],
             },
         });
+        expect(execute).toHaveBeenCalledWith(
+            expect.objectContaining({
+                sqlText: 'SHOW SCHEMAS IN ACCOUNT LIMIT 1000',
+            }),
+        );
         expect(execute).toHaveBeenCalledWith(
             expect.objectContaining({
                 sqlText:

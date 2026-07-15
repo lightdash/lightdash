@@ -53,6 +53,7 @@ const discovery: SnowflakeSessionDiscovery = {
             { name: 'lightdash_role', isDefault: true },
             { name: 'PUBLIC', isDefault: false },
         ],
+        schemas: [{ databaseName: 'analytics', name: 'public' }],
     },
 };
 
@@ -111,9 +112,13 @@ const getDependencies = () => ({
 });
 
 const depositInventory = {
-    databases: ['analytics'],
-    warehouses: ['lightdash_wh'],
-    roles: ['lightdash_role', 'PUBLIC'],
+    databases: [{ name: 'analytics', comment: 'Analytics data' }],
+    warehouses: [{ name: 'lightdash_wh', size: 'X-Small', state: 'STARTED' }],
+    roles: [
+        { name: 'lightdash_role', isDefault: true },
+        { name: 'PUBLIC', isDefault: false },
+    ],
+    schemas: [{ database: 'analytics', name: 'public' }],
 };
 
 const privateKeyCredentials = (
@@ -270,6 +275,10 @@ describe('connectSnowflakeHandler', () => {
                     name,
                     isDefault: false,
                 })),
+                schemas: inventoryNames.map((name) => ({
+                    databaseName: 'analytics',
+                    name,
+                })),
             },
         });
 
@@ -283,9 +292,18 @@ describe('connectSnowflakeHandler', () => {
         expect(request.credentials).not.toHaveProperty('schema');
         expect(request.credentials).not.toHaveProperty('role');
         expect(request.inventory).toEqual({
-            databases: inventoryNames.slice(0, 100),
-            warehouses: inventoryNames.slice(0, 100),
-            roles: inventoryNames.slice(0, 100),
+            databases: inventoryNames
+                .slice(0, 100)
+                .map((name) => ({ name, comment: null })),
+            warehouses: inventoryNames
+                .slice(0, 100)
+                .map((name) => ({ name, size: null, state: null })),
+            roles: inventoryNames
+                .slice(0, 100)
+                .map((name) => ({ name, isDefault: false })),
+            schemas: inventoryNames
+                .slice(0, 1000)
+                .map((name) => ({ database: 'analytics', name })),
         });
         expect(write).toHaveBeenCalledWith('Connection values resolved: none');
         expect(write).toHaveBeenCalledWith(
