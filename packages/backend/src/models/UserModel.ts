@@ -1203,15 +1203,17 @@ export class UserModel {
         if (!validatePassword(password)) {
             throw new ParameterError("Password doesn't meet requirements");
         }
-        const user = await this.findSessionUserByUUID(userUuid);
+        const user = await this.database(UserTableName)
+            .where('user_uuid', userUuid)
+            .first('user_id');
 
-        if (!user?.userId) {
-            throw new NotFoundError('User is missing user_id');
+        if (!user) {
+            throw new NotFoundError(`Cannot find user with uuid ${userUuid}`);
         }
 
         await this.database(PasswordLoginTableName)
             .insert({
-                user_id: user.userId,
+                user_id: user.user_id,
                 password_hash: await bcrypt.hash(
                     password,
                     await bcrypt.genSalt(),

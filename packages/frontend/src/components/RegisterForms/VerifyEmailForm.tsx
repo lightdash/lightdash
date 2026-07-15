@@ -83,6 +83,11 @@ const VerifyEmailForm: FC<{
                             data?.otp?.isMaxAttempts || data?.otp?.isExpired
                         }
                         {...form.getInputProps('code')}
+                        onComplete={(code) => {
+                            if (!verificationLoading) {
+                                verifyCode(code);
+                            }
+                        }}
                         data-testid="pin-input"
                         autoFocus
                     />

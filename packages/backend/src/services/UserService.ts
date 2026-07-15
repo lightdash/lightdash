@@ -1621,6 +1621,18 @@ export class UserService extends BaseService {
             );
         }
 
+        let userConnectionType:
+            | 'password'
+            | 'email_only'
+            | OpenIdIdentityIssuerType;
+        if (isOpenIdUser(createUser)) {
+            userConnectionType = createUser.openId.issuerType;
+        } else if ('password' in createUser) {
+            userConnectionType = 'password';
+        } else {
+            userConnectionType = 'email_only';
+        }
+
         const user = await this.userModel.createUser(createUser);
         this.identifyUser({
             ...user,
@@ -1633,9 +1645,7 @@ export class UserService extends BaseService {
                 context: 'accept_invite',
                 createdUserId: user.userUuid,
                 organizationId: user.organizationUuid,
-                userConnectionType: isOpenIdUser(createUser)
-                    ? createUser.openId.issuerType
-                    : 'password',
+                userConnectionType,
             },
         });
         if (isOpenIdUser(createUser)) {

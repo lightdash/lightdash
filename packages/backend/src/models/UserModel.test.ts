@@ -233,9 +233,14 @@ describe('UserModel', () => {
         const merge = vi.fn(async () => undefined);
         const onConflict = vi.fn(() => ({ merge }));
         const insert = vi.fn(() => ({ onConflict }));
+        const first = vi.fn(async () => ({ user_id: 1 }));
+        const where = vi.fn(() => ({ first }));
         const database = vi.fn((tableName: string) => {
             if (tableName === PasswordLoginTableName) {
                 return { insert };
+            }
+            if (tableName === UserTableName) {
+                return { where };
             }
             throw new Error(`Unexpected table ${tableName}`);
         }) as unknown as Knex;
@@ -244,9 +249,6 @@ describe('UserModel', () => {
             lightdashConfig,
             featureFlagModel,
         });
-        vi.spyOn(model, 'findSessionUserByUUID').mockResolvedValue({
-            userId: 1,
-        } as Awaited<ReturnType<UserModel['findSessionUserByUUID']>>);
 
         await model.upsertPassword('passwordless-user', 'new-password1!');
 
