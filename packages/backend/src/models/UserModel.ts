@@ -263,10 +263,13 @@ export class UserModel {
                 `${UserTableName}.user_id`,
                 `${OpenIdIdentitiesTableName}.user_id`,
             )
+            .joinRaw(
+                `LEFT JOIN ${EmailTableName} AS verified_primary_emails ON ${UserTableName}.user_id = verified_primary_emails.user_id AND verified_primary_emails.is_primary AND verified_primary_emails.is_verified`,
+            )
             .select<{ user_uuid: string; has_authentication: false }[]>(
                 `${UserTableName}.user_uuid`,
                 trx.raw(
-                    `CASE WHEN COALESCE(password_logins.user_id, openid_identities.user_id, null) IS NOT NULL THEN TRUE ELSE FALSE END as has_authentication`,
+                    `CASE WHEN COALESCE(password_logins.user_id, openid_identities.user_id, verified_primary_emails.user_id, null) IS NOT NULL THEN TRUE ELSE FALSE END as has_authentication`,
                 ),
             )
             .distinctOn(`user_uuid`)

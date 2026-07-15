@@ -10,6 +10,7 @@ import {
     assertRegisteredAccount,
     CreatePersonalAccessToken,
     getRequestMethod,
+    hasInviteCode,
     isEmailOnlyUser,
     LightdashRequestMethodHeader,
     NotFoundError,
@@ -107,6 +108,9 @@ export class UserController extends BaseController {
         @Body()
         body: RegisterOrActivateUser,
     ): Promise<ApiRegisterUserResponse> {
+        if ('inviteCode' in body && !hasInviteCode(body)) {
+            throw new ParameterError('Invalid invite code');
+        }
         if (!isEmailOnlyUser(body)) {
             if (!validatePassword(body.password)) {
                 throw new ParameterError(

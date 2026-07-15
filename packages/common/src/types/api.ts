@@ -427,7 +427,10 @@ export type RegisterOrActivateUser =
 
 export const hasInviteCode = (
     data: RegisterOrActivateUser,
-): data is ActivateUserWithInviteCode => 'inviteCode' in data;
+): data is ActivateUserWithInviteCode =>
+    'inviteCode' in data &&
+    typeof data.inviteCode === 'string' &&
+    data.inviteCode.length > 0;
 
 export const isEmailOnlyUser = (
     data: RegisterOrActivateUser,
