@@ -199,7 +199,6 @@ Organization users are stored under `lightdash/users/*.yml`:
 version: 1
 email: analyst@example.com
 disabled: false
-pending: false
 role:
   type: system
   name: editor
@@ -216,10 +215,10 @@ organization role and disabled state. A custom role is referenced by its exact
 organization-level role name, so organization uploads process custom roles
 before users.
 
-Credentials are not portable. A missing user is staged without an
-authentication method and reported as awaiting authentication. Setting
-`pending: true` preserves that staged state; it never removes credentials from
-an authenticated user. Omitting a user file does not remove the remote user.
+Credentials are not portable, so authentication status is not written to user
+files. A missing user is staged without an authentication method and reported
+as awaiting authentication. Uploads never add or remove credentials. Omitting a
+user file does not remove the remote user.
 
 Invitations are a separate side effect and are not sent by default. Passing
 `lightdash upload --organization --send-invites` sends invitations only to

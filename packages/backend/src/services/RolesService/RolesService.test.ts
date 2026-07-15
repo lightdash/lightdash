@@ -276,7 +276,6 @@ describe('RolesService', () => {
             version: 1,
             email: 'new-user@example.com',
             disabled: false,
-            pending: false,
             role: {
                 type: 'system',
                 name: OrganizationMemberRole.MEMBER,
@@ -296,7 +295,7 @@ describe('RolesService', () => {
             lastName: '',
         };
 
-        it('downloads users with portable roles and lifecycle flags', async () => {
+        it('downloads users with portable roles and disabled state', async () => {
             mockOrganizationMemberProfileModel.getAllOrganizationMembers.mockResolvedValue(
                 [
                     {
@@ -332,7 +331,6 @@ describe('RolesService', () => {
                     version: 1,
                     email: 'system@example.com',
                     disabled: true,
-                    pending: true,
                     role: {
                         type: 'system',
                         name: OrganizationMemberRole.MEMBER,
@@ -342,10 +340,18 @@ describe('RolesService', () => {
                     version: 1,
                     email: 'custom@example.com',
                     disabled: false,
-                    pending: false,
                     role: { type: 'custom', name: 'Data steward' },
                 },
             ]);
+        });
+
+        it('rejects non-portable authentication state', async () => {
+            await expect(
+                service.upsertUserAsCode(mockAccount, 'test-org-uuid', {
+                    ...userAsCode(),
+                    pending: false,
+                } as UserAsCode),
+            ).rejects.toThrow('Unknown user fields: pending');
         });
 
         it('stages a missing user without sending an invitation by default', async () => {
@@ -379,7 +385,32 @@ describe('RolesService', () => {
             expect(mockEmailClient.sendInviteEmail).not.toHaveBeenCalled();
         });
 
-        it('reconciles disabled and declared-pending flags', async () => {
+        it('reports an authenticated user as ready', async () => {
+            const authenticatedUser = {
+                ...pendingUser,
+                isPending: false,
+            };
+            mockUserModel.findUserByEmail.mockResolvedValueOnce(
+                authenticatedUser,
+            );
+            mockUserModel.getUserDetailsByUuid.mockResolvedValueOnce(
+                authenticatedUser,
+            );
+
+            await expect(
+                service.upsertUserAsCode(
+                    mockAccount,
+                    'test-org-uuid',
+                    userAsCode(),
+                ),
+            ).resolves.toStrictEqual({
+                action: PromotionAction.NO_CHANGES,
+                lifecycle: UserAsCodeLifecycleStatus.READY,
+                invitation: UserAsCodeInvitationStatus.NOT_REQUESTED,
+            });
+        });
+
+        it('reconciles disabled state and reports authentication status', async () => {
             mockUserModel.findUserByEmail.mockResolvedValueOnce(pendingUser);
             mockUserModel.getUserDetailsByUuid.mockResolvedValueOnce({
                 ...pendingUser,
@@ -390,12 +421,12 @@ describe('RolesService', () => {
                 service.upsertUserAsCode(
                     mockAccount,
                     'test-org-uuid',
-                    userAsCode({ disabled: true, pending: true }),
+                    userAsCode({ disabled: true }),
                     true,
                 ),
             ).resolves.toStrictEqual({
                 action: PromotionAction.UPDATE,
-                lifecycle: UserAsCodeLifecycleStatus.READY,
+                lifecycle: UserAsCodeLifecycleStatus.AWAITING_AUTHENTICATION,
                 invitation: UserAsCodeInvitationStatus.SKIPPED_DISABLED,
             });
             expect(mockUserModel.updateUser).toHaveBeenCalledWith(
@@ -425,30 +456,15 @@ describe('RolesService', () => {
                 service.upsertUserAsCode(
                     mockAccount,
                     'test-org-uuid',
-                    userAsCode({ pending: true }),
+                    userAsCode(),
                     true,
                 ),
             ).resolves.toStrictEqual({
                 action: PromotionAction.NO_CHANGES,
-                lifecycle: UserAsCodeLifecycleStatus.READY,
+                lifecycle: UserAsCodeLifecycleStatus.AWAITING_AUTHENTICATION,
                 invitation: UserAsCodeInvitationStatus.SENT,
             });
             expect(mockEmailClient.sendInviteEmail).toHaveBeenCalledOnce();
-        });
-
-        it('does not remove credentials to reproduce a pending state', async () => {
-            mockUserModel.findUserByEmail.mockResolvedValueOnce({
-                ...pendingUser,
-                isPending: false,
-            });
-
-            await expect(
-                service.upsertUserAsCode(
-                    mockAccount,
-                    'test-org-uuid',
-                    userAsCode({ pending: true }),
-                ),
-            ).rejects.toThrow('upload never removes credentials');
         });
 
         it('refuses to disable or demote the last usable admin', async () => {

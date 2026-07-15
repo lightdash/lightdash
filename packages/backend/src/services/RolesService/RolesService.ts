@@ -487,13 +487,7 @@ export class RolesService extends BaseService {
             throw new ParameterError('User as code must be an object');
         }
 
-        const expectedKeys = [
-            'version',
-            'email',
-            'disabled',
-            'pending',
-            'role',
-        ];
+        const expectedKeys = ['version', 'email', 'disabled', 'role'];
         const unknownKeys = Object.keys(desiredUser).filter(
             (key) => !expectedKeys.includes(key),
         );
@@ -515,9 +509,6 @@ export class RolesService extends BaseService {
         }
         if (typeof desiredUser.disabled !== 'boolean') {
             throw new ParameterError('User disabled must be a boolean');
-        }
-        if (typeof desiredUser.pending !== 'boolean') {
-            throw new ParameterError('User pending must be a boolean');
         }
         if (
             typeof desiredUser.role !== 'object' ||
@@ -666,7 +657,6 @@ export class RolesService extends BaseService {
                 version: 1,
                 email: member.email.toLowerCase(),
                 disabled: !member.isActive,
-                pending: member.isPending ?? false,
                 role,
             };
         });
@@ -801,12 +791,6 @@ export class RolesService extends BaseService {
                 'Email is already used by a user in another organization',
             );
         }
-        if (existingUser && desiredUser.pending && !existingUser.isPending) {
-            throw new ParameterError(
-                `Cannot make authenticated user ${desiredUser.email} pending because upload never removes credentials`,
-            );
-        }
-
         const existingRoleId = existingUser
             ? (existingUser.roleUuid ?? existingUser.role)
             : undefined;
@@ -889,10 +873,9 @@ export class RolesService extends BaseService {
         }
 
         const currentUser = await this.userModel.getUserDetailsByUuid(userUuid);
-        const lifecycle =
-            currentUser.isPending && !desiredUser.pending
-                ? UserAsCodeLifecycleStatus.AWAITING_AUTHENTICATION
-                : UserAsCodeLifecycleStatus.READY;
+        const lifecycle = currentUser.isPending
+            ? UserAsCodeLifecycleStatus.AWAITING_AUTHENTICATION
+            : UserAsCodeLifecycleStatus.READY;
         const invitation = await this.getUserAsCodeInvitationStatus({
             account,
             organizationUuid,

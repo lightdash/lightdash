@@ -82,7 +82,6 @@ const asUserAsCode = (user: unknown): UserAsCode | undefined => {
     if (
         typeof record.email !== 'string' ||
         typeof record.disabled !== 'boolean' ||
-        typeof record.pending !== 'boolean' ||
         typeof record.role !== 'object' ||
         record.role === null ||
         Array.isArray(record.role)
@@ -221,7 +220,7 @@ const orderUserFiles = (
                 current &&
                 isSystemAdmin(current) &&
                 !current.disabled &&
-                (!isSystemAdmin(desired) || desired.disabled || desired.pending)
+                (!isSystemAdmin(desired) || desired.disabled)
             ) {
                 return 2;
             }
