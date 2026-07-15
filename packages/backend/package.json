@@ -90,7 +90,7 @@
         "@opentelemetry/instrumentation-http": "0.219.0",
         "@opentelemetry/resources": "2.8.0",
         "@opentelemetry/sdk-metrics": "2.8.0",
-        "@opentelemetry/sdk-node": "0.219.0",
+        "@opentelemetry/sdk-node": "0.220.0",
         "@opentelemetry/sdk-trace-base": "2.8.0",
         "@rudderstack/rudder-sdk-node": "2.1.1",
         "@sentry/core": "9.31.0",
