@@ -595,6 +595,9 @@ export class UserController extends BaseController {
         if (!getEmailSchema().safeParse(body.email).success) {
             throw new ParameterError('Invalid email address');
         }
+        if (!/^\d{6}$/.test(body.passcode)) {
+            throw new ParameterError('Invalid passcode format');
+        }
         const sessionUser = await this.services
             .getUserService()
             .loginWithEmailOtp(body.email, body.passcode, {
