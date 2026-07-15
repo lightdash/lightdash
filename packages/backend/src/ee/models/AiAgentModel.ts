@@ -4757,6 +4757,16 @@ export class AiAgentModel {
             });
     }
 
+    async clearModelResponse(promptUuid: string): Promise<void> {
+        await this.database(AiPromptTableName)
+            .where({ ai_prompt_uuid: promptUuid })
+            .update({
+                response: null,
+                responded_at: this.database.raw('NULL'),
+                error_message: null,
+            });
+    }
+
     async findPromptSavedQueryUuid(promptUuid: string): Promise<string | null> {
         const row = await this.database(AiPromptTableName)
             .select('saved_query_uuid')

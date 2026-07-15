@@ -1,11 +1,16 @@
 import {
+    type AiDeepResearchArtifact,
     type AiDeepResearchBudget,
+    type AiDeepResearchCheckpoint,
     type AiDeepResearchEventPayload,
     type AiDeepResearchEventPayloadMap,
     type AiDeepResearchEventType,
+    type AiDeepResearchExecutionContextSnapshot,
+    type AiDeepResearchPolicy,
     type AiDeepResearchProgress,
     type AiDeepResearchReport,
     type AiDeepResearchRunStatus,
+    type AiDeepResearchTimings,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import {
@@ -25,11 +30,13 @@ type CreateAiDeepResearchRun = {
     organizationUuid: string;
     projectUuid: string;
     createdByUserUuid: string;
+    agentUuid?: string;
     aiThreadUuid: string | null;
     promptUuid: string | null;
     toolCallId: string | null;
     prompt: string;
     budget: AiDeepResearchBudget;
+    policy?: AiDeepResearchPolicy;
 };
 
 type EventCursor = {
@@ -75,11 +82,19 @@ export class AiDeepResearchRunModel {
                     organization_uuid: data.organizationUuid,
                     project_uuid: data.projectUuid,
                     created_by_user_uuid: data.createdByUserUuid,
+                    agent_uuid: data.agentUuid ?? null,
                     ai_thread_uuid: data.aiThreadUuid,
                     prompt_uuid: data.promptUuid,
                     tool_call_id: data.toolCallId,
                     prompt: data.prompt,
                     budget_snapshot: data.budget,
+                    policy_snapshot: data.policy ?? {
+                        instructions: null,
+                        maxSteps: 40,
+                        maxToolCalls: data.budget.maxToolCalls,
+                        maxWarehouseQueries: data.budget.maxWarehouseQueries,
+                        maxRuntimeMs: data.budget.maxRuntimeMs,
+                    },
                 })
                 .returning('*');
 
@@ -117,7 +132,7 @@ export class AiDeepResearchRunModel {
             .first();
     }
 
-    async claimQueuedRun(
+    async claimRun(
         aiDeepResearchRunUuid: string,
     ): Promise<DbAiDeepResearchRun | undefined> {
         return this.database.transaction(async (transaction) => {
@@ -125,11 +140,30 @@ export class AiDeepResearchRunModel {
                 AiDeepResearchRunsTableName,
             )
                 .where('ai_deep_research_run_uuid', aiDeepResearchRunUuid)
-                .where('status', 'queued')
+                .where((builder) =>
+                    builder
+                        .where('status', 'queued')
+                        .orWhere((running) =>
+                            running
+                                .where('status', 'running')
+                                .andWhere(
+                                    'updated_at',
+                                    '<',
+                                    transaction.raw(
+                                        "now() - interval '1 minute'",
+                                    ),
+                                ),
+                        ),
+                )
                 .whereNull('cancellation_requested_at')
                 .update({
                     status: 'running',
-                    started_at: transaction.fn.now() as unknown as Date,
+                    started_at: transaction.raw(
+                        'COALESCE(started_at, now())',
+                    ) as unknown as Date,
+                    execution_attempts: transaction.raw(
+                        'execution_attempts + 1',
+                    ) as unknown as number,
                     updated_at: transaction.fn.now() as unknown as Date,
                 })
                 .returning('*');
@@ -146,6 +180,167 @@ export class AiDeepResearchRunModel {
             );
             return run;
         });
+    }
+
+    async claimQueuedRun(
+        aiDeepResearchRunUuid: string,
+    ): Promise<DbAiDeepResearchRun | undefined> {
+        return this.claimRun(aiDeepResearchRunUuid);
+    }
+
+    async appendEvent<EventType extends AiDeepResearchEventType>(
+        aiDeepResearchRunUuid: string,
+        eventType: EventType,
+        payload: AiDeepResearchEventPayloadMap[EventType],
+    ): Promise<boolean> {
+        return this.database.transaction(async (transaction) => {
+            const run = await transaction<AiDeepResearchRunsTable>(
+                AiDeepResearchRunsTableName,
+            )
+                .where('ai_deep_research_run_uuid', aiDeepResearchRunUuid)
+                .where('status', 'running')
+                .forUpdate()
+                .first();
+
+            if (!run) {
+                return false;
+            }
+
+            await AiDeepResearchRunModel.insertEvent(
+                transaction,
+                aiDeepResearchRunUuid,
+                eventType,
+                payload,
+            );
+            await transaction<AiDeepResearchRunsTable>(
+                AiDeepResearchRunsTableName,
+            )
+                .where('ai_deep_research_run_uuid', aiDeepResearchRunUuid)
+                .update({
+                    updated_at: transaction.fn.now() as unknown as Date,
+                });
+            return true;
+        });
+    }
+
+    async saveExecutionContext(
+        aiDeepResearchRunUuid: string,
+        snapshot: AiDeepResearchExecutionContextSnapshot,
+    ): Promise<boolean> {
+        return this.saveCheckpoint(aiDeepResearchRunUuid, 'context_resolved', {
+            execution_context_snapshot: snapshot,
+        });
+    }
+
+    async saveArtifact(
+        aiDeepResearchRunUuid: string,
+        artifact: AiDeepResearchArtifact,
+    ): Promise<boolean> {
+        return this.saveCheckpoint(aiDeepResearchRunUuid, 'artifact_created', {
+            result: artifact,
+        });
+    }
+
+    async saveArtifactWithEvents(
+        aiDeepResearchRunUuid: string,
+        artifact: AiDeepResearchArtifact,
+        queries: AiDeepResearchEventPayloadMap['query_provenance'][],
+    ): Promise<boolean> {
+        return this.database.transaction(async (transaction) => {
+            const [run] = await transaction<AiDeepResearchRunsTable>(
+                AiDeepResearchRunsTableName,
+            )
+                .where('ai_deep_research_run_uuid', aiDeepResearchRunUuid)
+                .where('status', 'running')
+                .whereNull('result')
+                .update({
+                    result: artifact,
+                    checkpoint: 'artifact_created',
+                    updated_at: transaction.fn.now() as unknown as Date,
+                })
+                .returning('*');
+            if (!run) {
+                return false;
+            }
+            await AiDeepResearchRunModel.insertEvent(
+                transaction,
+                aiDeepResearchRunUuid,
+                'checkpoint',
+                { checkpoint: 'artifact_created' },
+            );
+            await AiDeepResearchRunModel.insertEvent(
+                transaction,
+                aiDeepResearchRunUuid,
+                'artifact_created',
+                {
+                    evidenceCount: artifact.evidence.length,
+                    queryCount: artifact.queryUuids.length,
+                },
+            );
+            await Promise.all(
+                queries.map((query) =>
+                    AiDeepResearchRunModel.insertEvent(
+                        transaction,
+                        aiDeepResearchRunUuid,
+                        'query_provenance',
+                        query,
+                    ),
+                ),
+            );
+            return true;
+        });
+    }
+
+    async saveCheckpoint(
+        aiDeepResearchRunUuid: string,
+        checkpoint: AiDeepResearchCheckpoint,
+        update: Partial<
+            Pick<
+                DbAiDeepResearchRun,
+                'execution_context_snapshot' | 'result' | 'timings'
+            >
+        > = {},
+    ): Promise<boolean> {
+        return this.database.transaction(async (transaction) => {
+            const [run] = await transaction<AiDeepResearchRunsTable>(
+                AiDeepResearchRunsTableName,
+            )
+                .where('ai_deep_research_run_uuid', aiDeepResearchRunUuid)
+                .where('status', 'running')
+                .update({
+                    ...update,
+                    checkpoint,
+                    updated_at: transaction.fn.now() as unknown as Date,
+                })
+                .returning('*');
+
+            if (!run) {
+                return false;
+            }
+
+            await AiDeepResearchRunModel.insertEvent(
+                transaction,
+                aiDeepResearchRunUuid,
+                'checkpoint',
+                { checkpoint },
+            );
+            return true;
+        });
+    }
+
+    async saveTimings(
+        aiDeepResearchRunUuid: string,
+        timings: AiDeepResearchTimings,
+    ): Promise<boolean> {
+        const updated = await this.database<AiDeepResearchRunsTable>(
+            AiDeepResearchRunsTableName,
+        )
+            .where('ai_deep_research_run_uuid', aiDeepResearchRunUuid)
+            .update({
+                timings,
+                updated_at: this.database.fn.now() as unknown as Date,
+            });
+        return updated > 0;
     }
 
     async setClaudeSessionId(
@@ -176,10 +371,36 @@ export class AiDeepResearchRunModel {
         return updated > 0;
     }
 
+    async releaseForRetry(aiDeepResearchRunUuid: string): Promise<boolean> {
+        return this.database.transaction(async (transaction) => {
+            const [run] = await transaction<AiDeepResearchRunsTable>(
+                AiDeepResearchRunsTableName,
+            )
+                .where('ai_deep_research_run_uuid', aiDeepResearchRunUuid)
+                .where('status', 'running')
+                .whereNull('cancellation_requested_at')
+                .update({
+                    status: 'queued',
+                    updated_at: transaction.fn.now() as unknown as Date,
+                })
+                .returning('*');
+            if (!run) {
+                return false;
+            }
+            await AiDeepResearchRunModel.insertEvent(
+                transaction,
+                aiDeepResearchRunUuid,
+                'status_changed',
+                { status: 'queued' },
+            );
+            return true;
+        });
+    }
+
     private async markWithReport(
         aiDeepResearchRunUuid: string,
         status: 'completed' | 'partially_completed',
-        report: AiDeepResearchReport,
+        artifact: AiDeepResearchArtifact,
     ): Promise<boolean> {
         return this.database.transaction(async (transaction) => {
             const [run] = await transaction<AiDeepResearchRunsTable>(
@@ -190,7 +411,7 @@ export class AiDeepResearchRunModel {
                 .whereNull('cancellation_requested_at')
                 .update({
                     status,
-                    result: report,
+                    result: artifact,
                     error_message: null,
                     completed_at: transaction.fn.now() as unknown as Date,
                     updated_at: transaction.fn.now() as unknown as Date,
@@ -213,19 +434,51 @@ export class AiDeepResearchRunModel {
 
     async markCompleted(
         aiDeepResearchRunUuid: string,
-        report: AiDeepResearchReport,
+        artifact: AiDeepResearchArtifact | AiDeepResearchReport,
     ): Promise<boolean> {
-        return this.markWithReport(aiDeepResearchRunUuid, 'completed', report);
+        return this.markWithReport(
+            aiDeepResearchRunUuid,
+            'completed',
+            'finalReport' in artifact
+                ? artifact
+                : {
+                      findings: artifact.findings.map(
+                          (finding) => finding.title,
+                      ),
+                      evidence: [],
+                      queryUuids: [],
+                      metricDefinitions: [],
+                      hypotheses: [],
+                      contradictions: [],
+                      confidence: 'medium',
+                      limitations: artifact.caveats,
+                      finalReport: artifact.summary,
+                  },
+        );
     }
 
     async markPartiallyCompleted(
         aiDeepResearchRunUuid: string,
-        report: AiDeepResearchReport,
+        artifact: AiDeepResearchArtifact | AiDeepResearchReport,
     ): Promise<boolean> {
         return this.markWithReport(
             aiDeepResearchRunUuid,
             'partially_completed',
-            report,
+            'finalReport' in artifact
+                ? artifact
+                : {
+                      findings: artifact.findings.map(
+                          (finding) => finding.title,
+                      ),
+                      evidence: [],
+                      queryUuids: [],
+                      metricDefinitions: [],
+                      hypotheses: [],
+                      contradictions: [],
+                      confidence: 'medium',
+                      limitations: artifact.caveats,
+                      finalReport: artifact.summary,
+                  },
         );
     }
 

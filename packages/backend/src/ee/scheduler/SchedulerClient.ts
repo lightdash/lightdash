@@ -22,6 +22,7 @@ import { SchedulerClient } from '../../scheduler/SchedulerClient';
  * separate feedback requests) coalesces into one review via the shared jobKey.
  */
 const FEEDBACK_REVIEW_DEBOUNCE_MS = 60_000;
+export const AI_DEEP_RESEARCH_MAX_ATTEMPTS = 5;
 
 /**
  * When a review for `eventType` should run. Feedback-driven reviews are deferred
@@ -224,7 +225,7 @@ export class CommercialSchedulerClient extends SchedulerClient {
             payload,
             {
                 runAt: new Date(),
-                maxAttempts: 1,
+                maxAttempts: AI_DEEP_RESEARCH_MAX_ATTEMPTS,
                 jobKey: `ai-deep-research:${payload.aiDeepResearchRunUuid}`,
             },
         );

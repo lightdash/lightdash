@@ -94,6 +94,7 @@ describe('getAgentTools workstream tool gate', () => {
             toolDescriptionMaxChars: 1000,
             userId: 'user-1',
             useSlackStreamCard: false,
+            executionMode: 'standard',
             ...flags,
         }) as unknown as AiAgentArgs;
 
@@ -126,6 +127,30 @@ describe('getAgentTools workstream tool gate', () => {
         expect(names).toContain('closePullRequest');
         expect(names).toContain('getPullRequestDiff');
         expect(names).toContain('editRepo');
+    });
+
+    it('exposes structured artifact submission only in Deep Research mode', () => {
+        const args = buildArgs({
+            enableCodingAgent: false,
+            enableAiWriteback: false,
+        });
+
+        expect(
+            Object.keys(
+                getAgentTools(args, depsStub(), [], mcpStub, new Map()),
+            ),
+        ).not.toContain('submitResearchArtifact');
+        expect(
+            Object.keys(
+                getAgentTools(
+                    { ...args, executionMode: 'deep_research' },
+                    depsStub(),
+                    [],
+                    mcpStub,
+                    new Map(),
+                ),
+            ),
+        ).toContain('submitResearchArtifact');
     });
 
     it('omits them when neither coding agent nor writeback is enabled', () => {

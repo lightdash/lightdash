@@ -1,9 +1,13 @@
 import {
+    type AiDeepResearchArtifact,
     type AiDeepResearchBudget,
+    type AiDeepResearchCheckpoint,
     type AiDeepResearchEventPayload,
     type AiDeepResearchEventType,
-    type AiDeepResearchReport,
+    type AiDeepResearchExecutionContextSnapshot,
+    type AiDeepResearchPolicy,
     type AiDeepResearchRunStatus,
+    type AiDeepResearchTimings,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
@@ -14,14 +18,20 @@ export type DbAiDeepResearchRun = {
     organization_uuid: string;
     project_uuid: string;
     created_by_user_uuid: string;
+    agent_uuid: string | null;
     ai_thread_uuid: string | null;
     prompt_uuid: string | null;
     tool_call_id: string | null;
     prompt: string;
     status: AiDeepResearchRunStatus;
     claude_session_id: string | null;
-    result: AiDeepResearchReport | null;
+    result: AiDeepResearchArtifact | null;
     budget_snapshot: AiDeepResearchBudget;
+    policy_snapshot: AiDeepResearchPolicy;
+    execution_context_snapshot: AiDeepResearchExecutionContextSnapshot | null;
+    checkpoint: AiDeepResearchCheckpoint | null;
+    timings: AiDeepResearchTimings | null;
+    execution_attempts: number;
     error_message: string | null;
     cancellation_requested_at: Date | null;
     started_at: Date | null;
@@ -37,11 +47,13 @@ export type AiDeepResearchRunsTable = Knex.CompositeTableType<
         | 'organization_uuid'
         | 'project_uuid'
         | 'created_by_user_uuid'
+        | 'agent_uuid'
         | 'ai_thread_uuid'
         | 'prompt_uuid'
         | 'tool_call_id'
         | 'prompt'
         | 'budget_snapshot'
+        | 'policy_snapshot'
     >,
     Partial<
         Pick<
@@ -49,6 +61,10 @@ export type AiDeepResearchRunsTable = Knex.CompositeTableType<
             | 'status'
             | 'claude_session_id'
             | 'result'
+            | 'execution_context_snapshot'
+            | 'checkpoint'
+            | 'timings'
+            | 'execution_attempts'
             | 'error_message'
             | 'cancellation_requested_at'
             | 'started_at'

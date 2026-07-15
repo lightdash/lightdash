@@ -56,8 +56,10 @@ export class AiDeepResearchController extends BaseController {
             results: await this.getAiDeepResearchService().createRun({
                 user: toSessionUser(req.account),
                 projectUuid,
+                agentUuid: body.agentUuid,
+                threadUuid: body.threadUuid,
                 prompt: body.prompt,
-                effort: body.effort,
+                policy: body.policy,
             }),
         };
     }

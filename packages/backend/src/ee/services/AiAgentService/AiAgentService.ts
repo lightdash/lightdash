@@ -107,6 +107,7 @@ import {
     type AiAgentEditDbtProjectPipelineJobPayload,
     type AiAgentModelConfig,
     type AiClonedThreadCreatedFrom,
+    type AiDeepResearchExecutionContextSnapshot,
     type AiPromptContextInput,
     type AiWebAppThreadCreatedFrom,
     type SessionUser,
@@ -4899,6 +4900,8 @@ export class AiAgentService extends BaseService {
             onStepProgress,
             suppressWritebackPreview,
             isReviewRemediationWorkThread,
+            onExecutionContextResolved,
+            deepResearch = false,
         }: {
             agentUuid: string;
             threadUuid: string;
@@ -4915,6 +4918,10 @@ export class AiAgentService extends BaseService {
             // Enables the work-thread-only editProjectContext tool so the agent
             // can open/change the project_context PR from this thread.
             isReviewRemediationWorkThread?: boolean;
+            onExecutionContextResolved?: (
+                snapshot: AiDeepResearchExecutionContextSnapshot,
+            ) => Promise<void>;
+            deepResearch?: boolean;
         },
     ): Promise<string> {
         try {
@@ -4957,6 +4964,8 @@ export class AiAgentService extends BaseService {
                     onSlackStepProgress: onStepProgress,
                     suppressWritebackPreview,
                     isReviewRemediationWorkThread,
+                    onExecutionContextResolved,
+                    deepResearch,
                 },
             );
             return response;
@@ -7208,13 +7217,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         ) => {
             if (isSlackPrompt(prompt)) {
                 if (options?.onStepProgress) {
-                    options.onStepProgress(
-                        progress,
-                        toolName,
-                        progressId,
-                        progressStatus,
+                    return Promise.resolve(
+                        options.onStepProgress(
+                            progress,
+                            toolName,
+                            progressId,
+                            progressStatus,
+                        ),
                     );
-                    return Promise.resolve();
                 }
                 return this.updateSlackResponseWithProgress(prompt, progress);
             }
@@ -7223,13 +7233,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             // generateOrStreamAgentResponse). The callback is wired only
             // when streaming; non-stream responses silently drop these
             // events.
-            options?.onStepProgress?.(
-                progress,
-                toolName,
-                progressId,
-                progressStatus,
+            return Promise.resolve(
+                options?.onStepProgress?.(
+                    progress,
+                    toolName,
+                    progressId,
+                    progressStatus,
+                ),
             );
-            return Promise.resolve();
         };
 
         const getPrompt: GetPromptFn = async () => {
@@ -7827,6 +7838,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 progressStatus?: 'in_progress' | 'complete' | 'error',
             ) => void;
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
+            onExecutionContextResolved?: (
+                snapshot: AiDeepResearchExecutionContextSnapshot,
+            ) => Promise<void>;
         },
     ): Promise<AgentResponseStream>;
     async generateOrStreamAgentResponse(
@@ -7847,6 +7861,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             forceToolHints?: boolean;
             // Enables the work-thread-only editProjectContext tool.
             isReviewRemediationWorkThread?: boolean;
+            deepResearch?: boolean;
             toolHints?: string[];
             onSlackStepProgress?: (
                 progress: string,
@@ -7855,6 +7870,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 progressStatus?: 'in_progress' | 'complete' | 'error',
             ) => void;
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
+            onExecutionContextResolved?: (
+                snapshot: AiDeepResearchExecutionContextSnapshot,
+            ) => Promise<void>;
         },
     ): Promise<string>;
     async generateOrStreamAgentResponse(
@@ -7890,6 +7908,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             suppressWritebackPreview?: boolean;
             forceToolHints?: boolean;
             isReviewRemediationWorkThread?: boolean;
+            deepResearch?: boolean;
             toolHints?: string[];
             onSlackStepProgress?: (
                 progress: string,
@@ -7898,6 +7917,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 progressStatus?: 'in_progress' | 'complete' | 'error',
             ) => void;
             runtimeOptions?: EmbedAiAgentRuntimeOptions;
+            onExecutionContextResolved?: (
+                snapshot: AiDeepResearchExecutionContextSnapshot,
+            ) => Promise<void>;
         } & (
             | {
                   prompt: AiWebAppPrompt;
@@ -8359,6 +8381,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             canManageAgent: options.canManageAgent,
             toolHints: options.toolHints ?? [],
             forceToolHints: options.forceToolHints ?? false,
+            executionMode: options.deepResearch ? 'deep_research' : 'standard',
         };
 
         const mcpToolSetup: AgentMcpToolSetup =
@@ -8549,6 +8572,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 args,
                 dependencies,
                 mcpToolSetup,
+                onExecutionContextResolved: options.onExecutionContextResolved,
             });
         }
 

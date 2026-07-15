@@ -3,6 +3,7 @@ import {
     AnyType,
     assertUnreachable,
     Explore,
+    type AiDeepResearchExecutionContextSnapshot,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
@@ -20,6 +21,7 @@ import {
     languageModelUsageToTokens,
 } from '../../../../analytics/aiUsage';
 import Logger from '../../../../logging/logger';
+import { AiAgentExecutionContextFactory } from '../AiAgentExecutionContext';
 import { getSystemPromptV2 } from '../prompts/systemV2';
 import { getAnalyzeFieldImpact } from '../tools/analyzeFieldImpact';
 import { getClosePullRequest } from '../tools/closePullRequest';
@@ -66,6 +68,7 @@ import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
 import { getSetupPreviewDeploy } from '../tools/setupPreviewDeploy';
+import { getSubmitResearchArtifact } from '../tools/submitResearchArtifact';
 import { getSyncDbtProject } from '../tools/syncDbtProject';
 import type {
     AiAgentArgs,
@@ -581,6 +584,10 @@ export const getAgentTools = (
             : null;
     const generateHashes = getGenerateHashes();
     const generateUuids = getGenerateUuids();
+    const submitResearchArtifact =
+        args.executionMode === 'deep_research'
+            ? getSubmitResearchArtifact()
+            : null;
 
     const listProjects = getListProjects({
         listProjects: dependencies.listProjects,
@@ -646,6 +653,7 @@ export const getAgentTools = (
         ...(describeWarehouseTable ? { describeWarehouseTable } : {}),
         ...(loadSkill ? { loadSkill } : {}),
         ...(loadProjectContext ? { loadProjectContext } : {}),
+        ...(submitResearchArtifact ? { submitResearchArtifact } : {}),
     };
 
     const mergedTools = { ...tools, ...mcpToolSetup.tools };
@@ -666,6 +674,7 @@ export const getAgentTools = (
 const withEarlyToolProgress = (
     tools: ToolSet,
     updateProgress: AiAgentDependencies['updateProgress'],
+    waitForProgress: boolean,
 ): ToolSet =>
     Object.fromEntries(
         Object.entries(tools).map(([toolName, toolDef]) => {
@@ -677,19 +686,24 @@ const withEarlyToolProgress = (
                 toolName,
                 {
                     ...toolDef,
-                    execute: (input: AnyType, options: AnyType) => {
-                        void updateProgress(
+                    execute: async (input: AnyType, options: AnyType) => {
+                        const progress = updateProgress(
                             summarizeToolCall(toolName, input) ??
                                 `Running ${toolName}...`,
                             toolName,
                             options?.toolCallId,
                             'in_progress',
-                        ).catch((error) => {
-                            Logger.debug(
-                                '[AiAgent] Failed to emit early tool progress:',
-                                error,
-                            );
-                        });
+                        );
+                        if (waitForProgress) {
+                            await progress;
+                        } else {
+                            void progress.catch((error) => {
+                                Logger.debug(
+                                    '[AiAgent] Failed to emit early tool progress:',
+                                    error,
+                                );
+                            });
+                        }
                         return originalExecute(input, options);
                     },
                 },
@@ -801,10 +815,14 @@ export const generateAgentResponse = async ({
     args,
     dependencies,
     mcpToolSetup,
+    onExecutionContextResolved,
 }: {
     args: AiAgentArgs;
     dependencies: AiAgentDependencies;
     mcpToolSetup: AgentMcpToolSetup;
+    onExecutionContextResolved?: (
+        snapshot: AiDeepResearchExecutionContextSnapshot,
+    ) => Promise<void>;
 }): Promise<string> => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger(
@@ -836,7 +854,15 @@ export const generateAgentResponse = async ({
                 verifiedFieldUsage,
             ),
             dependencies.updateProgress,
+            args.executionMode === 'deep_research',
         );
+        const executionContext = AiAgentExecutionContextFactory.create(
+            args,
+            tools,
+            dependencies,
+            mcpToolSetup,
+        );
+        await onExecutionContextResolved?.(executionContext.snapshot);
         const messages = getAgentMessages(
             args,
             availableExplores,
@@ -931,62 +957,66 @@ export const generateAgentResponse = async ({
                         `Storing ${step.toolResults.length} tool results.`,
                     );
 
+                    const toolResults = step.toolResults.filter(
+                        (
+                            toolResult,
+                        ): toolResult is NonNullable<typeof toolResult> =>
+                            toolResult !== null,
+                    );
+                    const progressUpdates = toolResults.map((toolResult) =>
+                        dependencies.updateProgress(
+                            summarizeToolResult(
+                                toolResult.toolName,
+                                toolResult.output as AnyType,
+                            ),
+                            toolResult.toolName,
+                            toolResult.toolCallId,
+                            isPendingToolResult(toolResult.output as AnyType)
+                                ? 'in_progress'
+                                : 'complete',
+                        ),
+                    );
+                    if (args.executionMode === 'deep_research') {
+                        await Promise.all(progressUpdates);
+                    } else {
+                        void Promise.all(progressUpdates).catch((error) => {
+                            Logger.debug(
+                                '[AiAgent][On Step Finish] Failed to update tool progress:',
+                                error,
+                            );
+                        });
+                    }
+
                     await dependencies.storeToolResults(
-                        step.toolResults
-                            .filter(
-                                (
-                                    toolResult,
-                                ): toolResult is NonNullable<
-                                    typeof toolResult
-                                > => toolResult !== null,
-                            )
-                            .map((toolResult) => {
-                                logger(
-                                    'On Step Finish',
-                                    `Storing tool result for Prompt UUID ${
-                                        args.promptUuid
-                                    }: ${toolResult.toolName} (ID: ${
-                                        toolResult.toolCallId
-                                    }) (RESULT: ${JSON.stringify(toolResult.output)})`,
-                                );
-                                void dependencies
-                                    .updateProgress(
-                                        summarizeToolResult(
-                                            toolResult.toolName,
-                                            toolResult.output as AnyType,
-                                        ),
-                                        toolResult.toolName,
-                                        toolResult.toolCallId,
-                                        isPendingToolResult(
-                                            toolResult.output as AnyType,
-                                        )
-                                            ? 'in_progress'
-                                            : 'complete',
-                                    )
-                                    .catch((error) => {
-                                        Logger.debug(
-                                            '[AiAgent][On Step Finish] Failed to update tool progress:',
-                                            error,
-                                        );
-                                    });
-                                const output = normalizeToolOutput(
-                                    toolResult.output,
-                                );
-                                return {
-                                    promptUuid: args.promptUuid,
-                                    toolCallId: toolResult.toolCallId,
-                                    toolName: toolResult.toolName,
-                                    result: output.result,
-                                    metadata: output.metadata,
-                                };
-                            }),
+                        toolResults.map((toolResult) => {
+                            logger(
+                                'On Step Finish',
+                                `Storing tool result for Prompt UUID ${
+                                    args.promptUuid
+                                }: ${toolResult.toolName} (ID: ${
+                                    toolResult.toolCallId
+                                }) (RESULT: ${JSON.stringify(toolResult.output)})`,
+                            );
+                            const output = normalizeToolOutput(
+                                toolResult.output,
+                            );
+                            return {
+                                promptUuid: args.promptUuid,
+                                toolCallId: toolResult.toolCallId,
+                                toolName: toolResult.toolName,
+                                result: output.result,
+                                metadata: output.metadata,
+                            };
+                        }),
                     );
                 }
 
-                void dependencies.updatePrompt({
-                    response: step.text,
-                    promptUuid: args.promptUuid,
-                });
+                if (args.executionMode !== 'deep_research') {
+                    void dependencies.updatePrompt({
+                        response: step.text,
+                        promptUuid: args.promptUuid,
+                    });
+                }
             },
             experimental_telemetry: telemetry,
         });

@@ -167,6 +167,7 @@ export type AiAgentArgs = AnyAiModel & {
      * guarantee the agent opens a PR via editDbtProject.
      */
     forceToolHints?: boolean;
+    executionMode: 'standard' | 'deep_research';
 };
 
 export type PerformanceMetrics = {

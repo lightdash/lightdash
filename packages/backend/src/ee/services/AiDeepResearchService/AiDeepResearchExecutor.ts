@@ -1,130 +1,242 @@
 import {
-    RequestMethod,
-    type AiDeepResearchActivity,
-    type AiDeepResearchProgress,
-    type AiDeepResearchReport,
+    type AiAgentToolCall,
+    type AiAgentToolResult,
+    type AiDeepResearchArtifact,
+    type AiDeepResearchArtifactEvidence,
+    type AiDeepResearchExecutionContextSnapshot,
+    type AiDeepResearchTimings,
+    type SessionUser,
 } from '@lightdash/common';
-import { fromSession } from '../../../auth/account';
-import type { LightdashConfig } from '../../../config/parseConfig';
-import Logger from '../../../logging/logger';
-import type { PersonalAccessTokenService } from '../../../services/PersonalAccessTokenService';
 import type { UserService } from '../../../services/UserService';
-import type {
-    AiDeepResearchClient,
-    AiDeepResearchProgressEvent,
-} from '../../clients/AiDeepResearchClient';
-import type { DbAiDeepResearchRun } from '../../database/entities/aiDeepResearch';
 import type { AiAgentModel } from '../../models/AiAgentModel';
 import type { AiDeepResearchRunModel } from '../../models/AiDeepResearchRunModel';
-import {
-    AI_DEEP_RESEARCH_REPORT_TOOL_NAME,
-    getAiDeepResearchAgent,
-    parseAiDeepResearchReport,
-} from './AiDeepResearchAgent';
+import { parseResearchArtifact } from '../ai/tools/submitResearchArtifact';
+import type { AiAgentService } from '../AiAgentService/AiAgentService';
 import type {
     AiDeepResearchExecutor as AiDeepResearchExecutorFn,
     AiDeepResearchExecutorResult,
 } from './AiDeepResearchService';
 
-const CREDENTIAL_EXPIRY_GRACE_MS = 30 * 60 * 1_000;
-const CANCELLATION_POLL_INTERVAL_MS = 1_000;
-const INTERRUPT_TIMEOUT_MS = 30_000;
-const MAX_CHAT_CONTEXT_CHARS = 12_000;
-const MAX_CHAT_CONTEXT_TURNS = 6;
-const MAX_CHAT_MESSAGE_CHARS = 2_000;
-const WAREHOUSE_TOOL_NAMES = new Set(['run_metric_query', 'get_query_result']);
-const WAREHOUSE_QUERY_TOOL_NAMES = new Set(['run_metric_query']);
+const MAX_EVIDENCE_SUMMARY_CHARS = 2_000;
+
+type ToolProvenance = {
+    toolCall: AiAgentToolCall;
+    toolResult: AiAgentToolResult | null;
+};
 
 type Dependencies = {
-    lightdashConfig: LightdashConfig;
+    aiAgentService: Pick<
+        AiAgentService,
+        'generateAgentThreadResponse' | 'interruptAgentThreadMessage'
+    >;
     aiAgentModel: Pick<
         AiAgentModel,
-        'findThreadOwnership' | 'getThreadMessages'
+        | 'findWebAppPrompt'
+        | 'getToolCallsAndResultsForPrompt'
+        | 'clearModelResponse'
+        | 'updateModelResponse'
     >;
-    aiDeepResearchClient: Pick<AiDeepResearchClient, 'runSession'>;
     aiDeepResearchRunModel: Pick<
         AiDeepResearchRunModel,
-        'appendProgressEvent' | 'findByUuid' | 'setClaudeSessionId' | 'touch'
-    >;
-    personalAccessTokenService: Pick<
-        PersonalAccessTokenService,
-        'createPersonalAccessToken' | 'deletePersonalAccessToken'
+        | 'appendEvent'
+        | 'saveArtifactWithEvents'
+        | 'saveCheckpoint'
+        | 'saveExecutionContext'
+        | 'saveTimings'
+        | 'touch'
     >;
     userService: Pick<UserService, 'getSessionByUserUuidAndOrg'>;
 };
 
-type BudgetState = {
-    toolCalls: number;
-    warehouseQueries: number;
-    tokens: number;
-    exceeded: keyof DbAiDeepResearchRun['budget_snapshot'] | null;
+const parseJson = (value: string): unknown => {
+    try {
+        return JSON.parse(value) as unknown;
+    } catch {
+        return value;
+    }
 };
 
-const getMcpServerUrl = (siteUrl: string): string => {
-    const url = new URL('/api/v1/mcp', siteUrl);
-    return url.toString();
+const findValues = (value: unknown, key: string): string[] => {
+    if (Array.isArray(value)) {
+        return value.flatMap((item) => findValues(item, key));
+    }
+    if (value === null || typeof value !== 'object') {
+        return [];
+    }
+
+    return Object.entries(value).flatMap(([entryKey, entryValue]) => [
+        ...(entryKey === key && typeof entryValue === 'string'
+            ? [entryValue]
+            : []),
+        ...findValues(entryValue, key),
+    ]);
 };
 
-const getPartialReport = (
-    run: DbAiDeepResearchRun,
-    reason: string,
-): AiDeepResearchReport => ({
-    summary: 'The investigation stopped before it could produce a full report.',
-    findings: [],
-    caveats: [reason],
-    scope: run.prompt,
-    unresolvedQuestions: [run.prompt],
-    nextSteps: ['Run Deep Research again with a larger budget.'],
-});
+const getQueryUuids = (provenance: ToolProvenance[]): string[] => [
+    ...new Set(
+        provenance.flatMap(({ toolCall, toolResult }) => [
+            ...findValues(toolCall.toolArgs, 'queryUuid'),
+            ...findValues(
+                toolResult ? parseJson(toolResult.result) : null,
+                'queryUuid',
+            ),
+        ]),
+    ),
+];
 
-const truncate = (value: string): string =>
-    value.length > MAX_CHAT_MESSAGE_CHARS
-        ? `${value.slice(0, MAX_CHAT_MESSAGE_CHARS)}…`
-        : value;
+const getQueryProvenance = (provenance: ToolProvenance[]) =>
+    provenance.flatMap(({ toolCall, toolResult }) =>
+        [
+            ...new Set([
+                ...findValues(toolCall.toolArgs, 'queryUuid'),
+                ...findValues(
+                    toolResult ? parseJson(toolResult.result) : null,
+                    'queryUuid',
+                ),
+            ]),
+        ].map((queryUuid) => ({
+            queryUuid,
+            toolCallId: toolCall.toolCallId,
+            toolName: toolCall.toolName,
+        })),
+    );
 
-const getActivity = (
-    event: Extract<AiDeepResearchProgressEvent, { type: 'tool_use' }>,
-): AiDeepResearchActivity => {
-    if (event.source === 'custom') {
-        return 'reporting';
+const getSourceType = (
+    toolCall: AiAgentToolCall,
+): AiDeepResearchArtifactEvidence['sourceType'] => {
+    const toolName = toolCall.toolName.toLowerCase();
+    if (toolName.includes('repo')) {
+        return 'repository';
     }
-    if (event.source === 'built_in') {
-        return event.name === 'web_fetch' ? 'web_fetch' : 'web_search';
+    if (toolName.includes('knowledge')) {
+        return 'knowledge';
     }
-    return WAREHOUSE_TOOL_NAMES.has(event.name)
-        ? 'warehouse_query'
-        : 'lightdash_metadata';
+    if (toolName.includes('sql') || toolName.includes('query')) {
+        return 'warehouse';
+    }
+    if (toolCall.toolType === 'mcp') {
+        return 'external_mcp';
+    }
+    return 'lightdash';
 };
 
-const getProgress = (
-    event: AiDeepResearchProgressEvent,
-    state: BudgetState,
-    maxToolCalls: number,
-): AiDeepResearchProgress | null => {
-    if (event.type === 'model_usage') {
-        return null;
+const getEvidence = (
+    provenance: ToolProvenance[],
+): AiDeepResearchArtifactEvidence[] =>
+    provenance.map(({ toolCall, toolResult }) => ({
+        title: toolCall.toolName,
+        summary: (
+            toolResult?.result ?? 'Tool call did not return a result'
+        ).slice(0, MAX_EVIDENCE_SUMMARY_CHARS),
+        sourceType: getSourceType(toolCall),
+        toolName: toolCall.toolName,
+        toolCallId: toolCall.toolCallId,
+        mcpServerUuid:
+            toolCall.toolType === 'mcp'
+                ? (toolCall.mcpServer?.uuid ?? null)
+                : null,
+        queryUuid:
+            findValues(
+                toolResult ? parseJson(toolResult.result) : toolCall.toolArgs,
+                'queryUuid',
+            )[0] ?? null,
+    }));
+
+const getMetricDefinitions = (provenance: ToolProvenance[]) =>
+    provenance
+        .filter(({ toolCall }) =>
+            /metadata|metric|field/i.test(toolCall.toolName),
+        )
+        .map(({ toolCall, toolResult }) => ({
+            name: toolCall.toolName,
+            definition: (
+                toolResult?.result ?? JSON.stringify(toolCall.toolArgs)
+            ).slice(0, MAX_EVIDENCE_SUMMARY_CHARS),
+            source:
+                toolCall.toolType === 'mcp'
+                    ? (toolCall.mcpServer?.name ?? null)
+                    : 'Lightdash AI Agent',
+        }));
+
+const createArtifact = (
+    provenance: ToolProvenance[],
+    policyExceeded: string | null,
+): AiDeepResearchArtifact => {
+    const submission = provenance.findLast(
+        ({ toolCall }) => toolCall.toolName === 'submitResearchArtifact',
+    );
+    if (!submission) {
+        if (policyExceeded) {
+            const evidence = getEvidence(provenance);
+            return {
+                findings: [],
+                evidence,
+                queryUuids: getQueryUuids(provenance),
+                metricDefinitions: getMetricDefinitions(provenance),
+                hypotheses: [],
+                contradictions: [],
+                confidence: 'low',
+                limitations: [policyExceeded],
+                finalReport: `# Deep Research incomplete\n\n${policyExceeded}\n\nThe investigation stopped before the researcher could submit a final conclusion. The Research Artifact preserves the evidence collected so far.`,
+            };
+        }
+        throw new Error(
+            'Deep Research finished without submitting a Research Artifact',
+        );
     }
-    if (event.type === 'tool_use') {
+
+    const submittedArtifact = parseResearchArtifact(
+        submission.toolCall.toolArgs,
+    );
+    const evidenceProvenance = provenance.filter(
+        ({ toolCall }) => toolCall.toolName !== 'submitResearchArtifact',
+    );
+    const toolCallsById = new Map(
+        evidenceProvenance.map(({ toolCall }) => [
+            toolCall.toolCallId,
+            toolCall,
+        ]),
+    );
+    const queryUuids = getQueryUuids(evidenceProvenance);
+    const queryUuidSet = new Set(queryUuids);
+    const submittedEvidence = submittedArtifact.evidence.map((evidence) => {
+        const toolCall = evidence.toolCallId
+            ? toolCallsById.get(evidence.toolCallId)
+            : undefined;
         return {
-            phase: event.source === 'custom' ? 'synthesizing' : 'investigating',
-            activity: getActivity(event),
-            current: state.toolCalls,
-            total: maxToolCalls,
+            ...evidence,
+            toolName: toolCall?.toolName ?? null,
+            toolCallId: toolCall?.toolCallId ?? null,
+            mcpServerUuid:
+                toolCall?.toolType === 'mcp'
+                    ? (toolCall.mcpServer?.uuid ?? null)
+                    : null,
+            queryUuid:
+                evidence.queryUuid && queryUuidSet.has(evidence.queryUuid)
+                    ? evidence.queryUuid
+                    : null,
         };
-    }
-    if (event.type === 'thinking') {
-        return {
-            phase: state.toolCalls === 0 ? 'planning' : 'validating',
-            activity: null,
-            current: state.toolCalls,
-            total: maxToolCalls,
-        };
-    }
+    });
+    const referencedToolCallIds = new Set(
+        submittedEvidence.flatMap((evidence) =>
+            evidence.toolCallId ? [evidence.toolCallId] : [],
+        ),
+    );
     return {
-        phase: event.type === 'session_running' ? 'planning' : 'validating',
-        activity: null,
-        current: state.toolCalls,
-        total: maxToolCalls,
+        ...submittedArtifact,
+        evidence: [
+            ...submittedEvidence,
+            ...getEvidence(evidenceProvenance).filter(
+                (evidence) =>
+                    !evidence.toolCallId ||
+                    !referencedToolCallIds.has(evidence.toolCallId),
+            ),
+        ],
+        queryUuids,
+        metricDefinitions:
+            submittedArtifact.metricDefinitions.length > 0
+                ? submittedArtifact.metricDefinitions
+                : getMetricDefinitions(evidenceProvenance),
     };
 };
 
@@ -135,282 +247,287 @@ export class AiDeepResearchExecutor {
         this.dependencies = dependencies;
     }
 
-    private async getChatContext(run: DbAiDeepResearchRun): Promise<string> {
-        if (!run.ai_thread_uuid) {
-            return '';
-        }
-        const ownership =
-            await this.dependencies.aiAgentModel.findThreadOwnership({
-                organizationUuid: run.organization_uuid,
-                threadUuid: run.ai_thread_uuid,
-            });
-        if (
-            !ownership ||
-            ownership.projectUuid !== run.project_uuid ||
-            ownership.ownerUserUuid !== run.created_by_user_uuid
-        ) {
-            return '';
-        }
-        const messages = await this.dependencies.aiAgentModel.getThreadMessages(
+    private async getUser(run: Parameters<AiDeepResearchExecutorFn>[0]) {
+        return this.dependencies.userService.getSessionByUserUuidAndOrg(
+            run.created_by_user_uuid,
             run.organization_uuid,
-            run.project_uuid,
-            run.ai_thread_uuid,
-        );
-        return messages
-            .slice(-MAX_CHAT_CONTEXT_TURNS)
-            .flatMap((message) => [
-                `User: ${truncate(message.prompt)}`,
-                ...(message.response
-                    ? [`Assistant: ${truncate(message.response)}`]
-                    : []),
-            ])
-            .join('\n\n')
-            .slice(-MAX_CHAT_CONTEXT_CHARS);
-    }
-
-    private startCancellationPoll(
-        run: DbAiDeepResearchRun,
-        controller: AbortController,
-    ): () => Promise<void> {
-        let stopped = false;
-        let timer: NodeJS.Timeout | null = null;
-        let pendingCheck: Promise<void> = Promise.resolve();
-
-        const schedule = () => {
-            if (stopped || controller.signal.aborted) {
-                return;
-            }
-            timer = setTimeout(() => {
-                pendingCheck = this.dependencies.aiDeepResearchRunModel
-                    .findByUuid(run.ai_deep_research_run_uuid)
-                    .then((currentRun) => {
-                        if (currentRun?.cancellation_requested_at) {
-                            controller.abort(
-                                new Error('Deep Research was cancelled'),
-                            );
-                        }
-                    })
-                    .catch((error) => {
-                        Logger.warn(
-                            `[AiDeepResearch] Could not check cancellation: ${error instanceof Error ? error.message : 'Unknown error'}`,
-                        );
-                    })
-                    .finally(schedule);
-            }, CANCELLATION_POLL_INTERVAL_MS);
-            timer.unref();
-        };
-
-        schedule();
-
-        return async () => {
-            stopped = true;
-            if (timer) {
-                clearTimeout(timer);
-            }
-            await pendingCheck;
-        };
+        ) as Promise<SessionUser>;
     }
 
     execute: AiDeepResearchExecutorFn = async (
         run,
         { signal },
     ): Promise<AiDeepResearchExecutorResult> => {
-        const account = fromSession(
-            await this.dependencies.userService.getSessionByUserUuidAndOrg(
-                run.created_by_user_uuid,
-                run.organization_uuid,
-            ),
+        if (!run.agent_uuid || !run.ai_thread_uuid || !run.prompt_uuid) {
+            return {
+                status: 'failed',
+                errorMessage:
+                    'Deep Research run is not linked to an AI Agent thread',
+            };
+        }
+        if (signal.aborted || run.cancellation_requested_at) {
+            return { status: 'cancelled' };
+        }
+        if (run.result && run.checkpoint === 'thread_attached') {
+            return { status: 'completed', artifact: run.result };
+        }
+        const agentUuid = run.agent_uuid;
+        const threadUuid = run.ai_thread_uuid;
+        const promptUuid = run.prompt_uuid;
+
+        const agentStartedAt = Date.now();
+        const toolStartedAt = new Map<string, number>();
+        let toolWaitMs = run.timings?.toolWaitMs ?? 0;
+        let warehouseMs = run.timings?.warehouseMs ?? 0;
+        let toolCalls = 0;
+        let warehouseQueries = 0;
+        let policyExceeded: string | null = null;
+        const existingPrompt =
+            await this.dependencies.aiAgentModel.findWebAppPrompt(promptUuid);
+        let executionContext: AiDeepResearchExecutionContextSnapshot | null =
+            run.execution_context_snapshot;
+        const user = await this.getUser(run);
+        await this.dependencies.aiDeepResearchRunModel.appendEvent(
+            run.ai_deep_research_run_uuid,
+            'phase_changed',
+            { phase: 'planning' },
         );
-        const expiresAt = new Date(
-            Date.now() +
-                run.budget_snapshot.maxRuntimeMs +
-                CREDENTIAL_EXPIRY_GRACE_MS,
-        );
-        const personalAccessToken =
-            await this.dependencies.personalAccessTokenService.createPersonalAccessToken(
-                account,
+        const interrupt = async (reason: string) => {
+            if (policyExceeded) {
+                return;
+            }
+            policyExceeded = reason;
+            await this.dependencies.aiAgentService.interruptAgentThreadMessage(
+                user,
                 {
-                    description: `Deep Research run ${run.ai_deep_research_run_uuid}`,
-                    expiresAt,
-                    autoGenerated: true,
+                    agentUuid,
+                    threadUuid,
+                    messageUuid: promptUuid,
                 },
-                RequestMethod.BACKEND,
             );
-
-        const controller = new AbortController();
-        const stopCancellationPoll = this.startCancellationPoll(
-            run,
-            controller,
-        );
-        const sessionSignal = AbortSignal.any([signal, controller.signal]);
-        const budgetState: BudgetState = {
-            toolCalls: 0,
-            warehouseQueries: 0,
-            tokens: 0,
-            exceeded: null,
         };
-        let latestReport: AiDeepResearchReport | null = null;
-
-        const exceedBudget = (
-            budget: keyof DbAiDeepResearchRun['budget_snapshot'],
-        ) => {
-            budgetState.exceeded = budget;
-            controller.abort(new Error(`Deep Research exceeded ${budget}`));
-        };
-
-        try {
-            const chatContext = await this.getChatContext(run);
-            const mcpServerUrl = getMcpServerUrl(
-                this.dependencies.lightdashConfig.siteUrl,
+        const runtimeTimer = setTimeout(() => {
+            void interrupt('The runtime policy limit was reached.');
+        }, run.policy_snapshot.maxRuntimeMs);
+        runtimeTimer.unref();
+        const heartbeat = setInterval(() => {
+            void this.dependencies.aiDeepResearchRunModel.touch(
+                run.ai_deep_research_run_uuid,
             );
-            const result =
-                await this.dependencies.aiDeepResearchClient.runSession({
-                    agent: getAiDeepResearchAgent(mcpServerUrl),
-                    environment: {
-                        name: 'Lightdash Deep Research',
-                        config: {
-                            type: 'cloud',
-                            networking: {
-                                type: 'limited',
-                                allow_mcp_servers: true,
-                            },
-                        },
-                    },
-                    vault: {
-                        display_name: `Deep Research ${run.ai_deep_research_run_uuid}`,
-                        metadata: {
-                            lightdash_run_uuid: run.ai_deep_research_run_uuid,
-                        },
-                    },
-                    credentials: [
+        }, 15_000);
+        heartbeat.unref();
+        const abortListener = () => {
+            void interrupt('The worker execution was cancelled.');
+        };
+        signal.addEventListener('abort', abortListener, { once: true });
+
+        if (existingPrompt?.response && !run.result) {
+            await this.dependencies.aiAgentModel.clearModelResponse(promptUuid);
+        }
+        if (!run.result) {
+            await (async () => {
+                try {
+                    return await this.dependencies.aiAgentService.generateAgentThreadResponse(
+                        user,
                         {
-                            display_name: 'Lightdash Deep Research PAT',
-                            auth: {
-                                type: 'static_bearer',
-                                mcp_server_url: mcpServerUrl,
-                                token: personalAccessToken.token,
+                            agentUuid,
+                            threadUuid,
+                            autoApproveSql: true,
+                            suppressWritebackPreview: true,
+                            deepResearch: true,
+                            onExecutionContextResolved: async (snapshot) => {
+                                executionContext = snapshot;
+                                await this.dependencies.aiDeepResearchRunModel.saveExecutionContext(
+                                    run.ai_deep_research_run_uuid,
+                                    snapshot,
+                                );
+                            },
+                            onStepProgress: async (
+                                _progress,
+                                progressToolName,
+                                toolCallId,
+                                status = 'in_progress',
+                            ) => {
+                                const toolName = progressToolName ?? 'unknown';
+                                const key = toolCallId ?? toolName;
+                                const isArtifactSubmission =
+                                    toolName === 'submitResearchArtifact';
+                                if (
+                                    status === 'in_progress' &&
+                                    !isArtifactSubmission
+                                ) {
+                                    if (toolCalls === 0) {
+                                        await this.dependencies.aiDeepResearchRunModel.appendEvent(
+                                            run.ai_deep_research_run_uuid,
+                                            'phase_changed',
+                                            { phase: 'investigating' },
+                                        );
+                                    }
+                                    toolStartedAt.set(key, Date.now());
+                                    toolCalls += 1;
+                                    if (/sql|query/i.test(toolName)) {
+                                        warehouseQueries += 1;
+                                    }
+                                    if (
+                                        toolCalls >
+                                            run.policy_snapshot.maxToolCalls ||
+                                        toolCalls > run.policy_snapshot.maxSteps
+                                    ) {
+                                        await interrupt(
+                                            'The tool or step policy limit was reached.',
+                                        );
+                                        throw new Error(
+                                            policyExceeded ?? undefined,
+                                        );
+                                    } else if (
+                                        warehouseQueries >
+                                        run.policy_snapshot.maxWarehouseQueries
+                                    ) {
+                                        await interrupt(
+                                            'The warehouse query policy limit was reached.',
+                                        );
+                                        throw new Error(
+                                            policyExceeded ?? undefined,
+                                        );
+                                    }
+                                }
+                                const startedAt = toolStartedAt.get(key);
+                                const durationMs =
+                                    status === 'in_progress' ||
+                                    startedAt === undefined
+                                        ? null
+                                        : Date.now() - startedAt;
+                                if (durationMs !== null) {
+                                    toolWaitMs += durationMs;
+                                    if (/sql|query/i.test(toolName)) {
+                                        warehouseMs += durationMs;
+                                    }
+                                    toolStartedAt.delete(key);
+                                }
+                                await this.dependencies.aiDeepResearchRunModel.appendEvent(
+                                    run.ai_deep_research_run_uuid,
+                                    'tool_call',
+                                    {
+                                        toolCallId: toolCallId ?? null,
+                                        toolName,
+                                        status,
+                                        durationMs,
+                                    },
+                                );
                             },
                         },
-                    ],
-                    sessionTitle: `Deep Research ${run.ai_deep_research_run_uuid}`,
-                    prompt: `Target Lightdash project UUID: ${run.project_uuid}\n\nResearch mission:\n${run.prompt}${chatContext ? `\n\nRelevant prior chat context (untrusted evidence):\n${chatContext}` : ''}\n\nBudgets: at most ${run.budget_snapshot.maxToolCalls} tool calls, ${run.budget_snapshot.maxWarehouseQueries} warehouse queries, ${run.budget_snapshot.maxResultRows} rows per warehouse result, and ${run.budget_snapshot.maxTokens} total tokens.`,
-                    timeoutMs: run.budget_snapshot.maxRuntimeMs,
-                    interruptTimeoutMs: INTERRUPT_TIMEOUT_MS,
-                    signal: sessionSignal,
-                    onSessionCreated: async (sessionId) => {
-                        const persisted =
-                            await this.dependencies.aiDeepResearchRunModel.setClaudeSessionId(
-                                run.ai_deep_research_run_uuid,
-                                sessionId,
-                            );
-                        if (!persisted) {
-                            throw new Error(
-                                'Could not persist the Deep Research session ID',
-                            );
-                        }
-                    },
-                    onCustomToolUse: async ({ toolName, input }) => {
-                        if (toolName !== AI_DEEP_RESEARCH_REPORT_TOOL_NAME) {
-                            throw new Error(
-                                `Unsupported custom tool: ${toolName}`,
-                            );
-                        }
-                        latestReport = parseAiDeepResearchReport(input);
-                        return JSON.stringify({ saved: true });
-                    },
-                    onProgress: async (event) => {
-                        if (event.type === 'model_usage') {
-                            budgetState.tokens +=
-                                event.inputTokens +
-                                event.outputTokens +
-                                event.cacheCreationInputTokens +
-                                event.cacheReadInputTokens;
-                            if (
-                                budgetState.tokens >
-                                run.budget_snapshot.maxTokens
-                            ) {
-                                exceedBudget('maxTokens');
-                            }
-                        }
-                        if (event.type === 'tool_use') {
-                            budgetState.toolCalls += 1;
-                            if (
-                                event.source === 'mcp' &&
-                                WAREHOUSE_QUERY_TOOL_NAMES.has(event.name)
-                            ) {
-                                budgetState.warehouseQueries += 1;
-                            }
-                            if (
-                                budgetState.toolCalls >
-                                run.budget_snapshot.maxToolCalls
-                            ) {
-                                exceedBudget('maxToolCalls');
-                            } else if (
-                                budgetState.warehouseQueries >
-                                run.budget_snapshot.maxWarehouseQueries
-                            ) {
-                                exceedBudget('maxWarehouseQueries');
-                            }
-                        }
-
-                        const progress = getProgress(
-                            event,
-                            budgetState,
-                            run.budget_snapshot.maxToolCalls,
+                    );
+                } catch (error) {
+                    if (!policyExceeded || signal.aborted) {
+                        await this.dependencies.aiDeepResearchRunModel.saveTimings(
+                            run.ai_deep_research_run_uuid,
+                            {
+                                queueMs:
+                                    (run.started_at?.getTime() ??
+                                        agentStartedAt) -
+                                    run.created_at.getTime(),
+                                agentMs:
+                                    (run.timings?.agentMs ?? 0) +
+                                    (Date.now() - agentStartedAt),
+                                toolWaitMs,
+                                warehouseMs,
+                                artifactGenerationMs:
+                                    run.timings?.artifactGenerationMs ?? 0,
+                                totalMs: Date.now() - run.created_at.getTime(),
+                            },
                         );
-                        await Promise.all([
-                            progress
-                                ? this.dependencies.aiDeepResearchRunModel.appendProgressEvent(
-                                      run.ai_deep_research_run_uuid,
-                                      progress,
-                                  )
-                                : Promise.resolve(true),
-                            this.dependencies.aiDeepResearchRunModel.touch(
-                                run.ai_deep_research_run_uuid,
-                            ),
-                        ]);
-                    },
-                });
+                        throw error;
+                    }
+                    return undefined;
+                } finally {
+                    clearTimeout(runtimeTimer);
+                    clearInterval(heartbeat);
+                    signal.removeEventListener('abort', abortListener);
+                }
+            })();
+        }
+        clearTimeout(runtimeTimer);
+        clearInterval(heartbeat);
+        signal.removeEventListener('abort', abortListener);
 
-            if (
-                budgetState.exceeded ||
-                (result.status === 'failed' && result.reason === 'timed_out')
-            ) {
-                return {
-                    status: 'partially_completed',
-                    report:
-                        latestReport ??
-                        getPartialReport(
-                            run,
-                            budgetState.exceeded
-                                ? `The ${budgetState.exceeded} budget was exhausted.`
-                                : 'The runtime budget was exhausted.',
-                        ),
-                };
-            }
-            if (result.status === 'cancelled') {
-                return { status: 'cancelled' };
-            }
-            if (result.status === 'failed') {
-                return {
-                    status: 'failed',
-                    errorMessage: result.errorMessage,
-                };
-            }
-            if (!latestReport) {
-                return {
-                    status: 'failed',
-                    errorMessage:
-                        'Deep Research finished without submitting a report',
-                };
-            }
-            return { status: 'completed', report: latestReport };
-        } finally {
-            await stopCancellationPoll();
-            await this.dependencies.personalAccessTokenService.deletePersonalAccessToken(
-                account,
-                personalAccessToken.uuid,
+        if (
+            !executionContext &&
+            !run.execution_context_snapshot &&
+            !run.result
+        ) {
+            return {
+                status: 'failed',
+                errorMessage: 'AI Agent execution context was not resolved',
+            };
+        }
+
+        if (run.checkpoint === null || run.checkpoint === 'context_resolved') {
+            await this.dependencies.aiDeepResearchRunModel.saveCheckpoint(
+                run.ai_deep_research_run_uuid,
+                'research_completed',
             );
         }
+        await this.dependencies.aiDeepResearchRunModel.appendEvent(
+            run.ai_deep_research_run_uuid,
+            'phase_changed',
+            { phase: 'synthesizing' },
+        );
+        const artifactStartedAt = Date.now();
+        const provenance = run.result
+            ? []
+            : (
+                  await this.dependencies.aiAgentModel.getToolCallsAndResultsForPrompt(
+                      promptUuid,
+                  )
+              ).map(({ toolCall, toolResult }) => ({ toolCall, toolResult }));
+        const artifact =
+            run.result ?? createArtifact(provenance, policyExceeded);
+        if (policyExceeded && !artifact.limitations.includes(policyExceeded)) {
+            artifact.limitations = [...artifact.limitations, policyExceeded];
+        }
+        const artifactGenerationMs = Date.now() - artifactStartedAt;
+
+        if (!run.result) {
+            await this.dependencies.aiDeepResearchRunModel.saveArtifactWithEvents(
+                run.ai_deep_research_run_uuid,
+                artifact,
+                getQueryProvenance(
+                    provenance.filter(
+                        ({ toolCall }) =>
+                            toolCall.toolName !== 'submitResearchArtifact',
+                    ),
+                ),
+            );
+        }
+
+        await this.dependencies.aiAgentModel.updateModelResponse({
+            promptUuid,
+            response: artifact.finalReport,
+        });
+        const timings: AiDeepResearchTimings = {
+            queueMs:
+                (run.started_at?.getTime() ?? agentStartedAt) -
+                run.created_at.getTime(),
+            agentMs:
+                (run.timings?.agentMs ?? 0) +
+                (Date.now() - agentStartedAt - artifactGenerationMs),
+            toolWaitMs,
+            warehouseMs,
+            artifactGenerationMs:
+                (run.timings?.artifactGenerationMs ?? 0) + artifactGenerationMs,
+            totalMs: Date.now() - run.created_at.getTime(),
+        };
+        await this.dependencies.aiDeepResearchRunModel.saveTimings(
+            run.ai_deep_research_run_uuid,
+            timings,
+        );
+        await this.dependencies.aiDeepResearchRunModel.saveCheckpoint(
+            run.ai_deep_research_run_uuid,
+            'thread_attached',
+        );
+
+        return policyExceeded
+            ? { status: 'partially_completed', artifact }
+            : { status: 'completed', artifact };
     };
 }

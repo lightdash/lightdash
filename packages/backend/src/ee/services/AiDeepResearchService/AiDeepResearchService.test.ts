@@ -2,77 +2,25 @@ import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     AnyType,
     FeatureFlags,
-    ForbiddenError,
-    NotFoundError,
-    ParameterError,
-    type AiDeepResearchBudget,
-    type AiDeepResearchReport,
+    type AiDeepResearchArtifact,
     type MemberAbility,
     type SessionUser,
 } from '@lightdash/common';
 import { AiDeepResearchService } from './AiDeepResearchService';
 
-const budget: AiDeepResearchBudget = {
-    maxRuntimeMs: 60_000,
-    maxTokens: 10_000,
-    maxToolCalls: 20,
-    maxWarehouseQueries: 10,
-    maxResultRows: 1_000,
+const artifact: AiDeepResearchArtifact = {
+    findings: ['Revenue fell after a price change'],
+    evidence: [],
+    queryUuids: [],
+    metricDefinitions: [],
+    hypotheses: [],
+    contradictions: [],
+    confidence: 'high',
+    limitations: [],
+    finalReport: '# Root cause\n\nRevenue fell after a price change.',
 };
 
-const effortBudgets = [
-    {
-        effort: 'low',
-        budget: {
-            maxRuntimeMs: 15 * 60 * 1_000,
-            maxTokens: 500_000,
-            maxToolCalls: 50,
-            maxWarehouseQueries: 10,
-            maxResultRows: 5_000,
-        },
-    },
-    {
-        effort: 'medium',
-        budget: {
-            maxRuntimeMs: 30 * 60 * 1_000,
-            maxTokens: 1_000_000,
-            maxToolCalls: 125,
-            maxWarehouseQueries: 25,
-            maxResultRows: 10_000,
-        },
-    },
-    {
-        effort: 'high',
-        budget: {
-            maxRuntimeMs: 45 * 60 * 1_000,
-            maxTokens: 2_000_000,
-            maxToolCalls: 250,
-            maxWarehouseQueries: 50,
-            maxResultRows: 25_000,
-        },
-    },
-    {
-        effort: 'xhigh',
-        budget: {
-            maxRuntimeMs: 55 * 60 * 1_000,
-            maxTokens: 4_000_000,
-            maxToolCalls: 500,
-            maxWarehouseQueries: 100,
-            maxResultRows: 50_000,
-        },
-    },
-] as const;
-
-const report: AiDeepResearchReport = {
-    summary: 'Summary',
-    findings: [],
-    caveats: [],
-    scope: 'Last month',
-    unresolvedQuestions: [],
-    nextSteps: [],
-};
-
-const userWithProjectAccess = (): SessionUser => {
+const user = (): SessionUser => {
     const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
     can('view', 'Project', {
         organizationUuid: 'org-1',
@@ -81,9 +29,6 @@ const userWithProjectAccess = (): SessionUser => {
     can('create', 'AiDeepResearch', {
         organizationUuid: 'org-1',
         projectUuid: 'project-1',
-    });
-    can('manage', 'PersonalAccessToken', {
-        organizationUuid: 'org-1',
     });
     return {
         userUuid: 'user-1',
@@ -95,664 +40,194 @@ const userWithProjectAccess = (): SessionUser => {
     } as AnyType;
 };
 
-const runRow = (overrides: Record<string, unknown> = {}) => ({
+const run = (overrides: Record<string, unknown> = {}) => ({
     ai_deep_research_run_uuid: 'run-1',
     organization_uuid: 'org-1',
     project_uuid: 'project-1',
     created_by_user_uuid: 'user-1',
-    ai_thread_uuid: null,
-    prompt_uuid: null,
+    agent_uuid: 'agent-1',
+    ai_thread_uuid: 'thread-1',
+    prompt_uuid: 'prompt-1',
     tool_call_id: null,
-    prompt: 'Investigate revenue',
+    prompt: 'Why did revenue fall?',
     status: 'queued',
     claude_session_id: null,
     result: null,
-    budget_snapshot: budget,
+    budget_snapshot: {
+        maxRuntimeMs: 1_800_000,
+        maxTokens: 1_000_000,
+        maxToolCalls: 125,
+        maxWarehouseQueries: 25,
+        maxResultRows: 10_000,
+    },
+    policy_snapshot: {
+        instructions: null,
+        maxSteps: 40,
+        maxToolCalls: 125,
+        maxWarehouseQueries: 25,
+        maxRuntimeMs: 1_800_000,
+    },
+    execution_context_snapshot: null,
+    checkpoint: null,
+    timings: null,
+    execution_attempts: 0,
     error_message: null,
     cancellation_requested_at: null,
     started_at: null,
     completed_at: null,
-    created_at: new Date('2026-07-13T12:00:00.000Z'),
-    updated_at: new Date('2026-07-13T12:00:00.000Z'),
+    created_at: new Date('2026-07-15T12:00:00.000Z'),
+    updated_at: new Date('2026-07-15T12:00:00.000Z'),
     ...overrides,
 });
 
 const buildService = (
-    overrides: {
-        model?: Record<string, unknown>;
-        projectModel?: Record<string, unknown>;
-        featureFlagModel?: Record<string, unknown>;
-        schedulerClient?: Record<string, unknown>;
-        executor?: AnyType;
-    } = {},
+    executor = vi.fn().mockResolvedValue({ status: 'completed', artifact }),
 ) => {
     const model = {
-        create: vi.fn().mockResolvedValue(runRow()),
-        findByUuid: vi.fn().mockResolvedValue(runRow()),
-        findByUuidScoped: vi.fn().mockResolvedValue(runRow()),
-        claimQueuedRun: vi
-            .fn()
-            .mockResolvedValue(runRow({ status: 'running' })),
+        create: vi.fn().mockResolvedValue(run()),
+        findByUuid: vi.fn().mockResolvedValue(run()),
+        findByUuidScoped: vi.fn().mockResolvedValue(run()),
+        claimRun: vi.fn().mockResolvedValue(run({ status: 'running' })),
         markCompleted: vi.fn().mockResolvedValue(true),
         markPartiallyCompleted: vi.fn().mockResolvedValue(true),
         markFailed: vi.fn().mockResolvedValue(true),
         markCancelled: vi.fn().mockResolvedValue(true),
-        requestCancellation: vi.fn().mockResolvedValue(
-            runRow({
-                status: 'cancelled',
-                cancellation_requested_at: new Date(),
-                completed_at: new Date(),
-            }),
-        ),
+        requestCancellation: vi.fn().mockResolvedValue(run()),
         listEvents: vi.fn().mockResolvedValue([]),
+        markStaleRunsAsFailed: vi.fn().mockResolvedValue([]),
         appendProgressEvent: vi.fn().mockResolvedValue(true),
         setClaudeSessionId: vi.fn().mockResolvedValue(true),
         touch: vi.fn().mockResolvedValue(true),
-        markStaleRunsAsFailed: vi.fn().mockResolvedValue([]),
-        ...overrides.model,
+        releaseForRetry: vi.fn().mockResolvedValue(true),
+        saveTimings: vi.fn().mockResolvedValue(true),
     };
-    const projectModel = {
-        getSummary: vi.fn().mockResolvedValue({ organizationUuid: 'org-1' }),
-        ...overrides.projectModel,
-    };
-    const featureFlagModel = {
-        get: vi.fn().mockResolvedValue({
-            id: FeatureFlags.AiDeepResearch,
-            enabled: true,
+    const aiAgentService = {
+        getAgent: vi.fn().mockResolvedValue({
+            uuid: 'agent-1',
+            projectUuid: 'project-1',
         }),
-        ...overrides.featureFlagModel,
+        createAgentThreadMessage: vi
+            .fn()
+            .mockResolvedValue({ uuid: 'prompt-1' }),
+        interruptAgentThreadMessage: vi.fn().mockResolvedValue(undefined),
     };
     const schedulerClient = {
         aiDeepResearch: vi.fn().mockResolvedValue({ jobId: 'job-1' }),
-        ...overrides.schedulerClient,
     };
-    const executor =
-        overrides.executor ??
-        vi.fn().mockResolvedValue({
-            status: 'completed',
-            report,
-        });
     const service = new AiDeepResearchService({
         aiDeepResearchRunModel: model as AnyType,
-        projectModel: projectModel as AnyType,
-        featureFlagModel: featureFlagModel as AnyType,
+        projectModel: {
+            getSummary: vi
+                .fn()
+                .mockResolvedValue({ organizationUuid: 'org-1' }),
+        } as AnyType,
+        featureFlagModel: {
+            get: vi.fn().mockResolvedValue({
+                id: FeatureFlags.AiDeepResearch,
+                enabled: true,
+            }),
+        } as AnyType,
         schedulerClient: schedulerClient as AnyType,
+        aiAgentService: aiAgentService as AnyType,
+        analytics: { track: vi.fn() } as AnyType,
         executor,
     });
-    return {
-        service,
-        model,
-        projectModel,
-        featureFlagModel,
-        schedulerClient,
-        executor,
-    };
+
+    return { service, model, aiAgentService, schedulerClient, executor };
 };
 
 describe('AiDeepResearchService', () => {
-    describe('createRun', () => {
-        it('persists the run before enqueueing a uniquely addressable job', async () => {
-            const { service, model, schedulerClient, featureFlagModel } =
-                buildService();
+    it('creates a hidden AI Agent prompt before enqueueing the durable run', async () => {
+        const { service, model, aiAgentService, schedulerClient } =
+            buildService();
 
-            const run = await service.createRun({
-                user: userWithProjectAccess(),
-                projectUuid: 'project-1',
-                prompt: '  Investigate revenue  ',
-                budget,
-            });
-
-            expect(model.create).toHaveBeenCalledWith({
-                organizationUuid: 'org-1',
-                projectUuid: 'project-1',
-                createdByUserUuid: 'user-1',
-                aiThreadUuid: null,
-                promptUuid: null,
-                toolCallId: null,
-                prompt: 'Investigate revenue',
-                budget,
-            });
-            expect(schedulerClient.aiDeepResearch).toHaveBeenCalledWith({
-                aiDeepResearchRunUuid: 'run-1',
-                organizationUuid: 'org-1',
-                projectUuid: 'project-1',
-                userUuid: 'user-1',
-            });
-            expect(featureFlagModel.get).toHaveBeenCalledWith({
-                user: expect.objectContaining({ userUuid: 'user-1' }),
-                featureFlagId: FeatureFlags.AiDeepResearch,
-            });
-            expect(run.status).toBe('queued');
+        const result = await service.createRun({
+            user: user(),
+            projectUuid: 'project-1',
+            agentUuid: 'agent-1',
+            threadUuid: 'thread-1',
+            prompt: 'Why did revenue fall?',
         });
 
-        it('uses the server-owned default budget when none is provided', async () => {
-            const { service, model } = buildService();
+        expect(aiAgentService.getAgent).toHaveBeenCalledWith(
+            expect.anything(),
+            'agent-1',
+            'project-1',
+        );
+        expect(aiAgentService.createAgentThreadMessage).toHaveBeenCalledWith(
+            expect.anything(),
+            'agent-1',
+            'thread-1',
+            expect.objectContaining({ hidden: true }),
+        );
+        expect(model.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                agentUuid: 'agent-1',
+                aiThreadUuid: 'thread-1',
+                promptUuid: 'prompt-1',
+            }),
+        );
+        expect(schedulerClient.aiDeepResearch).toHaveBeenCalledOnce();
+        expect(result.aiDeepResearchRunUuid).toBe('run-1');
+    });
 
-            await service.createRun({
-                user: userWithProjectAccess(),
-                projectUuid: 'project-1',
-                prompt: 'Investigate revenue',
-            });
+    it('finishes an execution with the persisted Research Artifact', async () => {
+        const { service, model, executor } = buildService();
 
-            expect(model.create).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    budget: effortBudgets[1].budget,
-                }),
-            );
-        });
+        await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
 
-        it.each(effortBudgets)(
-            'maps $effort effort to its server-owned budget',
-            async ({ effort, budget: expectedBudget }) => {
-                const { service, model } = buildService();
+        expect(executor).toHaveBeenCalledOnce();
+        expect(model.markCompleted).toHaveBeenCalledWith('run-1', artifact);
+    });
 
-                await service.createRun({
-                    user: userWithProjectAccess(),
-                    projectUuid: 'project-1',
-                    prompt: 'Investigate revenue',
-                    effort,
-                });
+    it('does not execute a run that is already terminal or actively claimed', async () => {
+        const { service, model, executor } = buildService();
+        model.claimRun.mockResolvedValue(undefined);
 
-                expect(model.create).toHaveBeenCalledWith(
-                    expect.objectContaining({
-                        budget: expectedBudget,
-                    }),
-                );
-            },
+        await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
+
+        expect(executor).not.toHaveBeenCalled();
+    });
+
+    it('rechecks current AI Agent access before returning persisted research', async () => {
+        const { service, aiAgentService } = buildService();
+        aiAgentService.getAgent.mockRejectedValue(
+            new Error('Agent access was revoked'),
         );
 
-        it('rejects a blank prompt before persistence', async () => {
-            const { service, model } = buildService();
-
-            await expect(
-                service.createRun({
-                    user: userWithProjectAccess(),
-                    projectUuid: 'project-1',
-                    prompt: '   ',
-                }),
-            ).rejects.toBeInstanceOf(ParameterError);
-            expect(model.create).not.toHaveBeenCalled();
-        });
-
-        it('rejects run creation when Deep Research is disabled', async () => {
-            const { service, model } = buildService({
-                featureFlagModel: {
-                    get: vi.fn().mockResolvedValue({
-                        id: FeatureFlags.AiDeepResearch,
-                        enabled: false,
-                    }),
-                },
-            });
-
-            await expect(
-                service.createRun({
-                    user: userWithProjectAccess(),
-                    projectUuid: 'project-1',
-                    prompt: 'Investigate revenue',
-                }),
-            ).rejects.toBeInstanceOf(ForbiddenError);
-            expect(model.create).not.toHaveBeenCalled();
-        });
-
-        it('rejects run creation without the Deep Research scope', async () => {
-            const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
-            can('view', 'Project', {
-                organizationUuid: 'org-1',
-                projectUuid: 'project-1',
-            });
-            can('manage', 'PersonalAccessToken', {
-                organizationUuid: 'org-1',
-            });
-            const user = {
-                ...userWithProjectAccess(),
-                ability: build(),
-            } as SessionUser;
-            const { service, model, featureFlagModel } = buildService();
-
-            await expect(
-                service.createRun({
-                    user,
-                    projectUuid: 'project-1',
-                    prompt: 'Investigate revenue',
-                }),
-            ).rejects.toBeInstanceOf(ForbiddenError);
-            expect(featureFlagModel.get).not.toHaveBeenCalled();
-            expect(model.create).not.toHaveBeenCalled();
-        });
-
-        it('rejects run creation without permission to create the temporary PAT', async () => {
-            const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
-            can('view', 'Project', {
-                organizationUuid: 'org-1',
-                projectUuid: 'project-1',
-            });
-            can('create', 'AiDeepResearch', {
-                organizationUuid: 'org-1',
-                projectUuid: 'project-1',
-            });
-            const user = {
-                ...userWithProjectAccess(),
-                ability: build(),
-            } as SessionUser;
-            const { service, model, featureFlagModel } = buildService();
-
-            await expect(
-                service.createRun({
-                    user,
-                    projectUuid: 'project-1',
-                    prompt: 'Investigate revenue',
-                }),
-            ).rejects.toBeInstanceOf(ForbiddenError);
-            expect(featureFlagModel.get).not.toHaveBeenCalled();
-            expect(model.create).not.toHaveBeenCalled();
-        });
-
-        it('rejects run creation without permission to delete the temporary PAT', async () => {
-            const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
-            can('view', 'Project', {
-                organizationUuid: 'org-1',
-                projectUuid: 'project-1',
-            });
-            can('create', 'AiDeepResearch', {
-                organizationUuid: 'org-1',
-                projectUuid: 'project-1',
-            });
-            can('create', 'PersonalAccessToken', {
-                organizationUuid: 'org-1',
-            });
-            const user = {
-                ...userWithProjectAccess(),
-                ability: build(),
-            } as SessionUser;
-            const { service, model, featureFlagModel } = buildService();
-
-            await expect(
-                service.createRun({
-                    user,
-                    projectUuid: 'project-1',
-                    prompt: 'Investigate revenue',
-                }),
-            ).rejects.toBeInstanceOf(ForbiddenError);
-            expect(featureFlagModel.get).not.toHaveBeenCalled();
-            expect(model.create).not.toHaveBeenCalled();
-        });
-
-        it('rejects a Deep Research scope granted for another project', async () => {
-            const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
-            can('view', 'Project', {
-                organizationUuid: 'org-1',
-                projectUuid: 'project-1',
-            });
-            can('create', 'AiDeepResearch', {
-                organizationUuid: 'org-1',
-                projectUuid: 'project-2',
-            });
-            can('manage', 'PersonalAccessToken', {
-                organizationUuid: 'org-1',
-            });
-            const user = {
-                ...userWithProjectAccess(),
-                ability: build(),
-            } as SessionUser;
-            const { service, model, featureFlagModel } = buildService();
-
-            await expect(
-                service.createRun({
-                    user,
-                    projectUuid: 'project-1',
-                    prompt: 'Investigate revenue',
-                }),
-            ).rejects.toBeInstanceOf(ForbiddenError);
-            expect(featureFlagModel.get).not.toHaveBeenCalled();
-            expect(model.create).not.toHaveBeenCalled();
-        });
-
-        it('rejects run creation without project view permission', async () => {
-            const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
-            can('create', 'AiDeepResearch', {
-                organizationUuid: 'org-1',
-                projectUuid: 'project-1',
-            });
-            can('manage', 'PersonalAccessToken', {
-                organizationUuid: 'org-1',
-            });
-            const user = {
-                ...userWithProjectAccess(),
-                ability: build(),
-            } as SessionUser;
-            const { service, model, featureFlagModel } = buildService();
-
-            await expect(
-                service.createRun({
-                    user,
-                    projectUuid: 'project-1',
-                    prompt: 'Investigate revenue',
-                }),
-            ).rejects.toBeInstanceOf(ForbiddenError);
-            expect(featureFlagModel.get).not.toHaveBeenCalled();
-            expect(model.create).not.toHaveBeenCalled();
-        });
-
-        it('marks the durable run failed when enqueueing fails', async () => {
-            const error = new Error('queue unavailable');
-            const { service, model } = buildService({
-                schedulerClient: {
-                    aiDeepResearch: vi.fn().mockRejectedValue(error),
-                },
-            });
-
-            await expect(
-                service.createRun({
-                    user: userWithProjectAccess(),
-                    projectUuid: 'project-1',
-                    prompt: 'Investigate revenue',
-                    budget,
-                }),
-            ).rejects.toThrow('queue unavailable');
-            expect(model.markFailed).toHaveBeenCalledWith(
-                'run-1',
-                'Deep Research could not finish. Please try again.',
-            );
-        });
-
-        it('rejects invalid budget snapshots before persistence', async () => {
-            const { service, model } = buildService();
-
-            await expect(
-                service.createRun({
-                    user: userWithProjectAccess(),
-                    projectUuid: 'project-1',
-                    prompt: 'Investigate revenue',
-                    budget: { ...budget, maxTokens: 0 },
-                }),
-            ).rejects.toBeInstanceOf(ParameterError);
-            expect(model.create).not.toHaveBeenCalled();
-        });
-
-        it('rejects budget snapshots above server limits', async () => {
-            const { service, model } = buildService();
-
-            await expect(
-                service.createRun({
-                    user: userWithProjectAccess(),
-                    projectUuid: 'project-1',
-                    prompt: 'Investigate revenue',
-                    budget: {
-                        ...budget,
-                        maxRuntimeMs: 60 * 60 * 1_000 + 1,
-                    },
-                }),
-            ).rejects.toBeInstanceOf(ParameterError);
-            expect(model.create).not.toHaveBeenCalled();
-        });
+        await expect(
+            service.getRun(user(), 'project-1', 'run-1'),
+        ).rejects.toThrow('Agent access was revoked');
     });
 
-    describe('access and cancellation', () => {
-        it('does not expose a run through a different project path', async () => {
-            const { service, model, projectModel } = buildService({
-                model: {
-                    findByUuidScoped: vi.fn().mockResolvedValue(undefined),
-                },
-            });
+    it('requeues a run after a transient execution error so Graphile can retry it', async () => {
+        const error = new Error('provider unavailable');
+        const { service, model } = buildService(
+            vi.fn().mockRejectedValue(error),
+        );
 
-            await expect(
-                service.getRun(
-                    userWithProjectAccess(),
-                    'another-project',
-                    'run-1',
-                ),
-            ).rejects.toBeInstanceOf(NotFoundError);
-            expect(model.findByUuidScoped).toHaveBeenCalledWith({
-                aiDeepResearchRunUuid: 'run-1',
-                organizationUuid: 'org-1',
-                projectUuid: 'another-project',
-            });
-            expect(projectModel.getSummary).not.toHaveBeenCalled();
-        });
+        await expect(
+            service.executeRun({ aiDeepResearchRunUuid: 'run-1' }),
+        ).rejects.toThrow(error);
 
-        it('returns the model cancellation outcome for queued runs', async () => {
-            const { service, model } = buildService();
-
-            const run = await service.cancelRun(
-                userWithProjectAccess(),
-                'project-1',
-                'run-1',
-            );
-
-            expect(model.requestCancellation).toHaveBeenCalledWith('run-1');
-            expect(run.status).toBe('cancelled');
-            expect(run.cancellationRequestedAt).not.toBeNull();
-        });
-
-        it("does not expose another creator's run to a project viewer", async () => {
-            const { service, projectModel } = buildService({
-                model: {
-                    findByUuidScoped: vi
-                        .fn()
-                        .mockResolvedValue(
-                            runRow({ created_by_user_uuid: 'user-2' }),
-                        ),
-                },
-            });
-
-            await expect(
-                service.getRun(userWithProjectAccess(), 'project-1', 'run-1'),
-            ).rejects.toBeInstanceOf(NotFoundError);
-            expect(projectModel.getSummary).not.toHaveBeenCalled();
-        });
-
-        it("does not let a project viewer cancel another creator's run", async () => {
-            const { service, model } = buildService({
-                model: {
-                    findByUuidScoped: vi
-                        .fn()
-                        .mockResolvedValue(
-                            runRow({ created_by_user_uuid: 'user-2' }),
-                        ),
-                },
-            });
-
-            await expect(
-                service.cancelRun(
-                    userWithProjectAccess(),
-                    'project-1',
-                    'run-1',
-                ),
-            ).rejects.toBeInstanceOf(NotFoundError);
-            expect(model.requestCancellation).not.toHaveBeenCalled();
-        });
+        expect(model.releaseForRetry).toHaveBeenCalledWith('run-1');
+        expect(model.markFailed).not.toHaveBeenCalled();
     });
 
-    describe('executeRun', () => {
-        it('skips duplicate delivery after another worker claims the run', async () => {
-            const executor = vi.fn();
-            const { service, model } = buildService({
-                model: { claimQueuedRun: vi.fn().mockResolvedValue(undefined) },
-                executor,
-            });
+    it('finishes an interrupted user-cancelled run as cancelled instead of retrying it', async () => {
+        const { service, model } = buildService(
+            vi.fn().mockRejectedValue(new Error('interrupted')),
+        );
+        model.findByUuid.mockResolvedValue(
+            run({
+                status: 'running',
+                cancellation_requested_at: new Date(),
+            }),
+        );
 
-            await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
+        await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
 
-            expect(executor).not.toHaveBeenCalled();
-            expect(model.markCompleted).not.toHaveBeenCalled();
-        });
-
-        it('persists an explicit completed executor result', async () => {
-            const { service, model } = buildService();
-
-            await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
-
-            expect(model.markCompleted).toHaveBeenCalledWith('run-1', report);
-        });
-
-        it('lets a concurrent cancellation request win over completion', async () => {
-            const { service, model } = buildService({
-                model: {
-                    markCompleted: vi.fn().mockResolvedValue(false),
-                    findByUuid: vi.fn().mockResolvedValue(
-                        runRow({
-                            status: 'running',
-                            cancellation_requested_at: new Date(),
-                        }),
-                    ),
-                },
-            });
-
-            await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
-
-            expect(model.markCancelled).toHaveBeenCalledWith('run-1');
-        });
-
-        it('persists executor failures and keeps the job failed', async () => {
-            const error = new Error('executor failed');
-            const { service, model } = buildService({
-                executor: vi.fn().mockRejectedValue(error),
-            });
-
-            await expect(
-                service.executeRun({ aiDeepResearchRunUuid: 'run-1' }),
-            ).rejects.toThrow('executor failed');
-            expect(model.markFailed).toHaveBeenCalledWith(
-                'run-1',
-                'Deep Research could not finish. Please try again.',
-            );
-        });
-
-        it('passes an abort signal to the executor', async () => {
-            const abortController = new AbortController();
-            const { service, executor } = buildService();
-
-            await service.executeRun(
-                { aiDeepResearchRunUuid: 'run-1' },
-                abortController.signal,
-            );
-
-            expect(executor).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    ai_deep_research_run_uuid: 'run-1',
-                }),
-                { signal: abortController.signal },
-            );
-        });
-    });
-
-    describe('listEvents', () => {
-        it('uses an opaque keyset cursor and excludes the lookahead row', async () => {
-            const { service, model } = buildService({
-                model: {
-                    listEvents: vi.fn().mockResolvedValue([
-                        {
-                            ai_deep_research_event_uuid: 'event-1',
-                            ai_deep_research_run_uuid: 'run-1',
-                            event_type: 'status_changed',
-                            payload: { status: 'queued' },
-                            created_at: new Date('2026-07-13T12:00:00.000Z'),
-                            cursor_created_at: '2026-07-13 12:00:00.000001',
-                        },
-                        {
-                            ai_deep_research_event_uuid: 'event-2',
-                            ai_deep_research_run_uuid: 'run-1',
-                            event_type: 'status_changed',
-                            payload: { status: 'running' },
-                            created_at: new Date('2026-07-13T12:01:00.000Z'),
-                            cursor_created_at: '2026-07-13 12:01:00.000001',
-                        },
-                    ]),
-                },
-            });
-
-            const page = await service.listEvents({
-                user: userWithProjectAccess(),
-                projectUuid: 'project-1',
-                aiDeepResearchRunUuid: 'run-1',
-                limit: 1,
-            });
-
-            expect(page.events).toHaveLength(1);
-            expect(page.nextCursor).not.toBeNull();
-            expect(model.listEvents).toHaveBeenCalledWith({
-                aiDeepResearchRunUuid: 'run-1',
-                cursor: null,
-                limit: 1,
-            });
-        });
-
-        it('returns a cursor for the final event so clients can keep polling', async () => {
-            const { service } = buildService({
-                model: {
-                    listEvents: vi.fn().mockResolvedValue([
-                        {
-                            ai_deep_research_event_uuid:
-                                '9323399d-2329-4fd1-aa22-840c014f36f1',
-                            ai_deep_research_run_uuid: 'run-1',
-                            event_type: 'status_changed',
-                            payload: { status: 'queued' },
-                            created_at: new Date('2026-07-13T12:00:00.000Z'),
-                            cursor_created_at: '2026-07-13 12:00:00.000001',
-                        },
-                    ]),
-                },
-            });
-
-            const page = await service.listEvents({
-                user: userWithProjectAccess(),
-                projectUuid: 'project-1',
-                aiDeepResearchRunUuid: 'run-1',
-            });
-
-            expect(page.nextCursor).not.toBeNull();
-        });
-
-        it('keeps the current cursor when no new events are available', async () => {
-            const { service } = buildService();
-            const cursor = Buffer.from(
-                JSON.stringify({
-                    createdAt: '2026-07-13 12:00:00.000001',
-                    eventUuid: '9323399d-2329-4fd1-aa22-840c014f36f1',
-                }),
-            ).toString('base64url');
-
-            const page = await service.listEvents({
-                user: userWithProjectAccess(),
-                projectUuid: 'project-1',
-                aiDeepResearchRunUuid: 'run-1',
-                cursor,
-            });
-
-            expect(page).toEqual({ events: [], nextCursor: cursor });
-        });
-
-        it('rejects malformed cursors', async () => {
-            const { service } = buildService();
-
-            await expect(
-                service.listEvents({
-                    user: userWithProjectAccess(),
-                    projectUuid: 'project-1',
-                    aiDeepResearchRunUuid: 'run-1',
-                    cursor: 'not-a-cursor',
-                }),
-            ).rejects.toBeInstanceOf(ParameterError);
-        });
-
-        it('rejects a cursor with a non-UUID event identifier', async () => {
-            const { service, model } = buildService();
-            const cursor = Buffer.from(
-                JSON.stringify({
-                    createdAt: '2026-07-13 12:00:00.000001',
-                    eventUuid: 'not-a-uuid',
-                }),
-            ).toString('base64url');
-
-            await expect(
-                service.listEvents({
-                    user: userWithProjectAccess(),
-                    projectUuid: 'project-1',
-                    aiDeepResearchRunUuid: 'run-1',
-                    cursor,
-                }),
-            ).rejects.toBeInstanceOf(ParameterError);
-            expect(model.listEvents).not.toHaveBeenCalled();
-        });
+        expect(model.markCancelled).toHaveBeenCalledWith('run-1');
+        expect(model.releaseForRetry).not.toHaveBeenCalled();
     });
 });

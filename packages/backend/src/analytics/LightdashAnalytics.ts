@@ -1743,6 +1743,29 @@ export type ManagedAgentEvent =
     | ManagedAgentRunCompletedEvent
     | ManagedAgentActionCreatedEvent;
 
+export type AiDeepResearchRunEvent = BaseTrack & {
+    event: 'ai_deep_research.run_started' | 'ai_deep_research.run_finished';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string;
+        threadId: string;
+        runId: string;
+        status:
+            | 'queued'
+            | 'completed'
+            | 'partially_completed'
+            | 'failed'
+            | 'cancelled';
+        queueMs?: number;
+        agentMs?: number;
+        toolWaitMs?: number;
+        warehouseMs?: number;
+        artifactGenerationMs?: number;
+        totalMs?: number;
+    };
+};
+
 export const parseAnalyticsLimit = (
     limit: 'table' | 'all' | number | null | undefined,
 ) => {
@@ -2601,6 +2624,7 @@ type TypedEvent =
     | CreateSqlChartVersionEvent
     | CommentsEvent
     | ManagedAgentEvent
+    | AiDeepResearchRunEvent
     | VirtualViewEvent
     | GithubInstallEvent
     | GithubUserLinkEvent

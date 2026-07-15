@@ -40,7 +40,7 @@ describe('CommercialSchedulerClient.aiDeepResearch', () => {
             EE_SCHEDULER_TASKS.AI_DEEP_RESEARCH,
             payload,
             expect.objectContaining({
-                maxAttempts: 1,
+                maxAttempts: 5,
                 jobKey: 'ai-deep-research:run-1',
             }),
         );

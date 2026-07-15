@@ -520,28 +520,37 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
             },
             [EE_SCHEDULER_TASKS.AI_DEEP_RESEARCH]: async (payload, helpers) => {
                 const abortController = new AbortController();
-                await tryJobOrTimeout(
-                    SchedulerClient.processJob(
-                        EE_SCHEDULER_TASKS.AI_DEEP_RESEARCH,
-                        helpers.job.id,
-                        helpers.job.run_at,
-                        payload,
-                        async () => {
-                            await this.aiDeepResearchService.executeRun(
-                                payload,
-                                abortController.signal,
+                try {
+                    await tryJobOrTimeout(
+                        SchedulerClient.processJob(
+                            EE_SCHEDULER_TASKS.AI_DEEP_RESEARCH,
+                            helpers.job.id,
+                            helpers.job.run_at,
+                            payload,
+                            async () => {
+                                await this.aiDeepResearchService.executeRun(
+                                    payload,
+                                    abortController.signal,
+                                );
+                            },
+                        ),
+                        helpers.job,
+                        AI_DEEP_RESEARCH_TIMEOUT_MS,
+                        async (_job, error) => {
+                            abortController.abort(error);
+                            await this.aiDeepResearchService.markRunTimedOut(
+                                payload.aiDeepResearchRunUuid,
                             );
                         },
-                    ),
-                    helpers.job,
-                    AI_DEEP_RESEARCH_TIMEOUT_MS,
-                    async (_job, error) => {
-                        abortController.abort(error);
-                        await this.aiDeepResearchService.markRunTimedOut(
+                    );
+                } catch (error) {
+                    if (helpers.job.attempts >= helpers.job.max_attempts) {
+                        await this.aiDeepResearchService.markRunFailedAfterRetries(
                             payload.aiDeepResearchRunUuid,
                         );
-                    },
-                );
+                    }
+                    throw error;
+                }
             },
             [EE_SCHEDULER_TASKS.AI_AGENT_EDIT_DBT_PROJECT_PIPELINE]: async (
                 payload,

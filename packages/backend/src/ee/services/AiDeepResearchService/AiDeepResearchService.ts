@@ -7,18 +7,24 @@ import {
     isUserWithOrg,
     NotFoundError,
     ParameterError,
+    type AiDeepResearchArtifact,
     type AiDeepResearchBudget,
     type AiDeepResearchEffort,
     type AiDeepResearchEvent,
     type AiDeepResearchEventPayloadMap,
     type AiDeepResearchEventsPage,
     type AiDeepResearchJobPayload,
+    type AiDeepResearchPolicy,
+    type AiDeepResearchPolicyInput,
     type AiDeepResearchProgress,
-    type AiDeepResearchReport,
     type AiDeepResearchRun,
     type SessionUser,
 } from '@lightdash/common';
 import { validate as isValidUuid } from 'uuid';
+import {
+    type AiDeepResearchRunEvent,
+    type LightdashAnalytics,
+} from '../../../analytics/LightdashAnalytics';
 import { type FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import { type ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../../services/BaseService';
@@ -31,6 +37,7 @@ import {
     type DbAiDeepResearchEventWithCursor,
 } from '../../models/AiDeepResearchRunModel';
 import { type CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
+import { type AiAgentService } from '../AiAgentService/AiAgentService';
 
 const MAX_EVENT_PAGE_SIZE = 100;
 const DEFAULT_EVENT_PAGE_SIZE = 50;
@@ -43,8 +50,8 @@ const TIMED_OUT_RUN_ERROR_MESSAGE =
     'Deep Research took too long to finish. Please try again.';
 
 export type AiDeepResearchExecutorResult =
-    | { status: 'completed'; report: AiDeepResearchReport }
-    | { status: 'partially_completed'; report: AiDeepResearchReport }
+    | { status: 'completed'; artifact: AiDeepResearchArtifact }
+    | { status: 'partially_completed'; artifact: AiDeepResearchArtifact }
     | { status: 'failed'; errorMessage: string }
     | { status: 'cancelled' };
 
@@ -58,6 +65,11 @@ type Dependencies = {
     projectModel: ProjectModel;
     featureFlagModel: FeatureFlagModel;
     schedulerClient: CommercialSchedulerClient;
+    aiAgentService: Pick<
+        AiAgentService,
+        'createAgentThreadMessage' | 'getAgent' | 'interruptAgentThreadMessage'
+    >;
+    analytics: LightdashAnalytics;
     executor?: AiDeepResearchExecutor;
 };
 
@@ -69,9 +81,15 @@ type EventCursorPayload = {
 const toRun = (row: DbAiDeepResearchRun): AiDeepResearchRun => ({
     aiDeepResearchRunUuid: row.ai_deep_research_run_uuid,
     projectUuid: row.project_uuid,
+    agentUuid: row.agent_uuid,
+    threadUuid: row.ai_thread_uuid,
+    promptUuid: row.prompt_uuid,
     status: row.status,
     result: row.result,
-    budget: row.budget_snapshot,
+    policy: row.policy_snapshot,
+    executionContext: row.execution_context_snapshot,
+    checkpoint: row.checkpoint,
+    timings: row.timings,
     errorMessage: row.error_message,
     cancellationRequestedAt:
         row.cancellation_requested_at?.toISOString() ?? null,
@@ -110,6 +128,16 @@ const toEvent = (row: DbAiDeepResearchEvent): AiDeepResearchEvent => {
                 payload:
                     row.payload as AiDeepResearchEventPayloadMap['progress'],
             };
+        case 'phase_changed':
+        case 'tool_call':
+        case 'query_provenance':
+        case 'checkpoint':
+        case 'artifact_created':
+            return {
+                ...event,
+                eventType: row.event_type,
+                payload: row.payload,
+            } as AiDeepResearchEvent;
         default:
             throw new Error('Unknown Deep Research event type');
     }
@@ -203,27 +231,70 @@ export const AI_DEEP_RESEARCH_DEFAULT_BUDGET =
 export const AI_DEEP_RESEARCH_MAX_BUDGET =
     AI_DEEP_RESEARCH_BUDGETS_BY_EFFORT.xhigh;
 
-const assertValidBudget = (budget: AiDeepResearchBudget): void => {
-    if (
-        Object.values(budget).some(
-            (value) => !Number.isInteger(value) || value <= 0,
-        )
-    ) {
-        throw new ParameterError(
-            'Deep Research budget limits must be positive integers',
-        );
-    }
-    const exceededBudget = Object.entries(budget).find(
-        ([key, value]) =>
-            value >
-            AI_DEEP_RESEARCH_MAX_BUDGET[key as keyof AiDeepResearchBudget],
-    );
-    if (exceededBudget) {
-        throw new ParameterError(
-            `Deep Research ${exceededBudget[0]} exceeds the server limit`,
-        );
-    }
+const AI_DEEP_RESEARCH_DEFAULT_POLICY: AiDeepResearchPolicy = {
+    instructions: null,
+    maxSteps: 40,
+    maxToolCalls: 125,
+    maxWarehouseQueries: 25,
+    maxRuntimeMs: 30 * 60 * 1_000,
 };
+
+const AI_DEEP_RESEARCH_MAX_POLICY: Omit<AiDeepResearchPolicy, 'instructions'> =
+    {
+        maxSteps: 40,
+        maxToolCalls: 500,
+        maxWarehouseQueries: 100,
+        maxRuntimeMs: 60 * 60 * 1_000,
+    };
+
+const resolvePolicy = (
+    input: AiDeepResearchPolicyInput | undefined,
+): AiDeepResearchPolicy => {
+    const policy = { ...AI_DEEP_RESEARCH_DEFAULT_POLICY, ...input };
+    const invalidLimit = Object.entries(AI_DEEP_RESEARCH_MAX_POLICY).find(
+        ([key, maximum]) => {
+            const value =
+                policy[key as keyof typeof AI_DEEP_RESEARCH_MAX_POLICY];
+            return !Number.isInteger(value) || value < 1 || value > maximum;
+        },
+    );
+    if (invalidLimit) {
+        throw new ParameterError(
+            `Deep Research ${invalidLimit[0]} must be a positive integer no greater than ${invalidLimit[1]}`,
+        );
+    }
+    const instructions = policy.instructions?.trim() || null;
+    return { ...policy, instructions };
+};
+
+const policyToBudget = (
+    policy: AiDeepResearchPolicy,
+): AiDeepResearchBudget => ({
+    maxRuntimeMs: policy.maxRuntimeMs,
+    maxTokens: AI_DEEP_RESEARCH_DEFAULT_BUDGET.maxTokens,
+    maxToolCalls: policy.maxToolCalls,
+    maxWarehouseQueries: policy.maxWarehouseQueries,
+    maxResultRows: AI_DEEP_RESEARCH_DEFAULT_BUDGET.maxResultRows,
+});
+
+const getResearchPrompt = (
+    question: string,
+    policy: AiDeepResearchPolicy,
+): string => `Conduct a Deep Research investigation as a single researcher.
+
+Question:
+${question}
+
+Research policy:
+- Maximum ${policy.maxSteps} reasoning/tool steps.
+- Maximum ${policy.maxToolCalls} total tool calls.
+- Maximum ${policy.maxWarehouseQueries} warehouse queries.
+- Runtime limit ${policy.maxRuntimeMs} ms.
+${policy.instructions ? `- Additional instructions: ${policy.instructions}` : ''}
+
+Use the full context and tools attached to this AI Agent. Investigate competing explanations, validate claims against primary data, and distinguish observations from inference.
+
+As your final action, call submitResearchArtifact exactly once. Populate every field, write finalReport as a clear Markdown report with a root-cause conclusion, and only include tool call IDs and query UUIDs that actually occurred. Do not invent evidence or provenance.`;
 
 export class AiDeepResearchService extends BaseService {
     private readonly aiDeepResearchRunModel: AiDeepResearchRunModel;
@@ -234,6 +305,10 @@ export class AiDeepResearchService extends BaseService {
 
     private readonly schedulerClient: CommercialSchedulerClient;
 
+    private readonly aiAgentService: Dependencies['aiAgentService'];
+
+    private readonly analytics: LightdashAnalytics;
+
     private readonly executor: AiDeepResearchExecutor | undefined;
 
     constructor({
@@ -241,6 +316,8 @@ export class AiDeepResearchService extends BaseService {
         projectModel,
         featureFlagModel,
         schedulerClient,
+        aiAgentService,
+        analytics,
         executor,
     }: Dependencies) {
         super();
@@ -248,6 +325,8 @@ export class AiDeepResearchService extends BaseService {
         this.projectModel = projectModel;
         this.featureFlagModel = featureFlagModel;
         this.schedulerClient = schedulerClient;
+        this.aiAgentService = aiAgentService;
+        this.analytics = analytics;
         this.executor = executor;
     }
 
@@ -283,20 +362,6 @@ export class AiDeepResearchService extends BaseService {
             ability.cannot(
                 'create',
                 subject('AiDeepResearch', { organizationUuid, projectUuid }),
-            ) ||
-            ability.cannot(
-                'create',
-                subject('PersonalAccessToken', {
-                    organizationUuid,
-                    metadata: { userUuid: user.userUuid },
-                }),
-            ) ||
-            ability.cannot(
-                'delete',
-                subject('PersonalAccessToken', {
-                    organizationUuid,
-                    metadata: { userUuid: user.userUuid },
-                }),
             )
         ) {
             throw new ForbiddenError();
@@ -324,6 +389,12 @@ export class AiDeepResearchService extends BaseService {
         }
 
         await this.assertCanViewProject(user, projectUuid);
+        if (!run.agent_uuid) {
+            throw new NotFoundError(
+                `Deep Research run ${aiDeepResearchRunUuid} is no longer attached to an AI Agent`,
+            );
+        }
+        await this.aiAgentService.getAgent(user, run.agent_uuid, projectUuid);
         return run;
     }
 
@@ -331,11 +402,9 @@ export class AiDeepResearchService extends BaseService {
         user: SessionUser;
         projectUuid: string;
         prompt: string;
-        effort?: AiDeepResearchEffort;
-        budget?: AiDeepResearchBudget;
-        aiThreadUuid?: string;
-        promptUuid?: string;
-        toolCallId?: string;
+        agentUuid: string;
+        threadUuid: string;
+        policy?: AiDeepResearchPolicyInput;
     }): Promise<AiDeepResearchRun> {
         if (!isUserWithOrg(args.user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -343,12 +412,8 @@ export class AiDeepResearchService extends BaseService {
         if (args.prompt.trim().length === 0) {
             throw new ParameterError('Deep Research prompt is required');
         }
-        const budget =
-            args.budget ??
-            AI_DEEP_RESEARCH_BUDGETS_BY_EFFORT[
-                args.effort ?? AI_DEEP_RESEARCH_DEFAULT_EFFORT
-            ];
-        assertValidBudget(budget);
+        const policy = resolvePolicy(args.policy);
+        const budget = policyToBudget(policy);
 
         await this.assertCanCreateRun(args.user, args.projectUuid);
         const featureFlag = await this.featureFlagModel.get({
@@ -359,15 +424,33 @@ export class AiDeepResearchService extends BaseService {
             throw new ForbiddenError('Deep Research is not enabled');
         }
 
+        await this.aiAgentService.getAgent(
+            args.user,
+            args.agentUuid,
+            args.projectUuid,
+        );
+        const promptMessage =
+            await this.aiAgentService.createAgentThreadMessage(
+                args.user,
+                args.agentUuid,
+                args.threadUuid,
+                {
+                    prompt: getResearchPrompt(args.prompt.trim(), policy),
+                    hidden: true,
+                },
+            );
+
         const run = await this.aiDeepResearchRunModel.create({
             organizationUuid: args.user.organizationUuid,
             projectUuid: args.projectUuid,
             createdByUserUuid: args.user.userUuid,
-            aiThreadUuid: args.aiThreadUuid ?? null,
-            promptUuid: args.promptUuid ?? null,
-            toolCallId: args.toolCallId ?? null,
+            agentUuid: args.agentUuid,
+            aiThreadUuid: args.threadUuid,
+            promptUuid: promptMessage.uuid,
+            toolCallId: null,
             prompt: args.prompt.trim(),
             budget,
+            policy,
         });
 
         try {
@@ -387,6 +470,19 @@ export class AiDeepResearchService extends BaseService {
             );
             throw error;
         }
+
+        this.analytics.track<AiDeepResearchRunEvent>({
+            event: 'ai_deep_research.run_started',
+            userId: args.user.userUuid,
+            properties: {
+                organizationId: run.organization_uuid,
+                projectId: run.project_uuid,
+                agentId: args.agentUuid,
+                threadId: args.threadUuid,
+                runId: run.ai_deep_research_run_uuid,
+                status: 'queued',
+            },
+        });
 
         return toRun(run);
     }
@@ -463,6 +559,21 @@ export class AiDeepResearchService extends BaseService {
                 `Deep Research run ${aiDeepResearchRunUuid} not found`,
             );
         }
+        if (
+            run.status === 'running' &&
+            run.agent_uuid &&
+            run.ai_thread_uuid &&
+            run.prompt_uuid
+        ) {
+            await this.aiAgentService.interruptAgentThreadMessage(user, {
+                agentUuid: run.agent_uuid,
+                threadUuid: run.ai_thread_uuid,
+                messageUuid: run.prompt_uuid,
+            });
+        }
+        if (isAiDeepResearchRunTerminal(run.status)) {
+            await this.trackTerminalRun(aiDeepResearchRunUuid);
+        }
         return toRun(run);
     }
 
@@ -470,10 +581,18 @@ export class AiDeepResearchService extends BaseService {
         payload: AiDeepResearchJobPayload,
         signal: AbortSignal = new AbortController().signal,
     ): Promise<void> {
-        const run = await this.aiDeepResearchRunModel.claimQueuedRun(
+        const run = await this.aiDeepResearchRunModel.claimRun(
             payload.aiDeepResearchRunUuid,
         );
         if (!run) {
+            const currentRun = await this.aiDeepResearchRunModel.findByUuid(
+                payload.aiDeepResearchRunUuid,
+            );
+            if (currentRun?.status === 'running') {
+                throw new Error(
+                    `Deep Research run ${payload.aiDeepResearchRunUuid} is already running`,
+                );
+            }
             this.logger.info(
                 `Deep Research run ${payload.aiDeepResearchRunUuid} was already claimed or is terminal`,
             );
@@ -485,6 +604,7 @@ export class AiDeepResearchService extends BaseService {
                 payload.aiDeepResearchRunUuid,
                 'Deep Research executor is not configured',
             );
+            await this.trackTerminalRun(payload.aiDeepResearchRunUuid);
             throw new Error('Deep Research executor is not configured');
         }
 
@@ -494,26 +614,28 @@ export class AiDeepResearchService extends BaseService {
                 const completed =
                     await this.aiDeepResearchRunModel.markCompleted(
                         payload.aiDeepResearchRunUuid,
-                        result.report,
+                        result.artifact,
                     );
                 if (!completed) {
                     await this.markCancelledAfterCompletedExecution(
                         payload.aiDeepResearchRunUuid,
                     );
                 }
+                await this.trackTerminalRun(payload.aiDeepResearchRunUuid);
                 return;
             }
             if (result.status === 'partially_completed') {
                 const completed =
                     await this.aiDeepResearchRunModel.markPartiallyCompleted(
                         payload.aiDeepResearchRunUuid,
-                        result.report,
+                        result.artifact,
                     );
                 if (!completed) {
                     await this.markCancelledAfterCompletedExecution(
                         payload.aiDeepResearchRunUuid,
                     );
                 }
+                await this.trackTerminalRun(payload.aiDeepResearchRunUuid);
                 return;
             }
             if (result.status === 'failed') {
@@ -524,6 +646,7 @@ export class AiDeepResearchService extends BaseService {
                     payload.aiDeepResearchRunUuid,
                     FAILED_RUN_ERROR_MESSAGE,
                 );
+                await this.trackTerminalRun(payload.aiDeepResearchRunUuid);
                 return;
             }
 
@@ -536,16 +659,98 @@ export class AiDeepResearchService extends BaseService {
                     'Deep Research stopped without a cancellation request',
                 );
             }
+            await this.trackTerminalRun(payload.aiDeepResearchRunUuid);
         } catch (error) {
             this.logger.error(
                 `Deep Research run ${payload.aiDeepResearchRunUuid} threw: ${getErrorMessage(error)}`,
             );
-            await this.aiDeepResearchRunModel.markFailed(
+            const currentRun = await this.aiDeepResearchRunModel.findByUuid(
                 payload.aiDeepResearchRunUuid,
-                FAILED_RUN_ERROR_MESSAGE,
+            );
+            if (currentRun?.cancellation_requested_at) {
+                await this.aiDeepResearchRunModel.markCancelled(
+                    payload.aiDeepResearchRunUuid,
+                );
+                await this.trackTerminalRun(payload.aiDeepResearchRunUuid);
+                return;
+            }
+            await this.aiDeepResearchRunModel.releaseForRetry(
+                payload.aiDeepResearchRunUuid,
             );
             throw error;
         }
+    }
+
+    async markRunFailedAfterRetries(
+        aiDeepResearchRunUuid: string,
+    ): Promise<boolean> {
+        const marked = await this.aiDeepResearchRunModel.markFailed(
+            aiDeepResearchRunUuid,
+            FAILED_RUN_ERROR_MESSAGE,
+        );
+        if (marked) {
+            await this.trackTerminalRun(aiDeepResearchRunUuid);
+        }
+        return marked;
+    }
+
+    private async trackTerminalRun(
+        aiDeepResearchRunUuid: string,
+    ): Promise<void> {
+        const run = await this.aiDeepResearchRunModel.findByUuid(
+            aiDeepResearchRunUuid,
+        );
+        if (
+            !run ||
+            !run.agent_uuid ||
+            !run.ai_thread_uuid ||
+            !isAiDeepResearchRunTerminal(run.status)
+        ) {
+            return;
+        }
+
+        const timings =
+            run.timings ??
+            (() => {
+                const terminalAt = run.completed_at ?? new Date();
+                const queueMs = Math.max(
+                    0,
+                    (run.started_at ?? terminalAt).getTime() -
+                        run.created_at.getTime(),
+                );
+                const totalMs = Math.max(
+                    0,
+                    terminalAt.getTime() - run.created_at.getTime(),
+                );
+                return {
+                    queueMs,
+                    agentMs: Math.max(0, totalMs - queueMs),
+                    toolWaitMs: 0,
+                    warehouseMs: 0,
+                    artifactGenerationMs: 0,
+                    totalMs,
+                };
+            })();
+        if (!run.timings) {
+            await this.aiDeepResearchRunModel.saveTimings(
+                aiDeepResearchRunUuid,
+                timings,
+            );
+        }
+
+        this.analytics.track<AiDeepResearchRunEvent>({
+            event: 'ai_deep_research.run_finished',
+            userId: run.created_by_user_uuid,
+            properties: {
+                organizationId: run.organization_uuid,
+                projectId: run.project_uuid,
+                agentId: run.agent_uuid,
+                threadId: run.ai_thread_uuid,
+                runId: run.ai_deep_research_run_uuid,
+                status: run.status,
+                ...timings,
+            },
+        });
     }
 
     private async markCancelledAfterCompletedExecution(
@@ -566,10 +771,14 @@ export class AiDeepResearchService extends BaseService {
     }
 
     async markRunTimedOut(aiDeepResearchRunUuid: string): Promise<boolean> {
-        return this.aiDeepResearchRunModel.markFailed(
+        const marked = await this.aiDeepResearchRunModel.markFailed(
             aiDeepResearchRunUuid,
             TIMED_OUT_RUN_ERROR_MESSAGE,
         );
+        if (marked) {
+            await this.trackTerminalRun(aiDeepResearchRunUuid);
+        }
+        return marked;
     }
 
     async setClaudeSessionId(
