@@ -110,6 +110,17 @@ LIGHTDASH_LOG_FORMAT="json"
 LIGHTDASH_LOG_OUTPUTS="console,file"
 ```
 
+### Emitting the actor as a JSON string
+
+By default the `actor` field is emitted as a nested JSON object. Some log indexers (e.g. Elasticsearch) map this field as `text` and silently drop the
+actor when a nested object arrives on ingest. Set the following to serialize `actor` to a JSON string instead, so it is stored as text:
+
+```bash
+LIGHTDASH_LOG_AUDIT_ACTOR_AS_STRING="true"
+```
+
+This is off by default and only changes the structured JSON `actor` field. The human-readable `message` field already renders the actor as text.
+
 ---
 
 ## How to Add Audit Logging to a Service

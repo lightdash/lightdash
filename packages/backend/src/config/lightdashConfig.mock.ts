@@ -133,6 +133,7 @@ export const lightdashConfigMock: LightdashConfig = {
         fileFormat: undefined,
         fileLevel: undefined,
         filePath: '',
+        auditActorAsString: false,
     },
     maxPayloadSize: '',
     pivotTable: { maxColumnLimit: 0 },
