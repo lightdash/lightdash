@@ -66,6 +66,9 @@ describe('custom roles as code', () => {
     });
 
     it('downloads portable custom role YAML from the code endpoint', async () => {
+        const folder = getCustomRolesFolder(tmpDir);
+        await fs.mkdir(folder, { recursive: true });
+        await fs.writeFile(path.join(folder, 'stale.yml'), 'stale: true');
         vi.mocked(lightdashApi).mockResolvedValueOnce({
             customRoles: [
                 customRole('Custom Role Name', {
@@ -98,6 +101,9 @@ describe('custom roles as code', () => {
             level: 'organization',
             scopes: ['manage:Space', 'view:Dashboard'],
         });
+        expect((await fs.readdir(folder)).sort()).toStrictEqual([
+            'custom-role-name.yml',
+        ]);
     });
 
     it('uses stable hashes for normalized filename collisions', async () => {
@@ -146,6 +152,30 @@ describe('custom roles as code', () => {
         expect(
             JSON.parse(vi.mocked(lightdashApi).mock.calls[0][0].body as string),
         ).toStrictEqual(customRole('Role A'));
+    });
+
+    it('is a no-op when the custom roles folder is missing or empty', async () => {
+        await expect(
+            uploadCustomRoles('organization-uuid', tmpDir),
+        ).resolves.toStrictEqual({
+            created: 0,
+            updated: 0,
+            unchanged: 0,
+            failed: 0,
+            failures: [],
+        });
+
+        await fs.mkdir(getCustomRolesFolder(tmpDir), { recursive: true });
+        await expect(
+            uploadCustomRoles('organization-uuid', tmpDir),
+        ).resolves.toStrictEqual({
+            created: 0,
+            updated: 0,
+            unchanged: 0,
+            failed: 0,
+            failures: [],
+        });
+        expect(lightdashApi).not.toHaveBeenCalled();
     });
 
     it('rejects duplicate names before calling the API', async () => {

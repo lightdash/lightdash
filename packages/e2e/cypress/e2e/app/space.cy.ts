@@ -14,6 +14,7 @@ describe('Space', () => {
 
     const createPrivateSpace = () => {
         const timestamp = new Date().toISOString();
+        let privateSpaceUrl: string;
 
         // Create private space
         cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
@@ -36,6 +37,11 @@ describe('Space', () => {
 
         // Wait for space page to load
         cy.contains(`Private space ${timestamp}`).should('be.visible');
+        cy.url()
+            .should('match', /\/spaces\/[0-9a-f-]{36}$/)
+            .then((url) => {
+                privateSpaceUrl = url;
+            });
 
         // Create new chart
         cy.get('[data-testid="Space/AddButton"]').click();
@@ -66,10 +72,11 @@ describe('Space', () => {
             .click();
 
         cy.contains('Success! Chart was saved.').should('exist');
+        cy.url().should('match', /\/saved\/[0-9a-f-]{36}\/view$/);
 
-        // Go back to space using breadcrumbs
-        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/spaces`);
-        cy.contains(`Private space ${timestamp}`).click();
+        cy.then(() => {
+            cy.visit(privateSpaceUrl);
+        });
 
         // Create new dashboard
         cy.get('[data-testid="Space/AddButton"]').click();
@@ -79,12 +86,11 @@ describe('Space', () => {
         );
         cy.findByText('Next').click();
         cy.findByText('Create').click();
-        // At this point the dashboard is created, but empty
-        // TODO add private chart to dashboard ?
+        cy.url().should('match', /\/dashboards\/[0-9a-f-]{36}\/edit$/);
 
-        // Go back to space using url
-        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/spaces`); // I think we need to refresh the page for the items to appear
-        cy.contains(`Private space ${timestamp}`).click();
+        cy.then(() => {
+            cy.visit(privateSpaceUrl);
+        });
 
         // Check all items exist in private space
         cy.contains('All').click();
@@ -92,7 +98,7 @@ describe('Space', () => {
         cy.contains(`Private chart ${timestamp}`);
     };
 
-    it.only('Another non-admin user cannot see private content', () => {
+    it('Another non-admin user cannot see private content', () => {
         createPrivateSpace();
 
         // We assume the previous test has been run and the private space has been created
@@ -262,9 +268,11 @@ describe('Editor access to spaces', () => {
     });
 
     it('can see all public and private spaces w/ access in Tree view', () => {
-        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/home`);
-        cy.contains('New').click();
-        cy.contains('Arrange multiple charts into a single view.').click();
+        cy.visit(`/projects/${SEED_PROJECT.project_uuid}/spaces`);
+        cy.contains('Parent Space 1').click();
+        cy.contains('Child Space 1.1').click();
+        cy.get('[data-testid="Space/AddButton"]').click();
+        cy.contains('Create new dashboard').click();
         cy.findByPlaceholderText('eg. KPI Dashboard').type(
             `Test Dashboard ${new Date().toISOString()}`,
         );

@@ -1,3 +1,41 @@
+# [0.3385.0](https://github.com/lightdash/lightdash/compare/0.3384.0...0.3385.0) (2026-07-15)
+
+
+### Bug Fixes
+
+* **e2e:** remove focused space test ([#25534](https://github.com/lightdash/lightdash/issues/25534)) ([a25a409](https://github.com/lightdash/lightdash/commit/a25a409255d7fb9d46bd967faebe16c4cd2249fb))
+
+
+### Features
+
+* mount dashboard filter requirements behind its feature flag ([#25306](https://github.com/lightdash/lightdash/issues/25306)) ([c33a7f8](https://github.com/lightdash/lightdash/commit/c33a7f8cdfbf55fb3a678363d12c027914db69d6))
+
+# [0.3384.0](https://github.com/lightdash/lightdash/compare/0.3383.1...0.3384.0) (2026-07-15)
+
+
+### Features
+
+* **slack:** link an agent from the channel when none is configured ([#25516](https://github.com/lightdash/lightdash/issues/25516)) ([6a66e49](https://github.com/lightdash/lightdash/commit/6a66e49897b5e19786fcf90bfacec3a41f187211))
+
+## [0.3383.1](https://github.com/lightdash/lightdash/compare/0.3383.0...0.3383.1) (2026-07-15)
+
+
+### Bug Fixes
+
+* **custom-roles:** keep permissions panel usable on short viewports ([#25571](https://github.com/lightdash/lightdash/issues/25571)) ([1135f99](https://github.com/lightdash/lightdash/commit/1135f9945cbec1c6bda7feef8bcc2f8e0303ee34)), closes [#25340](https://github.com/lightdash/lightdash/issues/25340)
+
+# [0.3383.0](https://github.com/lightdash/lightdash/compare/0.3382.2...0.3383.0) (2026-07-15)
+
+
+### Bug Fixes
+
+* **ai-agents:** clarify agent access hints for custom roles ([#25569](https://github.com/lightdash/lightdash/issues/25569)) ([f01580b](https://github.com/lightdash/lightdash/commit/f01580b4a674f6bc25a0da364a0eced3b377f8ac))
+
+
+### Features
+
+* add AI custom dimension assistant ([#25567](https://github.com/lightdash/lightdash/issues/25567)) ([4934e4d](https://github.com/lightdash/lightdash/commit/4934e4dd4e462a135915764ee75a929a3c9b8832)), closes [#25474](https://github.com/lightdash/lightdash/issues/25474)
+
 ## [0.3382.2](https://github.com/lightdash/lightdash/compare/0.3382.1...0.3382.2) (2026-07-15)
 
 

@@ -291,6 +291,8 @@ import { type GroupType, type TableBase } from './table';
 import { type ApiCreateTagResponse } from './tags';
 import { type ApiUpstreamDiffResults } from './upstreamDiff';
 import {
+    type ApiUserAsCodeListResponse,
+    type ApiUserAsCodeUpsertResponse,
     type LightdashUser,
     type LoginOptions,
     type UserAllowedOrganization,
@@ -1149,6 +1151,8 @@ type ApiResults =
     | ApiAgentAsCodeUpsertResponse['results']
     | ApiCustomRoleAsCodeListResponse['results']
     | ApiCustomRoleAsCodeUpsertResponse['results']
+    | ApiUserAsCodeListResponse['results']
+    | ApiUserAsCodeUpsertResponse['results']
     | ApiAlertAsCodeListResponse['results']
     | ApiAlertAsCodeUpsertResponse['results']
     | ApiChartAsCodeListResponse['results']

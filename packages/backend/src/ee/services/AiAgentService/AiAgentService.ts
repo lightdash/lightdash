@@ -118,6 +118,7 @@ import {
     AllMiddlewareArgs,
     App,
     ModalView,
+    SayFn,
     SlackEventMiddlewareArgs,
 } from '@slack/bolt';
 import { Block, KnownBlock, WebClient } from '@slack/web-api';
@@ -156,6 +157,7 @@ import {
     AiAgentPromptFeedbackEvent,
     AiAgentPullRequestViewedEvent,
     AiAgentResponseStreamed,
+    AiAgentSlackChannelLinkedEvent,
     AiAgentSuggestionsGeneratedEvent,
     AiAgentSuggestionSubmitEvent,
     AiAgentToolCallEvent,
@@ -306,6 +308,7 @@ import {
     buildSlackTaskUpdate,
     getAgentConfirmationBlocks,
     getAgentSelectionBlocks,
+    getChannelLinkAgentSelectionBlocks,
     getDeepLinkBlocks,
     getFeedbackBlocks,
     getFollowUpToolBlocks,
@@ -3944,6 +3947,33 @@ export class AiAgentService extends BaseService {
         });
 
         return updatedAgent;
+    }
+
+    public async linkAgentToSlackChannel(
+        user: SessionUser,
+        agentUuid: string,
+        slackChannelId: string,
+    ): Promise<AiAgent> {
+        const { organizationUuid, agent } =
+            await this.getManageableAgentOrThrow(user, agentUuid);
+
+        await this.aiAgentModel.addSlackChannelIntegration({
+            organizationUuid,
+            agentUuid,
+            slackChannelId,
+        });
+
+        this.analytics.track<AiAgentSlackChannelLinkedEvent>({
+            event: 'ai_agent.slack_channel_linked',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: agent.projectUuid,
+                aiAgentId: agentUuid,
+            },
+        });
+
+        return agent;
     }
 
     private async getManageableAgentOrThrow(
@@ -8203,7 +8233,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             agentSettings.enableDataAccess &&
             hasTrustedPromptUserIdentity &&
             this.createAuditedAbility(user).can(
-                'manage',
+                'create',
                 subject('ContentAsCode', {
                     organizationUuid: promptProject.organizationUuid,
                     projectUuid: promptProject.projectUuid,
@@ -10900,7 +10930,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         availableAgents: AiAgent[],
         channelId: string,
         threadTs: string | undefined,
-        say: Function,
+        say: SayFn,
         shouldSkipForwardingQuery = false,
     ): Promise<void> {
         // Fetch project names for grouping
@@ -10930,6 +10960,123 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             ),
             thread_ts: threadTs,
         });
+    }
+
+    // Offers only agents the user can manage — linking mutates agent config.
+    // A single manageable agent is linked immediately (no one-option dropdown)
+    // and returned so the caller can answer the question in the same pass.
+    private async showChannelLinkAgentPicker(args: {
+        organizationUuid: string;
+        userUuid: string;
+        channelId: string;
+        threadTs: string;
+        say: SayFn;
+    }): Promise<AiAgent | undefined> {
+        const { organizationUuid, userUuid, channelId, threadTs, say } = args;
+        const { siteUrl } = this.lightdashConfig;
+
+        const allAgents = await this.aiAgentModel.findAllAgents({
+            organizationUuid,
+        });
+
+        if (allAgents.length === 0) {
+            await say({
+                text: `🤔 There are no AI agents in this organization yet. Create one at ${siteUrl}/ai-agents to start answering questions in Slack.`,
+                thread_ts: threadTs,
+            });
+            return undefined;
+        }
+
+        const user = await this.userModel.findSessionUserAndOrgByUuid(
+            userUuid,
+            organizationUuid,
+        );
+        const auditedAbility = this.createAuditedAbility(user);
+        const manageableAgents = allAgents.filter((agent) =>
+            auditedAbility.can(
+                'manage',
+                subject('AiAgent', {
+                    organizationUuid,
+                    projectUuid: agent.projectUuid,
+                    metadata: {
+                        agentUuid: agent.uuid,
+                        agentName: agent.name,
+                    },
+                }),
+            ),
+        );
+
+        if (manageableAgents.length === 0) {
+            await say({
+                text: `🤔 No agent is linked to this channel yet, and you don't have permission to link one. Ask an admin to set one up at ${siteUrl}/ai-agents`,
+                thread_ts: threadTs,
+            });
+            return undefined;
+        }
+
+        if (manageableAgents.length === 1) {
+            let agent: AiAgent;
+            try {
+                agent = await this.linkAgentToSlackChannel(
+                    user,
+                    manageableAgents[0].uuid,
+                    channelId,
+                );
+            } catch (error) {
+                if (!(error instanceof AlreadyExistsError)) {
+                    throw error;
+                }
+                // Lost the race — adopt whichever agent won.
+                agent = await this.aiAgentModel.getAgentBySlackChannelId({
+                    organizationUuid,
+                    slackChannelId: channelId,
+                });
+            }
+
+            let projectLabel = agent.projectUuid;
+            try {
+                const projectSummary = await this.projectModel.getSummary(
+                    agent.projectUuid,
+                );
+                projectLabel = projectSummary.name;
+            } catch {
+                // Fall back to the uuid in the confirmation copy.
+            }
+
+            await say({
+                text: `✅ Linked *${agent.name}* (${projectLabel}) to <#${channelId}> — it now answers here.`,
+                thread_ts: threadTs,
+            });
+
+            return agent;
+        }
+
+        const uniqueProjectUuids = [
+            ...new Set(manageableAgents.map((a) => a.projectUuid)),
+        ];
+        const projectMap = new Map<string, string>();
+        await Promise.all(
+            uniqueProjectUuids.map(async (projectUuid) => {
+                try {
+                    const project =
+                        await this.projectModel.getSummary(projectUuid);
+                    projectMap.set(projectUuid, project.name);
+                } catch {
+                    projectMap.set(projectUuid, projectUuid);
+                }
+            }),
+        );
+
+        await say({
+            text: 'No agent is linked to this channel yet — pick one to answer here.',
+            blocks: getChannelLinkAgentSelectionBlocks(
+                manageableAgents,
+                channelId,
+                projectMap,
+            ),
+            thread_ts: threadTs,
+        });
+        return undefined;
     }
 
     /**
@@ -10968,7 +11115,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         // Optional restriction (e.g. the multi-agent channel's project filter).
         // When omitted, all of the organization's projects are candidates.
         projectUuids: string[] | null | undefined;
-        say: Function;
+        say: SayFn;
         slackChannelId: string;
         // Thread anchor (the mention's own ts for a new thread, the root ts for
         // a reply). Used for posting replies and the existing-thread lookup.
@@ -11117,7 +11264,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         channelId: string;
         threadTs: string | undefined;
         promptSlackTs: string;
-        say: Function;
+        say: SayFn;
         botUserId: string | undefined;
         client: WebClient;
         isMultiAgentChannel: boolean;
@@ -11291,7 +11438,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
      */
     private static async handleSlackAgentError(
         e: unknown,
-        say: Function,
+        say: SayFn,
         threadTs: string | undefined,
         siteUrl: string,
     ): Promise<boolean> {
@@ -11364,7 +11511,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         userId: string,
         threadTs: string | undefined,
         createdThread: boolean,
-        say: Function,
+        say: SayFn,
     ): Promise<void> {
         // Best-effort placeholder: if `say()` throws (e.g. Slack rate-limiting)
         // we must still schedule the job, else the prompt is orphaned.
@@ -11490,7 +11637,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 messageId: event.ts,
                 organizationUuid,
             },
-            say,
             client,
         );
 
@@ -11713,6 +11859,75 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         }
     }
 
+    private async createAndScheduleSlackPromptFromAction(args: {
+        client: WebClient;
+        channelId: string;
+        threadTs: string | undefined;
+        agentConfig: AiAgent;
+        userUuid: string;
+        slackUserId: string;
+        promptText: string;
+        promptSlackTs: string;
+        organizationUuid: string;
+    }): Promise<void> {
+        const [slackPromptUuid] = await this.createSlackPrompt({
+            userUuid: args.userUuid,
+            projectUuid: args.agentConfig.projectUuid,
+            slackUserId: args.slackUserId,
+            slackChannelId: args.channelId,
+            slackThreadTs: args.threadTs,
+            prompt: args.promptText,
+            promptSlackTs: args.promptSlackTs,
+            agentUuid: args.agentConfig.uuid,
+        });
+
+        const postedMessage = await args.client.chat.postMessage({
+            channel: args.channelId,
+            thread_ts: args.threadTs,
+            username: args.agentConfig.name,
+            blocks: [
+                {
+                    type: 'section',
+                    text: {
+                        type: 'mrkdwn',
+                        text: `Hi <@${args.slackUserId}>, working on your request now :rocket:`,
+                    },
+                },
+                {
+                    type: 'divider',
+                },
+                {
+                    type: 'context',
+                    elements: [
+                        {
+                            type: 'plain_text',
+                            text: `It can take up to 15s to get a response.`,
+                        },
+                        {
+                            type: 'plain_text',
+                            text: `Reference: ${slackPromptUuid}`,
+                        },
+                    ],
+                },
+            ],
+            text: `Working on your request now...`,
+        });
+
+        if (postedMessage.ts) {
+            await this.aiAgentModel.updateSlackResponseTs({
+                promptUuid: slackPromptUuid,
+                responseSlackTs: postedMessage.ts,
+            });
+        }
+
+        await this.schedulerClient.slackAiPrompt({
+            slackPromptUuid,
+            userUuid: args.userUuid,
+            projectUuid: args.agentConfig.projectUuid,
+            organizationUuid: args.organizationUuid,
+        });
+    }
+
     public handleAgentSelection(app: App) {
         app.action('select_agent', async ({ ack, body, client, context }) => {
             await ack();
@@ -11780,8 +11995,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         messageId: body.message?.ts || '',
                         organizationUuid,
                     },
-                    // Pass a no-op function for say since we'll handle responses ourselves
-                    async () => {},
                     client,
                 );
 
@@ -11906,63 +12119,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     return;
                 }
 
-                // Create the prompt with the selected agent
-                const [slackPromptUuid] = await this.createSlackPrompt({
+                await this.createAndScheduleSlackPromptFromAction({
+                    client,
+                    channelId,
+                    threadTs,
+                    agentConfig,
                     userUuid,
-                    projectUuid: agentConfig.projectUuid,
                     slackUserId: body.user.id,
-                    slackChannelId: channelId,
-                    slackThreadTs: threadTs,
-                    prompt: originalMessage.text,
+                    promptText: originalMessage.text,
                     promptSlackTs: originalMessage.ts || '',
-                    agentUuid: agentConfig.uuid,
-                });
-
-                // Post the initial "working on it" message
-                const postedMessage = await client.chat.postMessage({
-                    channel: channelId,
-                    thread_ts: threadTs,
-                    username: agentConfig.name,
-                    blocks: [
-                        {
-                            type: 'section',
-                            text: {
-                                type: 'mrkdwn',
-                                text: `Hi <@${body.user.id}>, working on your request now :rocket:`,
-                            },
-                        },
-                        {
-                            type: 'divider',
-                        },
-                        {
-                            type: 'context',
-                            elements: [
-                                {
-                                    type: 'plain_text',
-                                    text: `It can take up to 15s to get a response.`,
-                                },
-                                {
-                                    type: 'plain_text',
-                                    text: `Reference: ${slackPromptUuid}`,
-                                },
-                            ],
-                        },
-                    ],
-                    text: `Working on your request now...`,
-                });
-
-                if (postedMessage.ts) {
-                    await this.aiAgentModel.updateSlackResponseTs({
-                        promptUuid: slackPromptUuid,
-                        responseSlackTs: postedMessage.ts,
-                    });
-                }
-
-                // Schedule the AI prompt processing
-                await this.schedulerClient.slackAiPrompt({
-                    slackPromptUuid,
-                    userUuid,
-                    projectUuid: agentConfig.projectUuid,
                     organizationUuid,
                 });
             } catch (e) {
@@ -12101,7 +12266,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             messageId: body.message?.ts || '',
                             organizationUuid,
                         },
-                        async () => {},
                         client,
                     );
 
@@ -12279,6 +12443,301 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         );
     }
 
+    public handleChannelAgentLink(app: App) {
+        app.action(
+            'link_channel_agent',
+            async ({ ack, body, client, context }) => {
+                await ack();
+
+                if (body.type !== 'block_actions') {
+                    return;
+                }
+
+                const action = body.actions[0];
+                if (
+                    action?.type !== 'static_select' ||
+                    !action.selected_option
+                ) {
+                    return;
+                }
+
+                const { teamId } = context;
+                if (!teamId || !body.user?.id) {
+                    return;
+                }
+
+                try {
+                    // Action values round-trip through Slack — validate before trusting.
+                    const channelLinkSchema = z.object({
+                        a: z.string().uuid(),
+                        c: z.string().min(1),
+                    });
+                    let rawValue: unknown;
+                    try {
+                        rawValue = JSON.parse(action.selected_option.value);
+                    } catch {
+                        Logger.error('Invalid channel agent link value', {
+                            value: action.selected_option.value,
+                        });
+                        return;
+                    }
+                    const parseResult = channelLinkSchema.safeParse(rawValue);
+                    if (!parseResult.success) {
+                        Logger.error('Invalid channel agent link value', {
+                            value: action.selected_option.value,
+                            error: parseResult.error.message,
+                        });
+                        return;
+                    }
+                    const { a: agentUuid, c: channelId } = parseResult.data;
+
+                    const organizationUuid =
+                        await this.slackAuthenticationModel.getOrganizationUuidFromTeamId(
+                            teamId,
+                        );
+
+                    const slackSettings =
+                        await this.slackAuthenticationModel.getInstallationFromOrganizationUuid(
+                            organizationUuid,
+                        );
+
+                    if (!slackSettings) {
+                        throw new NotFoundError(
+                            `Slack settings not found for organization ${organizationUuid}`,
+                        );
+                    }
+
+                    const threadTs =
+                        body.message && 'thread_ts' in body.message
+                            ? body.message.thread_ts
+                            : body.message?.ts;
+
+                    if (!threadTs) {
+                        Logger.error(
+                            'Channel agent link action has no thread timestamp',
+                        );
+                        return;
+                    }
+
+                    const authResult = await this.handleAiAgentAuth(
+                        slackSettings,
+                        {
+                            userId: body.user.id,
+                            teamId,
+                            threadTs,
+                            channelId,
+                            messageId: body.message?.ts || '',
+                            organizationUuid,
+                        },
+                        client,
+                    );
+
+                    if (!authResult) {
+                        return;
+                    }
+
+                    const { userUuid } = authResult;
+
+                    const user =
+                        await this.userModel.findSessionUserAndOrgByUuid(
+                            userUuid,
+                            organizationUuid,
+                        );
+
+                    let agentConfig: AiAgent;
+                    let adoptedExistingLink = false;
+                    try {
+                        agentConfig = await this.linkAgentToSlackChannel(
+                            user,
+                            agentUuid,
+                            channelId,
+                        );
+                    } catch (error) {
+                        if (error instanceof ForbiddenError) {
+                            // Permissions may have changed since the picker was rendered.
+                            // Ephemeral to the clicker only — replacing the shared picker
+                            // would remove it for members who can link.
+                            await client.chat.postEphemeral({
+                                channel: channelId,
+                                user: body.user.id,
+                                thread_ts: threadTs,
+                                text: `⚠️ You don't have permission to link an agent to this channel. Ask an admin to set one up at ${this.lightdashConfig.siteUrl}/ai-agents`,
+                            });
+                            return;
+                        }
+                        if (error instanceof AlreadyExistsError) {
+                            // Lost the race — adopt whichever agent won.
+                            agentConfig =
+                                await this.aiAgentModel.getAgentBySlackChannelId(
+                                    {
+                                        organizationUuid,
+                                        slackChannelId: channelId,
+                                    },
+                                );
+                            adoptedExistingLink =
+                                agentConfig.uuid !== agentUuid;
+                        } else {
+                            throw error;
+                        }
+                    }
+
+                    let projectLabel = agentConfig.projectUuid;
+                    try {
+                        const projectSummary =
+                            await this.projectModel.getSummary(
+                                agentConfig.projectUuid,
+                            );
+                        projectLabel = projectSummary.name;
+                    } catch (projectError) {
+                        Logger.error(
+                            'Failed to fetch project name for channel link confirmation',
+                            projectError,
+                        );
+                    }
+
+                    if (body.message?.ts) {
+                        try {
+                            const confirmationText = adoptedExistingLink
+                                ? `✅ This channel was already linked — *${agentConfig.name}* (${projectLabel}) answers in <#${channelId}>`
+                                : `✅ *${agentConfig.name}* (${projectLabel}) now answers in <#${channelId}>`;
+                            await client.chat.update({
+                                channel: channelId,
+                                ts: body.message.ts,
+                                text: confirmationText,
+                                blocks: [
+                                    {
+                                        type: 'section',
+                                        text: {
+                                            type: 'mrkdwn',
+                                            text: confirmationText,
+                                        },
+                                    },
+                                ],
+                            });
+                        } catch (updateError) {
+                            Logger.error(
+                                'Failed to update channel link message',
+                                updateError,
+                            );
+                        }
+                    }
+
+                    // The clicker may not be the asker — match the question on the bot mention, not the author.
+                    const conversationHistory =
+                        await client.conversations.replies({
+                            channel: channelId,
+                            ts: threadTs,
+                            limit: 100,
+                        });
+                    const originalMessage = conversationHistory.messages?.find(
+                        (msg) =>
+                            !msg.bot_id &&
+                            !!msg.user &&
+                            !!msg.text &&
+                            msg.text.includes(`<@${context.botUserId}>`),
+                    );
+
+                    if (
+                        !originalMessage?.text ||
+                        !originalMessage.ts ||
+                        !originalMessage.user ||
+                        AiAgentService.stripSlackMentions(originalMessage.text)
+                            .length === 0
+                    ) {
+                        await client.chat.postMessage({
+                            channel: channelId,
+                            thread_ts: threadTs,
+                            text: "Got it — ask your question again and I'll answer here.",
+                        });
+                        return;
+                    }
+
+                    // Run the prompt as the asker, not the clicker. If OAuth is
+                    // required and the asker hasn't connected, they get the
+                    // connect prompt and the post-OAuth replay answers them —
+                    // the channel is linked now.
+                    let promptUserUuid = userUuid;
+                    if (originalMessage.user !== body.user.id) {
+                        const askerAuth = await this.handleAiAgentAuth(
+                            slackSettings,
+                            {
+                                userId: originalMessage.user,
+                                teamId,
+                                threadTs,
+                                channelId,
+                                messageId: originalMessage.ts,
+                                organizationUuid,
+                            },
+                            client,
+                        );
+                        if (!askerAuth) {
+                            return;
+                        }
+                        promptUserUuid = askerAuth.userUuid;
+                    }
+
+                    try {
+                        await this.verifyAgentAccess(
+                            agentConfig,
+                            promptUserUuid,
+                            slackSettings,
+                        );
+                    } catch (accessError) {
+                        if (accessError instanceof ForbiddenError) {
+                            await client.chat.postEphemeral({
+                                channel: channelId,
+                                user: originalMessage.user,
+                                thread_ts: threadTs,
+                                text: '⚠️ You are not authorized to access this agent. Please contact your administrator to get access.',
+                            });
+                            return;
+                        }
+                        throw accessError;
+                    }
+
+                    await this.createAndScheduleSlackPromptFromAction({
+                        client,
+                        channelId,
+                        threadTs,
+                        agentConfig,
+                        userUuid: promptUserUuid,
+                        slackUserId: originalMessage.user,
+                        promptText: originalMessage.text,
+                        promptSlackTs: originalMessage.ts,
+                        organizationUuid,
+                    });
+                } catch (e) {
+                    if (e instanceof AiDuplicateSlackPromptError) {
+                        Logger.debug(
+                            'Duplicate slack prompt on channel agent link',
+                            e,
+                        );
+                        return;
+                    }
+                    Logger.error('Error handling channel agent link', e);
+                    if (
+                        body.user?.id &&
+                        'channel' in body &&
+                        body.channel?.id
+                    ) {
+                        try {
+                            await client.chat.postEphemeral({
+                                channel: body.channel.id,
+                                user: body.user.id,
+                                text: '⚠️ Something went wrong while linking the agent. Please try again or contact your administrator.',
+                            });
+                        } catch (notifyError) {
+                            Logger.error(
+                                'Failed to send error notification',
+                                notifyError,
+                            );
+                        }
+                    }
+                }
+            },
+        );
+    }
+
     private async handleAiAgentAuth(
         slackSettings: { aiRequireOAuth?: boolean },
         {
@@ -12296,7 +12755,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             messageId: string;
             organizationUuid: string;
         },
-        say: Function,
         client: WebClient,
     ): Promise<{ userUuid: string } | null> {
         let result:
@@ -12537,6 +12995,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
         let agentConfig: AiAgent | undefined;
 
+        const say = async (args: AnyType) =>
+            client.chat.postMessage({
+                channel: channelId,
+                ...args,
+            });
+
         if (isMultiAgentChannel) {
             const availableAgents = await this.getAvailableAgents(
                 organizationUuid,
@@ -12555,10 +13019,43 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             // Use first available agent for pending message processing
             [agentConfig] = availableAgents;
         } else {
-            agentConfig = await this.aiAgentModel.getAgentBySlackChannelId({
-                organizationUuid,
-                slackChannelId: channelId,
-            });
+            try {
+                agentConfig = await this.aiAgentModel.getAgentBySlackChannelId({
+                    organizationUuid,
+                    slackChannelId: channelId,
+                });
+            } catch (e) {
+                // Mirror handleAppMention's no-agent routing so post-OAuth replays don't dead-end in silence.
+                if (!(e instanceof AiAgentNotFoundError)) {
+                    throw e;
+                }
+                const fallback = await this.resolveSystemAgentForSlack({
+                    organizationUuid,
+                    userUuid,
+                    projectUuids: undefined,
+                    say,
+                    slackChannelId: channelId,
+                    threadTs: threadTs || messageTs,
+                    promptText: originalMessageText,
+                });
+                if (fallback === 'handled') {
+                    return;
+                }
+                if (!fallback) {
+                    agentConfig = await this.showChannelLinkAgentPicker({
+                        organizationUuid,
+                        userUuid,
+                        channelId,
+                        threadTs: threadTs || messageTs,
+                        say,
+                    });
+                    if (!agentConfig) {
+                        return;
+                    }
+                } else {
+                    agentConfig = fallback;
+                }
+            }
         }
 
         if (!agentConfig) {
@@ -12596,13 +13093,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             }
             throw e;
         }
-
-        // Create say-like wrapper for postInitialResponseAndSchedule
-        const say = async (args: AnyType) =>
-            client.chat.postMessage({
-                channel: channelId,
-                ...args,
-            });
 
         await this.postInitialResponseAndSchedule(
             agentConfig,
@@ -12674,7 +13164,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 messageId: event.ts,
                 organizationUuid,
             },
-            say,
             client,
         );
 
@@ -12824,10 +13313,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                             slackChannelId: event.channel,
                         });
                 } catch (e) {
-                    // No agent mapped to this channel — fall back to the
-                    // built-in system agent (gated behind
-                    // AiSlackSystemAgentFallback). If the flag is off, rethrow
-                    // so the existing "no agent configured" message is shown.
+                    // No agent mapped to this channel: system-agent fallback
+                    // (AiSlackSystemAgentFallback) first, else offer to link an agent.
                     if (!(e instanceof AiAgentNotFoundError)) {
                         throw e;
                     }
@@ -12844,9 +13331,19 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         return;
                     }
                     if (!fallback) {
-                        throw e;
+                        agentConfig = await this.showChannelLinkAgentPicker({
+                            organizationUuid,
+                            userUuid,
+                            channelId: event.channel,
+                            threadTs: event.thread_ts ?? event.ts,
+                            say,
+                        });
+                        if (!agentConfig) {
+                            return;
+                        }
+                    } else {
+                        agentConfig = fallback;
                     }
-                    agentConfig = fallback;
                 }
             }
 

@@ -128,7 +128,6 @@ export type DashboardContextType = {
     dashboardCommentsCheck?: ReturnType<typeof useDashboardCommentsCheck>;
     dashboardComments?: ReturnType<typeof useGetComments>['data'];
     hasTileComments: (tileUuid: string) => boolean;
-    requiredDashboardFilters: Pick<DashboardFilterRule, 'id' | 'label'>[];
     unmetFilterRequirements: UnmetFilterRequirement[];
     isFilterRequirementsEnabled: boolean;
     isDateZoomDisabled: boolean;
