@@ -82,6 +82,18 @@ export const MARKDOWN_TILE_CLASS = 'markdown-tile';
 export const DASHBOARD_GRID_CLASS = 'lightdash-dashboard-screenshot-target';
 
 /**
+ * Class name for a single tab's page container in the css-paged PDF export.
+ * The frontend wraps each exported tab in this class; the backend measures
+ * these containers to derive a uniform PDF page height and the print CSS
+ * forces a page break before each one.
+ *
+ * Usage:
+ * - Frontend: Applied per tab group in MinimalDashboardContent (paged export)
+ * - Backend: Measured by UnfurlService.unfurlPdfCssPaged / generatePdf
+ */
+export const EXPORT_TAB_PAGE_CLASS = 'lightdash-export-tab-page';
+
+/**
  * ID of the element rendered by the error boundary fallback.
  * The UnfurlService checks for this element to detect when an error occurred.
  *
