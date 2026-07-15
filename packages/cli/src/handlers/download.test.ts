@@ -346,8 +346,7 @@ version: 1
 
         expect(changes).toEqual({});
         expect(lightdashApi).not.toHaveBeenCalled();
-        expect(logSpy).toHaveBeenCalledOnce();
-        expect(logSpy).toHaveBeenCalledWith(
+        expect(logSpy).toHaveBeenCalledExactlyOnceWith(
             expect.stringContaining('Error uploading virtual views'),
         );
     });

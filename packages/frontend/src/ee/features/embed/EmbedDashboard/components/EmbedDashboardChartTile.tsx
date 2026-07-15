@@ -5,8 +5,10 @@ import { useMemo, type ComponentProps, type FC } from 'react';
 import type DashboardChartTile from '../../../../../components/DashboardTiles/DashboardChartTile';
 import { GenericDashboardChartTile } from '../../../../../components/DashboardTiles/DashboardChartTile';
 import TileBase from '../../../../../components/DashboardTiles/TileBase';
+import UnmetRequirementsPlaceholder from '../../../../../components/DashboardTiles/UnmetRequirementsPlaceholder';
 import { useDashboardChartReadyQuery } from '../../../../../hooks/dashboard/useDashboardChartReadyQuery';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
+import useDashboardContext from '../../../../../providers/Dashboard/useDashboardContext';
 import useEmbed from '../../../../providers/Embed/useEmbed';
 
 type Props = ComponentProps<typeof DashboardChartTile> & {
@@ -97,6 +99,10 @@ const EmbedDashboardChartTile: FC<Props> = ({
     // Apply language translations to the chart data if available
     const dashboardChartReadyQuery = translatedChartData;
 
+    const isFilterRequirementsEnabled = useDashboardContext(
+        (c) => c.isFilterRequirementsEnabled,
+    );
+
     if (locked) {
         return (
             <Box h="100%">
@@ -105,7 +111,11 @@ const EmbedDashboardChartTile: FC<Props> = ({
                     title={''}
                     tile={translatedTile}
                     {...rest}
-                />
+                >
+                    {isFilterRequirementsEnabled ? (
+                        <UnmetRequirementsPlaceholder />
+                    ) : undefined}
+                </TileBase>
             </Box>
         );
     }

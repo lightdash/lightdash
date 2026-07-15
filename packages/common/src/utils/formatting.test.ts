@@ -2334,7 +2334,7 @@ describe('Formatting', () => {
                 '¥12,345.124',
             ]);
         });
-        test('convert currencies with separator ', () => {
+        test('convert currencies with separator', () => {
             // Using PERIOD_COMMA changes the position of the currency symbol
             expect(
                 currencies.slice(0, 4).map((currency) =>
@@ -2351,7 +2351,7 @@ describe('Formatting', () => {
                 '12.345 ¥',
             ]);
         });
-        test('convert currencies with compact ', () => {
+        test('convert currencies with compact', () => {
             expect(
                 currencies.slice(0, 4).map((currency) =>
                     applyCustomFormat(12345.1235, {
@@ -2374,7 +2374,7 @@ describe('Formatting', () => {
             ).toEqual(['$123M', '€123M', '£123M', '¥123M']);
         });
 
-        test('convert numbers ', () => {
+        test('convert numbers', () => {
             expect(
                 applyCustomFormat(12345.56789, {
                     type: CustomFormatType.NUMBER,

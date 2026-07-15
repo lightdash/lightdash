@@ -589,6 +589,15 @@ describe('Organization member permissions', () => {
                     defineAbilityForOrganizationMember(ORGANIZATION_EDITOR);
             });
 
+            it('can create but cannot manage content as code', () => {
+                const contentAsCode = subject('ContentAsCode', {
+                    organizationUuid: ORGANIZATION_EDITOR.organizationUuid,
+                });
+
+                expect(ability.can('create', contentAsCode)).toEqual(true);
+                expect(ability.can('manage', contentAsCode)).toEqual(false);
+            });
+
             it('cannot manage organizations', () => {
                 expect(ability.can('manage', 'Organization')).toEqual(false);
             });
@@ -1083,6 +1092,18 @@ describe('Organization member permissions', () => {
                 ability = defineAbilityForOrganizationMember(
                     ORGANIZATION_DEVELOPER,
                 );
+            });
+
+            it('can create content as code through manage', () => {
+                expect(
+                    ability.can(
+                        'create',
+                        subject('ContentAsCode', {
+                            organizationUuid:
+                                ORGANIZATION_DEVELOPER.organizationUuid,
+                        }),
+                    ),
+                ).toEqual(true);
             });
 
             it('can run SQL Queries', () => {

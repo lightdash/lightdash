@@ -29,6 +29,7 @@ describe('embed class contract', () => {
             'ld-dashboard-add-filter-dropdown',
             'ld-dashboard-date-zoom-dropdown',
             'ld-dashboard-parameter-dropdown',
+            'ld-dashboard-guided-setup',
         ]);
     });
 

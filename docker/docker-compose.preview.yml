@@ -93,6 +93,10 @@ services:
             # enabledFeatureFlags allowlist (step 1a).
             EMBEDDING_ENABLED: true
 
+            # Force-enable feature flags in preview envs so their e2e specs
+            # exercise the flag-on UX (dashboardFilterRequiredGroups.cy.ts).
+            LIGHTDASH_ENABLE_FEATURE_FLAGS: dashboard-filter-requirements
+
             PERSISTENT_DOWNLOAD_URLS_ENABLED: true
 
             # these were set in https://dashboard.render.com/env-group/evg-cfn4dlhmbjst4ho7s160 but can be public

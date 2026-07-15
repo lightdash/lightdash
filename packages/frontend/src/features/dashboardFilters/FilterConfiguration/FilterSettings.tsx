@@ -28,6 +28,8 @@ import { getFilterOperatorOptions } from '../../../components/common/Filters/Fil
 import { getPlaceholderByFilterTypeAndOperator } from '../../../components/common/Filters/utils/getPlaceholderByFilterTypeAndOperator';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useApp from '../../../providers/App/useApp';
+import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
+import RequiredFilterCard from '../FilterRequirements/RequiredFilterCard';
 
 interface FilterSettingsProps {
     isEditMode: boolean;
@@ -35,8 +37,10 @@ interface FilterSettingsProps {
     filterType: FilterType;
     field?: DashboardFilterableField;
     filterRule: DashboardFilterRule;
+    originalFilterRule?: DashboardFilterRule;
     popoverProps?: Omit<PopoverProps, 'children'>;
     onChangeFilterRule: (value: DashboardFilterRule) => void;
+    onEditRequirementRules?: () => void;
 }
 
 const FilterSettings: FC<FilterSettingsProps> = ({
@@ -45,8 +49,10 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     field,
     filterType,
     filterRule,
+    originalFilterRule,
     popoverProps,
     onChangeFilterRule,
+    onEditRequirementRules,
 }) => {
     const { user } = useApp();
     const canManageExplore = user.data?.ability?.can('manage', 'Explore');
@@ -75,6 +81,51 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     };
 
     const isFilterDisabled = !!filterRule.disabled;
+
+    const isFilterRequirementsEnabled = useDashboardContext(
+        (c) => c.isFilterRequirementsEnabled,
+    );
+
+    const hasRequirement =
+        !!filterRule.required ||
+        (isFilterRequirementsEnabled && !!filterRule.requiredGroupId);
+
+    const handleToggleRequired = (checked: boolean) => {
+        // Toggling on restores the saved rule membership if there is one,
+        // otherwise it creates a one-member rule; off removes it from its
+        // rule. Flag off leaves group membership untouched (main parity).
+        const restoredGroupId =
+            checked && isFilterRequirementsEnabled
+                ? originalFilterRule?.requiredGroupId
+                : undefined;
+
+        const newFilter: DashboardFilterRule = restoredGroupId
+            ? {
+                  ...filterRule,
+                  required: false,
+                  requiredGroupId: restoredGroupId,
+                  disabled: true,
+                  values: [],
+              }
+            : {
+                  ...filterRule,
+                  required: checked,
+                  requiredGroupId: isFilterRequirementsEnabled
+                      ? undefined
+                      : filterRule.requiredGroupId,
+              };
+
+        onChangeFilterRule(
+            checked
+                ? newFilter
+                : getFilterRuleWithDefaultValue(
+                      filterType,
+                      field,
+                      newFilter,
+                      null,
+                  ),
+        );
+    };
 
     const showValueInput = useMemo(() => {
         // Always show the input in view mode
@@ -202,7 +253,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                         )
                     }
                 />
-                {showAnyValueDisabledInput && !filterRule.required && (
+                {showAnyValueDisabledInput && !hasRequirement && (
                     <TextInput
                         disabled
                         size="xs"
@@ -214,7 +265,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                     />
                 )}
 
-                {(showValueInput || filterRule.required) && (
+                {(showValueInput || hasRequirement) && (
                     <Group gap="xs" wrap="nowrap" align="flex-start">
                         <Box style={{ flex: 1 }}>
                             <FilterInputComponent
@@ -231,7 +282,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                         </Box>
                         {canManageExplore &&
                             !isEditMode &&
-                            !filterRule.required &&
+                            !hasRequirement &&
                             ![
                                 FilterOperator.NULL,
                                 FilterOperator.NOT_NULL,
@@ -276,14 +327,14 @@ const FilterSettings: FC<FilterSettingsProps> = ({
 
                 {isEditMode && (
                     <>
-                        {filterRule.required &&
+                        {hasRequirement &&
                             (filterRule?.values || []).length > 0 && (
                                 <Text size="xs" c={'ldGray.7'}>
                                     Temporary filter values for required filters
                                     will be removed on dashboard save
                                 </Text>
                             )}
-                        {!filterRule.required && (
+                        {!hasRequirement && (
                             <Tooltip
                                 withinPortal
                                 position="right"
@@ -316,6 +367,11 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                                                             ? // If the filter is required and the user is disabling it, we should also disable the required flag
                                                               false
                                                             : filterRule.required,
+                                                    // Toggling a default value removes the filter from any requirement rule; flag off leaves it untouched
+                                                    requiredGroupId:
+                                                        isFilterRequirementsEnabled
+                                                            ? undefined
+                                                            : filterRule.requiredGroupId,
                                                 };
 
                                             onChangeFilterRule(
@@ -334,28 +390,25 @@ const FilterSettings: FC<FilterSettingsProps> = ({
                             </Tooltip>
                         )}
 
-                        <Checkbox
-                            size="xs"
-                            checked={filterRule.required}
-                            onChange={(e) => {
-                                const newFilter: DashboardFilterRule = {
-                                    ...filterRule,
-                                    required: e.currentTarget.checked,
-                                };
-
-                                onChangeFilterRule(
-                                    e.currentTarget.checked
-                                        ? newFilter
-                                        : getFilterRuleWithDefaultValue(
-                                              filterType,
-                                              field,
-                                              newFilter,
-                                              null,
-                                          ),
-                                );
-                            }}
-                            label="Require viewers to pick a value to load the dashboard"
-                        />
+                        {isFilterRequirementsEnabled ? (
+                            <RequiredFilterCard
+                                filterRule={filterRule}
+                                onToggleRequired={handleToggleRequired}
+                                onChangeFilterRule={onChangeFilterRule}
+                                onEditRules={onEditRequirementRules}
+                            />
+                        ) : (
+                            <Checkbox
+                                size="xs"
+                                checked={filterRule.required}
+                                onChange={(e) =>
+                                    handleToggleRequired(
+                                        e.currentTarget.checked,
+                                    )
+                                }
+                                label="Require viewers to pick a value to load the dashboard"
+                            />
+                        )}
                     </>
                 )}
             </Stack>

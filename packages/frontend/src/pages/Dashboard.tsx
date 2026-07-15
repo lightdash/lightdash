@@ -32,6 +32,7 @@ import { DashboardExportModal } from '../components/common/modal/DashboardExport
 import Page from '../components/common/Page/Page';
 import PageSpinner from '../components/PageSpinner';
 import { useDashboardCommentsCheck } from '../features/comments';
+import { FilterBarPopoversProvider } from '../features/dashboardFilters/FilterRequirements/FilterBarPopoversProvider';
 import DashboardTabs from '../features/dashboardTabs';
 import {
     appendNewTilesToBottom,
@@ -100,6 +101,15 @@ const Dashboard: FC = () => {
     const isAddFilterDisabled = useDashboardContext(
         (c) => c.isAddFilterDisabled,
     );
+    const requiredFiltersNote = useDashboardContext(
+        (c) => c.requiredFiltersNote,
+    );
+    const setRequiredFiltersNote = useDashboardContext(
+        (c) => c.setRequiredFiltersNote,
+    );
+    const isFilterRequirementsEnabled = useDashboardContext(
+        (c) => c.isFilterRequirementsEnabled,
+    );
     const areAllChartsLoaded = useDashboardTileStatusContext(
         (c) => c.areAllChartsLoaded,
     );
@@ -130,6 +140,12 @@ const Dashboard: FC = () => {
             isAddFilterDisabled
         );
     }, [dashboard, isAddFilterDisabled]);
+    const hasRequiredFiltersNoteChanged = useMemo(() => {
+        return (
+            (dashboard?.config?.requiredFiltersNote || undefined) !==
+            (requiredFiltersNote || undefined)
+        );
+    }, [dashboard, requiredFiltersNote]);
     const oldestCacheTime = useDashboardTileStatusContext(
         (c) => c.oldestCacheTime,
     );
@@ -357,6 +373,8 @@ const Dashboard: FC = () => {
             setHaveDateZoomGranularitiesChanged(false);
             setHasDefaultDateZoomGranularityChanged(false);
             setHasDateZoomConfigChanged(false);
+            // The saved config is the source of truth again
+            setRequiredFiltersNote(undefined);
             setDashboardTemporaryFilters({
                 dimensions: [],
                 metrics: [],
@@ -388,6 +406,7 @@ const Dashboard: FC = () => {
         setHaveDateZoomGranularitiesChanged,
         setHasDefaultDateZoomGranularityChanged,
         setHasDateZoomConfigChanged,
+        setRequiredFiltersNote,
         dashboardTabs,
         activeTab,
     ]);
@@ -627,6 +646,7 @@ const Dashboard: FC = () => {
         setHasDefaultDateZoomGranularityChanged(false);
         setDateZoomConfig(normalizeDateZoomConfig(dashboard.config));
         setHasDateZoomConfigChanged(false);
+        setRequiredFiltersNote(undefined);
 
         if (dashboardTabs.length > 0) {
             void navigate(
@@ -662,6 +682,7 @@ const Dashboard: FC = () => {
         setDateZoomConfig,
         setHasDateZoomConfigChanged,
         setHasParameterOrderChanged,
+        setRequiredFiltersNote,
     ]);
 
     const handleMoveDashboardToSpace = useCallback(
@@ -788,7 +809,10 @@ const Dashboard: FC = () => {
         ];
         // Reset value for required filter on save dashboard
         const requiredFiltersWithoutValues = dimensionFilters.map((filter) => {
-            if (filter.required) {
+            if (
+                filter.required ||
+                (isFilterRequirementsEnabled && filter.requiredGroupId)
+            ) {
                 return {
                     ...filter,
                     disabled: true,
@@ -836,6 +860,7 @@ const Dashboard: FC = () => {
                     ? defaultDateZoomGranularity
                     : dashboard.config?.defaultDateZoomGranularity,
                 dateZoomConfig: savedDateZoomConfig,
+                requiredFiltersNote: requiredFiltersNote || undefined,
             },
             parameters: dashboardParameters,
             ...(preserveVerification !== undefined
@@ -867,6 +892,7 @@ const Dashboard: FC = () => {
             haveTabsChanged ||
             hasDateZoomDisabledChanged ||
             hasAddFilterDisabledChanged ||
+            hasRequiredFiltersNoteChanged ||
             parametersHaveChanged ||
             havePinnedParametersChanged ||
             hasParameterOrderChanged ||
@@ -997,33 +1023,40 @@ const Dashboard: FC = () => {
                 <div>
                     <DashboardHeader {...dashboardHeaderProps} />
 
-                    <DashboardTabs
-                        isEditMode={isEditMode}
-                        hasTilesThatSupportFilters={hasTilesThatSupportFilters}
-                        // parameters
-                        parameters={referencedParameters}
-                        shadowedReservedNames={shadowedReservedNames}
-                        parameterValues={parameterValues}
-                        onParameterChange={handleParameterChange}
-                        onParameterClearAll={clearAllParameters}
-                        isParameterLoading={!areAllChartsLoaded}
-                        missingRequiredParameters={missingRequiredParameters}
-                        pinnedParameters={pinnedParameters}
-                        onParameterPin={toggleParameterPin}
-                        parameterOrder={parameterOrder}
-                        onParameterReorder={setParameterOrder}
-                        // tabs
-                        activeTab={activeTab}
-                        addingTab={addingTab}
-                        dashboardTiles={dashboardTiles}
-                        handleAddTiles={handleAddTiles}
-                        handleUpdateTiles={handleUpdateTiles}
-                        handleDeleteTile={handleDeleteTile}
-                        handleBatchDeleteTiles={handleBatchDeleteTiles}
-                        handleEditTile={handleEditTiles}
-                        setGridWidth={setGridWidth}
-                        setAddingTab={setAddingTab}
-                    />
+                    {/* Coordinates filter chip / rules popovers across the dashboard */}
+                    <FilterBarPopoversProvider>
+                        <DashboardTabs
+                            isEditMode={isEditMode}
+                            hasTilesThatSupportFilters={
+                                hasTilesThatSupportFilters
+                            }
+                            // parameters
+                            parameters={referencedParameters}
+                            shadowedReservedNames={shadowedReservedNames}
+                            parameterValues={parameterValues}
+                            onParameterChange={handleParameterChange}
+                            onParameterClearAll={clearAllParameters}
+                            isParameterLoading={!areAllChartsLoaded}
+                            missingRequiredParameters={
+                                missingRequiredParameters
+                            }
+                            pinnedParameters={pinnedParameters}
+                            onParameterPin={toggleParameterPin}
+                            parameterOrder={parameterOrder}
+                            onParameterReorder={setParameterOrder}
+                            // tabs
+                            activeTab={activeTab}
+                            addingTab={addingTab}
+                            dashboardTiles={dashboardTiles}
+                            handleAddTiles={handleAddTiles}
+                            handleUpdateTiles={handleUpdateTiles}
+                            handleDeleteTile={handleDeleteTile}
+                            handleBatchDeleteTiles={handleBatchDeleteTiles}
+                            handleEditTile={handleEditTiles}
+                            setGridWidth={setGridWidth}
+                            setAddingTab={setAddingTab}
+                        />
+                    </FilterBarPopoversProvider>
                 </div>
                 {isDeleteModalOpen && (
                     <DashboardDeleteModal

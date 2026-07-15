@@ -146,6 +146,7 @@ export type DownloadHandlerOptions = {
     concurrency: number;
     gzip?: boolean;
     organization: boolean;
+    sendInvites?: boolean;
 };
 
 type FolderScheme = 'flat' | 'nested';
@@ -2420,6 +2421,7 @@ export const uploadHandler = async (
         await uploadOrganizationContent({
             customPath: options.path,
             config,
+            sendInvites: options.sendInvites,
         });
         return;
     }

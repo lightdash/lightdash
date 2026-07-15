@@ -1,7 +1,9 @@
 import { DragDropContext, Droppable } from '@hello-pangea/dnd';
 import {
+    assertUnreachable,
     copyDateZoomTileTargets,
     FeatureFlags,
+    type DashboardFilterRule,
     type DashboardTab,
     type DashboardTile,
     type Dashboard as IDashboard,
@@ -34,6 +36,7 @@ import { StickyWithDetection } from '../../components/common/StickyWithDetection
 import EmptyStateNoTiles from '../../components/DashboardTiles/EmptyStateNoTiles';
 import { useIsLauncherMounted } from '../../ee/features/aiCopilot/components/Launcher/useIsLauncherMounted';
 import useToaster from '../../hooks/toaster/useToaster';
+import { useProject } from '../../hooks/useProject';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
@@ -43,6 +46,7 @@ import '../../styles/droppable.css';
 import { DashboardFiltersBar } from '../dashboardFilters/DashboardFiltersBar';
 import { DashboardFiltersBarSummary } from '../dashboardFilters/DashboardFiltersBarSummary';
 import { doesFilterApplyToTile } from '../dashboardFilters/FilterConfiguration/utils';
+import GuidedFilterSetupOverlay from '../dashboardFilters/FilterRequirements/GuidedFilterSetupOverlay';
 import ErrorBoundary from '../errorBoundary/ErrorBoundary';
 import { AddTabModal } from './AddTabModal';
 import { TabDeleteModal } from './DeleteTabModal';
@@ -75,6 +79,7 @@ type TabGridPanelProps = {
     isActive: boolean;
     isEditMode: boolean;
     locked: boolean;
+    legacyLockedBlur: boolean;
     gridProps: ReturnType<typeof getResponsiveGridLayoutProps>;
     dashboardTabs: DashboardTab[];
     onDragStart: () => void;
@@ -107,6 +112,7 @@ const TabGridPanel = memo<TabGridPanelProps>(
         isActive,
         isEditMode,
         locked,
+        legacyLockedBlur,
         gridProps,
         dashboardTabs,
         onDragStart,
@@ -118,60 +124,64 @@ const TabGridPanel = memo<TabGridPanelProps>(
         onDeleteTile,
         onEditTile,
         onAddTiles,
-    }) => (
-        <div
-            key={tabUuid}
-            data-tab-uuid={tabUuid}
-            style={
-                isActive
-                    ? { position: 'relative' }
-                    : {
-                          contentVisibility: 'hidden',
-                          containIntrinsicSize: 'auto 1px auto 1px',
-                          position: 'absolute' as const,
-                          width: '100%',
-                          pointerEvents: 'none' as const,
-                      }
-            }
-        >
-            <ErrorBoundary>
-                <ResponsiveGridLayout
-                    {...gridProps}
-                    className={locked ? 'locked' : ''}
-                    containerPadding={GRID_CONTAINER_PADDING}
-                    onDragStart={onDragStart}
-                    onDragStop={onDragStop}
-                    onResizeStart={onResizeStart}
-                    onResizeStop={onResizeStop}
-                    onBreakpointChange={onBreakpointChange}
-                    onWidthChange={onWidthChange}
-                    layouts={layouts}
-                >
-                    {tiles.map((tile, idx) => (
-                        <div key={tile.uuid} data-tile-uuid={tile.uuid}>
-                            <TrackSection name={SectionName.DASHBOARD_TILE}>
-                                <GridTile
-                                    locked={locked}
-                                    index={idx}
-                                    isEditMode={isEditMode}
-                                    tile={tile}
-                                    onDelete={onDeleteTile}
-                                    onEdit={onEditTile}
-                                    tabs={dashboardTabs}
-                                    onAddTiles={onAddTiles}
-                                />
-                            </TrackSection>
-                        </div>
-                    ))}
-                </ResponsiveGridLayout>
-            </ErrorBoundary>
-        </div>
-    ),
+    }) => {
+        return (
+            <div
+                key={tabUuid}
+                data-tab-uuid={tabUuid}
+                style={
+                    isActive
+                        ? { position: 'relative' }
+                        : {
+                              contentVisibility: 'hidden',
+                              containIntrinsicSize: 'auto 1px auto 1px',
+                              position: 'absolute' as const,
+                              width: '100%',
+                              pointerEvents: 'none' as const,
+                          }
+                }
+            >
+                <ErrorBoundary>
+                    <ResponsiveGridLayout
+                        {...gridProps}
+                        className={legacyLockedBlur ? 'locked' : ''}
+                        containerPadding={GRID_CONTAINER_PADDING}
+                        onDragStart={onDragStart}
+                        onDragStop={onDragStop}
+                        onResizeStart={onResizeStart}
+                        onResizeStop={onResizeStop}
+                        onBreakpointChange={onBreakpointChange}
+                        onWidthChange={onWidthChange}
+                        layouts={layouts}
+                    >
+                        {tiles.map((tile, idx) => (
+                            <div key={tile.uuid} data-tile-uuid={tile.uuid}>
+                                <TrackSection name={SectionName.DASHBOARD_TILE}>
+                                    <GridTile
+                                        locked={locked}
+                                        index={idx}
+                                        isEditMode={isEditMode}
+                                        tile={tile}
+                                        onDelete={onDeleteTile}
+                                        onEdit={onEditTile}
+                                        tabs={dashboardTabs}
+                                        onAddTiles={onAddTiles}
+                                    />
+                                </TrackSection>
+                            </div>
+                        ))}
+                    </ResponsiveGridLayout>
+                </ErrorBoundary>
+            </div>
+        );
+    },
     (prevProps, nextProps) => {
         // Re-render when becoming active/inactive (visibility toggle)
         if (prevProps.isActive !== nextProps.isActive) return false;
         if (prevProps.isEditMode !== nextProps.isEditMode) return false;
         if (prevProps.locked !== nextProps.locked) return false;
+        if (prevProps.legacyLockedBlur !== nextProps.legacyLockedBlur)
+            return false;
         if (prevProps.tiles.length !== nextProps.tiles.length) return false;
 
         // Check if tile identities changed (added/removed/reordered)
@@ -257,6 +267,10 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     );
     const keepTabsInMemory = dashboardTabsInMemoryFlag?.enabled ?? false;
 
+    const isFilterRequirementsEnabled = useDashboardContext(
+        (c) => c.isFilterRequirementsEnabled,
+    );
+
     const gridWrapperRef = useRef<HTMLDivElement>(null);
     const [isInteracting, setIsInteracting] = useState(false);
 
@@ -332,8 +346,8 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
     );
     const dateZoomConfig = useDashboardContext((c) => c.dateZoomConfig);
     const setDateZoomConfig = useDashboardContext((c) => c.setDateZoomConfig);
-    const requiredDashboardFilters = useDashboardContext(
-        (c) => c.requiredDashboardFilters,
+    const unmetFilterRequirements = useDashboardContext(
+        (c) => c.unmetFilterRequirements,
     );
     const filterableFieldsByTileUuid = useDashboardContext(
         (c) => c.filterableFieldsByTileUuid,
@@ -501,32 +515,22 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
         [visibleTiles, isEditMode, gridProps],
     );
 
-    // Compute whether there are required filters that apply to the current tab
+    // Compute whether there are unmet filter requirements that apply to the current tab
     // Note: We use doesFilterApplyToTile because getTabUuidsForFilterRules from common
     // skips disabled filters, but required filters ARE disabled until a value is set
-    const hasRequiredFiltersForCurrentTab = useMemo(() => {
-        // If no required filters, no locking needed
-        if (requiredDashboardFilters.length === 0) {
+    const hasUnmetFilterRequirementsForCurrentTab = useMemo(() => {
+        if (unmetFilterRequirements.length === 0) {
             return false;
         }
 
-        // If no tabs or single tab, use original behavior (check all required filters)
+        // If no tabs or single tab, any unmet requirement locks the dashboard
         if (!tabsEnabled) {
-            return requiredDashboardFilters.length > 0;
+            return true;
         }
 
-        // For each required filter, check if it applies to any tile on the current tab
-        return requiredDashboardFilters.some((requiredFilter) => {
-            // Find the full filter rule to get tileTargets
-            const filterRule =
-                dashboardFilters.dimensions.find(
-                    (f) => f.id === requiredFilter.id,
-                ) ??
-                dashboardFilters.metrics.find(
-                    (f) => f.id === requiredFilter.id,
-                );
-            if (!filterRule) return false;
-
+        const doesFilterApplyToCurrentTab = (
+            filterRule: DashboardFilterRule,
+        ) => {
             // If no tileTargets configuration, filter applies to all tiles
             // So it applies to the current tab
             if (!filterRule.tileTargets) {
@@ -536,10 +540,8 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
             // Check if any tile on the current tab is targeted by this filter
             return (
                 dashboardTiles?.some((tile) => {
-                    // Check if tile is on current tab
                     if (tile.tabUuid !== activeTab?.uuid) return false;
 
-                    // Use shared utility to check if filter applies to this tile
                     return doesFilterApplyToTile(
                         filterRule,
                         tile,
@@ -547,16 +549,58 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                     );
                 }) ?? false
             );
+        };
+
+        return unmetFilterRequirements.some((requirement) => {
+            switch (requirement.type) {
+                case 'single':
+                    return doesFilterApplyToCurrentTab(requirement.filter);
+                case 'group':
+                    // A group applies to a tab if any member applies to it
+                    return requirement.filters.some(
+                        doesFilterApplyToCurrentTab,
+                    );
+                default:
+                    return assertUnreachable(
+                        requirement,
+                        'Unknown filter requirement type',
+                    );
+            }
         });
     }, [
-        requiredDashboardFilters,
+        unmetFilterRequirements,
         tabsEnabled,
         dashboardTiles,
-        dashboardFilters.dimensions,
-        dashboardFilters.metrics,
         activeTab?.uuid,
         filterableFieldsByTileUuid,
     ]);
+
+    // Legacy locked UX (feature flag off): blur the grid behind the modal
+    const legacyLockedBlur =
+        !isFilterRequirementsEnabled && hasUnmetFilterRequirementsForCurrentTab;
+
+    // Guided setup card over the locked grid; dismissal lasts until reload
+    const [isGuidedSetupDismissed, setIsGuidedSetupDismissed] = useState(false);
+    const dashboardProjectUuid = useDashboardContext((c) => c.projectUuid);
+    const showGuidedSetup = useMemo(
+        () =>
+            isFilterRequirementsEnabled &&
+            !isEditMode &&
+            !isGuidedSetupDismissed &&
+            hasUnmetFilterRequirementsForCurrentTab &&
+            !!hasDashboardTiles,
+        [
+            isFilterRequirementsEnabled,
+            isEditMode,
+            isGuidedSetupDismissed,
+            hasUnmetFilterRequirementsForCurrentTab,
+            hasDashboardTiles,
+        ],
+    );
+    // Only fetched for the guided setup's startOfWeek; skip it otherwise
+    const project = useProject(
+        showGuidedSetup ? dashboardProjectUuid : undefined,
+    );
 
     const sortedTiles = dashboardTiles?.sort((a, b) => {
         if (a.y === b.y) {
@@ -1114,6 +1158,18 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                     </div>
                                 </StickyWithDetection>
 
+                                {showGuidedSetup && (
+                                    <GuidedFilterSetupOverlay
+                                        startOfWeek={
+                                            project.data?.warehouseConnection
+                                                ?.startOfWeek ?? undefined
+                                        }
+                                        onDismiss={() =>
+                                            setIsGuidedSetupDismissed(true)
+                                        }
+                                    />
+                                )}
+
                                 <Group grow pb={60} px="xs">
                                     <div
                                         ref={gridWrapperRef}
@@ -1172,7 +1228,10 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                                   isEditMode
                                                               }
                                                               locked={
-                                                                  hasRequiredFiltersForCurrentTab
+                                                                  hasUnmetFilterRequirementsForCurrentTab
+                                                              }
+                                                              legacyLockedBlur={
+                                                                  legacyLockedBlur
                                                               }
                                                               gridProps={
                                                                   gridProps
@@ -1215,11 +1274,11 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                   <ErrorBoundary>
                                                       <ResponsiveGridLayout
                                                           {...gridProps}
-                                                          className={`${
-                                                              hasRequiredFiltersForCurrentTab
+                                                          className={
+                                                              legacyLockedBlur
                                                                   ? 'locked'
                                                                   : ''
-                                                          }`}
+                                                          }
                                                           containerPadding={
                                                               GRID_CONTAINER_PADDING
                                                           }
@@ -1262,7 +1321,7 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                                                       >
                                                                           <GridTile
                                                                               locked={
-                                                                                  hasRequiredFiltersForCurrentTab
+                                                                                  hasUnmetFilterRequirementsForCurrentTab
                                                                               }
                                                                               index={
                                                                                   idx
@@ -1295,12 +1354,14 @@ const DashboardTabs: FC<DashboardTabsProps> = ({
                                               )}
                                     </div>
                                 </Group>
-                                <LockedDashboardModal
-                                    opened={
-                                        hasRequiredFiltersForCurrentTab &&
-                                        !!hasDashboardTiles
-                                    }
-                                />
+                                {!isFilterRequirementsEnabled && (
+                                    <LockedDashboardModal
+                                        opened={
+                                            hasUnmetFilterRequirementsForCurrentTab &&
+                                            !!hasDashboardTiles
+                                        }
+                                    />
+                                )}
                                 {(!hasDashboardTiles ||
                                     !currentTabHasTiles) && (
                                     <EmptyStateNoTiles

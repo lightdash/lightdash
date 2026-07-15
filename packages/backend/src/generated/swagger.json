@@ -17557,14 +17557,14 @@
                                                         ],
                                                         "type": "object"
                                                     },
+                                                    "href": {
+                                                        "type": "string"
+                                                    },
                                                     "warnings": {
                                                         "items": {
                                                             "type": "string"
                                                         },
                                                         "type": "array"
-                                                    },
-                                                    "href": {
-                                                        "type": "string"
                                                     },
                                                     "status": {
                                                         "type": "string",
@@ -17583,8 +17583,8 @@
                                                 },
                                                 "required": [
                                                     "versionUuids",
-                                                    "warnings",
                                                     "href",
+                                                    "warnings",
                                                     "status",
                                                     "slug",
                                                     "uuid",
@@ -17790,10 +17790,10 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success",
                                                             "timeout",
-                                                            "rejected"
+                                                            "error",
+                                                            "rejected",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -22417,6 +22417,143 @@
                 },
                 "type": "object"
             },
+            "UserAsCodeRole": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "name": {
+                                "$ref": "#/components/schemas/OrganizationMemberRole"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["system"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["name", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "name": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["custom"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["name", "type"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "UserAsCode": {
+                "properties": {
+                    "role": {
+                        "$ref": "#/components/schemas/UserAsCodeRole"
+                    },
+                    "disabled": {
+                        "type": "boolean"
+                    },
+                    "email": {
+                        "type": "string"
+                    },
+                    "version": {
+                        "type": "number",
+                        "enum": [1],
+                        "nullable": false
+                    }
+                },
+                "required": ["role", "disabled", "email", "version"],
+                "type": "object"
+            },
+            "ApiUserAsCodeListResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "users": {
+                                "items": {
+                                    "$ref": "#/components/schemas/UserAsCode"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["users"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "PromotionAction.CREATE": {
+                "enum": ["create"],
+                "type": "string"
+            },
+            "PromotionAction.UPDATE": {
+                "enum": ["update"],
+                "type": "string"
+            },
+            "PromotionAction.NO_CHANGES": {
+                "enum": ["no changes"],
+                "type": "string"
+            },
+            "UserAsCodeLifecycleStatus": {
+                "enum": ["ready", "awaiting authentication"],
+                "type": "string"
+            },
+            "UserAsCodeInvitationStatus": {
+                "enum": [
+                    "not requested",
+                    "sent",
+                    "skipped authenticated",
+                    "skipped disabled",
+                    "skipped valid invite"
+                ],
+                "type": "string"
+            },
+            "ApiUserAsCodeUpsertResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "invitation": {
+                                "$ref": "#/components/schemas/UserAsCodeInvitationStatus"
+                            },
+                            "lifecycle": {
+                                "$ref": "#/components/schemas/UserAsCodeLifecycleStatus"
+                            },
+                            "action": {
+                                "anyOf": [
+                                    {
+                                        "$ref": "#/components/schemas/PromotionAction.CREATE"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PromotionAction.UPDATE"
+                                    },
+                                    {
+                                        "$ref": "#/components/schemas/PromotionAction.NO_CHANGES"
+                                    }
+                                ]
+                            }
+                        },
+                        "required": ["invitation", "lifecycle", "action"],
+                        "type": "object"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "Pick_AzureAdSsoConfig.oauth2ClientId-or-oauth2TenantId_": {
                 "properties": {
                     "oauth2ClientId": {
@@ -23205,18 +23342,6 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
-            },
-            "PromotionAction.CREATE": {
-                "enum": ["create"],
-                "type": "string"
-            },
-            "PromotionAction.UPDATE": {
-                "enum": ["update"],
-                "type": "string"
-            },
-            "PromotionAction.NO_CHANGES": {
-                "enum": ["no changes"],
-                "type": "string"
             },
             "ApiCustomRoleAsCodeUpsertResponse": {
                 "properties": {
@@ -46407,7 +46532,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3383.1",
+        "version": "0.3386.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -52725,6 +52850,101 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v2/orgs/{orgUuid}/users/code": {
+            "get": {
+                "operationId": "GetOrganizationUsersAsCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiUserAsCodeListResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "orgUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            },
+            "post": {
+                "operationId": "UpsertOrganizationUserAsCode",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiUserAsCodeUpsertResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["v2", "Organizations"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "orgUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "sendInvite",
+                        "required": false,
+                        "schema": {
+                            "default": false,
+                            "type": "boolean"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/UserAsCode"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/org/sso/azuread": {

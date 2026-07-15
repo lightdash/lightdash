@@ -2,9 +2,39 @@
     border-radius: 100px !important;
 }
 
+/* Legacy required UX (feature flag off) */
 .unsetRequiredFilter {
     border-style: solid;
     border-width: '3px';
+}
+
+.indicator {
+    top: -5px;
+    left: 40px;
+    height: 13px;
+    &::before {
+        border-radius: 5px;
+        border-bottom-left-radius: 0px;
+        border-bottom-right-radius: 0px;
+    }
+}
+
+.requirementUnmet {
+    border: 1px solid alpha(var(--mantine-color-yellow-6), 0.35);
+
+    @mixin light {
+        background-color: var(--mantine-color-yellow-0);
+    }
+    @mixin dark {
+        background-color: alpha(var(--mantine-color-yellow-9), 0.25);
+    }
+}
+
+.requirementUnmet .label {
+    color: light-dark(
+        var(--mantine-color-ldGray-9),
+        var(--mantine-color-gray-0)
+    );
 }
 
 .inactiveFilter {
@@ -40,17 +70,6 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-}
-
-.indicator {
-    top: -5px;
-    left: 40px;
-    height: 13px;
-    &::before {
-        border-radius: 5px;
-        border-bottom-left-radius: 0px;
-        border-bottom-right-radius: 0px;
-    }
 }
 
 .additionalValuesList {

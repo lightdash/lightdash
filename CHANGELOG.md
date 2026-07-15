@@ -1,3 +1,37 @@
+# [0.3386.0](https://github.com/lightdash/lightdash/compare/0.3385.0...0.3386.0) (2026-07-15)
+
+
+### Bug Fixes
+
+* align content as code dashboard-attach checks with UI SavedChart permissions ([#25518](https://github.com/lightdash/lightdash/issues/25518)) ([8e3cb23](https://github.com/lightdash/lightdash/commit/8e3cb23df2fd2ce909b35ff38c8c6244797c0d86)), closes [#25219](https://github.com/lightdash/lightdash/issues/25219)
+* include content slugs and failing resources in content as code error messages ([#25564](https://github.com/lightdash/lightdash/issues/25564)) ([f909245](https://github.com/lightdash/lightdash/commit/f9092451841da637ca63c48df831ee9d48d50dcb))
+* keep authentication state out of users as code ([#25584](https://github.com/lightdash/lightdash/issues/25584)) ([3af5a4b](https://github.com/lightdash/lightdash/commit/3af5a4b8d11968d800485a1c05b1de2a91f24307))
+
+
+### Features
+
+* add users as organization content as code ([#25574](https://github.com/lightdash/lightdash/issues/25574)) ([637cac2](https://github.com/lightdash/lightdash/commit/637cac217add26592181eb1576281bcfbf86969f))
+* unlock content as code writes for editors ([#25219](https://github.com/lightdash/lightdash/issues/25219)) ([a06dab5](https://github.com/lightdash/lightdash/commit/a06dab5c0a9ff104fbea17cbad0a82a8c42d2146))
+
+# [0.3385.0](https://github.com/lightdash/lightdash/compare/0.3384.0...0.3385.0) (2026-07-15)
+
+
+### Bug Fixes
+
+* **e2e:** remove focused space test ([#25534](https://github.com/lightdash/lightdash/issues/25534)) ([a25a409](https://github.com/lightdash/lightdash/commit/a25a409255d7fb9d46bd967faebe16c4cd2249fb))
+
+
+### Features
+
+* mount dashboard filter requirements behind its feature flag ([#25306](https://github.com/lightdash/lightdash/issues/25306)) ([c33a7f8](https://github.com/lightdash/lightdash/commit/c33a7f8cdfbf55fb3a678363d12c027914db69d6))
+
+# [0.3384.0](https://github.com/lightdash/lightdash/compare/0.3383.1...0.3384.0) (2026-07-15)
+
+
+### Features
+
+* **slack:** link an agent from the channel when none is configured ([#25516](https://github.com/lightdash/lightdash/issues/25516)) ([6a66e49](https://github.com/lightdash/lightdash/commit/6a66e49897b5e19786fcf90bfacec3a41f187211))
+
 ## [0.3383.1](https://github.com/lightdash/lightdash/compare/0.3383.0...0.3383.1) (2026-07-15)
 
 

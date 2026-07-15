@@ -13,13 +13,16 @@ import {
     formatCustomRoleUploadSummary,
     uploadCustomRoles,
 } from './customRoles';
+import { downloadUsers, formatUserUploadSummary, uploadUsers } from './users';
 
 type OrganizationContentOptions = {
     customPath?: string;
     config: Config;
+    sendInvites?: boolean;
 };
 
 const customRolePartialUploadErrors = new WeakSet<Error>();
+const userPartialUploadErrors = new WeakSet<Error>();
 
 const createCustomRolePartialUploadError = (message: string): Error => {
     const error = new ParameterError(message);
@@ -27,8 +30,16 @@ const createCustomRolePartialUploadError = (message: string): Error => {
     return error;
 };
 
-const isCustomRolePartialUploadError = (error: unknown): boolean =>
-    error instanceof Error && customRolePartialUploadErrors.has(error);
+const createUserPartialUploadError = (message: string): Error => {
+    const error = new ParameterError(message);
+    userPartialUploadErrors.add(error);
+    return error;
+};
+
+const isPartialUploadError = (error: unknown): boolean =>
+    error instanceof Error &&
+    (customRolePartialUploadErrors.has(error) ||
+        userPartialUploadErrors.has(error));
 
 export const getOrganizationContentFolder = (customPath?: string): string =>
     getDownloadFolder(customPath);
@@ -63,6 +74,13 @@ export const downloadOrganizationContent = async ({
         );
         spinner.succeed(`Downloaded ${customRolesTotal} custom roles`);
 
+        spinner.start(`Downloading users`);
+        const usersTotal = await downloadUsers(
+            organizationUuid,
+            organizationContentPath,
+        );
+        spinner.succeed(`Downloaded ${usersTotal} users`);
+
         GlobalState.log(
             styles.success(
                 `Downloaded organization content saved to ${organizationContentPath}`,
@@ -76,6 +94,7 @@ export const downloadOrganizationContent = async ({
                 organizationId: organizationUuid,
                 scope: 'organization',
                 customRolesNum: customRolesTotal,
+                usersNum: usersTotal,
                 timeToCompleted: (Date.now() - start) / 1000,
             },
         });
@@ -99,6 +118,7 @@ export const downloadOrganizationContent = async ({
 export const uploadOrganizationContent = async ({
     customPath,
     config,
+    sendInvites = false,
 }: OrganizationContentOptions): Promise<void> => {
     const organizationUuid = config.user?.organizationUuid;
     if (!organizationUuid) {
@@ -135,6 +155,24 @@ export const uploadOrganizationContent = async ({
             );
         }
         spinner.succeed(`Uploaded custom roles: ${summaryMessage}`);
+
+        spinner.start(`Uploading users`);
+        const userSummary = await uploadUsers(
+            organizationUuid,
+            organizationContentPath,
+            sendInvites,
+        );
+        const userSummaryMessage = formatUserUploadSummary(userSummary);
+        if (userSummary.failed > 0) {
+            userSummary.failures.forEach(({ message }) =>
+                GlobalState.log(styles.error(message)),
+            );
+            spinner.stop();
+            throw createUserPartialUploadError(
+                `Processed users: ${userSummaryMessage}`,
+            );
+        }
+        spinner.succeed(`Uploaded users: ${userSummaryMessage}`);
         GlobalState.log(
             styles.success(
                 `Uploaded organization content from ${organizationContentPath}`,
@@ -149,11 +187,16 @@ export const uploadOrganizationContent = async ({
                 customRolesCreated: summary.created,
                 customRolesUpdated: summary.updated,
                 customRolesUnchanged: summary.unchanged,
+                usersCreated: userSummary.created,
+                usersUpdated: userSummary.updated,
+                usersUnchanged: userSummary.unchanged,
+                usersAwaitingAuthentication: userSummary.awaitingAuthentication,
+                usersInvited: userSummary.invited,
                 timeToCompleted: (Date.now() - start) / 1000,
             },
         });
     } catch (error) {
-        if (!isCustomRolePartialUploadError(error)) {
+        if (!isPartialUploadError(error)) {
             spinner.fail(
                 `Failed to upload organization content: ${getErrorMessage(error)}`,
             );

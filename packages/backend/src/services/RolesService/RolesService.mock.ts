@@ -23,6 +23,8 @@ export const mockAccount = {
         role: OrganizationMemberRole.ADMIN,
         ability: new Ability<PossibleAbilities>([
             { subject: 'Organization', action: ['manage'] },
+            { subject: 'OrganizationMemberProfile', action: ['manage'] },
+            { subject: 'InviteLink', action: ['manage'] },
             { subject: 'Project', action: ['manage'] },
         ]),
         abilityRules: [] as any, // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -177,7 +179,15 @@ export const mockAnalytics: Record<string, MockFn> = {
     track: vi.fn(),
 };
 
+export const mockEmailClient: Record<string, MockFn> = {
+    sendInviteEmail: vi.fn(),
+};
+
 export const mockUserModel: Record<string, MockFn> = {
+    findUserByEmail: vi.fn(),
+    createPendingUser: vi.fn(),
+    joinOrg: vi.fn(),
+    updateUser: vi.fn(),
     getUserDetailsByUuid: vi.fn().mockResolvedValue({
         firstName: 'Test',
         lastName: 'User',
@@ -212,4 +222,15 @@ export const mockGroupsModel: Record<string, MockFn> = {
 export const mockAdminNotificationService: Record<string, MockFn> = {
     notifyOrgAdminRoleChange: vi.fn().mockResolvedValue(undefined),
     notifyProjectAdminRoleChange: vi.fn().mockResolvedValue(undefined),
+};
+
+export const mockInviteLinkModel: Record<string, MockFn> = {
+    hasValidInviteLink: vi.fn(),
+    upsert: vi.fn(),
+    deleteByCode: vi.fn(),
+};
+
+export const mockOrganizationMemberProfileModel: Record<string, MockFn> = {
+    getAllOrganizationMembers: vi.fn(),
+    getOrganizationAdmins: vi.fn(),
 };
