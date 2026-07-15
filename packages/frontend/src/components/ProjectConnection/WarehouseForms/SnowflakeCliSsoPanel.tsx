@@ -75,11 +75,11 @@ const SnowflakeCliSsoPanel: FC<Props> = ({
     const claim = useWarehouseConnectCodeClaim(code, isPolling);
 
     useEffect(() => {
-        if (claim.data?.status === 'deposited') {
+        if (!claimed && claim.data?.status === 'deposited') {
             setClaimed(true);
             onDeposited(claim.data.credentials);
         }
-    }, [claim.data, onDeposited]);
+    }, [claimed, claim.data, onDeposited]);
 
     useEffect(() => {
         if (secondsRemaining === null || secondsRemaining <= 0)

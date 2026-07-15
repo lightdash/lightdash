@@ -17,7 +17,7 @@ import {
 } from '@mantine-8/core';
 import { NumberInput, PasswordInput, Tooltip } from '@mantine/core';
 import { IconCheck } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useCallback, useEffect, useState, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { useOrganizationWarehouseCredentials } from '../../../hooks/organization/useOrganizationWarehouseCredentials';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
@@ -165,9 +165,12 @@ const SnowflakeForm: FC<{
             ? SnowflakeAuthenticationType.PRIVATE_KEY
             : SnowflakeAuthenticationType.PASSWORD;
 
-    if (!form.isTouched()) {
-        form.setFieldValue('warehouse.authenticationType', defaultAuthType);
-    }
+    useEffect(() => {
+        if (!form.isTouched()) {
+            form.setFieldValue('warehouse.authenticationType', defaultAuthType);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [defaultAuthType]);
     const authenticationType: SnowflakeAuthenticationType =
         form.values.warehouse.authenticationType ?? defaultAuthType;
 
@@ -229,13 +232,16 @@ const SnowflakeForm: FC<{
             : []),
     ];
 
-    const handleCliSsoDeposited = (credentials: CreateSnowflakeCredentials) => {
-        form.setFieldValue('warehouse', {
-            ...SnowflakeDefaultValues,
-            ...credentials,
-        });
-        setCliSsoCredentials(credentials);
-    };
+    const handleCliSsoDeposited = useCallback(
+        (credentials: CreateSnowflakeCredentials) => {
+            form.setFieldValue('warehouse', {
+                ...SnowflakeDefaultValues,
+                ...credentials,
+            });
+            setCliSsoCredentials(credentials);
+        },
+        [form],
+    );
 
     return (
         <>
