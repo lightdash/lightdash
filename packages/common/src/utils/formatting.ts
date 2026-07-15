@@ -1203,6 +1203,7 @@ export function formatItemValue(
     parameters?: Record<string, unknown>,
     timezone?: string,
     displayTimezone?: string,
+    fieldValues?: Record<string, unknown>,
 ): string {
     if (value === null) return '∅';
     if (value === undefined) return '-';
@@ -1215,21 +1216,25 @@ export function formatItemValue(
             // numfmt otherwise renders with US separators regardless of locale.
             const separatorLocale = getFormatExpressionLocale(item);
 
-            // Check if format uses parameter placeholders
-            const hasParameterPlaceholders =
+            const hasDynamicPlaceholders =
                 item.format.includes(
                     `\${${LightdashParameters.PREFIX_SHORT}`,
-                ) || item.format.includes(`\${${LightdashParameters.PREFIX}`);
+                ) ||
+                item.format.includes(`\${${LightdashParameters.PREFIX}`) ||
+                item.format.includes('${ld.fields.') ||
+                item.format.includes('${lightdash.fields.');
 
-            // NEW: Handle parameter-based formats separately
-            if (hasParameterPlaceholders) {
-                // If parameters are provided, evaluate and apply the format
-                if (parameters) {
+            if (hasDynamicPlaceholders) {
+                if (parameters || fieldValues) {
                     const formatExpression =
                         evaluateConditionalFormatExpression(
                             item.format,
                             parameters,
+                            fieldValues,
                         );
+                    if (formatExpression.includes('${')) {
+                        return applyDefaultFormat(value);
+                    }
                     try {
                         const result = formatValueWithExpression(
                             formatExpression,

@@ -57,16 +57,33 @@ const formatBigNumberValue = (
     style: CompactOrAlias | undefined,
     parameters?: ParametersValuesMap,
     timezone?: string,
+    fieldValues?: Record<string, unknown>,
 ): string => {
     if (item !== undefined && isTableCalculation(item)) {
-        return formatItemValue(item, value, false, parameters, timezone);
+        return formatItemValue(
+            item,
+            value,
+            false,
+            parameters,
+            timezone,
+            undefined,
+            fieldValues,
+        );
     } else if (
         item !== undefined &&
         hasValidFormatExpression(item) &&
         // When a compact style is set, fall through so the style is applied
         !style
     ) {
-        return formatItemValue(item, value, false, parameters, timezone);
+        return formatItemValue(
+            item,
+            value,
+            false,
+            parameters,
+            timezone,
+            undefined,
+            fieldValues,
+        );
     } else if (item !== undefined && hasFormatOptions(item)) {
         // If the format has no explicit type but a compact style is set, treat
         // it as a number so the style can be applied
@@ -89,7 +106,15 @@ const formatBigNumberValue = (
     } else if (!style) {
         // No compact override: honour the field's full format (legacy compact,
         // separator, round), matching the results table
-        return formatItemValue(item, value, false, parameters, timezone);
+        return formatItemValue(
+            item,
+            value,
+            false,
+            parameters,
+            timezone,
+            undefined,
+            fieldValues,
+        );
     } else {
         const metricRound = isField(item) ? item.round : undefined;
         return applyCustomFormat(
@@ -112,6 +137,7 @@ const formatComparisonValue = (
     bigNumberComparisonStyle: CompactOrAlias | undefined,
     parameters?: ParametersValuesMap,
     timezone?: string,
+    fieldValues?: Record<string, unknown>,
 ) => {
     const prefix =
         comparisonDiff === ComparisonDiffTypes.POSITIVE ||
@@ -135,6 +161,7 @@ const formatComparisonValue = (
                 bigNumberComparisonStyle,
                 parameters,
                 timezone,
+                fieldValues,
             )}`;
     }
 };
@@ -306,6 +333,8 @@ const useBigNumberConfig = (
         return itemsMap[comparisonField] ?? item;
     }, [itemsMap, comparisonField, item]);
 
+    const firstRowFields = resultsData?.rows?.[0];
+
     // big number value (first row)
     const firstRowValueRaw = useMemo(() => {
         if (!selectedField || !resultsData) return;
@@ -336,7 +365,7 @@ const useBigNumberConfig = (
         if (!isNumber(item, firstRowValueRaw)) {
             return (
                 selectedField &&
-                resultsData?.rows?.[0]?.[selectedField]?.value.formatted
+                firstRowFields?.[selectedField]?.value.formatted
             );
         }
         return formatBigNumberValue(
@@ -345,14 +374,16 @@ const useBigNumberConfig = (
             bigNumberStyle,
             parameters,
             resultsData?.resolvedTimezone,
+            firstRowFields,
         );
     }, [
         item,
         firstRowValueRaw,
         selectedField,
         bigNumberStyle,
-        resultsData,
+        resultsData?.resolvedTimezone,
         parameters,
+        firstRowFields,
     ]);
 
     const unformattedValue = useMemo(() => {
@@ -405,6 +436,7 @@ const useBigNumberConfig = (
                   bigNumberComparisonStyle,
                   parameters,
                   resultsData?.resolvedTimezone,
+                  firstRowFields,
               );
     }, [
         comparisonFormat,
@@ -415,6 +447,7 @@ const useBigNumberConfig = (
         bigNumberComparisonStyle,
         parameters,
         resultsData?.resolvedTimezone,
+        firstRowFields,
     ]);
 
     const comparisonTooltip = useMemo(() => {

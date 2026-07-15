@@ -257,7 +257,15 @@ export class CsvService extends BaseService {
             if (onlyRaw) return data;
 
             // Use standard Lightdash formatting based on the item formatting configuration
-            return formatItemValue(item, data, undefined, undefined, timezone);
+            return formatItemValue(
+                item,
+                data,
+                undefined,
+                undefined,
+                timezone,
+                undefined,
+                row,
+            );
         });
     }
 
