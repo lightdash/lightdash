@@ -1,6 +1,7 @@
 import {
     ProjectMemberRole,
     ProjectMemberRoleLabels,
+    type Group as OrgGroup,
     type HomepageAssignment,
     type HomepageAudience,
 } from '@lightdash/common';
@@ -24,7 +25,7 @@ import {
     IconWorld,
     IconWorldCheck,
 } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import { useRef, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal from '../../../components/common/MantineModal';
 import { useOrganizationGroups } from '../../../hooks/useOrganizationGroups';
@@ -64,27 +65,90 @@ type Props = {
     onPublish: (audience: HomepageAudience, allowPersonal: boolean) => void;
 };
 
-export const PublishModal: FC<Props> = ({
+// Thin loader: PublishModal itself stays mounted for the lifetime of the
+// editor (only `opened` toggles), so it can't seed form state from props at
+// mount time. It waits for assignments to load, then mounts PublishModalBody
+// keyed on an open-epoch counter — a fresh instance (fresh useState) every
+// time the modal is opened, seeded from that session's real assignments.
+export const PublishModal: FC<Props> = (props) => {
+    const { opened, onClose, projectUuid } = props;
+    const { data: groups } = useOrganizationGroups({}, { enabled: opened });
+    const { data: assignments, isInitialLoading: assignmentsLoading } =
+        useHomepageAssignments(projectUuid, { enabled: opened });
+    const { mutate: reorderGroups } = useUpdateGroupPriorities(projectUuid);
+
+    const openEpochRef = useRef(0);
+    const wasOpenedRef = useRef(opened);
+    if (opened && !wasOpenedRef.current) {
+        openEpochRef.current += 1;
+    }
+    wasOpenedRef.current = opened;
+
+    if (opened && (assignmentsLoading || !assignments)) {
+        return (
+            <MantineModal
+                opened={opened}
+                onClose={onClose}
+                title="Publish homepage"
+                icon={IconSend}
+                size="lg"
+            />
+        );
+    }
+
+    return (
+        <PublishModalBody
+            key={`${props.homepageUuid}-${openEpochRef.current}`}
+            {...props}
+            groups={groups ?? []}
+            assignments={assignments ?? []}
+            reorderGroups={reorderGroups}
+        />
+    );
+};
+
+type BodyProps = Props & {
+    groups: OrgGroup[];
+    assignments: HomepageAssignment[];
+    reorderGroups: (groupUuids: string[]) => void;
+};
+
+const PublishModalBody: FC<BodyProps> = ({
     opened,
     onClose,
-    projectUuid,
     homepageUuid,
     homepageName,
     isPublishing,
     initialAllowPersonal,
     onPublish,
+    groups,
+    assignments,
+    reorderGroups,
 }) => {
-    const [mode, setMode] = useState<string>('everyone');
-    const [allowPersonal, setAllowPersonal] = useState(initialAllowPersonal);
-    const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
-    const [selectedRoles, setSelectedRoles] = useState<ProjectMemberRole[]>([]);
-    const { data: groups } = useOrganizationGroups({}, { enabled: opened });
-    const { data: assignments } = useHomepageAssignments(projectUuid, {
-        enabled: opened,
-    });
-    const { mutate: reorderGroups } = useUpdateGroupPriorities(projectUuid);
+    const ownAssignments = assignments.filter(
+        (assignment) => assignment.homepageUuid === homepageUuid,
+    );
+    const initialMode = ownAssignments.some((a) => a.targetType === 'group')
+        ? 'groups'
+        : ownAssignments.some((a) => a.targetType === 'role')
+          ? 'roles'
+          : 'everyone';
 
-    const groupAssignments = (assignments ?? []).filter(
+    const [mode, setMode] = useState<string>(initialMode);
+    const [allowPersonal, setAllowPersonal] = useState(initialAllowPersonal);
+    const [selectedGroups, setSelectedGroups] = useState<string[]>(() =>
+        ownAssignments
+            .filter((a) => a.targetType === 'group')
+            .flatMap((a) => (a.groupUuid ? [a.groupUuid] : [])),
+    );
+    const [selectedRoles, setSelectedRoles] = useState<ProjectMemberRole[]>(
+        () =>
+            ownAssignments
+                .filter((a) => a.targetType === 'role')
+                .flatMap((a) => (a.role ? [a.role] : [])),
+    );
+
+    const groupAssignments = assignments.filter(
         (assignment) => assignment.targetType === 'group',
     );
     const assignmentByGroup = new Map(
@@ -94,7 +158,7 @@ export const PublishModal: FC<Props> = ({
         ]),
     );
     const assignmentByRole = new Map(
-        (assignments ?? [])
+        assignments
             .filter((assignment) => assignment.targetType === 'role')
             .map((assignment) => [assignment.role, assignment]),
     );
@@ -218,7 +282,7 @@ export const PublishModal: FC<Props> = ({
                 {mode === 'groups' && (
                     <>
                         <div className={blockClasses.listCard}>
-                            {(groups ?? []).map((group) => (
+                            {groups.map((group) => (
                                 <label
                                     key={group.uuid}
                                     className={blockClasses.listRow}
@@ -261,7 +325,7 @@ export const PublishModal: FC<Props> = ({
                                     )}
                                 </label>
                             ))}
-                            {(groups ?? []).length === 0 && (
+                            {groups.length === 0 && (
                                 <Text size="sm" c="dimmed" p="sm">
                                     No groups in this organization yet.
                                 </Text>
