@@ -520,6 +520,7 @@ const FilterConfiguration: FC<Props> = ({
                                 filterType={filterType}
                                 field={selectedField}
                                 filterRule={draftFilterRule}
+                                originalFilterRule={originalFilterRule}
                                 onChangeFilterRule={handleChangeFilterRule}
                                 onEditRequirementRules={onEditRequirementRules}
                                 popoverProps={inlinePopoverProps}
