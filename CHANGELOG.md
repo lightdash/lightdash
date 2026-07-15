@@ -1,3 +1,10 @@
+# [0.3384.0](https://github.com/lightdash/lightdash/compare/0.3383.1...0.3384.0) (2026-07-15)
+
+
+### Features
+
+* **slack:** link an agent from the channel when none is configured ([#25516](https://github.com/lightdash/lightdash/issues/25516)) ([6a66e49](https://github.com/lightdash/lightdash/commit/6a66e49897b5e19786fcf90bfacec3a41f187211))
+
 ## [0.3383.1](https://github.com/lightdash/lightdash/compare/0.3383.0...0.3383.1) (2026-07-15)
 
 
