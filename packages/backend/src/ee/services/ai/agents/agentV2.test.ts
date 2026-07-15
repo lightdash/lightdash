@@ -153,6 +153,38 @@ describe('getAgentTools workstream tool gate', () => {
         ).toContain('submitResearchArtifact');
     });
 
+    it('restricts Deep Research to read/query tools while keeping MCP tools', () => {
+        const args = {
+            ...buildArgs({
+                enableCodingAgent: true,
+                enableAiWriteback: true,
+            }),
+            enableDataAccess: true,
+            enableContentTools: true,
+            executionMode: 'deep_research' as const,
+        };
+        const mcpSetup: AgentMcpToolSetup = {
+            ...mcpStub,
+            tools: { mcp_crm_search: {} as never },
+        };
+
+        const names = Object.keys(
+            getAgentTools(args, depsStub(), [], mcpSetup, new Map()),
+        );
+
+        expect(names).toContain('submitResearchArtifact');
+        expect(names).toContain('runSql');
+        expect(names).toContain('readContent');
+        expect(names).toContain('listWorkstreams');
+        expect(names).toContain('mcp_crm_search');
+        expect(names).not.toContain('editDbtProject');
+        expect(names).not.toContain('editRepo');
+        expect(names).not.toContain('closePullRequest');
+        expect(names).not.toContain('createContent');
+        expect(names).not.toContain('editContent');
+        expect(names).not.toContain('createScheduledDelivery');
+    });
+
     it('omits them when neither coding agent nor writeback is enabled', () => {
         const names = toolNames({
             enableCodingAgent: false,

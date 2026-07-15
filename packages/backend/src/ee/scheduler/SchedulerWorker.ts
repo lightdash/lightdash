@@ -38,7 +38,9 @@ const AI_AGENT_REVIEW_CLASSIFIER_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
 const AI_AGENT_REVIEW_WRITEBACK_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const APP_GENERATE_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
 const AI_WRITEBACK_TIMEOUT_MS = 30 * 60 * 1000;
-const AI_DEEP_RESEARCH_TIMEOUT_MS = 60 * 60 * 1000;
+// Above the 60-minute maxRuntimeMs policy cap so the hard kill never races a
+// run that is still allowed to finish.
+const AI_DEEP_RESEARCH_TIMEOUT_MS = 65 * 60 * 1000;
 
 type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     aiAgentService: AiAgentService;

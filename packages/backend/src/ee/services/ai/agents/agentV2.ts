@@ -99,6 +99,47 @@ const createAiAgentLogger =
 
 const STEP_CAP = 40;
 
+/**
+ * Deep Research runs unattended with autoApproveSql, so it only gets
+ * read/query tools plus submitResearchArtifact — never tools that mutate
+ * project content, dbt repos, schedules, or deployments. MCP tool
+ * registrations carry no read-only marking at runtime, so MCP tools are
+ * intentionally kept outside this allowlist (see getAgentTools).
+ */
+const DEEP_RESEARCH_ALLOWED_TOOL_NAMES: ReadonlySet<string> = new Set([
+    'analyzeFieldImpact',
+    'describeWarehouseTable',
+    'discoverFields',
+    'discoverRepos',
+    'exploreRepo',
+    'findContent',
+    'generateHashes',
+    'generateUuids',
+    'generateVisualization',
+    'getDashboardCharts',
+    'getKnowledgeDocumentContent',
+    'getMetadata',
+    'getProjectInfo',
+    'getPullRequestDiff',
+    'grepFields',
+    'listContent',
+    'listKnowledgeDocuments',
+    'listProjects',
+    'listWarehouseTables',
+    'listWorkstreams',
+    'loadProjectContext',
+    'loadSkill',
+    'readContent',
+    'readPinnedThread',
+    'resolveUrl',
+    'runContentQuery',
+    'runSavedChart',
+    'runSql',
+    'searchFieldValues',
+    'searchSemanticLayer',
+    'submitResearchArtifact',
+]);
+
 const withToolHints = (
     messageHistory: ModelMessage[],
     toolHints: string[],
@@ -208,6 +249,25 @@ export const defaultAgentOptions = {
     stopWhen: stepCountIs(STEP_CAP),
     maxRetries: 6, // Increased for Bedrock rate limits
 };
+
+const buildStopWhenPromptInterrupted =
+    (
+        args: AiAgentArgs,
+        dependencies: AiAgentDependencies,
+        logger: ReturnType<typeof createAiAgentLogger>,
+    ) =>
+    async () => {
+        const interrupted = await dependencies.isPromptInterrupted(
+            args.promptUuid,
+        );
+        if (interrupted) {
+            logger(
+                'Stop When',
+                `Stopping generation for interrupted prompt UUID: ${args.promptUuid}`,
+            );
+        }
+        return interrupted;
+    };
 
 /**
  * When forceToolHints is set, force the first hinted tool on the opening step
@@ -656,7 +716,16 @@ export const getAgentTools = (
         ...(submitResearchArtifact ? { submitResearchArtifact } : {}),
     };
 
-    const mergedTools = { ...tools, ...mcpToolSetup.tools };
+    const builtInTools =
+        args.executionMode === 'deep_research'
+            ? Object.fromEntries(
+                  Object.entries(tools).filter(([toolName]) =>
+                      DEEP_RESEARCH_ALLOWED_TOOL_NAMES.has(toolName),
+                  ),
+              )
+            : tools;
+
+    const mergedTools = { ...builtInTools, ...mcpToolSetup.tools };
 
     logger(
         'Agent Tools',
@@ -816,6 +885,7 @@ export const generateAgentResponse = async ({
     dependencies,
     mcpToolSetup,
     onExecutionContextResolved,
+    abortSignal,
 }: {
     args: AiAgentArgs;
     dependencies: AiAgentDependencies;
@@ -823,6 +893,7 @@ export const generateAgentResponse = async ({
     onExecutionContextResolved?: (
         snapshot: AiDeepResearchExecutionContextSnapshot,
     ) => Promise<void>;
+    abortSignal?: AbortSignal;
 }): Promise<string> => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger(
@@ -883,10 +954,17 @@ export const generateAgentResponse = async ({
             'generateAgentResponse',
             args,
         );
+        const stopWhenPromptInterrupted = buildStopWhenPromptInterrupted(
+            args,
+            dependencies,
+            logger,
+        );
         const result = await generateText({
             ...defaultAgentOptions,
             ...args.callOptions,
             prepareStep,
+            stopWhen: [stepCountIs(STEP_CAP), stopWhenPromptInterrupted],
+            abortSignal,
             providerOptions: args.providerOptions,
             model: args.model,
             tools,
@@ -1138,18 +1216,11 @@ export const streamAgentResponse = async ({
             tools,
             logger,
         });
-        const stopWhenPromptInterrupted = async () => {
-            const interrupted = await dependencies.isPromptInterrupted(
-                args.promptUuid,
-            );
-            if (interrupted) {
-                logger(
-                    'Stream Agent Response',
-                    `Stopping stream for interrupted prompt UUID: ${args.promptUuid}`,
-                );
-            }
-            return interrupted;
-        };
+        const stopWhenPromptInterrupted = buildStopWhenPromptInterrupted(
+            args,
+            dependencies,
+            logger,
+        );
         const telemetry = getAgentTelemetryConfig('streamAgentResponse', args);
         const result = streamText({
             ...defaultAgentOptions,

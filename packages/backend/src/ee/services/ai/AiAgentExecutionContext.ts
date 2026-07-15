@@ -45,11 +45,7 @@ export class AiAgentExecutionContextFactory {
             mcpServers: args.mcpServers.map((server) => ({
                 uuid: server.uuid,
                 name: server.name,
-                url: server.url,
                 authType: server.authType,
-                credentialScope: server.resolvedCredentialScope,
-                updatedAt: server.updatedAt.toISOString(),
-                enabledToolNames: [...(server.enabledToolNames ?? [])].sort(),
             })),
             knowledgeDocumentUuids: args.knowledgeDocuments.map(
                 (document) => document.uuid,

@@ -32,6 +32,7 @@ export type DbAiDeepResearchRun = {
     checkpoint: AiDeepResearchCheckpoint | null;
     timings: AiDeepResearchTimings | null;
     execution_attempts: number;
+    policy_limit_reached: string | null;
     error_message: string | null;
     cancellation_requested_at: Date | null;
     started_at: Date | null;
@@ -65,6 +66,7 @@ export type AiDeepResearchRunsTable = Knex.CompositeTableType<
             | 'checkpoint'
             | 'timings'
             | 'execution_attempts'
+            | 'policy_limit_reached'
             | 'error_message'
             | 'cancellation_requested_at'
             | 'started_at'

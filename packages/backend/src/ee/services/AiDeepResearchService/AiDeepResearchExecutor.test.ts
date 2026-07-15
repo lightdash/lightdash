@@ -28,11 +28,7 @@ const snapshot: AiDeepResearchExecutionContextSnapshot = {
         {
             uuid: 'mcp-1',
             name: 'CRM',
-            url: 'https://mcp.example.com',
             authType: 'oauth',
-            credentialScope: 'user',
-            updatedAt: '2026-07-15T12:00:00.000Z',
-            enabledToolNames: ['search'],
         },
     ],
     knowledgeDocumentUuids: ['document-1'],
@@ -93,6 +89,7 @@ const run = (
     checkpoint: null,
     timings: null,
     execution_attempts: 1,
+    policy_limit_reached: null,
     error_message: null,
     cancellation_requested_at: null,
     started_at: new Date('2026-07-15T12:00:01.000Z'),
@@ -130,6 +127,7 @@ const buildExecutor = () => {
         saveArtifactWithEvents: vi.fn().mockResolvedValue(true),
         saveCheckpoint: vi.fn().mockResolvedValue(true),
         saveExecutionContext: vi.fn().mockResolvedValue(true),
+        savePolicyLimitReached: vi.fn().mockResolvedValue(true),
         saveTimings: vi.fn().mockResolvedValue(true),
         touch: vi.fn().mockResolvedValue(true),
     };
@@ -323,7 +321,12 @@ describe('AiDeepResearchExecutor', () => {
     });
 
     it('stops before an over-budget tool and returns a partial artifact', async () => {
-        const { executor, aiAgentService } = buildExecutor();
+        const {
+            executor,
+            aiAgentService,
+            aiAgentModel,
+            aiDeepResearchRunModel,
+        } = buildExecutor();
         aiAgentService.generateAgentThreadResponse.mockImplementation(
             async (_user, options) => {
                 await options.onExecutionContextResolved(snapshot);
@@ -341,6 +344,23 @@ describe('AiDeepResearchExecutor', () => {
                 );
             },
         );
+        // An interrupted investigation never reached submitResearchArtifact.
+        aiAgentModel.getToolCallsAndResultsForPrompt.mockResolvedValue([
+            {
+                toolCall: {
+                    uuid: 'call-row-1',
+                    promptUuid: 'prompt-1',
+                    toolCallId: 'call-1',
+                    parentToolCallId: null,
+                    createdAt: new Date(),
+                    toolArgs: {},
+                    toolType: 'built-in',
+                    toolName: 'runMetricQuery',
+                },
+                toolResult: null,
+                approvalDecision: null,
+            },
+        ]);
 
         const result = await executor.execute(
             run({
@@ -364,5 +384,97 @@ describe('AiDeepResearchExecutor', () => {
         expect(
             aiAgentService.interruptAgentThreadMessage,
         ).toHaveBeenCalledOnce();
+        expect(
+            aiDeepResearchRunModel.savePolicyLimitReached,
+        ).toHaveBeenCalledWith(
+            'run-1',
+            'The tool or step policy limit was reached.',
+        );
+    });
+
+    it('does not double-count repeated progress events for the same tool call', async () => {
+        const { executor, aiAgentService } = buildExecutor();
+        aiAgentService.generateAgentThreadResponse.mockImplementation(
+            async (_user, options) => {
+                await options.onExecutionContextResolved(snapshot);
+                // Same toolCallId reported repeatedly plus mid-tool progress
+                // without an id — together they count as ONE tool call.
+                await options.onStepProgress(
+                    'First tool',
+                    'runMetricQuery',
+                    'call-1',
+                    'in_progress',
+                );
+                await options.onStepProgress(
+                    'Still running',
+                    'runMetricQuery',
+                    'call-1',
+                    'in_progress',
+                );
+                await options.onStepProgress('Running SQL query…', 'runSql');
+                await options.onStepProgress(
+                    'Query complete',
+                    'runMetricQuery',
+                    'call-1',
+                    'complete',
+                );
+            },
+        );
+
+        const result = await executor.execute(
+            run({
+                policy_snapshot: {
+                    instructions: null,
+                    maxSteps: 40,
+                    maxToolCalls: 1,
+                    maxWarehouseQueries: 3,
+                    maxRuntimeMs: 60_000,
+                },
+            }),
+            { signal: new AbortController().signal },
+        );
+
+        expect(result).toMatchObject({ status: 'completed' });
+        expect(
+            aiAgentService.interruptAgentThreadMessage,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('completes a run whose researcher submitted before a tripped runtime limit interrupted it', async () => {
+        const { executor, aiDeepResearchRunModel } = buildExecutor();
+
+        const result = await executor.execute(
+            run({
+                checkpoint: 'research_completed',
+                execution_context_snapshot: snapshot,
+                policy_limit_reached: 'The runtime policy limit was reached.',
+            }),
+            { signal: new AbortController().signal },
+        );
+
+        expect(result).toMatchObject({ status: 'completed' });
+        expect(
+            result.status === 'completed' && result.artifact.limitations,
+        ).toEqual([]);
+        expect(
+            aiDeepResearchRunModel.savePolicyLimitReached,
+        ).toHaveBeenCalledWith('run-1', null);
+    });
+
+    it('rebuilds the artifact from persisted tool rows after a research_completed checkpoint', async () => {
+        const { executor, aiAgentService } = buildExecutor();
+
+        const result = await executor.execute(
+            run({
+                checkpoint: 'research_completed',
+                execution_context_snapshot: snapshot,
+            }),
+            { signal: new AbortController().signal },
+        );
+
+        expect(result).toMatchObject({ status: 'completed' });
+        expect(
+            aiAgentService.generateAgentThreadResponse,
+        ).not.toHaveBeenCalled();
     });
 });

@@ -2,8 +2,8 @@ import {
     SEED_ORG_1,
     SEED_ORG_1_ADMIN,
     SEED_PROJECT,
+    type AiDeepResearchArtifact,
     type AiDeepResearchBudget,
-    type AiDeepResearchReport,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { getTestContext } from '../../vitest.setup.integration';
@@ -22,13 +22,16 @@ const budget: AiDeepResearchBudget = {
     maxResultRows: 1_000,
 };
 
-const report: AiDeepResearchReport = {
-    summary: 'Summary',
+const artifact: AiDeepResearchArtifact = {
     findings: [],
-    caveats: [],
-    scope: 'Last month',
-    unresolvedQuestions: [],
-    nextSteps: [],
+    evidence: [],
+    queryUuids: [],
+    metricDefinitions: [],
+    hypotheses: [],
+    contradictions: [],
+    confidence: 'medium',
+    limitations: [],
+    finalReport: 'Summary',
 };
 
 describe('AiDeepResearchRunModel integration', () => {
@@ -83,8 +86,8 @@ describe('AiDeepResearchRunModel integration', () => {
         const run = await createRun();
 
         const claims = await Promise.all([
-            model.claimQueuedRun(run.ai_deep_research_run_uuid),
-            model.claimQueuedRun(run.ai_deep_research_run_uuid),
+            model.claimRun(run.ai_deep_research_run_uuid),
+            model.claimRun(run.ai_deep_research_run_uuid),
         ]);
 
         expect(claims.filter(Boolean)).toHaveLength(1);
@@ -122,7 +125,7 @@ describe('AiDeepResearchRunModel integration', () => {
         const run = await createRun();
 
         await Promise.all([
-            model.claimQueuedRun(run.ai_deep_research_run_uuid),
+            model.claimRun(run.ai_deep_research_run_uuid),
             model.requestCancellation(run.ai_deep_research_run_uuid),
         ]);
 
@@ -153,10 +156,10 @@ describe('AiDeepResearchRunModel integration', () => {
 
     it('keeps completion and cancellation terminal under contention', async () => {
         const run = await createRun();
-        await model.claimQueuedRun(run.ai_deep_research_run_uuid);
+        await model.claimRun(run.ai_deep_research_run_uuid);
 
         await Promise.all([
-            model.markCompleted(run.ai_deep_research_run_uuid, report),
+            model.markCompleted(run.ai_deep_research_run_uuid, artifact),
             model.requestCancellation(run.ai_deep_research_run_uuid),
         ]);
 
@@ -188,7 +191,7 @@ describe('AiDeepResearchRunModel integration', () => {
 
     it('fails a stale running run and records one terminal event', async () => {
         const run = await createRun();
-        await model.claimQueuedRun(run.ai_deep_research_run_uuid);
+        await model.claimRun(run.ai_deep_research_run_uuid);
         await database(AiDeepResearchRunsTableName)
             .where('ai_deep_research_run_uuid', run.ai_deep_research_run_uuid)
             .update({ updated_at: database.raw("now() - interval '2 hours'") });

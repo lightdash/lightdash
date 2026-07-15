@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    AlreadyProcessingError,
     FeatureFlags,
     ForbiddenError,
     getErrorMessage,
@@ -16,7 +17,6 @@ import {
     type AiDeepResearchJobPayload,
     type AiDeepResearchPolicy,
     type AiDeepResearchPolicyInput,
-    type AiDeepResearchProgress,
     type AiDeepResearchRun,
     type SessionUser,
 } from '@lightdash/common';
@@ -32,12 +32,14 @@ import {
     type DbAiDeepResearchEvent,
     type DbAiDeepResearchRun,
 } from '../../database/entities/aiDeepResearch';
+import { type AiAgentModel } from '../../models/AiAgentModel';
 import {
     type AiDeepResearchRunModel,
     type DbAiDeepResearchEventWithCursor,
 } from '../../models/AiDeepResearchRunModel';
 import { type CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { type AiAgentService } from '../AiAgentService/AiAgentService';
+import { AiDeepResearchPermanentError } from './errors';
 
 const MAX_EVENT_PAGE_SIZE = 100;
 const DEFAULT_EVENT_PAGE_SIZE = 50;
@@ -69,6 +71,7 @@ type Dependencies = {
         AiAgentService,
         'createAgentThreadMessage' | 'getAgent' | 'interruptAgentThreadMessage'
     >;
+    aiAgentModel: Pick<AiAgentModel, 'updateModelResponse'>;
     analytics: LightdashAnalytics;
     executor?: AiDeepResearchExecutor;
 };
@@ -129,15 +132,40 @@ const toEvent = (row: DbAiDeepResearchEvent): AiDeepResearchEvent => {
                     row.payload as AiDeepResearchEventPayloadMap['progress'],
             };
         case 'phase_changed':
+            return {
+                ...event,
+                eventType: row.event_type,
+                payload:
+                    row.payload as AiDeepResearchEventPayloadMap['phase_changed'],
+            };
         case 'tool_call':
+            return {
+                ...event,
+                eventType: row.event_type,
+                payload:
+                    row.payload as AiDeepResearchEventPayloadMap['tool_call'],
+            };
         case 'query_provenance':
+            return {
+                ...event,
+                eventType: row.event_type,
+                payload:
+                    row.payload as AiDeepResearchEventPayloadMap['query_provenance'],
+            };
         case 'checkpoint':
+            return {
+                ...event,
+                eventType: row.event_type,
+                payload:
+                    row.payload as AiDeepResearchEventPayloadMap['checkpoint'],
+            };
         case 'artifact_created':
             return {
                 ...event,
                 eventType: row.event_type,
-                payload: row.payload,
-            } as AiDeepResearchEvent;
+                payload:
+                    row.payload as AiDeepResearchEventPayloadMap['artifact_created'],
+            };
         default:
             throw new Error('Unknown Deep Research event type');
     }
@@ -247,6 +275,8 @@ const AI_DEEP_RESEARCH_MAX_POLICY: Omit<AiDeepResearchPolicy, 'instructions'> =
         maxRuntimeMs: 60 * 60 * 1_000,
     };
 
+const AI_DEEP_RESEARCH_MAX_INSTRUCTIONS_CHARS = 2_000;
+
 const resolvePolicy = (
     input: AiDeepResearchPolicyInput | undefined,
 ): AiDeepResearchPolicy => {
@@ -264,6 +294,14 @@ const resolvePolicy = (
         );
     }
     const instructions = policy.instructions?.trim() || null;
+    if (
+        instructions &&
+        instructions.length > AI_DEEP_RESEARCH_MAX_INSTRUCTIONS_CHARS
+    ) {
+        throw new ParameterError(
+            `Deep Research instructions must be at most ${AI_DEEP_RESEARCH_MAX_INSTRUCTIONS_CHARS} characters`,
+        );
+    }
     return { ...policy, instructions };
 };
 
@@ -307,6 +345,8 @@ export class AiDeepResearchService extends BaseService {
 
     private readonly aiAgentService: Dependencies['aiAgentService'];
 
+    private readonly aiAgentModel: Dependencies['aiAgentModel'];
+
     private readonly analytics: LightdashAnalytics;
 
     private readonly executor: AiDeepResearchExecutor | undefined;
@@ -317,6 +357,7 @@ export class AiDeepResearchService extends BaseService {
         featureFlagModel,
         schedulerClient,
         aiAgentService,
+        aiAgentModel,
         analytics,
         executor,
     }: Dependencies) {
@@ -326,6 +367,7 @@ export class AiDeepResearchService extends BaseService {
         this.featureFlagModel = featureFlagModel;
         this.schedulerClient = schedulerClient;
         this.aiAgentService = aiAgentService;
+        this.aiAgentModel = aiAgentModel;
         this.analytics = analytics;
         this.executor = executor;
     }
@@ -389,12 +431,15 @@ export class AiDeepResearchService extends BaseService {
         }
 
         await this.assertCanViewProject(user, projectUuid);
-        if (!run.agent_uuid) {
-            throw new NotFoundError(
-                `Deep Research run ${aiDeepResearchRunUuid} is no longer attached to an AI Agent`,
+        // Legacy runs whose agent was deleted stay readable and cancellable;
+        // org/project scoping and the creator check above still apply.
+        if (run.agent_uuid) {
+            await this.aiAgentService.getAgent(
+                user,
+                run.agent_uuid,
+                projectUuid,
             );
         }
-        await this.aiAgentService.getAgent(user, run.agent_uuid, projectUuid);
         return run;
     }
 
@@ -429,6 +474,15 @@ export class AiDeepResearchService extends BaseService {
             args.agentUuid,
             args.projectUuid,
         );
+        const activeRun =
+            await this.aiDeepResearchRunModel.findActiveRunByThread(
+                args.threadUuid,
+            );
+        if (activeRun) {
+            throw new AlreadyProcessingError(
+                `Thread ${args.threadUuid} already has an active Deep Research run`,
+            );
+        }
         const promptMessage =
             await this.aiAgentService.createAgentThreadMessage(
                 args.user,
@@ -468,6 +522,18 @@ export class AiDeepResearchService extends BaseService {
                 run.ai_deep_research_run_uuid,
                 FAILED_RUN_ERROR_MESSAGE,
             );
+            // Best effort: fail the orphaned hidden prompt so it never lingers
+            // as an unanswered thread message.
+            await this.aiAgentModel
+                .updateModelResponse({
+                    promptUuid: promptMessage.uuid,
+                    errorMessage: FAILED_RUN_ERROR_MESSAGE,
+                })
+                .catch((cleanupError) => {
+                    this.logger.error(
+                        `Failed to mark orphaned Deep Research prompt ${promptMessage.uuid}: ${getErrorMessage(cleanupError)}`,
+                    );
+                });
             throw error;
         }
 
@@ -551,9 +617,10 @@ export class AiDeepResearchService extends BaseService {
             projectUuid,
             aiDeepResearchRunUuid,
         );
-        const run = await this.aiDeepResearchRunModel.requestCancellation(
-            aiDeepResearchRunUuid,
-        );
+        const { run, cancelledQueuedRun } =
+            await this.aiDeepResearchRunModel.requestCancellation(
+                aiDeepResearchRunUuid,
+            );
         if (!run) {
             throw new NotFoundError(
                 `Deep Research run ${aiDeepResearchRunUuid} not found`,
@@ -571,7 +638,7 @@ export class AiDeepResearchService extends BaseService {
                 messageUuid: run.prompt_uuid,
             });
         }
-        if (isAiDeepResearchRunTerminal(run.status)) {
+        if (cancelledQueuedRun) {
             await this.trackTerminalRun(aiDeepResearchRunUuid);
         }
         return toRun(run);
@@ -600,66 +667,77 @@ export class AiDeepResearchService extends BaseService {
         }
 
         if (!this.executor) {
-            await this.aiDeepResearchRunModel.markFailed(
-                payload.aiDeepResearchRunUuid,
-                'Deep Research executor is not configured',
+            await this.finalizeRun(payload.aiDeepResearchRunUuid, () =>
+                this.aiDeepResearchRunModel.markFailed(
+                    payload.aiDeepResearchRunUuid,
+                    'Deep Research executor is not configured',
+                ),
             );
-            await this.trackTerminalRun(payload.aiDeepResearchRunUuid);
             throw new Error('Deep Research executor is not configured');
         }
 
         try {
             const result = await this.executor(run, { signal });
             if (result.status === 'completed') {
-                const completed =
-                    await this.aiDeepResearchRunModel.markCompleted(
-                        payload.aiDeepResearchRunUuid,
-                        result.artifact,
-                    );
+                const completed = await this.finalizeRun(
+                    payload.aiDeepResearchRunUuid,
+                    () =>
+                        this.aiDeepResearchRunModel.markCompleted(
+                            payload.aiDeepResearchRunUuid,
+                            result.artifact,
+                        ),
+                );
                 if (!completed) {
                     await this.markCancelledAfterCompletedExecution(
                         payload.aiDeepResearchRunUuid,
                     );
                 }
-                await this.trackTerminalRun(payload.aiDeepResearchRunUuid);
                 return;
             }
             if (result.status === 'partially_completed') {
-                const completed =
-                    await this.aiDeepResearchRunModel.markPartiallyCompleted(
-                        payload.aiDeepResearchRunUuid,
-                        result.artifact,
-                    );
+                const completed = await this.finalizeRun(
+                    payload.aiDeepResearchRunUuid,
+                    () =>
+                        this.aiDeepResearchRunModel.markPartiallyCompleted(
+                            payload.aiDeepResearchRunUuid,
+                            result.artifact,
+                        ),
+                );
                 if (!completed) {
                     await this.markCancelledAfterCompletedExecution(
                         payload.aiDeepResearchRunUuid,
                     );
                 }
-                await this.trackTerminalRun(payload.aiDeepResearchRunUuid);
                 return;
             }
             if (result.status === 'failed') {
                 this.logger.error(
                     `Deep Research run ${payload.aiDeepResearchRunUuid} failed: ${result.errorMessage}`,
                 );
-                await this.aiDeepResearchRunModel.markFailed(
-                    payload.aiDeepResearchRunUuid,
-                    FAILED_RUN_ERROR_MESSAGE,
+                await this.finalizeRun(payload.aiDeepResearchRunUuid, () =>
+                    this.aiDeepResearchRunModel.markFailed(
+                        payload.aiDeepResearchRunUuid,
+                        FAILED_RUN_ERROR_MESSAGE,
+                    ),
                 );
-                await this.trackTerminalRun(payload.aiDeepResearchRunUuid);
                 return;
             }
 
-            const cancelled = await this.aiDeepResearchRunModel.markCancelled(
+            const cancelled = await this.finalizeRun(
                 payload.aiDeepResearchRunUuid,
+                () =>
+                    this.aiDeepResearchRunModel.markCancelled(
+                        payload.aiDeepResearchRunUuid,
+                    ),
             );
             if (!cancelled) {
-                await this.aiDeepResearchRunModel.markFailed(
-                    payload.aiDeepResearchRunUuid,
-                    'Deep Research stopped without a cancellation request',
+                await this.finalizeRun(payload.aiDeepResearchRunUuid, () =>
+                    this.aiDeepResearchRunModel.markFailed(
+                        payload.aiDeepResearchRunUuid,
+                        'Deep Research stopped without a cancellation request',
+                    ),
                 );
             }
-            await this.trackTerminalRun(payload.aiDeepResearchRunUuid);
         } catch (error) {
             this.logger.error(
                 `Deep Research run ${payload.aiDeepResearchRunUuid} threw: ${getErrorMessage(error)}`,
@@ -668,10 +746,21 @@ export class AiDeepResearchService extends BaseService {
                 payload.aiDeepResearchRunUuid,
             );
             if (currentRun?.cancellation_requested_at) {
-                await this.aiDeepResearchRunModel.markCancelled(
-                    payload.aiDeepResearchRunUuid,
+                await this.finalizeRun(payload.aiDeepResearchRunUuid, () =>
+                    this.aiDeepResearchRunModel.markCancelled(
+                        payload.aiDeepResearchRunUuid,
+                    ),
                 );
-                await this.trackTerminalRun(payload.aiDeepResearchRunUuid);
+                return;
+            }
+            // Retrying cannot fix a semantic failure — fail terminally.
+            if (error instanceof AiDeepResearchPermanentError) {
+                await this.finalizeRun(payload.aiDeepResearchRunUuid, () =>
+                    this.aiDeepResearchRunModel.markFailed(
+                        payload.aiDeepResearchRunUuid,
+                        FAILED_RUN_ERROR_MESSAGE,
+                    ),
+                );
                 return;
             }
             await this.aiDeepResearchRunModel.releaseForRetry(
@@ -681,17 +770,30 @@ export class AiDeepResearchService extends BaseService {
         }
     }
 
+    /**
+     * Single seam for terminal transitions: run analytics only when the
+     * status transition actually happened.
+     */
+    private async finalizeRun(
+        aiDeepResearchRunUuid: string,
+        transition: () => Promise<boolean>,
+    ): Promise<boolean> {
+        const transitioned = await transition();
+        if (transitioned) {
+            await this.trackTerminalRun(aiDeepResearchRunUuid);
+        }
+        return transitioned;
+    }
+
     async markRunFailedAfterRetries(
         aiDeepResearchRunUuid: string,
     ): Promise<boolean> {
-        const marked = await this.aiDeepResearchRunModel.markFailed(
-            aiDeepResearchRunUuid,
-            FAILED_RUN_ERROR_MESSAGE,
+        return this.finalizeRun(aiDeepResearchRunUuid, () =>
+            this.aiDeepResearchRunModel.markFailed(
+                aiDeepResearchRunUuid,
+                FAILED_RUN_ERROR_MESSAGE,
+            ),
         );
-        if (marked) {
-            await this.trackTerminalRun(aiDeepResearchRunUuid);
-        }
-        return marked;
     }
 
     private async trackTerminalRun(
@@ -764,40 +866,20 @@ export class AiDeepResearchService extends BaseService {
             !isAiDeepResearchRunTerminal(run.status) &&
             run.cancellation_requested_at
         ) {
-            await this.aiDeepResearchRunModel.markCancelled(
-                aiDeepResearchRunUuid,
+            await this.finalizeRun(aiDeepResearchRunUuid, () =>
+                this.aiDeepResearchRunModel.markCancelled(
+                    aiDeepResearchRunUuid,
+                ),
             );
         }
     }
 
     async markRunTimedOut(aiDeepResearchRunUuid: string): Promise<boolean> {
-        const marked = await this.aiDeepResearchRunModel.markFailed(
-            aiDeepResearchRunUuid,
-            TIMED_OUT_RUN_ERROR_MESSAGE,
-        );
-        if (marked) {
-            await this.trackTerminalRun(aiDeepResearchRunUuid);
-        }
-        return marked;
-    }
-
-    async setClaudeSessionId(
-        aiDeepResearchRunUuid: string,
-        claudeSessionId: string,
-    ): Promise<boolean> {
-        return this.aiDeepResearchRunModel.setClaudeSessionId(
-            aiDeepResearchRunUuid,
-            claudeSessionId,
-        );
-    }
-
-    async appendProgressEvent(
-        aiDeepResearchRunUuid: string,
-        progress: AiDeepResearchProgress,
-    ): Promise<boolean> {
-        return this.aiDeepResearchRunModel.appendProgressEvent(
-            aiDeepResearchRunUuid,
-            progress,
+        return this.finalizeRun(aiDeepResearchRunUuid, () =>
+            this.aiDeepResearchRunModel.markFailed(
+                aiDeepResearchRunUuid,
+                TIMED_OUT_RUN_ERROR_MESSAGE,
+            ),
         );
     }
 

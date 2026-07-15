@@ -1,4 +1,4 @@
-import { type AiDeepResearchReport } from '@lightdash/common';
+import { type AiDeepResearchArtifact } from '@lightdash/common';
 import knex, { type Knex } from 'knex';
 import { getTracker, MockClient, type Tracker } from 'knex-mock-client';
 import {
@@ -10,13 +10,16 @@ import { AiDeepResearchRunModel } from './AiDeepResearchRunModel';
 const RUN_UUID = '00000000-0000-0000-0000-000000000001';
 const EVENT_UUID = '00000000-0000-0000-0000-000000000002';
 
-const report: AiDeepResearchReport = {
-    summary: 'Summary',
+const artifact: AiDeepResearchArtifact = {
     findings: [],
-    caveats: [],
-    scope: 'Last month',
-    unresolvedQuestions: [],
-    nextSteps: [],
+    evidence: [],
+    queryUuids: [],
+    metricDefinitions: [],
+    hypotheses: [],
+    contradictions: [],
+    confidence: 'medium',
+    limitations: [],
+    finalReport: 'Summary',
 };
 
 const runRow = (overrides: Record<string, unknown> = {}) => ({
@@ -44,7 +47,7 @@ describe('AiDeepResearchRunModel', () => {
         tracker.on.update(AiDeepResearchRunsTableName).responseOnce([runRow()]);
         tracker.on.insert(AiDeepResearchEventsTableName).responseOnce([]);
 
-        const run = await model.claimQueuedRun(RUN_UUID);
+        const run = await model.claimRun(RUN_UUID);
 
         expect(run).toEqual(runRow());
         const [update] = tracker.history.update;
@@ -82,7 +85,7 @@ describe('AiDeepResearchRunModel', () => {
     it('does not overwrite a cancellation request with completion', async () => {
         tracker.on.update(AiDeepResearchRunsTableName).responseOnce([]);
 
-        const updated = await model.markCompleted(RUN_UUID, report);
+        const updated = await model.markCompleted(RUN_UUID, artifact);
 
         expect(updated).toBe(false);
         const [update] = tracker.history.update;
@@ -99,9 +102,11 @@ describe('AiDeepResearchRunModel', () => {
             .responseOnce([runRow({ status: 'cancelled' })]);
         tracker.on.insert(AiDeepResearchEventsTableName).response([]);
 
-        const run = await model.requestCancellation(RUN_UUID);
+        const { run, cancelledQueuedRun } =
+            await model.requestCancellation(RUN_UUID);
 
         expect(run).toEqual(runRow({ status: 'cancelled' }));
+        expect(cancelledQueuedRun).toBe(true);
         expect(tracker.history.update).toHaveLength(1);
         expect(tracker.history.update[0].bindings).toEqual(
             expect.arrayContaining(['queued', 'cancelled', RUN_UUID]),
@@ -121,9 +126,11 @@ describe('AiDeepResearchRunModel', () => {
             .responseOnce([runRow({ cancellation_requested_at: requestedAt })]);
         tracker.on.insert(AiDeepResearchEventsTableName).responseOnce([]);
 
-        const run = await model.requestCancellation(RUN_UUID);
+        const { run, cancelledQueuedRun } =
+            await model.requestCancellation(RUN_UUID);
 
         expect(run).toEqual(runRow({ cancellation_requested_at: requestedAt }));
+        expect(cancelledQueuedRun).toBe(false);
         expect(tracker.history.update).toHaveLength(2);
         expect(tracker.history.update[1].bindings).toEqual(
             expect.arrayContaining(['running', RUN_UUID]),

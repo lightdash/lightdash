@@ -7,6 +7,7 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import { AiDeepResearchService } from './AiDeepResearchService';
+import { AiDeepResearchPermanentError } from './errors';
 
 const artifact: AiDeepResearchArtifact = {
     findings: ['Revenue fell after a price change'],
@@ -87,16 +88,17 @@ const buildService = (
         create: vi.fn().mockResolvedValue(run()),
         findByUuid: vi.fn().mockResolvedValue(run()),
         findByUuidScoped: vi.fn().mockResolvedValue(run()),
+        findActiveRunByThread: vi.fn().mockResolvedValue(undefined),
         claimRun: vi.fn().mockResolvedValue(run({ status: 'running' })),
         markCompleted: vi.fn().mockResolvedValue(true),
         markPartiallyCompleted: vi.fn().mockResolvedValue(true),
         markFailed: vi.fn().mockResolvedValue(true),
         markCancelled: vi.fn().mockResolvedValue(true),
-        requestCancellation: vi.fn().mockResolvedValue(run()),
+        requestCancellation: vi
+            .fn()
+            .mockResolvedValue({ run: run(), cancelledQueuedRun: false }),
         listEvents: vi.fn().mockResolvedValue([]),
         markStaleRunsAsFailed: vi.fn().mockResolvedValue([]),
-        appendProgressEvent: vi.fn().mockResolvedValue(true),
-        setClaudeSessionId: vi.fn().mockResolvedValue(true),
         touch: vi.fn().mockResolvedValue(true),
         releaseForRetry: vi.fn().mockResolvedValue(true),
         saveTimings: vi.fn().mockResolvedValue(true),
@@ -110,6 +112,9 @@ const buildService = (
             .fn()
             .mockResolvedValue({ uuid: 'prompt-1' }),
         interruptAgentThreadMessage: vi.fn().mockResolvedValue(undefined),
+    };
+    const aiAgentModel = {
+        updateModelResponse: vi.fn().mockResolvedValue(undefined),
     };
     const schedulerClient = {
         aiDeepResearch: vi.fn().mockResolvedValue({ jobId: 'job-1' }),
@@ -129,11 +134,19 @@ const buildService = (
         } as AnyType,
         schedulerClient: schedulerClient as AnyType,
         aiAgentService: aiAgentService as AnyType,
+        aiAgentModel: aiAgentModel as AnyType,
         analytics: { track: vi.fn() } as AnyType,
         executor,
     });
 
-    return { service, model, aiAgentService, schedulerClient, executor };
+    return {
+        service,
+        model,
+        aiAgentService,
+        aiAgentModel,
+        schedulerClient,
+        executor,
+    };
 };
 
 describe('AiDeepResearchService', () => {
@@ -198,6 +211,77 @@ describe('AiDeepResearchService', () => {
         await expect(
             service.getRun(user(), 'project-1', 'run-1'),
         ).rejects.toThrow('Agent access was revoked');
+    });
+
+    it('keeps legacy runs without an agent readable, skipping agent revalidation', async () => {
+        const { service, model, aiAgentService } = buildService();
+        model.findByUuidScoped.mockResolvedValue(run({ agent_uuid: null }));
+
+        const result = await service.getRun(user(), 'project-1', 'run-1');
+
+        expect(result.agentUuid).toBeNull();
+        expect(aiAgentService.getAgent).not.toHaveBeenCalled();
+    });
+
+    it('rejects a new run while the thread already has an active one', async () => {
+        const { service, model, aiAgentService } = buildService();
+        model.findActiveRunByThread.mockResolvedValue(
+            run({ status: 'running' }),
+        );
+
+        await expect(
+            service.createRun({
+                user: user(),
+                projectUuid: 'project-1',
+                agentUuid: 'agent-1',
+                threadUuid: 'thread-1',
+                prompt: 'Why did revenue fall?',
+            }),
+        ).rejects.toThrow(
+            'Thread thread-1 already has an active Deep Research run',
+        );
+        expect(aiAgentService.createAgentThreadMessage).not.toHaveBeenCalled();
+        expect(model.create).not.toHaveBeenCalled();
+    });
+
+    it('marks the orphaned hidden prompt when enqueueing fails', async () => {
+        const { service, model, aiAgentModel, schedulerClient } =
+            buildService();
+        schedulerClient.aiDeepResearch.mockRejectedValue(
+            new Error('queue unavailable'),
+        );
+
+        await expect(
+            service.createRun({
+                user: user(),
+                projectUuid: 'project-1',
+                agentUuid: 'agent-1',
+                threadUuid: 'thread-1',
+                prompt: 'Why did revenue fall?',
+            }),
+        ).rejects.toThrow('queue unavailable');
+
+        expect(model.markFailed).toHaveBeenCalledOnce();
+        expect(aiAgentModel.updateModelResponse).toHaveBeenCalledWith(
+            expect.objectContaining({ promptUuid: 'prompt-1' }),
+        );
+    });
+
+    it('fails permanently when the researcher never submits a Research Artifact', async () => {
+        const { service, model } = buildService(
+            vi
+                .fn()
+                .mockRejectedValue(
+                    new AiDeepResearchPermanentError(
+                        'Deep Research finished without submitting a Research Artifact',
+                    ),
+                ),
+        );
+
+        await service.executeRun({ aiDeepResearchRunUuid: 'run-1' });
+
+        expect(model.markFailed).toHaveBeenCalledOnce();
+        expect(model.releaseForRetry).not.toHaveBeenCalled();
     });
 
     it('requeues a run after a transient execution error so Graphile can retry it', async () => {

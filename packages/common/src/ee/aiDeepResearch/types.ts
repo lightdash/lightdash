@@ -150,14 +150,11 @@ export type AiDeepResearchExecutionContextSnapshot = {
     modelProvider: string | null;
     modelName: string;
     enabledTools: string[];
+    // Server URLs may embed secrets, so the snapshot only keeps identifiers.
     mcpServers: {
         uuid: string;
         name: string;
-        url: string;
         authType: 'none' | 'bearer' | 'oauth';
-        credentialScope: 'shared' | 'user' | null;
-        updatedAt: string;
-        enabledToolNames: string[];
     }[];
     knowledgeDocumentUuids: string[];
     knowledgeDocuments: {

@@ -1,4 +1,5 @@
 import {
+    getErrorMessage,
     type AiAgentToolCall,
     type AiAgentToolResult,
     type AiDeepResearchArtifact,
@@ -7,6 +8,7 @@ import {
     type AiDeepResearchTimings,
     type SessionUser,
 } from '@lightdash/common';
+import Logger from '../../../logging/logger';
 import type { UserService } from '../../../services/UserService';
 import type { AiAgentModel } from '../../models/AiAgentModel';
 import type { AiDeepResearchRunModel } from '../../models/AiDeepResearchRunModel';
@@ -16,8 +18,45 @@ import type {
     AiDeepResearchExecutor as AiDeepResearchExecutorFn,
     AiDeepResearchExecutorResult,
 } from './AiDeepResearchService';
+import {
+    AiDeepResearchPermanentError,
+    AiDeepResearchPolicyLimitError,
+} from './errors';
 
 const MAX_EVIDENCE_SUMMARY_CHARS = 2_000;
+const HEARTBEAT_INTERVAL_MS = 15_000;
+const SUBMIT_RESEARCH_ARTIFACT_TOOL_NAME = 'submitResearchArtifact';
+
+// Explicit classification of the built-in tool registry — MCP tools are
+// classified via toolType instead (they cannot be inspected by name).
+const WAREHOUSE_QUERY_TOOL_NAMES: ReadonlySet<string> = new Set([
+    'generateVisualization',
+    'runContentQuery',
+    'runSavedChart',
+    'runSql',
+    'searchFieldValues',
+]);
+const REPOSITORY_TOOL_NAMES: ReadonlySet<string> = new Set([
+    'discoverRepos',
+    'exploreRepo',
+    'getPullRequestDiff',
+    'listWorkstreams',
+]);
+const KNOWLEDGE_TOOL_NAMES: ReadonlySet<string> = new Set([
+    'getKnowledgeDocumentContent',
+    'listKnowledgeDocuments',
+]);
+const METRIC_DEFINITION_TOOL_NAMES: ReadonlySet<string> = new Set([
+    'analyzeFieldImpact',
+    'describeWarehouseTable',
+    'discoverFields',
+    'getMetadata',
+    'grepFields',
+    'searchFieldValues',
+]);
+
+const isWarehouseQueryToolName = (toolName: string): boolean =>
+    WAREHOUSE_QUERY_TOOL_NAMES.has(toolName);
 
 type ToolProvenance = {
     toolCall: AiAgentToolCall;
@@ -42,6 +81,7 @@ type Dependencies = {
         | 'saveArtifactWithEvents'
         | 'saveCheckpoint'
         | 'saveExecutionContext'
+        | 'savePolicyLimitReached'
         | 'saveTimings'
         | 'touch'
     >;
@@ -72,50 +112,38 @@ const findValues = (value: unknown, key: string): string[] => {
     ]);
 };
 
+// Query provenance only trusts the server-written tool results — toolArgs are
+// model-controlled and must never mint query UUIDs.
+const getResultQueryUuids = ({ toolResult }: ToolProvenance): string[] =>
+    toolResult ? findValues(parseJson(toolResult.result), 'queryUuid') : [];
+
 const getQueryUuids = (provenance: ToolProvenance[]): string[] => [
-    ...new Set(
-        provenance.flatMap(({ toolCall, toolResult }) => [
-            ...findValues(toolCall.toolArgs, 'queryUuid'),
-            ...findValues(
-                toolResult ? parseJson(toolResult.result) : null,
-                'queryUuid',
-            ),
-        ]),
-    ),
+    ...new Set(provenance.flatMap(getResultQueryUuids)),
 ];
 
 const getQueryProvenance = (provenance: ToolProvenance[]) =>
-    provenance.flatMap(({ toolCall, toolResult }) =>
-        [
-            ...new Set([
-                ...findValues(toolCall.toolArgs, 'queryUuid'),
-                ...findValues(
-                    toolResult ? parseJson(toolResult.result) : null,
-                    'queryUuid',
-                ),
-            ]),
-        ].map((queryUuid) => ({
+    provenance.flatMap((item) =>
+        [...new Set(getResultQueryUuids(item))].map((queryUuid) => ({
             queryUuid,
-            toolCallId: toolCall.toolCallId,
-            toolName: toolCall.toolName,
+            toolCallId: item.toolCall.toolCallId,
+            toolName: item.toolCall.toolName,
         })),
     );
 
 const getSourceType = (
     toolCall: AiAgentToolCall,
 ): AiDeepResearchArtifactEvidence['sourceType'] => {
-    const toolName = toolCall.toolName.toLowerCase();
-    if (toolName.includes('repo')) {
-        return 'repository';
-    }
-    if (toolName.includes('knowledge')) {
-        return 'knowledge';
-    }
-    if (toolName.includes('sql') || toolName.includes('query')) {
-        return 'warehouse';
-    }
     if (toolCall.toolType === 'mcp') {
         return 'external_mcp';
+    }
+    if (REPOSITORY_TOOL_NAMES.has(toolCall.toolName)) {
+        return 'repository';
+    }
+    if (KNOWLEDGE_TOOL_NAMES.has(toolCall.toolName)) {
+        return 'knowledge';
+    }
+    if (isWarehouseQueryToolName(toolCall.toolName)) {
+        return 'warehouse';
     }
     return 'lightdash';
 };
@@ -123,73 +151,67 @@ const getSourceType = (
 const getEvidence = (
     provenance: ToolProvenance[],
 ): AiDeepResearchArtifactEvidence[] =>
-    provenance.map(({ toolCall, toolResult }) => ({
-        title: toolCall.toolName,
+    provenance.map((item) => ({
+        title: item.toolCall.toolName,
         summary: (
-            toolResult?.result ?? 'Tool call did not return a result'
+            item.toolResult?.result ?? 'Tool call did not return a result'
         ).slice(0, MAX_EVIDENCE_SUMMARY_CHARS),
-        sourceType: getSourceType(toolCall),
-        toolName: toolCall.toolName,
-        toolCallId: toolCall.toolCallId,
+        sourceType: getSourceType(item.toolCall),
+        toolName: item.toolCall.toolName,
+        toolCallId: item.toolCall.toolCallId,
         mcpServerUuid:
-            toolCall.toolType === 'mcp'
-                ? (toolCall.mcpServer?.uuid ?? null)
+            item.toolCall.toolType === 'mcp'
+                ? (item.toolCall.mcpServer?.uuid ?? null)
                 : null,
-        queryUuid:
-            findValues(
-                toolResult ? parseJson(toolResult.result) : toolCall.toolArgs,
-                'queryUuid',
-            )[0] ?? null,
+        queryUuid: getResultQueryUuids(item)[0] ?? null,
     }));
 
 const getMetricDefinitions = (provenance: ToolProvenance[]) =>
     provenance
-        .filter(({ toolCall }) =>
-            /metadata|metric|field/i.test(toolCall.toolName),
+        .filter(
+            ({ toolCall }) =>
+                toolCall.toolType === 'built-in' &&
+                METRIC_DEFINITION_TOOL_NAMES.has(toolCall.toolName),
         )
         .map(({ toolCall, toolResult }) => ({
             name: toolCall.toolName,
             definition: (
                 toolResult?.result ?? JSON.stringify(toolCall.toolArgs)
             ).slice(0, MAX_EVIDENCE_SUMMARY_CHARS),
-            source:
-                toolCall.toolType === 'mcp'
-                    ? (toolCall.mcpServer?.name ?? null)
-                    : 'Lightdash AI Agent',
+            source: 'Lightdash AI Agent',
         }));
 
-const createArtifact = (
+const createFallbackArtifact = (
     provenance: ToolProvenance[],
-    policyExceeded: string | null,
-): AiDeepResearchArtifact => {
-    const submission = provenance.findLast(
-        ({ toolCall }) => toolCall.toolName === 'submitResearchArtifact',
-    );
-    if (!submission) {
-        if (policyExceeded) {
-            const evidence = getEvidence(provenance);
-            return {
-                findings: [],
-                evidence,
-                queryUuids: getQueryUuids(provenance),
-                metricDefinitions: getMetricDefinitions(provenance),
-                hypotheses: [],
-                contradictions: [],
-                confidence: 'low',
-                limitations: [policyExceeded],
-                finalReport: `# Deep Research incomplete\n\n${policyExceeded}\n\nThe investigation stopped before the researcher could submit a final conclusion. The Research Artifact preserves the evidence collected so far.`,
-            };
-        }
-        throw new Error(
-            'Deep Research finished without submitting a Research Artifact',
-        );
-    }
+    policyLimitReached: string,
+): AiDeepResearchArtifact => ({
+    findings: [],
+    evidence: getEvidence(provenance),
+    queryUuids: getQueryUuids(provenance),
+    metricDefinitions: getMetricDefinitions(provenance),
+    hypotheses: [],
+    contradictions: [],
+    confidence: 'low',
+    limitations: [policyLimitReached],
+    finalReport: `# Deep Research incomplete\n\n${policyLimitReached}\n\nThe investigation stopped before the researcher could submit a final conclusion. The Research Artifact preserves the evidence collected so far.`,
+});
 
-    const submittedArtifact = parseResearchArtifact(
-        submission.toolCall.toolArgs,
-    );
+const createSubmittedArtifact = (
+    submission: ToolProvenance,
+    provenance: ToolProvenance[],
+): AiDeepResearchArtifact => {
+    const submittedArtifact = (() => {
+        try {
+            return parseResearchArtifact(submission.toolCall.toolArgs);
+        } catch (error) {
+            throw new AiDeepResearchPermanentError(
+                `Deep Research submitted an invalid Research Artifact: ${getErrorMessage(error)}`,
+            );
+        }
+    })();
     const evidenceProvenance = provenance.filter(
-        ({ toolCall }) => toolCall.toolName !== 'submitResearchArtifact',
+        ({ toolCall }) =>
+            toolCall.toolName !== SUBMIT_RESEARCH_ARTIFACT_TOOL_NAME,
     );
     const toolCallsById = new Map(
         evidenceProvenance.map(({ toolCall }) => [
@@ -269,7 +291,9 @@ export class AiDeepResearchExecutor {
             return { status: 'cancelled' };
         }
         if (run.result && run.checkpoint === 'thread_attached') {
-            return { status: 'completed', artifact: run.result };
+            return run.policy_limit_reached
+                ? { status: 'partially_completed', artifact: run.result }
+                : { status: 'completed', artifact: run.result };
         }
         const agentUuid = run.agent_uuid;
         const threadUuid = run.ai_thread_uuid;
@@ -277,26 +301,26 @@ export class AiDeepResearchExecutor {
 
         const agentStartedAt = Date.now();
         const toolStartedAt = new Map<string, number>();
+        const countedToolCallIds = new Set<string>();
         let toolWaitMs = run.timings?.toolWaitMs ?? 0;
         let warehouseMs = run.timings?.warehouseMs ?? 0;
         let toolCalls = 0;
         let warehouseQueries = 0;
-        let policyExceeded: string | null = null;
-        const existingPrompt =
-            await this.dependencies.aiAgentModel.findWebAppPrompt(promptUuid);
+        // Survives retries: a limit tripped on a previous attempt keeps the
+        // resumed run partial instead of silently flipping it to completed.
+        let policyExceeded: string | null = run.policy_limit_reached;
         let executionContext: AiDeepResearchExecutionContextSnapshot | null =
             run.execution_context_snapshot;
         const user = await this.getUser(run);
-        await this.dependencies.aiDeepResearchRunModel.appendEvent(
-            run.ai_deep_research_run_uuid,
-            'phase_changed',
-            { phase: 'planning' },
-        );
         const interrupt = async (reason: string) => {
             if (policyExceeded) {
                 return;
             }
             policyExceeded = reason;
+            await this.dependencies.aiDeepResearchRunModel.savePolicyLimitReached(
+                run.ai_deep_research_run_uuid,
+                reason,
+            );
             await this.dependencies.aiAgentService.interruptAgentThreadMessage(
                 user,
                 {
@@ -306,119 +330,185 @@ export class AiDeepResearchExecutor {
                 },
             );
         };
-        const runtimeTimer = setTimeout(() => {
-            void interrupt('The runtime policy limit was reached.');
-        }, run.policy_snapshot.maxRuntimeMs);
-        runtimeTimer.unref();
-        const heartbeat = setInterval(() => {
-            void this.dependencies.aiDeepResearchRunModel.touch(
-                run.ai_deep_research_run_uuid,
-            );
-        }, 15_000);
-        heartbeat.unref();
-        const abortListener = () => {
-            void interrupt('The worker execution was cancelled.');
-        };
-        signal.addEventListener('abort', abortListener, { once: true });
 
-        if (existingPrompt?.response && !run.result) {
-            await this.dependencies.aiAgentModel.clearModelResponse(promptUuid);
-        }
-        if (!run.result) {
-            await (async () => {
-                try {
-                    return await this.dependencies.aiAgentService.generateAgentThreadResponse(
-                        user,
-                        {
-                            agentUuid,
-                            threadUuid,
-                            autoApproveSql: true,
-                            suppressWritebackPreview: true,
-                            deepResearch: true,
-                            onExecutionContextResolved: async (snapshot) => {
-                                executionContext = snapshot;
-                                await this.dependencies.aiDeepResearchRunModel.saveExecutionContext(
-                                    run.ai_deep_research_run_uuid,
-                                    snapshot,
-                                );
-                            },
-                            onStepProgress: async (
-                                _progress,
-                                progressToolName,
-                                toolCallId,
-                                status = 'in_progress',
-                            ) => {
-                                const toolName = progressToolName ?? 'unknown';
-                                const key = toolCallId ?? toolName;
-                                const isArtifactSubmission =
-                                    toolName === 'submitResearchArtifact';
-                                if (
-                                    status === 'in_progress' &&
-                                    !isArtifactSubmission
-                                ) {
-                                    if (toolCalls === 0) {
-                                        await this.dependencies.aiDeepResearchRunModel.appendEvent(
-                                            run.ai_deep_research_run_uuid,
-                                            'phase_changed',
-                                            { phase: 'investigating' },
-                                        );
-                                    }
-                                    toolStartedAt.set(key, Date.now());
-                                    toolCalls += 1;
-                                    if (/sql|query/i.test(toolName)) {
-                                        warehouseQueries += 1;
-                                    }
-                                    if (
-                                        toolCalls >
-                                            run.policy_snapshot.maxToolCalls ||
-                                        toolCalls > run.policy_snapshot.maxSteps
-                                    ) {
-                                        await interrupt(
-                                            'The tool or step policy limit was reached.',
-                                        );
-                                        throw new Error(
-                                            policyExceeded ?? undefined,
-                                        );
-                                    } else if (
-                                        warehouseQueries >
-                                        run.policy_snapshot.maxWarehouseQueries
-                                    ) {
-                                        await interrupt(
-                                            'The warehouse query policy limit was reached.',
-                                        );
-                                        throw new Error(
-                                            policyExceeded ?? undefined,
-                                        );
-                                    }
-                                }
-                                const startedAt = toolStartedAt.get(key);
-                                const durationMs =
-                                    status === 'in_progress' ||
-                                    startedAt === undefined
-                                        ? null
-                                        : Date.now() - startedAt;
-                                if (durationMs !== null) {
-                                    toolWaitMs += durationMs;
-                                    if (/sql|query/i.test(toolName)) {
-                                        warehouseMs += durationMs;
-                                    }
-                                    toolStartedAt.delete(key);
-                                }
-                                await this.dependencies.aiDeepResearchRunModel.appendEvent(
-                                    run.ai_deep_research_run_uuid,
-                                    'tool_call',
-                                    {
-                                        toolCallId: toolCallId ?? null,
-                                        toolName,
-                                        status,
-                                        durationMs,
-                                    },
-                                );
-                            },
+        // A completed research pass already persisted its tool rows — rebuild
+        // the artifact from them instead of generating again.
+        const shouldGenerate =
+            !run.result && run.checkpoint !== 'research_completed';
+
+        if (shouldGenerate) {
+            await this.dependencies.aiDeepResearchRunModel.appendEvent(
+                run.ai_deep_research_run_uuid,
+                'phase_changed',
+                { phase: 'planning' },
+            );
+            const existingPrompt =
+                await this.dependencies.aiAgentModel.findWebAppPrompt(
+                    promptUuid,
+                );
+            if (existingPrompt?.response) {
+                await this.dependencies.aiAgentModel.clearModelResponse(
+                    promptUuid,
+                );
+            }
+
+            // The runtime budget is cumulative across attempts, anchored on
+            // the first attempt's start.
+            const runtimeDeadline =
+                (run.started_at?.getTime() ?? Date.now()) +
+                run.policy_snapshot.maxRuntimeMs;
+            const runtimeTimer = setTimeout(
+                () => {
+                    void interrupt(
+                        'The runtime policy limit was reached.',
+                    ).catch((error) => {
+                        Logger.error(
+                            `Deep Research run ${run.ai_deep_research_run_uuid} failed to interrupt on runtime limit: ${getErrorMessage(error)}`,
+                        );
+                    });
+                },
+                Math.max(0, runtimeDeadline - Date.now()),
+            );
+            runtimeTimer.unref();
+            const heartbeat = setInterval(() => {
+                void this.dependencies.aiDeepResearchRunModel
+                    .touch(run.ai_deep_research_run_uuid)
+                    .then((touched) => {
+                        if (!touched) {
+                            Logger.warn(
+                                `Deep Research run ${run.ai_deep_research_run_uuid} heartbeat found no running run to touch`,
+                            );
+                        }
+                    })
+                    .catch((error) => {
+                        Logger.error(
+                            `Deep Research run ${run.ai_deep_research_run_uuid} heartbeat failed: ${getErrorMessage(error)}`,
+                        );
+                    });
+            }, HEARTBEAT_INTERVAL_MS);
+            heartbeat.unref();
+            // The abort signal is passed into the generation call below; the
+            // interrupt row is a fallback that stops it at a step boundary.
+            const abortListener = () => {
+                void this.dependencies.aiAgentService
+                    .interruptAgentThreadMessage(user, {
+                        agentUuid,
+                        threadUuid,
+                        messageUuid: promptUuid,
+                    })
+                    .catch((error) => {
+                        Logger.error(
+                            `Deep Research run ${run.ai_deep_research_run_uuid} failed to interrupt on abort: ${getErrorMessage(error)}`,
+                        );
+                    });
+            };
+            signal.addEventListener('abort', abortListener, { once: true });
+
+            try {
+                await this.dependencies.aiAgentService.generateAgentThreadResponse(
+                    user,
+                    {
+                        agentUuid,
+                        threadUuid,
+                        promptUuid,
+                        autoApproveSql: true,
+                        suppressWritebackPreview: true,
+                        deepResearch: true,
+                        abortSignal: signal,
+                        onExecutionContextResolved: async (snapshot) => {
+                            executionContext = snapshot;
+                            await this.dependencies.aiDeepResearchRunModel.saveExecutionContext(
+                                run.ai_deep_research_run_uuid,
+                                snapshot,
+                            );
                         },
-                    );
-                } catch (error) {
-                    if (!policyExceeded || signal.aborted) {
+                        onStepProgress: async (
+                            _progress,
+                            progressToolName,
+                            toolCallId,
+                            status = 'in_progress',
+                        ) => {
+                            // Mid-tool progress (e.g. runSql's "Running SQL
+                            // query…") carries no toolCallId — it is not a
+                            // tool call.
+                            if (!toolCallId) {
+                                return;
+                            }
+                            const toolName = progressToolName ?? 'unknown';
+                            const isArtifactSubmission =
+                                toolName === SUBMIT_RESEARCH_ARTIFACT_TOOL_NAME;
+                            if (
+                                status === 'in_progress' &&
+                                !isArtifactSubmission &&
+                                !countedToolCallIds.has(toolCallId)
+                            ) {
+                                countedToolCallIds.add(toolCallId);
+                                if (toolCalls === 0) {
+                                    await this.dependencies.aiDeepResearchRunModel.appendEvent(
+                                        run.ai_deep_research_run_uuid,
+                                        'phase_changed',
+                                        { phase: 'investigating' },
+                                    );
+                                }
+                                toolStartedAt.set(toolCallId, Date.now());
+                                toolCalls += 1;
+                                if (isWarehouseQueryToolName(toolName)) {
+                                    warehouseQueries += 1;
+                                }
+                                if (
+                                    toolCalls >
+                                        run.policy_snapshot.maxToolCalls ||
+                                    toolCalls > run.policy_snapshot.maxSteps
+                                ) {
+                                    const reason =
+                                        'The tool or step policy limit was reached.';
+                                    await interrupt(reason);
+                                    throw new AiDeepResearchPolicyLimitError(
+                                        reason,
+                                    );
+                                } else if (
+                                    warehouseQueries >
+                                    run.policy_snapshot.maxWarehouseQueries
+                                ) {
+                                    const reason =
+                                        'The warehouse query policy limit was reached.';
+                                    await interrupt(reason);
+                                    throw new AiDeepResearchPolicyLimitError(
+                                        reason,
+                                    );
+                                }
+                            }
+                            const startedAt = toolStartedAt.get(toolCallId);
+                            const durationMs =
+                                status === 'in_progress' ||
+                                startedAt === undefined
+                                    ? null
+                                    : Date.now() - startedAt;
+                            if (durationMs !== null) {
+                                toolWaitMs += durationMs;
+                                if (isWarehouseQueryToolName(toolName)) {
+                                    warehouseMs += durationMs;
+                                }
+                                toolStartedAt.delete(toolCallId);
+                            }
+                            await this.dependencies.aiDeepResearchRunModel.appendEvent(
+                                run.ai_deep_research_run_uuid,
+                                'tool_call',
+                                {
+                                    toolCallId,
+                                    toolName,
+                                    status,
+                                    durationMs,
+                                },
+                            );
+                        },
+                    },
+                );
+            } catch (error) {
+                const isPolicyLimitStop =
+                    error instanceof AiDeepResearchPolicyLimitError;
+                if (!isPolicyLimitStop || signal.aborted) {
+                    if (!signal.aborted) {
                         await this.dependencies.aiDeepResearchRunModel.saveTimings(
                             run.ai_deep_research_run_uuid,
                             {
@@ -436,19 +526,21 @@ export class AiDeepResearchExecutor {
                                 totalMs: Date.now() - run.created_at.getTime(),
                             },
                         );
-                        throw error;
                     }
-                    return undefined;
-                } finally {
-                    clearTimeout(runtimeTimer);
-                    clearInterval(heartbeat);
-                    signal.removeEventListener('abort', abortListener);
+                    throw error;
                 }
-            })();
+            } finally {
+                clearTimeout(runtimeTimer);
+                clearInterval(heartbeat);
+                signal.removeEventListener('abort', abortListener);
+            }
         }
-        clearTimeout(runtimeTimer);
-        clearInterval(heartbeat);
-        signal.removeEventListener('abort', abortListener);
+
+        // A timed-out or cancelled worker must not write results over a run
+        // the scheduler already marked terminal.
+        if (signal.aborted) {
+            return { status: 'cancelled' };
+        }
 
         if (
             !executionContext &&
@@ -473,18 +565,50 @@ export class AiDeepResearchExecutor {
             { phase: 'synthesizing' },
         );
         const artifactStartedAt = Date.now();
-        const provenance = run.result
+        const provenance: ToolProvenance[] = run.result
             ? []
             : (
                   await this.dependencies.aiAgentModel.getToolCallsAndResultsForPrompt(
                       promptUuid,
                   )
               ).map(({ toolCall, toolResult }) => ({ toolCall, toolResult }));
-        const artifact =
-            run.result ?? createArtifact(provenance, policyExceeded);
-        if (policyExceeded && !artifact.limitations.includes(policyExceeded)) {
-            artifact.limitations = [...artifact.limitations, policyExceeded];
-        }
+        const submission = provenance.findLast(
+            ({ toolCall }) =>
+                toolCall.toolName === SUBMIT_RESEARCH_ARTIFACT_TOOL_NAME,
+        );
+
+        const getArtifact = async (): Promise<AiDeepResearchArtifact> => {
+            if (run.result) {
+                return run.result;
+            }
+            if (submission) {
+                if (policyExceeded) {
+                    // The researcher submitted a complete artifact before the
+                    // tripped limit could actually stop it — the run
+                    // completed, so drop the partial marker.
+                    policyExceeded = null;
+                    await this.dependencies.aiDeepResearchRunModel.savePolicyLimitReached(
+                        run.ai_deep_research_run_uuid,
+                        null,
+                    );
+                }
+                return createSubmittedArtifact(submission, provenance);
+            }
+            if (policyExceeded) {
+                return createFallbackArtifact(provenance, policyExceeded);
+            }
+            throw new AiDeepResearchPermanentError(
+                'Deep Research finished without submitting a Research Artifact',
+            );
+        };
+        const rawArtifact = await getArtifact();
+        const artifact: AiDeepResearchArtifact =
+            policyExceeded && !rawArtifact.limitations.includes(policyExceeded)
+                ? {
+                      ...rawArtifact,
+                      limitations: [...rawArtifact.limitations, policyExceeded],
+                  }
+                : rawArtifact;
         const artifactGenerationMs = Date.now() - artifactStartedAt;
 
         if (!run.result) {
@@ -494,7 +618,8 @@ export class AiDeepResearchExecutor {
                 getQueryProvenance(
                     provenance.filter(
                         ({ toolCall }) =>
-                            toolCall.toolName !== 'submitResearchArtifact',
+                            toolCall.toolName !==
+                            SUBMIT_RESEARCH_ARTIFACT_TOOL_NAME,
                     ),
                 ),
             );

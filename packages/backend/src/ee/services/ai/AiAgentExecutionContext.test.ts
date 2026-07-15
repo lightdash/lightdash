@@ -57,6 +57,9 @@ describe('AiAgentExecutionContextFactory', () => {
 
         expect(context.dependencies).toBe(dependencies);
         expect(context.mcpToolSetup).toBe(mcpToolSetup);
+        expect(context.snapshot.mcpServers).toEqual([
+            { uuid: 'mcp-1', name: 'CRM', authType: 'oauth' },
+        ]);
         expect(context.snapshot).toMatchObject({
             userUuid: 'user-1',
             projectUuid: 'project-1',
@@ -68,5 +71,8 @@ describe('AiAgentExecutionContextFactory', () => {
             canRunSql: true,
         });
         expect(JSON.stringify(context.snapshot)).not.toContain('not-persisted');
+        expect(JSON.stringify(context.snapshot)).not.toContain(
+            'https://mcp.example.com',
+        );
     });
 });

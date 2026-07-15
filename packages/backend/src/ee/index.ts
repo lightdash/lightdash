@@ -148,6 +148,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,
                     aiAgentService: repository.getAiAgentService(),
+                    aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
                     analytics: context.lightdashAnalytics,
                     executor: executor.execute,
                 });

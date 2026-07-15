@@ -330,6 +330,7 @@ import {
 import { toolErrorHandler } from '../ai/utils/toolErrorHandler';
 import { validateSelectedFieldsExistence } from '../ai/utils/validators';
 import { AiAgentToolsService } from '../AiAgentToolsService/AiAgentToolsService';
+import { AiDeepResearchPolicyLimitError } from '../AiDeepResearchService/errors';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { AiWritebackService } from '../AiWritebackService/AiWritebackService';
 import { WritebackThreadPrClosedError } from '../AiWritebackService/errors';
@@ -4335,10 +4336,13 @@ export class AiAgentService extends BaseService {
         {
             agentUuid,
             threadUuid,
+            promptUuid,
             retrieveRelevantArtifacts = true,
         }: {
             agentUuid: string;
             threadUuid: string;
+            // The prompt to answer; defaults to the thread's latest message.
+            promptUuid?: string;
             retrieveRelevantArtifacts?: boolean;
         },
     ) {
@@ -4388,16 +4392,13 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        const prompt = await this.aiAgentModel.findWebAppPrompt(
-            threadMessages.at(-1)!.ai_prompt_uuid,
-        );
+        const targetPromptUuid =
+            promptUuid ?? threadMessages.at(-1)!.ai_prompt_uuid;
+        const prompt =
+            await this.aiAgentModel.findWebAppPrompt(targetPromptUuid);
 
-        if (!prompt) {
-            throw new NotFoundError(
-                `Prompt not found: ${
-                    threadMessages[threadMessages.length - 1].ai_prompt_uuid
-                }`,
-            );
+        if (!prompt || prompt.threadUuid !== threadUuid) {
+            throw new NotFoundError(`Prompt not found: ${targetPromptUuid}`);
         }
         const compaction = await this.maybeCompactThreadBeforeResponse(user, {
             threadUuid: prompt.threadUuid,
@@ -4894,6 +4895,7 @@ export class AiAgentService extends BaseService {
         {
             agentUuid,
             threadUuid,
+            promptUuid,
             autoApproveSql = false,
             toolHints,
             forceToolHints,
@@ -4902,9 +4904,12 @@ export class AiAgentService extends BaseService {
             isReviewRemediationWorkThread,
             onExecutionContextResolved,
             deepResearch = false,
+            abortSignal,
         }: {
             agentUuid: string;
             threadUuid: string;
+            // The prompt to answer; defaults to the thread's latest message.
+            promptUuid?: string;
             autoApproveSql?: boolean;
             toolHints?: string[];
             forceToolHints?: boolean;
@@ -4922,6 +4927,7 @@ export class AiAgentService extends BaseService {
                 snapshot: AiDeepResearchExecutionContextSnapshot,
             ) => Promise<void>;
             deepResearch?: boolean;
+            abortSignal?: AbortSignal;
         },
     ): Promise<string> {
         try {
@@ -4932,6 +4938,7 @@ export class AiAgentService extends BaseService {
             } = await this.prepareAgentThreadResponse(user, {
                 agentUuid,
                 threadUuid,
+                promptUuid,
             });
             if (!user.organizationUuid) {
                 throw new ForbiddenError();
@@ -4966,11 +4973,17 @@ export class AiAgentService extends BaseService {
                     isReviewRemediationWorkThread,
                     onExecutionContextResolved,
                     deepResearch,
+                    abortSignal,
                 },
             );
             return response;
         } catch (e) {
             Logger.error('Failed to generate agent thread response:', e);
+            // Deep Research converts policy-limit stops into a partial run —
+            // the class must survive, not become a generic ParameterError.
+            if (e instanceof AiDeepResearchPolicyLimitError) {
+                throw e;
+            }
             throw new ParameterError(getUserFacingErrorMessage(e));
         }
     }
@@ -7862,6 +7875,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             // Enables the work-thread-only editProjectContext tool.
             isReviewRemediationWorkThread?: boolean;
             deepResearch?: boolean;
+            abortSignal?: AbortSignal;
             toolHints?: string[];
             onSlackStepProgress?: (
                 progress: string,
@@ -7909,6 +7923,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             forceToolHints?: boolean;
             isReviewRemediationWorkThread?: boolean;
             deepResearch?: boolean;
+            abortSignal?: AbortSignal;
             toolHints?: string[];
             onSlackStepProgress?: (
                 progress: string,
@@ -8573,6 +8588,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 dependencies,
                 mcpToolSetup,
                 onExecutionContextResolved: options.onExecutionContextResolved,
+                abortSignal: options.abortSignal,
             });
         }
 

@@ -7,9 +7,6 @@ import {
     type AiDeepResearchEventType,
     type AiDeepResearchExecutionContextSnapshot,
     type AiDeepResearchPolicy,
-    type AiDeepResearchProgress,
-    type AiDeepResearchReport,
-    type AiDeepResearchRunStatus,
     type AiDeepResearchTimings,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -182,10 +179,15 @@ export class AiDeepResearchRunModel {
         });
     }
 
-    async claimQueuedRun(
-        aiDeepResearchRunUuid: string,
+    async findActiveRunByThread(
+        aiThreadUuid: string,
     ): Promise<DbAiDeepResearchRun | undefined> {
-        return this.claimRun(aiDeepResearchRunUuid);
+        return this.database<AiDeepResearchRunsTable>(
+            AiDeepResearchRunsTableName,
+        )
+            .where('ai_thread_uuid', aiThreadUuid)
+            .whereIn('status', ['queued', 'running'])
+            .first();
     }
 
     async appendEvent<EventType extends AiDeepResearchEventType>(
@@ -343,9 +345,9 @@ export class AiDeepResearchRunModel {
         return updated > 0;
     }
 
-    async setClaudeSessionId(
+    async savePolicyLimitReached(
         aiDeepResearchRunUuid: string,
-        claudeSessionId: string,
+        policyLimitReached: string | null,
     ): Promise<boolean> {
         const updated = await this.database<AiDeepResearchRunsTable>(
             AiDeepResearchRunsTableName,
@@ -353,7 +355,7 @@ export class AiDeepResearchRunModel {
             .where('ai_deep_research_run_uuid', aiDeepResearchRunUuid)
             .where('status', 'running')
             .update({
-                claude_session_id: claudeSessionId,
+                policy_limit_reached: policyLimitReached,
                 updated_at: this.database.fn.now() as unknown as Date,
             });
         return updated > 0;
@@ -434,51 +436,23 @@ export class AiDeepResearchRunModel {
 
     async markCompleted(
         aiDeepResearchRunUuid: string,
-        artifact: AiDeepResearchArtifact | AiDeepResearchReport,
+        artifact: AiDeepResearchArtifact,
     ): Promise<boolean> {
         return this.markWithReport(
             aiDeepResearchRunUuid,
             'completed',
-            'finalReport' in artifact
-                ? artifact
-                : {
-                      findings: artifact.findings.map(
-                          (finding) => finding.title,
-                      ),
-                      evidence: [],
-                      queryUuids: [],
-                      metricDefinitions: [],
-                      hypotheses: [],
-                      contradictions: [],
-                      confidence: 'medium',
-                      limitations: artifact.caveats,
-                      finalReport: artifact.summary,
-                  },
+            artifact,
         );
     }
 
     async markPartiallyCompleted(
         aiDeepResearchRunUuid: string,
-        artifact: AiDeepResearchArtifact | AiDeepResearchReport,
+        artifact: AiDeepResearchArtifact,
     ): Promise<boolean> {
         return this.markWithReport(
             aiDeepResearchRunUuid,
             'partially_completed',
-            'finalReport' in artifact
-                ? artifact
-                : {
-                      findings: artifact.findings.map(
-                          (finding) => finding.title,
-                      ),
-                      evidence: [],
-                      queryUuids: [],
-                      metricDefinitions: [],
-                      hypotheses: [],
-                      contradictions: [],
-                      confidence: 'medium',
-                      limitations: artifact.caveats,
-                      finalReport: artifact.summary,
-                  },
+            artifact,
         );
     }
 
@@ -543,9 +517,10 @@ export class AiDeepResearchRunModel {
         });
     }
 
-    async requestCancellation(
-        aiDeepResearchRunUuid: string,
-    ): Promise<DbAiDeepResearchRun | undefined> {
+    async requestCancellation(aiDeepResearchRunUuid: string): Promise<{
+        run: DbAiDeepResearchRun | undefined;
+        cancelledQueuedRun: boolean;
+    }> {
         return this.database.transaction(async (transaction) => {
             const now = transaction.fn.now() as unknown as Date;
             const [queuedRun] = await transaction<AiDeepResearchRunsTable>(
@@ -575,7 +550,7 @@ export class AiDeepResearchRunModel {
                     'status_changed',
                     { status: 'cancelled' },
                 );
-                return queuedRun;
+                return { run: queuedRun, cancelledQueuedRun: true };
             }
 
             const [runningRun] = await transaction<AiDeepResearchRunsTable>(
@@ -597,41 +572,15 @@ export class AiDeepResearchRunModel {
                     'cancellation_requested',
                     {},
                 );
-                return runningRun;
+                return { run: runningRun, cancelledQueuedRun: false };
             }
 
-            return transaction<AiDeepResearchRunsTable>(
-                AiDeepResearchRunsTableName,
-            )
-                .where('ai_deep_research_run_uuid', aiDeepResearchRunUuid)
-                .first();
-        });
-    }
-
-    async appendProgressEvent(
-        aiDeepResearchRunUuid: string,
-        progress: AiDeepResearchProgress,
-    ): Promise<boolean> {
-        return this.database.transaction(async (transaction) => {
             const run = await transaction<AiDeepResearchRunsTable>(
                 AiDeepResearchRunsTableName,
             )
                 .where('ai_deep_research_run_uuid', aiDeepResearchRunUuid)
-                .where('status', 'running')
-                .forUpdate()
                 .first();
-
-            if (!run) {
-                return false;
-            }
-
-            await AiDeepResearchRunModel.insertEvent(
-                transaction,
-                aiDeepResearchRunUuid,
-                'progress',
-                { progress },
-            );
-            return true;
+            return { run, cancelledQueuedRun: false };
         });
     }
 
