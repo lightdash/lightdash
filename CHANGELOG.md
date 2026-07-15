@@ -1,3 +1,10 @@
+## [0.3383.1](https://github.com/lightdash/lightdash/compare/0.3383.0...0.3383.1) (2026-07-15)
+
+
+### Bug Fixes
+
+* **custom-roles:** keep permissions panel usable on short viewports ([#25571](https://github.com/lightdash/lightdash/issues/25571)) ([1135f99](https://github.com/lightdash/lightdash/commit/1135f9945cbec1c6bda7feef8bcc2f8e0303ee34)), closes [#25340](https://github.com/lightdash/lightdash/issues/25340)
+
 # [0.3383.0](https://github.com/lightdash/lightdash/compare/0.3382.2...0.3383.0) (2026-07-15)
 
 
