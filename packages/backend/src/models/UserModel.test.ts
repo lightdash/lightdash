@@ -1,6 +1,7 @@
 import { subject, type AbilityBuilder, type RawRuleOf } from '@casl/ability';
 import {
     LightdashMode,
+    LightdashUser,
     MemberAbility,
     OrganizationMemberRole,
     projectMemberAbilities,
@@ -9,8 +10,15 @@ import {
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import { type LightdashConfig } from '../config/parseConfig';
+import { EmailTableName } from '../database/entities/emails';
+import { PasswordLoginTableName } from '../database/entities/passwordLogins';
+import { UserTableName } from '../database/entities/users';
 import { type FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
-import { UserModel, type DbUserDetails } from './UserModel';
+import {
+    mapDbUserDetailsToLightdashUser,
+    UserModel,
+    type DbUserDetails,
+} from './UserModel';
 
 type TestableUserModel = {
     hasAuthentication: (userUuid: string) => Promise<boolean>;
@@ -149,6 +157,109 @@ const expectCollapsedDashboardProjectRule = (
 };
 
 describe('UserModel', () => {
+    it('creates a passwordless user without a password login', async () => {
+        const insertUser = vi.fn(() => ({
+            returning: vi.fn(async () => [
+                {
+                    user_id: 1,
+                    user_uuid: 'passwordless-user',
+                },
+            ]),
+        }));
+        const insertEmail = vi.fn(async () => undefined);
+        const findDuplicateEmails = vi.fn(async () => []);
+        const transactionClient = vi.fn((tableName: string) => {
+            if (tableName === UserTableName) {
+                return { insert: insertUser };
+            }
+            if (tableName === EmailTableName) {
+                return {
+                    where: findDuplicateEmails,
+                    insert: insertEmail,
+                };
+            }
+            throw new Error(`Unexpected table ${tableName}`);
+        }) as unknown as Knex.Transaction;
+        const database = Object.assign(vi.fn(), {
+            transaction: vi.fn(
+                async (callback: (trx: Knex.Transaction) => Promise<unknown>) =>
+                    callback(transactionClient),
+            ),
+        }) as unknown as Knex;
+        const model = new UserModel({
+            database,
+            lightdashConfig,
+            featureFlagModel,
+        });
+        const createdUser: LightdashUser = {
+            ...mapDbUserDetailsToLightdashUser(
+                {
+                    ...userDetails,
+                    user_id: 1,
+                    user_uuid: 'passwordless-user',
+                    first_name: '',
+                    last_name: '',
+                    email: 'passwordless@example.com',
+                },
+                false,
+            ),
+        };
+        vi.spyOn(model, 'getUserDetailsByUuid').mockResolvedValue(createdUser);
+
+        await model.createUser({
+            firstName: '',
+            lastName: '',
+            email: 'passwordless@example.com',
+        });
+
+        expect(insertUser).toHaveBeenCalledWith(
+            expect.objectContaining({
+                first_name: '',
+                last_name: '',
+                is_active: true,
+            }),
+        );
+        expect(insertEmail).toHaveBeenCalledWith({
+            user_id: 1,
+            email: 'passwordless@example.com',
+            is_primary: true,
+        });
+        expect(transactionClient).not.toHaveBeenCalledWith(
+            PasswordLoginTableName,
+        );
+    });
+
+    it('inserts a password login when upserting a passwordless user password', async () => {
+        const merge = vi.fn(async () => undefined);
+        const onConflict = vi.fn(() => ({ merge }));
+        const insert = vi.fn(() => ({ onConflict }));
+        const first = vi.fn(async () => ({ user_id: 1 }));
+        const where = vi.fn(() => ({ first }));
+        const database = vi.fn((tableName: string) => {
+            if (tableName === PasswordLoginTableName) {
+                return { insert };
+            }
+            if (tableName === UserTableName) {
+                return { where };
+            }
+            throw new Error(`Unexpected table ${tableName}`);
+        }) as unknown as Knex;
+        const model = new UserModel({
+            database,
+            lightdashConfig,
+            featureFlagModel,
+        });
+
+        await model.upsertPassword('passwordless-user', 'new-password1!');
+
+        expect(insert).toHaveBeenCalledWith({
+            user_id: 1,
+            password_hash: expect.any(String),
+        });
+        expect(onConflict).toHaveBeenCalledWith('user_id');
+        expect(merge).toHaveBeenCalledOnce();
+    });
+
     it('collapses legacy service account project membership rules before returning the ability builder', async () => {
         const model = createUserModel();
 

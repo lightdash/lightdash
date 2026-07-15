@@ -1,6 +1,8 @@
 import {
+    FeatureFlags,
     OpenIdIdentityIssuerType,
     type ApiError,
+    type CreateEmailOnlyUserArgs,
     type CreateUserArgs,
     type LightdashUser,
 } from '@lightdash/common';
@@ -21,13 +23,15 @@ import Page from '../components/common/Page/Page';
 import { ThirdPartySignInButton } from '../components/common/ThirdPartySignInButton';
 import LightdashLogo from '../components/LightdashLogo/LightdashLogo';
 import PageSpinner from '../components/PageSpinner';
+import CreateEmailOnlyUserForm from '../components/RegisterForms/CreateEmailOnlyUserForm';
 import CreateUserForm from '../components/RegisterForms/CreateUserForm';
 import useToaster from '../hooks/toaster/useToaster';
 import { useFlashMessages } from '../hooks/useFlashMessages';
+import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import useApp from '../providers/App/useApp';
 import useTracking from '../providers/Tracking/useTracking';
 
-const registerQuery = async (data: CreateUserArgs) =>
+const registerQuery = async (data: CreateUserArgs | CreateEmailOnlyUserArgs) =>
     lightdashApi<LightdashUser>({
         url: `/user`,
         method: 'POST',
@@ -50,6 +54,10 @@ const Register: FC = () => {
     }, [flashMessages.data, showToastError]);
     const allowPasswordAuthentication =
         !health.data?.auth.disablePasswordAuthentication;
+    const emailOnlySignupFlag = useServerFeatureFlag(
+        FeatureFlags.EmailOnlySignup,
+        { retry: 3 },
+    );
     const { identify } = useTracking();
     const redirectUrl = location.state?.from
         ? `${location.state.from.pathname}${location.state.from.search}`
@@ -57,7 +65,7 @@ const Register: FC = () => {
     const { isLoading, mutate, isSuccess } = useMutation<
         LightdashUser,
         ApiError,
-        CreateUserArgs
+        CreateUserArgs | CreateEmailOnlyUserArgs
     >(registerQuery, {
         mutationKey: ['login'],
         onSuccess: (data) => {
@@ -72,9 +80,11 @@ const Register: FC = () => {
         },
     });
 
-    if (health.isInitialLoading) {
+    if (health.isInitialLoading || emailOnlySignupFlag.isInitialLoading) {
         return <PageSpinner />;
     }
+
+    const isEmailOnlySignup = emailOnlySignupFlag.data?.enabled ?? false;
 
     const ssoAvailable =
         health.data?.auth.google.enabled ||
@@ -94,14 +104,23 @@ const Register: FC = () => {
             ))}
         </Stack>
     );
-    const passwordLogin = allowPasswordAuthentication && (
-        <CreateUserForm
-            isLoading={isLoading || isSuccess}
-            onSubmit={(data: CreateUserArgs) => {
-                mutate(data);
-            }}
-        />
-    );
+    const passwordLogin =
+        allowPasswordAuthentication &&
+        (isEmailOnlySignup ? (
+            <CreateEmailOnlyUserForm
+                isLoading={isLoading || isSuccess}
+                onSubmit={(data: CreateEmailOnlyUserArgs) => {
+                    mutate(data);
+                }}
+            />
+        ) : (
+            <CreateUserForm
+                isLoading={isLoading || isSuccess}
+                onSubmit={(data: CreateUserArgs) => {
+                    mutate(data);
+                }}
+            />
+        ));
     const logins = (
         <>
             {ssoLogins}

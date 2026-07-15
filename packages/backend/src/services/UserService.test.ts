@@ -1,10 +1,13 @@
 import {
     defineUserAbility,
     EmailStatus,
+    FeatureFlags,
+    ForbiddenError,
     NotFoundError,
     OpenIdIdentityIssuerType,
     OrganizationMemberRole,
     ParameterError,
+    PasswordResetLink,
     ProjectMemberRole,
     SessionUser,
 } from '@lightdash/common';
@@ -49,21 +52,24 @@ const userModel = {
     getOpenIdIssuers: vi.fn(async () => []),
     hasPasswordByEmail: vi.fn(async () => false),
     findSessionUserByOpenId: vi.fn(async () => undefined),
-    findSessionUserByUUID: vi.fn(async () => sessionUser),
+    findSessionUserByUUID: vi.fn<UserModel['findSessionUserByUUID']>(
+        async () => sessionUser,
+    ),
     getSessionUserFromCacheOrDB: vi.fn(async () => ({
         sessionUser,
         cacheHit: false,
     })),
-    createUser: vi.fn(async () => sessionUser),
+    createUser: vi.fn<UserModel['createUser']>(async () => sessionUser),
     activateUser: vi.fn(async () => sessionUser),
     getOrganizationsForUser: vi.fn(async () => [sessionUser]),
-    findUserByEmail: vi.fn(async () => undefined),
+    findUserByEmail: vi.fn<UserModel['findUserByEmail']>(async () => undefined),
     createPendingUser: vi.fn(async () => newUser),
     findSessionUserByPrimaryEmail: vi.fn(async () => sessionUser),
     findServiceAccountByUserUuid: vi.fn(async () => undefined),
     joinOrg: vi.fn(async () => sessionUser),
-    hasUsers: vi.fn(async () => false),
+    hasUsers: vi.fn<UserModel['hasUsers']>(async () => false),
     updateUser: vi.fn(async () => sessionUser),
+    upsertPassword: vi.fn<UserModel['upsertPassword']>(async () => undefined),
 };
 
 const openIdIdentityModel = {
@@ -116,7 +122,18 @@ const organizationSettingsModel = {
     update: vi.fn(),
 };
 
-const createUserService = (lightdashConfig: LightdashConfig) =>
+type UserServiceTestOverrides = {
+    featureFlagModel?: Pick<FeatureFlagModel, 'get'>;
+    passwordResetLinkModel?: Pick<
+        PasswordResetLinkModel,
+        'getByCode' | 'deleteByCode'
+    >;
+};
+
+const createUserService = (
+    lightdashConfig: LightdashConfig,
+    overrides: UserServiceTestOverrides = {},
+) =>
     new UserService({
         analytics: analyticsMock,
         lightdashConfig,
@@ -127,7 +144,9 @@ const createUserService = (lightdashConfig: LightdashConfig) =>
         emailModel: emailModel as unknown as EmailModel,
         openIdIdentityModel:
             openIdIdentityModel as unknown as OpenIdIdentityModel,
-        passwordResetLinkModel: {} as PasswordResetLinkModel,
+        passwordResetLinkModel:
+            (overrides.passwordResetLinkModel as PasswordResetLinkModel) ??
+            ({} as PasswordResetLinkModel),
         emailClient: emailClient as unknown as EmailClient,
         organizationMemberProfileModel: {} as OrganizationMemberProfileModel,
         organizationModel: organizationModel as unknown as OrganizationModel,
@@ -141,12 +160,14 @@ const createUserService = (lightdashConfig: LightdashConfig) =>
         userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
         warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
         projectModel: projectModel as unknown as ProjectModel,
-        featureFlagModel: {
-            get: vi.fn(async () => ({
-                id: 'leave-organization',
-                enabled: true,
-            })),
-        } as unknown as FeatureFlagModel,
+        featureFlagModel:
+            (overrides.featureFlagModel as FeatureFlagModel) ??
+            ({
+                get: vi.fn<FeatureFlagModel['get']>(async () => ({
+                    id: 'leave-organization',
+                    enabled: true,
+                })),
+            } as unknown as FeatureFlagModel),
         userAvatarModel: {} as UserAvatarModel,
     });
 
@@ -218,6 +239,135 @@ describe('UserService', () => {
                 email: sessionUser.email!,
             });
             expect(userModel.updateUser).toHaveBeenCalled();
+        });
+    });
+
+    describe('registerOrActivateUser', () => {
+        const createFeatureFlagModel = (enabled: boolean) => ({
+            get: vi.fn<FeatureFlagModel['get']>(async ({ featureFlagId }) => ({
+                id: featureFlagId,
+                enabled,
+            })),
+        });
+
+        test('registers an email-only user when the feature is enabled', async () => {
+            const featureFlagModel = createFeatureFlagModel(true);
+            const service = createUserService(lightdashConfigMock, {
+                featureFlagModel,
+            });
+            const loginMethodAllowedSpy = vi
+                .spyOn(service, 'isLoginMethodAllowed')
+                .mockResolvedValue(true);
+            const sendOneTimePasscodeSpy = vi
+                .spyOn(service, 'sendOneTimePasscodeToPrimaryEmail')
+                .mockResolvedValue({
+                    email: 'email-only@example.com',
+                    isVerified: false,
+                });
+
+            await service.registerOrActivateUser({
+                email: 'email-only@example.com',
+            });
+
+            expect(featureFlagModel.get).toHaveBeenCalledWith({
+                user: undefined,
+                featureFlagId: FeatureFlags.EmailOnlySignup,
+            });
+            expect(userModel.createUser).toHaveBeenCalledWith({
+                firstName: '',
+                lastName: '',
+                email: 'email-only@example.com',
+            });
+            expect(loginMethodAllowedSpy).toHaveBeenCalledWith(
+                'email-only@example.com',
+                'email',
+            );
+            expect(sendOneTimePasscodeSpy).toHaveBeenCalledWith(sessionUser);
+        });
+
+        test('rejects an email-only user when the feature is disabled', async () => {
+            const featureFlagModel = createFeatureFlagModel(false);
+            const service = createUserService(lightdashConfigMock, {
+                featureFlagModel,
+            });
+
+            await expect(
+                service.registerOrActivateUser({
+                    email: 'email-only@example.com',
+                }),
+            ).rejects.toThrow(
+                new ForbiddenError('Email-only signup is not enabled'),
+            );
+
+            expect(userModel.hasUsers).not.toHaveBeenCalled();
+            expect(userModel.createUser).not.toHaveBeenCalled();
+        });
+
+        test('keeps full registration independent of the email-only feature', async () => {
+            const featureFlagModel = createFeatureFlagModel(false);
+            const service = createUserService(lightdashConfigMock, {
+                featureFlagModel,
+            });
+            vi.spyOn(service, 'isLoginMethodAllowed').mockResolvedValue(true);
+            const sendOneTimePasscodeSpy = vi
+                .spyOn(service, 'sendOneTimePasscodeToPrimaryEmail')
+                .mockResolvedValue({
+                    email: 'full@example.com',
+                    isVerified: false,
+                });
+
+            await service.registerOrActivateUser({
+                firstName: 'Full',
+                lastName: 'User',
+                email: 'full@example.com',
+                password: 'password1!',
+            });
+
+            expect(featureFlagModel.get).not.toHaveBeenCalled();
+            expect(userModel.createUser).toHaveBeenCalledWith({
+                firstName: 'Full',
+                lastName: 'User',
+                email: 'full@example.com',
+                password: 'password1!',
+            });
+            expect(sendOneTimePasscodeSpy).toHaveBeenCalledWith(sessionUser);
+        });
+    });
+
+    describe('resetPassword', () => {
+        test('upserts the first password for a passwordless user', async () => {
+            const resetLink: PasswordResetLink = {
+                code: 'reset-code',
+                email: 'passwordless@example.com',
+                expiresAt: new Date(Date.now() + 60_000),
+                url: 'https://example.com/reset-password/reset-code',
+                isExpired: false,
+            };
+            const passwordResetLinkModel = {
+                getByCode: vi.fn<PasswordResetLinkModel['getByCode']>(
+                    async () => resetLink,
+                ),
+                deleteByCode: vi.fn<PasswordResetLinkModel['deleteByCode']>(
+                    async () => undefined,
+                ),
+            };
+            const service = createUserService(lightdashConfigMock, {
+                passwordResetLinkModel,
+            });
+            userModel.findUserByEmail.mockResolvedValueOnce(sessionUser);
+
+            await service.resetPassword({
+                code: resetLink.code,
+                newPassword: 'new-password1!',
+            });
+
+            expect(userModel.upsertPassword).toHaveBeenCalledWith(
+                sessionUser.userUuid,
+                'new-password1!',
+            );
+            expect(passwordResetLinkModel.deleteByCode).toHaveBeenCalledWith(
+                resetLink.code,
+            );
         });
     });
 

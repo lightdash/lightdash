@@ -105,7 +105,7 @@ import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { SessionModel } from '../models/SessionModel';
 import { UserAvatarModel } from '../models/UserAvatarModel';
-import { UserModel } from '../models/UserModel';
+import { CreatePasswordlessUserArgs, UserModel } from '../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { wrapSentryTransaction } from '../utils';
@@ -1566,7 +1566,7 @@ export class UserService extends BaseService {
                 lastName: user.lastName,
                 password: user.password,
             });
-        } else {
+        } else if ('password' in user) {
             await this.checkNewUserRegistrationAllowed(undefined, user.email);
 
             lightdashUser = await this.registerUser({
@@ -1575,12 +1575,30 @@ export class UserService extends BaseService {
                 email: user.email,
                 password: user.password,
             });
+        } else {
+            const emailOnlySignupFlag = await this.featureFlagModel.get({
+                user: undefined,
+                featureFlagId: FeatureFlags.EmailOnlySignup,
+            });
+            if (!emailOnlySignupFlag.enabled) {
+                throw new ForbiddenError('Email-only signup is not enabled');
+            }
+
+            await this.checkNewUserRegistrationAllowed(undefined, user.email);
+
+            lightdashUser = await this.registerUser({
+                firstName: '',
+                lastName: '',
+                email: user.email,
+            });
         }
 
         return this.userModel.findSessionUserByUUID(lightdashUser.userUuid);
     }
 
-    private async registerUser(createUser: CreateUserArgs | OpenIdUser) {
+    private async registerUser(
+        createUser: CreateUserArgs | CreatePasswordlessUserArgs | OpenIdUser,
+    ) {
         if (isOpenIdUser(createUser)) {
             if (
                 (await this.isLoginMethodAllowed(
@@ -1603,6 +1621,18 @@ export class UserService extends BaseService {
             );
         }
 
+        let userConnectionType:
+            | 'password'
+            | 'email_only'
+            | OpenIdIdentityIssuerType;
+        if (isOpenIdUser(createUser)) {
+            userConnectionType = createUser.openId.issuerType;
+        } else if ('password' in createUser) {
+            userConnectionType = 'password';
+        } else {
+            userConnectionType = 'email_only';
+        }
+
         const user = await this.userModel.createUser(createUser);
         this.identifyUser({
             ...user,
@@ -1615,9 +1645,7 @@ export class UserService extends BaseService {
                 context: 'accept_invite',
                 createdUserId: user.userUuid,
                 organizationId: user.organizationUuid,
-                userConnectionType: isOpenIdUser(createUser)
-                    ? createUser.openId.issuerType
-                    : 'password',
+                userConnectionType,
             },
         });
         if (isOpenIdUser(createUser)) {

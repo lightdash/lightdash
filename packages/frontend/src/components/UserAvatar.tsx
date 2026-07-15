@@ -11,7 +11,8 @@ export const UserAvatar = forwardRef<
     const { user } = useApp();
     const theme = useMantineTheme();
     const initials = user.data
-        ? `${user.data.firstName[0]}${user.data.lastName[0]}`.trim()
+        ? `${user.data.firstName[0] ?? ''}${user.data.lastName[0] ?? ''}`.trim() ||
+          (user.data.email?.[0]?.toUpperCase() ?? '')
         : '';
 
     return (

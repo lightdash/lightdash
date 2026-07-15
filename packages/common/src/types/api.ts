@@ -418,13 +418,29 @@ export type ActivateUserWithInviteCode = ActivateUser & {
     inviteCode: string;
 };
 
+export type CreateEmailOnlyUserArgs = {
+    email: Email;
+};
+
 export type RegisterOrActivateUser =
     | ActivateUserWithInviteCode
-    | CreateUserArgs;
+    | CreateUserArgs
+    | CreateEmailOnlyUserArgs;
 
 export const hasInviteCode = (
     data: RegisterOrActivateUser,
-): data is ActivateUserWithInviteCode => 'inviteCode' in data;
+): data is ActivateUserWithInviteCode =>
+    'inviteCode' in data &&
+    typeof data.inviteCode === 'string' &&
+    data.inviteCode.length > 0;
+
+export const isEmailOnlyUser = (
+    data: RegisterOrActivateUser,
+): data is CreateEmailOnlyUserArgs =>
+    !('inviteCode' in data) &&
+    !('password' in data) &&
+    !('firstName' in data) &&
+    !('lastName' in data);
 
 export type SentryConfig = {
     backend: {
