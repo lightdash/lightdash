@@ -11,14 +11,12 @@ import {
     UserAsCodeInvitationStatus,
     UserAsCodeLifecycleStatus,
 } from '@lightdash/common';
-import { createHash } from 'crypto';
 import { Dirent, promises as fs } from 'fs';
 import * as yaml from 'js-yaml';
 import groupBy from 'lodash/groupBy';
 import * as path from 'path';
 import { lightdashApi } from '../dbt/apiClient';
-
-const USER_FILENAME_MAX_LENGTH = 200;
+import { getOrganizationContentFileNames } from './fileNames';
 
 export type UserUploadFailure = {
     message: string;
@@ -96,21 +94,6 @@ const asUserAsCode = (user: unknown): UserAsCode | undefined => {
         return undefined;
     }
     return user as UserAsCode;
-};
-
-const getUserFilenameBase = (email: string): string => {
-    const normalizedEmail = email.toLowerCase();
-    const slug = normalizedEmail
-        .normalize('NFKD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '');
-    const emailHash = createHash('sha256')
-        .update(normalizedEmail)
-        .digest('hex')
-        .slice(0, 8);
-
-    return (slug || `user-${emailHash}`).slice(0, USER_FILENAME_MAX_LENGTH);
 };
 
 const readUserFileResults = async (
@@ -360,34 +343,15 @@ export const downloadUsers = async (
     const sortedUsers = [...users].sort((left, right) =>
         left.email.localeCompare(right.email),
     );
-    const filenameBases = sortedUsers.map(({ email }) =>
-        getUserFilenameBase(email),
-    );
-    const baseCounts = filenameBases.reduce<Record<string, number>>(
-        (counts, filenameBase) => ({
-            ...counts,
-            [filenameBase]: (counts[filenameBase] ?? 0) + 1,
-        }),
-        {},
-    );
+    const filenames = getOrganizationContentFileNames({
+        values: sortedUsers.map(({ email }) => email.toLowerCase()),
+        fallbackPrefix: 'user',
+    });
 
     await Promise.all(
         sortedUsers.map(async (user, index) => {
-            const filenameBase = filenameBases[index];
-            const collisionSuffix = `-${createHash('sha256')
-                .update(user.email.toLowerCase())
-                .digest('hex')
-                .slice(0, 8)}`;
-            const uniqueFilenameBase =
-                baseCounts[filenameBase] > 1
-                    ? `${filenameBase.slice(
-                          0,
-                          USER_FILENAME_MAX_LENGTH - collisionSuffix.length,
-                      )}${collisionSuffix}`
-                    : filenameBase;
-
             await fs.writeFile(
-                path.join(folder, `${uniqueFilenameBase}.yml`),
+                path.join(folder, filenames[index]),
                 yaml.dump(user, { quotingType: '"', sortKeys: true }),
             );
         }),

@@ -7,14 +7,12 @@ import {
     ParameterError,
     PromotionAction,
 } from '@lightdash/common';
-import { createHash } from 'crypto';
 import { Dirent, promises as fs } from 'fs';
 import * as yaml from 'js-yaml';
 import groupBy from 'lodash/groupBy';
 import * as path from 'path';
 import { lightdashApi } from '../dbt/apiClient';
-
-const CUSTOM_ROLE_FILENAME_MAX_LENGTH = 200;
+import { getOrganizationContentFileNames } from './fileNames';
 
 export type CustomRoleUploadFailure = {
     message: string;
@@ -57,24 +55,6 @@ const getCustomRoleName = (role: unknown): string | undefined => {
     return typeof (role as Record<string, unknown>).name === 'string'
         ? ((role as Record<string, unknown>).name as string)
         : undefined;
-};
-
-const getCustomRoleFilenameBase = (name: string): string => {
-    const slug = name
-        .normalize('NFKD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '');
-    const nameHash = createHash('sha256')
-        .update(name)
-        .digest('hex')
-        .slice(0, 8);
-
-    return (slug || `role-${nameHash}`).slice(
-        0,
-        CUSTOM_ROLE_FILENAME_MAX_LENGTH,
-    );
 };
 
 const readCustomRoleFileResults = async (
@@ -233,35 +213,15 @@ export const downloadCustomRoles = async (
             .map((entry) => fs.unlink(path.join(folder, entry.name))),
     );
 
-    const filenameBases = customRoles.map(({ name }) =>
-        getCustomRoleFilenameBase(name),
-    );
-    const baseCounts = filenameBases.reduce<Record<string, number>>(
-        (counts, filenameBase) => ({
-            ...counts,
-            [filenameBase]: (counts[filenameBase] ?? 0) + 1,
-        }),
-        {},
-    );
+    const filenames = getOrganizationContentFileNames({
+        values: customRoles.map(({ name }) => name),
+        fallbackPrefix: 'role',
+    });
 
     await Promise.all(
         customRoles.map(async (role: CustomRoleAsCode, index) => {
-            const filenameBase = filenameBases[index];
-            const collisionSuffix = `-${createHash('sha256')
-                .update(role.name)
-                .digest('hex')
-                .slice(0, 8)}`;
-            const uniqueFilenameBase =
-                baseCounts[filenameBase] > 1
-                    ? `${filenameBase.slice(
-                          0,
-                          CUSTOM_ROLE_FILENAME_MAX_LENGTH -
-                              collisionSuffix.length,
-                      )}${collisionSuffix}`
-                    : filenameBase;
-
             await fs.writeFile(
-                path.join(folder, `${uniqueFilenameBase}.yml`),
+                path.join(folder, filenames[index]),
                 yaml.dump(role, { quotingType: '"', sortKeys: true }),
             );
         }),

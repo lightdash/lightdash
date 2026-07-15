@@ -1,6 +1,7 @@
 import {
     AuthorizationError,
     getErrorMessage,
+    LightdashError,
     ParameterError,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/analytics';
@@ -13,6 +14,12 @@ import {
     formatCustomRoleUploadSummary,
     uploadCustomRoles,
 } from './customRoles';
+import {
+    countDependencySkippedGroups,
+    downloadGroups,
+    formatGroupUploadSummary,
+    uploadGroups,
+} from './groups';
 import { downloadUsers, formatUserUploadSummary, uploadUsers } from './users';
 
 type OrganizationContentOptions = {
@@ -22,6 +29,7 @@ type OrganizationContentOptions = {
 };
 
 const customRolePartialUploadErrors = new WeakSet<Error>();
+const groupPartialUploadErrors = new WeakSet<Error>();
 const userPartialUploadErrors = new WeakSet<Error>();
 
 const createCustomRolePartialUploadError = (message: string): Error => {
@@ -36,10 +44,22 @@ const createUserPartialUploadError = (message: string): Error => {
     return error;
 };
 
+const createGroupPartialUploadError = (message: string): Error => {
+    const error = new ParameterError(message);
+    groupPartialUploadErrors.add(error);
+    return error;
+};
+
 const isPartialUploadError = (error: unknown): boolean =>
     error instanceof Error &&
     (customRolePartialUploadErrors.has(error) ||
+        groupPartialUploadErrors.has(error) ||
         userPartialUploadErrors.has(error));
+
+const isGroupServiceDisabledError = (error: unknown): boolean =>
+    error instanceof LightdashError &&
+    error.statusCode === 403 &&
+    error.message === 'Group service is not enabled';
 
 export const getOrganizationContentFolder = (customPath?: string): string =>
     getDownloadFolder(customPath);
@@ -81,6 +101,24 @@ export const downloadOrganizationContent = async ({
         );
         spinner.succeed(`Downloaded ${usersTotal} users`);
 
+        spinner.start(`Downloading groups`);
+        let groupsTotal = 0;
+        try {
+            groupsTotal = await downloadGroups(
+                organizationUuid,
+                organizationContentPath,
+            );
+            spinner.succeed(`Downloaded ${groupsTotal} groups`);
+        } catch (error) {
+            if (!isGroupServiceDisabledError(error)) {
+                throw error;
+            }
+            spinner.stop();
+            GlobalState.debug(
+                '> Warning: groups were not downloaded because the group service is not enabled',
+            );
+        }
+
         GlobalState.log(
             styles.success(
                 `Downloaded organization content saved to ${organizationContentPath}`,
@@ -95,6 +133,7 @@ export const downloadOrganizationContent = async ({
                 scope: 'organization',
                 customRolesNum: customRolesTotal,
                 usersNum: usersTotal,
+                groupsNum: groupsTotal,
                 timeToCompleted: (Date.now() - start) / 1000,
             },
         });
@@ -150,6 +189,14 @@ export const uploadOrganizationContent = async ({
                 GlobalState.log(styles.error(message)),
             );
             spinner.stop();
+            const skippedGroups = await countDependencySkippedGroups(
+                organizationContentPath,
+            );
+            GlobalState.log(
+                styles.warning(
+                    `Skipped users and ${skippedGroups} groups because custom roles failed`,
+                ),
+            );
             throw createCustomRolePartialUploadError(
                 `Processed custom roles: ${summaryMessage}`,
             );
@@ -168,11 +215,36 @@ export const uploadOrganizationContent = async ({
                 GlobalState.log(styles.error(message)),
             );
             spinner.stop();
+            const skippedGroups = await countDependencySkippedGroups(
+                organizationContentPath,
+            );
+            GlobalState.log(
+                styles.warning(
+                    `Skipped ${skippedGroups} groups because users failed`,
+                ),
+            );
             throw createUserPartialUploadError(
                 `Processed users: ${userSummaryMessage}`,
             );
         }
         spinner.succeed(`Uploaded users: ${userSummaryMessage}`);
+
+        spinner.start(`Uploading groups`);
+        const groupSummary = await uploadGroups(
+            organizationUuid,
+            organizationContentPath,
+        );
+        const groupSummaryMessage = formatGroupUploadSummary(groupSummary);
+        if (groupSummary.failed > 0) {
+            groupSummary.failures.forEach(({ message }) =>
+                GlobalState.log(styles.error(message)),
+            );
+            spinner.stop();
+            throw createGroupPartialUploadError(
+                `Processed groups: ${groupSummaryMessage}`,
+            );
+        }
+        spinner.succeed(`Uploaded groups: ${groupSummaryMessage}`);
         GlobalState.log(
             styles.success(
                 `Uploaded organization content from ${organizationContentPath}`,
@@ -192,6 +264,9 @@ export const uploadOrganizationContent = async ({
                 usersUnchanged: userSummary.unchanged,
                 usersAwaitingAuthentication: userSummary.awaitingAuthentication,
                 usersInvited: userSummary.invited,
+                groupsCreated: groupSummary.created,
+                groupsUpdated: groupSummary.updated,
+                groupsUnchanged: groupSummary.unchanged,
                 timeToCompleted: (Date.now() - start) / 1000,
             },
         });
