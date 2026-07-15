@@ -55,13 +55,37 @@ export type HomepageAnnouncementsBlock = {
     config: { title: string; items: HomepageAnnouncementItem[] };
 };
 
+export type HomepageFavoritesBlock = {
+    id: string;
+    type: 'favorites';
+    config: { title: string };
+};
+
+export type HomepageRecentBlock = {
+    id: string;
+    type: 'recent';
+    config: { title: string };
+};
+
 export type HomepageBlock =
     | HomepageMarkdownBlock
     | HomepageHeroBlock
     | HomepageAiBlock
     | HomepageCollectionBlock
     | HomepageResourcesBlock
-    | HomepageAnnouncementsBlock;
+    | HomepageAnnouncementsBlock
+    | HomepageFavoritesBlock
+    | HomepageRecentBlock;
+
+export type HomepageRecentlyViewedItem = {
+    contentType: 'chart' | 'dashboard';
+    uuid: string;
+    viewedAt: Date;
+};
+
+export type ApiRecentlyViewedResponse = ApiSuccess<
+    HomepageRecentlyViewedItem[]
+>;
 
 export type HomepageRow = {
     id: string;

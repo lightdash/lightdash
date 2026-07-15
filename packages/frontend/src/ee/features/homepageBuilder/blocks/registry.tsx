@@ -1,10 +1,12 @@
 import { type HomepageBlock } from '@lightdash/common';
 import {
     IconBook,
+    IconClock,
     IconLayoutGrid,
     IconMarkdown,
     IconSparkles,
     IconSpeakerphone,
+    IconStar,
     IconTypography,
     type Icon,
 } from '@tabler/icons-react';
@@ -16,8 +18,10 @@ import {
     AnnouncementsBlockView,
 } from './AnnouncementsBlock';
 import { CollectionBlockBuild, CollectionBlockView } from './CollectionBlock';
+import { FavoritesBlockBuild, FavoritesBlockView } from './FavoritesBlock';
 import { HeroBlockBuild, HeroBlockView } from './HeroBlock';
 import { MarkdownBlockBuild, MarkdownBlockView } from './MarkdownBlock';
+import { RecentBlockBuild, RecentBlockView } from './RecentBlock';
 import { ResourcesBlockBuild, ResourcesBlockView } from './ResourcesBlock';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
 
@@ -102,6 +106,32 @@ export const blockLibrary: BlockDefinition[] = [
         }),
         View: AnnouncementsBlockView,
         Build: AnnouncementsBlockBuild,
+    },
+    {
+        type: 'favorites',
+        label: 'Favorites',
+        description: 'Each viewer’s starred content, only visible to them.',
+        icon: IconStar,
+        create: () => ({
+            id: uuidv4(),
+            type: 'favorites',
+            config: { title: 'My favorites' },
+        }),
+        View: FavoritesBlockView,
+        Build: FavoritesBlockBuild,
+    },
+    {
+        type: 'recent',
+        label: 'Recently viewed',
+        description: 'Each viewer’s recently opened charts and dashboards.',
+        icon: IconClock,
+        create: () => ({
+            id: uuidv4(),
+            type: 'recent',
+            config: { title: 'Recently viewed' },
+        }),
+        View: RecentBlockView,
+        Build: RecentBlockBuild,
     },
     {
         type: 'markdown',

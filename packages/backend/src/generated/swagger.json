@@ -1634,6 +1634,52 @@
                 "required": ["config", "type", "id"],
                 "type": "object"
             },
+            "HomepageFavoritesBlock": {
+                "properties": {
+                    "config": {
+                        "properties": {
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["title"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["favorites"],
+                        "nullable": false
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["config", "type", "id"],
+                "type": "object"
+            },
+            "HomepageRecentBlock": {
+                "properties": {
+                    "config": {
+                        "properties": {
+                            "title": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["title"],
+                        "type": "object"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["recent"],
+                        "nullable": false
+                    },
+                    "id": {
+                        "type": "string"
+                    }
+                },
+                "required": ["config", "type", "id"],
+                "type": "object"
+            },
             "HomepageBlock": {
                 "anyOf": [
                     {
@@ -1653,6 +1699,12 @@
                     },
                     {
                         "$ref": "#/components/schemas/HomepageAnnouncementsBlock"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HomepageFavoritesBlock"
+                    },
+                    {
+                        "$ref": "#/components/schemas/HomepageRecentBlock"
                     }
                 ]
             },
@@ -1797,6 +1849,43 @@
             },
             "ApiProjectHomepageOrNullResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_ProjectHomepage-or-null_"
+            },
+            "HomepageRecentlyViewedItem": {
+                "properties": {
+                    "viewedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    },
+                    "contentType": {
+                        "type": "string",
+                        "enum": ["chart", "dashboard"]
+                    }
+                },
+                "required": ["viewedAt", "uuid", "contentType"],
+                "type": "object"
+            },
+            "ApiSuccess_HomepageRecentlyViewedItem-Array_": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/HomepageRecentlyViewedItem"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiRecentlyViewedResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_HomepageRecentlyViewedItem-Array_"
             },
             "ApiSuccess_ProjectHomepage-Array_": {
                 "properties": {
@@ -49040,6 +49129,45 @@
                         "in": "query",
                         "name": "homepageUuid",
                         "required": false,
+                        "schema": {
+                            "$ref": "#/components/schemas/UUID"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/homepage/recently-viewed": {
+            "get": {
+                "operationId": "getHomepageRecentlyViewed",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiRecentlyViewedResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Homepage"],
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
                         "schema": {
                             "$ref": "#/components/schemas/UUID"
                         }

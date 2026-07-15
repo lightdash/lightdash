@@ -8,6 +8,7 @@ import {
     ParameterError,
     type CreateProjectHomepageRequest,
     type HomepageConfig,
+    type HomepageRecentlyViewedItem,
     type ProjectHomepage,
     type PublishedProjectHomepage,
     type SessionUser,
@@ -23,6 +24,7 @@ export type ProjectHomepageServiceArguments = {
         | 'getDefault'
         | 'getByUuid'
         | 'getPublishedDefault'
+        | 'getRecentlyViewed'
         | 'list'
         | 'create'
         | 'updateDraft'
@@ -126,6 +128,18 @@ export class ProjectHomepageService extends BaseService {
         const published =
             await this.projectHomepageModel.getPublishedDefault(projectUuid);
         return published ?? null;
+    }
+
+    async getRecentlyViewed(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<HomepageRecentlyViewedItem[]> {
+        await this.assertFlagEnabled(user);
+        this.assertCanView(user, projectUuid);
+        return this.projectHomepageModel.getRecentlyViewed(
+            projectUuid,
+            user.userUuid,
+        );
     }
 
     async getHomepageForBuilder(
