@@ -2372,6 +2372,13 @@ describe('scopeAbilityBuilder', () => {
             expect(ability.can('manage', contentAsCodeSubject)).toBe(true);
         });
 
+        it('create:ContentAsCode allows upload but not manage', () => {
+            const ability = buildAbility(['create:ContentAsCode']);
+
+            expect(ability.can('create', contentAsCodeSubject)).toBe(true);
+            expect(ability.can('manage', contentAsCodeSubject)).toBe(false);
+        });
+
         it('manage:ContentAsCode@self allows upload only to own previews from the granted project', () => {
             const ability = buildAbility(['manage:ContentAsCode@self']);
 

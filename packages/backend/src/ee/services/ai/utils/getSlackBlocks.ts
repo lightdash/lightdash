@@ -1013,6 +1013,88 @@ export function getModernPullRequestCardBlocks(
     return cards;
 }
 
+// Slack caps option text and option-group labels at 75 characters.
+const truncateSlackText = (text: string | null, maxLength: number): string => {
+    if (!text) return '';
+    if (text.length <= maxLength) return text;
+    return `${text.substring(0, maxLength - 3)}...`;
+};
+
+type AgentSelectOption = Pick<AiAgent, 'uuid' | 'name' | 'projectUuid'>;
+
+const buildAgentOptions = (
+    agents: AgentSelectOption[],
+    buildValue: (agent: AgentSelectOption) => string,
+) =>
+    agents.map((agent) => ({
+        text: {
+            type: 'plain_text' as const,
+            text: truncateSlackText(agent.name, 75),
+        },
+        value: buildValue(agent),
+    }));
+
+const buildAgentOptionGroups = (
+    agents: AgentSelectOption[],
+    projectMap: Map<string, string>,
+    buildValue: (agent: AgentSelectOption) => string,
+) => {
+    const agentsByProject = new Map<string, AgentSelectOption[]>();
+    for (const agent of agents) {
+        const group = agentsByProject.get(agent.projectUuid);
+        if (group) {
+            group.push(agent);
+        } else {
+            agentsByProject.set(agent.projectUuid, [agent]);
+        }
+    }
+
+    return Array.from(agentsByProject.entries())
+        .map(([projectUuid, projectAgents]) => ({
+            label: {
+                type: 'plain_text' as const,
+                text: truncateSlackText(
+                    projectMap.get(projectUuid) || projectUuid,
+                    75,
+                ),
+            },
+            options: buildAgentOptions(projectAgents, buildValue),
+        }))
+        .sort((a, b) => a.label.text.localeCompare(b.label.text));
+};
+
+const buildAgentSelectBlocks = (args: {
+    headerText: string;
+    blockId: string;
+    actionId: string;
+    element:
+        | { options: ReturnType<typeof buildAgentOptions> }
+        | { option_groups: ReturnType<typeof buildAgentOptionGroups> };
+}): (Block | KnownBlock)[] => [
+    {
+        type: 'section',
+        text: {
+            type: 'mrkdwn',
+            text: args.headerText,
+        },
+    },
+    {
+        type: 'actions',
+        block_id: args.blockId,
+        elements: [
+            {
+                type: 'static_select',
+                action_id: args.actionId,
+                placeholder: {
+                    type: 'plain_text',
+                    text: 'Choose an agent...',
+                },
+                ...args.element,
+            },
+        ],
+    },
+];
+
 export function getAgentSelectionBlocks(
     agents: AiAgent[],
     channelId: string,
@@ -1031,114 +1113,29 @@ export function getAgentSelectionBlocks(
         ];
     }
 
-    const truncateText = (text: string | null, maxLength: number): string => {
-        if (!text) return '';
-        if (text.length <= maxLength) return text;
-        return `${text.substring(0, maxLength - 3)}...`;
-    };
+    const buildValue = (agent: AgentSelectOption) =>
+        JSON.stringify({
+            agentUuid: agent.uuid,
+            channelId,
+            shouldSkipForwardingQuery,
+        });
 
-    // Group agents by project if projectMap is provided
-    const shouldGroupByProject = projectMap && projectMap.size > 0;
-
-    if (shouldGroupByProject) {
-        // Group agents by projectUuid
-        const agentsByProject = new Map<string, AiAgent[]>();
-        for (const agent of agents) {
-            const { projectUuid } = agent;
-            if (!agentsByProject.has(projectUuid)) {
-                agentsByProject.set(projectUuid, []);
-            }
-            agentsByProject.get(projectUuid)!.push(agent);
-        }
-
-        // Create option groups
-        const optionGroups = Array.from(agentsByProject.entries())
-            .map(([projectUuid, projectAgents]) => {
-                const projectName = projectMap.get(projectUuid) || projectUuid;
-                return {
-                    label: {
-                        type: 'plain_text' as const,
-                        // Slack has a 75 character limit for option group labels
-                        text: truncateText(projectName, 75),
-                    },
-                    options: projectAgents.map((agent) => ({
-                        text: {
-                            type: 'plain_text' as const,
-                            // Slack has a 75 character limit for option text
-                            text: truncateText(agent.name, 75),
-                        },
-                        value: JSON.stringify({
-                            agentUuid: agent.uuid,
-                            channelId,
-                            shouldSkipForwardingQuery,
-                        }),
-                    })),
-                };
-            })
-            .sort((a, b) => a.label.text.localeCompare(b.label.text)); // Sort groups alphabetically
-
-        return [
-            {
-                type: 'section',
-                text: {
-                    type: 'mrkdwn',
-                    text: ':robot_face: *Which AI agent would you like to chat with?*\n\nSelect an agent to get started.',
-                },
-            },
-            {
-                type: 'actions',
-                block_id: 'agent_selection',
-                elements: [
-                    {
-                        type: 'static_select',
-                        action_id: 'select_agent',
-                        placeholder: {
-                            type: 'plain_text',
-                            text: 'Choose an agent...',
-                        },
-                        option_groups: optionGroups,
-                    },
-                ],
-            },
-        ];
-    }
-
-    // Fallback to flat list if no projectMap provided
-    return [
-        {
-            type: 'section',
-            text: {
-                type: 'mrkdwn',
-                text: ':robot_face: *Which AI agent would you like to chat with?*\n\nSelect an agent to get started.',
-            },
-        },
-        {
-            type: 'actions',
-            block_id: 'agent_selection',
-            elements: [
-                {
-                    type: 'static_select',
-                    action_id: 'select_agent',
-                    placeholder: {
-                        type: 'plain_text',
-                        text: 'Choose an agent...',
-                    },
-                    options: agents.map((agent) => ({
-                        text: {
-                            type: 'plain_text',
-                            // Slack has a 75 character limit for option text
-                            text: truncateText(agent.name, 75),
-                        },
-                        value: JSON.stringify({
-                            agentUuid: agent.uuid,
-                            channelId,
-                            shouldSkipForwardingQuery,
-                        }),
-                    })),
-                },
-            ],
-        },
-    ];
+    return buildAgentSelectBlocks({
+        headerText:
+            ':robot_face: *Which AI agent would you like to chat with?*\n\nSelect an agent to get started.',
+        blockId: 'agent_selection',
+        actionId: 'select_agent',
+        element:
+            projectMap && projectMap.size > 0
+                ? {
+                      option_groups: buildAgentOptionGroups(
+                          agents,
+                          projectMap,
+                          buildValue,
+                      ),
+                  }
+                : { options: buildAgentOptions(agents, buildValue) },
+    });
 }
 
 // At or below this many projects we render quick-tap buttons; above it we fall
@@ -1149,11 +1146,6 @@ export function getProjectSelectionBlocks(
     projects: { projectUuid: string; name: string }[],
     channelId: string,
 ): (Block | KnownBlock)[] {
-    const truncateText = (text: string, maxLength: number): string => {
-        if (text.length <= maxLength) return text;
-        return `${text.substring(0, maxLength - 3)}...`;
-    };
-
     const promptBlock: Block | KnownBlock = {
         type: 'section',
         text: {
@@ -1170,7 +1162,7 @@ export function getProjectSelectionBlocks(
         JSON.stringify({
             p: project.projectUuid,
             c: channelId,
-            n: truncateText(project.name, 50),
+            n: truncateSlackText(project.name, 50),
         });
 
     // Few projects: one button each for a single tap.
@@ -1187,7 +1179,7 @@ export function getProjectSelectionBlocks(
                     // Slack caps button text at 75 characters.
                     text: {
                         type: 'plain_text',
-                        text: truncateText(project.name, 75),
+                        text: truncateSlackText(project.name, 75),
                     },
                     value: buildSelectionValue(project),
                 })),
@@ -1213,7 +1205,7 @@ export function getProjectSelectionBlocks(
                     options: projects.map((project) => ({
                         text: {
                             type: 'plain_text',
-                            text: truncateText(project.name, 75),
+                            text: truncateSlackText(project.name, 75),
                         },
                         value: buildSelectionValue(project),
                     })),
@@ -1221,6 +1213,33 @@ export function getProjectSelectionBlocks(
             ],
         },
     ];
+}
+
+// Slack caps static_select at 100 options.
+const CHANNEL_LINK_MAX_OPTIONS = 100;
+
+export function getChannelLinkAgentSelectionBlocks(
+    agents: AgentSelectOption[],
+    channelId: string,
+    projectMap: Map<string, string>,
+): (Block | KnownBlock)[] {
+    const limitedAgents = [...agents]
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .slice(0, CHANNEL_LINK_MAX_OPTIONS);
+
+    return buildAgentSelectBlocks({
+        headerText: `:link: *No agent is linked to this channel yet.*\n\nPick an agent to answer questions here — this links it to <#${channelId}> for everyone.`,
+        blockId: 'channel_agent_link',
+        actionId: 'link_channel_agent',
+        element: {
+            option_groups: buildAgentOptionGroups(
+                limitedAgents,
+                projectMap,
+                // Slack caps option values at 150 chars — keep names out of the value.
+                (agent) => JSON.stringify({ a: agent.uuid, c: channelId }),
+            ),
+        },
+    });
 }
 
 export function getAgentConfirmationBlocks(

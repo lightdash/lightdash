@@ -1455,6 +1455,9 @@ export class ServiceRepository
                     emailClient: this.clients.getEmailClient(),
                     adminNotificationService:
                         this.getAdminNotificationService(),
+                    inviteLinkModel: this.models.getInviteLinkModel(),
+                    organizationMemberProfileModel:
+                        this.models.getOrganizationMemberProfileModel(),
                 }),
         );
     }

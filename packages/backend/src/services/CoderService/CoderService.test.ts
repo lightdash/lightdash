@@ -12,6 +12,21 @@ import { CoderService } from './CoderService';
 
 describe('CoderService', () => {
     describe('transformChart', () => {
+        it('identifies the chart when its space is missing', () => {
+            expect(() =>
+                (
+                    CoderService as unknown as {
+                        transformChart: (...args: AnyType[]) => AnyType;
+                    }
+                ).transformChart(
+                    { slug: 'missing-chart', spaceUuid: 'space-uuid' },
+                    [],
+                    {},
+                    new Map(),
+                ),
+            ).toThrow('Space space-uuid not found');
+        });
+
         it('preserves per-value pivot series customizations for chart-as-code download', () => {
             const chartConfig = {
                 type: ChartType.CARTESIAN,
@@ -715,6 +730,22 @@ describe('CoderService', () => {
             ]);
             expect(result[0].uuid).toEqual(expect.any(String));
             expect(result[1].uuid).toEqual(expect.any(String));
+        });
+    });
+
+    describe('transformDashboard', () => {
+        it('identifies the dashboard when its space is missing', () => {
+            expect(() =>
+                (
+                    CoderService as unknown as {
+                        transformDashboard: (...args: AnyType[]) => AnyType;
+                    }
+                ).transformDashboard(
+                    { slug: 'missing-dashboard', spaceUuid: 'space-uuid' },
+                    [],
+                    new Map(),
+                ),
+            ).toThrow('Space space-uuid not found');
         });
     });
 });

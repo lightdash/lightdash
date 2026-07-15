@@ -86,9 +86,7 @@ const readCustomRoleFileResults = async (
         entries = await fs.readdir(folder, { withFileTypes: true });
     } catch (error) {
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-            throw new ParameterError(
-                `Custom roles folder not found at "${folder}". Run 'lightdash download --organization' first.`,
-            );
+            return { roleFiles: [], failures: [] };
         }
         throw error;
     }
@@ -96,12 +94,6 @@ const readCustomRoleFileResults = async (
     const files = entries
         .filter((entry) => entry.isFile() && entry.name.endsWith('.yml'))
         .sort((left, right) => left.name.localeCompare(right.name));
-    if (files.length === 0) {
-        throw new ParameterError(
-            `No custom role files found in "${folder}". Run 'lightdash download --organization' first.`,
-        );
-    }
-
     const results = await Promise.all(
         files.map(async (file): Promise<CustomRoleFileReadItem> => {
             const filePath = path.join(folder, file.name);
@@ -233,6 +225,13 @@ export const downloadCustomRoles = async (
     });
     const folder = getCustomRolesFolder(organizationContentPath);
     await fs.mkdir(folder, { recursive: true });
+
+    const existingFiles = await fs.readdir(folder, { withFileTypes: true });
+    await Promise.all(
+        existingFiles
+            .filter((entry) => entry.isFile() && entry.name.endsWith('.yml'))
+            .map((entry) => fs.unlink(path.join(folder, entry.name))),
+    );
 
     const filenameBases = customRoles.map(({ name }) =>
         getCustomRoleFilenameBase(name),

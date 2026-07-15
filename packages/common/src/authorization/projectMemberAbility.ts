@@ -235,9 +235,10 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
             userUuid: member.userUuid,
         });
-        // Editors can download content as code but not upload it. Upload
-        // stays gated behind `manage:ContentAsCode` (developer+).
         can('view', 'ContentAsCode', {
+            projectUuid: member.projectUuid,
+        });
+        can('create', 'ContentAsCode', {
             projectUuid: member.projectUuid,
         });
     },

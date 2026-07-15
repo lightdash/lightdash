@@ -23,6 +23,7 @@ import {
 } from '@mantine-8/core';
 import { useDisclosure, useId } from '@mantine-8/hooks';
 import {
+    IconAsterisk,
     IconGripVertical,
     IconLock,
     IconLockOpen,
@@ -42,7 +43,8 @@ import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashb
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import FilterConfiguration from '../FilterConfiguration';
-import { hasFilterValueSet } from '../FilterConfiguration/utils';
+import { useFilterBarPopovers } from '../FilterRequirements/useFilterBarPopovers';
+import { useFilterChipRequirementState } from '../FilterRequirements/useFilterChipRequirementState';
 import classes from './Filter.module.css';
 
 type Props = {
@@ -248,8 +250,12 @@ const Filter: FC<Props> = ({
         };
     }, [filterRule.values, isDateFilter]);
 
-    const hasUnsetRequiredFilter =
-        filterRule.required && !hasFilterValueSet(filterRule);
+    const {
+        showRequirementIcon,
+        isRequirementUnmet,
+        requirementTooltip,
+        showLegacyRequiredIndicator,
+    } = useFilterChipRequirementState(filterRule);
 
     const isReadOnlyLocked = isLocked && !isEditMode && !isTemporary;
 
@@ -265,6 +271,15 @@ const Filter: FC<Props> = ({
         },
         [onUpdate, handleClose],
     );
+
+    const filterBarPopovers = useFilterBarPopovers();
+    const handleEditRequirementRules = useMemo(() => {
+        if (!filterBarPopovers) return undefined;
+        return () => {
+            handleClose();
+            filterBarPopovers.openRulesPopover();
+        };
+    }, [filterBarPopovers, handleClose]);
 
     return (
         <>
@@ -286,13 +301,14 @@ const Filter: FC<Props> = ({
                 classNames={{ dropdown: dropdownClassName }}
             >
                 <Popover.Target>
+                    {/* Legacy required UX: "Required" indicator + outline */}
                     <Indicator
                         inline
                         classNames={{
                             indicator: classes.indicator,
                         }}
                         position="top-start"
-                        disabled={!hasUnsetRequiredFilter}
+                        disabled={!showLegacyRequiredIndicator}
                         label={
                             <Tooltip
                                 fz="xs"
@@ -320,7 +336,7 @@ const Filter: FC<Props> = ({
                                 pos="relative"
                                 size="xs"
                                 variant={
-                                    isTemporary || hasUnsetRequiredFilter
+                                    isTemporary || showLegacyRequiredIndicator
                                         ? 'outline'
                                         : 'default'
                                 }
@@ -329,7 +345,11 @@ const Filter: FC<Props> = ({
                                     root: triggerClassName,
                                 }}
                                 className={`${classes.button} ${
-                                    hasUnsetRequiredFilter
+                                    isRequirementUnmet
+                                        ? classes.requirementUnmet
+                                        : ''
+                                } ${
+                                    showLegacyRequiredIndicator
                                         ? classes.unsetRequiredFilter
                                         : ''
                                 } ${isOrphaned ? classes.inactiveFilter : ''}`}
@@ -339,12 +359,36 @@ const Filter: FC<Props> = ({
                                         : undefined
                                 }
                                 leftSection={
-                                    isDraggable && (
-                                        <MantineIcon
-                                            icon={IconGripVertical}
-                                            cursor="grab"
-                                            size="sm"
-                                        />
+                                    (isDraggable || showRequirementIcon) && (
+                                        <Group gap={2} wrap="nowrap">
+                                            {isDraggable && (
+                                                <MantineIcon
+                                                    icon={IconGripVertical}
+                                                    cursor="grab"
+                                                    size="sm"
+                                                />
+                                            )}
+                                            {showRequirementIcon && (
+                                                <Tooltip
+                                                    fz="xs"
+                                                    label={requirementTooltip}
+                                                    disabled={
+                                                        !isRequirementUnmet
+                                                    }
+                                                    withinPortal
+                                                >
+                                                    <MantineIcon
+                                                        icon={IconAsterisk}
+                                                        size="sm"
+                                                        color={
+                                                            isRequirementUnmet
+                                                                ? 'yellow.7'
+                                                                : 'ldGray.6'
+                                                        }
+                                                    />
+                                                </Tooltip>
+                                            )}
+                                        </Group>
                                     )
                                 }
                                 rightSection={
@@ -623,6 +667,7 @@ const Filter: FC<Props> = ({
                             }
                             defaultFilterRule={defaultFilterRule}
                             onSave={handleSaveChanges}
+                            onEditRequirementRules={handleEditRequirementRules}
                             popoverProps={{
                                 onOpen: openSubPopover,
                                 onClose: closeSubPopover,

@@ -1001,6 +1001,7 @@ export class UserModel {
     async createPendingUser(
         organizationUuid: string,
         createUser: CreateUserWithRole,
+        isActive: boolean = true,
     ): Promise<LightdashUser> {
         const [org] = await this.database(OrganizationTableName)
             .where('organization_uuid', organizationUuid)
@@ -1026,7 +1027,7 @@ export class UserModel {
         const user = await this.database.transaction(async (trx) => {
             const newUser = await this.createUserTransaction(trx, {
                 ...createUser,
-                isActive: true,
+                isActive,
             });
             await trx(OrganizationMembershipsTableName).insert({
                 organization_id: org.organization_id,
