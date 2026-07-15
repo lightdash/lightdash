@@ -280,6 +280,13 @@ export enum FeatureFlags {
     OrgAiProviderApiKeys = 'org-ai-provider-api-keys',
 
     /**
+     * Gate the dbt-less "connect to your warehouse" onboarding path and the
+     * Snowflake "connect via CLI (SSO)" auth method in project creation.
+     * Off by default; enable per-org for gradual rollout.
+     */
+    WarehouseConnectOnboarding = 'warehouse-connect-onboarding',
+
+    /**
      * Cloud-only: let an organization send report/notification emails from
      * their own verified domain (email whitelabelling) instead of the
      * Lightdash address. Gates both the setup UI and the admin API. Requires a

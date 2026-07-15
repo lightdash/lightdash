@@ -503,6 +503,8 @@ export enum SnowflakeAuthenticationType {
     PRIVATE_KEY = 'private_key',
     SSO = 'sso',
     EXTERNAL_BROWSER = 'external_browser',
+    /** CLI-only interactive browser sign-in; never persisted as a project credential */
+    OAUTH_AUTHORIZATION_CODE = 'oauth_authorization_code',
     NONE = 'none',
 }
 

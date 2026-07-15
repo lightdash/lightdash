@@ -314,6 +314,10 @@ import {
     type ApiWarehouseTableFields,
     type ApiWarehouseTablesCatalog,
 } from './warehouse';
+import {
+    type ApiWarehouseConnectCodeClaimResponse,
+    type ApiWarehouseConnectCodeResponse,
+} from './warehouseConnectCode';
 
 export type ApiGetDashboardPreAggregateAuditResponse = {
     status: 'ok';
@@ -1010,6 +1014,8 @@ export type ProjectSavedChartStatus = boolean;
 export type ApiFlashResults = Record<string, string[]>;
 
 type ApiResults =
+    | ApiWarehouseConnectCodeResponse['results']
+    | ApiWarehouseConnectCodeClaimResponse['results']
     | ApiQueryResults
     | ApiSqlQueryResults
     | ApiCompiledQueryResults
