@@ -144,9 +144,9 @@ export const HomepageBuilderPage: FC = () => {
     const openHomepage = (created: ProjectHomepage) =>
         setSearchParams({ homepage: created.homepageUuid });
 
-    return (
-        <Page withFixedContent withPaddedContent>
-            {isCreating || !homepage.data ? (
+    if (isCreating || !homepage.data) {
+        return (
+            <Page withFixedContent withPaddedContent>
                 <CreateHomepageForm
                     projectUuid={projectUuid}
                     homepages={homepages.data ?? []}
@@ -157,7 +157,13 @@ export const HomepageBuilderPage: FC = () => {
                             : null
                     }
                 />
-            ) : (
+            </Page>
+        );
+    }
+
+    return (
+        <Page>
+            {
                 <HomepageEditor
                     key={`${homepage.data.homepageUuid}-${editorEpoch}`}
                     homepage={homepage.data}
@@ -177,7 +183,7 @@ export const HomepageBuilderPage: FC = () => {
                         setEditorEpoch((epoch) => epoch + 1);
                     }}
                 />
-            )}
+            }
         </Page>
     );
 };
