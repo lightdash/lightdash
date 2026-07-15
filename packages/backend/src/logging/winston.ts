@@ -266,11 +266,28 @@ export const formatAuditMessage = (event: AuditLogEvent): string => {
     return `${actor} ${action} ${resource} ${status}${reason}`;
 };
 
+export type AuditLogPayload = Omit<AuditLogEvent, 'actor'> & {
+    actor: AuditActor | string;
+};
+
+// Serializes the audit `actor` to a JSON string when `auditActorAsString` is
+// enabled, so log indexers that map the field as text don't drop it on ingest.
+export const buildAuditLogPayload = (
+    event: AuditLogEvent,
+    auditActorAsString: boolean,
+): AuditLogPayload =>
+    auditActorAsString
+        ? { ...event, actor: JSON.stringify(event.actor) }
+        : event;
+
 export const logAuditEvent = (event: AuditLogEvent): void => {
     winstonLogger.log({
         level: 'audit',
         message: formatAuditMessage(event),
-        ...event,
+        ...buildAuditLogPayload(
+            event,
+            lightdashConfig.logging.auditActorAsString,
+        ),
     });
 };
 

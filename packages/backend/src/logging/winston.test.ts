@@ -1,5 +1,6 @@
 import { AuditLogEvent } from './auditLog';
 import {
+    buildAuditLogPayload,
     formatAuditAction,
     formatAuditActor,
     formatAuditMessage,
@@ -268,5 +269,48 @@ describe('formatAuditMessage', () => {
         ).toBe(
             'anonymous user viewed Dashboard -> dashboardUuid: dash-uuid, dashboardName: Sales Overview (allowed)',
         );
+    });
+});
+
+describe('buildAuditLogPayload', () => {
+    const event: AuditLogEvent = {
+        id: 'event-uuid',
+        timestamp: '2026-04-02T15:00:00.000Z',
+        actor: {
+            type: 'session',
+            uuid: 'user-uuid',
+            email: 'john@company.com',
+            firstName: 'John',
+            lastName: 'Doe',
+            organizationUuid: 'org-uuid',
+            organizationRole: 'admin',
+        },
+        action: 'update',
+        resource: {
+            type: 'Dashboard',
+            organizationUuid: 'org-uuid',
+            projectUuid: 'proj-uuid',
+        },
+        context: {},
+        status: 'allowed',
+    };
+
+    it('keeps actor as an object when auditActorAsString is disabled', () => {
+        const payload = buildAuditLogPayload(event, false);
+        expect(typeof payload.actor).toBe('object');
+        expect(payload.actor).toEqual(event.actor);
+    });
+
+    it('serializes actor to a JSON string when auditActorAsString is enabled', () => {
+        const payload = buildAuditLogPayload(event, true);
+        expect(typeof payload.actor).toBe('string');
+        expect(payload.actor).toBe(JSON.stringify(event.actor));
+    });
+
+    it('leaves all other event fields unchanged when stringifying', () => {
+        expect(buildAuditLogPayload(event, true)).toEqual({
+            ...event,
+            actor: JSON.stringify(event.actor),
+        });
     });
 });
