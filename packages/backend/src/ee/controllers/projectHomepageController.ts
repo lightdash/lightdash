@@ -1,6 +1,7 @@
 import {
     assertRegisteredAccount,
     type ApiErrorPayload,
+    type ApiHomepageAssignmentsResponse,
     type ApiProjectHomepageOrNullResponse,
     type ApiProjectHomepageResponse,
     type ApiProjectHomepagesResponse,
@@ -8,6 +9,8 @@ import {
     type ApiRecentlyViewedResponse,
     type ApiSuccessEmpty,
     type CreateProjectHomepageRequest,
+    type PublishProjectHomepageRequest,
+    type UpdateHomepageGroupPrioritiesRequest,
     type UpdateProjectHomepageDraftRequest,
     type UUID,
 } from '@lightdash/common';
@@ -102,6 +105,51 @@ export class ProjectHomepageController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
             ),
+        };
+    }
+
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/assignments')
+    @OperationId('getHomepageAssignments')
+    async getAssignments(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+    ): Promise<ApiHomepageAssignmentsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getHomepageService().getAssignments(
+                toSessionUser(req.account),
+                projectUuid,
+            ),
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('/group-priorities')
+    @OperationId('updateHomepageGroupPriorities')
+    async updateGroupPriorities(
+        @Request() req: express.Request,
+        @Path() projectUuid: UUID,
+        @Body() body: UpdateHomepageGroupPrioritiesRequest,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.getHomepageService().updateGroupPriorities(
+            toSessionUser(req.account),
+            projectUuid,
+            body.groupUuids,
+        );
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: undefined,
         };
     }
 
@@ -214,6 +262,7 @@ export class ProjectHomepageController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: UUID,
         @Path() homepageUuid: UUID,
+        @Body() body: PublishProjectHomepageRequest,
     ): Promise<ApiProjectHomepageResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -223,6 +272,7 @@ export class ProjectHomepageController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
                 homepageUuid,
+                body.audience,
             ),
         };
     }

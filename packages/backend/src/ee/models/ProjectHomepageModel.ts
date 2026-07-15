@@ -1,13 +1,17 @@
 import {
     ConflictError,
     NotFoundError,
+    type HomepageAssignment,
+    type HomepageAudience,
     type HomepageConfig,
     type HomepageRecentlyViewedItem,
     type ProjectHomepage,
+    type ProjectMemberRole,
     type PublishedProjectHomepage,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
 import {
+    HomepageAssignmentsTableName,
     HomepagesTableName,
     type DbProjectHomepage,
 } from '../database/entities/projectHomepages';
@@ -189,8 +193,11 @@ export class ProjectHomepageModel {
         }));
     }
 
-    // Publishing promotes the homepage to the project default viewers land on
-    async publish(homepageUuid: string): Promise<ProjectHomepage> {
+    // Publishing to "everyone" promotes the homepage to the project default
+    async publish(
+        homepageUuid: string,
+        audience: HomepageAudience,
+    ): Promise<ProjectHomepage> {
         return this.database.transaction(async (trx) => {
             const existing = await trx(HomepagesTableName)
                 .where({ homepage_uuid: homepageUuid })
@@ -198,22 +205,196 @@ export class ProjectHomepageModel {
             if (!existing) {
                 throw new NotFoundError('Homepage not found');
             }
-            await trx(HomepagesTableName)
-                .where({
-                    project_uuid: existing.project_uuid,
-                    is_default: true,
-                })
-                .whereNot({ homepage_uuid: homepageUuid })
-                .update({ is_default: false });
+            const makeDefault = audience.type === 'everyone';
+            if (makeDefault) {
+                await trx(HomepagesTableName)
+                    .where({
+                        project_uuid: existing.project_uuid,
+                        is_default: true,
+                    })
+                    .whereNot({ homepage_uuid: homepageUuid })
+                    .update({ is_default: false });
+            }
             const [row] = await trx(HomepagesTableName)
                 .where({ homepage_uuid: homepageUuid })
                 .update({
                     published_config: existing.draft_config,
-                    is_default: true,
+                    ...(makeDefault ? { is_default: true } : {}),
                     updated_at: new Date(),
                 })
                 .returning('*');
+
+            if (audience.type === 'groups') {
+                // Reassigning a group moves it off its previous homepage
+                await trx(HomepageAssignmentsTableName)
+                    .where({
+                        project_uuid: existing.project_uuid,
+                        target_type: 'group',
+                    })
+                    .where((builder) =>
+                        builder
+                            .whereIn('group_uuid', audience.groupUuids)
+                            .orWhere({ homepage_uuid: homepageUuid }),
+                    )
+                    .delete();
+                const maxPriorityRow = await trx(HomepageAssignmentsTableName)
+                    .where({
+                        project_uuid: existing.project_uuid,
+                        target_type: 'group',
+                    })
+                    .max<{ max: number | null }>('priority as max')
+                    .first();
+                const basePriority = (maxPriorityRow?.max ?? -1) + 1;
+                if (audience.groupUuids.length > 0) {
+                    await trx(HomepageAssignmentsTableName).insert(
+                        audience.groupUuids.map((groupUuid, index) => ({
+                            project_uuid: existing.project_uuid,
+                            homepage_uuid: homepageUuid,
+                            target_type: 'group' as const,
+                            group_uuid: groupUuid,
+                            role: null,
+                            priority: basePriority + index,
+                        })),
+                    );
+                }
+            } else if (audience.type === 'roles') {
+                await trx(HomepageAssignmentsTableName)
+                    .where({
+                        project_uuid: existing.project_uuid,
+                        target_type: 'role',
+                    })
+                    .where((builder) =>
+                        builder
+                            .whereIn('role', audience.roles)
+                            .orWhere({ homepage_uuid: homepageUuid }),
+                    )
+                    .delete();
+                if (audience.roles.length > 0) {
+                    await trx(HomepageAssignmentsTableName).insert(
+                        audience.roles.map((role) => ({
+                            project_uuid: existing.project_uuid,
+                            homepage_uuid: homepageUuid,
+                            target_type: 'role' as const,
+                            group_uuid: null,
+                            role,
+                            priority: 0,
+                        })),
+                    );
+                }
+            }
             return ProjectHomepageModel.mapDbHomepage(row);
         });
+    }
+
+    async getAssignments(projectUuid: string): Promise<HomepageAssignment[]> {
+        const rows = await this.database(HomepageAssignmentsTableName)
+            .leftJoin(
+                HomepagesTableName,
+                `${HomepagesTableName}.homepage_uuid`,
+                `${HomepageAssignmentsTableName}.homepage_uuid`,
+            )
+            .leftJoin(
+                'groups',
+                'groups.group_uuid',
+                `${HomepageAssignmentsTableName}.group_uuid`,
+            )
+            .where(`${HomepageAssignmentsTableName}.project_uuid`, projectUuid)
+            .orderBy(`${HomepageAssignmentsTableName}.priority`, 'asc')
+            .select(
+                `${HomepageAssignmentsTableName}.assignment_uuid`,
+                `${HomepageAssignmentsTableName}.homepage_uuid`,
+                `${HomepagesTableName}.name as homepage_name`,
+                `${HomepageAssignmentsTableName}.target_type`,
+                `${HomepageAssignmentsTableName}.group_uuid`,
+                'groups.name as group_name',
+                `${HomepageAssignmentsTableName}.role`,
+                `${HomepageAssignmentsTableName}.priority`,
+            );
+        return rows.map((row) => ({
+            assignmentUuid: row.assignment_uuid,
+            homepageUuid: row.homepage_uuid,
+            homepageName: row.homepage_name,
+            targetType: row.target_type,
+            groupUuid: row.group_uuid,
+            groupName: row.group_name ?? null,
+            role: row.role,
+            priority: row.priority,
+        }));
+    }
+
+    async updateGroupPriorities(
+        projectUuid: string,
+        groupUuids: string[],
+    ): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            await Promise.all(
+                groupUuids.map((groupUuid, index) =>
+                    trx(HomepageAssignmentsTableName)
+                        .where({
+                            project_uuid: projectUuid,
+                            target_type: 'group',
+                            group_uuid: groupUuid,
+                        })
+                        .update({ priority: index }),
+                ),
+            );
+        });
+    }
+
+    // Resolution: group (by admin-ranked priority) → role → project default
+    async resolvePublished(
+        projectUuid: string,
+        viewer: { groupUuids: string[]; role: ProjectMemberRole | undefined },
+    ): Promise<PublishedProjectHomepage | undefined> {
+        const publishedAssigned = async (
+            builderFilter: (builder: Knex.QueryBuilder) => void,
+        ) => {
+            const query = this.database(HomepageAssignmentsTableName)
+                .join(
+                    HomepagesTableName,
+                    `${HomepagesTableName}.homepage_uuid`,
+                    `${HomepageAssignmentsTableName}.homepage_uuid`,
+                )
+                .where(
+                    `${HomepageAssignmentsTableName}.project_uuid`,
+                    projectUuid,
+                )
+                .whereNotNull(`${HomepagesTableName}.published_config`)
+                .orderBy(`${HomepageAssignmentsTableName}.priority`, 'asc')
+                .select(`${HomepagesTableName}.*`)
+                .first();
+            builderFilter(query);
+            return query;
+        };
+
+        if (viewer.groupUuids.length > 0) {
+            const byGroup = await publishedAssigned((builder) => {
+                void builder
+                    .where('target_type', 'group')
+                    .whereIn('group_uuid', viewer.groupUuids);
+            });
+            if (byGroup && byGroup.published_config) {
+                return {
+                    homepageUuid: byGroup.homepage_uuid,
+                    name: byGroup.name,
+                    config: byGroup.published_config,
+                };
+            }
+        }
+        if (viewer.role) {
+            const byRole = await publishedAssigned((builder) => {
+                void builder
+                    .where('target_type', 'role')
+                    .where('role', viewer.role);
+            });
+            if (byRole && byRole.published_config) {
+                return {
+                    homepageUuid: byRole.homepage_uuid,
+                    name: byRole.name,
+                    config: byRole.published_config,
+                };
+            }
+        }
+        return this.getPublishedDefault(projectUuid);
     }
 }

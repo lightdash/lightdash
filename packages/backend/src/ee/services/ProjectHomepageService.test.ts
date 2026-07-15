@@ -100,11 +100,15 @@ const makeViewerUser = (): SessionUser => ({
 const makeService = ({
     flagEnabled = true,
     projectHomepageModel = {},
+    groupsModel = {},
+    projectModel = {},
 }: {
     flagEnabled?: boolean;
     projectHomepageModel?: Partial<
         ProjectHomepageServiceArguments['projectHomepageModel']
     >;
+    groupsModel?: Partial<ProjectHomepageServiceArguments['groupsModel']>;
+    projectModel?: Partial<ProjectHomepageServiceArguments['projectModel']>;
 } = {}) =>
     new ProjectHomepageService({
         featureFlagService: {
@@ -118,12 +122,23 @@ const makeService = ({
             getByUuid: vi.fn().mockResolvedValue(makeHomepage()),
             getPublishedDefault: vi.fn().mockResolvedValue(undefined),
             getRecentlyViewed: vi.fn().mockResolvedValue([]),
+            getAssignments: vi.fn().mockResolvedValue([]),
+            updateGroupPriorities: vi.fn().mockResolvedValue(undefined),
+            resolvePublished: vi.fn().mockResolvedValue(undefined),
             list: vi.fn().mockResolvedValue([]),
             create: vi.fn().mockResolvedValue(makeHomepage()),
             updateDraft: vi.fn().mockResolvedValue(makeHomepage()),
             publish: vi.fn().mockResolvedValue(makeHomepage()),
             delete: vi.fn().mockResolvedValue(undefined),
             ...projectHomepageModel,
+        },
+        groupsModel: {
+            findUserGroups: vi.fn().mockResolvedValue([]),
+            ...groupsModel,
+        },
+        projectModel: {
+            getProjectMemberAccess: vi.fn().mockResolvedValue(undefined),
+            ...projectModel,
         },
     });
 
@@ -262,9 +277,49 @@ describe('ProjectHomepageService', () => {
             makeAdminUser(),
             PROJECT_UUID,
             HOMEPAGE_UUID,
+            { type: 'everyone' },
         );
 
-        expect(publish).toHaveBeenCalledWith(HOMEPAGE_UUID);
+        expect(publish).toHaveBeenCalledWith(HOMEPAGE_UUID, {
+            type: 'everyone',
+        });
         expect(result.publishedConfig).toEqual(validConfig);
+    });
+
+    it('getPublishedHomepage resolves with the viewer’s groups and role', async () => {
+        const resolvePublished = vi.fn().mockResolvedValue({
+            homepageUuid: HOMEPAGE_UUID,
+            name: 'Sales homepage',
+            config: validConfig,
+        });
+        const service = makeService({
+            projectHomepageModel: { resolvePublished },
+            groupsModel: {
+                findUserGroups: vi
+                    .fn()
+                    .mockResolvedValue([{ uuid: 'group-1', name: 'Sales' }]),
+            },
+            projectModel: {
+                getProjectMemberAccess: vi.fn().mockResolvedValue({
+                    userUuid: USER_UUID,
+                    projectUuid: PROJECT_UUID,
+                    role: 'editor',
+                    email: 'x@y.z',
+                    firstName: 'A',
+                    lastName: 'B',
+                }),
+            },
+        });
+
+        const result = await service.getPublishedHomepage(
+            makeViewerUser(),
+            PROJECT_UUID,
+        );
+
+        expect(resolvePublished).toHaveBeenCalledWith(PROJECT_UUID, {
+            groupUuids: ['group-1'],
+            role: 'editor',
+        });
+        expect(result?.name).toBe('Sales homepage');
     });
 });
