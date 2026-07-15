@@ -180,14 +180,14 @@ describe('MCP tool contracts', () => {
 
         mockRegisteredMcpTools.length = 0;
         await mcpService.createServer({ runSqlEnabled: true });
-        expect(
-            mockRegisteredMcpTools.map(({ name }) => name),
-        ).toContain(McpToolName.RUN_SQL);
+        expect(mockRegisteredMcpTools.map(({ name }) => name)).toContain(
+            McpToolName.RUN_SQL,
+        );
 
         mockRegisteredMcpTools.length = 0;
         await mcpService.createServer({ runSqlEnabled: false });
-        expect(
-            mockRegisteredMcpTools.map(({ name }) => name),
-        ).not.toContain(McpToolName.RUN_SQL);
+        expect(mockRegisteredMcpTools.map(({ name }) => name)).not.toContain(
+            McpToolName.RUN_SQL,
+        );
     });
 });

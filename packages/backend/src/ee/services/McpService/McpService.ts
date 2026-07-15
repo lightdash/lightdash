@@ -2611,7 +2611,8 @@ export class McpService extends BaseService {
                         500,
                         this.lightdashConfig.mcp.runSqlMaxLimit,
                     ),
-                    inputSchema: createMcpCompatibleInputShape(runSqlArgsSchema),
+                    inputSchema:
+                        createMcpCompatibleInputShape(runSqlArgsSchema),
                     outputSchema: mcpRunSqlTool.outputSchema,
                     annotations: mcpRunSqlTool.annotations,
                 },
@@ -2648,7 +2649,9 @@ export class McpService extends BaseService {
                         if (
                             McpService.isQueryRunningStatus(queryHistory.status)
                         ) {
-                            return McpService.getRunningQueryResponse(queryUuid);
+                            return McpService.getRunningQueryResponse(
+                                queryUuid,
+                            );
                         }
 
                         if (queryHistory.status !== QueryHistoryStatus.READY) {
