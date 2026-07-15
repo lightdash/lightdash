@@ -373,6 +373,9 @@ const applyServiceAccountStaticAbilities: Record<
         can('manage', 'PinnedItems', {
             organizationUuid,
         });
+        can('manage', 'ProjectHomepage', {
+            organizationUuid,
+        });
         can('manage', 'Group', {
             organizationUuid,
         });

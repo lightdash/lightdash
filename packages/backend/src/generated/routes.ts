@@ -175,6 +175,8 @@ import { OrganizationWarehouseCredentialsController } from './../ee/controllers/
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { PreAggregateController } from './../ee/controllers/PreAggregateController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+import { ProjectHomepageController } from './../ee/controllers/projectHomepageController';
+// WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { SchedulerAiAugmentationController } from './../ee/controllers/schedulerAiAugmentationController';
 // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
 import { ScimGroupController } from './../ee/controllers/scimGroupController';
@@ -1429,6 +1431,197 @@ const models: TsoaRoute.Models = {
                     value: '[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-4[0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}',
                 },
             },
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HomepageMarkdownBlock: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                config: {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        content: { dataType: 'string', required: true },
+                    },
+                    required: true,
+                },
+                type: { dataType: 'enum', enums: ['markdown'], required: true },
+                id: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HomepageBlock: {
+        dataType: 'refAlias',
+        type: { ref: 'HomepageMarkdownBlock', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HomepageRow: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                blocks: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'HomepageBlock' },
+                    required: true,
+                },
+                id: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    HomepageConfig: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                rows: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'HomepageRow' },
+                    required: true,
+                },
+                version: { dataType: 'enum', enums: [1], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PublishedProjectHomepage: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                config: { ref: 'HomepageConfig', required: true },
+                name: { dataType: 'string', required: true },
+                homepageUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiSuccess_PublishedProjectHomepage-or-null_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'PublishedProjectHomepage' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiPublishedHomepageResponse: {
+        dataType: 'refAlias',
+        type: {
+            ref: 'ApiSuccess_PublishedProjectHomepage-or-null_',
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ProjectHomepage: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                updatedAt: { dataType: 'datetime', required: true },
+                createdAt: { dataType: 'datetime', required: true },
+                createdByUserUuid: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'string' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                isDefault: { dataType: 'boolean', required: true },
+                publishedConfig: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'HomepageConfig' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                draftConfig: { ref: 'HomepageConfig', required: true },
+                name: { dataType: 'string', required: true },
+                projectUuid: { dataType: 'string', required: true },
+                homepageUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    'ApiSuccess_ProjectHomepage-or-null_': {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'ProjectHomepage' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiProjectHomepageOrNullResponse: {
+        dataType: 'refAlias',
+        type: { ref: 'ApiSuccess_ProjectHomepage-or-null_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiSuccess_ProjectHomepage_: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                results: { ref: 'ProjectHomepage', required: true },
+                status: { dataType: 'enum', enums: ['ok'], required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    ApiProjectHomepageResponse: {
+        dataType: 'refAlias',
+        type: { ref: 'ApiSuccess_ProjectHomepage_', validators: {} },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CreateProjectHomepageRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: { name: { dataType: 'string', required: true } },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    UpdateProjectHomepageDraftRequest: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                draftConfig: { ref: 'HomepageConfig', required: true },
+                name: { dataType: 'string' },
+            },
+            validators: {},
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -15506,17 +15699,17 @@ const models: TsoaRoute.Models = {
                                                                                                             'string',
                                                                                                         required: true,
                                                                                                     },
+                                                                                                label: {
+                                                                                                    dataType:
+                                                                                                        'string',
+                                                                                                    required: true,
+                                                                                                },
                                                                                                 tableName:
                                                                                                     {
                                                                                                         dataType:
                                                                                                             'string',
                                                                                                         required: true,
                                                                                                     },
-                                                                                                label: {
-                                                                                                    dataType:
-                                                                                                        'string',
-                                                                                                    required: true,
-                                                                                                },
                                                                                                 name: {
                                                                                                     dataType:
                                                                                                         'string',
@@ -15545,29 +15738,6 @@ const models: TsoaRoute.Models = {
                                                                                             'nestedObjectLiteral',
                                                                                         nestedProperties:
                                                                                             {
-                                                                                                searchRank:
-                                                                                                    {
-                                                                                                        dataType:
-                                                                                                            'union',
-                                                                                                        subSchemas:
-                                                                                                            [
-                                                                                                                {
-                                                                                                                    dataType:
-                                                                                                                        'double',
-                                                                                                                },
-                                                                                                                {
-                                                                                                                    dataType:
-                                                                                                                        'enum',
-                                                                                                                    enums: [
-                                                                                                                        null,
-                                                                                                                    ],
-                                                                                                                },
-                                                                                                                {
-                                                                                                                    dataType:
-                                                                                                                        'undefined',
-                                                                                                                },
-                                                                                                            ],
-                                                                                                    },
                                                                                                 requiredFilters:
                                                                                                     {
                                                                                                         dataType:
@@ -15606,6 +15776,18 @@ const models: TsoaRoute.Models = {
                                                                                                                                             },
                                                                                                                                         ],
                                                                                                                                 },
+                                                                                                                                required:
+                                                                                                                                    {
+                                                                                                                                        dataType:
+                                                                                                                                            'boolean',
+                                                                                                                                        required: true,
+                                                                                                                                    },
+                                                                                                                                tableName:
+                                                                                                                                    {
+                                                                                                                                        dataType:
+                                                                                                                                            'string',
+                                                                                                                                        required: true,
+                                                                                                                                    },
                                                                                                                                 fieldRef:
                                                                                                                                     {
                                                                                                                                         dataType:
@@ -15618,26 +15800,37 @@ const models: TsoaRoute.Models = {
                                                                                                                                             'string',
                                                                                                                                         required: true,
                                                                                                                                     },
-                                                                                                                                tableName:
-                                                                                                                                    {
-                                                                                                                                        dataType:
-                                                                                                                                            'string',
-                                                                                                                                        required: true,
-                                                                                                                                    },
                                                                                                                                 operator:
                                                                                                                                     {
                                                                                                                                         dataType:
                                                                                                                                             'string',
                                                                                                                                         required: true,
                                                                                                                                     },
-                                                                                                                                required:
-                                                                                                                                    {
-                                                                                                                                        dataType:
-                                                                                                                                            'boolean',
-                                                                                                                                        required: true,
-                                                                                                                                    },
                                                                                                                             },
                                                                                                                     },
+                                                                                                                },
+                                                                                                                {
+                                                                                                                    dataType:
+                                                                                                                        'undefined',
+                                                                                                                },
+                                                                                                            ],
+                                                                                                    },
+                                                                                                searchRank:
+                                                                                                    {
+                                                                                                        dataType:
+                                                                                                            'union',
+                                                                                                        subSchemas:
+                                                                                                            [
+                                                                                                                {
+                                                                                                                    dataType:
+                                                                                                                        'double',
+                                                                                                                },
+                                                                                                                {
+                                                                                                                    dataType:
+                                                                                                                        'enum',
+                                                                                                                    enums: [
+                                                                                                                        null,
+                                                                                                                    ],
                                                                                                                 },
                                                                                                                 {
                                                                                                                     dataType:
@@ -15738,6 +15931,21 @@ const models: TsoaRoute.Models = {
                                                                             'nestedObjectLiteral',
                                                                         nestedProperties:
                                                                             {
+                                                                                error: {
+                                                                                    dataType:
+                                                                                        'union',
+                                                                                    subSchemas:
+                                                                                        [
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'string',
+                                                                                            },
+                                                                                            {
+                                                                                                dataType:
+                                                                                                    'undefined',
+                                                                                            },
+                                                                                        ],
+                                                                                },
                                                                                 pagination:
                                                                                     {
                                                                                         dataType:
@@ -15798,21 +16006,6 @@ const models: TsoaRoute.Models = {
                                                                                                 enums: [
                                                                                                     'success',
                                                                                                 ],
-                                                                                            },
-                                                                                            {
-                                                                                                dataType:
-                                                                                                    'undefined',
-                                                                                            },
-                                                                                        ],
-                                                                                },
-                                                                                error: {
-                                                                                    dataType:
-                                                                                        'union',
-                                                                                    subSchemas:
-                                                                                        [
-                                                                                            {
-                                                                                                dataType:
-                                                                                                    'string',
                                                                                             },
                                                                                             {
                                                                                                 dataType:
@@ -15904,17 +16097,17 @@ const models: TsoaRoute.Models = {
                                                                                                                 'string',
                                                                                                             required: true,
                                                                                                         },
+                                                                                                    label: {
+                                                                                                        dataType:
+                                                                                                            'string',
+                                                                                                        required: true,
+                                                                                                    },
                                                                                                     tableName:
                                                                                                         {
                                                                                                             dataType:
                                                                                                                 'string',
                                                                                                             required: true,
                                                                                                         },
-                                                                                                    label: {
-                                                                                                        dataType:
-                                                                                                            'string',
-                                                                                                        required: true,
-                                                                                                    },
                                                                                                     name: {
                                                                                                         dataType:
                                                                                                             'string',
@@ -16002,13 +16195,13 @@ const models: TsoaRoute.Models = {
                                                     dataType: 'double',
                                                     required: true,
                                                 },
+                                                name: {
+                                                    dataType: 'string',
+                                                    required: true,
+                                                },
                                                 status: {
                                                     dataType: 'enum',
                                                     enums: ['success'],
-                                                    required: true,
-                                                },
-                                                name: {
-                                                    dataType: 'string',
                                                     required: true,
                                                 },
                                             },
@@ -16035,13 +16228,13 @@ const models: TsoaRoute.Models = {
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
-                                                        },
-                                                        {
-                                                            dataType: 'enum',
                                                             enums: [
                                                                 'not_found',
                                                             ],
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: ['success'],
                                                         },
                                                     ],
                                                     required: true,
@@ -16074,6 +16267,25 @@ const models: TsoaRoute.Models = {
                                                             dataType:
                                                                 'nestedObjectLiteral',
                                                             nestedProperties: {
+                                                                rationale: {
+                                                                    dataType:
+                                                                        'union',
+                                                                    subSchemas:
+                                                                        [
+                                                                            {
+                                                                                dataType:
+                                                                                    'string',
+                                                                            },
+                                                                            {
+                                                                                dataType:
+                                                                                    'enum',
+                                                                                enums: [
+                                                                                    null,
+                                                                                ],
+                                                                            },
+                                                                        ],
+                                                                    required: true,
+                                                                },
                                                                 fields: {
                                                                     dataType:
                                                                         'array',
@@ -16118,16 +16330,39 @@ const models: TsoaRoute.Models = {
                                                                                             ],
                                                                                         required: true,
                                                                                     },
+                                                                                fieldFilterType:
+                                                                                    {
+                                                                                        dataType:
+                                                                                            'string',
+                                                                                        required: true,
+                                                                                    },
                                                                                 fieldValueType:
                                                                                     {
                                                                                         dataType:
                                                                                             'string',
                                                                                         required: true,
                                                                                     },
-                                                                                fieldFilterType:
+                                                                                fieldType:
                                                                                     {
                                                                                         dataType:
-                                                                                            'string',
+                                                                                            'union',
+                                                                                        subSchemas:
+                                                                                            [
+                                                                                                {
+                                                                                                    dataType:
+                                                                                                        'enum',
+                                                                                                    enums: [
+                                                                                                        'dimension',
+                                                                                                    ],
+                                                                                                },
+                                                                                                {
+                                                                                                    dataType:
+                                                                                                        'enum',
+                                                                                                    enums: [
+                                                                                                        'metric',
+                                                                                                    ],
+                                                                                                },
+                                                                                            ],
                                                                                         required: true,
                                                                                     },
                                                                                 description:
@@ -16150,30 +16385,7 @@ const models: TsoaRoute.Models = {
                                                                                             ],
                                                                                         required: true,
                                                                                     },
-                                                                                fieldType:
-                                                                                    {
-                                                                                        dataType:
-                                                                                            'union',
-                                                                                        subSchemas:
-                                                                                            [
-                                                                                                {
-                                                                                                    dataType:
-                                                                                                        'enum',
-                                                                                                    enums: [
-                                                                                                        'metric',
-                                                                                                    ],
-                                                                                                },
-                                                                                                {
-                                                                                                    dataType:
-                                                                                                        'enum',
-                                                                                                    enums: [
-                                                                                                        'dimension',
-                                                                                                    ],
-                                                                                                },
-                                                                                            ],
-                                                                                        required: true,
-                                                                                    },
-                                                                                table: {
+                                                                                label: {
                                                                                     dataType:
                                                                                         'string',
                                                                                     required: true,
@@ -16184,37 +16396,18 @@ const models: TsoaRoute.Models = {
                                                                                             'string',
                                                                                         required: true,
                                                                                     },
-                                                                                label: {
+                                                                                name: {
                                                                                     dataType:
                                                                                         'string',
                                                                                     required: true,
                                                                                 },
-                                                                                name: {
+                                                                                table: {
                                                                                     dataType:
                                                                                         'string',
                                                                                     required: true,
                                                                                 },
                                                                             },
                                                                     },
-                                                                    required: true,
-                                                                },
-                                                                rationale: {
-                                                                    dataType:
-                                                                        'union',
-                                                                    subSchemas:
-                                                                        [
-                                                                            {
-                                                                                dataType:
-                                                                                    'string',
-                                                                            },
-                                                                            {
-                                                                                dataType:
-                                                                                    'enum',
-                                                                                enums: [
-                                                                                    null,
-                                                                                ],
-                                                                            },
-                                                                        ],
                                                                     required: true,
                                                                 },
                                                                 explore: {
@@ -16260,6 +16453,18 @@ const models: TsoaRoute.Models = {
                                                                                                                         },
                                                                                                                     ],
                                                                                                             },
+                                                                                                            required:
+                                                                                                                {
+                                                                                                                    dataType:
+                                                                                                                        'boolean',
+                                                                                                                    required: true,
+                                                                                                                },
+                                                                                                            tableName:
+                                                                                                                {
+                                                                                                                    dataType:
+                                                                                                                        'string',
+                                                                                                                    required: true,
+                                                                                                                },
                                                                                                             fieldRef:
                                                                                                                 {
                                                                                                                     dataType:
@@ -16272,22 +16477,10 @@ const models: TsoaRoute.Models = {
                                                                                                                         'string',
                                                                                                                     required: true,
                                                                                                                 },
-                                                                                                            tableName:
-                                                                                                                {
-                                                                                                                    dataType:
-                                                                                                                        'string',
-                                                                                                                    required: true,
-                                                                                                                },
                                                                                                             operator:
                                                                                                                 {
                                                                                                                     dataType:
                                                                                                                         'string',
-                                                                                                                    required: true,
-                                                                                                                },
-                                                                                                            required:
-                                                                                                                {
-                                                                                                                    dataType:
-                                                                                                                        'boolean',
                                                                                                                     required: true,
                                                                                                                 },
                                                                                                         },
@@ -16356,17 +16549,17 @@ const models: TsoaRoute.Models = {
                                                                             'nestedObjectLiteral',
                                                                         nestedProperties:
                                                                             {
+                                                                                reason: {
+                                                                                    dataType:
+                                                                                        'string',
+                                                                                    required: true,
+                                                                                },
                                                                                 exploreLabel:
                                                                                     {
                                                                                         dataType:
                                                                                             'string',
                                                                                         required: true,
                                                                                     },
-                                                                                reason: {
-                                                                                    dataType:
-                                                                                        'string',
-                                                                                    required: true,
-                                                                                },
                                                                                 exploreName:
                                                                                     {
                                                                                         dataType:
@@ -16491,21 +16684,21 @@ const models: TsoaRoute.Models = {
                                                     dataType: 'string',
                                                     required: true,
                                                 },
-                                                status: {
-                                                    dataType: 'enum',
-                                                    enums: ['success'],
-                                                    required: true,
-                                                },
-                                                slug: {
-                                                    dataType: 'string',
-                                                    required: true,
-                                                },
                                                 uuid: {
                                                     dataType: 'string',
                                                     required: true,
                                                 },
                                                 name: {
                                                     dataType: 'string',
+                                                    required: true,
+                                                },
+                                                slug: {
+                                                    dataType: 'string',
+                                                    required: true,
+                                                },
+                                                status: {
+                                                    dataType: 'enum',
+                                                    enums: ['success'],
                                                     required: true,
                                                 },
                                             },
@@ -16652,18 +16845,6 @@ const models: TsoaRoute.Models = {
                                                                                 ],
                                                                             required: true,
                                                                         },
-                                                                        isPrimary:
-                                                                            {
-                                                                                dataType:
-                                                                                    'boolean',
-                                                                                required: true,
-                                                                            },
-                                                                        projectDbtSourceUuid:
-                                                                            {
-                                                                                dataType:
-                                                                                    'string',
-                                                                                required: true,
-                                                                            },
                                                                         repository:
                                                                             {
                                                                                 dataType:
@@ -16682,6 +16863,18 @@ const models: TsoaRoute.Models = {
                                                                                             ],
                                                                                         },
                                                                                     ],
+                                                                                required: true,
+                                                                            },
+                                                                        isPrimary:
+                                                                            {
+                                                                                dataType:
+                                                                                    'boolean',
+                                                                                required: true,
+                                                                            },
+                                                                        projectDbtSourceUuid:
+                                                                            {
+                                                                                dataType:
+                                                                                    'string',
                                                                                 required: true,
                                                                             },
                                                                         name: {
@@ -16706,6 +16899,77 @@ const models: TsoaRoute.Models = {
                                                     dataType: 'union',
                                                     subSchemas: [
                                                         { dataType: 'boolean' },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: [null],
+                                                        },
+                                                        {
+                                                            dataType:
+                                                                'undefined',
+                                                        },
+                                                    ],
+                                                },
+                                                steps: {
+                                                    dataType: 'union',
+                                                    subSchemas: [
+                                                        {
+                                                            dataType: 'array',
+                                                            array: {
+                                                                dataType:
+                                                                    'nestedObjectLiteral',
+                                                                nestedProperties:
+                                                                    {
+                                                                        kind: {
+                                                                            dataType:
+                                                                                'union',
+                                                                            subSchemas:
+                                                                                [
+                                                                                    {
+                                                                                        dataType:
+                                                                                            'enum',
+                                                                                        enums: [
+                                                                                            'read',
+                                                                                        ],
+                                                                                    },
+                                                                                    {
+                                                                                        dataType:
+                                                                                            'enum',
+                                                                                        enums: [
+                                                                                            'edit',
+                                                                                        ],
+                                                                                    },
+                                                                                    {
+                                                                                        dataType:
+                                                                                            'enum',
+                                                                                        enums: [
+                                                                                            'search',
+                                                                                        ],
+                                                                                    },
+                                                                                    {
+                                                                                        dataType:
+                                                                                            'enum',
+                                                                                        enums: [
+                                                                                            'compile',
+                                                                                        ],
+                                                                                    },
+                                                                                    {
+                                                                                        dataType:
+                                                                                            'enum',
+                                                                                        enums: [
+                                                                                            'stage',
+                                                                                        ],
+                                                                                    },
+                                                                                ],
+                                                                            required: true,
+                                                                        },
+                                                                        label: {
+                                                                            dataType:
+                                                                                'string',
+                                                                            required: true,
+                                                                        },
+                                                                    },
+                                                            },
+                                                        },
                                                         {
                                                             dataType: 'enum',
                                                             enums: [null],
@@ -16793,77 +17057,6 @@ const models: TsoaRoute.Models = {
                                                         },
                                                     ],
                                                 },
-                                                steps: {
-                                                    dataType: 'union',
-                                                    subSchemas: [
-                                                        {
-                                                            dataType: 'array',
-                                                            array: {
-                                                                dataType:
-                                                                    'nestedObjectLiteral',
-                                                                nestedProperties:
-                                                                    {
-                                                                        kind: {
-                                                                            dataType:
-                                                                                'union',
-                                                                            subSchemas:
-                                                                                [
-                                                                                    {
-                                                                                        dataType:
-                                                                                            'enum',
-                                                                                        enums: [
-                                                                                            'search',
-                                                                                        ],
-                                                                                    },
-                                                                                    {
-                                                                                        dataType:
-                                                                                            'enum',
-                                                                                        enums: [
-                                                                                            'read',
-                                                                                        ],
-                                                                                    },
-                                                                                    {
-                                                                                        dataType:
-                                                                                            'enum',
-                                                                                        enums: [
-                                                                                            'edit',
-                                                                                        ],
-                                                                                    },
-                                                                                    {
-                                                                                        dataType:
-                                                                                            'enum',
-                                                                                        enums: [
-                                                                                            'compile',
-                                                                                        ],
-                                                                                    },
-                                                                                    {
-                                                                                        dataType:
-                                                                                            'enum',
-                                                                                        enums: [
-                                                                                            'stage',
-                                                                                        ],
-                                                                                    },
-                                                                                ],
-                                                                            required: true,
-                                                                        },
-                                                                        label: {
-                                                                            dataType:
-                                                                                'string',
-                                                                            required: true,
-                                                                        },
-                                                                    },
-                                                            },
-                                                        },
-                                                        {
-                                                            dataType: 'enum',
-                                                            enums: [null],
-                                                        },
-                                                        {
-                                                            dataType:
-                                                                'undefined',
-                                                        },
-                                                    ],
-                                                },
                                                 prUrl: {
                                                     dataType: 'union',
                                                     subSchemas: [
@@ -16895,12 +17088,6 @@ const models: TsoaRoute.Models = {
                                                         {
                                                             dataType: 'enum',
                                                             enums: [
-                                                                'unsupported_source_control',
-                                                            ],
-                                                        },
-                                                        {
-                                                            dataType: 'enum',
-                                                            enums: [
                                                                 'github_not_installed',
                                                             ],
                                                         },
@@ -16908,6 +17095,12 @@ const models: TsoaRoute.Models = {
                                                             dataType: 'enum',
                                                             enums: [
                                                                 'gitlab_not_installed',
+                                                            ],
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
+                                                            enums: [
+                                                                'unsupported_source_control',
                                                             ],
                                                         },
                                                         {
@@ -16975,17 +17168,17 @@ const models: TsoaRoute.Models = {
                                                     dataType: 'string',
                                                     required: true,
                                                 },
-                                                status: {
-                                                    dataType: 'enum',
-                                                    enums: ['success'],
+                                                name: {
+                                                    dataType: 'string',
                                                     required: true,
                                                 },
                                                 slug: {
                                                     dataType: 'string',
                                                     required: true,
                                                 },
-                                                name: {
-                                                    dataType: 'string',
+                                                status: {
+                                                    dataType: 'enum',
+                                                    enums: ['success'],
                                                     required: true,
                                                 },
                                             },
@@ -17050,6 +17243,10 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
+                                                            enums: ['timeout'],
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
                                                             enums: ['error'],
                                                         },
                                                         {
@@ -17059,10 +17256,6 @@ const models: TsoaRoute.Models = {
                                                         {
                                                             dataType: 'enum',
                                                             enums: ['success'],
-                                                        },
-                                                        {
-                                                            dataType: 'enum',
-                                                            enums: ['timeout'],
                                                         },
                                                     ],
                                                     required: true,
@@ -17098,25 +17291,6 @@ const models: TsoaRoute.Models = {
                                                             dataType:
                                                                 'nestedObjectLiteral',
                                                             nestedProperties: {
-                                                                searchQuery: {
-                                                                    dataType:
-                                                                        'union',
-                                                                    subSchemas:
-                                                                        [
-                                                                            {
-                                                                                dataType:
-                                                                                    'string',
-                                                                            },
-                                                                            {
-                                                                                dataType:
-                                                                                    'enum',
-                                                                                enums: [
-                                                                                    null,
-                                                                                ],
-                                                                            },
-                                                                        ],
-                                                                    required: true,
-                                                                },
                                                                 fields: {
                                                                     dataType:
                                                                         'array',
@@ -17177,17 +17351,17 @@ const models: TsoaRoute.Models = {
                                                                                             'string',
                                                                                         required: true,
                                                                                     },
+                                                                                label: {
+                                                                                    dataType:
+                                                                                        'string',
+                                                                                    required: true,
+                                                                                },
                                                                                 tableName:
                                                                                     {
                                                                                         dataType:
                                                                                             'string',
                                                                                         required: true,
                                                                                     },
-                                                                                label: {
-                                                                                    dataType:
-                                                                                        'string',
-                                                                                    required: true,
-                                                                                },
                                                                                 name: {
                                                                                     dataType:
                                                                                         'string',
@@ -17195,6 +17369,25 @@ const models: TsoaRoute.Models = {
                                                                                 },
                                                                             },
                                                                     },
+                                                                    required: true,
+                                                                },
+                                                                searchQuery: {
+                                                                    dataType:
+                                                                        'union',
+                                                                    subSchemas:
+                                                                        [
+                                                                            {
+                                                                                dataType:
+                                                                                    'string',
+                                                                            },
+                                                                            {
+                                                                                dataType:
+                                                                                    'enum',
+                                                                                enums: [
+                                                                                    null,
+                                                                                ],
+                                                                            },
+                                                                        ],
                                                                     required: true,
                                                                 },
                                                                 type: {
@@ -17206,14 +17399,14 @@ const models: TsoaRoute.Models = {
                                                                                 dataType:
                                                                                     'enum',
                                                                                 enums: [
-                                                                                    'metric',
+                                                                                    'dimension',
                                                                                 ],
                                                                             },
                                                                             {
                                                                                 dataType:
                                                                                     'enum',
                                                                                 enums: [
-                                                                                    'dimension',
+                                                                                    'metric',
                                                                                 ],
                                                                             },
                                                                             {
@@ -35968,7 +36161,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__':
+    'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -35978,7 +36171,7 @@ const models: TsoaRoute.Models = {
             },
         },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__':
+    'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__':
         {
             dataType: 'refAlias',
             type: {
@@ -35988,7 +36181,7 @@ const models: TsoaRoute.Models = {
                         dataType: 'union',
                         subSchemas: [
                             {
-                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__',
+                                ref: 'PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__',
                             },
                             { dataType: 'undefined' },
                         ],
@@ -36001,7 +36194,7 @@ const models: TsoaRoute.Models = {
     'PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__': {
         dataType: 'refAlias',
         type: {
-            ref: 'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__',
+            ref: 'PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__',
             validators: {},
         },
     },
@@ -48904,6 +49097,335 @@ export function RegisterRoutes(app: Router) {
 
                 await templateService.apiHandler({
                     methodName: 'deleteAugmentation',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectHomepageController_getPublished: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+    };
+    app.get(
+        '/api/v1/projects/:projectUuid/homepage',
+        ...fetchMiddlewares<RequestHandler>(ProjectHomepageController),
+        ...fetchMiddlewares<RequestHandler>(
+            ProjectHomepageController.prototype.getPublished,
+        ),
+
+        async function ProjectHomepageController_getPublished(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsProjectHomepageController_getPublished,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ProjectHomepageController>(
+                        ProjectHomepageController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getPublished',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectHomepageController_getForBuilder: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+    };
+    app.get(
+        '/api/v1/projects/:projectUuid/homepage/builder',
+        ...fetchMiddlewares<RequestHandler>(ProjectHomepageController),
+        ...fetchMiddlewares<RequestHandler>(
+            ProjectHomepageController.prototype.getForBuilder,
+        ),
+
+        async function ProjectHomepageController_getForBuilder(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsProjectHomepageController_getForBuilder,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ProjectHomepageController>(
+                        ProjectHomepageController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'getForBuilder',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectHomepageController_create: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'CreateProjectHomepageRequest',
+        },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/homepage',
+        ...fetchMiddlewares<RequestHandler>(ProjectHomepageController),
+        ...fetchMiddlewares<RequestHandler>(
+            ProjectHomepageController.prototype.create,
+        ),
+
+        async function ProjectHomepageController_create(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsProjectHomepageController_create,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ProjectHomepageController>(
+                        ProjectHomepageController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'create',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 201,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectHomepageController_updateDraft: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        homepageUuid: {
+            in: 'path',
+            name: 'homepageUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        body: {
+            in: 'body',
+            name: 'body',
+            required: true,
+            ref: 'UpdateProjectHomepageDraftRequest',
+        },
+    };
+    app.patch(
+        '/api/v1/projects/:projectUuid/homepage/:homepageUuid',
+        ...fetchMiddlewares<RequestHandler>(ProjectHomepageController),
+        ...fetchMiddlewares<RequestHandler>(
+            ProjectHomepageController.prototype.updateDraft,
+        ),
+
+        async function ProjectHomepageController_updateDraft(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsProjectHomepageController_updateDraft,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ProjectHomepageController>(
+                        ProjectHomepageController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'updateDraft',
+                    controller,
+                    response,
+                    next,
+                    validatedArgs,
+                    successStatus: 200,
+                });
+            } catch (err) {
+                return next(err);
+            }
+        },
+    );
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    const argsProjectHomepageController_publish: Record<
+        string,
+        TsoaRoute.ParameterSchema
+    > = {
+        req: { in: 'request', name: 'req', required: true, dataType: 'object' },
+        projectUuid: {
+            in: 'path',
+            name: 'projectUuid',
+            required: true,
+            ref: 'UUID',
+        },
+        homepageUuid: {
+            in: 'path',
+            name: 'homepageUuid',
+            required: true,
+            ref: 'UUID',
+        },
+    };
+    app.post(
+        '/api/v1/projects/:projectUuid/homepage/:homepageUuid/publish',
+        ...fetchMiddlewares<RequestHandler>(ProjectHomepageController),
+        ...fetchMiddlewares<RequestHandler>(
+            ProjectHomepageController.prototype.publish,
+        ),
+
+        async function ProjectHomepageController_publish(
+            request: ExRequest,
+            response: ExResponse,
+            next: any,
+        ) {
+            // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+
+            let validatedArgs: any[] = [];
+            try {
+                validatedArgs = templateService.getValidatedArgs({
+                    args: argsProjectHomepageController_publish,
+                    request,
+                    response,
+                });
+
+                const container: IocContainer =
+                    typeof iocContainer === 'function'
+                        ? (iocContainer as IocContainerFactory)(request)
+                        : iocContainer;
+
+                const controller: any =
+                    await container.get<ProjectHomepageController>(
+                        ProjectHomepageController,
+                    );
+                if (typeof controller['setStatus'] === 'function') {
+                    controller.setStatus(undefined);
+                }
+
+                await templateService.apiHandler({
+                    methodName: 'publish',
                     controller,
                     response,
                     next,

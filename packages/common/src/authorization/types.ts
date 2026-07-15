@@ -58,6 +58,7 @@ export type CaslSubjectNames =
     | 'PreAggregation'
     | 'PinnedItems'
     | 'Project'
+    | 'ProjectHomepage'
     | 'SavedChart'
     | 'ScheduledDeliveries'
     | 'SemanticViewer'

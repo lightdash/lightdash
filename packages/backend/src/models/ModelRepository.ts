@@ -147,6 +147,7 @@ export type ModelManifest = {
     projectParametersModel: ProjectParametersModel;
     /** An implementation signature for these models are not available at this stage */
     aiAgentModel: unknown;
+    projectHomepageModel: unknown;
     aiAgentDocumentModel: unknown;
     aiWritebackThreadModel: unknown;
     aiWritebackRunModel: unknown;
@@ -794,6 +795,10 @@ export class ModelRepository
 
     public getAiAgentModel<ModelImplT>(): ModelImplT {
         return this.getModel('aiAgentModel');
+    }
+
+    public getProjectHomepageModel<ModelImplT>(): ModelImplT {
+        return this.getModel('projectHomepageModel');
     }
 
     public getMcpToolCallModel<ModelImplT>(): ModelImplT {

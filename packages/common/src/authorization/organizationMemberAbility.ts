@@ -463,6 +463,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'PinnedItems', {
             organizationUuid: member.organizationUuid,
         });
+        can('manage', 'ProjectHomepage', {
+            organizationUuid: member.organizationUuid,
+        });
         can('manage', 'Group', {
             organizationUuid: member.organizationUuid,
         });

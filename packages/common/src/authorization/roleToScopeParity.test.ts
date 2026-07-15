@@ -82,6 +82,7 @@ const ENTERPRISE_SUBJECTS = new Set([
     'ContentAsCode',
     'PreAggregation',
     'ExternalConnection',
+    'ProjectHomepage',
     // The matching scopes (`view:` + `manage:OrganizationWarehouseCredentials`)
     // are `isEnterprise: true` in scopes.ts, so the scope-build path
     // strips them in non-enterprise mode. Mirror that filter on the

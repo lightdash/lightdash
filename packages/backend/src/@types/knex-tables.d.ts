@@ -482,6 +482,10 @@ import {
     ProjectCiStatusTableName,
 } from '../ee/database/entities/projectCiStatus';
 import {
+    HomepagesTableName,
+    ProjectHomepagesTable,
+} from '../ee/database/entities/projectHomepages';
+import {
     SchedulerAiAugmentationTable,
     SchedulerAiAugmentationTableName,
 } from '../ee/database/entities/schedulerAiAugmentation';
@@ -614,6 +618,7 @@ declare module 'knex/types/tables' {
         [AiMcpServerCredentialTableName]: AiMcpServerCredentialTable;
         [AiAgentMcpServerTableName]: AiAgentMcpServerTable;
         [AiAgentUserPreferencesTableName]: AiAgentUserPreferencesTable;
+        [HomepagesTableName]: ProjectHomepagesTable;
         [AiAgentReasoningTableName]: AiAgentReasoningTable;
         [AiAgentToolCallTableName]: AiAgentToolCallTable;
         [AiAgentToolResultTableName]: AiAgentToolResultTable;
