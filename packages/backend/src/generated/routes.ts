@@ -10183,7 +10183,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    'ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--versions-ApiAppVersionSummary-Array--hasMore-boolean__':
+    'ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null__':
         {
             dataType: 'refAlias',
             type: {
@@ -10192,6 +10192,14 @@ const models: TsoaRoute.Models = {
                     results: {
                         dataType: 'nestedObjectLiteral',
                         nestedProperties: {
+                            latestReadyVersion: {
+                                dataType: 'union',
+                                subSchemas: [
+                                    { dataType: 'double' },
+                                    { dataType: 'enum', enums: [null] },
+                                ],
+                                required: true,
+                            },
                             hasMore: { dataType: 'boolean', required: true },
                             versions: {
                                 dataType: 'array',
@@ -10260,7 +10268,7 @@ const models: TsoaRoute.Models = {
     ApiGetAppResponse: {
         dataType: 'refAlias',
         type: {
-            ref: 'ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--versions-ApiAppVersionSummary-Array--hasMore-boolean__',
+            ref: 'ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null__',
             validators: {},
         },
     },

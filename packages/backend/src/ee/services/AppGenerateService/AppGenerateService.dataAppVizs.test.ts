@@ -210,6 +210,7 @@ describe('AppGenerateService data app vizs', () => {
                     makeVersion({ version: 1, viz_schema: null }),
                 ],
             }),
+            getLatestReadyVersion: vi.fn().mockResolvedValue({ version: 2 }),
         };
         const service = buildService(appModel);
 

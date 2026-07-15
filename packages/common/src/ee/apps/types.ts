@@ -308,6 +308,10 @@ export type ApiGetAppResponse = ApiSuccess<{
     pinnedListOrder: number | null;
     versions: ApiAppVersionSummary[];
     hasMore: boolean;
+    // Latest ready version across ALL versions, not just the returned page.
+    // Viewers must use this (not scan `versions`) to decide whether the app
+    // can be previewed — the ready version may be older than the page window.
+    latestReadyVersion: number | null;
 }>;
 
 export type ApiUpdateAppRequest = {

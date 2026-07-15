@@ -11552,10 +11552,15 @@
                 ],
                 "type": "object"
             },
-            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--versions-ApiAppVersionSummary-Array--hasMore-boolean__": {
+            "ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null__": {
                 "properties": {
                     "results": {
                         "properties": {
+                            "latestReadyVersion": {
+                                "type": "number",
+                                "format": "double",
+                                "nullable": true
+                            },
                             "hasMore": {
                                 "type": "boolean"
                             },
@@ -11604,6 +11609,7 @@
                             }
                         },
                         "required": [
+                            "latestReadyVersion",
                             "hasMore",
                             "versions",
                             "pinnedListOrder",
@@ -11628,7 +11634,7 @@
                 "type": "object"
             },
             "ApiGetAppResponse": {
-                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--versions-ApiAppVersionSummary-Array--hasMore-boolean__"
+                "$ref": "#/components/schemas/ApiSuccess__appUuid-string--name-string--description-string--createdByUserUuid-string--spaceUuid-string-or-null--spaceName-string-or-null--template-Exclude_DataAppTemplate.custom_-or-null--pinnedListUuid-string-or-null--pinnedListOrder-number-or-null--versions-ApiAppVersionSummary-Array--hasMore-boolean--latestReadyVersion-number-or-null__"
             },
             "ApiCancelAppVersionResponse": {
                 "$ref": "#/components/schemas/ApiSuccessEmpty"
