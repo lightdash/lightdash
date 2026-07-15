@@ -1357,11 +1357,13 @@ export class McpService extends BaseService {
             aiWritebackEnabled: boolean;
             grepFieldsEnabled: boolean;
             mcpContentWritesEnabled: boolean;
+            runSqlEnabled: boolean;
         } = {
             projectPinned: false,
             aiWritebackEnabled: false,
             grepFieldsEnabled: false,
             mcpContentWritesEnabled: true,
+            runSqlEnabled: true,
         },
     ): void {
         this.registerTrackedTool(
@@ -2589,98 +2591,110 @@ export class McpService extends BaseService {
             },
         );
 
-        // TODO: move config-dependent tool contracts into defineTool so
-        // description and inputSchema can be resolved from one runtime-aware
-        // definition instead of being rebuilt here.
-        const runSqlArgsSchema = createToolRunSqlArgsSchema({
-            maxLimit: this.lightdashConfig.mcp.runSqlMaxLimit,
-        });
-        this.registerTrackedTool(
-            mcpRunSqlTool.name,
-            {
-                title: mcpRunSqlTool.title,
-                description: buildRunSqlDescription(
-                    500,
-                    this.lightdashConfig.mcp.runSqlMaxLimit,
-                ),
-                inputSchema: createMcpCompatibleInputShape(runSqlArgsSchema),
-                outputSchema: mcpRunSqlTool.outputSchema,
-                annotations: mcpRunSqlTool.annotations,
-            },
-            async (args, extra) => {
-                const ctx = getMcpContext(extra);
+        // run_sql is only registered (and thus only listed/invocable) when the
+        // caller has manage:SqlRunner. executeAsyncSqlQuery still enforces the
+        // permission per-project at invocation time; gating registration keeps
+        // the tool out of tools/list for users who can never run SQL, so the
+        // LLM doesn't loop on a tool it isn't allowed to call.
+        if (options.runSqlEnabled) {
+            // TODO: move config-dependent tool contracts into defineTool so
+            // description and inputSchema can be resolved from one runtime-aware
+            // definition instead of being rebuilt here.
+            const runSqlArgsSchema = createToolRunSqlArgsSchema({
+                maxLimit: this.lightdashConfig.mcp.runSqlMaxLimit,
+            });
+            this.registerTrackedTool(
+                mcpRunSqlTool.name,
+                {
+                    title: mcpRunSqlTool.title,
+                    description: buildRunSqlDescription(
+                        500,
+                        this.lightdashConfig.mcp.runSqlMaxLimit,
+                    ),
+                    inputSchema:
+                        createMcpCompatibleInputShape(runSqlArgsSchema),
+                    outputSchema: mcpRunSqlTool.outputSchema,
+                    annotations: mcpRunSqlTool.annotations,
+                },
+                async (args, extra) => {
+                    const ctx = getMcpContext(extra);
 
-                const { account } = McpService.getAccount(ctx);
-                const projectUuid = await this.resolveProjectUuid(ctx);
+                    const { account } = McpService.getAccount(ctx);
+                    const projectUuid = await this.resolveProjectUuid(ctx);
 
-                try {
-                    const deadlineMs =
-                        Date.now() + McpService.getMcpQueryWaitMs(extra);
-                    const { queryUuid } =
-                        await this.asyncQueryService.executeAsyncSqlQuery({
-                            account,
+                    try {
+                        const deadlineMs =
+                            Date.now() + McpService.getMcpQueryWaitMs(extra);
+                        const { queryUuid } =
+                            await this.asyncQueryService.executeAsyncSqlQuery({
+                                account,
+                                projectUuid,
+                                sql: args.sql,
+                                limit: args.limit ?? 500,
+                                context: QueryExecutionContext.MCP_RUN_SQL,
+                            });
+
+                        const queryHistory =
+                            await this.asyncQueryService.pollQueryHistoryUntilDeadline(
+                                {
+                                    account,
+                                    projectUuid,
+                                    queryUuid,
+                                    deadlineMs,
+                                    pollIntervalMs: MCP_QUERY_POLL_INTERVAL_MS,
+                                    signal: extra.signal,
+                                },
+                            );
+
+                        if (
+                            McpService.isQueryRunningStatus(queryHistory.status)
+                        ) {
+                            return McpService.getRunningQueryResponse(
+                                queryUuid,
+                            );
+                        }
+
+                        if (queryHistory.status !== QueryHistoryStatus.READY) {
+                            throw new UnexpectedServerError(
+                                queryHistory.error ??
+                                    `SQL query finished with status ${queryHistory.status}`,
+                            );
+                        }
+
+                        const sqlRunnerUrl = await this.buildSqlRunnerUrl({
+                            ctx,
                             projectUuid,
                             sql: args.sql,
                             limit: args.limit ?? 500,
-                            context: QueryExecutionContext.MCP_RUN_SQL,
                         });
 
-                    const queryHistory =
-                        await this.asyncQueryService.pollQueryHistoryUntilDeadline(
-                            {
-                                account,
-                                projectUuid,
-                                queryUuid,
-                                deadlineMs,
-                                pollIntervalMs: MCP_QUERY_POLL_INTERVAL_MS,
-                                signal: extra.signal,
-                            },
+                        return await this.buildSqlQueryResultResponse({
+                            ctx,
+                            queryUuid,
+                            projectUuid,
+                            pageSize: args.limit ?? 500,
+                            includeStatus: false,
+                            sqlRunnerUrl,
+                        });
+                    } catch (e) {
+                        const errorMessage =
+                            e instanceof Error ? e.message : String(e);
+                        this.logger.error(
+                            `[McpService] Error in run_sql tool: ${errorMessage}`,
                         );
-
-                    if (McpService.isQueryRunningStatus(queryHistory.status)) {
-                        return McpService.getRunningQueryResponse(queryUuid);
+                        return {
+                            content: [
+                                {
+                                    type: 'text' as const,
+                                    text: `Error running SQL query: ${errorMessage}`,
+                                },
+                            ],
+                            isError: true,
+                        };
                     }
-
-                    if (queryHistory.status !== QueryHistoryStatus.READY) {
-                        throw new UnexpectedServerError(
-                            queryHistory.error ??
-                                `SQL query finished with status ${queryHistory.status}`,
-                        );
-                    }
-
-                    const sqlRunnerUrl = await this.buildSqlRunnerUrl({
-                        ctx,
-                        projectUuid,
-                        sql: args.sql,
-                        limit: args.limit ?? 500,
-                    });
-
-                    return await this.buildSqlQueryResultResponse({
-                        ctx,
-                        queryUuid,
-                        projectUuid,
-                        pageSize: args.limit ?? 500,
-                        includeStatus: false,
-                        sqlRunnerUrl,
-                    });
-                } catch (e) {
-                    const errorMessage =
-                        e instanceof Error ? e.message : String(e);
-                    this.logger.error(
-                        `[McpService] Error in run_sql tool: ${errorMessage}`,
-                    );
-                    return {
-                        content: [
-                            {
-                                type: 'text' as const,
-                                text: `Error running SQL query: ${errorMessage}`,
-                            },
-                        ],
-                        isError: true,
-                    };
-                }
-            },
-        );
+                },
+            );
+        }
 
         this.registerTrackedTool(
             mcpGetQueryResultTool.name,
@@ -3245,6 +3259,7 @@ export class McpService extends BaseService {
         aiWritebackEnabled?: boolean;
         grepFieldsEnabled?: boolean;
         mcpContentWritesEnabled?: boolean;
+        runSqlEnabled?: boolean;
     }): Promise<McpServer> {
         const newServer = Sentry.wrapMcpServerWithSentry(
             new McpServer({
@@ -3280,6 +3295,7 @@ export class McpService extends BaseService {
             aiWritebackEnabled: options?.aiWritebackEnabled ?? false,
             grepFieldsEnabled: options?.grepFieldsEnabled ?? false,
             mcpContentWritesEnabled: options?.mcpContentWritesEnabled ?? true,
+            runSqlEnabled: options?.runSqlEnabled ?? true,
         });
         this.mcpServer = originalServer;
 
@@ -3517,6 +3533,17 @@ export class McpService extends BaseService {
         return this.aiOrganizationSettingsService.isMcpContentWritesEnabled(
             user,
         );
+    }
+
+    /**
+     * Whether the run_sql tool should be registered for this caller. Gated on
+     * manage:SqlRunner so users who can never run SQL (interactive viewers and
+     * below) don't see the tool in tools/list. This is a coarse capability
+     * check — executeAsyncSqlQuery still enforces the permission per-project at
+     * invocation time.
+     */
+    public isRunSqlEnabled(user: SessionUser): boolean {
+        return this.createAuditedAbility(user).can('manage', 'SqlRunner');
     }
 
     public getLightdashVersion(context: McpProtocolContext): string {

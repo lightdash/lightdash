@@ -174,4 +174,20 @@ describe('MCP tool contracts', () => {
 
         expect({ prompts, tools }).toMatchSnapshot();
     });
+
+    it('registers run_sql only when runSqlEnabled', async () => {
+        const mcpService = makeMcpService();
+
+        mockRegisteredMcpTools.length = 0;
+        await mcpService.createServer({ runSqlEnabled: true });
+        expect(mockRegisteredMcpTools.map(({ name }) => name)).toContain(
+            McpToolName.RUN_SQL,
+        );
+
+        mockRegisteredMcpTools.length = 0;
+        await mcpService.createServer({ runSqlEnabled: false });
+        expect(mockRegisteredMcpTools.map(({ name }) => name)).not.toContain(
+            McpToolName.RUN_SQL,
+        );
+    });
 });
