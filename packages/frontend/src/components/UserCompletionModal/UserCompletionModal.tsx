@@ -1,5 +1,6 @@
 import {
     CompleteUserSchema,
+    FeatureFlags,
     getEmailDomain,
     LightdashMode,
     validateOrganizationEmailDomains,
@@ -8,30 +9,14 @@ import {
 import { Button, Checkbox, Select, Stack, TextInput } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { IconConfetti } from '@tabler/icons-react';
-import shuffle from 'lodash/shuffle';
 import { zodResolver } from 'mantine-form-zod-resolver';
 import { useEffect, useMemo, type FC } from 'react';
+import { Navigate } from 'react-router';
 import { useUserCompleteMutation } from '../../hooks/user/useUserCompleteMutation';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
 import MantineModal from '../common/MantineModal';
-
-const jobTitles = [
-    ...shuffle([
-        'Data/Analytics Leader (manager, director, etc.)',
-        'Data Scientist',
-        'Data Analyst',
-        'Data Engineer',
-        'Analytics Engineer',
-        'Software Engineer',
-        'Sales',
-        'Marketing',
-        'Product',
-        'Operations',
-        'Customer Service',
-        'Student',
-    ]),
-    'Other',
-];
+import { jobTitles } from './jobTitles';
 
 const UserCompletionModal: FC = () => {
     const { health, user } = useApp();
@@ -192,7 +177,22 @@ const UserCompletionModal: FC = () => {
 };
 
 const UserCompletionModalWithUser = () => {
-    const { user } = useApp();
+    const { user, health } = useApp();
+    const orgSetupPageFlag = useServerFeatureFlag(
+        FeatureFlags.OrganizationSetupPage,
+    );
+
+    if (orgSetupPageFlag.isLoading) {
+        return null;
+    }
+
+    if (orgSetupPageFlag.data?.enabled) {
+        const shouldSetup =
+            user.data &&
+            !user.data.isSetupComplete &&
+            health.data?.rudder.writeKey !== undefined;
+        return shouldSetup ? <Navigate to="/organization-setup" /> : null;
+    }
 
     if (!user.isSuccess) {
         return null;

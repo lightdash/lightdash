@@ -2,12 +2,29 @@ import { LightdashMode } from '@lightdash/common';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import nock from 'nock';
-import { describe, expect, it } from 'vitest';
+import { MemoryRouter, Route, Routes } from 'react-router';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { BASE_API_URL } from '../../api';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { renderWithProviders } from '../../testing/testUtils';
 import UserCompletionModal from './UserCompletionModal';
 
+vi.mock('../../hooks/useServerOrClientFeatureFlag', () => ({
+    useServerFeatureFlag: vi.fn(),
+}));
+
+const mockFeatureFlag = (enabled: boolean) => {
+    vi.mocked(useServerFeatureFlag).mockReturnValue({
+        data: { id: 'organization-setup-page', enabled },
+        isLoading: false,
+    } as ReturnType<typeof useServerFeatureFlag>);
+};
+
 describe('UserCompletionModal', () => {
+    beforeEach(() => {
+        mockFeatureFlag(false);
+    });
+
     it("should not render anything if user's setup is complete", async () => {
         renderWithProviders(<UserCompletionModal />);
         // Wait a bit to ensure component has rendered, then verify no dialog appears
@@ -288,5 +305,32 @@ describe('UserCompletionModal', () => {
         // wait for api call to be made
         scope.done();
         await waitFor(() => expect(scope.isDone()).toBe(true));
+    });
+
+    it('should redirect to the organization setup page when the flag is enabled and setup is incomplete', async () => {
+        mockFeatureFlag(true);
+
+        renderWithProviders(
+            <MemoryRouter initialEntries={['/']}>
+                <Routes>
+                    <Route path="/" element={<UserCompletionModal />} />
+                    <Route
+                        path="/organization-setup"
+                        element={<div>Organization setup page</div>}
+                    />
+                </Routes>
+            </MemoryRouter>,
+            {
+                user: {
+                    isSetupComplete: false,
+                    organizationName: '',
+                },
+            },
+        );
+
+        expect(
+            await screen.findByText('Organization setup page'),
+        ).toBeInTheDocument();
+        expect(screen.queryByText('Nearly there...')).not.toBeInTheDocument();
     });
 });

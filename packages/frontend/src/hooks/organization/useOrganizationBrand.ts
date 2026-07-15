@@ -50,6 +50,21 @@ export const useFetchOrganizationBrand = () => {
     });
 };
 
+/**
+ * Speculatively detects a brand for a domain during onboarding. A read despite
+ * the POST verb (the endpoint fetches without persisting), so it lives in a
+ * query: results survive StrictMode observer churn and failures stay silent.
+ */
+export const useDetectOrganizationBrand = (domain: string, enabled: boolean) =>
+    useQuery<OrganizationBrand, ApiError>({
+        queryKey: ['organization_brand_detect', domain],
+        queryFn: () => fetchOrganizationBrand({ domain }),
+        enabled: enabled && domain.length > 0,
+        retry: false,
+        staleTime: Infinity,
+        refetchOnWindowFocus: false,
+    });
+
 const saveOrganizationBrand = async (data: SaveOrganizationBrandRequest) =>
     lightdashApi<OrganizationBrand | null>({
         url: `/org/brand`,
