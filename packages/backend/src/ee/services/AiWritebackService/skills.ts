@@ -4,7 +4,7 @@ import path from 'path';
 import type { WarehouseSkillKey } from './types';
 
 // Directory holding the committed skill markdown. Resolved relative to this
-// module so it works in dev (ts-node/tsx → src/) and prod (the backend
+// module so it works in dev (tsx → src/) and prod (the backend
 // `postbuild` copies `src/**/*.md` into dist/, so the files sit next to the
 // compiled JS).
 export const SKILLS_SOURCE_DIR = path.join(__dirname, 'skills', 'warehouses');
