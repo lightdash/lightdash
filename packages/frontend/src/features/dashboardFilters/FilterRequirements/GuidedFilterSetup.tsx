@@ -275,7 +275,7 @@ const GuidedFilterSetup: FC<Props> = ({
                         align="flex-start"
                         wrap="nowrap"
                     >
-                        <Group gap="sm" wrap="nowrap">
+                        <Group gap="sm" wrap="nowrap" miw={0}>
                             <Paper p="6px" withBorder radius="md">
                                 <MantineIcon
                                     icon={IconFilterExclamation}
@@ -283,7 +283,14 @@ const GuidedFilterSetup: FC<Props> = ({
                                     color="yellow.7"
                                 />
                             </Paper>
-                            <Text c="ldDark.9" fw={700} fz="md" lh="28px">
+                            <Text
+                                c="ldDark.9"
+                                fw={700}
+                                fz="md"
+                                lh="28px"
+                                miw={0}
+                                lineClamp={2}
+                            >
                                 Set filters to load{' '}
                                 {dashboard?.name ?? 'this dashboard'}
                             </Text>
