@@ -161,6 +161,17 @@ export type DepositOnboardingConnectionRequest = {
     inventory: OnboardingConnectionInventory;
 };
 
+export type OnboardingConnectionKeyFingerprintRequest = {
+    code: string;
+};
+
+export type OnboardingConnectionKeyFingerprintResult = {
+    fingerprint: string | null;
+};
+
+export type ApiOnboardingConnectionKeyFingerprintResponse =
+    ApiSuccess<OnboardingConnectionKeyFingerprintResult>;
+
 export type ConfigureOnboardingConnectionRequest = {
     connectionValues: OnboardingConnectionValues;
 };

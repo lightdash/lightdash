@@ -4,6 +4,7 @@ import {
     ApiGrantScriptResponse,
     ApiOnboardingConnectCodeResponse,
     ApiOnboardingConnectionDepositResponse,
+    ApiOnboardingConnectionKeyFingerprintResponse,
     ApiOnboardingConnectionValidationResponse,
     ApiOnboardingDashboardResponse,
     ApiOnboardingProfileResponse,
@@ -16,6 +17,7 @@ import {
     ConfigureOnboardingConnectionRequest,
     DepositOnboardingConnectionRequest,
     GrantScriptRequest,
+    OnboardingConnectionKeyFingerprintRequest,
     TestOnboardingConnectionRequest,
     UpdateOnboardingProjectStep,
     UpdateSemanticLayerFieldRequest,
@@ -287,6 +289,20 @@ export class OnboardingController extends BaseController {
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('Onboarding')
 export class OnboardingConnectionController extends BaseController {
+    @SuccessResponse('200', 'Success')
+    @Post('/key-fingerprint')
+    @OperationId('GetOnboardingConnectionKeyFingerprint')
+    async getKeyFingerprint(
+        @Body() body: OnboardingConnectionKeyFingerprintRequest,
+    ): Promise<ApiOnboardingConnectionKeyFingerprintResponse> {
+        return {
+            status: 'ok',
+            results: await this.services
+                .getOnboardingConnectionService()
+                .getKeyFingerprint(body),
+        };
+    }
+
     @SuccessResponse('200', 'Success')
     @Post('/deposit')
     @OperationId('DepositOnboardingConnection')

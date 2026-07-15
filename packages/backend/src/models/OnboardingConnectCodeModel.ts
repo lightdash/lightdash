@@ -64,4 +64,13 @@ export class OnboardingConnectCodeModel {
             .returning('*');
         return row ? OnboardingConnectCodeModel.convertRow(row) : null;
     }
+
+    async find(codeHash: string): Promise<OnboardingConnectCode | null> {
+        const row = await this.database(OnboardingConnectCodeTableName)
+            .where('code_hash', codeHash)
+            .whereNull('used_at')
+            .where('expires_at', '>', this.database.fn.now())
+            .first();
+        return row ? OnboardingConnectCodeModel.convertRow(row) : null;
+    }
 }

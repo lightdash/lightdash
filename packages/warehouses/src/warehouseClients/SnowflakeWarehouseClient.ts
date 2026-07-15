@@ -450,7 +450,7 @@ const listSnowflakeWarehouses = (
         })
         .slice(0, SESSION_DISCOVERY_LIMIT);
 
-const snowflakeIdentifier = (value: string): string =>
+export const snowflakeIdentifier = (value: string): string =>
     /^[A-Za-z_][A-Za-z0-9_$]*$/.test(value)
         ? value
         : `"${value.replace(/"/g, '""')}"`;
@@ -559,6 +559,13 @@ export type SnowflakeDiagnosticIdentity = {
 export type SnowflakeDiagnosticTables = {
     schemaCount: number;
     tableCount: number;
+};
+
+export type SnowflakePublicKeySlot = 'RSA_PUBLIC_KEY' | 'RSA_PUBLIC_KEY_2';
+
+export type SnowflakePublicKeySlots = {
+    RSA_PUBLIC_KEY: string | null;
+    RSA_PUBLIC_KEY_2: string | null;
 };
 
 export const mapFieldType = (type: string): DimensionType => {
@@ -1090,6 +1097,65 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 roles,
             },
         };
+    }
+
+    async getUserPublicKeySlots(
+        user: string,
+    ): Promise<SnowflakePublicKeySlots> {
+        const connection = await this.getConnection();
+        const result = await this.executeStatements(
+            connection,
+            `DESCRIBE USER ${snowflakeIdentifier(user)}`,
+        );
+        const fingerprints = new Map(
+            result.rows.flatMap((rawRow) => {
+                const row = rawRow as Record<string, AnyType>;
+                const property = getSnowflakeRowValue(row, 'property');
+                const value = getSnowflakeRowValue(row, 'value');
+                return property
+                    ? [[property.toUpperCase(), value] as const]
+                    : [];
+            }),
+        );
+        const getFingerprint = (property: string): string | null => {
+            const value = fingerprints.get(property);
+            const fingerprint = value?.trim();
+            return fingerprint && fingerprint.toLowerCase() !== 'null'
+                ? fingerprint
+                : null;
+        };
+        return {
+            RSA_PUBLIC_KEY: getFingerprint('RSA_PUBLIC_KEY_FP'),
+            RSA_PUBLIC_KEY_2: getFingerprint('RSA_PUBLIC_KEY_2_FP'),
+        };
+    }
+
+    async setUserPublicKey(
+        user: string,
+        slot: SnowflakePublicKeySlot,
+        publicKey: string,
+    ): Promise<void> {
+        if (!/^[A-Za-z0-9+/=]+$/.test(publicKey)) {
+            throw new UnexpectedServerError('Invalid Snowflake public key');
+        }
+        const connection = await this.getConnection();
+        await this.executeStatements(
+            connection,
+            `ALTER USER ${snowflakeIdentifier(
+                user,
+            )} SET ${slot} = '${publicKey}'`,
+        );
+    }
+
+    async unsetUserPublicKey(
+        user: string,
+        slot: SnowflakePublicKeySlot,
+    ): Promise<void> {
+        const connection = await this.getConnection();
+        await this.executeStatements(
+            connection,
+            `ALTER USER ${snowflakeIdentifier(user)} UNSET ${slot}`,
+        );
     }
 
     async getSchemaSummaries(

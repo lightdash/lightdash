@@ -115,6 +115,76 @@ describe('SnowflakeWarehouseClient', () => {
         );
     });
 
+    it('inspects key fingerprints and changes only the selected user key slot', async () => {
+        const execute = vi.fn(
+            ({ sqlText, complete }: { sqlText: string; complete: Mock }) => {
+                const rows = sqlText.startsWith('DESCRIBE USER')
+                    ? [
+                          {
+                              property: 'RSA_PUBLIC_KEY_FP',
+                              value: 'SHA256:occupied',
+                          },
+                          {
+                              property: 'RSA_PUBLIC_KEY_2_FP',
+                              value: 'null',
+                          },
+                      ]
+                    : [];
+                complete(
+                    undefined,
+                    { getColumns: () => queryColumnsMock },
+                    rows,
+                );
+            },
+        );
+        vi.mocked(createConnection).mockImplementationOnce(
+            () =>
+                ({
+                    connectAsync: vi.fn((callback) => callback(undefined, {})),
+                    execute,
+                }) as never,
+        );
+        const warehouse = new SnowflakeWarehouseClient({
+            ...credentials,
+            user: 'Mixed User',
+            authenticationType:
+                SnowflakeAuthenticationType.OAUTH_AUTHORIZATION_CODE,
+        });
+
+        await expect(
+            warehouse.getUserPublicKeySlots('Mixed User'),
+        ).resolves.toEqual({
+            RSA_PUBLIC_KEY: 'SHA256:occupied',
+            RSA_PUBLIC_KEY_2: null,
+        });
+        await warehouse.setUserPublicKey(
+            'Mixed User',
+            'RSA_PUBLIC_KEY_2',
+            'dGVzdA==',
+        );
+        await warehouse.unsetUserPublicKey('Mixed User', 'RSA_PUBLIC_KEY_2');
+
+        expect(execute).toHaveBeenNthCalledWith(
+            1,
+            expect.objectContaining({
+                sqlText: 'DESCRIBE USER "Mixed User"',
+            }),
+        );
+        expect(execute).toHaveBeenNthCalledWith(
+            2,
+            expect.objectContaining({
+                sqlText:
+                    'ALTER USER "Mixed User" SET RSA_PUBLIC_KEY_2 = \'dGVzdA==\'',
+            }),
+        );
+        expect(execute).toHaveBeenNthCalledWith(
+            3,
+            expect.objectContaining({
+                sqlText: 'ALTER USER "Mixed User" UNSET RSA_PUBLIC_KEY_2',
+            }),
+        );
+    });
+
     it('exposes authorization-code tokens captured by the SDK credential manager', async () => {
         const expiresAtSeconds = 2_000_000_000;
         const accessToken = oauthAccessToken(expiresAtSeconds);

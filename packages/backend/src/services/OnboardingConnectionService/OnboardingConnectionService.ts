@@ -6,6 +6,8 @@ import {
     OnboardingConnectCodeResult,
     OnboardingConnectionDepositResult,
     OnboardingConnectionInventory,
+    OnboardingConnectionKeyFingerprintRequest,
+    OnboardingConnectionKeyFingerprintResult,
     OnboardingConnectionRequiredValue,
     OnboardingConnectionValidationResult,
     OnboardingConnectionValues,
@@ -19,12 +21,8 @@ import {
     WarehouseTypes,
     type CreateSnowflakeCredentials,
 } from '@lightdash/common';
-import {
-    isSnowflakeOAuthAccessTokenUsable,
-    refreshSnowflakeOAuthToken,
-    SnowflakeWarehouseClient,
-} from '@lightdash/warehouses';
-import { createHash, randomBytes } from 'crypto';
+import { SnowflakeWarehouseClient } from '@lightdash/warehouses';
+import { createHash, createPublicKey, randomBytes } from 'node:crypto';
 import { toSessionUser } from '../../auth/account';
 import { OnboardingConnectCodeModel } from '../../models/OnboardingConnectCodeModel';
 import { OnboardingProjectStateModel } from '../../models/OnboardingProjectStateModel';
@@ -55,6 +53,25 @@ const getMissingRequiredConnectionValues = (
     values: OnboardingConnectionValues,
 ): OnboardingConnectionRequiredValue[] =>
     (['database', 'warehouse'] as const).filter((key) => !values[key]);
+
+const isDurableSnowflakeCredential = (
+    credentials: CreateSnowflakeCredentials,
+): boolean =>
+    typeof credentials.user === 'string' &&
+    Boolean(credentials.user.trim()) &&
+    ((credentials.authenticationType ===
+        SnowflakeAuthenticationType.PRIVATE_KEY &&
+        Boolean(credentials.privateKey?.trim())) ||
+        (credentials.authenticationType ===
+            SnowflakeAuthenticationType.PASSWORD &&
+            Boolean(credentials.password?.trim())));
+
+const isSupportedSnowflakeValidationAuthenticationType = (
+    authenticationType: SnowflakeAuthenticationType | undefined,
+): boolean =>
+    authenticationType === SnowflakeAuthenticationType.OAUTH ||
+    authenticationType === SnowflakeAuthenticationType.PRIVATE_KEY ||
+    authenticationType === SnowflakeAuthenticationType.PASSWORD;
 
 const expiredCredentialValidationResult =
     (): OnboardingConnectionValidationResult => ({
@@ -205,13 +222,9 @@ export class OnboardingConnectionService extends BaseService {
                 'The onboarding SSO bridge only supports Snowflake credentials',
             );
         }
-        if (
-            request.warehouseConnection.authenticationType !==
-                SnowflakeAuthenticationType.OAUTH ||
-            !request.warehouseConnection.refreshToken
-        ) {
+        if (!isDurableSnowflakeCredential(request.warehouseConnection)) {
             throw new ParameterError(
-                'The onboarding SSO bridge requires Snowflake OAuth credentials',
+                'The onboarding connection deposit requires Snowflake private-key credentials or a programmatic access token. Update the Lightdash CLI and run connect-snowflake again; OAuth tokens cannot be deposited.',
             );
         }
 
@@ -222,22 +235,13 @@ export class OnboardingConnectionService extends BaseService {
         const missingConnectionValues = getMissingRequiredConnectionValues(
             request.connectionValues,
         );
-        let warehouseConnection: CreateSnowflakeCredentials = {
+        const warehouseConnection: CreateSnowflakeCredentials = {
             ...request.warehouseConnection,
             database: request.connectionValues.database ?? '',
             warehouse: request.connectionValues.warehouse ?? '',
             schema: request.connectionValues.schema ?? '',
             role: request.connectionValues.role ?? undefined,
         };
-        if (!isSnowflakeOAuthAccessTokenUsable(warehouseConnection.token)) {
-            const refreshed =
-                await refreshSnowflakeOAuthToken(warehouseConnection);
-            warehouseConnection = {
-                ...warehouseConnection,
-                token: refreshed.accessToken,
-                refreshToken: refreshed.refreshToken,
-            };
-        }
         await this.projectService.updateWarehouseCredentials(
             connectCode.projectUuid,
             account,
@@ -285,6 +289,36 @@ export class OnboardingConnectionService extends BaseService {
             result,
         );
         return result;
+    }
+
+    async getKeyFingerprint(
+        request: OnboardingConnectionKeyFingerprintRequest,
+    ): Promise<OnboardingConnectionKeyFingerprintResult> {
+        const connectCode = await this.onboardingConnectCodeModel.find(
+            hashOnboardingConnectCode(request.code),
+        );
+        if (connectCode === null) {
+            throw new AuthorizationError('Invalid or expired connect code');
+        }
+        const project = await this.projectModel.getWithSensitiveFields(
+            connectCode.projectUuid,
+        );
+        const credentials = project.warehouseConnection;
+        if (
+            credentials?.type !== WarehouseTypes.SNOWFLAKE ||
+            credentials.authenticationType !==
+                SnowflakeAuthenticationType.PRIVATE_KEY ||
+            !credentials.privateKey
+        ) {
+            return { fingerprint: null };
+        }
+        const publicKey = createPublicKey({ key: credentials.privateKey });
+        const spki = publicKey.export({ type: 'spki', format: 'der' });
+        return {
+            fingerprint: `SHA256:${createHash('sha256')
+                .update(spki)
+                .digest('base64')}`,
+        };
     }
 
     async configureConnection(
@@ -416,11 +450,12 @@ export class OnboardingConnectionService extends BaseService {
             await this.projectModel.getWithSensitiveFields(projectUuid);
         if (
             project.warehouseConnection?.type !== WarehouseTypes.SNOWFLAKE ||
-            project.warehouseConnection.authenticationType !==
-                SnowflakeAuthenticationType.OAUTH
+            !isSupportedSnowflakeValidationAuthenticationType(
+                project.warehouseConnection.authenticationType,
+            )
         ) {
             throw new ParameterError(
-                'The onboarding SSO bridge only supports Snowflake OAuth credentials',
+                'The onboarding connection validator only supports Snowflake OAuth, private-key, or programmatic access token credentials',
             );
         }
         let resolvedCredentials;
@@ -442,7 +477,7 @@ export class OnboardingConnectionService extends BaseService {
         }
         if (resolvedCredentials.type !== WarehouseTypes.SNOWFLAKE) {
             throw new ParameterError(
-                'The onboarding SSO bridge only supports Snowflake OAuth credentials',
+                'The onboarding connection validator only supports Snowflake credentials',
             );
         }
         const warehouseConnection: CreateSnowflakeCredentials = {

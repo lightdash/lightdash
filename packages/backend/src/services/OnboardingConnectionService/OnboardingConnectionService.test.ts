@@ -17,10 +17,10 @@ import {
     type OnboardingConnectionInventory,
 } from '@lightdash/common';
 import {
-    refreshSnowflakeOAuthToken,
     type SnowflakeSessionDiscovery,
     type SnowflakeWarehouseClient,
 } from '@lightdash/warehouses';
+import { createHash, generateKeyPairSync } from 'node:crypto';
 import { fromSession } from '../../auth/account/account';
 import { defaultSessionUser } from '../../auth/account/account.mock';
 import { OnboardingConnectCodeModel } from '../../models/OnboardingConnectCodeModel';
@@ -37,32 +37,19 @@ import {
     OnboardingConnectionService,
 } from './OnboardingConnectionService';
 
-vi.mock('@lightdash/warehouses', async (importOriginal) => {
-    const actual =
-        await importOriginal<typeof import('@lightdash/warehouses')>();
-    return {
-        ...actual,
-        refreshSnowflakeOAuthToken: vi.fn(),
-    };
-});
-
 const projectUuid = '11111111-1111-4111-8111-111111111111';
 const { userUuid, organizationUuid: accountOrganizationUuid } =
     defaultSessionUser;
 const organizationUuid = accountOrganizationUuid!;
 const code = '11111111_random-code';
 const expiresAt = new Date('2026-07-14T12:15:00.000Z');
-const accessToken = `header.${Buffer.from(
-    JSON.stringify({ exp: 2_000_000_000 }),
-).toString('base64url')}.signature`;
-
 const credentials: CreateSnowflakeCredentials = {
     type: WarehouseTypes.SNOWFLAKE,
     account: 'acme.eu-west-1',
     user: 'lightdash_user',
-    refreshToken: 'oauth-refresh-token',
-    token: accessToken,
-    authenticationType: SnowflakeAuthenticationType.OAUTH,
+    privateKey:
+        '-----BEGIN PRIVATE KEY-----\ntest-private-key\n-----END PRIVATE KEY-----\n',
+    authenticationType: SnowflakeAuthenticationType.PRIVATE_KEY,
     role: 'lightdash_role',
     database: 'analytics',
     warehouse: 'lightdash_wh',
@@ -137,6 +124,7 @@ const depositRequest = (
 
 const create = vi.fn<OnboardingConnectCodeModel['create']>();
 const consume = vi.fn<OnboardingConnectCodeModel['consume']>();
+const findConnectCode = vi.fn<OnboardingConnectCodeModel['find']>();
 const getAll = vi.fn<OnboardingProjectStateModel['getAll']>();
 const find = vi.fn<OnboardingProjectStateModel['find']>();
 const upsert = vi.fn<OnboardingProjectStateModel['upsert']>();
@@ -176,6 +164,7 @@ const getService = (
         onboardingConnectCodeModel: {
             create,
             consume,
+            find: findConnectCode,
         } as unknown as OnboardingConnectCodeModel,
         onboardingProjectStateModel: {
             getAll,
@@ -215,6 +204,12 @@ describe('OnboardingConnectionService', () => {
             createdByUserUuid: userUuid,
             expiresAt,
             usedAt: new Date('2026-07-14T12:01:00.000Z'),
+        });
+        findConnectCode.mockResolvedValue({
+            projectUuid,
+            createdByUserUuid: userUuid,
+            expiresAt,
+            usedAt: null,
         });
         getAccountByUserUuid.mockResolvedValue(account);
         getWithSensitiveFields.mockResolvedValue({
@@ -271,6 +266,76 @@ describe('OnboardingConnectionService', () => {
         expect(updateWarehouseCredentials).toHaveBeenCalledTimes(1);
     });
 
+    it('returns the stored private key fingerprint without consuming the code', async () => {
+        const { privateKey: knownPrivateKey, publicKey: knownPublicKey } =
+            generateKeyPairSync('rsa', {
+                modulusLength: 2048,
+                privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+                publicKeyEncoding: { type: 'spki', format: 'der' },
+            });
+        getWithSensitiveFields.mockResolvedValueOnce({
+            projectUuid,
+            organizationUuid,
+            name: 'Onboarding project',
+            type: ProjectType.DEFAULT,
+            upstreamProjectUuid: undefined,
+            createdByUserUuid: userUuid,
+            warehouseConnection: {
+                ...credentials,
+                privateKey: knownPrivateKey,
+            },
+        } as Awaited<ReturnType<ProjectModel['getWithSensitiveFields']>>);
+        const service = getService();
+
+        await expect(service.getKeyFingerprint({ code })).resolves.toEqual({
+            fingerprint: `SHA256:${createHash('sha256')
+                .update(knownPublicKey)
+                .digest('base64')}`,
+        });
+        await expect(
+            service.depositConnection(depositRequest()),
+        ).resolves.toEqual(
+            expect.objectContaining({
+                stepStatus: OnboardingStepStatus.COMPLETED,
+            }),
+        );
+        expect(findConnectCode).toHaveBeenCalledWith(
+            hashOnboardingConnectCode(code),
+        );
+        expect(consume).toHaveBeenCalledWith(hashOnboardingConnectCode(code));
+    });
+
+    it('returns null when the stored credential is not a private key', async () => {
+        getWithSensitiveFields.mockResolvedValueOnce({
+            projectUuid,
+            organizationUuid,
+            name: 'Onboarding project',
+            type: ProjectType.DEFAULT,
+            upstreamProjectUuid: undefined,
+            createdByUserUuid: userUuid,
+            warehouseConnection: {
+                ...credentials,
+                authenticationType: SnowflakeAuthenticationType.PASSWORD,
+                privateKey: undefined,
+                password: 'pat-secret',
+            },
+        } as Awaited<ReturnType<ProjectModel['getWithSensitiveFields']>>);
+
+        await expect(getService().getKeyFingerprint({ code })).resolves.toEqual(
+            { fingerprint: null },
+        );
+    });
+
+    it('rejects an invalid fingerprint lookup code', async () => {
+        findConnectCode.mockResolvedValueOnce(null);
+
+        await expect(getService().getKeyFingerprint({ code })).rejects.toThrow(
+            AuthorizationError,
+        );
+        expect(getWithSensitiveFields).not.toHaveBeenCalled();
+        expect(consume).not.toHaveBeenCalled();
+    });
+
     it('consumes then rejects non-Snowflake credentials', async () => {
         await expect(
             getService().depositConnection({
@@ -285,23 +350,54 @@ describe('OnboardingConnectionService', () => {
         expect(updateWarehouseCredentials).not.toHaveBeenCalled();
     });
 
-    it('consumes then rejects Snowflake credentials without an OAuth refresh token', async () => {
+    it('rejects OAuth token deposits with an actionable error', async () => {
         await expect(
             getService().depositConnection(
                 depositRequest({
                     warehouseConnection: {
                         ...credentials,
-                        authenticationType:
-                            SnowflakeAuthenticationType.PASSWORD,
-                        refreshToken: undefined,
-                        token: undefined,
-                        password: 'password',
+                        authenticationType: SnowflakeAuthenticationType.OAUTH,
+                        privateKey: undefined,
+                        refreshToken: 'oauth-refresh-token',
+                        token: 'oauth-access-token',
                     },
                 }),
             ),
-        ).rejects.toThrow(ParameterError);
+        ).rejects.toThrow(
+            'Update the Lightdash CLI and run connect-snowflake again',
+        );
         expect(updateWarehouseCredentials).not.toHaveBeenCalled();
     });
+
+    it.each([
+        {
+            name: 'private key',
+            warehouseConnection: { ...credentials, privateKey: '   ' },
+        },
+        {
+            name: 'private-key user',
+            warehouseConnection: { ...credentials, user: '' },
+        },
+        {
+            name: 'PAT secret',
+            warehouseConnection: {
+                ...credentials,
+                authenticationType: SnowflakeAuthenticationType.PASSWORD,
+                privateKey: undefined,
+                password: '',
+            },
+        },
+    ])(
+        'rejects a durable deposit with a missing $name',
+        async ({ warehouseConnection }) => {
+            await expect(
+                getService().depositConnection(
+                    depositRequest({ warehouseConnection }),
+                ),
+            ).rejects.toThrow(ParameterError);
+            expect(updateWarehouseCredentials).not.toHaveBeenCalled();
+        },
+    );
 
     it('stores credentials, runs diagnostics, and records completed state', async () => {
         await expect(
@@ -369,39 +465,26 @@ describe('OnboardingConnectionService', () => {
         });
     });
 
-    it('refreshes missing access credentials before storing them', async () => {
-        const refreshedCredentials = {
+    it('accepts a PAT deposited in the Snowflake password shape', async () => {
+        const patCredentials: CreateSnowflakeCredentials = {
             ...credentials,
-            token: 'new-access-token',
-            refreshToken: 'rotated-refresh-token',
+            authenticationType: SnowflakeAuthenticationType.PASSWORD,
+            privateKey: undefined,
+            password: 'pat-secret',
         };
-        vi.mocked(refreshSnowflakeOAuthToken).mockResolvedValueOnce({
-            accessToken: refreshedCredentials.token,
-            refreshToken: refreshedCredentials.refreshToken,
-            expiresAt: new Date('2026-07-14T13:00:00.000Z'),
-        });
 
         await getService().depositConnection(
             depositRequest({
-                warehouseConnection: {
-                    ...credentials,
-                    token: undefined,
-                },
+                warehouseConnection: patCredentials,
             }),
         );
 
-        expect(refreshSnowflakeOAuthToken).toHaveBeenCalledWith(
-            expect.objectContaining({
-                token: undefined,
-                refreshToken: credentials.refreshToken,
-            }),
-        );
         expect(updateWarehouseCredentials).toHaveBeenCalledWith(
             projectUuid,
             account,
-            { warehouseConnection: refreshedCredentials },
+            { warehouseConnection: patCredentials },
         );
-        expect(diagnoseConnection).toHaveBeenCalledWith(refreshedCredentials);
+        expect(diagnoseConnection).toHaveBeenCalledWith(patCredentials);
     });
 
     it('stores credentials and records pending configuration when required defaults are missing', async () => {
@@ -727,13 +810,11 @@ describe('OnboardingConnectionService', () => {
                     clientCredentials: CreateSnowflakeCredentials,
                 ) => ValidationClient
             >(() => validationClient.client);
-            const rotatedCredentials: CreateSnowflakeCredentials = {
+            const resolvedPrivateKeyCredentials: CreateSnowflakeCredentials = {
                 ...credentials,
-                token: 'fresh-access-token',
-                refreshToken: 'rotated-refresh-token',
             };
             getWarehouseCredentialsForUser.mockResolvedValueOnce({
-                ...rotatedCredentials,
+                ...resolvedPrivateKeyCredentials,
                 userWarehouseCredentialsUuid: undefined,
             });
             const selectedValues = {
@@ -779,7 +860,7 @@ describe('OnboardingConnectionService', () => {
                 projectUuid,
             );
             expect(snowflakeClientFactory).toHaveBeenCalledWith({
-                ...rotatedCredentials,
+                ...resolvedPrivateKeyCredentials,
                 userWarehouseCredentialsUuid: undefined,
                 database: selectedValues.database,
                 warehouse: selectedValues.warehouse,
@@ -795,6 +876,48 @@ describe('OnboardingConnectionService', () => {
             );
             expect(find).not.toHaveBeenCalled();
             expect(updateWarehouseCredentials).not.toHaveBeenCalled();
+        });
+
+        it('validates stored PAT password credentials', async () => {
+            const validationClient = createValidationClient();
+            const patCredentials: CreateSnowflakeCredentials = {
+                ...credentials,
+                authenticationType: SnowflakeAuthenticationType.PASSWORD,
+                privateKey: undefined,
+                password: 'pat-secret',
+            };
+            getWithSensitiveFields.mockResolvedValueOnce({
+                projectUuid,
+                organizationUuid,
+                name: 'Onboarding project',
+                type: ProjectType.DEFAULT,
+                upstreamProjectUuid: undefined,
+                createdByUserUuid: userUuid,
+                warehouseConnection: patCredentials,
+            } as Awaited<ReturnType<ProjectModel['getWithSensitiveFields']>>);
+            getWarehouseCredentialsForUser.mockResolvedValueOnce({
+                ...patCredentials,
+                userWarehouseCredentialsUuid: undefined,
+            });
+            const snowflakeClientFactory = vi.fn(() => validationClient.client);
+
+            await expect(
+                getService({
+                    warehouseDiagnosticsService:
+                        new WarehouseDiagnosticsService(),
+                    snowflakeClientFactory,
+                }).validateConnection(account, projectUuid, connectionValues),
+            ).resolves.toEqual(
+                expect.objectContaining({
+                    diagnostic: expect.objectContaining({ status: 'passed' }),
+                }),
+            );
+            expect(snowflakeClientFactory).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    authenticationType: SnowflakeAuthenticationType.PASSWORD,
+                    password: 'pat-secret',
+                }),
+            );
         });
 
         it('skips selection checks when warehouse and database are absent', async () => {

@@ -188,6 +188,7 @@ program
     .option('--warehouse <warehouse>', 'Snowflake warehouse override')
     .option('--role <role>', 'Snowflake role override')
     .option('--schema <schema>', 'Snowflake schema override')
+    .addOption(new Option('--debug-refresh-probe').hideHelp())
     // Commander passes the Command instance as the second action argument,
     // which would clobber the handler's injectable dependencies
     .action((options) => connectSnowflakeHandler(options));

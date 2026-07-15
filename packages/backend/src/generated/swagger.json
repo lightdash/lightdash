@@ -38872,6 +38872,42 @@
                 "required": ["connectionValues"],
                 "type": "object"
             },
+            "OnboardingConnectionKeyFingerprintResult": {
+                "properties": {
+                    "fingerprint": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": ["fingerprint"],
+                "type": "object"
+            },
+            "ApiSuccess_OnboardingConnectionKeyFingerprintResult_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/OnboardingConnectionKeyFingerprintResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiOnboardingConnectionKeyFingerprintResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_OnboardingConnectionKeyFingerprintResult_"
+            },
+            "OnboardingConnectionKeyFingerprintRequest": {
+                "properties": {
+                    "code": {
+                        "type": "string"
+                    }
+                },
+                "required": ["code"],
+                "type": "object"
+            },
             "DepositOnboardingConnectionRequest": {
                 "properties": {
                     "inventory": {
@@ -65697,6 +65733,46 @@
                         "application/json": {
                             "schema": {
                                 "$ref": "#/components/schemas/ValidateOnboardingConnectionRequest"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/onboarding/connection/key-fingerprint": {
+            "post": {
+                "operationId": "GetOnboardingConnectionKeyFingerprint",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiOnboardingConnectionKeyFingerprintResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "tags": ["Onboarding"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/OnboardingConnectionKeyFingerprintRequest"
                             }
                         }
                     }
