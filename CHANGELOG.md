@@ -1,3 +1,122 @@
+## [0.3383.1](https://github.com/lightdash/lightdash/compare/0.3383.0...0.3383.1) (2026-07-15)
+
+
+### Bug Fixes
+
+* **custom-roles:** keep permissions panel usable on short viewports ([#25571](https://github.com/lightdash/lightdash/issues/25571)) ([1135f99](https://github.com/lightdash/lightdash/commit/1135f9945cbec1c6bda7feef8bcc2f8e0303ee34)), closes [#25340](https://github.com/lightdash/lightdash/issues/25340)
+
+# [0.3383.0](https://github.com/lightdash/lightdash/compare/0.3382.2...0.3383.0) (2026-07-15)
+
+
+### Bug Fixes
+
+* **ai-agents:** clarify agent access hints for custom roles ([#25569](https://github.com/lightdash/lightdash/issues/25569)) ([f01580b](https://github.com/lightdash/lightdash/commit/f01580b4a674f6bc25a0da364a0eced3b377f8ac))
+
+
+### Features
+
+* add AI custom dimension assistant ([#25567](https://github.com/lightdash/lightdash/issues/25567)) ([4934e4d](https://github.com/lightdash/lightdash/commit/4934e4dd4e462a135915764ee75a929a3c9b8832)), closes [#25474](https://github.com/lightdash/lightdash/issues/25474)
+
+## [0.3382.2](https://github.com/lightdash/lightdash/compare/0.3382.1...0.3382.2) (2026-07-15)
+
+
+### Bug Fixes
+
+* reduce API error toast text size ([#25562](https://github.com/lightdash/lightdash/issues/25562)) ([da145b8](https://github.com/lightdash/lightdash/commit/da145b895d2d86cf810df119a3ecdc5cb0b8a9f8))
+
+## [0.3382.1](https://github.com/lightdash/lightdash/compare/0.3382.0...0.3382.1) (2026-07-14)
+
+
+### Bug Fixes
+
+* make dashboard table overflow menu gray instead of blue ([#25559](https://github.com/lightdash/lightdash/issues/25559)) ([8f4decc](https://github.com/lightdash/lightdash/commit/8f4decc46339efa10ae3137ca72dd989ec0491db))
+
+# [0.3382.0](https://github.com/lightdash/lightdash/compare/0.3381.0...0.3382.0) (2026-07-14)
+
+
+### Features
+
+* **appearance:** view and edit organization brand appearance ([#25303](https://github.com/lightdash/lightdash/issues/25303)) ([63e5074](https://github.com/lightdash/lightdash/commit/63e50745ae9349b4bf17afb43183f6bc910d771a))
+
+# [0.3381.0](https://github.com/lightdash/lightdash/compare/0.3380.0...0.3381.0) (2026-07-14)
+
+
+### Features
+
+* add custom roles as code ([#25520](https://github.com/lightdash/lightdash/issues/25520)) ([bad6d01](https://github.com/lightdash/lightdash/commit/bad6d015d456e6869e1f75b75aa33deb8b786a1d)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* add dashboard filter requirements module (unmounted) ([#25305](https://github.com/lightdash/lightdash/issues/25305)) ([2934bd7](https://github.com/lightdash/lightdash/commit/2934bd7b84b5f7a478a4507719ccf23590f72230))
+* **cli:** rename selected project ([#25538](https://github.com/lightdash/lightdash/issues/25538)) ([dd0fdef](https://github.com/lightdash/lightdash/commit/dd0fdefa1d23c636b6b1c325e8396270863dcd1b))
+* **deep-research:** gate runs with a dedicated scope ([#25539](https://github.com/lightdash/lightdash/issues/25539)) ([1e70ae1](https://github.com/lightdash/lightdash/commit/1e70ae19b86f934dbe33a30a35ec067968f8586a))
+
+# [0.3380.0](https://github.com/lightdash/lightdash/compare/0.3379.0...0.3380.0) (2026-07-14)
+
+
+### Features
+
+* **settings:** make in-page sub-sections searchable ([#25540](https://github.com/lightdash/lightdash/issues/25540)) ([35718ec](https://github.com/lightdash/lightdash/commit/35718ec620a2b0a249adb2c097ad313357cb5bb6))
+
+# [0.3379.0](https://github.com/lightdash/lightdash/compare/0.3378.1...0.3379.0) (2026-07-14)
+
+
+### Features
+
+* add project settings page for semantic layer pgwire connection ([#25480](https://github.com/lightdash/lightdash/issues/25480)) ([b38ac32](https://github.com/lightdash/lightdash/commit/b38ac3207dce4261707cf587a317dac024c84b20)), closes [/linear.app/lightdash/issue/PROD-8835/add-project-settings-page-for-semantic-layer-pgwire-connection#agent-session-98aba27](https://github.com//linear.app/lightdash/issue/PROD-8835/add-project-settings-page-for-semantic-layer-pgwire-connection/issues/agent-session-98aba27) [/linear.app/lightdash/issue/PROD-8835/add-project-settings-page-for-semantic-layer-pgwire-connection#agent-session-98aba27](https://github.com//linear.app/lightdash/issue/PROD-8835/add-project-settings-page-for-semantic-layer-pgwire-connection/issues/agent-session-98aba27) [/linear.app/lightdash/issue/PROD-8835/add-project-settings-page-for-semantic-layer-pgwire-connection#agent-session-98aba27](https://github.com//linear.app/lightdash/issue/PROD-8835/add-project-settings-page-for-semantic-layer-pgwire-connection/issues/agent-session-98aba27) [/linear.app/lightdash/issue/PROD-8835/add-project-settings-page-for-semantic-layer-pgwire-connection#agent-session-98aba27](https://github.com//linear.app/lightdash/issue/PROD-8835/add-project-settings-page-for-semantic-layer-pgwire-connection/issues/agent-session-98aba27) [/linear.app/lightdash/issue/PROD-8835/add-project-settings-page-for-semantic-layer-pgwire-connection#agent-session-98aba27](https://github.com//linear.app/lightdash/issue/PROD-8835/add-project-settings-page-for-semantic-layer-pgwire-connection/issues/agent-session-98aba27)
+* **cli:** native dbt MetricFlow metric support on deploy ([#25478](https://github.com/lightdash/lightdash/issues/25478)) ([e92ec4b](https://github.com/lightdash/lightdash/commit/e92ec4bf01801ef39f412fb44015c4f3afde5066)), closes [/linear.app/lightdash/issue/PROD-2191/native-support-for-dbt-metricflow-semantic-layer-without-dbt-cloud#agent-session-1ae244b0](https://github.com//linear.app/lightdash/issue/PROD-2191/native-support-for-dbt-metricflow-semantic-layer-without-dbt-cloud/issues/agent-session-1ae244b0) [/linear.app/lightdash/issue/PROD-2191/native-support-for-dbt-metricflow-semantic-layer-without-dbt-cloud#agent-session-1ae244b0](https://github.com//linear.app/lightdash/issue/PROD-2191/native-support-for-dbt-metricflow-semantic-layer-without-dbt-cloud/issues/agent-session-1ae244b0) [/linear.app/lightdash/issue/PROD-2191/native-support-for-dbt-metricflow-semantic-layer-without-dbt-cloud#agent-session-1ae244b0](https://github.com//linear.app/lightdash/issue/PROD-2191/native-support-for-dbt-metricflow-semantic-layer-without-dbt-cloud/issues/agent-session-1ae244b0)
+* **deep-research:** increase effort token budgets ([#25530](https://github.com/lightdash/lightdash/issues/25530)) ([cd19f51](https://github.com/lightdash/lightdash/commit/cd19f512b59452482998d4aabd93b6518ea0fd09))
+
+## [0.3378.1](https://github.com/lightdash/lightdash/compare/0.3378.0...0.3378.1) (2026-07-14)
+
+
+### Bug Fixes
+
+* **e2e:** repair app e2e specs broken by Mantine 8 Select/Checkbox migration ([#25519](https://github.com/lightdash/lightdash/issues/25519)) ([8d4b533](https://github.com/lightdash/lightdash/commit/8d4b53363e9981e2da163e5a4e7621e4206019a1))
+
+# [0.3378.0](https://github.com/lightdash/lightdash/compare/0.3377.1...0.3378.0) (2026-07-14)
+
+
+### Bug Fixes
+
+* **cli:** friendly errors for missing metrics key and unreadable manifest ([#25511](https://github.com/lightdash/lightdash/issues/25511)) ([d519cc8](https://github.com/lightdash/lightdash/commit/d519cc824937242cc7e42885dd2f6756c820bb9d))
+
+
+### Features
+
+* add warehouse catalog CLI command ([#25517](https://github.com/lightdash/lightdash/issues/25517)) ([5366e10](https://github.com/lightdash/lightdash/commit/5366e10a9cf0a94672ae3e68d7d3711ba98bd249))
+* **ai:** expose the Deep Research API ([#25524](https://github.com/lightdash/lightdash/issues/25524)) ([53bf60f](https://github.com/lightdash/lightdash/commit/53bf60fde0e52f1dfc8ac2f3d2542d9c70f97144))
+
+## [0.3377.1](https://github.com/lightdash/lightdash/compare/0.3377.0...0.3377.1) (2026-07-14)
+
+
+### Bug Fixes
+
+* **frontend:** pin per-tile SQL column select to filter panel ([#25505](https://github.com/lightdash/lightdash/issues/25505)) ([0f51deb](https://github.com/lightdash/lightdash/commit/0f51deb8ed576f5a1dc6f276df7f10da168bc96e)), closes [#25504](https://github.com/lightdash/lightdash/issues/25504)
+
+# [0.3377.0](https://github.com/lightdash/lightdash/compare/0.3376.1...0.3377.0) (2026-07-14)
+
+
+### Bug Fixes
+
+* **frontend:** tolerate partial create_saved_chart_version url state ([#25515](https://github.com/lightdash/lightdash/issues/25515)) ([4af487f](https://github.com/lightdash/lightdash/commit/4af487fe6ac493e5aefead8be228a8223299e97b)), closes [#25510](https://github.com/lightdash/lightdash/issues/25510)
+
+
+### Features
+
+* **deep-research:** run managed investigations ([#25514](https://github.com/lightdash/lightdash/issues/25514)) ([676e5f0](https://github.com/lightdash/lightdash/commit/676e5f099bdddfe090e22e1c5e86ff462edcf019))
+
+## [0.3376.1](https://github.com/lightdash/lightdash/compare/0.3376.0...0.3376.1) (2026-07-14)
+
+
+### Bug Fixes
+
+* **ai-agents:** stop runSql tool calls crashing the agent chat bubble ([#25509](https://github.com/lightdash/lightdash/issues/25509)) ([46a872e](https://github.com/lightdash/lightdash/commit/46a872e1bdb6e1c405fb661d103353b8a94f8dfd)), closes [#25361](https://github.com/lightdash/lightdash/issues/25361) [#25508](https://github.com/lightdash/lightdash/issues/25508)
+
+# [0.3376.0](https://github.com/lightdash/lightdash/compare/0.3375.3...0.3376.0) (2026-07-14)
+
+
+### Features
+
+* add project-scoped AI agent config as code ([#25501](https://github.com/lightdash/lightdash/issues/25501)) ([6f4b8b1](https://github.com/lightdash/lightdash/commit/6f4b8b14a26eb74d5b3d23d7c2e788661ae8a241)), closes [#16763](https://github.com/lightdash/lightdash/issues/16763)
+
 ## [0.3375.3](https://github.com/lightdash/lightdash/compare/0.3375.2...0.3375.3) (2026-07-14)
 
 

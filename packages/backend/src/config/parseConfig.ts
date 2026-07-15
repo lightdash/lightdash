@@ -1537,6 +1537,14 @@ export type LightdashConfig = {
         enabled: boolean;
         retentionDays: number;
     };
+    pgWire: {
+        /** TCP port the Postgres wire protocol server listens on. `undefined`
+         * disables the feature. */
+        port: number | undefined;
+        /** Hostname clients should use to reach the pgwire server. Display-only
+         * override; falls back to the site URL hostname. */
+        host: string | undefined;
+    };
     dashboardComments: {
         enabled: boolean;
     };
@@ -2994,6 +3002,10 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'SOFT_DELETE_RETENTION_DAYS',
                 ) ?? 30,
+        },
+        pgWire: {
+            port: getIntegerFromEnvironmentVariable('PGWIRE_PORT'),
+            host: process.env.PGWIRE_HOST,
         },
         preAggregates: {
             enabled: preAggregatesEnabled,

@@ -151,6 +151,7 @@ const BASE_ROLE_SCOPES = {
         'manage:AiAgentDocument',
         'manage:AiAgentThread@self', // User's own threads
         'manage:ContentVerification',
+        'create:AiDeepResearch',
     ],
 
     [ProjectMemberRole.ADMIN]: [

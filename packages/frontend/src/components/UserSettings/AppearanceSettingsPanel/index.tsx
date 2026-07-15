@@ -18,6 +18,7 @@ import useHealth from '../../../hooks/health/useHealth';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import MantineIcon from '../../common/MantineIcon';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
+import { BrandAppearanceSettings } from './BrandAppearanceSettings';
 import { CreatePaletteModal } from './CreatePaletteModal';
 import { PaletteItem } from './PaletteItem';
 
@@ -145,6 +146,7 @@ const AppearanceSettingsPanel: FC = () => {
                     </ActionIcon>
                 </Tooltip>
             </Group>
+            <BrandAppearanceSettings />
             <SettingsCard mb="lg">
                 <AppearanceColorSettings />
             </SettingsCard>

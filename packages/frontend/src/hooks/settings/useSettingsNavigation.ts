@@ -169,6 +169,28 @@ export const useSettingsNavigation = (
                     'default project',
                     'danger zone',
                 ],
+                pageSections: [
+                    {
+                        title: 'Allowed email domains',
+                        keywords: ['email', 'domain', 'auto join'],
+                    },
+                    {
+                        title: 'Default project',
+                        keywords: ['landing project', 'home project'],
+                    },
+                    {
+                        title: 'User impersonation',
+                        keywords: ['impersonate', 'impersonation'],
+                    },
+                    {
+                        title: 'Lightdash support access',
+                        keywords: ['support', 'impersonate', 'impersonation'],
+                    },
+                    {
+                        title: 'Danger zone',
+                        keywords: ['delete organization', 'leave organization'],
+                    },
+                ],
                 children: [],
                 exact: true,
             });
@@ -657,6 +679,17 @@ export const useSettingsNavigation = (
                     to: `${base}/dataAppConnections`,
                     icon: IconPlugConnected,
                     keywords: ['external', 'api', 'http', 'fetch', 'apps'],
+                    children: [],
+                    exact: true,
+                });
+            }
+
+            if (organization?.pgWire?.enabled) {
+                projectItems.push({
+                    label: 'Semantic layer',
+                    to: `${base}/semanticLayer`,
+                    icon: IconPlug,
+                    keywords: ['postgres', 'pgwire', 'connection', 'sql', 'bi'],
                     children: [],
                     exact: true,
                 });

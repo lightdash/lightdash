@@ -16,6 +16,7 @@ import {
     type PreAggregateMatchMiss,
     type ResultColumn,
     type SortField,
+    type UnmetFilterRequirement,
 } from '@lightdash/common';
 import { type Dispatch, type SetStateAction } from 'react';
 import {
@@ -128,10 +129,14 @@ export type DashboardContextType = {
     dashboardComments?: ReturnType<typeof useGetComments>['data'];
     hasTileComments: (tileUuid: string) => boolean;
     requiredDashboardFilters: Pick<DashboardFilterRule, 'id' | 'label'>[];
+    unmetFilterRequirements: UnmetFilterRequirement[];
+    isFilterRequirementsEnabled: boolean;
     isDateZoomDisabled: boolean;
     setIsDateZoomDisabled: Dispatch<SetStateAction<boolean>>;
     isAddFilterDisabled: boolean;
     setIsAddFilterDisabled: Dispatch<SetStateAction<boolean>>;
+    requiredFiltersNote: string | undefined;
+    setRequiredFiltersNote: Dispatch<SetStateAction<string | undefined>>;
     setSavedParameters: Dispatch<SetStateAction<DashboardParameters>>;
     parametersHaveChanged: boolean;
     dashboardParameters: DashboardParameters;

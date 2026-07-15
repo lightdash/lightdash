@@ -331,9 +331,7 @@ export default class App {
         // Postgres wire protocol endpoint for the semantic layer (experimental,
         // enterprise-only). The factory is supplied by the EE bootstrap under a
         // valid license; without it the endpoint stays disabled.
-        const pgWirePort = process.env.PGWIRE_PORT
-            ? parseInt(process.env.PGWIRE_PORT, 10)
-            : undefined;
+        const pgWirePort = this.lightdashConfig.pgWire.port;
         if (pgWirePort && this.pgWireServerFactory) {
             this.pgWireServer = this.pgWireServerFactory(
                 this.serviceRepository,

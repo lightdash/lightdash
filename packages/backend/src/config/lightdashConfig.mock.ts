@@ -352,6 +352,10 @@ export const lightdashConfigMock: LightdashConfig = {
         enabled: false,
         retentionDays: 30,
     },
+    pgWire: {
+        port: undefined,
+        host: undefined,
+    },
     dashboardComments: {
         enabled: true,
     },

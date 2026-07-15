@@ -1,0 +1,29 @@
+.card {
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    padding: var(--mantine-spacing-xs);
+}
+
+.cardActive {
+    border-color: alpha(var(--mantine-color-yellow-6), 0.35);
+
+    @mixin light {
+        background-color: var(--mantine-color-yellow-0);
+    }
+    @mixin dark {
+        background-color: alpha(var(--mantine-color-yellow-9), 0.2);
+    }
+}
+
+.groupSection {
+    margin-top: var(--mantine-spacing-xs);
+    padding: var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-sm);
+
+    @mixin light {
+        background-color: alpha(var(--mantine-color-black), 0.04);
+    }
+    @mixin dark {
+        background-color: alpha(var(--mantine-color-white), 0.04);
+    }
+}

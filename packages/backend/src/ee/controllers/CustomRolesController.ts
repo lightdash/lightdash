@@ -1,11 +1,14 @@
 import {
     AddScopesToRole,
+    ApiCustomRoleAsCodeListResponse,
+    ApiCustomRoleAsCodeUpsertResponse,
     ApiDefaultRoleResponse,
     ApiErrorPayload,
     ApiRemoveScopeFromRoleResponse,
     ApiRoleAssigneesResponse,
     ApiUnassignRoleFromUserResponse,
     CreateRole,
+    CustomRoleAsCode,
     UpdateRole,
 } from '@lightdash/common';
 import {
@@ -85,6 +88,60 @@ export class CustomRolesController extends BaseController {
         return {
             status: 'ok',
             results: role,
+        };
+    }
+
+    /**
+     * Get custom roles in code representation
+     * @summary List custom roles as code
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/code')
+    @OperationId('GetCustomRolesAsCode')
+    async getCustomRolesAsCode(
+        @Request() req: express.Request,
+        @Path() orgUuid: string,
+    ): Promise<ApiCustomRoleAsCodeListResponse> {
+        const customRoles = await this.getRolesService().getCustomRolesAsCode(
+            req.account!,
+            orgUuid,
+        );
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: { customRoles },
+        };
+    }
+
+    /**
+     * Upsert a custom role from code representation
+     * @summary Upsert custom role as code
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/code')
+    @OperationId('UpsertCustomRoleAsCode')
+    async upsertCustomRoleAsCode(
+        @Request() req: express.Request,
+        @Path() orgUuid: string,
+        @Body() body: CustomRoleAsCode,
+    ): Promise<ApiCustomRoleAsCodeUpsertResponse> {
+        const results = await this.getRolesService().upsertCustomRoleAsCode(
+            req.account!,
+            orgUuid,
+            body,
+        );
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results,
         };
     }
 

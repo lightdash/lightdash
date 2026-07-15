@@ -32,6 +32,7 @@ import {
     OrganizationMemberRole,
     OrganizationProject,
     ParameterError,
+    SaveOrganizationBrandRequest,
     SessionUser,
     UnexpectedServerError,
     UpdateAllowedEmailDomains,
@@ -155,6 +156,43 @@ export class OrganizationService extends BaseService {
         return {
             ...organization,
             needsProject,
+            pgWire: this.getPgWireConnectionDetails(
+                account,
+                account.organization.organizationUuid,
+            ),
+        };
+    }
+
+    private getPgWireConnectionDetails(
+        account: Account,
+        organizationUuid: string,
+    ): Organization['pgWire'] {
+        const { port, host } = this.lightdashConfig.pgWire;
+        const enabled = port !== undefined;
+
+        // The connection details (host/port) are infra endpoints, so only
+        // expose them to org admins. `enabled` is a capability flag every org
+        // member needs to gate the settings tab, so it's returned to all.
+        const isOrgAdmin = this.createAuditedAbility(account).can(
+            'manage',
+            subject('Organization', { organizationUuid }),
+        );
+        if (!isOrgAdmin) {
+            return { enabled, host: null, port: null };
+        }
+
+        let resolvedHost = host ?? null;
+        if (resolvedHost === null) {
+            try {
+                resolvedHost = new URL(this.lightdashConfig.siteUrl).hostname;
+            } catch {
+                resolvedHost = null;
+            }
+        }
+        return {
+            enabled,
+            host: resolvedHost,
+            port: port ?? null,
         };
     }
 
@@ -290,7 +328,12 @@ export class OrganizationService extends BaseService {
         };
     }
 
-    async updateBrand(
+    /**
+     * Fetch a brand profile from Brandfetch for the given domain WITHOUT
+     * persisting it. Used to populate the appearance form so the user can
+     * review and edit before saving (and revert if they change their mind).
+     */
+    async fetchBrandFromDomain(
         account: Account,
         domain: string,
     ): Promise<OrganizationBrand> {
@@ -351,15 +394,56 @@ export class OrganizationService extends BaseService {
             );
         }
 
+        this.logger.info('Fetched organization brand from Brandfetch', {
+            organizationUuid,
+            domain: normalizedDomain,
+        });
+
+        return {
+            organizationUuid,
+            domain: normalizedDomain,
+            ...OrganizationService.mapBrandfetchResponse(data),
+            updatedAt: new Date(),
+        };
+    }
+
+    /**
+     * Persist the brand appearance exactly as edited by the user. Does not call
+     * Brandfetch — stores the provided colors, logos, fonts and domain as-is.
+     */
+    async saveBrand(
+        account: Account,
+        request: SaveOrganizationBrandRequest,
+    ): Promise<OrganizationBrand> {
+        assertIsAccountWithOrg(account);
+        const { organizationUuid } = account.organization;
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'update',
+                subject('Organization', { organizationUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const normalizedDomain = OrganizationService.normalizeBrandDomain(
+            request.domain,
+        );
+
         const brand = await this.organizationModel.updateBrand(
             organizationUuid,
             {
                 domain: normalizedDomain,
-                ...OrganizationService.mapBrandfetchResponse(data),
+                name: request.name,
+                description: request.description,
+                logos: request.logos,
+                colors: request.colors,
+                fonts: request.fonts,
             },
         );
 
-        this.logger.info('Fetched and stored organization brand', {
+        this.logger.info('Saved organization brand', {
             organizationUuid,
             domain: normalizedDomain,
         });

@@ -261,8 +261,7 @@ describe('Dashboard', () => {
         cy.get('[data-testid="DashboardFilterConfiguration/ChartTiles"]')
             .findAllByRole('checkbox')
             .eq(1)
-            .focus()
-            .type(' ');
+            .uncheck({ force: true });
         cy.contains('button', 'Apply').click({ force: true });
 
         // Saved chart should have no filter applied
@@ -315,8 +314,7 @@ describe('Dashboard', () => {
             .contains('Stg Payments (payment method x amount)?')
             .closest('[data-testid="tile-filter-item"]')
             .findByRole('checkbox')
-            .focus()
-            .type(' ');
+            .check({ force: true });
         cy.get(
             '[data-testid="DashboardFilterConfiguration/ChartTiles"] [data-testid="tile-filter-item"]',
         )

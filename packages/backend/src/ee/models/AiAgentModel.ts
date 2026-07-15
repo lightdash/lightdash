@@ -75,6 +75,7 @@ import {
     UpdateSlackResponse,
     UpdateSlackResponseTs,
     UpdateWebAppResponse,
+    type AgentAsCode,
     type AiAgent,
     type AiAgentIntegration,
     type VerifiedContentListItem,
@@ -650,6 +651,90 @@ export class AiAgentModel {
         const rows = await query;
 
         return rows;
+    }
+
+    async findAgentsForCode({
+        organizationUuid,
+        projectUuid,
+        slugs,
+        agentUuids,
+    }: {
+        organizationUuid: string;
+        projectUuid: string;
+        slugs?: string[];
+        agentUuids?: string[];
+    }): Promise<
+        Array<
+            Pick<
+                AgentAsCode,
+                | 'slug'
+                | 'agentVersion'
+                | 'name'
+                | 'description'
+                | 'imageUrl'
+                | 'instruction'
+                | 'tags'
+                | 'enableDataAccess'
+                | 'enableSelfImprovement'
+                | 'enableContentTools'
+                | 'enableUserContext'
+                | 'modelConfig'
+                | 'updatedAt'
+            > & { uuid: string }
+        >
+    > {
+        const latestInstruction = this.database
+            .from(AiAgentInstructionVersionsTableName)
+            .select(
+                'ai_agent_uuid',
+                this.database.raw('instruction'),
+                this.database.raw(
+                    'ROW_NUMBER() OVER (PARTITION BY ai_agent_uuid ORDER BY created_at DESC) as rn',
+                ),
+            );
+
+        const query = this.database
+            .with('latest_instruction', latestInstruction)
+            .from(AiAgentTableName)
+            .select({
+                uuid: `${AiAgentTableName}.ai_agent_uuid`,
+                slug: `${AiAgentTableName}.slug`,
+                agentVersion: `${AiAgentTableName}.version`,
+                name: `${AiAgentTableName}.name`,
+                description: `${AiAgentTableName}.description`,
+                imageUrl: `${AiAgentTableName}.image_url`,
+                tags: `${AiAgentTableName}.tags`,
+                enableDataAccess: `${AiAgentTableName}.enable_data_access`,
+                enableSelfImprovement: `${AiAgentTableName}.enable_self_improvement`,
+                enableContentTools: `${AiAgentTableName}.enable_content_tools`,
+                enableUserContext: `${AiAgentTableName}.enable_user_context`,
+                modelConfig: `${AiAgentTableName}.model_config`,
+                updatedAt: `${AiAgentTableName}.updated_at`,
+                instruction: this.database.raw(`
+                    (SELECT instruction FROM latest_instruction
+                     WHERE ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid AND rn = 1)
+                `),
+            })
+            .where(`${AiAgentTableName}.organization_uuid`, organizationUuid)
+            .where(`${AiAgentTableName}.project_uuid`, projectUuid)
+            .where(`${AiAgentTableName}.is_system`, false)
+            .orderBy(`${AiAgentTableName}.slug`, 'asc');
+
+        if ((slugs?.length ?? 0) > 0 || (agentUuids?.length ?? 0) > 0) {
+            void query.where((builder) => {
+                if (slugs?.length) {
+                    void builder.whereIn(`${AiAgentTableName}.slug`, slugs);
+                }
+                if (agentUuids?.length) {
+                    void builder.orWhereIn(
+                        `${AiAgentTableName}.ai_agent_uuid`,
+                        agentUuids,
+                    );
+                }
+            });
+        }
+
+        return query;
     }
 
     async getAgentBySlackChannelId({
@@ -1790,14 +1875,18 @@ export class AiAgentModel {
         > & {
             organizationUuid: string;
             isSystem?: boolean;
+            slug?: string;
+            imageUrl?: string | null;
         },
     ): Promise<AiAgent> {
         return this.database.transaction(async (trx) => {
-            const slug = await AiAgentModel.generateUniqueSlug(
-                trx,
-                args.projectUuid,
-                args.name,
-            );
+            const slug =
+                args.slug ??
+                (await AiAgentModel.generateUniqueSlug(
+                    trx,
+                    args.projectUuid,
+                    args.name,
+                ));
 
             const [agent] = await trx(AiAgentTableName)
                 .insert({
@@ -1807,8 +1896,8 @@ export class AiAgentModel {
                     organization_uuid: args.organizationUuid,
                     tags: args.tags,
                     description: args.description ?? null,
-                    image_url: null,
-                    image_url_source: null,
+                    image_url: args.imageUrl ?? null,
+                    image_url_source: args.imageUrl ? 'url' : null,
                     enable_data_access: args.enableDataAccess,
                     enable_self_improvement: args.enableSelfImprovement,
                     enable_content_tools: args.enableContentTools ?? false,
@@ -2214,6 +2303,37 @@ export class AiAgentModel {
                 modelConfig: agent.model_config,
                 version: agent.version,
             };
+        });
+    }
+
+    async addSlackChannelIntegration(args: {
+        organizationUuid: string;
+        agentUuid: string;
+        slackChannelId: string;
+    }): Promise<void> {
+        await this.database.transaction(async (trx) => {
+            try {
+                const [baseIntegration] = await trx(AiAgentIntegrationTableName)
+                    .insert({
+                        ai_agent_uuid: args.agentUuid,
+                        integration_type: 'slack',
+                    })
+                    .returning('*');
+
+                await trx(AiAgentSlackIntegrationTableName).insert({
+                    ai_agent_integration_uuid:
+                        baseIntegration.ai_agent_integration_uuid,
+                    organization_uuid: args.organizationUuid,
+                    slack_channel_id: args.slackChannelId,
+                });
+            } catch (error) {
+                if (isUniqueConstraintViolation(error)) {
+                    throw new AlreadyExistsError(
+                        'This Slack channel is already assigned to another AI agent',
+                    );
+                }
+                throw error;
+            }
         });
     }
 

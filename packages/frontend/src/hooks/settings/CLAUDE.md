@@ -5,11 +5,12 @@ Single source for the settings sidebar navigation. `useSettingsContext` gathers 
 <howToUse>
 The sidebar nav is data, not JSX. To add or edit a sidebar entry, edit the builder in `useSettingsNavigation.ts` — do NOT hand-write `RouterNavLink`s.
 
-- Entry shape is `SettingsNavigationItem` (`types.ts`): `label`, `to`, `icon`, `keywords`, `children`, optional `exact`, optional `onClick`.
+- Entry shape is `SettingsNavigationItem` (`types.ts`): `label`, `to`, `icon`, `keywords`, `children`, optional `pageSections`, optional `exact`, optional `onClick`.
 - Entries are pushed into one of three sections (`your-settings`, `organization`, `current-project`) in display order — position your `push` where you want it to appear.
 - Gating is the `if` guarding each `push`: combine `ability?.can(...)` (CASL, with `subject(...)` for scoped checks) and the resolved feature-flag booleans destructured from `useSettingsContext()`. Only permitted entries are added, so rendering stays a dumb map.
 - Leaf entries set `exact: true`. A parent with `children` omits `exact` (partial match) so it stays active on its child routes; nested children render expanded when the path matches (`defaultOpened` in `SettingsNavigation`).
 - `keywords` are hidden search aliases that feed the sidebar search (`filterSettingsNavigation`, Fuse.js fuzzy match on label + keywords) — add the synonyms a user might type (e.g. `Single Sign-On` → `['sso','saml','okta']`). Matched label text is highlighted in results; keyword-only matches surface without a highlight.
+- `pageSections` makes **in-page content** searchable. The search index is the nav model, not the rendered pages, so a sub-section heading (e.g. "User impersonation" inside the org "General" page) is invisible to search unless listed here. Add `{ title, keywords }` for each notable heading a page renders; a match promotes the parent entry so the page surfaces in the sidebar (it does not deep-link/scroll to the section). Keep these titles in step with the page component (e.g. the `Settings.tsx` / `ProjectSettings.tsx` route element), since nothing enforces the link. Omit for pages with no notable sub-sections.
 
 If your entry needs a new feature flag, resolve it in `useSettingsContext.ts` and add it to the `SettingsContext` type, then destructure it in `useSettingsNavigation`. `SettingsNavigation.tsx` renders whatever sections it's given; you rarely need to touch it.
 </howToUse>

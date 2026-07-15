@@ -13,6 +13,7 @@ import {
 import SettingsEmbed from '../../ee/features/embed/SettingsEmbed';
 import PullRequestsPage from '../../features/pullRequests/components/PullRequestsPage';
 import RecentlyDeletedPage from '../../features/recentlyDeleted/components/RecentlyDeletedPage';
+import { useOrganization } from '../../hooks/organization/useOrganization';
 import { useProject } from '../../hooks/useProject';
 import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../providers/App/useApp';
@@ -40,6 +41,7 @@ import { SettingsValidator } from '../SettingsValidator';
 import CorsSettingsPanel from '../UserSettings/CorsSettingsPanel';
 import VerifiedContentPanel from '../VerifiedContent/VerifiedContentPanel';
 import DataAppConnectionsPanel from './DataAppConnectionsPanel';
+import SemanticLayerConnectionPanel from './SemanticLayerConnectionPanel';
 
 const ProjectSettings: FC = () => {
     const { projectUuid } = useParams<{
@@ -50,7 +52,10 @@ const ProjectSettings: FC = () => {
     const { health, user } = useApp();
     const { isInitialLoading, data: project, error } = useProject(projectUuid);
 
+    const { data: organization } = useOrganization();
+
     const isSoftDeleteEnabled = health.data?.softDelete?.enabled ?? false;
+    const isPgWireEnabled = organization?.pgWire?.enabled ?? false;
     // Only relevant when the project's code lives in a Git provider, since the
     // section lists PRs opened against that repo.
     const isGitProject = useIsGitProject(projectUuid ?? '');
@@ -143,6 +148,18 @@ const ProjectSettings: FC = () => {
                 path: `/compilationHistory`,
                 element: <CompilationHistory projectUuid={projectUuid} />,
             },
+            ...(isPgWireEnabled
+                ? [
+                      {
+                          path: `/semanticLayer`,
+                          element: (
+                              <SemanticLayerConnectionPanel
+                                  projectUuid={projectUuid}
+                              />
+                          ),
+                      },
+                  ]
+                : []),
             ...(isGitProject
                 ? [
                       {
@@ -245,6 +262,7 @@ const ProjectSettings: FC = () => {
     }, [
         projectUuid,
         isSoftDeleteEnabled,
+        isPgWireEnabled,
         isGitProject,
         user.data?.ability,
         canManageExternalConnections,

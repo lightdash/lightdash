@@ -533,7 +533,7 @@ export const AiAgentFormSetup = ({
                                     <Radio
                                         value="specific"
                                         label={`Specific users ${isGroupsEnabled ? ' & groups' : ''}`}
-                                        description={`Only the users${isGroupsEnabled ? ' and groups ' : ' '}you choose. Admins and developers always have access.`}
+                                        description={`Only the users${isGroupsEnabled ? ' and groups ' : ' '}you choose. Admins and developers (Manage AI Agents scope) always have access.`}
                                     />
                                 </Stack>
                             </Radio.Group>
@@ -561,7 +561,7 @@ export const AiAgentFormSetup = ({
                                                         Group Access
                                                     </Text>
                                                     <Tooltip
-                                                        label="Admins and developers will always have access to this agent."
+                                                        label="Admins and developers (Manage AI Agents scope) will always have access to this agent."
                                                         withArrow
                                                         withinPortal
                                                         multiline

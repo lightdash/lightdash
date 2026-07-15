@@ -73,6 +73,17 @@ services:
             S3_BUCKET: ${S3_BUCKET}
             MCP_ENABLED: true
             CUSTOM_ROLES_ENABLED: true
+
+            # Enterprise Postgres wire protocol server for the semantic layer.
+            # Setting the port starts the listener and lights up the "Semantic
+            # layer" project settings page so the UI can be tested. NOTE: the
+            # port is intentionally NOT published on the service (see `ports`
+            # below) — Okteto's HTTP ingress can't route raw Postgres TCP, and
+            # publishing a second port makes Okteto generate per-port endpoints
+            # that break the default preview endpoint the e2e suite relies on.
+            # The listener still binds inside the container, which is all the
+            # UI needs to render.
+            PGWIRE_PORT: 5433
             # Enables the combined timezone feature (incl. user-level timezone
             # resolution) so the timezone api-tests pass.
             LIGHTDASH_ENABLE_TIMEZONE_SUPPORT: true

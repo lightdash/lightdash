@@ -1,5 +1,6 @@
 import {
     CreateRole,
+    CustomRoleAsCode,
     defineUserAbility,
     ForbiddenError,
     getSystemRoles,
@@ -7,6 +8,7 @@ import {
     OrganizationMemberRole,
     ParameterError,
     ProjectMemberRole,
+    PromotionAction,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import EmailClient from '../../clients/EmailClient/EmailClient';
@@ -49,6 +51,211 @@ describe('RolesService', () => {
     });
     beforeEach(() => {
         vi.clearAllMocks();
+    });
+
+    describe('custom roles as code', () => {
+        const roleAsCode: CustomRoleAsCode = {
+            version: 1,
+            name: 'Custom Role',
+            description: 'A custom role for testing',
+            level: 'project',
+            scopes: ['manage:Space', 'view:Dashboard'],
+        };
+
+        it('returns portable custom roles with sorted scopes', async () => {
+            mockRolesModel.getRolesWithScopesByOrganizationUuid.mockResolvedValue(
+                [
+                    {
+                        ...mockCustomRoleWithScopes,
+                        scopes: ['view:Dashboard', 'manage:Space'],
+                    },
+                ],
+            );
+
+            await expect(
+                service.getCustomRolesAsCode(mockAccount, 'test-org-uuid'),
+            ).resolves.toStrictEqual([
+                {
+                    version: 1,
+                    name: mockCustomRoleWithScopes.name,
+                    description: mockCustomRoleWithScopes.description,
+                    level: mockCustomRoleWithScopes.level,
+                    scopes: ['manage:Space', 'view:Dashboard'],
+                },
+            ]);
+            expect(
+                mockRolesModel.getRolesWithScopesByOrganizationUuid,
+            ).toHaveBeenCalledWith('test-org-uuid', 'user');
+        });
+
+        it('creates a missing custom role', async () => {
+            mockRolesModel.getRolesWithScopesByOrganizationUuid.mockResolvedValue(
+                [],
+            );
+            const createRole = vi
+                .spyOn(service, 'createRole')
+                .mockResolvedValue(mockNewRole);
+
+            await expect(
+                service.upsertCustomRoleAsCode(
+                    mockAccount,
+                    'test-org-uuid',
+                    roleAsCode,
+                ),
+            ).resolves.toStrictEqual({ action: PromotionAction.CREATE });
+            expect(createRole).toHaveBeenCalledWith(
+                mockAccount,
+                'test-org-uuid',
+                {
+                    name: roleAsCode.name,
+                    description: roleAsCode.description,
+                    level: roleAsCode.level,
+                    scopes: roleAsCode.scopes,
+                },
+            );
+            createRole.mockRestore();
+        });
+
+        it('updates scopes and clears the description', async () => {
+            mockRolesModel.getRolesWithScopesByOrganizationUuid.mockResolvedValue(
+                [
+                    {
+                        ...mockCustomRoleWithScopes,
+                        scopes: ['manage:Space', 'view:Dashboard'],
+                    },
+                ],
+            );
+            const updateRole = vi
+                .spyOn(service, 'updateRole')
+                .mockResolvedValue(mockCustomRole);
+            const desiredRole: CustomRoleAsCode = {
+                ...roleAsCode,
+                description: null,
+                scopes: ['view:Dashboard', 'view:SavedChart'],
+            };
+
+            await expect(
+                service.upsertCustomRoleAsCode(
+                    mockAccount,
+                    'test-org-uuid',
+                    desiredRole,
+                ),
+            ).resolves.toStrictEqual({ action: PromotionAction.UPDATE });
+            expect(updateRole).toHaveBeenCalledWith(
+                mockAccount,
+                'test-org-uuid',
+                mockCustomRoleWithScopes.roleUuid,
+                {
+                    description: null,
+                    scopes: {
+                        add: ['view:SavedChart'],
+                        remove: ['manage:Space'],
+                    },
+                },
+            );
+            updateRole.mockRestore();
+        });
+
+        it('returns no changes for an identical custom role', async () => {
+            mockRolesModel.getRolesWithScopesByOrganizationUuid.mockResolvedValue(
+                [
+                    {
+                        ...mockCustomRoleWithScopes,
+                        scopes: roleAsCode.scopes,
+                    },
+                ],
+            );
+
+            await expect(
+                service.upsertCustomRoleAsCode(
+                    mockAccount,
+                    'test-org-uuid',
+                    roleAsCode,
+                ),
+            ).resolves.toStrictEqual({
+                action: PromotionAction.NO_CHANGES,
+            });
+            expect(mockRolesModel.updateRole).not.toHaveBeenCalled();
+        });
+
+        it('preserves legacy level-incompatible scopes when unchanged', async () => {
+            const legacyRole: CustomRoleAsCode = {
+                ...roleAsCode,
+                scopes: ['view:Dashboard', 'view:Organization'],
+            };
+            mockRolesModel.getRolesWithScopesByOrganizationUuid.mockResolvedValue(
+                [
+                    {
+                        ...mockCustomRoleWithScopes,
+                        scopes: legacyRole.scopes,
+                    },
+                ],
+            );
+
+            await expect(
+                service.upsertCustomRoleAsCode(
+                    mockAccount,
+                    'test-org-uuid',
+                    legacyRole,
+                ),
+            ).resolves.toStrictEqual({
+                action: PromotionAction.NO_CHANGES,
+            });
+        });
+
+        it('rejects newly added level-incompatible scopes', async () => {
+            mockRolesModel.getRolesWithScopesByOrganizationUuid.mockResolvedValue(
+                [
+                    {
+                        ...mockCustomRoleWithScopes,
+                        scopes: ['view:Dashboard'],
+                    },
+                ],
+            );
+
+            await expect(
+                service.upsertCustomRoleAsCode(mockAccount, 'test-org-uuid', {
+                    ...roleAsCode,
+                    scopes: ['view:Dashboard', 'view:Organization'],
+                }),
+            ).rejects.toThrow(
+                'Scopes are not assignable at project level: view:Organization',
+            );
+        });
+
+        it('rejects unknown scopes before reading existing roles', async () => {
+            await expect(
+                service.upsertCustomRoleAsCode(mockAccount, 'test-org-uuid', {
+                    ...roleAsCode,
+                    scopes: ['delete:VirtualViewsss'],
+                }),
+            ).rejects.toThrow(
+                'Unknown custom role scopes: delete:VirtualViewsss',
+            );
+            expect(
+                mockRolesModel.getRolesWithScopesByOrganizationUuid,
+            ).not.toHaveBeenCalled();
+        });
+
+        it('rejects immutable level changes', async () => {
+            mockRolesModel.getRolesWithScopesByOrganizationUuid.mockResolvedValue(
+                [
+                    {
+                        ...mockCustomRoleWithScopes,
+                        scopes: roleAsCode.scopes,
+                    },
+                ],
+            );
+
+            await expect(
+                service.upsertCustomRoleAsCode(mockAccount, 'test-org-uuid', {
+                    ...roleAsCode,
+                    level: 'organization',
+                }),
+            ).rejects.toThrow(
+                'Cannot change custom role "Custom Role" level from project to organization',
+            );
+        });
     });
 
     describe('duplicateRole', () => {

@@ -6,7 +6,7 @@ import {
     RenameType,
     ValidationTarget,
 } from '@lightdash/common';
-import { InvalidArgumentError, Option, program } from 'commander';
+import { InvalidArgumentError, Option, program, type Command } from 'commander';
 import { validate } from 'uuid';
 import {
     DEFAULT_DBT_PROFILES_DIR as defaultProfilesDir,
@@ -40,11 +40,13 @@ import {
     stopPreviewHandler,
 } from './handlers/preview';
 import { renameHandler } from './handlers/renameHandler';
+import { renameProjectHandler } from './handlers/renameProject';
 import { runChartHandler } from './handlers/runChart';
 import { setProjectHandler, unsetProjectHandler } from './handlers/setProject';
 import { setWarehouseHandler } from './handlers/setWarehouse';
 import { sqlHandler } from './handlers/sql';
 import { validateHandler } from './handlers/validate';
+import { warehouseCatalogHandler } from './handlers/warehouseCatalog';
 import * as styles from './styles';
 // Trigger CLI tests
 // Suppress AWS SDK V2 warning, imported by snowflake SDK
@@ -281,6 +283,12 @@ configProgram
     .description('Show the currently selected project')
     .option('--verbose', undefined, false)
     .action(getProjectHandler);
+configProgram
+    .command('rename-project')
+    .description('Rename the currently selected project')
+    .requiredOption('--name <name>', 'New project name')
+    .option('--verbose', undefined, false)
+    .action(renameProjectHandler);
 configProgram
     .command('unset-project')
     .description('Clear the currently selected project')
@@ -714,9 +722,41 @@ program
     .option('--verbose', undefined, false)
     .action(stopPreviewHandler);
 
-program
+const ORGANIZATION_MODE_OPTIONS = new Set(['organization', 'path', 'verbose']);
+
+const withOrganizationMode =
+    <Options extends { organization: boolean }>(
+        handler: (options: Options) => Promise<void>,
+    ) =>
+    async (options: Options, command: Command): Promise<void> => {
+        if (options.organization) {
+            const conflictingOption = Object.keys(options).find(
+                (optionName) => {
+                    const source = command.getOptionValueSource(optionName);
+                    return (
+                        !ORGANIZATION_MODE_OPTIONS.has(optionName) &&
+                        source !== undefined &&
+                        source !== 'default'
+                    );
+                },
+            );
+            if (conflictingOption) {
+                const conflictingFlag = conflictingOption.replace(
+                    /[A-Z]/g,
+                    (letter) => `-${letter.toLowerCase()}`,
+                );
+                command.error(
+                    `error: option '--organization' cannot be used with option '--${conflictingFlag}'`,
+                    { code: 'commander.conflictingOption' },
+                );
+            }
+        }
+        await handler(options);
+    };
+
+const downloadCommand = program
     .command('download')
-    .description('Downloads project content as code')
+    .description('Downloads project or organization content as code')
     .option('--verbose', undefined, false)
     .option(
         '-c, --charts <charts...>',
@@ -727,6 +767,12 @@ program
         '-d, --dashboards <dashboards...>',
         'specify dashboard slugs, uuids or urls to download',
         [],
+    )
+    .option('--agents <slugs...>', 'specify AI agent slugs to download', [])
+    .option(
+        '--include-agents',
+        "include all of the project's AI agents (enterprise)",
+        false,
     )
     .option('--alerts <slugs...>', 'specify alert slugs to download', [])
     .option(
@@ -817,11 +863,17 @@ program
         'Download only data apps (implies --skip-charts --skip-dashboards --skip-spaces). Requires --apps <appUuids...>, --include-apps, or --include-all.',
         false,
     )
-    .action(downloadHandler);
+    .option(
+        '--organization',
+        'download all organization-scoped resources without selecting a project',
+        false,
+    );
 
-program
+downloadCommand.action(withOrganizationMode(downloadHandler));
+
+const uploadCommand = program
     .command('upload')
-    .description('Uploads project content as code')
+    .description('Uploads project or organization content as code')
     .option('--verbose', undefined, false)
     .option(
         '-c, --charts <charts...>',
@@ -833,6 +885,7 @@ program
         'specify dashboard slugs to force upload',
         [],
     )
+    .option('--agents <slugs...>', 'specify AI agent slugs to upload', [])
     .option('--alerts <slugs...>', 'specify alert slugs to upload', [])
     .option(
         '--virtual-views <slugs...>',
@@ -871,6 +924,7 @@ program
         false,
     )
     .option('--public', 'Create new spaces as public instead of private', false)
+    .option('--skip-agents', 'skip uploading AI agents', false)
     .option('--skip-alerts', 'skip uploading alerts', false)
     .option('--skip-virtual-views', 'skip uploading virtual views', false)
     .option('--skip-google-sheets', 'skip uploading Google Sheets syncs', false)
@@ -905,7 +959,13 @@ program
         'Always create a new app from the uploaded code instead of updating the app referenced by lightdash-app.yml.',
         false,
     )
-    .action(uploadHandler);
+    .option(
+        '--organization',
+        'upload all organization-scoped resources without selecting a project',
+        false,
+    );
+
+uploadCommand.action(withOrganizationMode(uploadHandler));
 
 program
     .command('deploy')
@@ -1359,6 +1419,41 @@ ${styles.bold('Examples:')}
         'cli',
     )
     .action(lintHandler);
+
+program
+    .command('warehouse-catalog')
+    .description(
+        "Explore the selected project's raw warehouse databases, schemas, tables, and fields",
+    )
+    .option('--database <name>', 'Filter by exact database name')
+    .option('--schema <name>', 'Filter by exact schema name')
+    .option('--table <name>', 'Filter by exact table name')
+    .option(
+        '--include-fields',
+        'Include field names and Lightdash types for one fully qualified table',
+        false,
+    )
+    .option(
+        '--refresh',
+        'Refetch warehouse metadata and refresh the server catalog cache first',
+        false,
+    )
+    .option('--json', 'Emit machine-readable JSON instead of a table', false)
+    .option('--verbose', 'Show detailed output', false)
+    .addHelpText(
+        'after',
+        `
+${styles.bold('Examples:')}
+  ${styles.title('⚡')} lightdash ${styles.bold('warehouse-catalog')}
+  ${styles.title('⚡')} lightdash ${styles.bold(
+      'warehouse-catalog',
+  )} --database analytics --schema public
+  ${styles.title('⚡')} lightdash ${styles.bold(
+      'warehouse-catalog',
+  )} --database analytics --schema public --table orders --include-fields --json
+`,
+    )
+    .action(warehouseCatalogHandler);
 
 program
     .command('pre-aggregate-audit')

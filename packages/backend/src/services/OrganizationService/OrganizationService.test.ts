@@ -61,6 +61,13 @@ describe('organization service', () => {
         expect(await organizationService.get(account)).toEqual({
             ...organization,
             needsProject: false,
+            // Default account is a developer (not an org admin), so the pgwire
+            // connection details are withheld — only `enabled` is exposed.
+            pgWire: {
+                enabled: false,
+                host: null,
+                port: null,
+            },
         });
     });
     it('Should return needsProject true if there are no projects in DB', async () => {
@@ -71,6 +78,37 @@ describe('organization service', () => {
         expect(await organizationService.get(account)).toEqual({
             ...organization,
             needsProject: true,
+            pgWire: {
+                enabled: false,
+                host: null,
+                port: null,
+            },
+        });
+    });
+
+    it('Should expose pgwire connection details to org admins', async () => {
+        const account = buildAccount({ accountType: 'session' });
+        account.user.ability = new Ability<PossibleAbilities>([
+            { subject: 'Organization', action: 'manage' },
+        ]);
+        const result = await organizationService.get(account);
+        expect(result.pgWire).toEqual({
+            enabled: false,
+            host: 'test.lightdash.cloud',
+            port: null,
+        });
+    });
+
+    it('Should withhold pgwire connection details from non-admins', async () => {
+        const account = buildAccount({ accountType: 'session' });
+        account.user.ability = new Ability<PossibleAbilities>([
+            { subject: 'Organization', action: 'view' },
+        ]);
+        const result = await organizationService.get(account);
+        expect(result.pgWire).toEqual({
+            enabled: false,
+            host: null,
+            port: null,
         });
     });
 

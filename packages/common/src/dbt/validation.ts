@@ -6,7 +6,6 @@ import { type AnyValidateFunction } from 'ajv/dist/types';
 import { type AnyType } from '../types/any';
 import {
     type DbtManifestVersion,
-    type DbtMetric,
     type DbtModelNode,
     type DbtRawModelNode,
 } from '../types/dbt';
@@ -64,11 +63,8 @@ const getAjv = (): Ajv2020 => {
 export class ManifestValidator {
     private readonly lightdashSchemaId: string;
 
-    private readonly dbtSchemaId: string;
-
     constructor(manifestVersion: DbtManifestVersion) {
         this.lightdashSchemaId = `https://schemas.lightdash.com/lightdash/${manifestVersion}.json`;
-        this.dbtSchemaId = `https://schemas.getdbt.com/dbt/manifest/${manifestVersion}.json`;
     }
 
     static isValid = (
@@ -110,14 +106,5 @@ export class ManifestValidator {
             `${this.lightdashSchemaId}#/definitions/LightdashCompiledModelNode`,
         );
         return ManifestValidator.isValid(validator, model);
-    };
-
-    isDbtMetricValid = (
-        metric: DbtMetric,
-    ): [true, undefined] | [false, string] => {
-        const validator = ManifestValidator.getValidator<DbtMetric>(
-            `${this.dbtSchemaId}#/definitions/Metric`,
-        );
-        return ManifestValidator.isValid(validator, metric);
     };
 }

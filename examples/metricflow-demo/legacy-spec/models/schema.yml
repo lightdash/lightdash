@@ -1,0 +1,157 @@
+version: 2
+
+models:
+  - name: orders
+    description: One row per order. Base model for the MetricFlow semantic model.
+    columns:
+      - name: order_id
+        description: Primary key
+      - name: customer_id
+        description: FK to the customer
+      - name: ordered_at
+        description: Date the order was placed
+      - name: status
+        description: Order status (completed / returned / pending)
+      - name: amount
+        description: Order total in USD
+      - name: is_food_order
+        description: Whether the order contains food items
+
+  - name: metricflow_time_spine
+    description: Daily time spine required by MetricFlow for cumulative metrics.
+    time_spine:
+      standard_granularity_column: date_day
+    columns:
+      - name: date_day
+        granularity: day
+
+# ── Legacy MetricFlow spec: top-level semantic_models + metrics ──────────────
+semantic_models:
+  - name: orders
+    description: Semantic model over the orders fact table (legacy spec).
+    model: ref('orders')
+    defaults:
+      agg_time_dimension: ordered_at
+    entities:
+      - name: order
+        type: primary
+        expr: order_id
+      - name: customer
+        type: foreign
+        expr: customer_id
+    dimensions:
+      - name: ordered_at
+        type: time
+        type_params:
+          time_granularity: day
+      - name: status
+        type: categorical
+    measures:
+      # ── Supported aggregations (translate to Lightdash metrics) ──
+      - name: total_revenue
+        description: Sum of order amounts
+        label: Total revenue (measure)
+        agg: sum
+        expr: amount
+      - name: order_count
+        agg: count
+        expr: order_id
+      - name: average_order_value
+        agg: average
+        expr: amount
+      - name: median_order_value
+        agg: median
+        expr: amount
+      - name: max_order_value
+        agg: max
+        expr: amount
+      - name: min_order_value
+        agg: min
+        expr: amount
+      - name: p95_order_value
+        agg: percentile
+        expr: amount
+        agg_params:
+          # Legacy spec authors percentile as a 0-1 fraction
+          percentile: 0.95
+          use_discrete_percentile: false
+      # create_metric auto-creates a metric without an explicit metrics: entry.
+      # Lightdash translates these too.
+      - name: unique_customers
+        description: Distinct customers who placed an order
+        agg: count_distinct
+        expr: customer_id
+        create_metric: true
+      # ── Unsupported: sum_boolean has no Lightdash equivalent (skipped) ──
+      - name: food_order_count
+        agg: sum_boolean
+        expr: is_food_order
+        create_metric: true
+
+metrics:
+  # ── Supported: simple metrics without filters ──
+  - name: total_revenue
+    label: Total revenue
+    description: Sum of all order amounts
+    type: simple
+    type_params:
+      measure: total_revenue
+  - name: order_count
+    label: Order count
+    type: simple
+    type_params:
+      measure: order_count
+  - name: average_order_value
+    label: Average order value
+    type: simple
+    type_params:
+      measure: average_order_value
+  - name: median_order_value
+    label: Median order value
+    type: simple
+    type_params:
+      measure: median_order_value
+  - name: max_order_value
+    label: Largest order
+    type: simple
+    type_params:
+      measure: max_order_value
+  - name: min_order_value
+    label: Smallest order
+    type: simple
+    type_params:
+      measure: min_order_value
+  - name: p95_order_value
+    label: P95 order value
+    type: simple
+    type_params:
+      measure: p95_order_value
+
+  # ── Unsupported metric shapes (skipped with a warning on deploy) ──
+  - name: completed_revenue
+    label: Completed revenue
+    description: Filtered metrics cannot be translated to Lightdash.
+    type: simple
+    type_params:
+      measure: total_revenue
+    filter: |
+      {{ Dimension('order__status') }} = 'completed'
+  - name: revenue_per_order
+    label: Revenue per order (ratio)
+    type: ratio
+    type_params:
+      numerator: total_revenue
+      denominator: order_count
+  - name: revenue_per_customer
+    label: Revenue per customer (derived)
+    type: derived
+    type_params:
+      expr: total_revenue / unique_customers
+      metrics:
+        - name: total_revenue
+        - name: unique_customers
+  - name: cumulative_revenue
+    label: Cumulative revenue
+    type: cumulative
+    type_params:
+      measure: total_revenue

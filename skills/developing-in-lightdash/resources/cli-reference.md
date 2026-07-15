@@ -110,6 +110,41 @@ lightdash upload --dashboards my-dashboard --include-charts
 
 ## SQL Runner
 
+### Warehouse catalog
+
+Discover databases, schemas, and tables using the currently selected project's server-side warehouse credentials. The default output is a terminal table; use `--json` for deterministic machine-readable output.
+
+```bash
+# List all warehouse tables
+lightdash warehouse-catalog
+
+# Filter by exact database and schema names
+lightdash warehouse-catalog --database analytics --schema public
+
+# Return deterministic JSON for an agent or script
+lightdash warehouse-catalog --schema public --json
+
+# Include fields and Lightdash types for one fully qualified table
+lightdash warehouse-catalog --database analytics --schema public --table orders --include-fields --json
+
+# Refetch warehouse metadata and refresh the server cache before listing
+lightdash warehouse-catalog --refresh
+```
+
+**Options:**
+
+- `--database <name>` - Filter by exact database name
+- `--schema <name>` - Filter by exact schema name
+- `--table <name>` - Filter by exact table name
+- `--include-fields` - Include fields and Lightdash types; requires all three filters
+- `--refresh` - Refetch warehouse metadata and refresh the server catalog cache before listing
+- `--json` - Output deterministic JSON instead of a terminal table
+- `--verbose` - Show detailed API request output
+
+The command requires a project selected with `lightdash config set-project` and never returns warehouse credentials or secret connection metadata.
+
+### Run SQL
+
 Execute raw SQL queries against the warehouse using the current project's credentials.
 
 ```bash
@@ -216,6 +251,7 @@ lightdash set-warehouse --project-dir ./dbt --profiles-dir ./profiles --assume-y
 | `lightdash validate`  | Validate against server          |
 | `lightdash lint`      | Validate YAML locally            |
 | `lightdash generate`  | Generate YAML from dbt models    |
+| `lightdash warehouse-catalog` | Discover warehouse tables and fields |
 | `lightdash sql`       | Run SQL queries                  |
 | `lightdash run-chart` | Execute chart YAML query         |
 | `lightdash set-warehouse` | Update project warehouse connection |

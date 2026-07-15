@@ -1,0 +1,11 @@
+# dbt Fusion officially supports duckdb; its postgres adapter is experimental
+# and currently segfaults on execution (parse works). DuckDB keeps this example
+# fully self-contained — Lightdash also supports DuckDB natively.
+metricflow_demo_latest:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: warehouse/metricflow_demo.duckdb
+      schema: metricflow_demo_latest
+      threads: 4

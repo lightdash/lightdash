@@ -6,6 +6,7 @@ import {
 } from './filterSettingsNavigation';
 import {
     type SettingsNavigationItem,
+    type SettingsPageSection,
     type SettingsNavigationSection,
 } from './types';
 
@@ -13,12 +14,14 @@ const item = (
     label: string,
     keywords: string[] = [],
     children: SettingsNavigationItem[] = [],
+    pageSections: SettingsPageSection[] = [],
 ): SettingsNavigationItem => ({
     label,
     to: `/${label.toLowerCase().replace(/\s+/g, '-')}`,
     icon: IconSearch,
     keywords,
     children,
+    pageSections,
 });
 
 const sections: SettingsNavigationSection[] = [
@@ -38,6 +41,15 @@ const sections: SettingsNavigationSection[] = [
         items: [
             item('Single Sign-On', ['sso', 'saml', 'okta']),
             item('User attributes', ['groups']),
+            item(
+                'General',
+                ['organization'],
+                [],
+                [
+                    { title: 'User impersonation', keywords: ['impersonate'] },
+                    { title: 'Danger zone', keywords: ['delete organization'] },
+                ],
+            ),
             item(
                 'Ask AI',
                 ['copilot'],
@@ -111,6 +123,20 @@ describe('filterSettingsNavigation', () => {
         ]);
     });
 
+    it('matches by an in-page sub-section title', () => {
+        const result = filterSettingsNavigation(sections, 'impersonation');
+        expect(result.flatMap((s) => s.items.map((i) => i.label))).toContain(
+            'General',
+        );
+    });
+
+    it('matches by an in-page sub-section keyword', () => {
+        const result = filterSettingsNavigation(sections, 'impersonate');
+        expect(result.flatMap((s) => s.items.map((i) => i.label))).toContain(
+            'General',
+        );
+    });
+
     it('tolerates fuzzy typos', () => {
         const result = filterSettingsNavigation(sections, 'attributs');
         expect(result.flatMap((s) => s.items.map((i) => i.label))).toContain(
@@ -178,6 +204,16 @@ describe('searchSettingsNavigationItemsWithPath', () => {
         const general = result.find((r) => r.item.label === 'General');
         expect(general).toBeDefined();
         expect(general?.path).toEqual(['Organization settings', 'Ask AI']);
+    });
+
+    it('surfaces a page via its in-page sub-section', () => {
+        const result = searchSettingsNavigationItemsWithPath(
+            sections,
+            'impersonation',
+        );
+        const general = result.find((r) => r.item.label === 'General');
+        expect(general).toBeDefined();
+        expect(general?.path).toEqual(['Organization settings']);
     });
 
     it('matches every item in a section by its title', () => {
