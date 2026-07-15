@@ -37,6 +37,7 @@ interface FilterSettingsProps {
     filterType: FilterType;
     field?: DashboardFilterableField;
     filterRule: DashboardFilterRule;
+    originalFilterRule?: DashboardFilterRule;
     popoverProps?: Omit<PopoverProps, 'children'>;
     onChangeFilterRule: (value: DashboardFilterRule) => void;
     onEditRequirementRules?: () => void;
@@ -48,6 +49,7 @@ const FilterSettings: FC<FilterSettingsProps> = ({
     field,
     filterType,
     filterRule,
+    originalFilterRule,
     popoverProps,
     onChangeFilterRule,
     onEditRequirementRules,
@@ -89,15 +91,29 @@ const FilterSettings: FC<FilterSettingsProps> = ({
         (isFilterRequirementsEnabled && !!filterRule.requiredGroupId);
 
     const handleToggleRequired = (checked: boolean) => {
-        // Toggling on creates a one-member rule; off removes it from its rule.
-        // Flag off leaves group membership untouched (main parity).
-        const newFilter: DashboardFilterRule = {
-            ...filterRule,
-            required: checked,
-            requiredGroupId: isFilterRequirementsEnabled
-                ? undefined
-                : filterRule.requiredGroupId,
-        };
+        // Toggling on restores the saved rule membership if there is one,
+        // otherwise it creates a one-member rule; off removes it from its
+        // rule. Flag off leaves group membership untouched (main parity).
+        const restoredGroupId =
+            checked && isFilterRequirementsEnabled
+                ? originalFilterRule?.requiredGroupId
+                : undefined;
+
+        const newFilter: DashboardFilterRule = restoredGroupId
+            ? {
+                  ...filterRule,
+                  required: false,
+                  requiredGroupId: restoredGroupId,
+                  disabled: true,
+                  values: [],
+              }
+            : {
+                  ...filterRule,
+                  required: checked,
+                  requiredGroupId: isFilterRequirementsEnabled
+                      ? undefined
+                      : filterRule.requiredGroupId,
+              };
 
         onChangeFilterRule(
             checked

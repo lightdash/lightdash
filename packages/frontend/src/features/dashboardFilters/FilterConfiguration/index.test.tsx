@@ -92,6 +92,7 @@ describe('FilterConfiguration', () => {
             metrics: [],
             tableCalculations: [],
         };
+        mockDashboardContext.current.isFilterRequirementsEnabled = true;
     });
 
     it('saves a value typed into the input when Apply is clicked without pressing Enter', async () => {
@@ -205,6 +206,108 @@ describe('FilterConfiguration', () => {
         expect(requiredSwitch).toBeChecked();
         expect(screen.getByText(/Shares a rule/)).toBeInTheDocument();
         expect(screen.getByText('Last name')).toBeInTheDocument();
+    });
+
+    it('restores rule membership when the required toggle is turned off and back on', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        const onSave = vi.fn();
+        const memberRule: DashboardFilterRule = {
+            ...anyValueRule,
+            requiredGroupId: 'group-1',
+        };
+        const otherMemberRule: DashboardFilterRule = {
+            id: 'filter-2',
+            target: {
+                fieldId: 'customers_last_name',
+                tableName: 'customers',
+            },
+            operator: FilterOperator.EQUALS,
+            values: [],
+            disabled: true,
+            label: 'Last name',
+            requiredGroupId: 'group-1',
+        };
+        mockDashboardContext.current.dashboardFilters.dimensions = [
+            memberRule,
+            otherMemberRule,
+        ];
+
+        renderWithProviders(
+            <FilterConfiguration
+                isEditMode
+                tiles={[]}
+                tabs={[]}
+                availableTileFilters={{}}
+                field={mockField}
+                defaultFilterRule={memberRule}
+                originalFilterRule={memberRule}
+                onSave={onSave}
+            />,
+        );
+
+        const requiredSwitch = screen.getByLabelText('Required');
+        await user.click(requiredSwitch);
+        expect(requiredSwitch).not.toBeChecked();
+
+        await user.click(requiredSwitch);
+        expect(requiredSwitch).toBeChecked();
+        expect(screen.getByText(/Shares a rule/)).toBeInTheDocument();
+
+        fireEvent.mouseDown(screen.getByRole('button', { name: 'Apply' }));
+
+        await waitFor(() => {
+            expect(onSave).toHaveBeenCalledTimes(1);
+        });
+        expect(onSave).toHaveBeenCalledWith(
+            expect.objectContaining({
+                required: false,
+                requiredGroupId: 'group-1',
+            }),
+        );
+    });
+
+    it('renders the legacy checkbox and preserves rule membership when the flag is off', async () => {
+        const user = userEvent.setup({ pointerEventsCheck: 0 });
+        const onSave = vi.fn();
+        mockDashboardContext.current.isFilterRequirementsEnabled = false;
+        const memberRule: DashboardFilterRule = {
+            ...anyValueRule,
+            requiredGroupId: 'group-1',
+        };
+
+        renderWithProviders(
+            <FilterConfiguration
+                isEditMode
+                tiles={[]}
+                tabs={[]}
+                availableTileFilters={{}}
+                field={mockField}
+                defaultFilterRule={memberRule}
+                originalFilterRule={memberRule}
+                onSave={onSave}
+            />,
+        );
+
+        expect(screen.queryByLabelText('Required')).not.toBeInTheDocument();
+        const checkbox = screen.getByLabelText(
+            'Require viewers to pick a value to load the dashboard',
+        );
+        expect(checkbox).not.toBeChecked();
+
+        await user.click(checkbox);
+        expect(checkbox).toBeChecked();
+
+        fireEvent.mouseDown(screen.getByRole('button', { name: 'Apply' }));
+
+        await waitFor(() => {
+            expect(onSave).toHaveBeenCalledTimes(1);
+        });
+        expect(onSave).toHaveBeenCalledWith(
+            expect.objectContaining({
+                required: true,
+                requiredGroupId: 'group-1',
+            }),
+        );
     });
 
     it('shows an enabled unchecked required toggle when the filter is not part of a rule', () => {
