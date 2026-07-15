@@ -1,3 +1,15 @@
+# [0.3390.0](https://github.com/lightdash/lightdash/compare/0.3389.1...0.3390.0) (2026-07-15)
+
+
+### Bug Fixes
+
+* move generated API artifacts to release commits ([#25605](https://github.com/lightdash/lightdash/issues/25605)) ([a907da2](https://github.com/lightdash/lightdash/commit/a907da27e0da08cc0d5b41c574f9e21c9b1e492f))
+
+
+### Features
+
+* **slack:** improve project grouping in channel agent link picker ([#25604](https://github.com/lightdash/lightdash/issues/25604)) ([55491d9](https://github.com/lightdash/lightdash/commit/55491d9f9bbd243a8e1f5d864f1f7268be92a11c))
+
 ## [0.3389.1](https://github.com/lightdash/lightdash/compare/0.3389.0...0.3389.1) (2026-07-15)
 
 
