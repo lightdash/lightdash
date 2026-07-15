@@ -1,11 +1,17 @@
 import { Box, Button, Group, Paper, Stack, Text, Title } from '@mantine-8/core';
 import { IconDatabase } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useState, type FC } from 'react';
 import { useNavigate } from 'react-router';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import MantineIcon from '../components/common/MantineIcon';
 import { AgentChatInput } from '../ee/features/aiCopilot/components/ChatElements/AgentChatInput';
+import {
+    useCreateAgentThreadMutation,
+    useProjectAiAgents,
+    useProjectCreateAiAgentMutation,
+} from '../ee/features/aiCopilot/hooks/useProjectAiAgents';
 import { useOrganization } from '../hooks/organization/useOrganization';
+import { useActiveProjectUuid } from '../hooks/useActiveProject';
 import { useOnboardingPageGuard } from '../hooks/useOnboardingPageGuard';
 import classes from './OnboardingAgent.module.css';
 
@@ -35,9 +41,69 @@ const AuroraAvatar: FC = () => (
 const OnboardingAgentContent: FC = () => {
     const navigate = useNavigate();
     const { data: organization } = useOrganization();
-    const agentName = DEFAULT_AGENT_NAME;
 
     const isConnected = !!organization && !organization.needsProject;
+
+    const { activeProjectUuid, isLoading: isLoadingProject } =
+        useActiveProjectUuid();
+    const projectUuid = isConnected ? activeProjectUuid : undefined;
+
+    const { data: agents, isLoading: isLoadingAgents } = useProjectAiAgents({
+        projectUuid,
+        redirectOnUnauthorized: false,
+    });
+
+    const existingAgent = agents?.[0];
+    const agentName = existingAgent?.name ?? DEFAULT_AGENT_NAME;
+
+    const { mutateAsync: createAgent } = useProjectCreateAiAgentMutation(
+        projectUuid ?? '',
+        { skipNavigation: true },
+    );
+    const { mutateAsync: createAgentThread } = useCreateAgentThreadMutation(
+        projectUuid ?? '',
+    );
+
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const isComposerLoading =
+        isConnected && (isLoadingProject || !projectUuid || isLoadingAgents);
+
+    const handleSubmit = async ({ message }: { message: string }) => {
+        const prompt = message.trim();
+        if (!prompt || !projectUuid || isSubmitting) {
+            return;
+        }
+        setIsSubmitting(true);
+        try {
+            let agentUuid = existingAgent?.uuid;
+            if (!agentUuid) {
+                const createdAgent = await createAgent({
+                    name: DEFAULT_AGENT_NAME,
+                    projectUuid,
+                    description: null,
+                    integrations: [],
+                    tags: null,
+                    instruction: null,
+                    imageUrl: null,
+                    groupAccess: [],
+                    userAccess: [],
+                    spaceAccess: [],
+                    enableDataAccess: true,
+                    enableSelfImprovement: false,
+                    version: 2,
+                });
+                agentUuid = createdAgent.uuid;
+            }
+            await createAgentThread({
+                agentUuid,
+                prompt,
+                enableSqlMode: true,
+            });
+        } catch {
+            setIsSubmitting(false);
+        }
+    };
 
     return (
         <Box className={classes.page}>
@@ -59,11 +125,12 @@ const OnboardingAgentContent: FC = () => {
                 </Stack>
 
                 <AgentChatInput
-                    onSubmit={() => {}}
-                    disabled
+                    onSubmit={(args) => void handleSubmit(args)}
+                    loading={isSubmitting}
+                    disabled={!isConnected || isComposerLoading || isSubmitting}
                     disabledReason={
                         isConnected
-                            ? 'Chat is coming soon'
+                            ? undefined
                             : 'Connect a data source to start asking questions'
                     }
                     placeholder={`Ask ${agentName} anything about your data...`}

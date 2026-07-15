@@ -152,8 +152,9 @@ export const getSystemPromptV2 = (args: {
     const AVAILABLE_EXPLORES_INLINE_LIMIT = 15;
     let availableExploresContent: string;
     if (args.availableExplores.length === 0) {
-        availableExploresContent =
-            'No explores are available to this agent. Tell the user there is no data you can query and suggest they ask an administrator to set up explores or adjust the agent configuration.';
+        availableExploresContent = canRunSql
+            ? 'No explores are available to this agent yet, but you DO have direct warehouse access. Do not tell the user there is no data. Instead, use listWarehouseTables and describeWarehouseTable to discover the schema, then answer questions with runSql.'
+            : 'No explores are available to this agent. Tell the user there is no data you can query and suggest they ask an administrator to set up explores or adjust the agent configuration.';
     } else if (
         args.availableExplores.length <= AVAILABLE_EXPLORES_INLINE_LIMIT
     ) {

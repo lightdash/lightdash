@@ -9,7 +9,8 @@ import {
     Title,
 } from '@mantine-8/core';
 import { IconCheck } from '@tabler/icons-react';
-import { useEffect, useMemo, useState, type FC } from 'react';
+import confetti from 'canvas-confetti';
+import { useEffect, useMemo, useRef, useState, type FC } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
 import { DocumentTitle } from '../components/common/DocumentTitle';
 import MantineIcon from '../components/common/MantineIcon';
@@ -91,12 +92,40 @@ const OnboardingProjectReadyContent: FC<{ projectUuid: string }> = ({
     const progress = (completedSteps / TOTAL_STEPS) * 100;
     const allDone = completedSteps >= TOTAL_STEPS;
 
+    const checkCircleRef = useRef<HTMLDivElement>(null);
+    const hasFiredConfettiRef = useRef(false);
+
+    useEffect(() => {
+        if (!allDone || hasFiredConfettiRef.current) {
+            return;
+        }
+        hasFiredConfettiRef.current = true;
+
+        const el = checkCircleRef.current;
+        const rect = el?.getBoundingClientRect();
+        const origin = rect
+            ? {
+                  x: (rect.left + rect.width / 2) / window.innerWidth,
+                  y: (rect.top + rect.height / 2) / window.innerHeight,
+              }
+            : { x: 0.5, y: 0.3 };
+
+        void confetti({
+            disableForReducedMotion: true,
+            startVelocity: 35,
+            particleCount: 120,
+            spread: 100,
+            gravity: 0.7,
+            origin,
+        });
+    }, [allDone]);
+
     return (
         <Box className={classes.page}>
             <DocumentTitle title="Your project is ready" />
 
             <Box className={classes.column}>
-                <Box className={classes.checkCircle}>
+                <Box className={classes.checkCircle} ref={checkCircleRef}>
                     <MantineIcon
                         icon={IconCheck}
                         color="white"
