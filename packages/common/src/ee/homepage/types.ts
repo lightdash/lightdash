@@ -198,6 +198,32 @@ export type ResolvedHomepage =
     | { type: 'homepage'; homepage: PublishedProjectHomepage }
     | { type: 'dashboard'; dashboardUuid: string };
 
+export type HomepageResolutionSource =
+    | { type: 'group'; groupUuid: string; priority: number }
+    | { type: 'role'; role: ProjectMemberRole }
+    | { type: 'default' };
+
+export type ResolvedPublishedHomepage = {
+    homepage: PublishedProjectHomepage;
+    source: HomepageResolutionSource;
+};
+
+export type HomepageViewAsTarget =
+    | { type: 'user'; userUuid: string }
+    | { type: 'group'; groupUuid: string }
+    | { type: 'role'; role: ProjectMemberRole };
+
+export type HomepageViewAsReason =
+    | { type: 'personal'; dashboardUuid: string }
+    | HomepageResolutionSource;
+
+export type HomepageViewAsResult = {
+    resolved: ResolvedHomepage | null;
+    reason: HomepageViewAsReason | null;
+};
+
+export type ApiHomepageViewAsResponse = ApiSuccess<HomepageViewAsResult>;
+
 export type SetPersonalHomepageRequest = {
     dashboardUuid: string;
 };

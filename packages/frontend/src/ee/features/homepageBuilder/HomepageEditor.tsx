@@ -30,6 +30,7 @@ import {
     IconPlus,
     IconSend,
     IconTrash,
+    IconUserSearch,
     IconUsers,
 } from '@tabler/icons-react';
 import { useEffect, useRef, useState, type FC } from 'react';
@@ -64,6 +65,7 @@ import {
 import { PresetsModal } from './PresetsModal';
 import { PublishedHomepage } from './PublishedHomepage';
 import { PublishModal } from './PublishModal';
+import { ViewAsModal } from './ViewAsModal';
 
 type Props = {
     homepage: ProjectHomepageType;
@@ -97,6 +99,7 @@ export const HomepageEditor: FC<Props> = ({
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [isPresetsModalOpen, setIsPresetsModalOpen] = useState(false);
     const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
+    const [isViewAsModalOpen, setIsViewAsModalOpen] = useState(false);
 
     const isAiEnabled = useAiAgentButtonVisibility();
     const availableBlocks = blockLibrary.filter(
@@ -324,6 +327,13 @@ export const HomepageEditor: FC<Props> = ({
                         onClick={() => setIsPreviewing((prev) => !prev)}
                     >
                         {isPreviewing ? 'Back to editing' : 'Preview'}
+                    </Button>
+                    <Button
+                        variant="default"
+                        leftSection={<MantineIcon icon={IconUserSearch} />}
+                        onClick={() => setIsViewAsModalOpen(true)}
+                    >
+                        View as
                     </Button>
                     <Button
                         leftSection={<MantineIcon icon={IconSend} />}
@@ -700,6 +710,11 @@ export const HomepageEditor: FC<Props> = ({
                 opened={isPresetsModalOpen}
                 onClose={() => setIsPresetsModalOpen(false)}
                 onApply={setDraft}
+            />
+            <ViewAsModal
+                opened={isViewAsModalOpen}
+                onClose={() => setIsViewAsModalOpen(false)}
+                projectUuid={projectUuid}
             />
             <PublishModal
                 opened={isPublishModalOpen}

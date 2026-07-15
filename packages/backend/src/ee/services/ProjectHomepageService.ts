@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    assertUnreachable,
     CommercialFeatureFlags,
     defaultHomepageConfig,
     ForbiddenError,
@@ -11,8 +12,10 @@ import {
     type HomepageAudience,
     type HomepageConfig,
     type HomepageRecentlyViewedItem,
+    type HomepageViewAsResult,
+    type HomepageViewAsTarget,
     type ProjectHomepage,
-    type PublishedProjectHomepage,
+    type ProjectMemberRole,
     type ResolvedHomepage,
     type SessionUser,
     type UpdateProjectHomepageDraftRequest,
@@ -139,43 +142,118 @@ export class ProjectHomepageService extends BaseService {
     }
 
     // Resolution: personal → group priority → role → project default
+    private async resolveForViewer(
+        projectUuid: string,
+        viewer: {
+            groupUuids: string[];
+            role: ProjectMemberRole | undefined;
+            personalOverride: string | undefined;
+        },
+    ): Promise<HomepageViewAsResult> {
+        const published = await this.projectHomepageModel.resolvePublished(
+            projectUuid,
+            { groupUuids: viewer.groupUuids, role: viewer.role },
+        );
+        // Personal choice wins unless the audience homepage disallows it
+        if (
+            viewer.personalOverride &&
+            (published?.homepage.allowPersonal ?? true)
+        ) {
+            return {
+                resolved: {
+                    type: 'dashboard',
+                    dashboardUuid: viewer.personalOverride,
+                },
+                reason: {
+                    type: 'personal',
+                    dashboardUuid: viewer.personalOverride,
+                },
+            };
+        }
+        if (published) {
+            return {
+                resolved: { type: 'homepage', homepage: published.homepage },
+                reason: published.source,
+            };
+        }
+        return { resolved: null, reason: null };
+    }
+
+    private async getViewerContext(
+        organizationUuid: string | undefined,
+        projectUuid: string,
+        userUuid: string,
+    ): Promise<{
+        groupUuids: string[];
+        role: ProjectMemberRole | undefined;
+        personalOverride: string | undefined;
+    }> {
+        const [override, groups, membership] = await Promise.all([
+            this.projectHomepageModel.getPersonalOverride(
+                userUuid,
+                projectUuid,
+            ),
+            organizationUuid
+                ? this.groupsModel.findUserGroups({
+                      userUuid,
+                      organizationUuid,
+                  })
+                : Promise.resolve([]),
+            this.projectModel.getProjectMemberAccess(projectUuid, userUuid),
+        ]);
+        return {
+            groupUuids: groups.map((group) => group.uuid),
+            role: membership?.role,
+            personalOverride: override,
+        };
+    }
+
     async getResolvedHomepage(
         user: SessionUser,
         projectUuid: string,
     ): Promise<ResolvedHomepage | null> {
         await this.assertFlagEnabled(user);
         this.assertCanView(user, projectUuid);
-        const [override, groups, membership] = await Promise.all([
-            this.projectHomepageModel.getPersonalOverride(
-                user.userUuid,
-                projectUuid,
-            ),
-            user.organizationUuid
-                ? this.groupsModel.findUserGroups({
-                      userUuid: user.userUuid,
-                      organizationUuid: user.organizationUuid,
-                  })
-                : Promise.resolve([]),
-            this.projectModel.getProjectMemberAccess(
-                projectUuid,
-                user.userUuid,
-            ),
-        ]);
-        const published = await this.projectHomepageModel.resolvePublished(
+        const viewer = await this.getViewerContext(
+            user.organizationUuid,
             projectUuid,
-            {
-                groupUuids: groups.map((group) => group.uuid),
-                role: membership?.role,
-            },
+            user.userUuid,
         );
-        // Personal choice wins unless the audience homepage disallows it
-        if (override && (published?.allowPersonal ?? true)) {
-            return { type: 'dashboard', dashboardUuid: override };
+        const { resolved } = await this.resolveForViewer(projectUuid, viewer);
+        return resolved;
+    }
+
+    async viewAsHomepage(
+        user: SessionUser,
+        projectUuid: string,
+        target: HomepageViewAsTarget,
+    ): Promise<HomepageViewAsResult> {
+        await this.assertFlagEnabled(user);
+        this.assertCanManage(user, projectUuid);
+        switch (target.type) {
+            case 'user': {
+                const viewer = await this.getViewerContext(
+                    user.organizationUuid,
+                    projectUuid,
+                    target.userUuid,
+                );
+                return this.resolveForViewer(projectUuid, viewer);
+            }
+            case 'group':
+                return this.resolveForViewer(projectUuid, {
+                    groupUuids: [target.groupUuid],
+                    role: undefined,
+                    personalOverride: undefined,
+                });
+            case 'role':
+                return this.resolveForViewer(projectUuid, {
+                    groupUuids: [],
+                    role: target.role,
+                    personalOverride: undefined,
+                });
+            default:
+                return assertUnreachable(target, 'Unknown view-as target type');
         }
-        if (published) {
-            return { type: 'homepage', homepage: published };
-        }
-        return null;
     }
 
     async setPersonalHomepage(
