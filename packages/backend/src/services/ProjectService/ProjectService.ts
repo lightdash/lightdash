@@ -2483,7 +2483,9 @@ export class ProjectService extends BaseService {
             userUuid: user.userUuid,
             steps: [
                 { stepType: JobStepType.TESTING_ADAPTOR },
-                { stepType: JobStepType.COMPILING },
+                ...(data.dbtConnection.type === DbtProjectType.NONE
+                    ? []
+                    : [{ stepType: JobStepType.COMPILING }]),
                 { stepType: JobStepType.CREATING_PROJECT },
             ],
         };
@@ -2590,43 +2592,61 @@ export class ProjectService extends BaseService {
             );
 
             const { explores, lightdashProjectConfig, projectContext } =
-                await this.jobModel.tryJobStep(
-                    jobUuid,
-                    JobStepType.COMPILING,
-                    async () => {
-                        try {
-                            // There's no project yet, so we don't track
-                            const trackingParams = undefined;
+                createProject.dbtConnection.type === DbtProjectType.NONE
+                    ? await (async () => {
+                          try {
+                              return {
+                                  explores: [],
+                                  lightdashProjectConfig:
+                                      await adapter.getLightdashProjectConfig(
+                                          undefined,
+                                      ),
+                                  projectContext: [],
+                              };
+                          } finally {
+                              await adapter.destroy();
+                              await sshTunnel.disconnect();
+                          }
+                      })()
+                    : await this.jobModel.tryJobStep(
+                          jobUuid,
+                          JobStepType.COMPILING,
+                          async () => {
+                              try {
+                                  // There's no project yet, so we don't track
+                                  const trackingParams = undefined;
 
-                            const compiledExplores =
-                                await adapter.compileAllExplores(
-                                    trackingParams,
-                                    false, // loadSources
-                                    this.lightdashConfig.partialCompilation
-                                        .enabled,
-                                );
-                            const compiledProjectConfig =
-                                await adapter.getLightdashProjectConfig(
-                                    trackingParams,
-                                );
-                            const compiledProjectContext =
-                                await this.getProjectContextFromAdapter({
-                                    adapter,
-                                    user,
-                                    organizationUuid: user.organizationUuid,
-                                });
+                                  const compiledExplores =
+                                      await adapter.compileAllExplores(
+                                          trackingParams,
+                                          false, // loadSources
+                                          this.lightdashConfig
+                                              .partialCompilation.enabled,
+                                      );
+                                  const compiledProjectConfig =
+                                      await adapter.getLightdashProjectConfig(
+                                          trackingParams,
+                                      );
+                                  const compiledProjectContext =
+                                      await this.getProjectContextFromAdapter({
+                                          adapter,
+                                          user,
+                                          organizationUuid:
+                                              user.organizationUuid,
+                                      });
 
-                            return {
-                                explores: compiledExplores,
-                                lightdashProjectConfig: compiledProjectConfig,
-                                projectContext: compiledProjectContext,
-                            };
-                        } finally {
-                            await adapter.destroy();
-                            await sshTunnel.disconnect();
-                        }
-                    },
-                );
+                                  return {
+                                      explores: compiledExplores,
+                                      lightdashProjectConfig:
+                                          compiledProjectConfig,
+                                      projectContext: compiledProjectContext,
+                                  };
+                              } finally {
+                                  await adapter.destroy();
+                                  await sshTunnel.disconnect();
+                              }
+                          },
+                      );
 
             const projectUuid = await this.jobModel.tryJobStep(
                 jobUuid,
@@ -2685,15 +2705,18 @@ export class ProjectService extends BaseService {
                         newProjectUuid,
                         projectContext,
                     );
-                    await this.saveExploresToCacheAndIndexCatalog({
-                        userUuid: user.userUuid,
-                        projectUuid: newProjectUuid,
-                        explores,
-                        compilationSource: 'create_project',
-                        jobUuid,
-                        requestMethod: method,
-                        projectConfigDefaults: lightdashProjectConfig.defaults,
-                    });
+                    if (explores.length > 0) {
+                        await this.saveExploresToCacheAndIndexCatalog({
+                            userUuid: user.userUuid,
+                            projectUuid: newProjectUuid,
+                            explores,
+                            compilationSource: 'create_project',
+                            jobUuid,
+                            requestMethod: method,
+                            projectConfigDefaults:
+                                lightdashProjectConfig.defaults,
+                        });
+                    }
                     return newProjectUuid;
                 },
             );
