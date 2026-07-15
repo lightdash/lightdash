@@ -514,6 +514,7 @@ const FilterRequirementsButton: FC = () => {
                     // Modals default below popovers; lift it above the
                     // rules popover it is opened from
                     modalRootProps={{ zIndex: getDefaultZIndex('popover') }}
+                    size="md"
                     confirmLabel="Remove rule"
                     description="This is the only filter in this rule. Removing it deletes the rule, so viewers will no longer be required to set a filter before this dashboard loads."
                     onConfirm={() => {
