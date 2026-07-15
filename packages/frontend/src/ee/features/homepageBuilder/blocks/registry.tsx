@@ -1,6 +1,7 @@
 import { type HomepageBlock } from '@lightdash/common';
 import {
     IconBook,
+    IconChartDots,
     IconClock,
     IconLayoutGrid,
     IconMarkdown,
@@ -21,6 +22,7 @@ import { CollectionBlockBuild, CollectionBlockView } from './CollectionBlock';
 import { FavoritesBlockBuild, FavoritesBlockView } from './FavoritesBlock';
 import { HeroBlockBuild, HeroBlockView } from './HeroBlock';
 import { MarkdownBlockBuild, MarkdownBlockView } from './MarkdownBlock';
+import { MetricsBlockBuild, MetricsBlockView } from './MetricsBlock';
 import { RecentBlockBuild, RecentBlockView } from './RecentBlock';
 import { ResourcesBlockBuild, ResourcesBlockView } from './ResourcesBlock';
 import { type BlockComponentProps, type BuildComponentProps } from './types';
@@ -67,6 +69,19 @@ export const blockLibrary: BlockDefinition[] = [
         }),
         View: AiBlockView,
         Build: AiBlockBuild,
+    },
+    {
+        type: 'metrics',
+        label: 'Metrics',
+        description: 'KPI cards from the metrics catalog, with deltas.',
+        icon: IconChartDots,
+        create: () => ({
+            id: uuidv4(),
+            type: 'metrics',
+            config: { title: 'This month', items: [] },
+        }),
+        View: MetricsBlockView,
+        Build: MetricsBlockBuild,
     },
     {
         type: 'collection',

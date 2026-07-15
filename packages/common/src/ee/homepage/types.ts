@@ -56,6 +56,18 @@ export type HomepageAnnouncementsBlock = {
     config: { title: string; items: HomepageAnnouncementItem[] };
 };
 
+export type HomepageMetricRef = {
+    tableName: string;
+    metricName: string;
+    label: string;
+};
+
+export type HomepageMetricsBlock = {
+    id: string;
+    type: 'metrics';
+    config: { title: string; items: HomepageMetricRef[] };
+};
+
 export type HomepageFavoritesBlock = {
     id: string;
     type: 'favorites';
@@ -75,6 +87,7 @@ export type HomepageBlock =
     | HomepageCollectionBlock
     | HomepageResourcesBlock
     | HomepageAnnouncementsBlock
+    | HomepageMetricsBlock
     | HomepageFavoritesBlock
     | HomepageRecentBlock;
 
