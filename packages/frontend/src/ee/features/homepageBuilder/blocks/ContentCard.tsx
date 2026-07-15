@@ -107,11 +107,7 @@ const MaybeLink: FC<
     PropsWithChildren<{ to: string | null; className: string }>
 > = ({ to, className, children }) =>
     to ? (
-        <Link
-            to={to}
-            className={className}
-            style={{ color: 'inherit', textDecoration: 'none' }}
-        >
+        <Link to={to} className={`${className} ${classes.plainLink}`}>
             {children}
         </Link>
     ) : (
@@ -163,7 +159,7 @@ export const ContentCard: FC<Props> = ({
         <MaybeLink to={to} className={cardClass}>
             <Group gap="sm" wrap="nowrap" align="center" p="sm" h="100%">
                 <ResourceIcon item={contentToResourceViewItem(content)} />
-                <Box style={{ flex: 1, minWidth: 0 }}>
+                <Box flex={1} miw={0}>
                     <Group gap={4} wrap="nowrap">
                         <Text size="sm" fw={600} truncate>
                             {content.name}

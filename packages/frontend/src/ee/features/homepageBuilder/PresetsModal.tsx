@@ -53,7 +53,6 @@ export const PresetsModal: FC<Props> = ({ opened, onClose, onApply }) => {
                                 key={preset.key}
                                 className={`${blockClasses.hoverCard} ${blockClasses.clickable}`}
                                 p={15}
-                                style={{ cursor: 'pointer' }}
                                 onClick={() => setPresetToConfirm(preset)}
                             >
                                 <Group gap={9} mb={7} wrap="nowrap">

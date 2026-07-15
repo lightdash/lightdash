@@ -107,7 +107,7 @@ export const ViewAsModal: FC<Props> = ({ opened, onClose, projectUuid }) => {
                         <Select
                             placeholder="Pick a user"
                             searchable
-                            style={{ flex: 1 }}
+                            flex={1}
                             data={(users ?? []).map((user) => ({
                                 value: user.userUuid,
                                 label: `${user.firstName} ${user.lastName} (${user.email})`,
@@ -128,7 +128,7 @@ export const ViewAsModal: FC<Props> = ({ opened, onClose, projectUuid }) => {
                         <Select
                             placeholder="Pick a group"
                             searchable
-                            style={{ flex: 1 }}
+                            flex={1}
                             data={(groups ?? []).map((group) => ({
                                 value: group.uuid,
                                 label: group.name,
@@ -150,7 +150,7 @@ export const ViewAsModal: FC<Props> = ({ opened, onClose, projectUuid }) => {
                     {targetType === 'role' && (
                         <Select
                             placeholder="Pick a role"
-                            style={{ flex: 1 }}
+                            flex={1}
                             data={Object.values(ProjectMemberRole).map(
                                 (role) => ({
                                     value: role,

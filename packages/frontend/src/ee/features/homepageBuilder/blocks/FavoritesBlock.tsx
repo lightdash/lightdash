@@ -79,7 +79,7 @@ const FavoritePills: FC<{
                             icon={IconStarFilled}
                             size={13}
                             color={STAR_COLOR}
-                            style={{ cursor: 'pointer' }}
+                            className={classes.clickable}
                             aria-label={`Remove ${item.data.name} from favorites`}
                             onClick={(e) => handleUnfavorite(e, item)}
                         />

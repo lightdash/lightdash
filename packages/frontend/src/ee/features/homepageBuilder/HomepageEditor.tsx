@@ -131,11 +131,11 @@ const LibraryCard: FC<{ definition: BlockDefinition; onAdd: () => void }> = ({
             {...attributes}
             {...listeners}
             className={classes.railCard}
-            style={isDragging ? { opacity: 0.4 } : undefined}
+            data-dragging={isDragging}
             onClick={onAdd}
         >
             <IconSquare icon={definition.icon} />
-            <Box style={{ minWidth: 0 }}>
+            <Box miw={0}>
                 <div className={classes.railCardLabel}>{definition.label}</div>
                 <div className={classes.railCardDesc}>
                     {definition.description}
@@ -217,7 +217,7 @@ const EndDropZone: FC<{ isEmpty: boolean }> = ({ isEmpty }) => {
             <MantineIcon
                 icon={IconPlus}
                 size={15}
-                style={{ marginRight: 6, verticalAlign: -2 }}
+                className={classes.endZoneIcon}
             />
             {isEmpty
                 ? 'No blocks yet — click or drag one from the library.'
@@ -665,7 +665,7 @@ export const HomepageEditor: FC<Props> = ({
                         </Menu.Dropdown>
                     </Menu>
                 </Group>
-                <Box style={{ flex: 1 }} />
+                <Box flex={1} />
                 {isDirty ? (
                     <span className={classes.savedIndicator}>Saving…</span>
                 ) : (
@@ -763,7 +763,7 @@ export const HomepageEditor: FC<Props> = ({
                                     projectUuid={projectUuid}
                                 />
                             ) : (
-                                <Stack gap={0} style={{ flex: 1, minWidth: 0 }}>
+                                <Stack gap={0} flex={1} miw={0}>
                                     {draft.rows.map((row, rowIndex) => (
                                         <Box key={row.id}>
                                             <RowGap
@@ -900,7 +900,7 @@ export const HomepageEditor: FC<Props> = ({
                         <div className={classes.dragOverlayCard}>
                             <div className={classes.railCard}>
                                 <IconSquare icon={activeDrag.definition.icon} />
-                                <Box style={{ minWidth: 0 }}>
+                                <Box miw={0}>
                                     <div className={classes.railCardLabel}>
                                         {activeDrag.definition.label}
                                     </div>

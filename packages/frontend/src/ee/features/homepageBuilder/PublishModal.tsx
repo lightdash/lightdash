@@ -35,6 +35,7 @@ import {
     useHomepageAssignments,
     useUpdateGroupPriorities,
 } from './hooks/useProjectHomepage';
+import classes from './PublishModal.module.css';
 
 const RESOLUTION_STEPS = ['Personal', 'Group priority', 'Role', 'Org default'];
 
@@ -251,20 +252,13 @@ const PublishModalBody: FC<BodyProps> = ({
                 />
 
                 {mode === 'everyone' && (
-                    <Box
-                        p={14}
-                        style={{
-                            border: '1px solid var(--mantine-color-ldGray-2)',
-                            borderRadius: 10,
-                            background: 'var(--mantine-color-ldGray-0)',
-                        }}
-                    >
+                    <Box p={14} className={classes.infoPanel}>
                         <Group gap={10} align="flex-start" wrap="nowrap">
                             <MantineIcon
                                 icon={IconWorldCheck}
                                 size={18}
                                 color="green"
-                                style={{ marginTop: 1, flexShrink: 0 }}
+                                className={classes.infoPanelIcon}
                             />
                             <Text size="sm" c="ldGray.7" lh={1.5}>
                                 This becomes the{' '}
@@ -285,8 +279,7 @@ const PublishModalBody: FC<BodyProps> = ({
                             {groups.map((group) => (
                                 <label
                                     key={group.uuid}
-                                    className={blockClasses.listRow}
-                                    style={{ cursor: 'pointer' }}
+                                    className={`${blockClasses.listRow} ${blockClasses.clickable}`}
                                 >
                                     <Checkbox
                                         size="xs"
@@ -313,11 +306,7 @@ const PublishModalBody: FC<BodyProps> = ({
                                         size={16}
                                         color="ldGray.6"
                                     />
-                                    <Text
-                                        fz={13.5}
-                                        fw={500}
-                                        style={{ flex: 1 }}
-                                    >
+                                    <Text fz={13.5} fw={500} flex={1}>
                                         {group.name}
                                     </Text>
                                     {elsewhereBadge(
@@ -332,13 +321,7 @@ const PublishModalBody: FC<BodyProps> = ({
                             )}
                         </div>
                         {groupAssignments.length > 1 && (
-                            <Box
-                                p="sm"
-                                style={{
-                                    border: '1px solid var(--mantine-color-ldGray-2)',
-                                    borderRadius: 10,
-                                }}
-                            >
+                            <Box p="sm" className={classes.borderedPanel}>
                                 <Text
                                     fz={11}
                                     fw={600}
@@ -360,12 +343,7 @@ const PublishModalBody: FC<BodyProps> = ({
                                                 gap={10}
                                                 wrap="nowrap"
                                                 p="8px 10px"
-                                                style={{
-                                                    border: '1px solid var(--mantine-color-ldGray-2)',
-                                                    borderRadius: 8,
-                                                    background:
-                                                        'var(--mantine-color-ldGray-0)',
-                                                }}
+                                                className={classes.priorityRow}
                                             >
                                                 <span
                                                     className={
@@ -374,7 +352,7 @@ const PublishModalBody: FC<BodyProps> = ({
                                                 >
                                                     {index + 1}
                                                 </span>
-                                                <Box style={{ flex: 1 }}>
+                                                <Box flex={1}>
                                                     <Text fz={13} fw={500}>
                                                         {assignment.groupName}
                                                     </Text>
@@ -440,8 +418,7 @@ const PublishModalBody: FC<BodyProps> = ({
                             {Object.values(ProjectMemberRole).map((role) => (
                                 <label
                                     key={role}
-                                    className={blockClasses.listRow}
-                                    style={{ cursor: 'pointer' }}
+                                    className={`${blockClasses.listRow} ${blockClasses.clickable}`}
                                 >
                                     <Checkbox
                                         size="xs"
@@ -461,7 +438,7 @@ const PublishModalBody: FC<BodyProps> = ({
                                         size={16}
                                         color="ldGray.6"
                                     />
-                                    <Box style={{ flex: 1 }}>
+                                    <Box flex={1}>
                                         <Text fz={13.5} fw={500}>
                                             {ProjectMemberRoleLabels[role]}
                                         </Text>
@@ -480,14 +457,7 @@ const PublishModalBody: FC<BodyProps> = ({
                     </>
                 )}
 
-                <Group
-                    gap={7}
-                    p="10px 12px"
-                    style={{
-                        background: 'var(--mantine-color-ldGray-0)',
-                        borderRadius: 9,
-                    }}
-                >
+                <Group gap={7} p="10px 12px" className={classes.resolvesBar}>
                     <Text fz={11.5} fw={500} c="ldGray.5">
                         Resolves:
                     </Text>
@@ -505,13 +475,7 @@ const PublishModalBody: FC<BodyProps> = ({
                     ))}
                 </Group>
 
-                <Box
-                    p="11px 13px"
-                    style={{
-                        border: '1px solid var(--mantine-color-ldGray-2)',
-                        borderRadius: 10,
-                    }}
-                >
+                <Box p="11px 13px" className={classes.borderedPanel}>
                     <Switch
                         label="Allow personal customization"
                         description="Viewers can favorite items or set a dashboard as their own homepage."

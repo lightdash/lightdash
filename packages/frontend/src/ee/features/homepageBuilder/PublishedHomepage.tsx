@@ -58,7 +58,7 @@ export const PublishedHomepage: FC<Props> = ({
         {config.rows.map((row) => (
             <Group key={row.id} gap={14} align="stretch" wrap="nowrap">
                 {row.blocks.map((block) => (
-                    <Box key={block.id} style={{ flex: 1, minWidth: 0 }}>
+                    <Box key={block.id} flex={1} miw={0}>
                         <BlockRenderer
                             block={block}
                             projectUuid={projectUuid}
