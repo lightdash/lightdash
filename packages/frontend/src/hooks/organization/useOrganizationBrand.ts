@@ -33,10 +33,7 @@ const fetchOrganizationBrand = async (data: UpdateOrganizationBrandRequest) =>
  * The caller decides what to do with the result (e.g. populate a form so the
  * user can review and edit before saving).
  */
-export const useFetchOrganizationBrand = (options?: {
-    showErrorToast?: boolean;
-}) => {
-    const showErrorToast = options?.showErrorToast ?? true;
+export const useFetchOrganizationBrand = () => {
     const { showToastApiError } = useToaster();
     return useMutation<
         OrganizationBrand,
@@ -45,7 +42,6 @@ export const useFetchOrganizationBrand = (options?: {
     >(fetchOrganizationBrand, {
         mutationKey: ['organization_brand_fetch'],
         onError: ({ error }) => {
-            if (!showErrorToast) return;
             showToastApiError({
                 title: 'Failed to fetch brand',
                 apiError: error,
@@ -53,6 +49,21 @@ export const useFetchOrganizationBrand = (options?: {
         },
     });
 };
+
+/**
+ * Speculatively detects a brand for a domain during onboarding. A read despite
+ * the POST verb (the endpoint fetches without persisting), so it lives in a
+ * query: results survive StrictMode observer churn and failures stay silent.
+ */
+export const useDetectOrganizationBrand = (domain: string, enabled: boolean) =>
+    useQuery<OrganizationBrand, ApiError>({
+        queryKey: ['organization_brand_detect', domain],
+        queryFn: () => fetchOrganizationBrand({ domain }),
+        enabled: enabled && domain.length > 0,
+        retry: false,
+        staleTime: Infinity,
+        refetchOnWindowFocus: false,
+    });
 
 const saveOrganizationBrand = async (data: SaveOrganizationBrandRequest) =>
     lightdashApi<OrganizationBrand | null>({

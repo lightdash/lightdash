@@ -29,7 +29,7 @@ import LightdashLogo from '../components/LightdashLogo/LightdashLogo';
 import PageSpinner from '../components/PageSpinner';
 import { jobTitles } from '../components/UserCompletionModal/jobTitles';
 import {
-    useFetchOrganizationBrand,
+    useDetectOrganizationBrand,
     useSaveOrganizationBrand,
 } from '../hooks/organization/useOrganizationBrand';
 import { type UserWithAbility } from '../hooks/user/useUser';
@@ -120,43 +120,30 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
         ),
     });
 
-    const brandFetch = useFetchOrganizationBrand({ showErrorToast: false });
+    const brandDetection = useDetectOrganizationBrand(
+        emailDomain,
+        health.hasBrandfetch && canEnterOrganizationName && isCompanyDomain,
+    );
     const saveBrand = useSaveOrganizationBrand();
     const completeMutation = useUserCompleteMutation();
 
     const { setValues } = form;
-    const hasFetchedBrand = useRef(false);
+    const hasAppliedDetectedBrand = useRef(false);
 
     useEffect(() => {
-        if (hasFetchedBrand.current) return;
-        if (!health.hasBrandfetch) return;
-        if (!canEnterOrganizationName || !isCompanyDomain) return;
-        hasFetchedBrand.current = true;
-        brandFetch.mutate(
-            { domain: emailDomain },
-            {
-                onSuccess: (brand) => {
-                    const detectedColors = brandColorsSorted(brand.colors);
-                    setValues((current) => ({
-                        ...(current.organizationName === '' && brand.name
-                            ? { organizationName: brand.name }
-                            : {}),
-                        ...(current.selectedColor === DEFAULT_COLOR &&
-                        detectedColors[0]
-                            ? { selectedColor: detectedColors[0] }
-                            : {}),
-                    }));
-                },
-            },
-        );
-    }, [
-        brandFetch,
-        canEnterOrganizationName,
-        emailDomain,
-        health.hasBrandfetch,
-        isCompanyDomain,
-        setValues,
-    ]);
+        const brand = brandDetection.data;
+        if (!brand || hasAppliedDetectedBrand.current) return;
+        hasAppliedDetectedBrand.current = true;
+        const detected = brandColorsSorted(brand.colors);
+        setValues((current) => ({
+            ...(current.organizationName === '' && brand.name
+                ? { organizationName: brand.name }
+                : {}),
+            ...(current.selectedColor === DEFAULT_COLOR && detected[0]
+                ? { selectedColor: detected[0] }
+                : {}),
+        }));
+    }, [brandDetection.data, setValues]);
 
     useEffect(() => {
         if (completeMutation.isSuccess) {
@@ -164,7 +151,7 @@ const OrganizationSetupContent: FC<OrganizationSetupContentProps> = ({
         }
     }, [completeMutation.isSuccess, navigate]);
 
-    const detectedBrand = brandFetch.data ?? null;
+    const detectedBrand = brandDetection.data ?? null;
     const detectedColors = detectedBrand
         ? brandColorsSorted(detectedBrand.colors)
         : [];
