@@ -7,7 +7,7 @@ import {
     Button,
     CopyButton,
     Group,
-    Select,
+    PasswordInput,
     Stack,
     Switch,
     Tabs,
@@ -54,39 +54,39 @@ const maskToken = (token: string) => {
     return `${token.slice(0, 6)}${'•'.repeat(12)}${token.slice(-4)}`;
 };
 
-const CopyIconButton: FC<{ value: string }> = ({ value }) => (
-    <CopyButton value={value} timeout={2000}>
-        {({ copied, copy }) => (
-            <Tooltip
-                label={copied ? 'Copied' : 'Copy'}
-                withArrow
-                position="left"
-            >
-                <ActionIcon
-                    color={copied ? 'teal' : 'gray'}
-                    variant="subtle"
-                    onClick={copy}
+const ConnectionChip: FC<{ label: string; value: string; span?: boolean }> = ({
+    label,
+    value,
+    span = false,
+}) => (
+    <Box
+        className={`${classes.chip}${
+            span ? ` ${classes.chipSpan2}` : ''
+        } sentry-block ph-no-capture`}
+    >
+        <Box className={classes.chipText}>
+            <Text className={classes.chipLabel}>{label}</Text>
+            <Text className={classes.chipValue} title={value}>
+                {value}
+            </Text>
+        </Box>
+        <CopyButton value={value} timeout={2000}>
+            {({ copied, copy }) => (
+                <Tooltip
+                    label={copied ? 'Copied' : 'Copy'}
+                    withArrow
+                    position="left"
                 >
-                    <MantineIcon icon={copied ? IconCheck : IconCopy} />
-                </ActionIcon>
-            </Tooltip>
-        )}
-    </CopyButton>
-);
-
-const CopyableField: FC<{
-    label: string;
-    value: string;
-    description?: string;
-}> = ({ label, value, description }) => (
-    <TextInput
-        label={label}
-        description={description}
-        readOnly
-        value={value}
-        className="sentry-block ph-no-capture"
-        rightSection={<CopyIconButton value={value} />}
-    />
+                    <ActionIcon variant="default" size="sm" onClick={copy}>
+                        <MantineIcon
+                            icon={copied ? IconCheck : IconCopy}
+                            size="sm"
+                        />
+                    </ActionIcon>
+                </Tooltip>
+            )}
+        </CopyButton>
+    </Box>
 );
 
 const Step: FC<{
@@ -260,7 +260,7 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
             )}
 
             {isEnabled && isOrgAdmin && (
-                <SettingsCard>
+                <SettingsCard p="lg">
                     <Stack gap="lg">
                         <Callout variant="info" title="Before you connect">
                             Only simple <code>SELECT</code> queries against a
@@ -269,192 +269,197 @@ const SemanticLayerConnectionPanel: FC<Props> = ({ projectUuid }) => {
                             so clients must use <code>sslmode=disable</code>.
                         </Callout>
 
-                        <Step
-                            index={1}
-                            active
-                            title="Token"
-                            description="Paste an existing Lightdash token or generate a new one for this integration. You can use a service account or personal access token."
-                        >
-                            {generated ? (
-                                <Stack gap="xs">
-                                    <Callout variant="success" hideIcon>
-                                        <Group
-                                            justify="space-between"
-                                            wrap="nowrap"
-                                            align="flex-start"
-                                        >
-                                            <Group gap="xs" wrap="nowrap">
-                                                <MantineIcon
-                                                    icon={IconCheck}
-                                                    color="green"
-                                                />
-                                                <Stack gap={0}>
-                                                    <Text fz="sm" fw={600}>
-                                                        Token added as your
-                                                        password
-                                                    </Text>
-                                                    <Text c="ldGray.6" fz="xs">
-                                                        Generated for{' '}
-                                                        {generated.description}{' '}
-                                                        ·{' '}
-                                                        {generated.expiresLabel}
-                                                    </Text>
-                                                </Stack>
-                                            </Group>
-                                            <Anchor
-                                                component="button"
-                                                type="button"
-                                                fz="sm"
-                                                fw={500}
-                                                onClick={handleReplace}
-                                                style={{ flexShrink: 0 }}
+                        <Box>
+                            <Step
+                                index={1}
+                                active
+                                title="Token"
+                                description="Paste an existing Lightdash token or generate a new one for this integration. You can use a service account or personal access token."
+                            >
+                                {generated ? (
+                                    <Stack gap="xs">
+                                        <Callout variant="success" hideIcon>
+                                            <Group
+                                                justify="space-between"
+                                                wrap="nowrap"
+                                                align="flex-start"
                                             >
-                                                Replace
-                                            </Anchor>
-                                        </Group>
-                                    </Callout>
-                                    <Group gap="xs" wrap="nowrap">
-                                        <TextInput
-                                            readOnly
-                                            style={{ flex: 1 }}
-                                            className="sentry-block ph-no-capture"
-                                            value={maskToken(generated.token)}
-                                        />
-                                        <CopyButton
-                                            value={generated.token}
-                                            timeout={2000}
-                                        >
-                                            {({ copied, copy }) => (
-                                                <Button
-                                                    variant="default"
-                                                    leftSection={
-                                                        <MantineIcon
-                                                            icon={
-                                                                copied
-                                                                    ? IconCheck
-                                                                    : IconCopy
+                                                <Group gap="xs" wrap="nowrap">
+                                                    <MantineIcon
+                                                        icon={IconCheck}
+                                                        color="green"
+                                                    />
+                                                    <Stack gap={0}>
+                                                        <Text fz="sm" fw={600}>
+                                                            Token added as your
+                                                            password
+                                                        </Text>
+                                                        <Text
+                                                            c="ldGray.6"
+                                                            fz="xs"
+                                                        >
+                                                            Generated for{' '}
+                                                            {
+                                                                generated.description
+                                                            }{' '}
+                                                            ·{' '}
+                                                            {
+                                                                generated.expiresLabel
                                                             }
-                                                        />
-                                                    }
-                                                    onClick={copy}
+                                                        </Text>
+                                                    </Stack>
+                                                </Group>
+                                                <Anchor
+                                                    component="button"
+                                                    type="button"
+                                                    fz="sm"
+                                                    fw={500}
+                                                    onClick={handleReplace}
+                                                    style={{ flexShrink: 0 }}
                                                 >
-                                                    {copied ? 'Copied' : 'Copy'}
-                                                </Button>
-                                            )}
-                                        </CopyButton>
-                                    </Group>
-                                    <Text c="ldGray.6" fz="xs">
-                                        Remember to save your token — you
-                                        can&apos;t access it again.
-                                    </Text>
-                                </Stack>
-                            ) : (
-                                <Stack gap="xs">
-                                    <TextInput
-                                        placeholder="ldsvc_… or ldpat_…"
-                                        className="sentry-block ph-no-capture"
-                                        value={manualToken}
-                                        onChange={(event) =>
-                                            setManualToken(
-                                                event.currentTarget.value.trim(),
-                                            )
-                                        }
-                                        rightSection={
-                                            manualToken ? (
-                                                <CopyIconButton
-                                                    value={manualToken}
-                                                />
-                                            ) : undefined
-                                        }
-                                    />
-                                    {isServiceAccountsEnabled ? (
-                                        <Text c="ldGray.6" fz="sm">
-                                            Don&apos;t have a token?{' '}
-                                            <Anchor
-                                                component="button"
-                                                type="button"
-                                                fw={500}
-                                                onClick={() =>
-                                                    setModalOpen(true)
-                                                }
+                                                    Replace
+                                                </Anchor>
+                                            </Group>
+                                        </Callout>
+                                        <Group gap="xs" wrap="nowrap">
+                                            <TextInput
+                                                readOnly
+                                                style={{ flex: 1 }}
+                                                className="sentry-block ph-no-capture"
+                                                value={maskToken(
+                                                    generated.token,
+                                                )}
+                                            />
+                                            <CopyButton
+                                                value={generated.token}
+                                                timeout={2000}
                                             >
-                                                Generate a new one
-                                            </Anchor>
+                                                {({ copied, copy }) => (
+                                                    <Button
+                                                        variant="default"
+                                                        leftSection={
+                                                            <MantineIcon
+                                                                icon={
+                                                                    copied
+                                                                        ? IconCheck
+                                                                        : IconCopy
+                                                                }
+                                                            />
+                                                        }
+                                                        onClick={copy}
+                                                    >
+                                                        {copied
+                                                            ? 'Copied'
+                                                            : 'Copy'}
+                                                    </Button>
+                                                )}
+                                            </CopyButton>
+                                        </Group>
+                                        <Text c="ldGray.6" fz="xs">
+                                            Remember to save your token — you
+                                            can&apos;t access it again.
                                         </Text>
-                                    ) : (
-                                        <Text c="ldGray.6" fz="sm">
-                                            Paste a personal access token from
-                                            your account settings.
-                                        </Text>
-                                    )}
-                                </Stack>
-                            )}
-                        </Step>
+                                    </Stack>
+                                ) : (
+                                    <Stack gap="xs">
+                                        <PasswordInput
+                                            placeholder="ldsvc_… or ldpat_…"
+                                            className="sentry-block ph-no-capture"
+                                            value={manualToken}
+                                            onChange={(event) =>
+                                                setManualToken(
+                                                    event.currentTarget.value.trim(),
+                                                )
+                                            }
+                                        />
+                                        {isServiceAccountsEnabled ? (
+                                            <Text c="ldGray.6" fz="sm">
+                                                Don&apos;t have a token?{' '}
+                                                <Anchor
+                                                    component="button"
+                                                    type="button"
+                                                    fw={500}
+                                                    onClick={() =>
+                                                        setModalOpen(true)
+                                                    }
+                                                >
+                                                    Generate a new one
+                                                </Anchor>
+                                            </Text>
+                                        ) : (
+                                            <Text c="ldGray.6" fz="sm">
+                                                Paste a personal access token
+                                                from your account settings.
+                                            </Text>
+                                        )}
+                                    </Stack>
+                                )}
+                            </Step>
 
-                        <Step
-                            index={2}
-                            active={false}
-                            title="Connection details"
-                        >
-                            <Stack gap="sm">
-                                <CopyableField label="Host" value={host} />
-                                <Group grow align="flex-start" wrap="nowrap">
-                                    <CopyableField
+                            <Step
+                                index={2}
+                                active={false}
+                                title="Connection details"
+                            >
+                                <Box className={classes.chipGrid}>
+                                    <ConnectionChip
+                                        label="Host"
+                                        value={host}
+                                        span
+                                    />
+                                    <ConnectionChip
                                         label="Port"
                                         value={portString}
                                     />
-                                    <CopyableField
+                                    <ConnectionChip
                                         label="User"
                                         value={DEFAULT_USER}
                                     />
-                                </Group>
-                                <CopyableField
-                                    label="Database"
-                                    description="Use the project UUID (unambiguous)."
-                                    value={projectUuid}
-                                />
-                                <Select
-                                    label="SSL mode"
-                                    description="SSL support is coming soon."
-                                    data={[
-                                        { value: 'disable', label: 'disable' },
-                                    ]}
-                                    value="disable"
-                                    disabled
-                                />
-                            </Stack>
-                        </Step>
+                                    <ConnectionChip
+                                        label="Database"
+                                        value={projectUuid}
+                                        span
+                                    />
+                                    <ConnectionChip
+                                        label="SSL mode"
+                                        value="disable"
+                                    />
+                                </Box>
+                            </Step>
 
-                        <Step
-                            index={3}
-                            active={false}
-                            title="Connect your client"
-                            description="Pick your tool and copy the ready-made string."
-                        >
-                            <Stack gap="sm">
-                                <Tabs
-                                    value={activeSnippet}
-                                    onChange={(value) =>
-                                        setActiveSnippet(value as SnippetKey)
-                                    }
-                                >
-                                    <Tabs.List>
-                                        {SNIPPET_TABS.map((tab) => (
-                                            <Tabs.Tab
-                                                key={tab.value}
-                                                value={tab.value}
-                                            >
-                                                {tab.label}
-                                            </Tabs.Tab>
-                                        ))}
-                                    </Tabs.List>
-                                </Tabs>
-                                <CodeBlock
-                                    displayValue={displaySnippet}
-                                    copyValue={snippets[activeSnippet]}
-                                />
-                            </Stack>
-                        </Step>
+                            <Step
+                                index={3}
+                                active={false}
+                                title="Connect your client"
+                                description="Pick your tool and copy the ready-made string."
+                            >
+                                <Stack gap="sm">
+                                    <Tabs
+                                        value={activeSnippet}
+                                        onChange={(value) =>
+                                            setActiveSnippet(
+                                                value as SnippetKey,
+                                            )
+                                        }
+                                    >
+                                        <Tabs.List>
+                                            {SNIPPET_TABS.map((tab) => (
+                                                <Tabs.Tab
+                                                    key={tab.value}
+                                                    value={tab.value}
+                                                >
+                                                    {tab.label}
+                                                </Tabs.Tab>
+                                            ))}
+                                        </Tabs.List>
+                                    </Tabs>
+                                    <CodeBlock
+                                        displayValue={displaySnippet}
+                                        copyValue={snippets[activeSnippet]}
+                                    />
+                                </Stack>
+                            </Step>
+                        </Box>
                     </Stack>
                 </SettingsCard>
             )}

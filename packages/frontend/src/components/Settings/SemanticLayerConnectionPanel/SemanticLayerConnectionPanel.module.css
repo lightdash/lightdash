@@ -5,15 +5,15 @@
 }
 
 .step:not(:last-child) .content {
-    padding-bottom: var(--mantine-spacing-xl);
+    padding-bottom: var(--mantine-spacing-lg);
 }
 
 /* Connecting line runs down the centre of the bullet column, behind bullets. */
 .step:not(:last-child)::before {
     content: '';
     position: absolute;
-    top: 28px;
-    bottom: 0;
+    top: 34px;
+    bottom: 6px;
     left: 14px;
     width: 2px;
     transform: translateX(-50%);
@@ -71,4 +71,48 @@
 .codeMask {
     opacity: 0.55;
     letter-spacing: 1px;
+}
+
+/* Compact read-only info chips for the connection details step. */
+.chipGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--mantine-spacing-xs);
+}
+
+.chipSpan2 {
+    grid-column: 1 / -1;
+}
+
+.chip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--mantine-spacing-xs);
+    min-width: 0;
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    padding: 8px 10px;
+}
+
+.chipText {
+    min-width: 0;
+}
+
+.chipLabel {
+    font-size: 10.5px;
+    font-weight: 600;
+    line-height: 1.4;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--mantine-color-dimmed);
+}
+
+.chipValue {
+    font-family: var(--mantine-font-family-monospace);
+    font-size: 12.5px;
+    color: var(--mantine-color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
