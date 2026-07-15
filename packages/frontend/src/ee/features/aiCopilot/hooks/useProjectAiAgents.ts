@@ -166,6 +166,7 @@ export const useProjectCreateAiAgentMutation = (
     projectUuid: string,
     options?: {
         skipNavigation?: boolean;
+        skipSuccessToast?: boolean;
     },
 ) => {
     const navigate = useNavigate();
@@ -179,9 +180,11 @@ export const useProjectCreateAiAgentMutation = (
     >({
         mutationFn: (data) => createProjectAgent(projectUuid, data),
         onSuccess: (result) => {
-            showToastSuccess({
-                title: 'AI agent created successfully',
-            });
+            if (!options?.skipSuccessToast) {
+                showToastSuccess({
+                    title: 'AI agent created successfully',
+                });
+            }
             void queryClient.invalidateQueries({
                 queryKey: [PROJECT_AI_AGENTS_KEY, projectUuid],
             });

@@ -58,7 +58,7 @@ const OnboardingAgentContent: FC = () => {
 
     const { mutateAsync: createAgent } = useProjectCreateAiAgentMutation(
         projectUuid ?? '',
-        { skipNavigation: true },
+        { skipNavigation: true, skipSuccessToast: true },
     );
     const { mutateAsync: createAgentThread } = useCreateAgentThreadMutation(
         projectUuid ?? '',
