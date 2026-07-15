@@ -101,7 +101,7 @@ const CollectionPickerModal: FC<{
                                     {content.space?.name}
                                 </Text>
                             </Box>
-                            <MantineIcon icon={IconPlus} color="gray" />
+                            <MantineIcon icon={IconPlus} color="ldGray.6" />
                         </Group>
                     ))}
                     {results.length === 0 && !isFetching && (

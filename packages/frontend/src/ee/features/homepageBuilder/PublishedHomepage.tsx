@@ -1,7 +1,12 @@
-import { type HomepageBlock, type HomepageConfig } from '@lightdash/common';
+import {
+    type HomepageBlock,
+    type HomepageConfig,
+    type HomepageRow,
+} from '@lightdash/common';
 import { Box, Group, Paper, Stack, Text } from '@mantine-8/core';
-import { type FC } from 'react';
+import { type FC, type ReactNode } from 'react';
 import { getBlockDefinition } from './blocks/registry';
+import layout from './homepageLayout.module.css';
 import classes from './PublishedHomepage.module.css';
 
 const PERSONAL_BLOCK_TYPES: HomepageBlock['type'][] = ['favorites', 'recent'];
@@ -9,6 +14,9 @@ const PERSONAL_BLOCK_TYPES: HomepageBlock['type'][] = ['favorites', 'recent'];
 // Composer-style blocks read better narrow and centered, like day-0's own
 // hero, instead of stretching to the full row width other blocks use.
 const NARROW_BLOCK_TYPES: HomepageBlock['type'][] = ['ask-ai-hero'];
+
+// A leading hero block gets the vertically-centred day-0 treatment.
+const HERO_BLOCK_TYPES: HomepageBlock['type'][] = ['ask-ai-hero'];
 
 // Unknown block types render nothing so newer configs degrade gracefully
 const BlockRenderer: FC<{
@@ -42,20 +50,13 @@ const BlockRenderer: FC<{
     );
 };
 
-type Props = {
-    config: HomepageConfig;
+const HomepageRows: FC<{
+    rows: HomepageRow[];
     projectUuid: string;
-    /** Render personal blocks as placeholders (admin view-as preview) */
-    personalPlaceholders?: boolean;
-};
-
-export const PublishedHomepage: FC<Props> = ({
-    config,
-    projectUuid,
-    personalPlaceholders = false,
-}) => (
-    <Stack gap={28} className={classes.container}>
-        {config.rows.map((row) => (
+    personalPlaceholders: boolean;
+}> = ({ rows, projectUuid, personalPlaceholders }) => (
+    <Stack gap={28}>
+        {rows.map((row) => (
             <Group key={row.id} gap={14} align="stretch" wrap="nowrap">
                 {row.blocks.map((block) => (
                     <Box key={block.id} flex={1} miw={0}>
@@ -70,3 +71,71 @@ export const PublishedHomepage: FC<Props> = ({
         ))}
     </Stack>
 );
+
+type Props = {
+    config: HomepageConfig;
+    projectUuid: string;
+    /** Render personal blocks as placeholders (admin view-as preview) */
+    personalPlaceholders?: boolean;
+    /** Content rendered below the centred hero, above the remaining rows
+     * (e.g. the personal favorites strip). */
+    secondaryTop?: ReactNode;
+};
+
+export const PublishedHomepage: FC<Props> = ({
+    config,
+    projectUuid,
+    personalPlaceholders = false,
+    secondaryTop = null,
+}) => {
+    const [firstRow, ...restRows] = config.rows;
+    const leadingHero =
+        firstRow &&
+        firstRow.blocks.length === 1 &&
+        HERO_BLOCK_TYPES.includes(firstRow.blocks[0].type)
+            ? firstRow.blocks[0]
+            : null;
+
+    if (leadingHero) {
+        return (
+            <div className={layout.page}>
+                <div className={layout.heroSection}>
+                    <div className={layout.hero}>
+                        <BlockRenderer
+                            block={leadingHero}
+                            projectUuid={projectUuid}
+                            personalPlaceholders={personalPlaceholders}
+                        />
+                    </div>
+                </div>
+                {(secondaryTop || restRows.length > 0) && (
+                    <div className={layout.secondary}>
+                        <Stack gap={28}>
+                            {secondaryTop}
+                            <HomepageRows
+                                rows={restRows}
+                                projectUuid={projectUuid}
+                                personalPlaceholders={personalPlaceholders}
+                            />
+                        </Stack>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    return (
+        <div className={layout.page}>
+            <div className={layout.secondary}>
+                <Stack gap={28}>
+                    {secondaryTop}
+                    <HomepageRows
+                        rows={config.rows}
+                        projectUuid={projectUuid}
+                        personalPlaceholders={personalPlaceholders}
+                    />
+                </Stack>
+            </div>
+        </div>
+    );
+};

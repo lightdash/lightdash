@@ -37,6 +37,8 @@ import { type BlockComponentProps, type BuildComponentProps } from './types';
 
 const KPI_TIME_FRAME = TimeFrames.MONTH;
 
+const MAX_METRICS = 4;
+
 const MetricKpiCard: FC<{
     metricRef: HomepageMetricRef;
     projectUuid: string;
@@ -134,8 +136,9 @@ const MetricsPickerModal: FC<{
     onClose: () => void;
     projectUuid: string;
     selected: HomepageMetricRef[];
+    atLimit: boolean;
     onAdd: (metricRef: HomepageMetricRef) => void;
-}> = ({ opened, onClose, projectUuid, selected, onAdd }) => {
+}> = ({ opened, onClose, projectUuid, selected, atLimit, onAdd }) => {
     const [search, setSearch] = useState('');
     const [debouncedSearch] = useDebouncedValue(search, 300);
     const { data, isFetching } = useMetricsCatalog({
@@ -167,36 +170,44 @@ const MetricsPickerModal: FC<{
                     value={search}
                     onChange={(e) => setSearch(e.currentTarget.value)}
                     rightSection={isFetching ? <Loader size="xs" /> : null}
+                    disabled={atLimit}
                 />
+                {atLimit && (
+                    <Text size="xs" c="dimmed">
+                        You can show up to {MAX_METRICS} metrics. Remove one to
+                        add another.
+                    </Text>
+                )}
                 <Stack gap={4} mah={360} className={classes.pickerScrollList}>
-                    {results.map((metric) => (
-                        <Group
-                            key={metric.catalogSearchUuid}
-                            gap="sm"
-                            wrap="nowrap"
-                            p="xs"
-                            className={classes.pickerRow}
-                            onClick={() =>
-                                onAdd({
-                                    tableName: metric.tableName,
-                                    metricName: metric.name,
-                                    label: metric.label ?? metric.name,
-                                })
-                            }
-                        >
-                            <MantineIcon icon={IconHash} color="gray" />
-                            <Box flex={1} miw={0}>
-                                <Text size="sm" fw={500} truncate>
-                                    {metric.label ?? metric.name}
-                                </Text>
-                                <Text size="xs" c="dimmed">
-                                    {metric.tableLabel ?? metric.tableName}
-                                </Text>
-                            </Box>
-                            <MantineIcon icon={IconPlus} color="gray" />
-                        </Group>
-                    ))}
-                    {results.length === 0 && !isFetching && (
+                    {!atLimit &&
+                        results.map((metric) => (
+                            <Group
+                                key={metric.catalogSearchUuid}
+                                gap="sm"
+                                wrap="nowrap"
+                                p="xs"
+                                className={classes.pickerRow}
+                                onClick={() =>
+                                    onAdd({
+                                        tableName: metric.tableName,
+                                        metricName: metric.name,
+                                        label: metric.label ?? metric.name,
+                                    })
+                                }
+                            >
+                                <MantineIcon icon={IconHash} color="ldGray.6" />
+                                <Box flex={1} miw={0}>
+                                    <Text size="sm" fw={500} truncate>
+                                        {metric.label ?? metric.name}
+                                    </Text>
+                                    <Text size="xs" c="dimmed">
+                                        {metric.tableLabel ?? metric.tableName}
+                                    </Text>
+                                </Box>
+                                <MantineIcon icon={IconPlus} color="ldGray.6" />
+                            </Group>
+                        ))}
+                    {!atLimit && results.length === 0 && !isFetching && (
                         <Text size="sm" c="dimmed" p="sm">
                             No matching metrics.
                         </Text>
@@ -216,11 +227,7 @@ export const MetricsBlockView: FC<BlockComponentProps> = ({
     }
     return (
         <Stack gap={0}>
-            <BlockHeader
-                icon={IconChartDots}
-                iconColor="light-dark(#de7f0b, #e08a20)"
-                title={block.config.title}
-            />
+            <BlockHeader icon={IconChartDots} title={block.config.title} />
             <SimpleGrid cols={{ base: 1, sm: 2, md: 4 }} spacing={12}>
                 {block.config.items.map((metricRef) => (
                     <MetricKpiCard
@@ -241,6 +248,8 @@ export const MetricsBlockBuild: FC<BuildComponentProps> = ({
 }) => {
     const [isPickerOpen, setIsPickerOpen] = useState(false);
     if (block.type !== 'metrics') return null;
+
+    const atLimit = block.config.items.length >= MAX_METRICS;
 
     return (
         <Stack gap="xs">
@@ -277,7 +286,7 @@ export const MetricsBlockBuild: FC<BuildComponentProps> = ({
                             </Box>
                             <ActionIcon
                                 variant="subtle"
-                                color="gray"
+                                color="ldGray.6"
                                 size="sm"
                                 aria-label={`Remove metric ${metricRef.label}`}
                                 onClick={() =>
@@ -306,25 +315,30 @@ export const MetricsBlockBuild: FC<BuildComponentProps> = ({
                 variant="default"
                 size="xs"
                 w="fit-content"
+                disabled={atLimit}
                 leftSection={<MantineIcon icon={IconHash} />}
                 onClick={() => setIsPickerOpen(true)}
             >
-                Choose metrics from catalog…
+                {atLimit
+                    ? `Metric limit reached (${MAX_METRICS})`
+                    : 'Choose metrics from catalog…'}
             </Button>
             <MetricsPickerModal
                 opened={isPickerOpen}
                 onClose={() => setIsPickerOpen(false)}
                 projectUuid={projectUuid}
                 selected={block.config.items}
-                onAdd={(metricRef) =>
+                atLimit={atLimit}
+                onAdd={(metricRef) => {
+                    if (block.config.items.length >= MAX_METRICS) return;
                     onChange({
                         ...block,
                         config: {
                             ...block.config,
                             items: [...block.config.items, metricRef],
                         },
-                    })
-                }
+                    });
+                }}
             />
         </Stack>
     );
